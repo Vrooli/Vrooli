@@ -33,12 +33,26 @@ export interface AddBeforeLinkDialogProps {
     zIndex: number;
 }
 
-export interface  EndNodeDialogProps {
+export interface EndNodeDialogProps {
     handleClose: (updatedNode?: NodeEnd) => void;
     isEditing: boolean;
     isOpen: boolean;
     node: NodeEnd;
     language: string;
+    zIndex: number;
+}
+
+export interface GraphActionsProps {
+    canRedo: boolean;
+    canUndo: boolean;
+    handleCleanUpGraph: () => void;
+    handleNodeDelete: (nodeId: string) => void;
+    handleOpenLinkDialog: () => void;
+    handleRedo: () => void;
+    handleUndo: () => void;
+    isEditing: boolean;
+    language: string;
+    nodesOffGraph: Node[];
     zIndex: number;
 }
 

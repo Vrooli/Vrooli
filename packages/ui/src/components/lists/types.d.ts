@@ -1,15 +1,19 @@
-import { StarFor, VoteFor } from '@shared/consts';
+import { VoteFor } from '@shared/consts';
 import { SearchType } from 'components/dialogs';
 import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Session, Tag } from 'types';
 
-export interface CommentButtonProps {
-    commentsCount: number | null; // Defaults to 0
-    object: { id: string, handle?: string | null, __typename: string } | null;
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
-}
+export type ObjectListItemType = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListUser;
 
-export interface ObjectListItemProps<DataType> {
-    data: DataType | null;
+export interface ObjectListItemProps<T extends ObjectListItemType> {
+    /**
+     * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
+     * If the callback returns false, the list item will not be selected.
+     * 
+     * NOTE: Passes back full data so we can display 
+     * known properties of the object, while waiting for the full data to be fetched.
+     */
+    beforeNavigation?: (item: NavigableObject) => boolean | void,
+    data: T | null;
     /**
      * True if role (admin, owner, etc.) should be hidden
      */
@@ -23,23 +27,8 @@ export interface ObjectListItemProps<DataType> {
      */
     loading: boolean;
     session: Session;
-    /**
-     * onClick handler. Passes back full data so we can display 
-     * known properties of the object, while waiting for the full data to be fetched.
-     */
-    onClick?: (e: React.MouseEvent<any>, data: DataType) => any;
-    /**
-     * Tooltip text to display when hovering over the item
-     */
-    tooltip?: string | null | undefined;
+    zIndex: number;
 }
-
-export type OrganizationListItemProps = ObjectListItemProps<ListOrganization>;
-export type ProjectListItemProps = ObjectListItemProps<ListProject>;
-export type RoutineListItemProps = ObjectListItemProps<ListRoutine>;
-export type RunListItemProps = ObjectListItemProps<ListRun>;
-export type StandardListItemProps = ObjectListItemProps<ListStandard>;
-export type UserListItemProps = ObjectListItemProps<ListUser>;
 
 export interface SortMenuProps {
     sortOptions: any[];
@@ -58,12 +47,6 @@ export interface DateRangeMenuProps {
     onSubmit: (after?: Date | undefined, before?: Date | undefined) => void;
 }
 
-export interface ReportButtonProps {
-    reportsCount: number | null; // Defaults to 0
-    object: { id: string, __typename: string } | null;
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
-}
-
 /**
  * Return type for a SearchList generator function
  */
@@ -73,21 +56,25 @@ export interface SearchListGenerator {
     placeholder: string;
     noResultsText: string;
     where: any;
-    onSearchSelect: (objectData: any) => void;
 }
 
 export interface SearchListProps {
+    /**
+     * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
+     * If the callback returns false, the list item will not be selected.
+     */
+    beforeNavigation?: (item: any) => boolean | void,
     canSearch?: boolean;
     handleAdd?: (event?: any) => void; // Not shown if not passed
     /**
      * True if roles (admin, owner, etc.) should be hidden in list items
      */
     hideRoles?: boolean;
+    id: string;
     itemKeyPrefix: string;
     searchPlaceholder?: string;
     take?: number; // Number of items to fetch per page
     searchType: SearchType;
-    onObjectSelect: (objectData: any) => void; // Passes all object data to the parent, so the known information can be displayed while more details are queried
     onScrolledFar?: () => void; // Called when scrolled far enough to prompt the user to create a new object
     where?: any; // Additional where clause to pass to the query
     noResultsText?: string; // Text to display when no results are found
@@ -103,17 +90,6 @@ export interface SearchQueryVariablesInput<SortBy> {
     take?: number | null;
 }
 
-export interface StarButtonProps {
-    session: Session;
-    isStar?: boolean | null; // Defaults to false
-    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
-    stars?: number | null; // Defaults to 0
-    objectId: string;
-    starFor: StarFor;
-    onChange?: (isStar: boolean) => void;
-    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
-}
-
 export interface StatsListProps {
     data: Array<any>;
 }
@@ -127,6 +103,7 @@ export interface TagListProps {
 
 export interface UpvoteDownvoteProps {
     direction?: 'row' | 'column';
+    disabled?: boolean;
     session: Session;
     score?: number; // Net score - can be negative
     isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote

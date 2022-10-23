@@ -24,9 +24,7 @@ import { TagShape, updateArray } from 'utils'
 import { InputType } from '@shared/consts';
 import { isObject } from '@shared/utils';
 import { Session } from 'types'
-import {
-    ContentCopy as CopyIcon,
-} from "@mui/icons-material";
+import { CopyIcon } from '@shared/icons'
 
 /**
  * Function signature shared between all input components
@@ -179,8 +177,8 @@ export const toLanguageInput = ({
             handleAdd={addLanguage}
             handleDelete={deleteLanguage}
             handleCurrent={() => { }} //TODO
-            selectedLanguages={languages}
             session={session}
+            translations={languages.map(language => ({ language }))}
             zIndex={zIndex}
         />
     )
@@ -223,7 +221,12 @@ export const toRadio = ({
 }: InputGeneratorProps): React.ReactElement => {
     const props = fieldData.props as RadioProps;
     return (
-        <FormControl component="fieldset" disabled={disabled} key={`field-${fieldData.fieldName}-${index}`}>
+        <FormControl
+            component="fieldset"
+            disabled={disabled}
+            key={`field-${fieldData.fieldName}-${index}`}
+            sx={{ paddingLeft: 1 }}
+        >
             <FormLabel component="legend">{fieldData.label}</FormLabel>
             <RadioGroup
                 aria-label={fieldData.fieldName}
@@ -353,23 +356,13 @@ export const toTagSelector = ({
     session,
 }: InputGeneratorProps): React.ReactElement => {
     const tags = formik.values[fieldData.fieldName] as TagShape[];
-    const addTag = (tag: TagShape) => {
-        formik.setFieldValue(fieldData.fieldName, [...tags, tag]);
-    };
-    const removeTag = (tag: TagShape) => {
-        formik.setFieldValue(fieldData.fieldName, tags.filter((t) => t.tag !== tag.tag));
-    };
-    const clearTags = () => {
-        formik.setFieldValue(fieldData.fieldName, []);
-    };
+    const handleTagsUpdate = (updatedList: TagShape[]) => { formik.setFieldValue(fieldData.fieldName, updatedList) };
     return (
         <TagSelector
             disabled={disabled}
+            handleTagsUpdate={handleTagsUpdate}
             session={session}
             tags={tags}
-            onTagAdd={addTag}
-            onTagRemove={removeTag}
-            onTagsClear={clearTags}
         />
     );
 }
@@ -492,14 +485,15 @@ export const generateInputWithLabel = ({
     zIndex,
 }: GenerateInputWithLabelProps): React.ReactElement | null => {
     return (<Box key={index} sx={{
-        padding: 1,
+        paddingTop: 1,
+        paddingBottom: 1,
         borderRadius: 1,
     }}>
         {/* Label, help button, and copy iput icon */}
         <Stack direction="row" spacing={0} sx={{ alignItems: 'center' }}>
             <Tooltip title="Copy to clipboard">
                 <IconButton onClick={() => copyInput && copyInput(fieldData.fieldName)}>
-                    <CopyIcon />
+                    <CopyIcon fill={textPrimary} />
                 </IconButton>
             </Tooltip>
             <Typography variant="h6" sx={{ color: textPrimary }}>{fieldData.label ?? (index && `Input ${index + 1}`) ?? 'Input'}</Typography>

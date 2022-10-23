@@ -1,14 +1,17 @@
-import { Box, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo } from 'react';
 import { ThemeSwitchProps } from '../types';
 import { noSelect } from 'styles';
 import { PubSub } from 'utils';
 import { DarkModeIcon, LightModeIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
 export function ThemeSwitch({
+    showText = true,
     theme,
     onChange,
 }: ThemeSwitchProps) {
+    const { palette } = useTheme();
 
     const handleChange = useCallback(() => {
         const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -21,26 +24,25 @@ export function ThemeSwitch({
     const trackColor = useMemo(() => isDark ? '#2F3A45' : '#BFC7CF', [isDark]);
 
     return (
-        <Stack direction="row" spacing={1} justifyContent="center">
-            <Typography variant="h6" sx={{ ...noSelect }}>Theme:</Typography>
+        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+            {showText && <Typography variant="h6" sx={{ ...noSelect }}>Theme:</Typography>}
             <Box component="span" sx={{
                 display: 'inline-block',
                 position: 'relative',
                 width: '80px',
-                height: '36px',
+                height: '40px',
                 padding: '8px',
             }}>
                 {/* Track */}
                 <Box component="span" sx={{
-                    display: 'inline-block',
-                    margin: 'auto',
+                    display: 'flex',
                     backgroundColor: trackColor,
                     borderRadius: '16px',
                     width: '100%',
-                    height: '65%',
+                    height: '100%',
                 }}>
                     {/* Thumb */}
-                    <IconButton sx={{
+                    <ColorIconButton background={palette.secondary.main} sx={{
                         display: 'inline-flex',
                         width: '40px',
                         height: '40px',
@@ -48,20 +50,16 @@ export function ThemeSwitch({
                         top: 0,
                         transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
                         transform: `translateX(${isDark ? '24' : '0'}px)`,
-                        backgroundColor: (t) => t.palette.secondary.main,
-                        '&:hover': {
-                            backgroundColor: (t) => t.palette.secondary.main,
-                        },
                     }}>
-                        <Icon fill="white" />
-                    </IconButton>
+                        <Icon fill={palette.secondary.contrastText} />
+                    </ColorIconButton>
                 </Box>
                 {/* Input */}
                 <input
                     type="checkbox"
                     checked={isDark}
                     aria-label="user-organization-toggle"
-                    onClick={handleChange}
+                    onChange={handleChange}
                     style={{
                         position: 'absolute',
                         width: '100%',
@@ -74,7 +72,7 @@ export function ThemeSwitch({
                         cursor: 'pointer',
                     }} />
             </Box >
-            <Typography variant="h6" sx={{ ...noSelect }}>{isDark ? 'Dark' : 'Light'}</Typography>
+            {showText && <Typography variant="h6" sx={{ ...noSelect }}>{isDark ? 'Dark' : 'Light'}</Typography>}
         </Stack>
     )
 }

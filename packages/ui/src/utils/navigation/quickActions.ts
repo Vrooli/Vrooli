@@ -1,13 +1,26 @@
 import { APP_LINKS } from "@shared/consts";
-import { AutocompleteOption } from "types";
-import { DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
+import { SnackSeverity } from "components";
+import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
+import { profileUpdateMutation } from "graphql/mutation";
+import { documentNodeWrapper, errorToMessage } from "graphql/utils";
+import { ActionOption, Session, ShortcutOption } from "types";
+import { getCurrentUser } from "utils/authentication";
+import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
+import { PubSub } from "utils/pubsub";
 
 export interface ShortcutItem {
     label: string;
     link: string;
 }
+
+export interface ActionItem {
+    canPerform: (session: Session) => boolean;
+    id: string;
+    label: string;
+}
+
 /**
- * Shortcuts that can appear in the main search bar or command palette.
+ * Navigation shortcuts that can appear in the main search bar or command palette.
  */
 export const shortcuts: ShortcutItem[] = [
     {
@@ -60,7 +73,7 @@ export const shortcuts: ShortcutItem[] = [
     },
     {
         label: 'Search standards',
-        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Routines}`,
+        link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Standards}`,
     },
     {
         label: 'Search users',
@@ -135,9 +148,72 @@ export const shortcuts: ShortcutItem[] = [
         link: `${APP_LINKS.FAQ}`,
     },
 ]
-// Shape shortcuts to match AutoCompleteListItem format
-export const shortcutsItems: AutocompleteOption[] = shortcuts.map(({ label, link }) => ({
+
+/**
+ * Shape shortcuts to match AutoCompleteListItem format.
+ */
+export const shortcutsItems: ShortcutOption[] = shortcuts.map(({ label, link }) => ({
     __typename: "Shortcut",
     label,
     id: link,
 }))
+
+/**
+ * Action shortcuts that can appear in the main search bar or command palette. 
+ * Instead of taking you to a page, they perform an action (e.g. clear search history).
+ */
+export const actions: ActionItem[] = [
+    {
+        label: 'Clear search history',
+        id: 'clear-search-history',
+        canPerform: () => true,
+    },
+    {
+        label: 'Activate dark mode',
+        id: 'activate-dark-mode',
+        canPerform: (session: Session) => getCurrentUser(session).theme !== 'dark',
+    },
+    {
+        label: 'Activate light mode',
+        id: 'activate-light-mode',
+        canPerform: (session: Session) => getCurrentUser(session).theme !== 'light',
+    },
+]
+
+/**
+ * Shape actions to match AutoCompleteListItem format.
+ */
+export const actionsItems: ActionOption[] = actions.map(({ canPerform, id, label }) => ({
+    __typename: "Action",
+    canPerform,
+    id,
+    label,
+}))
+
+/**
+ * Maps action ids to their corresponding action. 
+ * Actions cannot be stored in the options themselves because localStorage cannot store functions.
+ */
+export const performAction = async (option: ActionOption, session: Session): Promise<void> => {
+    switch (option.id) {
+        case 'clear-search-history':
+            clearSearchHistory(session);
+            break;
+        case 'activate-dark-mode':
+            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
+                node: profileUpdateMutation,
+                input: { theme: 'dark' },
+                onSuccess: () => { PubSub.get().publishTheme('dark'); },
+                onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error }); }
+            })
+            break;
+        case 'activate-light-mode':
+            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
+                node: profileUpdateMutation,
+                input: { theme: 'light' },
+                onSuccess: () => { PubSub.get().publishTheme('light'); },
+                onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error }); }
+            })
+            break;
+    }
+}

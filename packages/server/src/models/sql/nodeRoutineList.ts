@@ -1,15 +1,16 @@
-import { Node, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../../schema/types";
+import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../../schema/types";
 import { FormatConverter, relationshipToPrisma, RelationshipTypes } from "./base";
 import { nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@shared/validation";
 import { PrismaType } from "../../types";
 import { RoutineModel } from "./routine";
 import { TranslationModel } from "./translation";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
 //==============================================================
 
-export const nodeRoutineListFormatter = (): FormatConverter<Node, any> => ({
+export const nodeRoutineListFormatter = (): FormatConverter<NodeRoutineList, any> => ({
     relationshipMap: {
         '__typename': 'NodeRoutineList',
         'routines': {
@@ -52,7 +53,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
         if (Array.isArray(formattedInput.create)) {
             // Check for valid arguments
             nodeRoutineListItemsCreate.validateSync(formattedInput.create, { abortEarly: false });
-            let result = [];
+            let result: { [x: string]: any }[] = [];
             for (const data of formattedInput.create) {
                 result.push({
                     id: data.id,
@@ -68,7 +69,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
         if (Array.isArray(formattedInput.update)) {
             // Check for valid arguments
             nodeRoutineListItemsUpdate.validateSync(formattedInput.update.map(u => u.data), { abortEarly: false });
-            let result = [];
+            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[]  = [];
             for (const data of formattedInput.update) {
                 result.push({
                     where: data.where,
@@ -129,6 +130,7 @@ export const NodeRoutineListModel = ({
     prismaObject: (prisma: PrismaType) => prisma.node_routine_list,
     format: nodeRoutineListFormatter(),
     mutate: nodeRoutineListMutater,
+    type: 'NodeRoutineList' as GraphQLModelType,
 })
 
 //==============================================================

@@ -1,10 +1,25 @@
 import { CommentSortBy, InputType, OrganizationSortBy, ProjectOrOrganizationSortBy, ProjectOrRoutineSortBy, ProjectSortBy, RoutineSortBy, RunSortBy, StandardSortBy, StarSortBy, UserSortBy, ViewSortBy } from '@shared/consts';
-import { Tag } from 'types';
+import { Session, Tag } from 'types';
 import { FormSchema } from 'forms/types';
 import { commentsQuery, organizationsQuery, projectOrOrganizationsQuery, projectsQuery, routinesQuery, runsQuery, standardsQuery, starsQuery, usersQuery, viewsQuery } from 'graphql/query';
 import { DocumentNode } from 'graphql';
 import { projectOrRoutinesQuery } from 'graphql/query/projectOrRoutines';
 import { RunStatus } from 'graphql/generated/globalTypes';
+import { getLocalStorageKeys } from 'utils/localStorage';
+import { PubSub } from 'utils/pubsub';
+import { SnackSeverity } from 'components';
+import { getCurrentUser } from 'utils/authentication';
+
+const starsDescription = `Stars are a way to bookmark an object. They don't affect the ranking of an object in default searches, but are still useful to get a feel for how popular an object is.`;
+const votesDescription = `Votes are a way to show support for an object, which affect the ranking of an object in default searches.`;
+const languagesDescription = `Filter results by the language(s) they are written in.`;
+const tagsDescription = `Filter results by the tags they are associated with.`;
+const simplicityDescription = `Simplicity is a mathematical measure of the shortest path to complete a routine. 
+
+For the curious, it is calculated using a weighted, directed, cyclic graph. Each node is a subroutine list or decision, and each weight represents the number of steps the node takes to complete`;
+const complexityDescription = `Complexity is a mathematical measure of the longest path to complete a routine.
+
+For the curious, it is calculated using a weighted, directed, cyclic graph. Each node is a subroutine list or decision, and each weight represents the number of steps the node takes to complete`;
 
 export const commentSearchSchema: FormSchema = {
     formLayout: {
@@ -15,16 +30,19 @@ export const commentSearchSchema: FormSchema = {
     containers: [
         {
             title: "Votes",
+            description: votesDescription,
             totalItems: 1,
             spacing: 2,
         },
         {
             title: "Stars",
+            description: starsDescription,
             totalItems: 1,
             spacing: 2,
         },
         {
             title: "Languages",
+            description: languagesDescription,
             totalItems: 1
         },
     ],
@@ -86,15 +104,18 @@ export const organizationSearchSchema: FormSchema = {
         },
         {
             title: "Stars",
+            description: starsDescription,
             totalItems: 1,
             spacing: 2,
         },
         {
             title: "Languages",
+            description: languagesDescription,
             totalItems: 1
         },
         {
             title: "Tags",
+            description: tagsDescription,
             totalItems: 1
         }
     ],
@@ -149,15 +170,18 @@ export const projectOrOrganizationSearchSchema: FormSchema = {
         },
         {
             title: "Stars",
+            description: starsDescription,
             totalItems: 1,
             spacing: 2,
         },
         {
             title: "Languages",
+            description: languagesDescription,
             totalItems: 1
         },
         {
             title: "Tags",
+            description: tagsDescription,
             totalItems: 1
         }
     ],
@@ -215,30 +239,36 @@ export const projectOrRoutineSearchSchema: FormSchema = {
         },
         {
             title: "Stars",
+            description: starsDescription,
             totalItems: 2,
             spacing: 2,
         },
         {
-            title: "Score",
+            title: "Votes",
+            description: votesDescription,
             totalItems: 2,
             spacing: 2,
         },
         {
             title: "Simplicity (Routines only)",
+            description: simplicityDescription,
             totalItems: 2,
             spacing: 2,
         },
         {
             title: "Complexity (Routines only)",
+            description: complexityDescription,
             totalItems: 2,
             spacing: 2,
         },
         {
             title: "Languages",
+            description: languagesDescription,
             totalItems: 1
         },
         {
             title: "Tags",
+            description: tagsDescription,
             totalItems: 1
         }
     ],
@@ -370,20 +400,24 @@ export const projectSearchSchema: FormSchema = {
         },
         {
             title: "Stars",
+            description: starsDescription,
             totalItems: 1,
             spacing: 2,
         },
         {
-            title: "Score",
+            title: "Votes",
+            description: votesDescription,
             totalItems: 1,
             spacing: 2,
         },
         {
             title: "Languages",
+            description: languagesDescription,
             totalItems: 1
         },
         {
             title: "Tags",
+            description: tagsDescription,
             totalItems: 1
         }
     ],
@@ -447,30 +481,36 @@ export const routineSearchSchema: FormSchema = {
         },
         {
             title: "Stars",
+            description: starsDescription,
             totalItems: 2,
             spacing: 2,
         },
         {
-            title: "Score",
+            title: "Votes",
+            description: votesDescription,
             totalItems: 2,
             spacing: 2,
         },
         {
             title: "Simplicity",
+            description: simplicityDescription,
             totalItems: 2,
             spacing: 2,
         },
         {
             title: "Complexity",
+            description: complexityDescription,
             totalItems: 2,
             spacing: 2,
         },
         {
             title: "Languages",
+            description: languagesDescription,
             totalItems: 1
         },
         {
             title: "Tags",
+            description: tagsDescription,
             totalItems: 1
         }
     ],
@@ -617,20 +657,24 @@ export const standardSearchSchema: FormSchema = {
     containers: [
         {
             title: "Stars",
+            description: starsDescription,
             totalItems: 1,
             spacing: 2,
         },
         {
-            title: "Score",
+            title: "Votes",
+            description: votesDescription,
             totalItems: 1,
             spacing: 2,
         },
         {
             title: "Languages",
+            description: languagesDescription,
             totalItems: 1
         },
         {
             title: "Tags",
+            description: tagsDescription,
             totalItems: 1
         }
     ],
@@ -677,11 +721,13 @@ export const userSearchSchema: FormSchema = {
     containers: [
         {
             title: "Stars",
+            description: starsDescription,
             totalItems: 1,
             spacing: 2,
         },
         {
             title: "Languages",
+            description: languagesDescription,
             totalItems: 1
         },
     ],
@@ -930,4 +976,21 @@ export const convertSearchForFormik = (values: { [x: string]: any }, schema: For
     }
     // Return result
     return result;
+}
+
+/**
+ * Clears search history from all search bars
+ */
+export const clearSearchHistory = (session: Session) => {
+    const { id } = getCurrentUser(session);
+    // Find all search history objects in localStorage
+    const searchHistoryKeys = getLocalStorageKeys({
+        prefix: 'search-history-',
+        suffix: id ?? '',
+    });
+    // Clear them
+    searchHistoryKeys.forEach(key => {
+        localStorage.removeItem(key);
+    });
+    PubSub.get().publishSnack({ message: 'Search history cleared.', severity: SnackSeverity.Success });
 }

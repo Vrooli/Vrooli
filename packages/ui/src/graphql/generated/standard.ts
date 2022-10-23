@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { FindByIdInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { FindByVersionInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
 
 // ====================================================
 // GraphQL query operation: standard
@@ -123,6 +123,7 @@ export interface standard_standard {
   isUpvoted: boolean | null;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface standard {
@@ -130,5 +131,5 @@ export interface standard {
 }
 
 export interface standardVariables {
-  input: FindByIdInput;
+  input: FindByVersionInput;
 }

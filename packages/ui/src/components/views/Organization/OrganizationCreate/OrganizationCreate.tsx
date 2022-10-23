@@ -1,18 +1,19 @@
-import { Grid, TextField, Typography } from "@mui/material";
+import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { organizationCreateForm as validationSchema } from '@shared/validation';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { organizationCreate as validationSchema, organizationTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationCreateMutation } from "graphql/mutation";
-import { getUserLanguages, ObjectType, OrganizationTranslationShape, parseSearchParams, shapeOrganizationCreate, TagShape, updateArray } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, parseSearchParams, removeTranslation, shapeOrganizationCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { v4 as uuid, validate as uuidValidate } from 'uuid';
-import { organizationCreate, organizationCreateVariables } from "graphql/generated/organizationCreate";
+import { uuid } from '@shared/uuid';
+import { organizationCreateVariables, organizationCreate_organizationCreate } from "graphql/generated/organizationCreate";
 import { RelationshipsObject } from "components/inputs/types";
+import { getCurrentUser } from "utils/authentication";
 
 export const OrganizationCreate = ({
     onCreated,
@@ -43,128 +44,81 @@ export const OrganizationCreate = ({
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
-    const addTag = useCallback((tag: TagShape) => {
-        setTags(t => [...t, tag]);
-    }, [setTags]);
-    const removeTag = useCallback((tag: TagShape) => {
-        setTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setTags]);
-    const clearTags = useCallback(() => {
-        setTags([]);
-    }, [setTags]);
-
-    // Handle translations
-    type Translation = OrganizationTranslationShape;
-    const [translations, setTranslations] = useState<Translation[]>([]);
-    const deleteTranslation = useCallback((language: string) => {
-        setTranslations([...translations.filter(t => t.language !== language)]);
-    }, [translations, setTranslations]);
-    const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
-        // Find translation
-        const index = translations.findIndex(t => language === t.language);
-        // Add to array, or update if found
-        return index >= 0 ? updateArray(translations, index, translation) : [...translations, translation];
-    }, [translations]);
-    const updateTranslation = useCallback((language: string, translation: Translation) => {
-        setTranslations(getTranslationsUpdate(language, translation));
-    }, [getTranslationsUpdate]);
+    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     useEffect(() => {
-        const params = parseSearchParams(window.location.search);
+        const params = parseSearchParams();
         if (typeof params.tag === 'string') setTags([{ tag: params.tag }]);
         else if (Array.isArray(params.tags)) setTags(params.tags.map((t: any) => ({ tag: t })));
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<organizationCreate, organizationCreateVariables>(organizationCreateMutation);
+    const [mutation] = useMutation(organizationCreateMutation);
     const formik = useFormik({
         initialValues: {
-            name: '',
-            bio: '',
+            id: uuid(),
+            isOpenToNewMembers: false,
+            translationsCreate: [{
+                id: uuid(),
+                language: getUserLanguages(session)[0],
+                name: '',
+                bio: '',
+            }]
         },
         validationSchema,
         onSubmit: (values) => {
-            const allTranslations = getTranslationsUpdate(language, {
-                id: uuid(),
-                language,
-                bio: values.bio,
-                name: values.name,
-            })
-            mutationWrapper({
+            mutationWrapper<organizationCreate_organizationCreate, organizationCreateVariables>({
                 mutation,
                 input: shapeOrganizationCreate({
-                    id: uuid(),
-                    isOpenToNewMembers: true, //TODO
+                    id: values.id,
+                    isOpenToNewMembers: values.isOpenToNewMembers,
+                    isPrivate: relationships.isPrivate,
                     resourceLists: [resourceList],
                     tags,
-                    translations: allTranslations,
+                    translations: values.translationsCreate,
                 }),
-                onSuccess: (response) => { onCreated(response.data.organizationCreate) },
+                onSuccess: (data) => { onCreated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    /**
-     * On page leave, check if unsaved work. 
-     * If so, prompt for confirmation.
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (formik.dirty) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [formik.dirty]);
-
-    // Handle languages
+    // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const [languages, setLanguages] = useState<string[]>([getUserLanguages(session)[0]]);
-    useEffect(() => {
-        if (languages.length === 0) {
-            const userLanguage = getUserLanguages(session)[0]
-            setLanguage(userLanguage)
-            setLanguages([userLanguage])
+    const { bio, name, errorBio, errorName, touchedBio, touchedName, errors } = useMemo(() => {
+        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
+        return {
+            bio: value?.bio ?? '',
+            name: value?.name ?? '',
+            errorBio: error?.bio ?? '',
+            errorName: error?.name ?? '',
+            touchedBio: touched?.bio ?? false,
+            touchedName: touched?.name ?? false,
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', organizationTranslationCreate),
         }
-    }, [languages, session, setLanguage, setLanguages])
-    const updateFormikTranslation = useCallback((language: string) => {
-        const existingTranslation = translations.find(t => t.language === language);
-        formik.setValues({
-            ...formik.values,
-            bio: existingTranslation?.bio ?? '',
-            name: existingTranslation?.name ?? '',
-        });
-    }, [formik, translations]);
-    const handleLanguageSelect = useCallback((newLanguage: string) => {
-        // Update old select
-        updateTranslation(language, {
-            id: uuid(),
-            language,
-            bio: formik.values.bio,
-            name: formik.values.name,
-        })
-        // Update formik
-        if (language !== newLanguage) updateFormikTranslation(newLanguage);
-        // Change language
-        setLanguage(newLanguage);
-    }, [updateTranslation, language, formik.values.bio, formik.values.name, updateFormikTranslation]);
+    }, [formik, language]);
+    const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguages([...languages, newLanguage]);
-        handleLanguageSelect(newLanguage);
-    }, [handleLanguageSelect, languages, setLanguages]);
+        setLanguage(newLanguage);
+        addEmptyTranslation(formik, 'translationsCreate', newLanguage);
+    }, [formik]);
     const handleLanguageDelete = useCallback((language: string) => {
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
-        deleteTranslation(language);
-        updateFormikTranslation(newLanguages[0]);
         setLanguage(newLanguages[0]);
-        setLanguages(newLanguages);
-    }, [deleteTranslation, languages, updateFormikTranslation]);
+        removeTranslation(formik, 'translationsCreate', language);
+    }, [formik, languages]);
+    // Handles blur on translation fields
+    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
+        handleTranslationBlur(formik, 'translationsCreate', e, language)
+    }, [formik, language]);
+    // Handles change on translation fields
+    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
+        handleTranslationChange(formik, 'translationsCreate', e, language)
+    }, [formik, language]);
 
-    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
+    const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
@@ -175,14 +129,7 @@ export const OrganizationCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <Typography
-                        component="h1"
-                        variant="h3"
-                        sx={{
-                            textAlign: 'center',
-                            sx: { marginTop: 2, marginBottom: 2 },
-                        }}
-                    >Create Organization</Typography>
+                    <PageTitle title="Create Organization" />
                 </Grid>
                 <Grid item xs={12}>
                     <RelationshipButtons
@@ -198,9 +145,9 @@ export const OrganizationCreate = ({
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
                         handleDelete={handleLanguageDelete}
-                        handleCurrent={handleLanguageSelect}
-                        selectedLanguages={languages}
+                        handleCurrent={setLanguage}
                         session={session}
+                        translations={formik.values.translationsCreate}
                         zIndex={zIndex}
                     />
                 </Grid>
@@ -210,11 +157,11 @@ export const OrganizationCreate = ({
                         id="name"
                         name="name"
                         label="Name"
-                        value={formik.values.name}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.name && Boolean(formik.errors.name)}
-                        helperText={formik.touched.name && formik.errors.name}
+                        value={name}
+                        onBlur={onTranslationBlur}
+                        onChange={onTranslationChange}
+                        error={touchedName && Boolean(errorName)}
+                        helperText={touchedName && errorName}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -225,12 +172,29 @@ export const OrganizationCreate = ({
                         label="Bio"
                         multiline
                         minRows={4}
-                        value={formik.values.bio}
-                        onBlur={formik.handleBlur}
-                        onChange={formik.handleChange}
-                        error={formik.touched.bio && Boolean(formik.errors.bio)}
-                        helperText={formik.touched.bio && formik.errors.bio}
+                        value={bio}
+                        onBlur={onTranslationBlur}
+                        onChange={onTranslationChange}
+                        error={touchedBio && Boolean(errorBio)}
+                        helperText={touchedBio && errorBio}
                     />
+                </Grid>
+                <Grid item xs={12}>
+                    <Tooltip placement={'top'} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
+                        <FormControlLabel
+                            label='Open to new members?'
+                            control={
+                                <Checkbox
+                                    id='organization-is-open-to-new-members'
+                                    size="medium"
+                                    name='isOpenToNewMembers'
+                                    color='secondary'
+                                    checked={formik.values.isOpenToNewMembers}
+                                    onChange={formik.handleChange}
+                                />
+                            }
+                        />
+                    </Tooltip>
                 </Grid>
                 <Grid item xs={12}>
                     <ResourceListHorizontal
@@ -246,18 +210,16 @@ export const OrganizationCreate = ({
                 </Grid>
                 <Grid item xs={12}>
                     <TagSelector
+                        handleTagsUpdate={handleTagsUpdate}
                         session={session}
                         tags={tags}
-                        onTagAdd={addTag}
-                        onTagRemove={removeTag}
-                        onTagsClear={clearTags}
                     />
                 </Grid>
                 <GridSubmitButtons
-                    disabledCancel={formik.isSubmitting}
-                    disabledSubmit={Boolean(!isLoggedIn || formik.isSubmitting)}
-                    errors={formik.errors}
+                    disabledSubmit={!isLoggedIn}
+                    errors={errors}
                     isCreate={true}
+                    loading={formik.isSubmitting}
                     onCancel={onCancel}
                     onSetSubmitting={formik.setSubmitting}
                     onSubmit={formik.handleSubmit}

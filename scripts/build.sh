@@ -9,7 +9,7 @@
 # -v: Version number to use (e.g. "1.0.0")
 # -d: Deploy to VPS (y/N)
 # -h: Show this help message
-HERE=`dirname $0`
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
@@ -67,21 +67,21 @@ if [ -z "$VERSION" ]; then
     read -r VERSION
 fi
 
-# Update package.json files for server, shared, ui, and docs
+# Update package.json files for every package
 cd ${HERE}/../packages
-for PACKAGE in server shared ui docs; do
-    info "Updating package.json for ${PACKAGE}"
-    cd ${PACKAGE}
+# Find every directory containing a package.json file, up to 3 levels deep
+for dir in $(find . -maxdepth 3 -name package.json -printf '%h '); do
+    info "Updating package.json for ${dir}"
+    # Go to directory
+    cd ${dir}
+    # Patch with yarn
     yarn version patch --new-version ${VERSION} --no-git-tag-version
-    if [ $? -ne 0 ]; then
-        error "Failed to update package.json for ${PACKAGE}"
-        exit 1
-    fi
-    cd ..
+    # Go back to packages directory
+    cd ${HERE}/../packages
 done
 
 # Navigate to UI directory
-cd ui
+cd ${HERE}/../packages/ui
 
 # Create local .env file
 touch .env
@@ -108,13 +108,21 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Generate sitemap.xml
+ts-node --esm --experimental-specifier-resolution node  ./src/sitemap.ts 
+if [ $? -ne 0 ]; then
+    error "Failed to generate sitemap.xml"
+    echo "${HERE}/../packages/ui/src/sitemap.ts"
+    # This is not a critical error, so we don't exit
+fi
+
 # Create brave-rewards-verification.txt file
 if [ -z "${BRAVE_REWARDS_TOKEN}" ]; then
     error "BRAVE_REWARDS_TOKEN is not set. Not creating build/.well-known/brave-rewards-verification.txt file."
 else
     info "Creating build/.well-known/brave-rewards-verification.txt file..."
     mkdir build/.well-known
-    cd build/.well-known
+    cd ${HERE}/../packages/ui/build/.well-known
     echo "This is a Brave Rewards publisher verification file.\n" > brave-rewards-verification.txt
     echo "Domain: vrooli.com" >> brave-rewards-verification.txt
     echo "Token: ${BRAVE_REWARDS_TOKEN}" >> brave-rewards-verification.txt

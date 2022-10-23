@@ -1,17 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const AddIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                fillOpacity: 0,
-                stroke: props.fill ?? 'white',
-                strokeWidth: "2.3",
-                strokeLinecap: "round",
-            }}
-            d="M19.51 12H4.49M12 4.5v15.02"
-            fill="none"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M12 3.35547a1.13386 1.13386 0 0 0-1.13477 1.13476v6.37696l-6.37695.00781a1.13386 1.13386 0 0 0-1.13281 1.13477 1.13386 1.13386 0 0 0 1.13672 1.1328l6.37304-.0078v6.375A1.13386 1.13386 0 0 0 12 20.64454a1.13386 1.13386 0 0 0 1.13477-1.13476V13.1328l6.37695-.0078a1.13386 1.13386 0 0 0 1.13281-1.13476 1.13386 1.13386 0 0 0-1.13672-1.13281l-6.37304.0078v-6.375A1.13386 1.13386 0 0 0 12 3.35546Z"
+    />
 )

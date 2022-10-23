@@ -1,50 +1,40 @@
 import { useLocation } from '@shared/route';
-import { makeStyles } from '@mui/styles';
-import { BottomNavigation, Theme } from '@mui/material';
-import { actionsToBottomNav, ACTION_TAGS, getUserActions } from 'utils';
+import { BottomNavigation, useTheme } from '@mui/material';
+import { actionsToBottomNav, ACTION_TAGS, getUserActions, useKeyboardOpen } from 'utils';
 import { BottomNavProps } from '../types';
-
-const useStyles = makeStyles((theme: Theme) => ({
-    root: {
-        background: theme.palette.primary.dark,
-        position: 'fixed',
-        zIndex: 5,
-        bottom: 0,
-        paddingBottom: 'env(safe-area-inset-bottom)',
-        // safe-area-inset-bottom is the iOS navigation bar
-        height: 'calc(56px + env(safe-area-inset-bottom))',
-        width: '100%',
-    },
-    icon: {
-        color: theme.palette.primary.contrastText,
-        '&:hover': {
-            color: theme.palette.secondary.light,
-        },
-    },
-    [theme.breakpoints.up('md')]: {
-        root: {
-            display: 'none',
-        }
-    },
-}));
 
 export const BottomNav = ({
     session,
     ...props
 }: BottomNavProps) => {
     const [, setLocation] = useLocation();
-    const classes = useStyles();
+    const { palette } = useTheme();
 
     let actions = actionsToBottomNav({
         actions: getUserActions({ session, exclude: [ACTION_TAGS.Profile, ACTION_TAGS.LogIn] }),
         setLocation,
-        classes: { root: classes.icon }
     });
 
+    // Hide the nav if the keyboard is open. This is because fixed bottom navs 
+    // will appear above the keyboard on Android for some reason.
+    const invisible = useKeyboardOpen();
+
+    if (invisible) return null;
     return (
         <BottomNavigation
-            className={classes.root}
             showLabels
+            sx={{
+                background: palette.primary.dark,
+                position: 'fixed',
+                zIndex: 5,
+                bottom: 0,
+                paddingBottom: 'env(safe-area-inset-bottom)',
+                paddingLeft: 'calc(4px + env(safe-area-inset-left))',
+                paddingRight: 'calc(4px + env(safe-area-inset-right))',
+                height: 'calc(56px + env(safe-area-inset-bottom))',
+                width: '100%',
+                display: { xs: 'flex', md: 'none' },
+            }}
             {...props}
         >
             {actions}

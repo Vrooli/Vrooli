@@ -1,6 +1,6 @@
 import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { useState } from 'react';
-import { StatsList } from 'components';
+import { PageContainer, StatsList } from 'components';
 
 const tabProps = (index: number) => ({
     id: `stats-tab-${index}`,
@@ -17,10 +17,7 @@ export const StatsPage = () => {
     };
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             <Box display="flex" justifyContent="center" width="100%">
                 <Tabs
                     value={tabIndex}
@@ -43,6 +40,6 @@ export const StatsPage = () => {
             <Typography component="h1" variant="h3" textAlign="center">Quick Overview</Typography>
             <Typography component="h1" variant="h3" textAlign="center">The Pretty Pictures</Typography>
             <StatsList data={[{}, {}, {}, {}, {}, {}]} />
-        </Box>
+        </PageContainer>
     )
 };

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Sets up NPM, Yarn, global dependencies, and anything else 
 # required to get the project up and running.
-HERE=`dirname $0`
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 header "Checking for package updates"
@@ -26,7 +26,7 @@ yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@3.14.0 react-scr
 header "Installing local dependencies"
 cd "${HERE}/.." && yarn cache clean && yarn
 
-source "${HERE}/shared.sh"
+"${HERE}/shared.sh"
 
 # header "Combining node_modules from all packages into one"
 

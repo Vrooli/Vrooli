@@ -1,4 +1,5 @@
 import { Grid, Stack, Theme } from '@mui/material';
+import { ContentCollapse } from 'components';
 import { FieldData, GridContainer, GridContainerBase, GridItemSpacing } from 'forms/types';
 import { Session } from 'types';
 import { generateInputComponent } from '.';
@@ -101,6 +102,17 @@ export const generateGrid = ({
             });
             return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing ?? calculateGridItemSize(currFields.length), index) : null;
         });
+        const itemsContainer = <Grid
+            container
+            direction={currLayout?.direction ?? 'row'}
+            key={`form-container-${i}`}
+            spacing={currLayout?.spacing}
+            columnSpacing={currLayout?.columnSpacing}
+            rowSpacing={currLayout?.rowSpacing}
+        >
+            {gridItems}
+        </Grid>
+        // Each container is represented as a fieldset
         grids.push(
             <fieldset
                 key={`grid-container-${i}`}
@@ -109,17 +121,14 @@ export const generateGrid = ({
                     border: currLayout?.showBorder ? `1px solid ${theme.palette.background.textPrimary}` : 'none',
                 }}
             >
-                {currLayout?.title && <legend >{currLayout?.title}</legend>}
-                <Grid
-                    container
-                    direction={currLayout?.direction ?? 'row'}
-                    key={`form-container-${i}`}
-                    spacing={currLayout?.spacing}
-                    columnSpacing={currLayout?.columnSpacing}
-                    rowSpacing={currLayout?.rowSpacing}
+                {/* If a title is provided, the items are wrapped in a collapsible container */}
+                {currLayout?.title ? <ContentCollapse
+                    helpText={currLayout.description ?? undefined}
+                    title={currLayout.title}
+                    titleComponent="legend"
                 >
-                    {gridItems}
-                </Grid>
+                    {itemsContainer}
+                </ContentCollapse> : itemsContainer}
             </fieldset>
         )
     }

@@ -1,44 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const InfoIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <defs>
-            <path
-                id="a"
-                d="M-12.733-4.258h10.399v16.745h-10.399z"
-            />
-        </defs>
-        <path
-            style={{
-                fillOpacity: 0,
-                stroke: props.fill ?? 'white',
-                strokeWidth: "1.37953",
-                strokeLinecap: "round",
-                strokeDasharray: "none",
-            }}
-            d="M20.823 12A8.823 8.823 0 0 1 12 20.823 8.823 8.823 0 0 1 3.177 12 8.823 8.823 0 0 1 12 3.177 8.823 8.823 0 0 1 20.823 12Z"
-            fill="none"
-        />
-        <path
-            style={{
-                fillOpacity: 0,
-                stroke: props.fill ?? 'white',
-                strokeWidth: "2.13543",
-                strokeLinecap: "round",
-                strokeDasharray: "none",
-            }}
-            d="M12 17.564v-7.042"
-        />
-        <path
-            style={{
-                fillOpacity: 0,
-                stroke: props.fill ?? 'white',
-                strokeWidth: "1.75748",
-                strokeLinecap: "round",
-                strokeDasharray: "none",
-            }}
-            d="M12.47 7.39a.491.491 0 0 1-.49.491.491.491 0 0 1-.492-.49.491.491 0 0 1 .492-.492.491.491 0 0 1 .49.491z"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M12 2.486c-5.246 0-9.514 4.268-9.514 9.514 0 5.246 4.268 9.514 9.514 9.514 5.246 0 9.514-4.268 9.514-9.514 0-5.246-4.268-9.514-9.514-9.514Zm0 1.381c4.5 0 8.133 3.633 8.133 8.133 0 4.5-3.633 8.133-8.133 8.133A8.122 8.122 0 0 1 3.867 12C3.867 7.5 7.5 3.867 12 3.867Zm-.02 2.153c-.746 0-1.37.624-1.37 1.37 0 .747.624 1.37 1.37 1.37.747 0 1.37-.623 1.37-1.37 0-.746-.623-1.37-1.37-1.37zm.02 4.36a1.068.953 0 0 0-1.068.954v6.287a1.068.953 0 0 0 1.068.953 1.068.953 0 0 0 1.068-.953v-6.287A1.068.953 0 0 0 12 10.381Z"
+    />
 )

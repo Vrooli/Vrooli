@@ -4,17 +4,17 @@ import {
     DialogContent,
     useTheme,
 } from '@mui/material';
-import { getObjectSlug, getObjectUrlBase, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
+import { actionsItems, getObjectSlug, getObjectUrlBase, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
 import { AutocompleteSearchBar } from 'components/inputs';
 import { APP_LINKS } from '@shared/consts';
 import { AutocompleteOption } from 'types';
-import { useQuery } from '@apollo/client';
+import { useLazyQuery } from '@apollo/client';
 import { CommandPaletteProps } from '../types';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { homePageQuery } from 'graphql/query';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 
 const helpText =
     `Use this dialog to quickly navigate to other pages.
@@ -49,7 +49,7 @@ const CommandPalette = ({
 }: CommandPaletteProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const [searchString, setSearchString] = useState<string>('');
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
@@ -65,7 +65,7 @@ const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const [refetch, { data, loading }] = useLazyQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { open && refetch() }, [open, refetch, searchString]);
 
 
@@ -88,7 +88,7 @@ const CommandPalette = ({
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
-        return [...firstResults, ...queryItems, ...shortcutsItems];
+        return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
     }, [languages, data, searchString]);
 
     /**
@@ -99,8 +99,11 @@ const CommandPalette = ({
         // Clear search string and close command palette
         close();
         setSearchString('');
-        // Replace current state with search string, so that search is not lost. 
-        // Only do this if the selected item is not a shortcut
+        // If selected item is an action (i.e. no navigation required), do nothing 
+        // (search bar performs actions automatically)
+        if (newValue.__typename === 'Action') {
+            return;
+        }
         let newLocation: string;
         // If selected item is a shortcut, newLocation is in the id field
         if (newValue.__typename === 'Shortcut') {
@@ -117,7 +120,7 @@ const CommandPalette = ({
         if (shouldReload) {
             window.location.reload();
         }
-    }, [close, searchString, setLocation]);
+    }, [close, setLocation]);
 
     return (
         <Dialog
@@ -126,7 +129,6 @@ const CommandPalette = ({
             aria-labelledby={titleAria}
             sx={{
                 '& .MuiDialog-paper': {
-                    border: palette.mode === 'dark' ? `1px solid white` : 'unset',
                     minWidth: 'min(100%, 600px)',
                     minHeight: 'min(100%, 200px)',
                     position: 'absolute',

@@ -1,7 +1,7 @@
 // Used to display popular/search results of a particular object type
 import { Box, CircularProgress, Link, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { TitleContainerProps } from '../types';
-import { clickSize, containerShadow } from 'styles';
+import { clickSize } from 'styles';
 import { HelpButton } from 'components';
 
 export function TitleContainer({
@@ -21,12 +21,11 @@ export function TitleContainer({
         <Tooltip placement="bottom" title={tooltip}>
             <Box id={id} display="flex" justifyContent="center">
                 <Box
-                    onClick={(e) => { onClick && onClick(e) }}
                     sx={{
-                        ...containerShadow,
+                        boxShadow: 12,
                         borderRadius: '8px',
                         overflow: 'overlay',
-                        background: palette.background.default,
+                        background: palette.background.paper,
                         width: 'min(100%, 700px)',
                         cursor: onClick ? 'pointer' : 'default',
                         '&:hover': {
@@ -36,11 +35,14 @@ export function TitleContainer({
                     }}
                 >
                     {/* Title container */}
-                    <Box sx={{
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                        padding: 0.5,
-                    }}>
+                    <Box
+                        onClick={(e) => { onClick && onClick(e) }}
+                        sx={{
+                            background: palette.primary.dark,
+                            color: palette.primary.contrastText,
+                            padding: 0.5,
+                        }}
+                    >
                         {/* Title */}
                         <Stack direction="row" justifyContent="center" alignItems="center">
                             <Typography component="h2" variant="h4" textAlign="center">{title}</Typography>

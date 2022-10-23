@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "target": "es6",
+        "target": "esnext",
         "module": "esnext",
         "baseUrl": "./src",
         "lib": [
@@ -24,6 +24,7 @@
         "noImplicitThis": true,
         "strictNullChecks": true,
         "sourceMap": true,
+        "removeComments": true
     },
     "include": [
         "src",

@@ -42,14 +42,17 @@ export const ReorderInputDialog = ({
         handleClose(toIndex - 1);
     }, [handleClose, toIndex]);
 
-    const onCancel = useCallback(() => {
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if toIndex !== startIndex (i.e. not initial condition) and clicked outside
+        if (toIndex !== startIndex + 1 && reason === 'backdropClick') return;
+        // Otherwise, close
         handleClose();
-    }, [handleClose]);
+    }, [handleClose, startIndex, toIndex]);
 
     return (
         <Dialog
             open={isOpen}
-            onClose={onCancel}
+            onClose={handleCancel}
             aria-labelledby={titleAria}
             sx={{
                 zIndex,
@@ -59,7 +62,7 @@ export const ReorderInputDialog = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                onClose={onCancel}
+                onClose={handleCancel}
                 title={`Reorder ${isInput ? 'Input' : 'Output'}`}
             />
             <DialogContent>
@@ -92,10 +95,10 @@ export const ReorderInputDialog = ({
                     />
                 </Stack>
                 {/* Action buttons */}
-                <Grid container sx={{ padding: 0, paddingTop: '24px' }}>
+                <Grid container spacing={2} sx={{ padding: 0, paddingTop: '24px' }}>
                     <GridSubmitButtons
                         isCreate={false}
-                        onCancel={onCancel}
+                        onCancel={handleCancel}
                         onSubmit={onSubmit}
                     />
                 </Grid>

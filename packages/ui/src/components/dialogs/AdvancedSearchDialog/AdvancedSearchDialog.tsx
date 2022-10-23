@@ -2,9 +2,9 @@
  * Displays all search options for an organization
  */
 import {
+    Box,
     Button,
     Dialog,
-    DialogContent,
     Grid,
     useTheme
 } from '@mui/material';
@@ -37,7 +37,7 @@ export const AdvancedSearchDialog = ({
         // Calculate initial values from schema, to use if values not already in URL
         const fieldInputs: FieldData[] = generateDefaultProps(schema?.fields ?? []);
         // Parse search params from URL, and filter out search fields that are not in schema
-        const urlValues = schema ? convertSearchForFormik(parseSearchParams(window.location.search), schema) : {} as { [key: string]: any };
+        const urlValues = schema ? convertSearchForFormik(parseSearchParams(), schema) : {} as { [key: string]: any };
         // Filter out search params that are not in schema
         let values: { [x: string]: any } = {};
         // Add fieldInputs to values
@@ -94,13 +94,18 @@ export const AdvancedSearchDialog = ({
             sx={{
                 zIndex,
                 '& .MuiDialogContent-root': {
-                    background: theme.palette.background.default,
-                    color: theme.palette.background.textPrimary,
                     minWidth: 'min(400px, 100%)',
                 },
                 '& .MuiPaper-root': {
                     margin: { xs: 0, sm: 2, md: 4 },
-                    maxWidth: { xs: '100%!important', md: 'calc(100% - 64px)' },
+                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    display: { xs: 'block', sm: 'inline-block' },
+                    background: theme.palette.background.default,
+                    color: theme.palette.background.textPrimary,
+                },
+                // Remove ::after element that is added to the dialog
+                '& .MuiDialog-container::after': {
+                    content: 'none',
                 },
             }}
         >
@@ -110,16 +115,21 @@ export const AdvancedSearchDialog = ({
                 onClose={handleClose}
             />
             <form onSubmit={formik.handleSubmit}>
-                <DialogContent sx={{
+                <Box sx={{
                     padding: { xs: 1, sm: 2 },
+                    margin: 'auto',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
                 }}>
                     {grid}
-                </DialogContent>
+                </Box>
                 {/* Search/Cancel buttons */}
                 <Grid container spacing={1} sx={{
                     background: theme.palette.primary.dark,
                     maxWidth: 'min(700px, 100%)',
                     margin: 0,
+                    paddingBottom: 'env(safe-area-inset-bottom)',
                 }}>
                     <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                         <Button

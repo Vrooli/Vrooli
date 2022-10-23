@@ -3,20 +3,15 @@ import { InputOutputListItemProps } from '../types';
 import { InputType } from '@shared/consts';
 import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    Delete as DeleteIcon,
-    ExpandLess as ExpandLessIcon,
-    ExpandMore as ExpandMoreIcon,
-} from '@mui/icons-material';
 import { getTranslation, InputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { Standard } from 'types';
 import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import Markdown from 'markdown-to-jsx';
-import { ReorderIcon } from '@shared/icons';
+import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
 
 const defaultStandard = (item: InputOutputListItemProps['item'], generatedSchema?: FieldData | null): StandardShape => ({
     __typename: 'Standard',
@@ -35,8 +30,8 @@ const toFieldData = (schemaKey: string, item: InputOutputListItemProps['item'], 
     if (!item.standard || item.standard.isInternal === false) return null;
     return standardToFieldData({
         fieldName: schemaKey,
-        description: getTranslation(item, 'description', [language]) ?? getTranslation(item.standard, 'description', [language]),
-        helpText: getTranslation(item, 'helpText', [language], false),
+        description: getTranslation(item, [language]).description ?? getTranslation(item.standard, [language]).description,
+        helpText: getTranslation(item, [language], false).helpText,
         props: item.standard.props ?? '',
         name: item.standard.name ?? '',
         type: item.standard.type ?? InputTypeOptions[0].value,
@@ -68,7 +63,7 @@ export const InputOutputListItem = ({
         setStandard(item.standard ?? defaultStandard(item));
     }, [item])
 
-    const canEditStandard = useMemo(() => standard.isInternal === true, [standard.isInternal]);
+    const canEditStandard = useMemo(() => isEditing && standard.isInternal === true, [isEditing, standard.isInternal]);
 
     /**
      * Schema only available when defining custom (internal) standard
@@ -106,8 +101,8 @@ export const InputOutputListItem = ({
     const formik = useFormik({
         initialValues: {
             id: item.id,
-            description: getTranslation(item, 'description', [language]) ?? '',
-            helpText: getTranslation(item, 'helpText', [language]) ?? '',
+            description: getTranslation(item, [language]).description ?? '',
+            helpText: getTranslation(item, [language]).helpText ?? '',
             isRequired: true,
             name: item.name ?? '' as string,
             // Value of generated input component preview
@@ -207,13 +202,7 @@ export const InputOutputListItem = ({
                             marginTop: 'auto',
                             marginBottom: 'auto',
                         }}>
-                            <DeleteIcon sx={{
-                                fill: 'white',
-                                '&:hover': {
-                                    fill: '#ff6a6a'
-                                },
-                                transition: 'fill 0.5s ease-in-out',
-                            }} />
+                            <DeleteIcon fill={'white'} />
                         </IconButton>
                     </Tooltip>
                 )}
@@ -248,8 +237,8 @@ export const InputOutputListItem = ({
                 </IconButton>}
                 <IconButton sx={{ marginLeft: isEditing ? 'unset' : 'auto' }}>
                     {isOpen ?
-                        <ExpandMoreIcon sx={{ marginLeft: 'auto' }} /> :
-                        <ExpandLessIcon sx={{ marginLeft: 'auto' }} />
+                        <ExpandMoreIcon fill={palette.secondary.contrastText} /> :
+                        <ExpandLessIcon fill={palette.secondary.contrastText} />
                     }
                 </IconButton>
             </Container>
@@ -324,8 +313,8 @@ export const InputOutputListItem = ({
                                     fieldData: standard ?
                                         standardToFieldData({
                                             fieldName: schemaKey,
-                                            description: getTranslation(item, 'description', [language]) ?? getTranslation(standard, 'description', [language]),
-                                            helpText: getTranslation(item, 'helpText', [language], false),
+                                            description: getTranslation(item, [language]).description ?? getTranslation(standard, [language]).description,
+                                            helpText: getTranslation(item, [language], false).helpText,
                                             props: standard?.props ?? '',
                                             name: standard?.name ?? '',
                                             type: standard?.type ?? InputTypeOptions[0].value,
@@ -347,9 +336,7 @@ export const InputOutputListItem = ({
                                         getOptionLabel={(option: InputTypeOption) => option.label}
                                         inputAriaLabel='input-type-selector'
                                         label="Type"
-                                        style={{
-                                            marginBottom: 2
-                                        }}
+                                        sx={{ marginBottom: 2 }}
                                     />
                                     <BaseStandardInput
                                         fieldName={schemaKey}

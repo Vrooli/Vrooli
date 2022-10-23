@@ -123,6 +123,7 @@ export interface standardCreate_standardCreate {
   isUpvoted: boolean | null;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface standardCreate {

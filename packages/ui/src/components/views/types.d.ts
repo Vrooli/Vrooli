@@ -1,3 +1,4 @@
+import React from "react";
 import { DecisionStep, Node, Profile, Routine, Run, Session, User } from "types";
 
 interface CreateProps<T> {
@@ -72,4 +73,8 @@ export interface BuildViewProps extends ViewProps<Routine> {
     onChange: (routine: Routine) => void;
     routine: Routine | null;
     zIndex: number;
+}
+
+export interface ErrorBoundaryProps {
+    children: React.ReactNode;
 }

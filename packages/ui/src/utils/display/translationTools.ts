@@ -1,5 +1,14 @@
+import { FormikErrors, FormikProps } from "formik";
+import { ObjectSchema, ValidationError } from 'yup';
 import { Session } from "types";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
+import { getCurrentUser } from "utils/authentication";
+
+export type TranslationObject = {
+    id: string,
+    language: string,
+    [key: string]: any,
+}
 
 /**
  * Array of all IANA language subtags, with their native names. 
@@ -335,29 +344,26 @@ export const AllLanguages = {
 };
 
 /**
- * Retrieves a value from an object's translations
- * @param obj The object to retrieve the value from
- * @param field The field to retrieve the value from
- * @param languages The languages the user is requesting
+ * Retrieves an object's translation for a given language code.
+ * @param obj The object to retrieve the translation from.
+ * @param languages The languages the user is requesting, in order of preference.
  * @param showAny If true, will default to returning the first language if no value is found
- * @returns The value of the field in the object's translations
+ * @returns The requested translation or an empty object if none is found
  */
 export const getTranslation = <
-    KeyField extends string,
-    Translation extends { [key in KeyField]?: string | null | undefined } & { id: string, language: string },
-    Obj extends { translations?: Translation[] | null | undefined }
->(obj: Obj | null | undefined, field: KeyField, languages: readonly string[], showAny: boolean = true): string | null | undefined => {
-    if (!obj || !obj.translations) return undefined;
+    Translation extends { language: string },
+>(obj: { translations?: Translation[] | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
+    if (!obj || !obj.translations) return {}
     // Loop through translations
     for (const translation of obj.translations) {
-        // If this translation is one of the languages we're looking for, check for the field
+        // If this translation is one of the languages we're looking for
         if (languages.includes(translation.language)) {
-            if (translation[field]) return translation[field];
+            return translation;
         }
     }
-    if (showAny && obj.translations.length > 0) return obj.translations[0][field];
-    // If we didn't find a translation, return undefined
-    return undefined;
+    if (showAny && obj.translations.length > 0) return obj.translations[0];
+    // If we didn't find a translation, return an empty object
+    return {};
 }
 
 /**
@@ -384,7 +390,6 @@ export const updateTranslationFields = <
         // If an existing field is not in changes, keep it unchanged.
         // If a new field is not in the existing translation, add it.
         if (translation.language === language) {
-            console.log('found translation. updating...', translation);
             translationFound = true;
             translations.push({
                 ...translation,
@@ -398,7 +403,6 @@ export const updateTranslationFields = <
     }
     // If no translation was found, add a new one
     if (!translationFound) {
-        console.log('no translation found, so adding new one...')
         translations.push({
             id: uuid(),
             ...changes,
@@ -456,13 +460,17 @@ export const getLanguageSubtag = (language: string): string => {
  * @param session Session data
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session?: { languages?: Session['languages'] }): string[] => {
-    if (session?.languages && session.languages.length > 0) {
-        return session.languages.map(getLanguageSubtag);
+export const getUserLanguages = (session: Session | null | undefined): string[] => {
+    // First check session data for preferred languages
+    const { languages } = getCurrentUser(session);
+    if (languages && languages.length > 0) {
+        return (languages.filter(Boolean) as string[]).map(getLanguageSubtag)
     }
+    // If no languages are in session data, check browser
     if (navigator.language) {
         return [getLanguageSubtag(navigator.language)];
     }
+    // Default to English
     return ["en"];
 }
 
@@ -480,4 +488,165 @@ export const getPreferredLanguage = (availableLanguages: string[], userLanguages
     }
     // If we didn't find a language, return the first available language
     return availableLanguages[0];
+}
+
+/**
+ * Finds the error, touched, and value for a translation field in a formik object
+ * @param formik Formik object
+ * @param field The field that contains the translation object array
+ * @param language The language to retrieve
+ * @returns The error, touched, and value for the translation object with the given language
+ */
+export const getTranslationData = <
+    KeyField extends string,
+    Values extends { [key in KeyField]: TranslationObject[] },
+>(formik: FormikProps<Values>, field: KeyField, language: string): {
+    error: FormikErrors<Values[KeyField][0]> | undefined,
+    index: number,
+    touched: { [key in keyof Values[KeyField][0]]: boolean } | undefined,
+    value: Values[KeyField][0] | undefined
+} => {
+    if (!formik.values[field] || !Array.isArray(formik.values[field])) return { error: undefined, index: -1, touched: undefined, value: undefined };
+    const index = formik.values[field].findIndex(t => t.language === language);
+    const value = formik.values[field][index];
+    const touched = formik.touched[field]?.[index];
+    const error = typeof formik.errors[field]?.[index] === 'object' ? formik.errors[field]?.[index] as any : undefined;
+    return { error, index, touched, value };
+}
+
+/**
+ * Handles onBlurs for translation fields in a formik object
+ * @param formik Formik object
+ * @param translationField The field that contains the translation object array
+ * @param blurredField The field that was blurred
+ * @param language The language to retrieve
+ */
+export const handleTranslationBlur = <
+    KeyField extends string,
+    Values extends { [key in KeyField]: TranslationObject[] },
+>(formik: FormikProps<Values>, translationField: KeyField, event: { target: { name: string } }, language: string) => {
+    // Get field name from event
+    const { name: blurredField } = event.target;
+    // Check if field has already been touched
+    const { index, touched } = getTranslationData(formik, translationField, language);
+    // If not, set touched to true using dot notation
+    if (!touched || !touched[blurredField]) {
+        formik.setFieldTouched(`${translationField}.${index}.${String(blurredField)}`, true);
+    }
+}
+
+/**
+ * Handles onChange for translation fields in a formik object
+ * @param formik Formik object
+ * @param translationField The field that contains the translation object array
+ * @param changedField The field that was changed
+ * @param value The new value
+ * @param language The language to retrieve
+ */
+export const handleTranslationChange = <
+    KeyField extends string,
+    Values extends { [key in KeyField]: TranslationObject[] },
+>(formik: FormikProps<Values>, translationField: KeyField, event: { target: { name: string, value: string } }, language: string) => {
+    // Get field name and value from event
+    const { name: changedField, value } = event.target;
+    // Get index of translation object
+    const { index } = getTranslationData(formik, translationField, language);
+    // Set the value using dot notation
+    formik.setFieldValue(`${translationField}.${index}.${String(changedField)}`, value);
+}
+
+/**
+ * Converts a formik error object into an error object which can be passed to GridSubmitButtons
+ * @param formik Formik object
+ * @param translationField The field that contains the translation object array
+ * @param validationSchema The validation schema for a translation object
+ * @returns An error object
+ */
+export const getFormikErrorsWithTranslations = <
+    KeyField extends string,
+    Values extends { [key in KeyField]: TranslationObject[] },
+>(formik: FormikProps<Values>, translationField: KeyField, validationSchema: ObjectSchema<any>): { [key: string]: string | string[] } => {
+    // Initialize errors object
+    const errors: { [key: string]: string | string[] } = {};
+    // Add all non-translation errors to errors object
+    for (const [key, value] of Object.entries(formik.errors)) {
+        if (typeof value === 'string' || (Array.isArray(value) && value.length > 0 && typeof value[0] === 'string')) {
+            errors[key] = value;
+        }
+    }
+    // Find translation errors. Since the given errors don't have the language subtag, we need to loop through all languages
+    // and manually validate each field
+    for (const translation of formik.values[translationField]) {
+        const subtag = translation.language;
+        // Get full name of language
+        const language = AllLanguages[subtag] ?? subtag;
+        // Manually validate translation object using validation schema
+        try {
+            validationSchema.validateSync(translation, { abortEarly: false });
+        } catch (error) {
+            // If validation error is thrown, use inner errors to add to errors object
+            if (error instanceof ValidationError) {
+                for (const innerError of error.inner) {
+                    // Key should be full language name + field name (with first letter capitalized)
+                    const key = `${language} ${innerError.path}`;
+                    // Add error to errors object
+                    errors[key] = innerError.errors;
+                }
+            }
+        }
+    }
+    // Return errors object
+    return errors;
+}
+
+/**
+ * Adds a new, empty translation object (all fields '') to a formik translation field
+ * @param formik Formik object
+ * @param translationField The field that contains the translation object array
+ * @param language The language to add
+ */
+export const addEmptyTranslation = <
+    KeyField extends string,
+    Values extends { [key in KeyField]: TranslationObject[] },
+>(formik: FormikProps<Values>, translationField: KeyField, language: string) => {
+    // Get copy of current translations
+    const translations = [...formik.values[translationField]];
+    // Determine fields in translation object (even if no translations exist yet). 
+    // We can accomplish this through the initial values
+    const initialTranslations = Array.isArray(formik.initialValues[translationField]) ? formik.initialValues[translationField] : [];
+    if (initialTranslations.length === 0) {
+        console.error('Could not determine fields in translation object');
+        return;
+    }
+    // Create new translation object with all fields empty
+    const newTranslation: TranslationObject = { id: uuid(), language };
+    for (const field of Object.keys(initialTranslations[0])) {
+        if (!['id', 'language'].includes(field)) newTranslation[field] = '';
+    }
+    newTranslation.id = uuid();
+    newTranslation.language = language;
+    // Add new translation object to translations
+    translations.push(newTranslation);
+    // Set new translations
+    formik.setFieldValue(translationField, translations);
+}
+
+/**
+ * Removes a translation object from a formik translation field
+ * @param formik Formik object
+ * @param translationField The field that contains the translation object array
+ * @param language The language to remove
+ */
+export const removeTranslation = <
+    KeyField extends string,
+    Values extends { [key in KeyField]: TranslationObject[] },
+>(formik: FormikProps<Values>, translationField: KeyField, language: string) => {
+    // Get copy of current translations
+    const translations = [...formik.values[translationField]];
+    // Get index of translation object
+    const { index } = getTranslationData(formik, translationField, language);
+    // Remove translation object from translations
+    translations.splice(index, 1);
+    // Set new translations
+    formik.setFieldValue(translationField, translations);
 }

@@ -2,13 +2,14 @@
  * Handles selecting a run from a list of runs.
  */
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { ListMenuItemData, SelectRoutineTypeMenuProps } from "../types";
 import { APP_LINKS } from "@shared/consts";
 import { useLocation } from "@shared/route";
 import { ListMenu } from "../ListMenu/ListMenu";
-import { validate as uuidValidate } from 'uuid';
 import { PubSub, stringifySearchParams } from "utils";
+import { SnackSeverity } from "components";
+import { getCurrentUser } from "utils/authentication";
 
 const options: ListMenuItemData<string>[] = [
     { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
@@ -27,9 +28,9 @@ export const SelectRoutineTypeMenu = ({
         setLocation(path);
     }, [setLocation]);
 
-    const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-    if (!loggedIn) {
-        PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+    if (Boolean(anchorEl) && !userId) {
+        PubSub.get().publishSnack({ message: 'Must be logged in.', severity: SnackSeverity.Error });
         setLocation(`${APP_LINKS.Start}${stringifySearchParams({
             redirect: window.location.pathname
         })}`);

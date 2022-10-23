@@ -2,18 +2,12 @@
  * Search list for a single object type
  */
 import { useLazyQuery } from "@apollo/client";
-import { Box, Button, CircularProgress, List, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, List, Palette, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { clickSize, containerShadow } from "styles";
-import {
-    AccessTime as TimeIcon,
-    Add as AddIcon,
-    Build as AdvancedIcon,
-    Sort as SortListIcon,
-} from '@mui/icons-material';
-import { SearchQueryVariablesInput, SearchListProps } from "../types";
-import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
+import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
+import { SearchQueryVariablesInput, SearchListProps, ObjectListItemType } from "../types";
+import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, openObject, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
 import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 
@@ -22,30 +16,45 @@ type TimeFrame = {
     before?: Date;
 }
 
-const searchButtonStyle = {
-    ...clickSize,
+const searchButtonStyle = (palette: Palette) => ({
+    minHeight: '34px',
     display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
     borderRadius: '50px',
-    border: `1px solid ${(t) => t.palette.secondary.main}`,
+    border: `2px solid ${palette.secondary.main}`,
     margin: 1,
-    padding: 1,
+    padding: 0,
+    paddingLeft: 1,
+    paddingRight: 1,
     cursor: 'pointer',
     '&:hover': {
         transform: 'scale(1.1)',
     },
     transition: 'transform 0.2s ease-in-out',
+});
+
+/**
+ * Helper method for converting fetched data to an array of object data
+ */
+const parseData = (data: any) => {
+    if (!data) return [];
+    const queryData: any = Object.values(data)[0];
+    if (!queryData || !queryData.edges) return [];
+    return queryData.edges.map((edge, index) => edge.node);
 };
 
-export function SearchList<DataType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
+export function SearchList<DataType extends ObjectListItemType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
+    beforeNavigation,
     canSearch = true,
     handleAdd,
     hideRoles,
+    id,
     itemKeyPrefix,
     noResultsText = 'No results',
     searchPlaceholder = 'Search...',
     take = 20,
     searchType,
-    onObjectSelect,
     onScrolledFar,
     where,
     session,
@@ -60,7 +69,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const [searchString, setSearchString] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
     useEffect(() => {
-        const searchParams = parseSearchParams(window.location.search)
+        const searchParams = parseSearchParams()
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
         if (typeof searchParams.sort === 'string') {
             // Check if sortBy is valid
@@ -83,7 +92,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
+    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('');
     const after = useRef<string | undefined>(undefined);
 
     /**
@@ -140,19 +149,9 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         }
     }, [getPageData, pageData]);
 
-    /**
-     * Helper method for converting fetched data to an array of object data
-     */
-    const parseData = useCallback((data: any) => {
-        if (!data) return [];
-        const queryData: any = Object.values(data)[0];
-        if (!queryData || !queryData.edges) return [];
-        return queryData.edges.map((edge, index) => edge.node);
-    }, []);
-
     // Handle advanced search
     useEffect(() => {
-        const searchParams = parseSearchParams(window.location.search)
+        const searchParams = parseSearchParams()
         if (!advancedSearchSchema?.fields) {
             setAdvancedSearchParams(null);
             return;
@@ -186,8 +185,6 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
 
     // Parse newly fetched data, and determine if it should be appended to the existing data
     useEffect(() => {
-        // Close advanced search dialog
-        // handleAdvancedSearchDialogClose();
         const parsedData = parseData(pageData);
         if (!parsedData) {
             setAllData([]);
@@ -198,7 +195,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         } else {
             setAllData(parsedData);
         }
-    }, [pageData, parseData, handleAdvancedSearchDialogClose]);
+    }, [pageData, handleAdvancedSearchDialogClose]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         return listToAutocomplete(allData as any, getUserLanguages(session)).sort((a: any, b: any) => {
@@ -207,14 +204,15 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     }, [allData, session]);
 
     const listItems = useMemo(() => listToListItems({
+        beforeNavigation,
         dummyItems: new Array(5).fill(searchType),
         hideRoles,
-        items: allData as any,
+        items: (allData.length > 0 ? allData : parseData(pageData)) as any[],
         keyPrefix: itemKeyPrefix,
         loading,
-        onClick: (item) => onObjectSelect(item),
         session: session,
-    }), [allData, hideRoles, itemKeyPrefix, loading, searchType, session, onObjectSelect])
+        zIndex,
+    }), [beforeNavigation, searchType, hideRoles, allData, pageData, itemKeyPrefix, loading, session, zIndex])
 
     // If near the bottom of the page, load more data
     // If scrolled past a certain point, show an "Add New" button
@@ -247,7 +245,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
     const handleTimeClose = (label?: string, frame?: { after?: Date | undefined, before?: Date | undefined }) => {
         setTimeAnchorEl(null);
         setTimeFrame(frame);
-        if (label) setTimeFrameLabel(label);
+        if (label) setTimeFrameLabel(label === 'All Time' ? '' : label);
     };
 
     /**
@@ -271,8 +269,8 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
         // Determine object from selected label
         const selectedItem = allData.find(o => (o as any)?.id === newValue?.id);
         if (!selectedItem) return;
-        onObjectSelect(selectedItem);
-    }, [allData, onObjectSelect]);
+        openObject(selectedItem, setLocation);
+    }, [allData, setLocation]);
 
     const searchResultContainer = useMemo(() => {
         const hasItems = listItems.length > 0;
@@ -283,32 +281,23 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 marginLeft: 'auto',
                 marginRight: 'auto',
                 ...(hasItems ? {
-                    ...containerShadow,
+                    boxShadow: 12,
                     background: palette.background.paper,
                     borderRadius: '8px',
                     overflow: 'overlay',
-                } : {}),
-                ...(loading ? {
-                    minHeight: '50px',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                } : {
                     display: 'block',
-                })
+                } : {}),
             }}>
                 {
-                    loading ? (<CircularProgress color="secondary" />) : (
-                        hasItems ? (
-                            <List sx={{ padding: 0 }}>
-                                {listItems}
-                            </List>
-                        ) : (<Typography variant="h6" textAlign="center">{noResultsText}</Typography>)
-                    )
+                    hasItems ? (
+                        <List sx={{ padding: 0 }}>
+                            {listItems}
+                        </List>
+                    ) : (<Typography variant="h6" textAlign="center">{noResultsText}</Typography>)
                 }
             </Box>
         )
-    }, [listItems, loading, noResultsText, palette.background.paper]);
+    }, [listItems, noResultsText, palette.background.paper]);
 
     // Update query params
     useEffect(() => {
@@ -337,46 +326,47 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 anchorEl={timeAnchorEl}
                 onClose={handleTimeClose}
             />
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Box sx={{ width: 'min(100%, 400px)' }}>
-                    <AutocompleteSearchBar
-                        id={`search-bar`}
-                        placeholder={searchPlaceholder}
-                        options={autocompleteOptions}
-                        loading={loading}
-                        value={searchString}
-                        onChange={handleSearch}
-                        onInputChange={onInputSelect}
-                        session={session}
-                    />
-                </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
+                <AutocompleteSearchBar
+                    id={`search-bar-${id}`}
+                    placeholder={searchPlaceholder}
+                    options={autocompleteOptions}
+                    loading={loading}
+                    value={searchString}
+                    onChange={handleSearch}
+                    onInputChange={onInputSelect}
+                    session={session}
+                    sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
+                />
             </Box>
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
                 <Tooltip title="Sort by" placement="top">
                     <Box
                         onClick={handleSortOpen}
-                        sx={{ ...searchButtonStyle }}
+                        sx={searchButtonStyle(palette)}
                     >
-                        <SortListIcon sx={{ fill: palette.secondary.main }} />
-                        {sortByLabel}
+                        <SortIcon fill={palette.secondary.main} />
+                        <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{sortByLabel}</Typography>
                     </Box>
                 </Tooltip>
                 <Tooltip title="Time created" placement="top">
                     <Box
                         onClick={handleTimeOpen}
-                        sx={{ ...searchButtonStyle }}
+                        sx={searchButtonStyle(palette)}
                     >
-                        <TimeIcon sx={{ fill: palette.secondary.main }} />
-                        {timeFrameLabel}
+                        <TimeIcon fill={palette.secondary.main} />
+                        <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{timeFrameLabel}</Typography>
                     </Box>
                 </Tooltip>
                 {advancedSearchParams && <Tooltip title="See all search settings" placement="top">
                     <Box
                         onClick={handleAdvancedSearchDialogOpen}
-                        sx={{ ...searchButtonStyle }}
+                        sx={searchButtonStyle(palette)}
                     >
-                        <AdvancedIcon sx={{ fill: palette.secondary.main }} />
-                        Advanced
+                        <BuildIcon fill={palette.secondary.main} />
+                        {Object.keys(advancedSearchParams).length > 0 && <Typography variant="body2" sx={{ marginLeft: 0.5 }}>
+                            *{Object.keys(advancedSearchParams).length}
+                        </Typography>}
                     </Box>
                 </Tooltip>}
             </Box>
@@ -387,7 +377,7 @@ export function SearchList<DataType, SortBy, Query, QueryVariables extends Searc
                 margin: 'auto',
                 paddingTop: 5,
             }}>
-                <Button fullWidth onClick={handleAdd} startIcon={<AddIcon />}>Add New</Button>
+                <Button fullWidth onClick={handleAdd} startIcon={<PlusIcon />}>Add New</Button>
             </Box>}
         </>
     )

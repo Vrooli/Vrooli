@@ -140,30 +140,30 @@ export const resolvers = {
     ResourceUsedFor: ResourceUsedFor,
     Query: {
         resource: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource> | null> => {
-            await rateLimit({ info, max: 1000, req });
-            return readOneHelper({ info, input, model: ResourceModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 1000, req });
+            return readOneHelper({ info, input, model: ResourceModel, prisma, req })
         },
         resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ResourceSearchResult> => {
-            await rateLimit({ info, max: 1000, req });
-            return readManyHelper({ info, input, model: ResourceModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 1000, req });
+            return readManyHelper({ info, input, model: ResourceModel, prisma, req })
         },
         resourcesCount: async (_parent: undefined, { input }: IWrap<ResourceCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: ResourceModel, prisma })
+            await rateLimit({ info, maxUser: 1000, req });
+            return countHelper({ input, model: ResourceModel, prisma, req })
         },
     },
     Mutation: {
         resourceCreate: async (_parent: undefined, { input }: IWrap<ResourceCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
-            return createHelper({ info, input, model: ResourceModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 500, req });
+            return createHelper({ info, input, model: ResourceModel, prisma, req })
         },
         resourceUpdate: async (_parent: undefined, { input }: IWrap<ResourceUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Resource>> => {
-            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
-            return updateHelper({ info, input, model: ResourceModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 1000, req });
+            return updateHelper({ info, input, model: ResourceModel, prisma, req })
         },
         resourceDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Count> => {
-            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
-            return deleteManyHelper({ input, model: ResourceModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 500, req });
+            return deleteManyHelper({ input, model: ResourceModel, prisma, req })
         },
     }
 }

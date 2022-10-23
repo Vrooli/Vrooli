@@ -3,8 +3,10 @@
  */
 
 import { APP_LINKS } from "@shared/consts";
-import { SetLocation } from "types";
+import { SnackSeverity } from "components";
+import { NavigableObject, SetLocation } from "types";
 import { PubSub } from "utils/pubsub";
+import { stringifySearchParams, uuidToBase36 } from "./urlTools";
 
 export enum ObjectType {
     Comment = 'Comment',
@@ -20,56 +22,11 @@ export enum ObjectType {
 }
 
 /**
- * Determines string used to reference object in URL slug
- * @param object Object being navigated to
- * @returns String used to reference object in URL slug
- */
-export const getObjectSlug = (object: any) => {
-    // If object is a star/vote/some other type that links to a main object, use that object's slug
-    if (object.to) return getObjectSlug(object.to);
-    // If object is a run, navigate to the routine
-    if (object.routine) return object.routine.id;
-    // Otherwise, use either the object's (ADA) handle or its ID
-    return object.handle ? object.handle : object.id;
-}
-
-export type OpenObjectProps = {
-    object: { 
-        __typename: string 
-        handle?: string | null, 
-        id: string, 
-        routine?: {
-            id: string
-        } | null,
-        to?: { 
-            __typename: string,
-            handle?: string | null,
-            id?: string,
-        }
-    };
-    setLocation: SetLocation;
-}
-/**
- * Opens any object with an id and __typename
- * @param object Object to open
- * @param setLocation Function to set location in history
- */
-export const openObject = (object: OpenObjectProps['object'], setLocation: OpenObjectProps['setLocation']) => {
-    // Check if __typename is in objectLinkMap
-    if (!ObjectType.hasOwnProperty(object.__typename)) {
-        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: 'error' });
-        return; 
-    }
-    // Navigate to object page
-    setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}`);
-}
-
-/**
  * Gets URL base for object type
  * @param object Object to get base for
  * @returns Search URL base for object type
  */
-export const getObjectUrlBase = (object: { __typename: string }): string => {
+export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
     switch (object.__typename) {
         case ObjectType.Organization:
             return APP_LINKS.Organization;
@@ -81,7 +38,76 @@ export const getObjectUrlBase = (object: { __typename: string }): string => {
             return APP_LINKS.Standard;
         case ObjectType.User:
             return APP_LINKS.Profile;
+        case ObjectType.Star:
+        case ObjectType.View:
+            return getObjectUrlBase(object.to as any);
+        case ObjectType.Run:
+            return getObjectUrlBase({
+                __typename: ObjectType.Routine,
+                id: object.routine?.id,
+            } as any);
         default:
             return '';
     }
+}
+
+/**
+ * Determines string used to reference object in URL slug
+ * @param object Object being navigated to
+ * @returns String used to reference object in URL slug
+ */
+export const getObjectSlug = (object: NavigableObject): string => {
+    // If object is a star/vote/some other type that links to a main object, use that object's slug
+    if (object.to) return getObjectSlug(object.to);
+    // If object is a run, navigate to the routine
+    if (object.routine) return getObjectSlug(object.routine);
+    // If object has a handle, use that (Note: objects with handles don't have versioning, so we don't need to worry about that)
+    if (object.handle) return object.handle;
+    // If object has a versionGroupId, and an id, use versionGroupId/id
+    if (object.versionGroupId && object.id) return `${uuidToBase36(object.versionGroupId)}/${uuidToBase36(object.id)}`;
+    // If object only has a versionGroupId, use that
+    if (object.versionGroupId) return uuidToBase36(object.versionGroupId);
+    // Otherwise, use the id
+    return uuidToBase36(object.id);
+}
+
+/**
+ * Determines string for object's search params
+ * @param object Object being navigated to
+ * @returns Stringified search params for object
+ */
+export const getObjectSearchParams = (object: any) => {
+    // If object is a run
+    if (object.__typename === ObjectType.Run) return stringifySearchParams({ run: uuidToBase36(object.id) });
+    return '';
+}
+
+/**
+ * Opens any object with an id and __typename
+ * @param object Object to open
+ * @param setLocation Function to set location in history
+ */
+export const openObject = (object: NavigableObject, setLocation: SetLocation) => {
+    // Check if __typename is in objectLinkMap
+    if (!ObjectType.hasOwnProperty(object.__typename)) {
+        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: SnackSeverity.Error });
+        return;
+    }
+    // Navigate to object page
+    setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`);
+}
+
+/**
+ * Opens the edit page for an object with an id and __typename
+ * @param object Object to open
+ * @param setLocation Function to set location in history
+ */
+export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => {
+    // Check if __typename is in objectLinkMap
+    if (!ObjectType.hasOwnProperty(object.__typename)) {
+        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: SnackSeverity.Error });
+        return;
+    }
+    // Navigate to object page TODO multi-step routines have different route. Maybe routine update should redirect when this is detected?
+    setLocation(`${getObjectUrlBase(object)}/edit/${getObjectSlug(object)}${getObjectSearchParams(object)}`);
 }

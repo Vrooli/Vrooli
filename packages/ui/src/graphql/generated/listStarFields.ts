@@ -7,10 +7,6 @@
 // GraphQL fragment: listStarFields
 // ====================================================
 
-export interface listStarFields_to_Tag {
-  __typename: "Tag";
-}
-
 export interface listStarFields_to_Comment_commentedOn_Project_translations {
   __typename: "ProjectTranslation";
   id: string;
@@ -313,7 +309,24 @@ export interface listStarFields_to_User {
   isStarred: boolean;
 }
 
-export type listStarFields_to = listStarFields_to_Tag | listStarFields_to_Comment | listStarFields_to_Organization | listStarFields_to_Project | listStarFields_to_Routine | listStarFields_to_Standard | listStarFields_to_User;
+export interface listStarFields_to_Tag_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface listStarFields_to_Tag {
+  __typename: "Tag";
+  id: string;
+  created_at: any;
+  isStarred: boolean;
+  stars: number;
+  tag: string;
+  translations: listStarFields_to_Tag_translations[];
+}
+
+export type listStarFields_to = listStarFields_to_Comment | listStarFields_to_Organization | listStarFields_to_Project | listStarFields_to_Routine | listStarFields_to_Standard | listStarFields_to_User | listStarFields_to_Tag;
 
 export interface listStarFields {
   __typename: "Star";

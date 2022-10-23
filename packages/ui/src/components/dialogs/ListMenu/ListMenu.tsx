@@ -33,7 +33,7 @@ export function ListMenu<T>({
                 color: 'red',
             },
         }}/>;
-        const fill = !iconColor || ['default', 'unset'].includes(iconColor) ? palette.background.textPrimary : iconColor;
+        const fill = !iconColor || ['default', 'unset'].includes(iconColor) ? palette.background.textSecondary : iconColor;
         const itemIcon = Icon ? (
             <ListItemIcon>
                 <Icon fill={fill} />
@@ -51,7 +51,7 @@ export function ListMenu<T>({
                 {helpIcon}
             </ListItem>
         )
-    }), [data, onClose, onSelect, palette.background.textPrimary])
+    }), [data, onClose, onSelect, palette.background.textSecondary])
 
     return (
         <Menu

@@ -1,4 +1,6 @@
+import { SnackSeverity } from "components";
 import { SetLocation } from "types";
+import { PubSub } from "utils/pubsub";
 
 type Primitive = string | number | boolean;
 type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
@@ -6,10 +8,10 @@ type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSea
 /**
  * Converts url search params to object
  * See https://stackoverflow.com/a/8649003/10240279
- * @param searchParams Search params (i.e. window.location.search)
  * @returns Object with key/value pairs, or empty object if no params
  */
-export const parseSearchParams = (searchParams: string): ParseSearchParamsResult => {
+export const parseSearchParams = (): ParseSearchParamsResult => {
+    const searchParams = window.location.search;
     if (searchParams.length <= 1 || !searchParams.startsWith('?')) return {};
     let search = searchParams.substring(1);
     try {
@@ -73,7 +75,7 @@ export const stringifySearchParams = (params: { [key: string]: any }): string =>
  * @param params Object with key/value pairs, representing search params
  */
 export const addSearchParams = (setLocation: SetLocation, params: { [key: string]: any }) => {
-    const currentParams = parseSearchParams(window.location.search);
+    const currentParams = parseSearchParams();
     const newParams = { ...currentParams, ...params };
     setLocation(`${window.location.pathname}${stringifySearchParams(newParams)}`, { replace: true });
 };
@@ -94,7 +96,7 @@ export const setSearchParams = (setLocation: SetLocation, params: { [key: string
  */
 export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
     const keepResult: { [key: string]: any } = {};
-    const searchParams = parseSearchParams(window.location.search);
+    const searchParams = parseSearchParams();
     keep.forEach(key => {
         if (searchParams[key] !== undefined) keepResult[key] = searchParams[key];
     });
@@ -108,7 +110,7 @@ export const keepSearchParams = (setLocation: SetLocation, keep: string[]) => {
  */
 export const removeSearchParams = (setLocation: SetLocation, remove: string[]) => {
     const removeResult: { [key: string]: any } = {};
-    const searchParams = parseSearchParams(window.location.search);
+    const searchParams = parseSearchParams();
     Object.keys(searchParams).forEach(key => {
         if (!remove.includes(key)) removeResult[key] = searchParams[key];
     });
@@ -117,11 +119,59 @@ export const removeSearchParams = (setLocation: SetLocation, remove: string[]) =
 
 /**
  * @returns last part of the url path
+ * @param offset Number of parts to offset from the end of the path (default: 0)
+ * @returns part of the url path that is <offset> parts from the end, or empty string if no path
  */
-export const getLastUrlPart = (): string => {
+export const getLastUrlPart = (offset: number = 0): string => {
     let parts = window.location.pathname.split('/');
     // Remove any empty strings
     parts = parts.filter(part => part !== '');
-    // Return the last part
-    return parts.length > 0 ? parts[parts.length - 1] : '';
+    // Check to make sure there is a part at the offset
+    if (parts.length < offset + 1) return '';
+    return parts[parts.length - offset - 1];
+}
+
+/**
+ * Converts a string to a BigInt
+ * @param value String to convert
+ * @param radix Radix (base) to use
+ * @returns 
+ */
+function toBigInt(value: string, radix: number) {
+    return [...value.toString()]
+        .reduce((r, v) => r * BigInt(radix) + BigInt(parseInt(v, radix)), 0n);
+}
+
+/**
+ * Converts a UUID into a shorter, base 36 string without dashes. 
+ * Useful for displaying UUIDs in a more compact format, such as in a URL.
+ * @param uuid v4 UUID to convert
+ * @returns base 36 string without dashes
+ */
+export const uuidToBase36 = (uuid: string): string => {
+    try {
+        const base36 = toBigInt(uuid.replace(/-/g, ''), 16).toString(36);
+        return base36 === '0' ? '' : base36;
+    } catch (error) {
+        PubSub.get().publishSnack({ message: 'Could not convert ID', severity: SnackSeverity.Error, data: { uuid } });
+        return '';
+    }
+}
+
+/**
+ * Converts a base 36 string without dashes into a UUID.
+ * @param base36 base 36 string without dashes
+ * @param showError Whether to show an error snack if the conversion fails
+ * @returns v4 UUID
+ */
+export const base36ToUuid = (base36: string, showError = true): string => {
+    try {
+        // Convert to base 16. If the ID is less than 32 characters, pad start with 0s. 
+        // Then, insert dashes
+        const uuid = toBigInt(base36, 36).toString(16).padStart(32, '0').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
+        return uuid === '0' ? '' : uuid;
+    } catch (error) {
+        if (showError) PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error, data: { base36 } });
+        return '';
+    }
 }

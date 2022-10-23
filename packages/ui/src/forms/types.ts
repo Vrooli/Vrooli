@@ -68,7 +68,7 @@ export interface JSONProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zInde
 /**
  * Props for rendering a LanguageInput component
  */
-export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'selectedLanguages' | 'session' | 'zIndex'> {
+export interface LanguageInputProps extends Omit<LP, 'currentLanguage' | 'handleAdd' | 'handleChange' | 'handleDelete' | 'handleCurrent' | 'session' | 'translations' | 'zIndex'> {
     defaultValue?: string[];
 }
 
@@ -127,7 +127,7 @@ export interface SwitchProps {
 /**
  * Props for rendering a TagSelector input component
  */
-export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'session' | 'tags' | 'onTagAdd' | 'onTagRemove' | 'onTagsClear' | 'zIndex'> {
+export interface TagSelectorProps extends Omit<TP, 'currentLanguage' | 'session' | 'tags' | 'handleTagsUpdate' | 'zIndex'> {
     defaultValue?: TagShape[];
 }
 

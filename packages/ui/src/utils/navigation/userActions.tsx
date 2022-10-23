@@ -1,25 +1,15 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import {
-    AccountCircle as ProfileIcon,
-    Home as HomeIcon,
-    PersonAdd as RegisterIcon,
-    Handyman as DevelopIcon,
-    School as LearnIcon,
-    Science as ResearchIcon,
-    Search as SearchIcon,
-} from '@mui/icons-material';
 import { APP_LINKS as LINKS } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
     Button,
     IconButton,
-    ListItem,
-    ListItemIcon,
-    ListItemText,
 } from '@mui/material';
 import { openLink } from 'utils';
 import { Session, SetLocation } from 'types';
+import { CreateAccountIcon, DevelopIcon, HomeIcon, LearnIcon, ProfileIcon, ResearchIcon, SearchIcon, SvgComponent } from '@shared/icons';
+import { getCurrentUser, guestSession } from 'utils/authentication';
 
 export enum ACTION_TAGS {
     Home = 'Home',
@@ -37,7 +27,7 @@ export interface Action {
     value: ACTION_TAGS;
     link: string;
     onClick: (() => any) | null;
-    Icon: any;
+    Icon: SvgComponent;
     numNotifications: number;
 }
 
@@ -46,7 +36,8 @@ interface GetUserActionsProps {
     session?: Session | null | undefined;
     exclude?: ACTION_TAGS[] | null | undefined;
 }
-export function getUserActions({ session = {}, exclude = [] }: GetUserActionsProps): Action[] {
+export function getUserActions({ session = guestSession, exclude = [] }: GetUserActionsProps): Action[] {
+    const { id: userId } = getCurrentUser(session);
     // Home action always available
     let actions: ActionArray[] = [
         ['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0],
@@ -59,10 +50,10 @@ export function getUserActions({ session = {}, exclude = [] }: GetUserActionsPro
         ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
     );
     // Log in/out
-    if (session?.isLoggedIn === true) {
+    if (userId) {
         actions.push(['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0])
     } else {
-        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, RegisterIcon, 0]);
+        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, CreateAccountIcon, 0]);
     }
 
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
@@ -77,49 +68,20 @@ const createAction = (action: ActionArray): Action => {
 // Factory for creating a list of action objects
 export const createActions = (actions: ActionArray[]): Action[] => actions.map(a => createAction(a));
 
-// Display actions as a list
-interface ActionsToListProps {
-    actions: Action[];
-    setLocation: SetLocation;
-    sxs?: { listItem: { [x: string]: any }, listItemIcon: { [x: string]: any } };
-    showIcon?: boolean;
-    onAnyClick?: () => any;
-}
-export const actionsToList = ({ actions, setLocation, sxs = { listItem: {}, listItemIcon: {} }, showIcon = true, onAnyClick = () => { } }: ActionsToListProps) => {
-    return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
-        <ListItem
-            key={value}
-            sx={{ ...sxs.listItem }}
-            onClick={() => {
-                openLink(setLocation, link);
-                if (onClick) onClick();
-                if (onAnyClick) onAnyClick();
-            }}>
-            {showIcon && Icon ?
-                (<ListItemIcon>
-                    <Badge badgeContent={numNotifications} color="error">
-                        <Icon sx={{ ...sxs.listItemIcon }} />
-                    </Badge>
-                </ListItemIcon>) : ''}
-            <ListItemText primary={label} />
-        </ListItem>
-    ))
-}
-
 // Display actions in a horizontal menu
 interface ActionsToMenuProps {
     actions: Action[];
     setLocation: SetLocation;
-    classes?: { [key: string]: string };
+    sx?: { [key: string]: any };
 }
-export const actionsToMenu = ({ actions, setLocation, classes = { root: '' } }: ActionsToMenuProps) => {
+export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuProps) => {
     return actions.map(({ label, value, link, onClick }) => (
         <Button
             key={value}
             variant="text"
             size="large"
-            classes={classes}
             onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
+            sx={sx}
         >
             {label}
         </Button>
@@ -130,18 +92,26 @@ export const actionsToMenu = ({ actions, setLocation, classes = { root: '' } }: 
 interface ActionsToBottomNavProps {
     actions: Action[];
     setLocation: SetLocation;
-    classes?: { [key: string]: string };
 }
-export const actionsToBottomNav = ({ actions, setLocation, classes = { root: '' } }: ActionsToBottomNavProps) => {
+export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavProps) => {
     return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
         <BottomNavigationAction
             key={value}
-            classes={classes}
             label={label}
             value={value}
-            onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
-            icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>} />
-    ))
+            onClick={() => {
+                // Check if link is different from current location
+                const shouldScroll = link === window.location.pathname;
+                // If same, scroll to top of page instead of navigating
+                if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Otherwise, navigate to link
+                else openLink(setLocation, link);
+                if (onClick) onClick()
+            }}
+            icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
+            sx={{ color: 'white' }}
+        />
+    ));
 }
 
 // Display an action as an icon button

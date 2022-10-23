@@ -571,6 +571,7 @@ export interface routineCreate_routineCreate {
   updated_at: any;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }
 
 export interface routineCreate {

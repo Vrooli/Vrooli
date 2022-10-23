@@ -123,4 +123,5 @@ export interface standardFields {
   isUpvoted: boolean | null;
   version: string;
   versionGroupId: string;
+  versions: string[];
 }

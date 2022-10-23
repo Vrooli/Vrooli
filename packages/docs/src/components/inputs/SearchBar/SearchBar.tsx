@@ -1,7 +1,7 @@
 import { IconButton, Input, Paper, useTheme } from '@mui/material';
 import { SearchIcon } from '@shared/icons';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
-import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useState } from 'react';
+import { useDebounce } from 'utils';
 import { SearchBarProps } from '../types';
 
 export const SearchBar = ({
@@ -15,10 +15,7 @@ export const SearchBar = ({
     const { palette } = useTheme();
     
     const [internalValue, setInternalValue] = useState<string>(value);
-    const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
-        onChange,
-        debounce,
-    ), [onChange, debounce]);
+    const onChangeDebounced = useDebounce(onChange, debounce);
     useEffect(() => setInternalValue(value), [value]);
 
     const handleChange = useCallback((event: ChangeEvent<any>) => {

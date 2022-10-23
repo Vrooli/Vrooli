@@ -1,15 +1,16 @@
 import { useLazyQuery, useQuery } from '@apollo/client';
 import { APP_LINKS, ResourceListUsedFor, ResourceUsedFor } from '@shared/consts';
-import { Box, Stack, Typography } from '@mui/material';
-import { HelpButton, ResourceListHorizontal, ListTitleContainer } from 'components';
+import { Stack } from '@mui/material';
+import { ResourceListHorizontal, ListTitleContainer, PageTitle, PageContainer } from 'components';
 import { profile } from 'graphql/generated/profile';
 import { researchPage } from 'graphql/generated/researchPage';
 import { profileQuery, researchPageQuery } from 'graphql/query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ResourceList } from 'types';
-import { listToListItems, openObject, OpenObjectProps, stringifySearchParams, SearchPageTabOption } from 'utils';
+import { listToListItems, stringifySearchParams, SearchPageTabOption } from 'utils';
 import { useLocation } from '@shared/route';
 import { ResearchPageProps } from '../types';
+import { getCurrentUser } from 'utils/authentication';
 
 const donateOrInvestText =
     ``
@@ -39,12 +40,14 @@ If you are not logged in, default resources will be displayed.`
 const voteText =
     `Projects listed here are requesting your vote on Project Catalyst! Click on their proposal resources to learn more.`
 
+const zIndex = 200;
+
 export const ResearchPage = ({
     session
 }: ResearchPageProps) => {
     const [, setLocation] = useLocation();
     const [getProfile, { data: profileData, loading: resourcesLoading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
-    useEffect(() => { if (session?.id) getProfile() }, [getProfile, session])
+    useEffect(() => { if (getCurrentUser(session).id) getProfile() }, [getProfile, session])
     const [resourceList, setResourceList] = useState<ResourceList | null>(null);
     useEffect(() => {
         if (!profileData?.profile?.resourceLists) return;
@@ -57,59 +60,50 @@ export const ResearchPage = ({
 
     const { data: researchPageData, loading: researchPageLoading } = useQuery<researchPage>(researchPageQuery, { errorPolicy: 'all' });
 
-    /**
-     * Opens page for list item
-     */
-    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
-        event?.stopPropagation();
-        // Navigate to item page
-        openObject(item, setLocation);
-    }, [setLocation]);
-
     const processes = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Routine'),
         items: researchPageData?.researchPage?.processes,
         keyPrefix: 'research-process-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.processes, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.processes, researchPageLoading, session])
 
     const newlyCompleted = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Project'),
         items: researchPageData?.researchPage?.newlyCompleted,
         keyPrefix: 'newly-completed-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.newlyCompleted, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.newlyCompleted, researchPageLoading, session])
 
     const needVotes = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Project'),
         items: researchPageData?.researchPage?.needVotes,
         keyPrefix: 'need-votes-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.needVotes, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.needVotes, researchPageLoading, session])
 
     const needInvestments = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Project'),
         items: researchPageData?.researchPage?.needInvestments,
         keyPrefix: 'need-investments-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.needInvestments, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.needInvestments, researchPageLoading, session])
 
     const needMembers = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Organization'),
         items: researchPageData?.researchPage?.needMembers,
         keyPrefix: 'need-members-list-item',
         loading: researchPageLoading,
-        onClick: toItemPage,
         session,
-    }), [researchPageData?.researchPage?.needMembers, researchPageLoading, session, toItemPage])
+        zIndex,
+    }), [researchPageData?.researchPage?.needMembers, researchPageLoading, session])
 
     const toCreateProcess = useCallback((event: any) => {
         event?.stopPropagation();
@@ -133,8 +127,8 @@ export const ResearchPage = ({
 
     const toSeeAllProcesses = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.Search}${stringifySearchParams({ 
-            tags: ['Research'], 
+        setLocation(`${APP_LINKS.Search}${stringifySearchParams({
+            tags: ['Research'],
             type: SearchPageTabOption.Routines,
         })}`);
     }, [setLocation]);
@@ -159,7 +153,7 @@ export const ResearchPage = ({
     const toSeeAllNeedVotes = useCallback((event: any) => {
         event?.stopPropagation();
         setLocation(`${APP_LINKS.Search}${stringifySearchParams({
-            resourceTypes: [ResourceUsedFor.Proposal], 
+            resourceTypes: [ResourceUsedFor.Proposal],
             type: SearchPageTabOption.Projects,
         })}`);
     }, [setLocation]);
@@ -170,25 +164,11 @@ export const ResearchPage = ({
             resourceTypes: [ResourceUsedFor.Donation],
             type: SearchPageTabOption.Projects,
         })}`);
-    } , [setLocation]);
+    }, [setLocation]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-            width: 'min(100%, 700px)',
-            margin: 'auto',
-        }}>
-            {/* Title and help button */}
-            <Stack
-                direction="row"
-                justifyContent="center"
-                alignItems="center"
-                sx={{ marginTop: 2, marginBottom: 2 }}
-            >
-                <Typography component="h1" variant="h3" sx={{ fontSize: { xs: '2rem', sm: '3rem' } }}>Research Dashboard</Typography>
-                <HelpButton markdown={researchPageText} sx={{ width: '40px', height: '40px' }} />
-            </Stack>
+        <PageContainer>
+            <PageTitle title="Research Dashboard" helpText={researchPageText} />
             <Stack direction="column" spacing={10}>
                 {/* Resources */}
                 {session?.isLoggedIn && <ResourceListHorizontal
@@ -247,6 +227,6 @@ export const ResearchPage = ({
                     {needMembers}
                 </ListTitleContainer>
             </Stack>
-        </Box>
+        </PageContainer>
     )
 }

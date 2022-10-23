@@ -3,10 +3,10 @@ import { Resource } from 'types';
 export interface ResourceCardProps {
     canEdit: boolean;
     data: Resource;
-    handleEdit: (index: number) => void;
-    handleDelete: (index: number) => void;
     index: number;
-    onRightClick: (target: React.MouseEvent['target'], index: number) => void;
+    onContextMenu: (target: EventTarget, index: number) => void;
+    onEdit: (index: number) => void;
+    onDelete: (index: number) => void;
     session: Session;
 }
 

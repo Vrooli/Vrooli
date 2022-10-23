@@ -5,20 +5,26 @@ import { useQuery } from '@apollo/client';
 import { StarFor, TagSortBy } from '@shared/consts';
 import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
-import { StarButton } from 'components';
+import { SnackSeverity, StarButton } from 'components';
 import { PubSub, TagShape } from 'utils';
 import { Tag } from 'types';
 
 export const TagSelector = ({
     disabled,
+    handleTagsUpdate,
     session,
     tags,
     placeholder = 'Enter tags, followed by commas...',
-    onTagAdd,
-    onTagRemove,
-    onTagsClear,
 }: TagSelectorProps) => {
     const { palette } = useTheme();
+
+    const handleTagAdd = useCallback((tag: TagShape) => {
+        handleTagsUpdate([...tags, tag]);
+    }, [handleTagsUpdate, tags]);
+    const handleTagRemove = useCallback((tag: TagShape) => {
+        handleTagsUpdate(tags.filter(t => t.tag !== tag.tag));
+    }, [handleTagsUpdate, tags]);
+
     const [inputValue, setInputValue] = useState<string>('');
     const clearText = useCallback(() => { setInputValue(''); }, []);
     const onChange = useCallback((change: any) => {
@@ -40,35 +46,35 @@ export const TagSelector = ({
         tagLabel = tagLabel.replace(/[,;]/g, '');
         // Check if tag is valid length
         if (tagLabel.length < 2) {
-            PubSub.get().publishSnack({ message: 'Tag too short.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Tag too short.', severity: SnackSeverity.Error });
             return;
         }
         if (tagLabel.length > 30) {
-            PubSub.get().publishSnack({ message: 'Tag too long.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Tag too long.', severity: SnackSeverity.Error });
             return;
         }
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tagLabel);
         if (isSelected) {
-            PubSub.get().publishSnack({ message: 'Tag already selected.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Tag already selected.', severity: SnackSeverity.Error });
             return;
         }
         // Add tag
-        onTagAdd({ tag: tagLabel });
+        handleTagAdd({ tag: tagLabel });
         // Clear input
         clearText();
-    }, [clearText, inputValue, onTagAdd, tags]);
+    }, [clearText, handleTagAdd, inputValue, tags]);
 
     const onInputSelect = useCallback((tag: Tag) => {
         setInputValue('');
         // Determine if tag is already selected
         const isSelected = tags.some(t => t.tag === tag.tag);
-        if (isSelected) onTagRemove(tag);
-        else onTagAdd(tag);
-    }, [tags, onTagAdd, onTagRemove]);
+        if (isSelected) handleTagRemove(tag);
+        else handleTagAdd(tag);
+    }, [handleTagAdd, handleTagRemove, tags]);
     const onChipDelete = useCallback((tag: TagShape | Tag) => {
-        onTagRemove(tag);
-    }, [onTagRemove]);
+        handleTagRemove(tag);
+    }, [handleTagRemove]);
 
     // Map of tag strings to queried tag data, so we can exclude tags that have already been queried before
     type TagsRef = { [key: string]: TagShape | Tag }
@@ -86,10 +92,10 @@ export const TagSelector = ({
             input: {
                 // Exclude tags that have already been fully queried, and match the search string
                 // (i.e. in tag map, and have an ID)
-                excludeIds: tagsRef.current !== null ? 
+                excludeIds: tagsRef.current !== null ?
                     Object.values(tagsRef.current)
                         .filter(t => (t as Tag).id && t.tag.toLowerCase().includes(inputValue.toLowerCase()))
-                        .map(t => t.id) as string[] : 
+                        .map(t => t.id) as string[] :
                     [],
                 searchString: inputValue,
                 sortBy: TagSortBy.StarsDesc,
@@ -116,7 +122,7 @@ export const TagSelector = ({
         // Find queried
         const queried = autocompleteData.tags.edges.map(({ node }) => node);
         // Find already known, that match the search string
-        const known = tagsRef.current ? 
+        const known = tagsRef.current ?
             Object.values(tagsRef.current)
                 .filter(tag => tag.tag.toLowerCase().includes(inputValue.toLowerCase())) :
             [];

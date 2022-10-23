@@ -1,15 +1,18 @@
 import { runsCreate, runsUpdate } from "@shared/validation";
 import { CODE } from "@shared/consts";
 import { CustomError } from "../../error";
-import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
+import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunPermission, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLModelType, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper } from "./base";
+import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper, combineQueries, onlyValidIds } from "./base";
 import { genErrorCode, logger, LogLevel } from "../../logger";
 import { Log } from "../../models/nosql";
 import { RunStepModel } from "./runStep";
 import { run } from "@prisma/client";
 import { validateProfanity } from "../../utils/censor";
 import { RunInputModel } from "./runInput";
+import { organizationQuerier } from "./organization";
+import { routinePermissioner } from "./routine";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -40,8 +43,9 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     {
                         routine: {
@@ -59,12 +63,12 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
         })
     },
     customQueries(input: RunSearchInput): { [x: string]: any } {
-        return {
-            ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            ...(input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
-            ...(input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
-            ...(input.status !== undefined ? { status: input.status } : {}),
-        }
+        return combineQueries([
+            (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+            (input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
+            (input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
+            (input.status !== undefined ? { status: input.status } : {}),
+        ])
     },
 })
 
@@ -74,21 +78,69 @@ export const runVerifier = () => ({
     },
 })
 
-export const runPermissioner = (prisma: PrismaType): Permissioner<{ canDelete: boolean, canEdit: boolean }, RunSearchInput> => ({
+export const runPermissioner = (): Permissioner<RunPermission, RunSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
-        //TODO
-        return objects.map((o) => ({
-            canDelete: true,
-            canEdit: true,
-            canView: true,
+        // Initialize result with default permissions
+        const result: (RunPermission & { id?: string })[] = objects.map((o) => ({
+            id: o.id,
+            canDelete: false, // own || (own associated routine && !isPrivate)
+            canEdit: false, // own
+            canView: false, // own || (own associated routine && !isPrivate)
         }));
+        // Check ownership
+        if (userId) {
+            // Query for objects with matching userId
+            const owned = await prisma.run.findMany({
+                where: {
+                    id: { in: onlyValidIds(objects.map(o => o.id)) },
+                    userId,
+                },
+                select: { id: true },
+            })
+            // Set permissions for owned objects
+            owned.forEach((o) => {
+                const index = objects.findIndex((r) => r.id === o.id);
+                result[index] = {
+                    ...result[index],
+                    canDelete: true,
+                    canEdit: true,
+                    canView: true,
+                }
+            });
+        }
+        // Query all runs marked as public, where you own the associated routine
+        const all = await prisma.run.findMany({
+            where: {
+                id: { in: onlyValidIds(objects.map(o => o.id)) },
+                isPrivate: false,
+                AND: [
+                    { routineId: null },
+                    routinePermissioner().ownershipQuery(userId ?? ''),
+                ]
+            },
+            select: { id: true },
+        })
+        // Set permissions for found objects
+        all.forEach((o) => {
+            const index = objects.findIndex((r) => r.id === o.id);
+            result[index] = {
+                ...result[index],
+                canDelete: true,
+                canView: true,
+            }
+        });
+        // Return result with IDs removed
+        result.forEach((r) => delete r.id);
+        return result as RunPermission[];
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         //TODO
@@ -97,7 +149,7 @@ export const runPermissioner = (prisma: PrismaType): Permissioner<{ canDelete: b
     ownershipQuery: (userId) => ({
         routine: {
             OR: [
-                { organization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+                organizationQuerier().hasRoleInOrganizationQuery(userId),
                 { user: { id: userId } }
             ]
         }
@@ -395,5 +447,6 @@ export const RunModel = ({
     mutate: runMutater,
     permissions: runPermissioner,
     search: runSearcher(),
+    type: 'Run' as GraphQLModelType,
     verify: runVerifier(),
 })

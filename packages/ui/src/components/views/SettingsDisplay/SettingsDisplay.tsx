@@ -1,20 +1,18 @@
-import { Box, Grid, Stack, Typography, useTheme } from "@mui/material"
+import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { useCallback, useEffect, useState } from "react";
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
-import { PubSub, shapeProfileUpdate, TagHiddenShape, TagShape } from "utils";
-import {
-    Favorite as InterestsIcon,
-} from '@mui/icons-material';
+import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, usePromptBeforeUnload } from "utils";
 import { SettingsDisplayProps } from "../types";
-import { GridSubmitButtons, HelpButton, TagSelector } from "components";
+import { GridSubmitButtons, HelpButton, SnackSeverity, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
-import { profileUpdate, profileUpdateVariables } from "graphql/generated/profileUpdate";
-import { v4 as uuid } from 'uuid';
-import { InvisibleIcon } from "@shared/icons";
+import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
+import { uuid } from '@shared/uuid';
+import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
+import { getCurrentUser } from "utils/authentication";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -40,37 +38,26 @@ export const SettingsDisplay = ({
 
     // Handle starred tags
     const [starredTags, setStarredTags] = useState<TagShape[]>([]);
-    const addStarredTag = useCallback((tag: TagShape) => {
-        setStarredTags(t => [...t, tag]);
-    }, [setStarredTags]);
-    const removeStarredTag = useCallback((tag: TagShape) => {
-        setStarredTags(tags => tags.filter(t => t.tag !== tag.tag));
-    }, [setStarredTags]);
-    const clearStarredTags = useCallback(() => {
-        setStarredTags([]);
-    }, [setStarredTags]);
+    const handleStarredTagsUpdate = useCallback((updatedList: TagShape[]) => { setStarredTags(updatedList); }, [setStarredTags]);
 
     // Handle hidden tags
     const [hiddenTags, setHiddenTags] = useState<TagHiddenShape[]>([]);
-    const addHiddenTag = useCallback((tag: TagShape) => {
-        setHiddenTags(t => [...t, {
-            id: uuid(),
-            isBlur: true,
-            tag
-        }]);
-    }, [setHiddenTags]);
-    const removeHiddenTag = useCallback((tag: TagShape) => {
-        setHiddenTags(ht => ht.filter(t => t.tag.tag !== tag.tag));
-    }, [setHiddenTags]);
-    const clearHiddenTags = useCallback(() => {
-        setHiddenTags([]);
-    }, [setHiddenTags]);
-
-    // Handle theme
-    const [theme, setTheme] = useState<string>('light');
-    useEffect(() => {
-        setTheme(palette.mode);
-    }, [palette.mode]);
+    const handleHiddenTagsUpdate = useCallback((updatedList: TagShape[]) => { 
+        // Hidden tags are wrapped in a shape that includes an isBlur flag. 
+        // Because of this, we must loop through the updatedList to see which tags have been added or removed.
+        const updatedHiddenTags = updatedList.map((tag) => {
+            const existingTag = hiddenTags.find((hiddenTag) => hiddenTag.tag.id === tag.id);
+            if (existingTag) {
+                return existingTag;
+            }
+            return { 
+                id: uuid(),
+                isBlur: true,
+                tag,
+            };
+        });
+        setHiddenTags(updatedHiddenTags);
+    }, [hiddenTags]);
 
     useEffect(() => {
         if (profile?.starredTags) {
@@ -82,61 +69,47 @@ export const SettingsDisplay = ({
     }, [profile]);
 
     // Handle update
-    const [mutation] = useMutation<profileUpdate, profileUpdateVariables>(profileUpdateMutation);
+    const [mutation] = useMutation(profileUpdateMutation);
     const formik = useFormik({
         initialValues: {
-            theme,
+            theme: getCurrentUser(session).theme ?? 'light',
         },
-        enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) return;
             // If any tags are in both starredTags and hiddenTags, remove them from hidden. Also give warning to user.
             const filteredHiddenTags = hiddenTags.filter(t => !starredTags.some(st => st.tag === t.tag.tag));
             if (filteredHiddenTags.length !== hiddenTags.length) {
-                PubSub.get().publishSnack({ message: 'Found topics in both favorites and hidden. These have been removed from hidden.', severity: 'warning' });
+                PubSub.get().publishSnack({ message: 'Found topics in both favorites and hidden. These have been removed from hidden.', severity: SnackSeverity.Warning });
             }
             const input = shapeProfileUpdate(profile, {
                 id: profile.id,
-                theme: values.theme,
+                theme: values.theme as 'light' | 'dark',
                 starredTags,
                 hiddenTags: filteredHiddenTags,
             })
             if (!input || Object.keys(input).length === 0) {
-                PubSub.get().publishSnack({ message: 'No changes made.', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'No changes made.', severity: SnackSeverity.Error });
+                formik.setSubmitting(false);
                 return;
             }
-            mutationWrapper({
+            mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
                 mutation,
                 input,
-                onSuccess: (response) => {
-                    PubSub.get().publishSnack({ message: 'Display preferences updated.' });
-                    onUpdated(response.data.profileUpdate);
+                successMessage: () => 'Display preferences updated.',
+                onSuccess: (data) => {
+                    onUpdated(data);
                     formik.setSubmitting(false);
                 },
                 onError: () => { formik.setSubmitting(false) },
             })
         },
     });
-
-    /**
-     * On page leave, check if unsaved work. 
-     * If so, prompt for confirmation.
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (formik.dirty) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [formik.dirty]);
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     const handleSave = useCallback(() => {
         formik.submitForm();
@@ -167,41 +140,42 @@ export const SettingsDisplay = ({
                 />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <InterestsIcon />
+                <HeartFilledIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Favorite Topics</Typography>
                 <HelpButton markdown={interestsHelpText} />
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
+                    handleTagsUpdate={handleStarredTagsUpdate}
                     session={session}
                     tags={starredTags}
                     placeholder={"Enter interests, followed by commas..."}
-                    onTagAdd={addStarredTag}
-                    onTagRemove={removeStarredTag}
-                    onTagsClear={clearStarredTags}
                 />
             </Box>
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
-                <InvisibleIcon />
+                <InvisibleIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Hidden Topics</Typography>
                 <HelpButton markdown={hiddenHelpText} />
             </Stack>
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
+                    handleTagsUpdate={handleHiddenTagsUpdate}
                     session={session}
                     tags={hiddenTags.map(t => t.tag)}
                     placeholder={"Enter topics you'd like to hide from view, followed by commas..."}
-                    onTagAdd={addHiddenTag}
-                    onTagRemove={removeHiddenTag}
-                    onTagsClear={clearHiddenTags}
                 />
+            </Box>
+            <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>
+                <Button color="secondary" startIcon={<SearchIcon />} onClick={() => { clearSearchHistory(session) }} sx={{
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                }}>Clear Search History</Button>
             </Box>
             <Grid container spacing={2} p={2}>
                 <GridSubmitButtons
-                    disabledCancel={formik.isSubmitting}
-                    disabledSubmit={formik.isSubmitting || !formik.isValid}
                     errors={formik.errors}
                     isCreate={false}
+                    loading={formik.isSubmitting}
                     onCancel={handleCancel}
                     onSetSubmitting={formik.setSubmitting}
                     onSubmit={handleSave}

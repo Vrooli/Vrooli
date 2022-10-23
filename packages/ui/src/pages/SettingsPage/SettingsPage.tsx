@@ -1,13 +1,6 @@
 import { Box, CircularProgress, List, ListItem, ListItemIcon, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
-import {
-    Lock as AuthenticationIcon,
-    LightMode as DisplayIcon,
-    Notifications as NotificationsIcon,
-    AccountCircle as ProfileIcon,
-    SvgIconComponent
-} from '@mui/icons-material';
 import { useLazyQuery } from '@apollo/client';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
@@ -18,6 +11,9 @@ import { SettingsAuthentication } from 'components/views/SettingsAuthentication/
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
 import { useReactSearch } from 'utils';
+import { LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
+import { PageContainer } from 'components';
+import { getCurrentUser } from 'utils/authentication';
 
 /**
  * All settings forms. Same as their route names.
@@ -29,11 +25,11 @@ enum SettingsForm {
     Authentication = 'authentication',
 }
 
-const settingPages: { [x: string]: [SettingsForm, string, SvgIconComponent] } = {
+const settingPages: { [x: string]: [SettingsForm, string, SvgComponent] } = {
     [SettingsForm.Profile]: [SettingsForm.Profile, 'Profile', ProfileIcon],
-    [SettingsForm.Display]: [SettingsForm.Display, 'Display', DisplayIcon],
-    [SettingsForm.Notifications]: [SettingsForm.Notifications, 'Notifications', NotificationsIcon],
-    [SettingsForm.Authentication]: [SettingsForm.Authentication, 'Authentication', AuthenticationIcon],
+    [SettingsForm.Display]: [SettingsForm.Display, 'Display', LightModeIcon],
+    [SettingsForm.Notifications]: [SettingsForm.Notifications, 'Notifications', NotificationsCustomizedIcon],
+    [SettingsForm.Authentication]: [SettingsForm.Authentication, 'Authentication', LockIcon],
 }
 
 export function SettingsPage({
@@ -47,9 +43,9 @@ export function SettingsPage({
     }), [searchParams]);
 
     // Fetch profile data
-    const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all'});
+    const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
     useEffect(() => {
-        if (session?.id) getData();
+        if (getCurrentUser(session).id) getData();
     }, [getData, session])
     const [profile, setProfile] = useState<profile_profile | undefined>(undefined);
     useEffect(() => {
@@ -60,7 +56,7 @@ export function SettingsPage({
     }, []);
 
     const listItems = useMemo(() => {
-        return Object.values(settingPages).map(([link, label, Icon]: [SettingsForm, string, SvgIconComponent], index) => {
+        return Object.values(settingPages).map(([link, label, Icon]: [SettingsForm, string, SvgComponent], index) => {
             const selected = link === selectedPage;
             return (
                 <ListItem
@@ -74,7 +70,7 @@ export function SettingsPage({
                     }}
                 >
                     <ListItemIcon>
-                        <Icon />
+                        <Icon fill='rgba(0, 0, 0, 0.54)' />
                     </ListItemIcon>
                 </ListItem>
             )
@@ -95,15 +91,13 @@ export function SettingsPage({
     }, [selectedPage, session, profile, onUpdated]);
 
     return (
-        <Box id='page' sx={{
+        <PageContainer sx={{
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            padding: { xs: '0', sm: '0.5em' },
-            paddingTop: { xs: '64px', sm: '80px' },
         }}>
             <Box sx={{
-                boxShadow: { xs: 'none', sm: '0px 0px 12px gray' },
+                boxShadow: { xs: 'none', sm: 12 },
                 borderRadius: { xs: 0, sm: 2 },
                 overflow: 'overlay',
                 background: palette.background.default,
@@ -135,6 +129,6 @@ export function SettingsPage({
                     {loading ? <CircularProgress color="secondary" /> : mainContent}
                 </Box>
             </Box>
-        </Box>
+        </PageContainer>
     )
 }

@@ -1,5 +1,5 @@
 import { PrismaType, RecursivePartial } from "../../types";
-import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, Success, Tag, TagCreateInput, TagHidden, User, UserDeleteInput } from "../../schema/types";
+import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, SessionUser, Success, Tag, TagCreateInput, TagHidden, User, UserDeleteInput } from "../../schema/types";
 import { sendResetPasswordLink, sendVerificationLink } from "../../worker/email/queue";
 import { addJoinTablesHelper, addSupplementalFields, FormatConverter, GraphQLInfo, modelToGraphQL, padSelect, PartialGraphQLInfo, readOneHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./base";
 import { user } from "@prisma/client";
@@ -17,6 +17,8 @@ import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ResourceListModel } from "./resourceList";
 import { TagHiddenModel } from "./tagHidden";
+import { GraphQLModelType } from ".";
+import { Request } from "express";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -39,23 +41,20 @@ const tagSelect = {
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
 const supplementalFields = ['starredTags', 'hiddenTags'];
-export const profileFormatter = (): FormatConverter<User, any> => ({
+export const profileFormatter = (): FormatConverter<Profile, any> => ({
     relationshipMap: {
         '__typename': 'Profile',
         'comments': 'Comment',
         'roles': 'Role',
         'emails': 'Email',
         'wallets': 'Wallet',
-        'standards': 'Standard',
-        'tags': 'Tag',
         'resourceLists': 'ResourceList',
-        'organizations': 'Member',
         'projects': 'Project',
         'projectsCreated': 'Project',
         'routines': 'Routine',
         'routinesCreated': 'Routine',
         'starredBy': 'User',
-        'starred': 'Star',
+        'stars': 'Star',
         'starredTags': 'Tag',
         'hiddenTags': 'TagHidden',
         'sentReports': 'Report',
@@ -121,10 +120,11 @@ export const profileVerifier = () => ({
      * Attemps to log a user in
      * @param password Plaintext password
      * @param user User object
-     * @param info Prisma query info
+     * @param prisma Prisma type
+     * @param req Express request object
      * @returns Session data
      */
-    async logIn(password: string, user: any, prisma: PrismaType): Promise<Session | null> {
+    async logIn(password: string, user: any, prisma: PrismaType, req: Request): Promise<Session | null> {
         // First, check if the log in fail counter should be reset
         const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
         // If account is not deleted or hard-locked, and lockout duration has passed
@@ -150,11 +150,12 @@ export const profileVerifier = () => ({
                 },
                 select: {
                     id: true,
+                    name: true,
                     theme: true,
                     roles: { select: { role: { select: { title: true } } } }
                 }
             });
-            return await this.toSession(userData, prisma);
+            return await this.toSession(userData, prisma, req);
         }
         // If password is invalid
         let new_status: any = AccountStatus.Unlocked;
@@ -174,7 +175,7 @@ export const profileVerifier = () => ({
      * Updated user object with new password reset code, and sends email to user with reset link
      * @param user User object
      */
-    async setupPasswordReset(user: any, prisma: PrismaType): Promise<boolean> {
+    async setupPasswordReset(user: { id: string, resetPasswordCode: string | null }, prisma: PrismaType): Promise<boolean> {
         // Generate new code
         const resetPasswordCode = this.generateCode();
         // Store code and request time in user row
@@ -191,7 +192,6 @@ export const profileVerifier = () => ({
     },
     /**
     * Updates email object with new verification code, and sends email to user with link
-    * @param user User object
     */
     async setupVerificationCode(emailAddress: string, prisma: PrismaType): Promise<void> {
         // Generate new code
@@ -265,26 +265,49 @@ export const profileVerifier = () => ({
         }
     },
     /**
-     * Creates session object from user. 
-     * Also updates user's lastSessionVerified
+     * Creates SessionUser object from user.
+     * Also updates user's lastSessionVerified time
      * @param user User object
-     * @param prisma 
-     * @returns Session object
+     * @param prisma Prisma type
      */
-    async toSession(user: RecursivePartial<user>, prisma: PrismaType): Promise<Session> {
+    async toSessionUser(user: { id: string }, prisma: PrismaType): Promise<SessionUser> {
         if (!user.id)
             throw new CustomError(CODE.ErrorUnknown, 'User ID not found', { code: genErrorCode('0064') });
         // Update user's lastSessionVerified
-        await prisma.user.update({
+        const userData = await prisma.user.update({
             where: { id: user.id },
-            data: { lastSessionVerified: new Date().toISOString() }
+            data: { lastSessionVerified: new Date().toISOString() },
+            select: {
+                id: true,
+                handle: true,
+                languages: { select: { language: true } },
+                name: true,
+                theme: true,
+            }
         })
-        // Return shaped session object
+        // Return shaped SessionUser object
         return {
+            handle: userData.handle ?? undefined,
             id: user.id,
-            theme: user.theme ?? 'light',
+            languages: userData.languages.map((l) => l.language).filter(Boolean) as string[],
+            name: userData.name,
+            theme: userData.theme,
+        }
+    },
+    /**
+     * Creates session object from user and existing session data
+     * @param user User object
+     * @param prisma 
+     * @param session current session object
+     * @returns Updated session object, with user data added to the START of the users array
+     */
+    async toSession(user: { id: string }, prisma: PrismaType, session: Partial<Session>): Promise<Session> {
+        const sessionUser = await this.toSessionUser(user, prisma);
+        return {
+            __typename: 'Session',
             isLoggedIn: true,
-            languages: (user as any)?.languages ? (user as any).languages.map((language: any) => language.language) : null,
+            // Make sure users are unique by id
+            users: [sessionUser, ...(session.users ?? []).filter((u: SessionUser) => u.id !== sessionUser.id)],
         }
     }
 })
@@ -330,7 +353,7 @@ const profileQuerier = (prisma: PrismaType) => ({
             input: { id: userId },
             model: ProfileModel,
             prisma,
-            userId,
+            req: { users: [{ id: userId }] },
         })
         const { starredTags, hiddenTags } = await this.myTags(userId, partial);
         // Format for GraphQL
@@ -552,7 +575,7 @@ const profileMutater = (prisma: PrismaType) => ({
         if (!profileVerifier().validatePassword(input.password, user))
             throw new CustomError(CODE.BadCredentials, 'Incorrect password', { code: genErrorCode('0072') });
         // Delete user. User's created objects are deleted separately, with explicit confirmation 
-        // given by the user. This is to minimize the chance of deleting objects which other users rely on.
+        // given by the user. This is to minimize the chance of deleting objects which other users rely on. TODO
         await prisma.user.delete({
             where: { id: userId }
         })
@@ -567,5 +590,6 @@ export const ProfileModel = ({
     mutate: profileMutater,
     port: porter,
     query: profileQuerier,
+    type: 'Profile' as GraphQLModelType,
     verify: profileVerifier(),
 })

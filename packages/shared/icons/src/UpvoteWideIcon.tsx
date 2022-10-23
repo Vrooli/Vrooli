@@ -1,15 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const UpvoteWideIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                fill: props.fill ?? 'white',
-                strokeWidth: 0,
-            }}
-            d="M18.68 19.13H5.32l3.34-6.56L12 6l3.34 6.56Z"
-            transform="matrix(1.35517 0 0 .79117 -4.26 2.06)"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M21.06 17.2H2.94L12 6.8l9.06 10.4Z"
+    />
 )

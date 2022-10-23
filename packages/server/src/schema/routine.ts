@@ -1,9 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy } from './types';
+import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy, FindByVersionInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, updateHelper, visibilityBuilder } from '../models';
 import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
@@ -96,6 +96,7 @@ export const typeDef = gql`
         views: Int!
         version: String!
         versionGroupId: ID!
+        versions: [String!]!
         comments: [Comment!]!
         commentsCount: Int!
         creator: Contributor
@@ -249,11 +250,10 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        includePrivate: Boolean
         isComplete: Boolean
-        isCompleteExceptions: [BooleanSearchException!]
+        isCompleteExceptions: [SearchException!]
         isInternal: Boolean
-        isInternalExceptions: [BooleanSearchException!]
+        isInternalExceptions: [SearchException!]
         languages: [String!]
         minComplexity: Int
         maxComplexity: Int
@@ -276,6 +276,7 @@ export const typeDef = gql`
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID
+        visibility: VisibilityType
     }
 
     # Return type for search result
@@ -297,7 +298,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        routine(input: FindByIdInput!): Routine
+        routine(input: FindByVersionInput!): Routine
         routines(input: RoutineSearchInput!): RoutineSearchResult!
         routinesCount(input: RoutineCountInput!): Int!
     }
@@ -312,35 +313,31 @@ export const typeDef = gql`
 export const resolvers = {
     RoutineSortBy: RoutineSortBy,
     Query: {
-        routine: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            await rateLimit({ info, max: 1000, req });
-            return readOneHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
+        routine: async (_parent: undefined, { input }: IWrap<FindByVersionInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return readOneHelper({ info, input, model: RoutineModel, prisma, req });
         },
         routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
-            await rateLimit({ info, max: 1000, req });
-            // Can only show private if querying your own
-            const privateQuery = input.includePrivate ? 
-                RoutineModel.permissions(prisma).ownershipQuery(req.userId ?? '') : 
-                { isPrivate: false };
-            return readManyHelper({ info, input, model: RoutineModel, prisma, userId: req.userId, additionalQueries: { ...privateQuery } });
+            await rateLimit({ info, maxUser: 1000, req });
+            return readManyHelper({ info, input, model: RoutineModel, prisma, req });
         },
         routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: RoutineModel, prisma });
+            await rateLimit({ info, maxUser: 1000, req });
+            return countHelper({ input, model: RoutineModel, prisma, req });
         },
     },
     Mutation: {
         routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            await rateLimit({ info, max: 500, byAccountOrKey: true, req });
-            return createHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
+            await rateLimit({ info, maxUser: 500, req });
+            return createHelper({ info, input, model: RoutineModel, prisma, req });
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
-            await rateLimit({ info, max: 1000, byAccountOrKey: true, req });
-            return updateHelper({ info, input, model: RoutineModel, prisma, userId: req.userId });
+            await rateLimit({ info, maxUser: 1000, req });
+            return updateHelper({ info, input, model: RoutineModel, prisma, req });
         },
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
-            return deleteOneHelper({ input, model: RoutineModel, prisma, userId: req.userId });
+            await rateLimit({ info, maxUser: 250, req });
+            return deleteOneHelper({ input, model: RoutineModel, prisma, req });
         },
     }
 }

@@ -1,12 +1,12 @@
 import { standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
 import { CODE, DeleteOneType } from "@shared/consts";
-import { omit } from '@shared/utils'; 
+import { omit } from '@shared/utils';
 import { CustomError } from "../../error";
 import { PrismaType, RecursivePartial } from "../../types";
 import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../../schema/types";
-import { addCountFieldsHelper, addCreatorField, addJoinTablesHelper, addSupplementalFieldsHelper, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeCreatorField, removeJoinTablesHelper, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeJoinTablesHelper, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { validateProfanity } from "../../utils/censor";
-import { OrganizationModel } from "./organization";
+import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -16,7 +16,8 @@ import { ViewModel } from "./view";
 import { randomString } from "../../auth/walletAuth";
 import { sortify } from "../../utils/objectTools";
 import { ResourceListModel } from "./resourceList";
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -24,7 +25,7 @@ import { v4 as uuid } from 'uuid';
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
-const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard'];
+const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'];
 export const standardFormatter = (): FormatConverter<Standard, StandardPermission> => ({
     relationshipMap: {
         '__typename': 'Standard',
@@ -40,13 +41,11 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
         'starredBy': 'User',
         'tags': 'Tag',
     },
-    constructUnions: (data) => {
-        let modified = addCreatorField(data);
-        return modified;
-    },
-    deconstructUnions: (partial) => {
-        let modified = removeCreatorField(partial);
-        return modified;
+    unionMap: {
+        'creator': {
+            'User': 'createdByUser',
+            'Organization': 'createdByOrganization',
+        },
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -61,82 +60,115 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Standard')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Standard')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Standard')],
-                ['permissionsStandard', async () => await StandardModel.permissions(prisma).get({ objects, permissions, userId })],
+                ['permissionsStandard', async () => await StandardModel.permissions().get({ objects, permissions, prisma, userId })],
+                ['versions', async (ids) => {
+                    // Find versionGroupIds of routines
+                    const groupData = await prisma.standard.findMany({
+                        where: {
+                            id: { in: ids },
+                        },
+                        select: {
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // Find unique versionGroupIds
+                    const versionGroupIds = new Set(groupData.map(r => r.versionGroupId).filter(Boolean) as string[]);
+                    // Find all versions of routines in versionGroupIds
+                    const versions = await prisma.standard.findMany({
+                        where: {
+                            versionGroupId: { in: [...versionGroupIds] },
+                        },
+                        select: {
+                            id: true,
+                            version: true,
+                            versionGroupId: true,
+                        }
+                    });
+                    // For every routine from ids, find all versions of that routine
+                    const result = groupData.map((r) => {
+                        if (r.versionGroupId) {
+                            return versions.filter(v => v.versionGroupId === r.versionGroupId).map(v => v.version);
+                        } else {
+                            return [r.version];
+                        }
+                    });
+                    return result;
+                }],
             ]
         });
     }
 })
 
-export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardPermission, StandardSearchInput> => ({
+export const standardPermissioner = (): Permissioner<StandardPermission, StandardSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
-        // Initialize result with ID
-        const result = objects.map((o) => ({
-            canComment: true,
-            canDelete: false,
-            canEdit: false,
-            canReport: true,
-            canStar: true,
-            canView: true,
-            canVote: true,
+        // Initialize result with default permissions
+        const result: (StandardPermission & { id?: string })[] = objects.map((o) => ({
+            id: o.id,
+            canComment: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canDelete: false, // own && !isDeleted
+            canEdit: false, // own && !isDeleted
+            canReport: true, // !own && !isDeleted && !isInternal && !isPrivate
+            canStar: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canView: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
+            canVote: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
         }));
-        if (!userId) return result;
-        const ids = objects.map(x => x.id);
-        let creatorData: { 
-            id: string, 
-            user?: { id: string } | null | undefined, 
-            organization?: { id: string } | null | undefined
-        }[] = [];
-        // If some creator data missing, query for creator data.
-        if (onlyValidIds(objects.map(x => x.creator)).length < objects.length) {
-            creatorData = await prisma.standard.findMany({
-                where: { id: { in: ids } },
-                select: {
-                    id: true,
-                    createdByUser: { select: { id: true } },
-                    createdByOrganization: { select: { id: true } },
+        // Check ownership
+        if (userId) {
+            // Query for objects owned by user, or an organization they have an admin role in
+            const owned = await prisma.standard.findMany({
+                where: {
+                    id: { in: onlyValidIds(objects.map(o => o.id)) },
+                    ...this.ownershipQuery(userId),
                 },
-            });
-        } else {
-            creatorData = objects.map((x) => {
-                const isOrg = Boolean(Array.isArray(x.creator?.translations) && x.creator.translations.length > 0 && x.creator.translations[0].name);
-                return ({
-                    id: x.id,
-                    user: isOrg ? null : x.creator,
-                    organization: isOrg ? x.creator : null,
-                });
+                select: { id: true, isDeleted: true },
+            })
+            // Set permissions for owned objects
+            owned.forEach((o) => {
+                const index = objects.findIndex((r) => r.id === o.id);
+                result[index] = {
+                    ...result[index],
+                    canComment: !o.isDeleted,
+                    canDelete: !o.isDeleted,
+                    canEdit: !o.isDeleted,
+                    canReport: false,
+                    canStar: !o.isDeleted,
+                    canView: !o.isDeleted,
+                    canVote: !o.isDeleted,
+                }
             });
         }
-        // Find permissions for every organization
-        const organizationIds = onlyValidIds(creatorData.map(x => x.organization?.id));
-        const orgPermissions = await OrganizationModel.permissions(prisma).get({ 
-            objects: organizationIds.map(x => ({ id: x })),
-            userId 
-        });
-        // Find which objects have ownership permissions
-        for (let i = 0; i < objects.length; i++) {
-            const unformatted = creatorData.find(y => y.id === objects[i].id);
-            if (!unformatted) continue;
-            // Check if user owns object directly, or through organization
-            if (unformatted.user?.id !== userId) {
-                const orgIdIndex = organizationIds.findIndex(id => id === unformatted?.organization?.id);
-                if (orgIdIndex < 0) continue;
-                if (!orgPermissions[orgIdIndex].canEdit) continue;
+        // Query all objects
+        const all = await prisma.standard.findMany({
+            where: {
+                id: { in: onlyValidIds(objects.map(o => o.id)) },
+            },
+            select: { id: true, isDeleted: true, isInternal: true, isPrivate: true },
+        })
+        // Set permissions for all objects
+        all.forEach((o) => {
+            const index = objects.findIndex((r) => r.id === o.id);
+            result[index] = {
+                ...result[index],
+                canComment: result[index].canComment || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canReport: result[index].canReport === false ? false : (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canStar: result[index].canStar || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canView: result[index].canView || (!o.isDeleted && !o.isInternal && !o.isPrivate),
+                canVote: result[index].canVote || (!o.isDeleted && !o.isInternal && !o.isPrivate),
             }
-            // Set creator permissions
-            result[i].canDelete = true;
-            result[i].canEdit = true;
-            result[i].canView = true;
-        }
-        // TODO isPrivate view check
-        // TODO check relationships for permissions
-        return result;
+        });
+        // Return result with IDs removed
+        result.forEach((r) => delete r.id);
+        return result as StandardPermission[];
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         //TODO
@@ -144,7 +176,7 @@ export const standardPermissioner = (prisma: PrismaType): Permissioner<StandardP
     },
     ownershipQuery: (userId) => ({
         OR: [
-            { createdByOrganization: { roles: { some: { assignees: { some: { user: { id: userId } } } } } } },
+            { createdByOrganization: organizationQuerier().hasRoleInOrganizationQuery(userId).organization },
             { createdByUser: { id: userId } }
         ]
     }),
@@ -167,8 +199,9 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                     { name: { ...insensitive } },
@@ -177,35 +210,36 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
             })
         })
     },
-    customQueries(input: StandardSearchInput): { [x: string]: any } {
-        return {
+    customQueries(input: StandardSearchInput, userId: string | null | undefined): { [x: string]: any } {
+        return combineQueries([
             /**
              * isInternal routines should never appear in the query, since they are 
              * only meant for a single input/output
              */
-            isInternal: false,
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            ...(input.userId !== undefined ? { createdByUserId: input.userId } : {}),
-            ...(input.organizationId !== undefined ? { createdByOrganizationId: input.organizationId } : {}),
-            ...(input.projectId !== undefined ? {
+            { isInternal: false },
+            visibilityBuilder({ model: StandardModel, userId, visibility: input.visibility }),
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            (input.userId !== undefined ? { createdByUserId: input.userId } : {}),
+            (input.organizationId !== undefined ? { createdByOrganizationId: input.organizationId } : {}),
+            (input.projectId !== undefined ? {
                 OR: [
                     { createdByUser: { projects: { some: { id: input.projectId } } } },
                     { createdByOrganization: { projects: { some: { id: input.projectId } } } },
                 ]
             } : {}),
-            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.routineId !== undefined ? {
+            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            (input.routineId !== undefined ? {
                 OR: [
                     { routineInputs: { some: { routineId: input.routineId } } },
                     { routineOutputs: { some: { routineId: input.routineId } } },
                 ]
             } : {}),
-            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-            ...(!!input.type ? { type: { contains: input.type.trim(), mode: 'insensitive' } } : {}),
-        }
+            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+            (!!input.type ? { type: { contains: input.type.trim(), mode: 'insensitive' } } : {}),
+        ])
     },
 })
 
@@ -431,7 +465,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                 input: { id: deleteId, objectType: DeleteOneType.Standard },
                 model: StandardModel,
                 prisma,
-                userId,
+                req: { users: [{ id: userId }] },
             })
             return deleteId;
         }
@@ -443,42 +477,18 @@ export const standardMutater = (prisma: PrismaType) => ({
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0103') });
-        // Collect organizationIds from each object, and check if the user is an admin/owner of every organization
-        const organizationIds: (string | null | undefined)[] = [];
+        // Validate userIds, organizationIds, and projectIds
+        await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Standard' });
+        // Validate max objects
+        await validateMaxObjects({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Standard', maxCount: 2500 });
         if (createMany) {
             standardsCreate.validateSync(createMany, { abortEarly: false });
             standardVerifier().profanityCheck(createMany);
-            // Add createdByOrganizationIds to organizationIds array, if they are set
-            organizationIds.push(...onlyValidIds(createMany.map(input => input.createdByOrganizationId)));
-            // Check for max standards created by user TODO
         }
         if (updateMany) {
             standardsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
             standardVerifier().profanityCheck(updateMany.map(u => u.data));
-            // Add existing organizationIds to organizationIds array, if userId does not match the object's userId
-            const objects = await prisma.standard.findMany({
-                where: { id: { in: updateMany.map(input => input.where.id) } },
-                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
-            });
-            organizationIds.push(...objects.filter(object => object.createdByUserId !== userId).map(object => object.createdByOrganizationId));
         }
-        if (deleteMany) {
-            const objects = await prisma.standard.findMany({
-                where: { id: { in: deleteMany } },
-                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
-            });
-            // Split objects by userId and organizationId
-            const userIds = objects.filter(object => Boolean(object.createdByUserId)).map(object => object.createdByUserId);
-            if (userIds.some(id => id !== userId))
-                throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0244') })
-            // Add to organizationIds array, to check ownership status
-            organizationIds.push(...objects.filter(object => !userId.includes(object.createdByOrganizationId ?? '')).map(object => object.createdByOrganizationId));
-        }
-        // Find role for every organization
-        const roles = await OrganizationModel.query(prisma).hasRole(userId, organizationIds);
-        // If any role is undefined, the user is not authorized to delete one or more objects
-        if (roles.some(role => !role))
-            throw new CustomError(CODE.Unauthorized, 'Not authorized to delete.', { code: genErrorCode('0251') })
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
@@ -568,6 +578,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                     data: await this.toDBShapeUpdate(userId, input.data),
                     ...select
                 });
+                // TODO handle version update
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
@@ -639,6 +650,7 @@ export const StandardModel = ({
     permissions: standardPermissioner,
     query: standardQuerier,
     search: standardSearcher(),
+    type: 'Standard' as GraphQLModelType,
     verify: standardVerifier(),
 })
 

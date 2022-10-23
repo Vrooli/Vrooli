@@ -7,7 +7,7 @@ import { DialogTitle } from 'components/dialogs';
 import Markdown from 'markdown-to-jsx';
 import { useCallback } from 'react';
 import { Node } from 'types';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
 
 const titleAria = 'end-node-dialog-title';
@@ -22,8 +22,8 @@ export const EndNodeDialog = ({
 }: EndNodeDialogProps) => {
     const formik = useFormik({
         initialValues: {
-            title: !getTranslation(node, 'title', [language], false) ? 'End' : getTranslation(node, 'title', [language], false) as string,
-            description: getTranslation(node, 'description', [language], false) ?? '',
+            title: !getTranslation(node, [language], false).title ? 'End' : getTranslation(node, [language], false).title as string,
+            description: getTranslation(node, [language], false).description ?? '',
             wasSuccessful: node.data?.wasSuccessful ?? true,
         },
         enableReinitialize: true,
@@ -33,7 +33,6 @@ export const EndNodeDialog = ({
                 title: values.title,
                 description: values.description,
             });
-            console.log('new translations', newTranslations);
             handleClose({
                 ...node,
                 translations: newTranslations as Node['translations'],
@@ -46,7 +45,10 @@ export const EndNodeDialog = ({
         },
     });
 
-    const onClose = useCallback(() => {
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if formik is dirty and clicked outside
+        if (formik.dirty && reason === 'backdropClick') return;
+        // Otherwise, close
         formik.resetForm();
         handleClose();
     }, [formik, handleClose]);
@@ -54,7 +56,7 @@ export const EndNodeDialog = ({
     return (
         <Dialog
             open={isOpen}
-            onClose={onClose}
+            onClose={handleCancel}
             aria-labelledby={titleAria}
             sx={{
                 zIndex,
@@ -62,7 +64,7 @@ export const EndNodeDialog = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                onClose={onClose}
+                onClose={handleCancel}
                 title={isEditing ? "Edit End Node" : 'End Node Information'}
             />
             <form onSubmit={formik.handleSubmit}>
@@ -129,11 +131,10 @@ export const EndNodeDialog = ({
                         </Tooltip>
                     </Grid>
                     {isEditing && <GridSubmitButtons
-                        disabledCancel={formik.isSubmitting}
-                        disabledSubmit={formik.isSubmitting || !formik.isValid}
                         errors={formik.errors}
                         isCreate={false}
-                        onCancel={onClose}
+                        loading={formik.isSubmitting}
+                        onCancel={handleCancel}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.handleSubmit}
                     />}

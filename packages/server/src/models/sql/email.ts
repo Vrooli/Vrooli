@@ -7,6 +7,7 @@ import { CUDInput, CUDResult, FormatConverter, modelToGraphQL, relationshipToPri
 import { validateProfanity } from "../../utils/censor";
 import { genErrorCode } from "../../logger";
 import { ProfileModel } from "./profile";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -194,6 +195,7 @@ export const EmailModel = ({
     prismaObject: (prisma: PrismaType) => prisma.email,
     format: emailFormatter(),
     mutate: emailMutater,
+    type: 'Email' as GraphQLModelType,
     verify: emailVerifier(),
 })
 

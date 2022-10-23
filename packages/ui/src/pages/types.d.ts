@@ -23,3 +23,7 @@ export interface SettingsPageProps {
 export interface StartPageProps {
     session: Session;
 }
+
+export interface WelcomePageProps {
+    session: Session;
+}

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { PubSub } from "utils/pubsub";
 
 interface UsePinchZoomProps {
     onScaleChange: (scale: number) => void;
@@ -11,13 +10,14 @@ type UsePinchZoomReturn = {
 }
 
 type PinchRefs = {
-    currPosition: { x: number, y: number } | null; // Most recent pinch position
-    lastPosition: { x: number, y: number } | null; // Pinch position when scale was last updated
+    currDistance: number; // Most recent distance between two fingers
+    lastDistance: number; // Last distance between two fingers
 }
 
 /**
  * Hook for zooming in and out of a component, using pinch gestures. 
- * Supports both touch and trackpad.
+ * Supports both touch and trackpad. 
+ * NOTE: Make sure to disable the accessibility zoom on the component you're using this hook on. Not sure how to do this yet
  */
 export const usePinchZoom = ({
     onScaleChange,
@@ -25,11 +25,18 @@ export const usePinchZoom = ({
 }: UsePinchZoomProps): UsePinchZoomReturn => {
     const [isPinching, setIsPinching] = useState(false);
     const refs = useRef<PinchRefs>({
-        currPosition: null,
-        lastPosition: null,
+        currDistance: 0,
+        lastDistance: 0,
     });
+    // Wait ref so we can update every k iterations
+    const waitRef = useRef<number>(0);
 
     useEffect(() => {
+        const getTouchDistance = (e: TouchEvent) => {
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            return Math.sqrt(Math.pow(touch1.clientX - touch2.clientX, 2) + Math.pow(touch1.clientY - touch2.clientY, 2));
+        }
         const handleTouchStart = (e: TouchEvent) => {
             // Find the target
             const targetId = (e as any)?.target?.id;
@@ -37,47 +44,43 @@ export const usePinchZoom = ({
             if (!validTargetIds.some(id => targetId.startsWith(id))) return;
             // Pinch requires two touches
             if (e.touches.length !== 2) return;
-            PubSub.get().publishSnack({ message: `Is pinching` })
             setIsPinching(true);
-            refs.current.currPosition = {
-                x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
-            };
-            refs.current.lastPosition = refs.current.currPosition;
+            refs.current.currDistance = getTouchDistance(e);
+            refs.current.lastDistance = refs.current.currDistance;
         };
         const handleTouchMove = (e: TouchEvent) => {
             e.preventDefault();
+            // If pinching
             if (isPinching && e.touches.length === 2) {
-                const currPosition = {
-                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
-                };
-                const deltaX = currPosition.x - (refs.current.currPosition?.x ?? 0);
-                const deltaY = currPosition.y - (refs.current.currPosition?.y ?? 0);
-                PubSub.get().publishSnack({ message: `touchmove deltaX: ${deltaX} deltaY: ${deltaY}` })
-                // If deltas have same sign, we're pinching
-                if (deltaX * deltaY > 0) {
-                    onScaleChange(deltaX);
-                    refs.current.lastPosition = refs.current.currPosition;
-                    refs.current.currPosition = currPosition;
+                // Only update every 5 iterations
+                if (waitRef.current < 5) {
+                    waitRef.current++;
+                    return;
                 }
+                waitRef.current = 0;
+                // Get the current position
+                const newDistance = getTouchDistance(e);
+                // Calculate the scale delta
+                const scaleDelta = (newDistance - refs.current.currDistance) / 250;
+                // Update the scale and refs
+                onScaleChange(scaleDelta);
+                refs.current.lastDistance = refs.current.currDistance;
+                refs.current.currDistance = newDistance;
             }
         };
         const handleTouchEnd = (e: TouchEvent) => {
             if (e.touches.length === 0) {
                 setIsPinching(false);
-                refs.current.currPosition = null;
-                refs.current.lastPosition = null;
+                refs.current.currDistance = 0;
+                refs.current.lastDistance = 0;
             }
         };
         const handleWheel = (e: WheelEvent) => {
             e.preventDefault();
-            // If mouse wheel (instead of trackpad), ignore. This is because the grid has scrollbars
-            // Mouse wheel uses much larger deltas than trackpad, so it's easier to detect
-            if (e.deltaY > 50) return;
-            // If not pinching, ignore. Scrolling uses integers for deltas, so it's easier to detect
-            if (Number.isInteger(e.deltaY)) return;
-            const moveBy = e.deltaY / 200;
+            // let deltaY = e.deltaY;
+            // // If mouse whell (instead of trackpad), scale down deltaY
+            // if (e.deltaMode === 0) deltaY /= 100;
+            const moveBy = e.deltaY / 500;
             const targetId = (e as any)?.target?.id;
             if (!targetId) return;
             if (!validTargetIds.some(id => targetId.startsWith(id))) return;

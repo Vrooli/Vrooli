@@ -9,12 +9,19 @@ import { EmailSignUpInput } from "./globalTypes";
 // GraphQL mutation operation: emailSignUp
 // ====================================================
 
+export interface emailSignUp_emailSignUp_users {
+  __typename: "SessionUser";
+  handle: string | null;
+  id: string;
+  languages: (string | null)[] | null;
+  name: string | null;
+  theme: string | null;
+}
+
 export interface emailSignUp_emailSignUp {
   __typename: "Session";
-  id: string | null;
-  theme: string | null;
   isLoggedIn: boolean;
-  languages: string[] | null;
+  users: emailSignUp_emailSignUp_users[] | null;
 }
 
 export interface emailSignUp {

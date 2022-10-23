@@ -7,10 +7,8 @@ import { checkboxStandardInputForm as validationSchema } from '@shared/validatio
 import { useFormik } from 'formik';
 import { useCallback, useEffect } from 'react';
 import { Checkbox, FormControlLabel, IconButton, Stack, TextField, Tooltip, Typography } from '@mui/material';
-import {
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
-import { AddIcon } from '@shared/icons';
+import { AddIcon, DeleteIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
 /**
  * Create new option
@@ -147,10 +145,11 @@ export const CheckboxStandardInput = ({
             ))}
             {isEditing && (
                 <Tooltip placement="top" title="Add option">
-                    <IconButton
+                    <ColorIconButton
                         color="inherit"
                         onClick={handleOptionAdd}
                         aria-label="Add"
+                        background="#6daf72"
                         sx={{
                             zIndex: 1,
                             width: 'fit-content',
@@ -159,18 +158,11 @@ export const CheckboxStandardInput = ({
                             marginBottom: '16px !important',
                             display: 'flex',
                             alignItems: 'center',
-                            backgroundColor: '#6daf72',
-                            color: 'white',
                             borderRadius: '100%',
-                            '&:hover': {
-                                backgroundColor: '#6daf72',
-                                filter: `brightness(110%)`,
-                                transition: 'filter 0.2s',
-                            },
                         }}
                     >
-                        <AddIcon />
-                    </IconButton>
+                        <AddIcon fill='white' />
+                    </ColorIconButton>
                 </Tooltip>
             )}
         </Stack>

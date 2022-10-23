@@ -11,23 +11,40 @@ import { routine_routine, routine_routine_inputs, routine_routine_inputs_transla
 import { standard_standard, standard_standard_translations } from 'graphql/generated/standard';
 import { tag_tag, tag_tag_translations } from 'graphql/generated/tag';
 import { user_user } from 'graphql/generated/user';
-import { RoutineStepType } from 'utils';
+import { ListObjectType, RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { comment_comment } from 'graphql/generated/comment';
 import { comments_comments_threads } from 'graphql/generated/comments';
 import { run_run_inputs, run_run_steps } from 'graphql/generated/run';
+import { SearchException } from 'graphql/generated/globalTypes';
+import { validateSession_validateSession, validateSession_validateSession_users } from 'graphql/generated/validateSession';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
-export type Session = {
-    id?: string | null;
-    isLoggedIn?: boolean;
-    languages?: string[] | null;
-    theme?: string | null;
-}
+export type Session = validateSession_validateSession;
+export type SessionUser = validateSession_validateSession_users;
 export interface CommonProps {
     session: Session;
     sessionChecked: SessionChecked;
+}
+
+/**
+ * An object connected to routing
+ */
+export type NavigableObject = {
+    __typename: string
+    handle?: string | null,
+    id: string,
+    versionGroupId?: string | null,
+    routine?: {
+        __typename: string
+        id: string
+    } | null,
+    to?: {
+        __typename: string,
+        handle?: string | null,
+        id: string,
+    }
 }
 
 // Rename auto-generated query objects
@@ -95,11 +112,11 @@ export type ShapeWrapper<T> = Partial<Omit<T, '__typename' | 'createdAt' | 'crea
 // Common query input groups
 export type IsCompleteInput = {
     isComplete?: boolean;
-    isCompleteExceptions: { id: string, relation: string }[];
+    isCompleteExceptions?: SearchException[];
 }
 export type IsInternalInput = {
     isInternal?: boolean;
-    isInternalExceptions: { id: string, relation: string }[];
+    isInternalExceptions?: SearchException[];
 }
 
 /**
@@ -139,18 +156,51 @@ export interface RoutineListStep extends BaseStep {
 }
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
-export interface AutocompleteOption {
-    __typename: string;
+export interface ObjectOption {
+    __typename: ListObjectType['__typename'];
+    handle?: string | null;
     id: string;
-    label: string | null;
+    versionGroupId?: string | null;
+    isFromHistory?: boolean;
+    isStarred?: boolean;
+    label: string;
     stars?: number;
     [key: string]: any;
+    routine?: {
+        __typename: string
+        id: string
+    } | null,
+    to?: {
+        __typename: string,
+        handle?: string | null,
+        id: string,
+    }
 }
 
-// Enable Nami integration
-declare global {
-    interface Window { cardano: any; }
+export interface ShortcutOption {
+    __typename: 'Shortcut';
+    isFromHistory?: boolean;
+    label: string;
+    id: string; // Actually URL, but id makes it easier to use
 }
+
+export interface ActionOption {
+    __typename: 'Action';
+    canPerform: (session: Session) => boolean;
+    id: string;
+    isFromHistory?: boolean;
+    label: string;
+}
+
+export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
+
+declare global {
+    // Enable Nami integration
+    interface Window { cardano: any; }
+    // Add ID to EventTarget
+    interface EventTarget { id?: string; }
+}
+// Enable Nami integration
 window.cardano = window.cardano || {};
 
 // Apollo GraphQL

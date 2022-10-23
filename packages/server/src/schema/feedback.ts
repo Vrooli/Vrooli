@@ -21,7 +21,7 @@ export const typeDef = gql`
 export const resolvers = {
     Mutation: {
         feedbackCreate: async (_parent: undefined, { input }: IWrap<FeedbackInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            await rateLimit({ info, max: 250, req });
+            await rateLimit({ info, maxUser: 250, req });
             // Check for valid arguments
             feedbackCreate.validateSync(input, { abortEarly: false });
             // Find user who sent feedback, if any

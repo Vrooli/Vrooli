@@ -1,8 +1,7 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ObjectActionMenu, LinkButton, ResourceListHorizontal, TextCollapse } from "components";
+import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, SnackSeverity, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { containerShadow } from "styles";
-import { formikToRunInputs, getOwnedByString, getTranslation, getUserLanguages, ObjectType, PubSub, runInputsToFormik, standardToFieldData, toOwnedBy } from "utils";
+import { formikToRunInputs, getTranslation, getUserLanguages, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -22,30 +21,26 @@ export const SubroutineView = ({
     session,
     zIndex,
 }: SubroutineViewProps) => {
+    console.log('subroutine view', owner, routine?.isInternal, routine?.owner)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
     const [internalRoutine, setInternalRoutine] = useState(routine);
     useEffect(() => {
         setInternalRoutine(routine);
-    } , [routine]);
+    }, [routine]);
 
     const { description, instructions, title } = useMemo(() => {
-        const languages = session.languages ?? navigator.languages;
+        const languages = getUserLanguages(session);
+        const { description, instructions, title } = getTranslation(internalRoutine, languages, true);
         return {
-            description: getTranslation(internalRoutine, 'description', languages, true),
-            instructions: getTranslation(internalRoutine, 'instructions', languages, true),
-            title: getTranslation(internalRoutine, 'title', languages, true),
+            description,
+            instructions,
+            title,
         }
-    }, [internalRoutine, session.languages]);
+    }, [internalRoutine, session]);
 
-    const ownedBy = useMemo<string | null>(() => {
-        if (!internalRoutine) return null;
-        // If isInternal, owner is same as overall routine owner
-        const ownerObject = internalRoutine.isInternal ? { owner } : internalRoutine;
-        return getOwnedByString(ownerObject, getUserLanguages(session))
-    }, [internalRoutine, owner, session]);
-    const toOwner = useCallback(() => {
+    const confirmLeave = useCallback((callback: () => any) => {
         // Confirmation dialog for leaving routine
         PubSub.get().publishAlertDialog({
             message: 'Are you sure you want to stop this routine? You can continue it later.',
@@ -54,15 +49,14 @@ export const SubroutineView = ({
                     text: 'Yes', onClick: () => {
                         // Save progress
                         handleSaveProgress();
-                        // Navigate to owner
-                        const ownerObject = internalRoutine?.isInternal ? { owner } : internalRoutine;
-                        toOwnedBy(ownerObject, setLocation)
+                        // Trigger callback
+                        callback();
                     }
                 },
                 { text: 'Cancel' },
             ]
         });
-    }, [internalRoutine, handleSaveProgress, owner, setLocation]);
+    }, [handleSaveProgress]);
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData }>(() => {
@@ -72,9 +66,9 @@ export const SubroutineView = ({
             const currInput = internalRoutine.inputs[i];
             if (!currInput.standard) continue;
             const currSchema = standardToFieldData({
-                description: getTranslation(currInput, 'description', getUserLanguages(session), false) ?? getTranslation(currInput.standard, 'description', getUserLanguages(session), false),
+                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standard, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
-                helpText: getTranslation(currInput, 'helpText', getUserLanguages(session), false),
+                helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standard.props,
                 name: currInput.name ?? currInput.standard.name,
                 type: currInput.standard.type,
@@ -126,9 +120,9 @@ export const SubroutineView = ({
         const input = formik.values[fieldName];
         if (input) {
             navigator.clipboard.writeText(input);
-            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: 'success' });
+            PubSub.get().publishSnack({ message: 'Copied to clipboard.', severity: SnackSeverity.Success });
         } else {
-            PubSub.get().publishSnack({ message: 'Input is empty.', severity: 'error' });
+            PubSub.get().publishSnack({ message: 'Input is empty.', severity: SnackSeverity.Error });
         }
     }, [formik.values]);
 
@@ -178,7 +172,7 @@ export const SubroutineView = ({
     const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
 
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Routine}/edit/${internalRoutine?.id}`);
+        setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(internalRoutine?.id ?? '')}`);
     }, [internalRoutine?.id, setLocation]);
 
     const onMoreActionStart = useCallback((action: ObjectAction) => {
@@ -196,7 +190,7 @@ export const SubroutineView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.vote.success) {
+                if (data.success) {
                     setInternalRoutine({
                         ...internalRoutine,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
@@ -205,7 +199,7 @@ export const SubroutineView = ({
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.star.success) {
+                if (data.success) {
                     setInternalRoutine({
                         ...internalRoutine,
                         isStarred: action === ObjectActionComplete.Star,
@@ -213,10 +207,12 @@ export const SubroutineView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                setLocation(`${APP_LINKS.Routine}/${data.fork.routine.id}`);
+                openObject(data.routine, setLocation);
+                window.location.reload();
                 break;
             case ObjectActionComplete.Copy:
-                setLocation(`${APP_LINKS.Routine}/${data.copy.routine.id}`);
+                openObject(data.routine, setLocation);
+                window.location.reload();
                 break;
         }
     }, [internalRoutine, setLocation]);
@@ -240,25 +236,17 @@ export const SubroutineView = ({
             overflow: 'overlay',
             // safe-area-inset-bottom is the iOS navigation bar
             marginBottom: 'calc(64px + env(safe-area-inset-bottom))',
-            ...containerShadow
+            boxShadow: 12,
         }}>
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
-                isUpvoted={internalRoutine?.isUpvoted}
-                isStarred={internalRoutine?.isStarred}
-                objectId={internalRoutine?.id ?? ''}
-                objectName={title ?? ''}
-                objectType={ObjectType.Routine}
                 anchorEl={moreMenuAnchor}
-                title='Subroutine Options'
+                object={internalRoutine as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                permissions={{
-                    ...(internalRoutine?.permissionsRoutine ?? {}),
-                    canDelete: false,
-                }}
                 session={session}
+                title='Subroutine Options'
                 zIndex={zIndex + 1}
             />
             {/* Heading container */}
@@ -285,22 +273,27 @@ export const SubroutineView = ({
                                 marginRight: 1,
                             }}
                         >
-                            <EllipsisIcon fill={palette.primary.contrastText}  />
+                            <EllipsisIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
                 </Stack>
                 <Stack direction="row" spacing={1}>
-                    {ownedBy ? (
-                        <LinkButton
-                            onClick={toOwner}
-                            text={ownedBy}
-                        />
-                    ) : null}
-                    <Typography variant="body1"> - {internalRoutine?.version}</Typography>
+                    <OwnerLabel
+                        confirmOpen={confirmLeave}
+                        objectType={ObjectType.Routine}
+                        owner={internalRoutine?.isInternal ? owner : internalRoutine?.owner}
+                        session={session}
+                    />
+                    <VersionDisplay
+                        confirmVersionChange={confirmLeave}
+                        currentVersion={internalRoutine?.version}
+                        prefix={" - "}
+                        versions={internalRoutine?.versions}
+                    />
                 </Stack>
             </Stack>
             {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-            <Stack direction="column" spacing={1} padding={1}>
+            <Stack direction="column" spacing={2} padding={2}>
                 {/* Resources */}
                 {resourceList}
                 {/* Description */}

@@ -4,7 +4,7 @@
 import { Box, Stack } from '@mui/material';
 import { useMemo } from 'react';
 import { NodeColumnProps } from '../types';
-import { EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
+import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { getTranslation } from 'utils';
@@ -24,7 +24,7 @@ export const NodeColumn = ({
     zIndex,
 }: NodeColumnProps) => {
     // Padding between cells
-    const padding = useMemo(() => scale * 25, [scale]);
+    const padding = useMemo(() => calculateNodeSize(25, scale), [scale]);
     // Highlights column when a dragging node can be dropped on it
     const isHighlighted = useMemo(() => dragId, [dragId]);
 
@@ -50,8 +50,8 @@ export const NodeColumn = ({
             if (node === null) {
                 return (
                     <Box key={`node-placeholder-${columnIndex}-${index}`} sx={{
-                        width: `${100 * scale}px`,
-                        height: `${350 * scale}px`,
+                        width: `${calculateNodeSize(100, scale)}px`,
+                        height: `${calculateNodeSize(350, scale)}px`,
                     }} />
                 )
             }
@@ -62,7 +62,7 @@ export const NodeColumn = ({
                 handleAction,
                 isLinked: true,
                 scale,
-                label: getTranslation(node, 'title', [language], false) ?? undefined,
+                label: getTranslation(node, [language], false).title ?? undefined,
                 labelVisible,
                 isEditing,
                 canDrag: isEditing,
@@ -117,6 +117,7 @@ export const NodeColumn = ({
             justifyContent="center"
             alignItems="center"
             sx={{
+                // pointerEvents: 'none',
                 backgroundColor: isHighlighted ? '#a2be6547' : 'transparent',
                 borderLeft: isHighlighted ? '1px solid #71c84f' : 'none',
                 borderRight: isHighlighted ? '1px solid #71c84f' : 'none',

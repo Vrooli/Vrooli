@@ -1,6 +1,9 @@
 import { BuildRunState } from "utils";
 import { Routine, Run, Session } from "types";
 import { CommentFor } from "graphql/generated/globalTypes";
+import { TextFieldProps } from "@mui/material";
+import { MarkdownInputProps } from "components/inputs/types";
+import { GridSubmitButtonsProps } from "components/buttons/types";
 
 export interface CommentContainerProps {
     language: string;
@@ -36,11 +39,9 @@ export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 export interface BuildBottomContainerProps {
     canSubmitMutate: boolean;
     canCancelMutate: boolean;
-    handleCancelAdd: () => void;
-    handleCancelUpdate: () => void;
-    handleAdd: () => void;
-    handleUpdate: () => void;
-    handleScaleChange: (scale: number) => void;
+    errors: GridSubmitButtonsProps['errors'];
+    handleCancel: () => void;
+    handleSubmit: () => void;
     handleRunDelete: (run: Run) => void;
     handleRunAdd: (run: Run) => void;
     hasNext: boolean;
@@ -48,7 +49,6 @@ export interface BuildBottomContainerProps {
     isAdding: boolean;
     isEditing: boolean;
     loading: boolean;
-    scale: number;
     session: Session;
     sliderColor: string;
     routine: Routine | null;
@@ -66,6 +66,7 @@ export interface ContentCollapseProps {
         root?: { [x: string]: any };
     }
     title?: string | null;
+    titleComponent?: "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "span" | "legend";
     children?: React.ReactNode;
 }
 
@@ -83,7 +84,20 @@ export interface EditableTextCollapseProps {
     isEditing: boolean;
     isOpen?: boolean;
     onOpenChange?: (isOpen: boolean) => void;
+    /**
+     * Props for TextField
+     */
+    propsTextField?: TextFieldProps;
+    /**
+     * Props for MarkdownInput. If not set, assumes TextField is used.
+     */
+    propsMarkdownInput?: MarkdownInputProps;
     showOnNoText?: boolean;
     title?: string | null;
     text?: string | null;
+}
+
+export interface PageContainerProps {
+    children: boolean | null | undefined | JSX.Element | (boolean | null | undefined | JSX.Element)[];
+    sx?: { [x: string]: any };
 }

@@ -1,12 +1,29 @@
-import { ButtonProps } from '@mui/material';
+import { ButtonProps, IconButtonProps } from '@mui/material';
+import { ReportFor, StarFor } from '@shared/consts';
 import { SvgProps } from 'assets/img/types';
+import React from 'react';
+import { NavigableObject, Session } from 'types';
 import { Status } from 'utils';
+
+export interface ColorIconButtonProps extends IconButtonProps {
+    background: string;
+    children: JSX.Element | null;
+    disabled?: boolean;
+    sx?: { [key: string]: any };
+}
+
+export interface CommentsButtonProps {
+    commentsCount: number | null; // Defaults to 0
+    disabled?: boolean;
+    object: { id: string, handle?: string | null, __typename: string } | null | undefined;
+}
 
 export interface GridSubmitButtonsProps {
     disabledCancel?: boolean;
     disabledSubmit?: boolean;
-    errors?: { [key: string]: string };
+    errors?: { [key: string]: string | string[] | null | undefined };
     isCreate: boolean;
+    loading?: boolean;
     onCancel: () => void;
     onSetSubmitting?: (isSubmitting: boolean) => void;
     onSubmit?: () => void;
@@ -37,6 +54,39 @@ export interface PopupMenuProps extends ButtonProps {
     children: any
 };
 
+export interface ReportButtonProps {
+    forId: string;
+    reportFor: ReportFor;
+    session: Session;
+    zIndex: number;
+}
+
+export interface ReportsButtonProps {
+    reportsCount: number | null; // Defaults to 0
+    object: { id: string, __typename: string } | null | undefined;
+}
+
+export interface ReportsLinkProps {
+    object: (NavigableObject & { reportsCount: number }) | null | undefined;
+}
+
+export interface ShareButtonProps {
+    object: NavigableObject | null | undefined;
+    zIndex: number;
+}
+
+export interface StarButtonProps {
+    disabled?: boolean;
+    isStar?: boolean | null; // Defaults to false
+    objectId: string;
+    onChange?: (isStar: boolean, event?: any) => void;
+    session: Session;
+    showStars?: boolean; // Defaults to true. If false, the number of stars is not shown
+    starFor: StarFor;
+    stars?: number | null; // Defaults to 0
+    sxs?: { root?: { [key: string]: any } };
+    tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right';
+}
 
 export interface StatusMessageArray {
     status: Status;

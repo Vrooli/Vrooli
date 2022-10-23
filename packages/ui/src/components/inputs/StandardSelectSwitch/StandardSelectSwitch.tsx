@@ -1,12 +1,10 @@
-import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { StandardSelectSwitchProps } from '../types';
 import { noSelect } from 'styles';
 import { StandardSelectOrCreateDialog } from 'components/dialogs';
-import {
-    Edit as CustomIcon,
-    Link as StandardIcon,
-} from '@mui/icons-material';
+import { EditIcon as CustomIcon, LinkIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
 const grey = {
     400: '#BFC7CF',
@@ -41,7 +39,7 @@ export function StandardSelectSwitch({
         }
     }, [disabled, onChange, openCreateDialog, selected]);
 
-    const Icon = useMemo(() => Boolean(selected) ? StandardIcon : CustomIcon, [selected]);
+    const Icon = useMemo(() => Boolean(selected) ? LinkIcon : CustomIcon, [selected]);
 
     return (
         <>
@@ -72,23 +70,18 @@ export function StandardSelectSwitch({
                         display: 'block',
                     }}>
                         {/* Thumb */}
-                        <IconButton sx={{
-                            backgroundColor: palette.secondary.main,
+                        <ColorIconButton background={palette.secondary.main} sx={{
                             display: 'inline-flex',
                             width: '30px',
                             height: '30px',
                             position: 'absolute',
                             top: 0,
+                            padding: '4px',
                             transition: 'transform 150ms cubic-bezier(0.4, 0, 0.2, 1)',
                             transform: `translateX(${Boolean(selected) ? '24' : '0'}px)`,
                         }}>
-                            <Icon sx={{
-                                position: 'absolute',
-                                display: 'block',
-                                fill: 'white',
-                                borderRadius: '8px',
-                            }} />
-                        </IconButton>
+                            <Icon width='30px' height='30px' fill="white" />
+                        </ColorIconButton>
                     </Box>
                     {/* Input */}
                     <input

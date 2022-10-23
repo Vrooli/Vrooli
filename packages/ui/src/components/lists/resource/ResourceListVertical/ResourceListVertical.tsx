@@ -4,13 +4,12 @@ import { ResourceDialog, ResourceListItem } from 'components';
 import { ResourceListVerticalProps } from '../types';
 import { MouseEvent, useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
-import { containerShadow } from 'styles';
 import { Box, Button } from '@mui/material';
 import { useMutation } from '@apollo/client';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { updateArray } from 'utils';
-import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
+import { resourceDeleteManyVariables, resourceDeleteMany_resourceDeleteMany } from 'graphql/generated/resourceDeleteMany';
 import { AddIcon } from '@shared/icons';
 
 export const ResourceListVertical = ({
@@ -39,20 +38,20 @@ export const ResourceListVertical = ({
         if (handleUpdate) {
             handleUpdate({
                 ...list,
-                resources: updateArray(list.resources, index, updatedResource),
+                resources: updateArray(list.resources, index, updatedResource) as any[],
             });
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<resourceDeleteMany, resourceDeleteManyVariables>(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation(resourceDeleteManyMutation);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
-            mutationWrapper({
+            mutationWrapper<resourceDeleteMany_resourceDeleteMany, resourceDeleteManyVariables>({
                 mutation: deleteMutation,
                 input: { ids: [resource.id] },
-                onSuccess: (response) => {
+                onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({
                             ...list,
@@ -70,7 +69,7 @@ export const ResourceListVertical = ({
         }
     }, [deleteMutation, handleUpdate, list, mutate]);
 
-    // Right click context menu
+    // Right click context menu TODO
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const [selected, setSelected] = useState<any | null>(null);
     const contextId = useMemo(() => `resource-context-menu-${selected?.link}`, [selected]);
@@ -112,7 +111,7 @@ export const ResourceListVertical = ({
     return (
         <>
             <Box sx={{
-                ...containerShadow,
+                boxShadow: 12,
                 overflow: 'overlay',
                 borderRadius: '8px',
                 maxWidth: '1000px',

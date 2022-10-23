@@ -15,10 +15,11 @@ import {
     routineNodeCheckboxOption,
     routineNodeCheckboxLabel,
 } from '../styles';
-import { containerShadow, multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { BuildAction, getTranslation, updateTranslationFields, usePress } from 'utils';
-import { EditableLabel, NodeContextMenu } from 'components';
+import { multiLineEllipsis, noSelect, textShadow } from 'styles';
+import { BuildAction, firstString, getTranslation, updateTranslationFields, usePress } from 'utils';
+import { calculateNodeSize, EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
+import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
 
 /**
  * Decides if a clicked element should trigger opening the subroutine dialog 
@@ -42,15 +43,15 @@ export const SubroutineNode = ({
 }: SubroutineNodeProps) => {
     const { palette } = useTheme();
 
-    const nodeSize = useMemo(() => `${220 * scale}px`, [scale]);
-    const fontSize = useMemo(() => `min(${220 * scale / 5}px, 2em)`, [scale]);
+    const nodeSize = useMemo(() => `${calculateNodeSize(220, scale)}px`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(220, scale) / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
     const canEdit = useMemo<boolean>(() => (data?.routine?.isInternal ?? data?.routine?.permissionsRoutine?.canEdit === true), [data.routine]);
 
     const { title } = useMemo(() => {
         const languages = navigator.languages;
         return {
-            title: getTranslation(data, 'title', languages, true) ?? getTranslation(data.routine, 'title', languages, true) ?? ''
+            title: firstString(getTranslation(data, languages, true).title, getTranslation(data.routine, languages, true).title),
         }
     }, [data]);
 
@@ -60,8 +61,8 @@ export const SubroutineNode = ({
         }
         handleAction(action, data.id);
     }, [data.id, handleAction]);
-    const openSubroutine = useCallback((target: React.MouseEvent['target']) => {
-        if (!shouldOpen((target as any)?.id)) return;
+    const openSubroutine = useCallback((target: EventTarget) => {
+        if (!shouldOpen(target.id)) return;
         onAction(null, BuildAction.OpenSubroutine)
     }, [onAction]);
     const deleteSubroutine = useCallback((event) => { onAction(event, BuildAction.DeleteSubroutine) }, [onAction]);
@@ -99,7 +100,7 @@ export const SubroutineNode = ({
                             lineBreak: 'anywhere' as any,
                             whiteSpace: 'pre' as any,
                         } as CSSProperties}
-                    >{t ?? 'Untitled'}</Typography>
+                    >{firstString(t, 'Untitled')}</Typography>
                 )}
                 sxs={{
                     stack: {
@@ -108,6 +109,7 @@ export const SubroutineNode = ({
                     }
                 }}
                 text={title}
+                validationSchema={titleValidation.required(requiredErrorMessage)}
             />
         )
     }, [labelVisible, isEditing, handleLabelUpdate, title, data.id]);
@@ -116,7 +118,7 @@ export const SubroutineNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `subroutine-context-menu-${data.id}`, [data?.id]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: React.MouseEvent['target']) => {
+    const openContext = useCallback((target: EventTarget) => {
         // Ignore if not editing
         if (!isEditing) return;
         setContextAnchor(target)
@@ -144,7 +146,7 @@ export const SubroutineNode = ({
             />
             <Box
                 sx={{
-                    ...containerShadow,
+                    boxShadow: 12,
                     minWidth: nodeSize,
                     fontSize: fontSize,
                     position: 'relative',

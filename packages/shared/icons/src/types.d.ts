@@ -10,3 +10,5 @@ export interface SvgProps {
     width?: number | string | null;
     height?: number | string | null;
 }
+
+export type SvgComponent = (props: SvgProps) => JSX.Element;

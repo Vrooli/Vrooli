@@ -12,11 +12,11 @@ import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'graphql/utils';
 import { useMutation } from '@apollo/client';
 import { deleteOneMutation } from 'graphql/mutation';
-import { deleteOne, deleteOneVariables } from 'graphql/generated/deleteOne';
+import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
-import { PubSub } from 'utils';
 import { DialogTitle } from 'components';
+import { DeleteIcon } from '@shared/icons';
 
 const titleAria = 'delete-object-dialog-title';
 
@@ -39,22 +39,19 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useMutation<deleteOne, deleteOneVariables>(deleteOneMutation);
+    const [deleteOne] = useMutation(deleteOneMutation);
     const handleDelete = useCallback(() => {
-        mutationWrapper({
+        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
             mutation: deleteOne,
             input: { id: objectId, objectType },
-            onSuccess: (response) => {
-                if (response?.data?.deleteOne?.success) {
-                    PubSub.get().publishSnack({ message: `${objectName} deleted.` });
-                    setLocation(APP_LINKS.Home);
-                } else {
-                    PubSub.get().publishSnack({ message: `Error deleting ${objectName}.`, severity: 'error' });
-                }
+            successCondition: (data) => data.success,
+            successMessage: () => `${objectName} deleted.`,
+            onSuccess: () => {
+                setLocation(APP_LINKS.Home);
                 close(true);
             },
+            errorMessage: () => `Failed to delete ${objectName}.`,
             onError: () => {
-                PubSub.get().publishSnack({ message: `Failed to delete ${objectName}.` });
                 close(false);
             }
         })
@@ -71,16 +68,15 @@ export const DeleteDialog = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                title={`Delete ${objectName}`}
+                title={`Delete "${objectName}"`}
                 onClose={() => { close() }}
             />
             <DialogContent>
-                <Stack direction="column" spacing="2">
+                <Stack direction="column" spacing={2} mt={2}>
                     <Typography variant="h6">Are you absolutely certain you want to delete "{objectName}"?</Typography>
-                    <Typography variant="body1" sx={{ color: palette.background.textSecondary, paddingBottom: 3 }}>This action cannot be undone. Subroutines will not be deleted.</Typography>
-                    <Typography variant="h6" sx={{ paddingBottom: 1 }}>Please type <b>{objectName}</b> to confirm.</Typography>
+                    <Typography variant="body1" sx={{ color: palette.background.textSecondary, paddingBottom: 3 }}>This action cannot be undone.</Typography>
+                    <Typography variant="h6">Enter <b>{objectName}</b> to confirm.</Typography>
                     <TextField
-                        label="Routine Name"
                         variant="outlined"
                         fullWidth
                         value={nameInput}
@@ -89,7 +85,7 @@ export const DeleteDialog = ({
                         helperText={nameInput.trim() !== objectName.trim() ? 'Name does not match' : ''}
                         sx={{ paddingBottom: 2 }}
                     />
-                    <Button color="secondary" onClick={handleDelete}>Delete</Button>
+                    <Button startIcon={<DeleteIcon />} color="secondary" onClick={handleDelete}>Delete</Button>
                 </Stack>
             </DialogContent>
         </Dialog>

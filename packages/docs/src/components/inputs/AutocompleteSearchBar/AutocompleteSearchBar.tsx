@@ -1,9 +1,9 @@
 import { Autocomplete, CircularProgress, IconButton, Input, ListItemText, MenuItem, Paper, Typography, useTheme } from '@mui/material';
 import { AutocompleteSearchBarProps } from '../types';
-import AwesomeDebouncePromise from 'awesome-debounce-promise';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
 import { SearchIcon } from '@shared/icons';
+import { useDebounce } from 'utils';
 
 export function AutocompleteSearchBar({
     id = 'search-bar',
@@ -21,10 +21,7 @@ export function AutocompleteSearchBar({
     const { palette } = useTheme();
 
     const [internalValue, setInternalValue] = useState<string>(value);
-    const onChangeDebounced = useMemo(() => AwesomeDebouncePromise(
-        onChange,
-        debounce,
-    ), [onChange, debounce]);
+    const onChangeDebounced = useDebounce(onChange, debounce);
     useEffect(() => setInternalValue(value), [value]);
     const handleChange = useCallback((event: ChangeEvent<any>) => {
         // Get the new input string

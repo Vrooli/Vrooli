@@ -1,11 +1,18 @@
-import { DialogProps } from '@mui/material';
+import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { SvgIconComponent } from '@mui/icons-material';
 import { DeleteOneType } from '@shared/consts';
-import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ObjectType, SearchType } from 'utils';
-import { SvgProps } from '@shared/icons';
+import { ListObjectType, SearchType, TagShape } from 'utils';
+import { SvgComponent, SvgProps } from '@shared/icons';
+import { RelationshipsObject } from 'components/inputs/types';
+import { SnackSeverity } from './Snack/Snack';
+
+export interface AccountMenuProps {
+    anchorEl: HTMLElement | null;
+    onClose: () => void;
+    session: Session;
+}
 
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
@@ -17,6 +24,13 @@ export interface BaseObjectDialogProps extends DialogProps {
     title?: string;
     zIndex: number;
 };
+
+export interface DeleteAccountDialogProps {
+    handleClose: (wasDeleted: boolean) => void;
+    isOpen: boolean;
+    session: Session;
+    zIndex: number;
+}
 
 export interface DeleteDialogProps {
     handleClose: (wasDeleted: boolean) => void;
@@ -42,7 +56,7 @@ export interface ListMenuItemData<T> {
     /**
      * Icon to display
      */
-    Icon?: SvgIconComponent;
+    Icon?: SvgComponent;
     /**
      * Color of Icon, if different than text
      */
@@ -145,7 +159,7 @@ export interface RoutineDialogProps {
 };
 
 export interface ShareObjectDialogProps extends DialogProps {
-    objectType: ObjectType;
+    object: NavigableObject | null | undefined;
     open: boolean;
     onClose: () => any;
     zIndex: number;
@@ -207,27 +221,16 @@ export enum ObjectActionComplete {
 
 export interface ObjectActionMenuProps {
     anchorEl: HTMLElement | null;
-    isUpvoted: boolean | null | undefined;
-    isStarred: boolean | null | undefined;
-    objectId: string;
-    objectName: string;
-    objectType: ObjectType;
+    object: ListObjectType | null | undefined;
     /**
      * Completed actions, which may require updating state or navigating to a new page
      */
-    onActionComplete: (action: ObjectActionComplete, data: any) => any;/**
+    onActionComplete: (action: ObjectActionComplete, data: any) => any;
+    /**
      * Actions which cannot be performed by the menu
      */
     onActionStart: (action: ObjectAction.Edit | ObjectAction.Stats) => any;
     onClose: () => any;
-    permissions: {
-        canDelete?: boolean;
-        canEdit?: boolean;
-        canFork?: boolean;
-        canReport?: boolean;
-        canStar?: boolean;
-        canVote?: boolean;
-    } | null | undefined
     session: Session;
     title: string;
     zIndex: number;
@@ -247,15 +250,21 @@ export interface LinkDialogProps {
 }
 
 export interface BuildInfoDialogProps {
+    formik: any,
     handleAction: (action: ObjectAction, data: any) => any;
     handleLanguageChange: (newLanguage: string) => any;
+    handleRelationshipsChange: (newRelationshipsObject: Partial<RelationshipsObject>) => void;
+    handleResourcesUpdate: (updatedList: ResourceList) => void;
+    handleTagsUpdate: (tags: TagShape[]) => any;
     handleUpdate: (routine: Routine) => any;
     isEditing: boolean;
     language: string;
     loading: boolean;
+    relationships: RelationshipsObject;
     routine: Routine | null;
     session: Session;
     sxs?: { icon: SvgProps, iconButton: any };
+    tags: TagShape[];
     zIndex: number;
 }
 
@@ -285,29 +294,24 @@ export interface UnlinkedNodesDialogProps {
 }
 
 export interface RunStepsDialogProps {
+    currStep: number[] | null;
     handleLoadSubroutine: (id: string) => any;
     handleCurrStepLocationUpdate: (step: number[]) => any;
-    history: Array<number>[];
+    history: number[][];
     /**
      * Out of 100
      */
     percentComplete: number;
     stepList: RoutineStep | null;
-    sxs?: { icon: any };
     zIndex: number;
 }
 
 export interface SelectLanguageMenuProps {
     /**
-     * Languages to restrict selection to
-     */
-    availableLanguages?: string[];
-    /**
      * While there may be multiple selected languages, 
      * there is only ever one current language
      */
     currentLanguage: string;
-    canDropdownOpen?: boolean;
     handleDelete?: (language: string) => any;
     /**
      * Callback when new current language is selected
@@ -319,10 +323,9 @@ export interface SelectLanguageMenuProps {
      */
     session: Session;
     /**
-     * Currently selected languages. Display with check marks. 
-     * If not provided, defaults to curentLanguage
+     * Available translations
      */
-    selectedLanguages?: string[];
+    translations: { language: string }[];
     sxs?: { root: any };
     zIndex: number;
 }
@@ -364,4 +367,27 @@ export interface WalletSelectDialogProps {
     onClose: (selectedKey: string | null) => any;
     open: boolean;
     zIndex: number;
+}
+
+export interface PopoverWithArrowProps extends Omit<PopoverProps, 'open' | 'sx'> {
+    anchorEl: HTMLElement | null;
+    children: React.ReactNode;
+    handleClose: () => any;
+    sxs?: {
+        root?: { [x: string]: any };
+        content?: { [x: string]: any };
+    }
+}
+
+export interface SnackProps {
+    buttonClicked?: (event?: any) => any;
+    buttonText?: string;
+    /**
+     * Anything you'd like to log in development mode
+     */
+    data?: any;
+    handleClose: () => any;
+    id: string;
+    message?: string;
+    severity?: SnackSeverity;
 }

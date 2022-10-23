@@ -3,11 +3,11 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { historyPage, historyPageVariables } from 'graphql/generated/historyPage';
 import { useQuery } from '@apollo/client';
 import { historyPageQuery } from 'graphql/query';
-import { AutocompleteSearchBar, ListTitleContainer } from 'components';
+import { AutocompleteSearchBar, ListTitleContainer, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
 import { HistoryPageProps } from '../types';
-import { HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, OpenObjectProps, stringifySearchParams, useReactSearch } from 'utils';
+import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { centeredDiv } from 'styles';
 import { RunStatus } from 'graphql/generated/globalTypes';
@@ -24,6 +24,8 @@ const tabOptions = [
     ['For You', APP_LINKS.Home],
     ['History', APP_LINKS.History],
 ];
+
+const zIndex = 200;
 
 /**
  * Containers a search bar, lists of routines, projects, tags, and organizations, 
@@ -56,21 +58,13 @@ export const HistoryPage = ({
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
-    /**
-     * Opens page for list item
-     */
-    const toItemPage = useCallback((item: OpenObjectProps['object'], event: any) => {
-        event?.stopPropagation();
-        // Navigate to item page
-        openObject(item, setLocation);
-    }, [setLocation]);
-
     const activeRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),
         items: data?.historyPage?.activeRuns,
         keyPrefix: 'active-runs-list-item',
         loading,
         session,
+        zIndex,
     }), [data?.historyPage?.activeRuns, loading, session])
 
     const completedRuns = useMemo(() => listToListItems({
@@ -79,6 +73,7 @@ export const HistoryPage = ({
         keyPrefix: 'completed-runs-list-item',
         loading,
         session,
+        zIndex,
     }), [data?.historyPage?.completedRuns, loading, session])
 
     const recent = useMemo(() => listToListItems({
@@ -86,20 +81,20 @@ export const HistoryPage = ({
         items: data?.historyPage?.recentlyViewed,
         keyPrefix: 'recent-list-item',
         loading,
-        onClick: toItemPage,
         session,
-    }), [data?.historyPage?.recentlyViewed, loading, session, toItemPage])
+        zIndex,
+    }), [data?.historyPage?.recentlyViewed, loading, session])
 
     const starred = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
         items: data?.historyPage?.recentlyStarred,
         keyPrefix: 'starred-list-item',
         loading,
-        onClick: toItemPage,
         session,
-    }), [data?.historyPage?.recentlyStarred, loading, session, toItemPage])
+        zIndex,
+    }), [data?.historyPage?.recentlyStarred, loading, session])
 
-    const languages = useMemo(() => session?.languages ?? navigator.languages, [session]);
+    const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const flattened = (Object.values(data?.historyPage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
@@ -120,39 +115,36 @@ export const HistoryPage = ({
 
     const toSeeAllActiveRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
-            type: HistorySearchPageTabOption.Runs, 
-            status: RunStatus.InProgress 
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
+            type: HistorySearchPageTabOption.Runs,
+            status: RunStatus.InProgress
         })}`);
     }, [setLocation]);
 
     const toSeeAllCompletedRuns = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
             type: HistorySearchPageTabOption.Runs,
-            status: RunStatus.Completed 
+            status: RunStatus.Completed
         })}`);
     }, [setLocation]);
 
     const toSeeAllViewed = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
             type: HistorySearchPageTabOption.Viewed,
         })}`);
-    } , [setLocation]);
+    }, [setLocation]);
 
     const toSeeAllStarred = useCallback((event: any) => {
         event?.stopPropagation();
-        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({ 
+        setLocation(`${APP_LINKS.HistorySearch}${stringifySearchParams({
             type: HistorySearchPageTabOption.Starred,
         })}`);
-    } , [setLocation]);
+    }, [setLocation]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             {/* Navigate between normal home page (shows popular results) and history page (shows personalized results) */}
             <Box display="flex" justifyContent="center" width="100%">
                 <Tabs
@@ -188,7 +180,7 @@ export const HistoryPage = ({
                 <Stack spacing={2} direction="column" sx={{ ...centeredDiv, paddingTop: '5vh' }}>
                     <Typography component="h1" variant="h3" textAlign="center">History</Typography>
                     <AutocompleteSearchBar
-                        id="main-search"
+                        id="history-search"
                         placeholder='Search active/completed runs, stars, and views...'
                         options={autocompleteOptions}
                         loading={loading}
@@ -197,7 +189,7 @@ export const HistoryPage = ({
                         onInputChange={onInputSelect}
                         session={session}
                         showSecondaryLabel={true}
-                        sxs={{ root: { width: 'min(100%, 600px)' } }}
+                        sxs={{ root: { width: 'min(100%, 600px)', paddingLeft: 2, paddingRight: 2 } }}
                     />
                 </Stack>
                 {/* Search results */}
@@ -238,6 +230,6 @@ export const HistoryPage = ({
                     {starred}
                 </ListTitleContainer>
             </Stack>
-        </Box>
+        </PageContainer>
     )
 }

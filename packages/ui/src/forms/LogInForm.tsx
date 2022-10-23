@@ -13,12 +13,12 @@ import {
 } from '@mui/material';
 import { Forms, PubSub, useReactSearch } from 'utils';
 import { emailLogInForm } from '@shared/validation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { emailLogIn, emailLogInVariables } from 'graphql/generated/emailLogIn';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { emailLogInVariables, emailLogIn_emailLogIn } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
-import { PasswordTextField } from 'components';
+import { PasswordTextField, SnackSeverity } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
 import { errorToMessage, hasErrorCode } from 'graphql/utils';
@@ -33,7 +33,7 @@ export const LogInForm = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn, { loading }] = useMutation<emailLogIn, emailLogInVariables>(emailLogInMutation);  
+    const [emailLogIn, { loading }] = useMutation(emailLogInMutation);  
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);
@@ -45,13 +45,13 @@ export const LogInForm = ({
         },
         validationSchema: emailLogInForm,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<emailLogIn_emailLogIn, emailLogInVariables>({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode },
-                successCondition: (response) => response.data.emailLogIn !== null,
-                onSuccess: (response) => { 
-                    if (verificationCode) PubSub.get().publishSnack({ message: 'Email verified!' });
-                    PubSub.get().publishSession(response.data.emailLogIn); setLocation(redirect ?? APP_LINKS.Home) 
+                successCondition: (data) => data !== null,
+                onSuccess: (data) => { 
+                    if (verificationCode) PubSub.get().publishSnack({ message: 'Email verified!', severity: SnackSeverity.Success });
+                    PubSub.get().publishSession(data); setLocation(redirect ?? APP_LINKS.Home) 
                 },
                 showDefaultErrorSnack: false,
                 onError: (response) => {
@@ -68,12 +68,12 @@ export const LogInForm = ({
                     else if (hasErrorCode(response, CODE.EmailNotFound)) {
                         PubSub.get().publishSnack({ 
                             message: CODE.EmailNotFound.message, 
-                            severity: 'error', 
+                            severity: SnackSeverity.Error, 
                             buttonText: 'Sign Up',
                             buttonClicked: () => { toSignUp() }
                         });
                     } else {
-                        PubSub.get().publishSnack({ message: errorToMessage(response), severity: 'error', data: response });
+                        PubSub.get().publishSnack({ message: errorToMessage(response), severity: SnackSeverity.Error, data: response });
                     }
                     formik.setSubmitting(false);
                 }

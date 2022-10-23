@@ -1,18 +1,14 @@
 /**
  * Drawer to display the steps of a routine, displayed as a vertical tree
  */
-import { useCallback, useState } from 'react';
-import {
-    FormatListNumbered as StepsIcon,
-    Launch as OpenStepIcon,
-} from '@mui/icons-material';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     alpha,
     Box,
     Checkbox,
     IconButton,
+    Palette,
     styled,
-    SvgIcon,
     SwipeableDrawer,
     Typography,
     useTheme,
@@ -23,64 +19,79 @@ import { RoutineStep } from 'types';
 import { addSearchParams, locationArraysMatch, routineHasSubroutines, RoutineStepType } from 'utils';
 import { useLocation } from '@shared/route';
 import { MenuTitle } from '../MenuTitle/MenuTitle';
+import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from '@shared/icons';
 
-function MinusSquare(props) {
-    return (
-        <SvgIcon fontSize="inherit" style={{ width: 14, height: 14 }} {...props}>
-            {/* tslint:disable-next-line: max-line-length */}
-            <path d="M22.047 22.074v0 0-20.147 0h-20.12v0 20.147 0h20.12zM22.047 24h-20.12q-.803 0-1.365-.562t-.562-1.365v-20.147q0-.776.562-1.351t1.365-.575h20.147q.776 0 1.351.575t.575 1.351v20.147q0 .803-.575 1.365t-1.378.562v0zM17.873 11.023h-11.826q-.375 0-.669.281t-.294.682v0q0 .401.294 .682t.669.281h11.826q.375 0 .669-.281t.294-.682v0q0-.401-.294-.682t-.669-.281z" />
-        </SvgIcon>
-    );
+interface StyledTreeItemProps {
+    children?: React.ReactNode;
+    label: string;
+    isComplete: boolean;
+    isSelected: boolean;
+    nodeId: string;
+    onLoad?: (ev: React.MouseEvent) => void;
+    onToStep?: (ev: React.MouseEvent) => void;
+    palette: Palette;
+    type: RoutineStepType | 'placeholder';
 }
 
-function PlusSquare(props) {
-    return (
-        <SvgIcon fontSize="inherit" style={{ width: 14, height: 14 }} {...props}>
-            {/* tslint:disable-next-line: max-line-length */}
-            <path d="M22.047 22.074v0 0-20.147 0h-20.12v0 20.147 0h20.12zM22.047 24h-20.12q-.803 0-1.365-.562t-.562-1.365v-20.147q0-.776.562-1.351t1.365-.575h20.147q.776 0 1.351.575t.575 1.351v20.147q0 .803-.575 1.365t-1.378.562v0zM17.873 12.977h-4.923v4.896q0 .401-.281.682t-.682.281v0q-.375 0-.669-.281t-.294-.682v-4.896h-4.923q-.401 0-.682-.294t-.281-.669v0q0-.401.281-.682t.682-.281h4.923v-4.896q0-.401.294-.682t.669-.281v0q.401 0 .682.281t.281.682v4.896h4.923q.401 0 .682.281t.281.682v0q0 .375-.281.669t-.682.294z" />
-        </SvgIcon>
-    );
-}
-
-function CloseSquare(props) {
-    return (
-        <SvgIcon
-            className="close"
-            fontSize="inherit"
-            style={{ width: 14, height: 14 }}
-            {...props}
-        >
-            {/* tslint:disable-next-line: max-line-length */}
-            <path d="M17.485 17.512q-.281.281-.682.281t-.696-.268l-4.12-4.147-4.12 4.147q-.294.268-.696.268t-.682-.281-.281-.682.294-.669l4.12-4.147-4.12-4.147q-.294-.268-.294-.669t.281-.682.682-.281.696 .268l4.12 4.147 4.12-4.147q.294-.268.696-.268t.682.281 .281.669-.294.682l-4.12 4.147 4.12 4.147q.294.268 .294.669t-.281.682zM22.047 22.074v0 0-20.147 0h-20.12v0 20.147 0h20.12zM22.047 24h-20.12q-.803 0-1.365-.562t-.562-1.365v-20.147q0-.776.562-1.351t1.365-.575h20.147q.776 0 1.351.575t.575 1.351v20.147q0 .803-.575 1.365t-1.378.562v0z" />
-        </SvgIcon>
-    );
-}
-
-const StyledTreeItem = styled((props: any) => {
+const StyledTreeItem = styled((props: StyledTreeItemProps) => {
     const {
         label,
         isComplete,
         isSelected,
-        onOpen,
+        onLoad,
         onToStep,
+        palette,
+        type,
         ...other
     } = props;
+
+    const canToStep = typeof onToStep === 'function' && (type === RoutineStepType.Decision || type === RoutineStepType.Subroutine)
+
+    /**
+     * Only trigger onToStep if the onToStep function is supplied, and the type is a decision or subroutine. 
+     * Only trigger onLoad if the onLoad function is supplied.
+     */
+    const handleTreeItemClick = (ev: React.MouseEvent) => {
+        if (typeof onLoad === 'function') {
+            onLoad(ev);
+        }
+        if (canToStep) {
+            onToStep(ev);
+        }
+    }
+
     return (
         <TreeItem
             label={
-                <Box sx={{ display: 'flex', alignItems: 'center', p: 0.5, pr: 0 }} onClick={onOpen}>
+                <Box
+                    onClick={handleTreeItemClick}
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        p: 0.5,
+                        pr: 0,
+                        color: palette.background.textPrimary,
+                    }}
+                >
                     <Typography variant="body2" sx={{ fontWeight: 'inherit', flexGrow: 1 }}>
                         {label}
                     </Typography>
                     {/* Indicator for completeness */}
                     {isComplete && <Checkbox
+                        id={`item-complete-checkbox-${props.nodeId}`}
                         size="small"
                         color='secondary'
                         checked={true}
+                        disabled={true}
+                        sx={{
+                            '& svg': {
+                                color: palette.secondary.main,
+                            },
+                        }}
                     />}
                     {/* Redirects to step */}
-                    {onToStep && <IconButton size="small" onClick={onToStep}>
-                        <OpenStepIcon />
+                    {canToStep && <IconButton size="small" onClick={onToStep}>
+                        <OpenInNewIcon fill={palette.background.textPrimary} />
                     </IconButton>}
                 </Box>
             }
@@ -108,12 +119,12 @@ const StyledTreeItem = styled((props: any) => {
 }));
 
 export const RunStepsDialog = ({
+    currStep,
     handleLoadSubroutine,
     handleCurrStepLocationUpdate,
     history,
     percentComplete,
     stepList,
-    sxs,
     zIndex,
 }: RunStepsDialogProps) => {
     const { palette } = useTheme();
@@ -121,7 +132,6 @@ export const RunStepsDialog = ({
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
     const closeDialog = () => { setIsOpen(false) };
-    console.log('run steps dialog', zIndex);
 
     /**
      * Checks if a routine is complete. If it is a subroutine,
@@ -150,14 +160,25 @@ export const RunStepsDialog = ({
         }
     }, [history]);
 
+    const isSelected = useCallback((location: number[]) => {
+        if (!currStep) return false
+        return locationArraysMatch(currStep, location);
+    }, [currStep]);
+
+    const selectedItem = useMemo<string | undefined>(() => {
+        if (!currStep) return undefined;
+        return `1.${currStep.join('.')}`;
+    }, [currStep]);
+
     /**
      * Generate a tree of the subroutine's steps
      */
     const getTreeItem = useCallback((step: RoutineStep, location: number[] = [1]) => {
         // Ignore first number in location array, as it only exists to group the tree items
         const realLocation = location.slice(1);
-        // Determine if step is complete
+        // Determine if step is completed/selected
         const completed = isComplete(step, realLocation);
+        const selected = isSelected(realLocation);
         const locationLabel = location.join('.');
         const realLocationLabel = realLocation.join('.');
         // Helper function for navigating to step
@@ -173,37 +194,76 @@ export const RunStepsDialog = ({
         switch (step.type) {
             // A decision step never has children
             case RoutineStepType.Decision:
-                return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. Decision`} onToStep={toLocation} isComplete={completed} />
+                return <StyledTreeItem
+                    isComplete={completed}
+                    isSelected={selected}
+                    label={`${realLocationLabel}. Decision`}
+                    nodeId={locationLabel}
+                    onToStep={toLocation}
+                    palette={palette}
+                    type={step.type}
+                />
             // A subroutine may have children, but they may not be loaded
             case RoutineStepType.Subroutine:
-                // If there are further steps, add a "Loaging" node
+                // If there are further steps, add a "Loading" node
                 if (routineHasSubroutines(step.routine)) {
                     return (
-                        <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation}>
-                            <StyledTreeItem nodeId={`${locationLabel}-loading`} label="Loading..." onOpen={() => { handleLoadSubroutine(step.routine.id) }} />
+                        <StyledTreeItem
+                            isComplete={completed}
+                            isSelected={selected}
+                            label={`${realLocationLabel}. ${step.title}`}
+                            nodeId={locationLabel}
+                            onLoad={() => { handleLoadSubroutine(step.routine.id) }} // Load subroutine(s)
+                            onToStep={toLocation}
+                            palette={palette}
+                            type={step.type}
+                        >
+                            <StyledTreeItem
+                                isComplete={false}
+                                isSelected={false}
+                                label="Loading..."
+                                nodeId={`${locationLabel}-loading`}
+                                palette={palette}
+                                type={'placeholder'}
+                            />
                         </StyledTreeItem>
                     )
                 }
-                return <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} onToStep={toLocation} isComplete={completed} />
+                return <StyledTreeItem
+                    isComplete={completed}
+                    isSelected={selected}
+                    label={`${realLocationLabel}. ${step.title}`}
+                    nodeId={locationLabel}
+                    onToStep={toLocation}
+                    palette={palette}
+                    type={step.type}
+                />
 
             // A routine list always has children
-            default:
+            case RoutineStepType.RoutineList:
                 let stepItems = step.steps;
                 // Don't wrap in a tree item if location is one element long (i.e. the root)
                 if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))
                 return (
-                    <StyledTreeItem nodeId={locationLabel} label={`${realLocationLabel}. ${step.title}`} isComplete={completed}>
+                    <StyledTreeItem
+                        isComplete={completed}
+                        isSelected={selected}
+                        label={`${realLocationLabel}. ${step.title}`}
+                        nodeId={locationLabel}
+                        palette={palette}
+                        type={step.type}
+                    >
                         {stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]))}
                     </StyledTreeItem>
                 )
         }
-    }, [handleLoadSubroutine, handleCurrStepLocationUpdate, isComplete, setLocation]);
+    }, [isComplete, isSelected, setLocation, handleCurrStepLocationUpdate, palette, handleLoadSubroutine]);
 
     return (
         <>
             {/* Icon for opening/closing dialog */}
             <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleOpen}>
-                <StepsIcon sx={sxs?.icon} />
+                <ListNumberIcon width='32px' height='32px' />
             </IconButton>
             {/* The dialog */}
             <SwipeableDrawer
@@ -228,9 +288,10 @@ export const RunStepsDialog = ({
                 {/* Tree display of steps */}
                 <TreeView
                     aria-label="routine steps navigator"
-                    defaultCollapseIcon={<MinusSquare />}
-                    defaultExpandIcon={<PlusSquare />}
-                    defaultEndIcon={<CloseSquare />}
+                    defaultCollapseIcon={<StepListClose fill={palette.background.textPrimary} />}
+                    defaultExpandIcon={<StepListOpen fill={palette.background.textPrimary} />}
+                    defaultEndIcon={<StepListEnd fill={palette.background.textSecondary} />}
+                    selected={selectedItem}
                     sx={{
                         height: 240,
                         flexGrow: 1,

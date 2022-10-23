@@ -15,10 +15,6 @@ export interface stars_stars_pageInfo {
   hasNextPage: boolean;
 }
 
-export interface stars_stars_edges_node_to_Tag {
-  __typename: "Tag";
-}
-
 export interface stars_stars_edges_node_to_Comment_commentedOn_Project_translations {
   __typename: "ProjectTranslation";
   id: string;
@@ -321,7 +317,24 @@ export interface stars_stars_edges_node_to_User {
   isStarred: boolean;
 }
 
-export type stars_stars_edges_node_to = stars_stars_edges_node_to_Tag | stars_stars_edges_node_to_Comment | stars_stars_edges_node_to_Organization | stars_stars_edges_node_to_Project | stars_stars_edges_node_to_Routine | stars_stars_edges_node_to_Standard | stars_stars_edges_node_to_User;
+export interface stars_stars_edges_node_to_Tag_translations {
+  __typename: "TagTranslation";
+  id: string;
+  language: string;
+  description: string | null;
+}
+
+export interface stars_stars_edges_node_to_Tag {
+  __typename: "Tag";
+  id: string;
+  created_at: any;
+  isStarred: boolean;
+  stars: number;
+  tag: string;
+  translations: stars_stars_edges_node_to_Tag_translations[];
+}
+
+export type stars_stars_edges_node_to = stars_stars_edges_node_to_Comment | stars_stars_edges_node_to_Organization | stars_stars_edges_node_to_Project | stars_stars_edges_node_to_Routine | stars_stars_edges_node_to_Standard | stars_stars_edges_node_to_User | stars_stars_edges_node_to_Tag;
 
 export interface stars_stars_edges_node {
   __typename: "Star";

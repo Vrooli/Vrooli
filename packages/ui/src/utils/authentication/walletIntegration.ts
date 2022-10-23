@@ -2,6 +2,7 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
+import { SnackSeverity } from 'components';
 import { walletComplete_walletComplete as WalletCompleteResult } from 'graphql/generated/walletComplete';
 import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
 import { errorToMessage } from 'graphql/utils/errorParser';
@@ -113,7 +114,7 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
         mutation: walletInitMutation,
         variables: { input: { stakingAddress } }
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
+        PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error });
     })
     PubSub.get().publishLoading(false);
     return data?.data?.walletInit;
@@ -132,7 +133,7 @@ const walletComplete = async (stakingAddress: string, signedPayload: string): Pr
         mutation: walletCompleteMutation,
         variables: { input: { stakingAddress, signedPayload } }
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ message: errorToMessage(error), severity: 'error', data: error });
+        PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error });
     })
     PubSub.get().publishLoading(false);
     return data?.data?.walletComplete;

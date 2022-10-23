@@ -89,5 +89,6 @@ export const standardFields = gql`
         isUpvoted
         version
         versionGroupId
+        versions
     }
 `

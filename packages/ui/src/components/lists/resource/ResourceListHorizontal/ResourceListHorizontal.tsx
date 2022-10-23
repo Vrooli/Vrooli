@@ -3,7 +3,6 @@
 import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
-import { containerShadow } from 'styles';
 import { useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
 import { cardRoot } from 'components/cards/styles';
@@ -11,8 +10,8 @@ import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
 import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
-import { resourceDeleteMany, resourceDeleteManyVariables } from 'graphql/generated/resourceDeleteMany';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { resourceDeleteManyVariables, resourceDeleteMany_resourceDeleteMany } from 'graphql/generated/resourceDeleteMany';
 import { AddIcon } from '@shared/icons';
 
 export const ResourceListHorizontal = ({
@@ -42,20 +41,20 @@ export const ResourceListHorizontal = ({
         if (handleUpdate) {
             handleUpdate({
                 ...list,
-                resources: updateArray(list.resources, index, updatedResource),
+                resources: updateArray(list.resources, index, updatedResource) as any[],
             });
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<resourceDeleteMany, resourceDeleteManyVariables>(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation(resourceDeleteManyMutation);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
-            mutationWrapper({
+            mutationWrapper<resourceDeleteMany_resourceDeleteMany, resourceDeleteManyVariables>({
                 mutation: deleteMutation,
                 input: { ids: [resource.id] },
-                onSuccess: (response) => {
+                onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({
                             ...list,
@@ -75,15 +74,17 @@ export const ResourceListHorizontal = ({
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
-    const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-    const contextId = useMemo(() => `resource-context-menu-${selectedIndex}`, [selectedIndex]);
-    const openContext = useCallback((target: React.MouseEvent['target'], index: number) => {
+    const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+    const selectedIndex = useMemo(() => selectedResource ? list?.resources?.findIndex(r => r.id === selectedResource.id) : -1, [list, selectedResource]);
+    const contextId = useMemo(() => `resource-context-menu-${selectedResource?.id}`, [selectedResource]);
+    const openContext = useCallback((target: EventTarget, index: number) => {
         setContextAnchor(target);
-        setSelectedIndex(index);
-    }, []);
+        const resource = list?.resources[index];
+        setSelectedResource(resource as any);
+    }, [list?.resources]);
     const closeContext = useCallback(() => {
         setContextAnchor(null);
-        setSelectedIndex(null);
+        setSelectedResource(null);
     }, []);
 
     // Add/update resource dialog
@@ -117,24 +118,26 @@ export const ResourceListHorizontal = ({
             {dialog}
             {/* Right-click context menu */}
             <ResourceListItemContextMenu
+                canEdit={canEdit}
                 id={contextId}
                 anchorEl={contextAnchor}
-                index={selectedIndex}
+                index={selectedIndex ?? -1}
                 onClose={closeContext}
-                onAddBefore={() => { }}
-                onAddAfter={() => { }}
+                onAddBefore={() => { }} //TODO
+                onAddAfter={() => { }} //TODO
                 onDelete={onDelete}
                 onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
-                onMove={() => { }}
+                onMove={() => { }} //TODO
+                resource={selectedResource}
                 zIndex={zIndex + 1}
             />
             <Typography component="h2" variant="h5" textAlign="left">{title}</Typography>
             <Box
                 sx={{
-                    ...containerShadow,
                     borderRadius: '16px',
                     background: palette.background.default,
                     border: `1px ${palette.text.primary}`,
+                    overflow: 'hidden',
                 }}
             >
                 <Stack direction="row" spacing={2} p={1} sx={{
@@ -154,13 +157,13 @@ export const ResourceListHorizontal = ({
                     {list?.resources?.map((c: Resource, index) => (
                         <ResourceCard
                             canEdit={canEdit}
-                            handleEdit={() => openUpdateDialog(index)}
-                            handleDelete={onDelete}
                             key={`resource-card-${index}`}
                             index={index}
                             session={session}
                             data={c}
-                            onRightClick={openContext}
+                            onContextMenu={openContext}
+                            onEdit={openUpdateDialog}
+                            onDelete={onDelete}
                             aria-owns={Boolean(selectedIndex) ? contextId : undefined}
                         />
                     ))}

@@ -1,6 +1,6 @@
 // Components for providing basic functionality to model objects
-import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, ForkInput, PageInfo, Success, TimeFrame } from '../../schema/types';
-import { PrismaType, RecursivePartial } from '../../types';
+import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, PageInfo, Session, SessionUser, Success, TimeFrame, VisibilityType } from '../../schema/types';
+import { PrismaType, RecursivePartial, ReqForUserAuth } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import { CommentModel } from './comment';
 import { NodeModel } from './node';
@@ -35,57 +35,15 @@ import { WalletModel } from './wallet';
 import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
-import { ValueOf } from '@shared/consts';
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
+import { calculateVersionsFromString } from '@shared/validation';
+import { GraphQLModelType } from '.';
 const { difference, flatten, merge } = pkg;
 
 
 //======================================================================================================================
 /* #region Type Definitions */
 //======================================================================================================================
-
-export const GraphQLModelType = {
-    Comment: 'Comment',
-    Copy: 'Copy',
-    DevelopPageResult: 'DevelopPageResult',
-    Email: 'Email',
-    Fork: 'Fork',
-    Handle: 'Handle',
-    HistoryPageResult: 'HistoryPageResult',
-    HomePageResult: 'HomePageResult',
-    InputItem: 'InputItem',
-    LearnPageResult: 'LearnPageResult',
-    Member: 'Member',
-    Node: 'Node',
-    NodeEnd: 'NodeEnd',
-    NodeLoop: 'NodeLoop',
-    NodeRoutineList: 'NodeRoutineList',
-    NodeRoutineListItem: 'NodeRoutineListItem',
-    Organization: 'Organization',
-    OutputItem: 'OutputItem',
-    Profile: 'Profile',
-    Project: 'Project',
-    ProjectOrRoutineSearchResult: 'ProjectOrRoutineSearchResult',
-    ProjectOrOrganizationSearchResult: 'ProjectOrOrganizationSearchResult',
-    Report: 'Report',
-    ResearchPageResult: 'ResearchPageResult',
-    Resource: 'Resource',
-    ResourceList: 'ResourceList',
-    Role: 'Role',
-    Routine: 'Routine',
-    Run: 'Run',
-    RunInput: 'RunInput',
-    RunStep: 'RunStep',
-    Standard: 'Standard',
-    Star: 'Star',
-    Tag: 'Tag',
-    TagHidden: 'TagHidden',
-    User: 'User',
-    View: 'View',
-    Vote: 'Vote',
-    Wallet: 'Wallet',
-} as const
-export type GraphQLModelType = ValueOf<typeof GraphQLModelType>;
 
 /**
  * Basic structure of an object's business layer.
@@ -97,9 +55,10 @@ export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
     prismaObject: (prisma: PrismaType) => PrismaType[keyof PrismaType];
     search?: Searcher<SearchInput>;
     mutate?: (prisma: PrismaType) => Mutater<GraphQLModel>;
-    permissions?: (prisma: PrismaType) => Permissioner<PermissionObject, SearchInput>;
+    permissions?: () => Permissioner<PermissionObject, SearchInput>;
     verify?: { [x: string]: any };
     query?: (prisma: PrismaType) => Querier;
+    type: keyof typeof GraphQLModelType;
 }
 
 /**
@@ -113,8 +72,8 @@ export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
  * This type of data is also easier to hard-code in a pinch.
  */
 export interface PartialGraphQLInfo {
-    [x: string]: GraphQLModelType | undefined | boolean | { [x: string]: PartialGraphQLInfo };
-    __typename?: GraphQLModelType;
+    [x: string]: keyof typeof GraphQLModelType | undefined | boolean | { [x: string]: PartialGraphQLInfo };
+    __typename?: keyof typeof GraphQLModelType;
 }
 
 /**
@@ -131,12 +90,11 @@ export type PartialPrismaSelect = { [x: string]: any };
  */
 export type PrismaSelect = { [x: string]: any };
 
-type NestedGraphQLModelType = GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType };
+type NestedGraphQLModelType = keyof typeof GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType };
 
-export type RelationshipMap = {
-    __typename: GraphQLModelType;
-    [relationshipName: string]: NestedGraphQLModelType
-};
+export type RelationshipMap<GraphQLModel> = { [key in keyof GraphQLModel]?: NestedGraphQLModelType } & { __typename: keyof typeof GraphQLModelType };
+
+export type UnionMap<GraphQLModel> = { [key in keyof GraphQLModel]?: { [x: string]: string } };
 
 /**
  * Helper functions for converting between Prisma types and GraphQL types
@@ -147,15 +105,12 @@ export type FormatConverter<GraphQLModel, PermissionObject> = {
      * If the relationship is a union (i.e. has mutliple possible types), 
      * the GraphQL type will be an object of field/GraphQLModelType pairs.
      */
-    relationshipMap: RelationshipMap;
+    relationshipMap: RelationshipMap<GraphQLModel>;
     /**
-     * Convert database fields to GraphQL union types
+     * Maps GraphQL union fields to their corresponding Prisma fields. 
+     * Each field is a key from the GraphQLModel type
      */
-    constructUnions?: (data: { [x: string]: any }) => any;
-    /**
-     * Convert GraphQL unions to database fields
-     */
-    deconstructUnions?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
+    unionMap?: UnionMap<GraphQLModel>;
     /**
      * Add join tables which are not present in GraphQL object
      */
@@ -196,7 +151,7 @@ export type Searcher<SearchInput> = {
     defaultSort: any;
     getSortQuery: (sortBy: string) => any;
     getSearchStringQuery: (searchString: string, languages?: string[]) => any;
-    customQueries?: (input: SearchInput) => { [x: string]: any };
+    customQueries?: (input: SearchInput, userId: string | null | undefined) => { [x: string]: any };
 }
 
 /**
@@ -219,9 +174,10 @@ export type Permissioner<PermissionObject, SearchInput> = {
     /**
      * Permissions for the object
      */
-    get({ objects, permissions, userId }: {
+    get({ objects, permissions, prisma, userId }: {
         objects: ({ id: string } & { [x: string]: any })[],
         permissions?: PermissionObject[] | null,
+        prisma: PrismaType,
         userId: string | null,
     }): Promise<PermissionObject[]>
     /**
@@ -233,6 +189,7 @@ export type Permissioner<PermissionObject, SearchInput> = {
      */
     canSearch?({ input, userId }: {
         input: SearchInput,
+        prisma: PrismaType,
         userId: string | null,
     }): Promise<'full' | 'public' | 'none'>
     /**
@@ -329,7 +286,7 @@ export interface DuplicateResult<GraphQLObject> {
 /**
  * Maps model types to various helper functions
  */
-export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any> } = {
+export const ObjectMap = {
     'Comment': CommentModel,
     'Email': EmailModel,
     'InputItem': InputItemModel,
@@ -378,6 +335,14 @@ const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.eve
  * @returns Array of valid IDs
  */
 export const onlyValidIds = (ids: (string | null | undefined)[]): string[] => ids.filter(id => typeof id === 'string' && uuidValidate(id)) as string[];
+
+/**
+ * Filters out any invalid handles from an array of handles.
+ * Handles start with a $ and have 3 to 16 characters.
+ * @param handles - array of handles to filter
+ * @returns Array of valid handles
+ */
+export const onlyValidHandles = (handles: (string | null | undefined)[]): string[] => handles.filter(handle => typeof handle === 'string' && handle.match(/^\$[a-zA-Z0-9]{3,16}$/)) as string[];
 
 /**
  * Lowercases the first letter of a string
@@ -493,58 +458,6 @@ export const addCountFieldsHelper = (obj: any, map: CountMap | undefined): any =
 }
 
 /**
- * Helper function for Prisma createdByUser/createdByOrganization fields to GraphQL creator field
- */
-export const addCreatorField = (data: any): any => {
-    let { createdByUser, createdByOrganization, ...rest } = data;
-    return {
-        ...rest,
-        creator:
-            createdByUser?.id
-                ? createdByUser
-                : createdByOrganization?.id
-                    ? createdByOrganization
-                    : null
-    }
-}
-
-/**
- * Helper function for converting creator GraphQL field to Prisma createdByUser/createdByOrganization fields
- */
-export const removeCreatorField = (select: any): any => {
-    return deconstructUnion(select, 'creator', [
-        ['User', 'createdByUser'],
-        ['Organization', 'createdByOrganization']
-    ]);
-}
-
-/**
- * Helper function for Prisma user/organization fields to GraphQL owner field
- */
-export const addOwnerField = (data: any): any => {
-    let { user, organization, ...rest } = data;
-    return {
-        ...rest,
-        owner:
-            user?.id
-                ? user
-                : organization?.id
-                    ? organization
-                    : null
-    }
-}
-
-/**
- * Helper function for converting owner GraphQL field to Prisma user/organization fields
- */
-export const removeOwnerField = (select: any): any => {
-    return deconstructUnion(select, 'owner', [
-        ['User', 'user'],
-        ['Organization', 'organization']
-    ]);
-}
-
-/**
  * Helper function for converting Prisma relationship counts to GraphQL count fields
  * @param obj - Prisma-shaped object
  * @param map - Mapping of GraphQL field names to Prisma relationship names
@@ -569,6 +482,62 @@ export const removeCountFieldsHelper = (obj: any, map: CountMap): any => {
 }
 
 /**
+ * Deconstructs a GraphQL object's union fields into database fields
+ * @param data - GraphQL-shaped object
+ * @param unionMap - Mapping of GraphQL union field names to Prisma object field names
+ * @returns DB-shaped object
+ */
+export const deconstructUnionsHelper = <GraphQLModel>(data: { [x: string]: any }, unionMap: UnionMap<GraphQLModel>): { [x: string]: any } => {
+    // Create result object
+    let result: { [x: string]: any } = data;
+    // For each union field
+    for (const [key, value] of Object.entries(unionMap)) {
+        // If it's not in data, continue
+        if (!data[key]) continue;
+        // Get data in union field
+        const unionData = data[key];
+        // Remove the union field from the result
+        delete result[key];
+        // If not an object, skip
+        if(!isObject(unionData)) continue;
+        // Value is an object where the keys are possible types of the union object, and values are the db field associated with that type
+        // Iterate over the possible types
+        for (const [type, dbField] of Object.entries(value as { [x: string]: string })) {
+            // If the type is in the union data, add the db field to the result
+            if (unionData[type]) {
+                result[dbField] = unionData[type];
+            }
+        }
+    }
+    return result;
+}
+
+/**
+ * Constructs a GraphQL object's union fields from Prisma select fields
+ * @param partialInfo - Partial info object
+ * @param unionMap - Mapping of GraphQL union field names to Prisma object field names
+ * @returns partialInfo object with union fields added
+ */
+export const constructUnionsHelper = <GraphQLModel>(partialInfo: { [x: string]: any }, unionMap: UnionMap<GraphQLModel>): { [x: string]: any } => {
+    // Create result object
+    let result: { [x: string]: any } = partialInfo;
+    // For each union field
+    for (const [key, value] of Object.entries(unionMap)) {
+        // For each type, dbField pair
+        for (const [_, dbField] of Object.entries(value as { [x: string]: string })) {
+            // If the dbField is in the partialInfo
+            if (result[dbField as string]) {
+                // Set the union field to the dbField
+                result[key] = result[dbField as string];
+                // Delete the dbField from the result
+                delete result[dbField as string];
+            }
+        }
+    }
+    return result;
+}
+
+/**
  * Adds "select" to the correct parts of an object to make it a Prisma select
  */
 export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
@@ -588,7 +557,7 @@ export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } =>
  * @param nestedFields - Array of nested fields accessed since last parent
  * @return select with __typename fields
  */
-const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: RelationshipMap, nestedFields: string[] = []): PartialGraphQLInfo => {
+const injectTypenames = <GraphQLModel>(select: { [x: string]: any }, parentRelationshipMap: RelationshipMap<GraphQLModel>, nestedFields: string[] = []): PartialGraphQLInfo => {
     // Create result object
     let result: any = {};
     // Iterate over select object
@@ -602,14 +571,14 @@ const injectTypenames = (select: { [x: string]: any }, parentRelationshipMap: Re
         }
         // If value is an object, recurse
         // Find nested value in parent relationship map, using nestedFields
-        let nestedValue: GraphQLModelType | Partial<RelationshipMap> | undefined = parentRelationshipMap;
+        let nestedValue: GraphQLModelType | Partial<RelationshipMap<GraphQLModel>> | undefined = parentRelationshipMap;
         for (const field of nestedFields) {
             if (!isObject(nestedValue)) break;
             if (field in nestedValue) {
                 nestedValue = (nestedValue as any)[field];
             }
         }
-        if (typeof nestedValue === 'object') nestedValue = nestedValue[selectKey];
+        if (typeof nestedValue === 'object') nestedValue = nestedValue[selectKey as keyof GraphQLModel] as any;
         // If nestedValue is not an object, try to get its relationshipMap
         let relationshipMap;
         if (nestedValue !== undefined && typeof nestedValue !== 'object') {
@@ -645,7 +614,7 @@ const removeTypenames = (obj: { [x: string]: any }): { [x: string]: any } => {
  * @param relationshipMap - Map of relationship names to typenames
  * @returns Partial Prisma select. This can be passed into the function again without changing the result.
  */
-export const toPartialGraphQLInfo = (info: GraphQLInfo | PartialGraphQLInfo, relationshipMap: RelationshipMap): PartialGraphQLInfo | undefined => {
+export const toPartialGraphQLInfo = <GraphQLModel>(info: GraphQLInfo | PartialGraphQLInfo, relationshipMap: RelationshipMap<GraphQLModel>): PartialGraphQLInfo | undefined => {
     // Return undefined if info not set
     if (!info) return undefined;
     // Find select fields in info object
@@ -696,7 +665,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
         if (formatter.removeSupplementalFields) result = formatter.removeSupplementalFields(result);
-        if (formatter.deconstructUnions) result = formatter.deconstructUnions(result);
+        if (formatter.unionMap) result = deconstructUnionsHelper(result, formatter.unionMap);
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
         if (formatter.addCountFields) result = formatter.addCountFields(result);
     }
@@ -746,9 +715,9 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     }
     // Convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
-    const formatter: FormatConverter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    const formatter: FormatConverter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined as any;
     if (formatter) {
-        if (formatter.constructUnions) data = formatter.constructUnions(data);
+        if (formatter.unionMap) data = constructUnionsHelper(data, formatter.unionMap);
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
         if (formatter.removeCountFields) data = formatter.removeCountFields(data);
     }
@@ -774,9 +743,9 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
  * @param time Time frame to convert
  * @param fieldName Name of time field (typically created_at or updated_at)
  */
-export const timeFrameToPrisma = (fieldName: string, time?: TimeFrame | null | undefined): any => {
+export const timeFrameToPrisma = (fieldName: string, time?: TimeFrame | null | undefined): { [x: string]: any } | undefined => {
     if (!time || (!time.before && !time.after)) return undefined;
-    let where: any = ({ [fieldName]: {} });
+    let where: { [x: string]: any } = ({ [fieldName]: {} });
     if (time.before) where[fieldName].lte = time.before;
     if (time.after) where[fieldName].gte = time.after;
     return where;
@@ -987,32 +956,6 @@ export const joinRelationshipToPrisma = <N extends string>({
         }
     }
     return converted;
-}
-
-/**
- * Converts a GraphQL union into a Prisma select.
- * All possible union fields which the user wants to select are in partialInfo, but they are not separated by type.
- * This function performs a nested intersection between each union type's avaiable fields, and the fields which were 
- * requested by the user.
- * @param partialInfo - partialGraphQLInfo object
- * @param unionField - Name of the union field
- * @param relationshipTuples - array of [relationship type (i.e. how it appears in partialInfo), name to convert the field to]
- * @returns partilPrismaSelect object
- */
-export const deconstructUnion = (partialInfo: PartialGraphQLInfo, unionField: string, relationshipTuples: [GraphQLModelType, string][]): any => {
-    let { [unionField]: unionData, ...rest } = partialInfo;
-    // Create result object
-    let converted: { [x: string]: any } = {};
-    // If field in partialInfo is not an object, return partialInfo unmodified
-    if (!unionData) return partialInfo;
-    // Swap keys of union to match their prisma names
-    for (const [relType, relName] of relationshipTuples) {
-        // If union missing, skip
-        if (!isObject(unionData) || !(relType in unionData)) continue;
-        const currData = unionData[relType];
-        converted[relName] = currData;
-    }
-    return { ...rest, ...converted };
 }
 
 /**
@@ -1234,6 +1177,17 @@ const pickObjectById = (data: any, id: string): ({ id: string } & { [x: string]:
 }
 
 /**
+ * Finds current userId in Request object
+ * @param req Request object
+ * @returns First userId in Session object, or null if not found/invalid
+ */
+export const getUserId = (req: ReqForUserAuth): string | null => {
+    if (!req || !Array.isArray(req?.users) || req.users.length === 0) return null;
+    const userId = req.users[0].id;
+    return typeof userId === 'string' && uuidValidate(userId) ? userId : null;
+}
+
+/**
  * Adds supplemental fields to the select object, and all of its relationships (and their relationships, etc.)
  * Groups objects types together, so database is called only once for each type.
  * @param prisma Prisma client
@@ -1356,7 +1310,7 @@ export async function permissionsCheck<PermissionObject>({
 }: PermissionsHelper<PermissionObject>): Promise<boolean> {
     if (!model.permissions) return true;
     // Query object's permissions
-    const perms = await model.permissions(prisma).get({ objects: [object], userId });
+    const perms = await model.permissions().get({ objects: [object], prisma, userId });
     for (const action of actions) {
         if (!perms[0][action as keyof PermissionObject]) {
             return false;
@@ -1367,10 +1321,10 @@ export async function permissionsCheck<PermissionObject>({
 
 type ReadOneHelperProps<GraphQLModel> = {
     info: GraphQLInfo | PartialGraphQLInfo;
-    input: any;
+    input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1382,29 +1336,38 @@ export async function readOneHelper<GraphQLModel>({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: ReadOneHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     const objectType = model.format.relationshipMap.__typename;
-    // Validate input
-    if (!input.id && !input.handle)
-        throw new CustomError(CODE.InvalidArgs, 'id is required', { code: genErrorCode('0019') });
+    const userId = getUserId(req);
+    // Validate input. Can read by id, handle, or versionGroupId
+    if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
+        throw new CustomError(CODE.InvalidArgs, 'id or handle is required', { code: genErrorCode('0019') });
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
+    // If using versionGroupId, find the latest completed version in that group and use that id from now on
+    let id: string | null | undefined;
+    if ((input as FindByVersionInput).versionGroupId) {
+        const versionId = await getLatestVersion({ objectType: model.type as 'Routine' | 'Standard', prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
+        id = versionId;
+    } else {
+        id = input.id;
+    }
     // Check permissions
     const authorized = await permissionsCheck({
         model,
-        object: { id: input.id || input.handle },
+        object: { id: id || (input as FindByIdOrHandleInput).handle as string },
         actions: ['canView'],
         prisma,
         userId,
     });
     if (!authorized) throw new CustomError(CODE.Unauthorized, `Not allowed to read object`, { code: genErrorCode('0249') });
     // Get the Prisma object
-    let object = input.id ?
-        await (model.prismaObject(prisma) as any).findUnique({ where: { id: input.id }, ...selectHelper(partialInfo) }) :
-        await (model.prismaObject(prisma) as any).findFirst({ where: { handle: input.handle }, ...selectHelper(partialInfo) });
+    let object = id ?
+        await (model.prismaObject(prisma) as any).findUnique({ where: { id: id }, ...selectHelper(partialInfo) }) :
+        await (model.prismaObject(prisma) as any).findFirst({ where: { handle: (input as FindByIdOrHandleInput).handle as string }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
     // Return formatted for GraphQL
@@ -1412,7 +1375,7 @@ export async function readOneHelper<GraphQLModel>({
     // If logged in and object has view count, handle it
     if (userId && objectType in ViewFor) {
         ViewModel.mutate(prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
-    } else console.log('readonehelper: object type not in viewfor', objectType);
+    }
     return (await addSupplementalFields(prisma, userId, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
 }
 
@@ -1428,7 +1391,7 @@ type ReadManyHelperProps<GraphQLModel, SearchInput extends SearchInputBase<any>>
     input: any;
     model: ModelLogic<GraphQLModel, SearchInput, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1444,8 +1407,9 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     input,
     model,
     prisma,
-    userId,
+    req,
 }: ReadManyHelperProps<GraphQLModel, SearchInput>): Promise<PaginatedSearchResult> {
+    const userId = getUserId(req);
     // Partially convert info type
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
@@ -1461,9 +1425,9 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Determine updatedTimeFrame query
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Create type-specific queries
-    let typeQuery = model.search?.customQueries ? model.search.customQueries(input) : undefined;
+    let typeQuery = model.search?.customQueries ? model.search.customQueries(input, userId) : undefined;
     // Combine queries
-    const where = { ...additionalQueries, ...idQuery, ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
+    const where = combineQueries([additionalQueries, idQuery, searchQuery, createdQuery, updatedQuery, typeQuery]);
     // Determine sort order
     const orderBy = model.search?.getSortQuery ? model.search.getSortQuery(input.sortBy ?? model.search.defaultSort) : undefined;
     // Find requested search array
@@ -1523,7 +1487,9 @@ type CountHelperProps<GraphQLModel, CountInput extends CountInputBase> = {
     input: CountInput;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
+    req: ReqForUserAuth;
     where?: { [x: string]: any };
+    visibility?: VisibilityType;
 }
 
 /**
@@ -1534,21 +1500,23 @@ export async function countHelper<GraphQLModel, CountInput extends CountInputBas
     input,
     model,
     prisma,
+    req,
     where,
+    visibility = VisibilityType.Public,
 }: CountHelperProps<GraphQLModel, CountInput>): Promise<number> {
-    // Check permissions
-    //TODO use same permissions as readmanyhelper, to determine if private should be counted
+    const userId = getUserId(req);
     // Create query for created metric
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Create query for created metric
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
+    // Create query for visibility, if supported
+    let visibilityQuery: { [x: string]: any } | undefined;
+    if (([GraphQLModelType.Organization, GraphQLModelType.Project, GraphQLModelType.Routine, GraphQLModelType.Run, GraphQLModelType.Standard] as string[]).includes(model.type)) {
+        visibilityQuery = visibilityBuilder({ model, userId, visibility });
+    }
     // Count objects that match queries
     return await (model.prismaObject(prisma) as any).count({
-        where: {
-            ...where,
-            ...createdQuery,
-            ...updatedQuery,
-        },
+        where: combineQueries([where, createdQuery, updatedQuery, visibilityQuery])
     });
 }
 
@@ -1557,7 +1525,7 @@ type CreateHelperProps<GraphQLModel> = {
     input: any;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1570,8 +1538,9 @@ export async function createHelper<GraphQLModel>({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: CreateHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0025') });
     if (!model.mutate || !model.mutate(prisma).cud)
@@ -1580,10 +1549,7 @@ export async function createHelper<GraphQLModel>({
     const partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
-    // Check permissions
-    // TODO will need custom permissions. Needs to use input fields to determine which permissions to check.
-    // e.g. A routine with a projectId must verify that the user has permission to create a routine in the project (i.e. owns project and hasn't reached max routines inside).
-    // Then it also needs to check that the user hasn't reached a max number of overall routines.
+    // Create objects. cud will check permissions
     const cudResult = await model.mutate!(prisma).cud!({ partialInfo, userId, createMany: [input] });
     const { created } = cudResult;
     if (created && created.length > 0) {
@@ -1610,7 +1576,7 @@ type UpdateHelperProps<GraphQLModel> = {
     input: any;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
     where?: (obj: any) => { [x: string]: any };
 }
 
@@ -1623,9 +1589,10 @@ export async function updateHelper<GraphQLModel>({
     input,
     model,
     prisma,
-    userId,
+    req,
     where = (obj) => ({ id: obj.id }),
 }: UpdateHelperProps<any>): Promise<RecursivePartial<GraphQLModel>> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0029') });
     if (!model.mutate || !model.mutate(prisma).cud)
@@ -1634,12 +1601,9 @@ export async function updateHelper<GraphQLModel>({
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0031') });
-    // Check permissions
-    //TODO use same permissions as readonehelper (but for updating obviously), but also similar custom
-    // logic to createHelper. For example, if a routine is being moved to another project, then need to check 
-    // permissions for current and new project.
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: where(input), data: input };
+    // Update objects. cud will check permissions
     const { updated } = await model.mutate!(prisma).cud!({ partialInfo, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
         // If organization, project, routine, or standard, log for stats
@@ -1664,7 +1628,7 @@ type DeleteOneHelperProps = {
     input: DeleteOneInput;
     model: ModelLogic<any, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1675,14 +1639,14 @@ export async function deleteOneHelper({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: DeleteOneHelperProps): Promise<Success> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object', { code: genErrorCode('0033') });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0034') });
-    // Check permissions
-    // TODO
+    // Delete object. cud will check permissions
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: [input.id] });
     if (deleted?.count && deleted.count > 0) {
         // If organization, project, routine, or standard, log for stats
@@ -1706,7 +1670,7 @@ type DeleteManyHelperProps = {
     input: DeleteManyInput;
     model: ModelLogic<any, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1717,14 +1681,14 @@ export async function deleteManyHelper({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: DeleteManyHelperProps): Promise<Count> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete objects', { code: genErrorCode('0035') });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
-    // Check permissions
-    //TODO
+    // Delete objects. cud will check permissions
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
@@ -1749,7 +1713,7 @@ type CopyHelperProps<GraphQLModel> = {
     input: CopyInput;
     model: ModelLogic<GraphQLModel, any, any>;
     prisma: PrismaType;
-    userId: string | null;
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1761,14 +1725,18 @@ export async function copyHelper({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: CopyHelperProps<any>): Promise<any> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to copy object', { code: genErrorCode('0229') });
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support copy', { code: genErrorCode('0230') });
     // Check permissions
-    //TODO
+    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }) : [{}];
+    if (!permissions[0].canFork && !permissions[0].canCopy) {
+        throw new CustomError(CODE.Unauthorized, 'Not allowed to copy object', { code: genErrorCode('0263') });
+    }
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
         '__typename': 'Copy',
@@ -1797,7 +1765,7 @@ export async function copyHelper({
         input: { id: object.id },
         model,
         prisma,
-        userId,
+        req,
     })
     return fullObject;
 }
@@ -1807,7 +1775,7 @@ type ForkHelperProps<GraphQLModelType> = {
     input: ForkInput,
     model: ModelLogic<GraphQLModelType, any, any>,
     prisma: PrismaType,
-    userId: string | null,
+    req: ReqForUserAuth;
 }
 
 /**
@@ -1819,14 +1787,18 @@ export async function forkHelper({
     input,
     model,
     prisma,
-    userId,
+    req,
 }: ForkHelperProps<any>): Promise<any> {
+    const userId = getUserId(req);
     if (!userId)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to fork object', { code: genErrorCode('0233') });
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
     // Check permissions
-    //TODO
+    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }) : [{}];
+    if (!permissions[0].canFork && !permissions[0].canCopy) {
+        throw new CustomError(CODE.Unauthorized, 'Not allowed to fork object', { code: genErrorCode('0262') });
+    }
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
         '__typename': 'Fork',
@@ -1852,7 +1824,7 @@ export async function forkHelper({
         input: { id: object.id },
         model,
         prisma,
-        userId,
+        req,
     })
     return fullObject;
 }
@@ -1867,7 +1839,7 @@ export async function readManyAsFeed<GraphQLModel, SearchInput extends SearchInp
     input,
     model,
     prisma,
-    userId,
+    req,
 }: Omit<ReadManyHelperProps<GraphQLModel, SearchInput>, 'addSupplemental'>): Promise<{ pageInfo: any, nodes: any[] }> {
     const readManyResult = await readManyHelper({
         additionalQueries,
@@ -1876,7 +1848,7 @@ export async function readManyAsFeed<GraphQLModel, SearchInput extends SearchInp
         input,
         model,
         prisma,
-        userId,
+        req,
     })
     const nodes = readManyResult.edges.map(({ node }: any) =>
         modelToGraphQL(node, toPartialGraphQLInfo(info, model.format.relationshipMap) as PartialGraphQLInfo)) as any[]
@@ -1952,4 +1924,498 @@ export async function existsArray({ ids, prismaDelegate, where }: ExistsArray): 
     })
     // Convert to array of booleans
     return idsToQuery.map(id => objects.some(({ id: objectId }: { id: string }) => objectId === id));
+}
+
+/**
+ * Helper function for combining Prisma queries. This is basically a spread, 
+ * but it also combines AND, OR, and NOT queries
+ * @param queries Array of query objects to combine
+ * @returns Combined query object, with all fields combined
+ */
+export function combineQueries(queries: ({ [x: string]: any } | null | undefined)[]): { [x: string]: any } {
+    const combined: { [x: string]: any } = {};
+    for (const query of queries) {
+        if (!query) continue;
+        for (const [key, value] of Object.entries(query)) {
+            let currValue = value;
+            // If key is AND, OR, or NOT, combine
+            if (['AND', 'OR', 'NOT'].includes(key)) {
+                // Value should be an array
+                if (!Array.isArray(value)) {
+                    currValue = [value];
+                }
+                // For AND, combine arrays
+                if (key === 'AND') {
+                    combined[key] = key in combined ? [...combined[key], ...currValue] : currValue;
+                }
+                // For OR and NOT, set as value if none exists
+                else if (!(key in combined)) {
+                    combined[key] = currValue;
+                }
+                // Otherwise, combine values using AND. This is because we can't have duplicate keys
+                else {
+                    // Store temp value 
+                    const temp = combined[key];
+                    // Delete key
+                    delete combined[key];
+                    // Add old and new value to AND array
+                    combined.AND = [
+                        ...(combined.AND || []),
+                        { [key]: temp },
+                        { [key]: currValue },
+                    ];
+                }
+            }
+            // Otherwise, just add it
+            else combined[key] = value;
+        }
+    }
+    return combined;
+}
+
+type ExceptionsBuilderProps = {
+    /**
+     * Fields that are allowed to be queried. Supports nested fields through dot notation
+     */
+    canQuery: string[],
+    /**
+     * Default for main field
+     */
+    defaultValue?: any,
+    /**
+     * Field to check for stringified exceptions
+     */
+    exceptionField: string,
+    /**
+     * Input object, with exceptions in one of the fields
+     */
+    input: { [x: string]: any },
+    /**
+     * Main field being queried
+     */
+    mainField: string,
+}
+
+/**
+ * Assembles custom query exceptions (i.e. query has some condition OR <exceptions>). 
+ * If an 'id' field is allowed (e.g. 'parent.id') and the current value is a string, then we treat as 
+ * a 'connect' query (i.e. assume that the string is a primary key for the object)
+ */
+export function exceptionsBuilder({
+    canQuery,
+    defaultValue,
+    exceptionField,
+    input,
+    mainField,
+}: ExceptionsBuilderProps): { [x: string]: any } {
+    // Initialize result
+    const result: { [x: string]: any } = { [mainField]: input[mainField] ?? defaultValue };
+    // Helper function for checking if a stringified object is a primitive or an array of primitives.
+    // Returns boolean indicating whether it is a primitive, and the parsed object
+    const getPrimitive = (x: string): [boolean, any] => {
+        const primitiveCheck = (y: any): boolean => { return y === null || typeof y === 'string' || typeof y === 'number' || typeof y === 'boolean' };
+        let value: any;
+        try { value = JSON.parse(x); }
+        catch (err) { return [false, undefined]; }
+        if (Array.isArray(value)) {
+            if (value.every(primitiveCheck)) return [true, value]
+        }
+        else if (primitiveCheck(value)) return [true, value];
+        return [false, value];
+    }
+    /**
+     * Helper function for converting a list of fields to a nested object
+     * @param fields List of fields to convert
+     * @param value Value to assign to the last field
+     */
+    const fieldsToObject = (fields: string[], value: any): { [x: string]: any } => {
+        if (fields.length === 0) return value;
+        const [field, ...rest] = fields;
+        return { [field]: fieldsToObject(rest, value) };
+    }
+    /**
+     * Helper function to add an object to the result's OR array
+     * @param allowed Fields that are allowed to be queried
+     * @param field Field's name
+     * @param value Field's stringified value
+     * @param recursedFields Nested fields in current recursion. These are used to generated nested queries
+     */
+    const addToOr = (allowed: string[], field: string, value: string, recursedFields: string[] = []): void => {
+        const [isPrimitive, parsedValue] = getPrimitive(value);
+        // Check if field is allowed
+        if (isPrimitive && allowed.includes(field)) {
+            // If not array, add to result
+            if (!Array.isArray(parsedValue)) result.OR.push(fieldsToObject([...recursedFields, field], parsedValue));
+            // Otherwise, wrap in { in: } and add to result
+            else result.OR.push(fieldsToObject([...recursedFields, field], { in: parsedValue }));
+        }
+        // Check if field is allowed with 'id' appended
+        else if (allowed.includes(`${field}.id`)) {
+            // If not array, add to result
+            if (!Array.isArray(parsedValue) && typeof parsedValue === 'string') result.OR.push(fieldsToObject([...recursedFields, field, 'id'], parsedValue));
+            // Otherwise, wrap in { in: } and add to result
+            else if (Array.isArray(parsedValue) && parsedValue.every(x => typeof x === 'string')) result.OR.push(fieldsToObject([...recursedFields, field, 'id'], { in: parsedValue }));
+        }
+        // Otherwise, check if we should recurse
+        else if (typeof parsedValue === 'object' && field in parsedValue) {
+            const matchingFields = allowed.filter(x => x.startsWith(`${field}.`));
+            if (matchingFields.length > 0) {
+                addToOr(
+                    allowed.filter(x => x.startsWith(`${field}.`)),
+                    field,
+                    JSON.stringify(parsedValue[field]),
+                    [...recursedFields, field],
+                );
+            }
+        }
+    }
+    if (!(typeof input === 'object' && mainField in input)) return result;
+    // Get mainField value
+    // If exceptionField is present, wrap in OR
+    if (exceptionField in input) {
+        result.OR = [{ [mainField]: result[mainField] }];
+        delete result[mainField];
+        // If exceptionField is an array, add each item to OR
+        if (Array.isArray(input[exceptionField])) {
+            // Delete mainField from result, since it will be in OR
+            for (const exception of input[exceptionField]) {
+                addToOr(canQuery, lowercaseFirstLetter(exception.field), exception.value);
+            }
+        }
+        // Otherwise, add exceptionField to OR
+        else {
+            addToOr(canQuery, lowercaseFirstLetter(input[exceptionField].field), input[exceptionField].value);
+        }
+    }
+    return result;
+}
+
+type VisibilityBuilderProps<GraphQLModelType> = {
+    model: ModelLogic<GraphQLModelType, any, any>,
+    userId: string | null | undefined,
+    visibility?: VisibilityType | null | undefined,
+}
+
+/**
+ * Assembles visibility query
+ */
+export function visibilityBuilder<GraphQLModelType>({
+    model,
+    userId,
+    visibility,
+}: VisibilityBuilderProps<GraphQLModelType>): { [x: string]: any } {
+    // If visibility is set to public or not defined, 
+    // or user is not logged in, or model does not have 
+    // the correct data to query for ownership
+    if (!visibility || visibility === VisibilityType.Public || !userId || !model.permissions) {
+        return { isPrivate: false };
+    }
+    // If visibility is set to private, query private objects that you own
+    else if (visibility === VisibilityType.Private) {
+        return combineQueries([{ isPrivate: true }, model.permissions().ownershipQuery(userId)])
+    }
+    // Otherwise, must be set to All
+    else {
+        let query: { [x: string]: any } = model.permissions().ownershipQuery(userId);
+        // If query has OR field with an array value, add isPrivate: false to array
+        if ('OR' in query && Array.isArray(query.OR)) {
+            query.OR.push({ isPrivate: false });
+        }
+        // Otherwise, wrap query in OR with isPrivate: false
+        else {
+            query = { OR: [query, { isPrivate: false }] };
+        }
+        return query;
+    }
+}
+
+interface ValidateObjectOwnership extends ValidateMutationsInput<{
+    id: string,
+    createdByUserId?: string | null | undefined,
+    createdByOrganizationId?: string | null | undefined,
+    projectId?: string | null | undefined,
+}, {
+    id: string,
+    userId?: string | null | undefined,
+    organizationId?: string | null | undefined,
+    projectId?: string | null | undefined,
+}> {
+    objectType: 'Project' | 'Routine' | 'Standard',
+    prisma: PrismaType,
+}
+
+type ValidateHelperData = {
+    id: string,
+    createdByUserId?: string | null | undefined,
+    createdByOrganizationId?: string | null | undefined,
+    projectId?: string | null | undefined,
+    userId?: string | null | undefined,
+    organizationId?: string | null | undefined,
+}
+
+/**
+ * Validates that the user has permission to create/update/delete a project, routine or standard. 
+ * Checks user/organization, project, and version
+ */
+export async function validateObjectOwnership({
+    createMany,
+    deleteMany,
+    objectType,
+    prisma,
+    updateMany,
+    userId,
+}: ValidateObjectOwnership) {
+    /**
+     * Helper for validating ownership of objects. 
+     * Throws an error if the user does not have permission to create/update/delete the object
+     */
+    const validateHelper = async (data: ValidateHelperData[], isExisting: boolean): Promise<void> => {
+        // Collect IDs by object type
+        const userIds = onlyValidIds([...data.map(x => x.createdByUserId), ...data.map(x => x.userId)]);
+        const organizationIds = onlyValidIds([...data.map(x => x.createdByOrganizationId), ...data.map(x => x.organizationId)]);
+        // For projects, only need to check if isExisting is true. For existing 
+        // data, we only check user/organization ownership in case permissions 
+        // get messed up
+        const projectIds = isExisting ? [] : onlyValidIds(data.map(x => x.projectId));
+        // If any userId is not yours, throw error
+        if (userIds.some(x => x !== userId)) {
+            throw new CustomError(CODE.Unauthorized, 'User permissions invalid', { code: genErrorCode('0257') });
+        }
+        // Check organizations using roles
+        const roles = await OrganizationModel.query().hasRole(prisma, userId ?? '', organizationIds);
+        // If any role is undefined, the user is not authorized
+        if (roles.some(x => x === undefined)) {
+            throw new CustomError(CODE.Unauthorized, 'Organization permissions invalid', { code: genErrorCode('0258') });
+        }
+        // Check projects using projects' user/organization ownership
+        if (projectIds.length > 0) {
+            const projects = await prisma.project.findMany({
+                where: {
+                    id: { in: projectIds },
+                    ...ProjectModel.permissions().ownershipQuery(userId ?? ''),
+                },
+            })
+            if (projects.length !== projectIds.length) {
+                throw new CustomError(CODE.Unauthorized, 'Project permissions invalid', { code: genErrorCode('0259') });
+            }
+        }
+    }
+    /**
+     * Helper for querying existing objects to validate ownership
+     */
+    const queryHelper = async (ids: string[]): Promise<ValidateHelperData[]> => {
+        if (objectType === 'Project') {
+            return await prisma.project.findMany({
+                where: { id: { in: ids } },
+                select: { id: true, userId: true, organizationId: true },
+            });
+        }
+        else if (objectType === 'Routine') {
+            return await prisma.routine.findMany({
+                where: { id: { in: ids } },
+                select: { id: true, userId: true, organizationId: true, projectId: true },
+            });
+        }
+        else {
+            return await prisma.standard.findMany({
+                where: { id: { in: ids } },
+                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
+            });
+        }
+    }
+    // Validate createMany
+    if (createMany) {
+        await validateHelper(createMany, false);
+    }
+    // Validate updateMany
+    if (updateMany) {
+        await validateHelper(updateMany.map(u => u.data), false);
+        const existingObjects = await queryHelper(updateMany.map(u => u.where.id));
+        await validateHelper(existingObjects, true);
+    }
+    // Validate deleteMany
+    if (deleteMany) {
+        const existingObjects = await queryHelper(deleteMany);
+        await validateHelper(existingObjects, true);
+    }
+}
+
+interface ValidateMaxObjects extends ValidateMutationsInput<{
+    id: string,
+    createdByUserId?: string | null | undefined,
+    createdByOrganizationId?: string | null | undefined,
+}, {
+    id: string,
+    userId?: string | null | undefined,
+    organizationId?: string | null | undefined,
+}> {
+    maxCount: number,
+    objectType: 'Project' | 'Routine' | 'Standard',
+    prisma: PrismaType,
+}
+
+type ValidateMaxObjectsData = {
+    id: string,
+    createdByUserId?: string | null | undefined,
+    createdByOrganizationId?: string | null | undefined,
+    userId?: string | null | undefined,
+    organizationId?: string | null | undefined,
+}
+
+/**
+ * Validates that creating a new project, routine, or standard will not exceed the user's limit
+ */
+export async function validateMaxObjects({
+    createMany,
+    deleteMany,
+    maxCount,
+    objectType,
+    prisma,
+    updateMany,
+    userId,
+}: ValidateMaxObjects) {
+    let totalUserIdCount = 0;
+    let totalOrganizationIds: { [id: string]: number } = {};
+    /**
+     * Helper for converting an array of strings to a map of occurence counts
+     */
+    const countHelper = (arr: (string | null | undefined)[]): { [id: string]: number } => {
+        const result: { [id: string]: number } = {};
+        arr.forEach(x => {
+            if (!x) return;
+            if (result[x]) {
+                result[x] += 1;
+            }
+            else {
+                result[x] = 1;
+            }
+        });
+        return result;
+    }
+    /**
+     * Helper for adding counts to the total counts
+     */
+    const addToCounts = (data: ValidateMaxObjectsData[]) => {
+        totalUserIdCount += data.filter(x => x.createdByUserId === userId || x.userId === userId).length;
+        const organizationIds = countHelper(data.map(x => x.createdByOrganizationId || x.organizationId));
+        Object.keys(organizationIds).forEach(id => {
+            if (totalOrganizationIds[id]) {
+                totalOrganizationIds[id] += organizationIds[id];
+            }
+            else {
+                totalOrganizationIds[id] = organizationIds[id];
+            }
+        });
+    }
+    /**
+     * Helper for removing queried counts from the total counts
+     */
+    const removeFromCounts = (userCounts: number, organizationCounts: { [id: string]: number }) => {
+        totalUserIdCount -= userCounts;
+        Object.keys(organizationCounts).forEach(id => {
+            if (totalOrganizationIds[id]) {
+                totalOrganizationIds[id] -= organizationCounts[id];
+            }
+        });
+    }
+    /**
+     * Helper for querying existing data
+     * @returns Count of userId, and count of organizationId by ID
+     */
+    const queryExisting = async (ids: string[]): Promise<[number, { [id: string]: number }]> => {
+        let userIdCount: number;
+        let organizationIds: { [id: string]: number };
+        if (objectType === 'Project') {
+            const objects = await prisma.project.findMany({
+                where: { id: { in: ids } },
+                select: { id: true, userId: true, organizationId: true },
+            });
+            userIdCount = objects.filter(x => x.userId === userId).length;
+            organizationIds = countHelper(objects.map(x => x.organizationId));
+        }
+        else if (objectType === 'Routine') {
+            const objects = await prisma.routine.findMany({
+                where: { id: { in: ids } },
+                select: { id: true, userId: true, organizationId: true },
+            });
+            userIdCount = objects.filter(x => x.userId === userId).length;
+            organizationIds = countHelper(objects.map(x => x.organizationId));
+        }
+        else {
+            const objects = await prisma.standard.findMany({
+                where: { id: { in: ids } },
+                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
+            });
+            userIdCount = objects.filter(x => x.createdByUserId === userId).length;
+            organizationIds = countHelper(objects.map(x => x.createdByOrganizationId));
+        }
+        return [userIdCount, organizationIds];
+    }
+    // Add IDs in createMany to total counts
+    if (createMany) {
+        addToCounts(createMany);
+    }
+    // Add new IDs in updateMany to total counts, and remove existing IDs from total counts
+    if (updateMany) {
+        const newObjects = updateMany.map(u => u.data);
+        addToCounts(newObjects);
+        const [userIdCount, organizationIds] = await queryExisting(updateMany.map(u => u.where.id));
+        removeFromCounts(userIdCount, organizationIds);
+    }
+    // Remove IDs in deleteMany from total counts
+    if (deleteMany) {
+        const [userIdCount, organizationIds] = await queryExisting(deleteMany);
+        removeFromCounts(userIdCount, organizationIds);
+    }
+    // If the total counts exceed the max, throw an error
+    if (totalUserIdCount > maxCount) {
+        throw new CustomError(CODE.Unauthorized, `You have reached the maximum number of ${objectType}s you can create on this account.`, { code: genErrorCode('0260') });
+    }
+    if (Object.keys(totalOrganizationIds).some(id => totalOrganizationIds[id] > maxCount)) {
+        throw new CustomError(CODE.Unauthorized, `You have reached the maximum number of ${objectType}s you can create on this organization.`, { code: genErrorCode('0261') });
+    }
+}
+
+interface GetLatestVersionProps {
+    includeIncomplete?: boolean,
+    objectType: 'Routine' | 'Standard',
+    prisma: PrismaType,
+    versionGroupId: string,
+}
+
+/**
+ * Finds the latest version of a versioned object
+ * @returns The id of the latest version
+ */
+export async function getLatestVersion({
+    includeIncomplete = true,
+    objectType,
+    prisma,
+    versionGroupId,
+}: GetLatestVersionProps): Promise<string | undefined> {
+    // Helper function to compare version strings
+    const compareVersions = (a: string, b: string): number => {
+        // Parse versions
+        const { major: major1, moderate: moderate1, minor: minor1 } = calculateVersionsFromString(a);
+        const { major: major2, moderate: moderate2, minor: minor2 } = calculateVersionsFromString(b);
+        // If major version is less than minimum
+        if (major1 < major2) return -1;
+        // If major version is equal to minimum and moderate version is less than minimum
+        if (major1 === major2 && moderate1 < moderate2) return -1;
+        // If major and moderate versions are equal to minimum and minor version is less than minimum
+        if (major1 === major2 && moderate1 === moderate2 && minor1 < minor2) return -1;
+        // If all versions are equal
+        if (major1 === major2 && moderate1 === moderate2 && minor1 === minor2) return 0;
+        // Else
+        return 1;
+    }
+    // Query versions
+    const select = { id: true, version: true };
+    const versions = objectType === 'Routine' ? 
+        await prisma.routine.findMany({ where: { versionGroupId, isComplete: includeIncomplete ? undefined : true }, select }) :
+        await prisma.standard.findMany({ where: { versionGroupId }, select });
+    // Sort versions
+    versions.sort((a, b) => compareVersions(a.version, b.version));
+    // Return latest version, or undefined if no versions
+    return versions.length > 0 ? versions[versions.length - 1].id : undefined;
 }

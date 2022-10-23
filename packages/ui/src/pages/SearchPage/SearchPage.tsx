@@ -2,16 +2,15 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material";
-import { SearchList, SelectRoutineTypeMenu, ShareSiteDialog } from "components";
+import { PageContainer, SearchList, SelectRoutineTypeMenu, ShareSiteDialog, SnackSeverity } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
-import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, openObject, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
-import { ListOrganization, ListProject, ListRoutine, ListStandard, ListUser } from "types";
-import { validate as uuidValidate } from 'uuid';
+import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
 import { APP_LINKS } from "@shared/consts";
 import { AddIcon } from "@shared/icons";
+import { getCurrentUser } from "utils/authentication";
 
 // Tab data type
 type BaseParams = {
@@ -70,15 +69,11 @@ const tabParams: { [key in TabOption]: BaseParams } = {
 // [title, searchType] for each tab
 const tabOptions: [string, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.title, key as TabOption]);
 
-type SearchObject = ListOrganization | ListProject | ListRoutine | ListStandard | ListUser;
-
 export function SearchPage({
     session,
 }: SearchPageProps) {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
-
-    const handleSelected = useCallback((selected: SearchObject) => { openObject(selected, setLocation) }, [setLocation]);
 
     // Popup button, which opens either an add or invite dialog
     const [popupButton, setPopupButton] = useState<boolean>(false);
@@ -88,7 +83,7 @@ export function SearchPage({
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
-        const searchParams = parseSearchParams(window.location.search);
+        const searchParams = parseSearchParams();
         const availableTypes: TabOption[] = tabOptions.map(t => t[1]);
         const index = availableTypes.indexOf(searchParams.type as TabOption);
         // Return valid index, or default to Routines
@@ -123,9 +118,8 @@ export function SearchPage({
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as string })}/add`
         // If not logged in, redirect to login page
-        const loggedIn = session?.isLoggedIn === true && uuidValidate(session?.id ?? '');
-        if (!loggedIn) {
-            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: 'error' });
+        if (!getCurrentUser(session).id) {
+            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: SnackSeverity.Error });
             setLocation(`${APP_LINKS.Start}${stringifySearchParams({
                 redirect: addUrl
             })}`);
@@ -143,7 +137,7 @@ export function SearchPage({
         else {
             setLocation(addUrl)
         }
-    }, [openAddRoutine, searchType, session?.id, session?.isLoggedIn, setLocation]);
+    }, [openAddRoutine, searchType, session, setLocation]);
 
     const onPopupButtonClick = useCallback((ev: any) => {
         const tabType = tabOptions[tabIndex][1];
@@ -179,10 +173,7 @@ export function SearchPage({
     ), [onPopupButtonClick, popupButton, popupTitle, popupTooltip]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             {/* Invite dialog for organizations and users */}
             <ShareSiteDialog
                 onClose={closeShareDialog}
@@ -237,17 +228,17 @@ export function SearchPage({
                 </Tooltip>
             </Stack>
             {searchType && <SearchList
+                id="main-search-page-list"
                 itemKeyPrefix={itemKeyPrefix}
                 searchPlaceholder={'Search...'}
                 take={20}
                 searchType={searchType}
-                onObjectSelect={handleSelected}
                 onScrolledFar={handleScrolledFar}
                 session={session}
                 zIndex={200}
                 where={where}
             />}
             {popupButtonContainer}
-        </Box >
+        </PageContainer>
     )
 }

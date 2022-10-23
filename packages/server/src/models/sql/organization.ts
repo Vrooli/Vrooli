@@ -1,11 +1,11 @@
 import { PrismaType, RecursivePartial } from "../../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../../schema/types";
-import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds } from "./base";
+import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries, onlyValidHandles } from "./base";
 import { CustomError } from "../../error";
 import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
 import { CODE } from '@shared/consts';
 import { omit } from '@shared/utils';
-import { organization_users, role } from "@prisma/client";
+import { role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
@@ -13,6 +13,7 @@ import { ResourceListModel } from "./resourceList";
 import { WalletModel } from "./wallet";
 import { genErrorCode } from "../../logger";
 import { ViewModel } from "./view";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -27,12 +28,10 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
         'comments': 'Comment',
         'members': 'Member',
         'projects': 'Project',
-        'projectsCreated': 'Project',
         'reports': 'Report',
         'resourceLists': 'ResourceList',
         'routines': 'Routine',
-        'routersCreated': 'Routine',
-        'standards': 'Standard',
+        'routinesCreated': 'Routine',
         'starredBy': 'User',
         'tags': 'Tag',
     },
@@ -48,56 +47,98 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
             resolvers: [
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Organization')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Organization')],
-                ['permissionsOrganization', async () => await OrganizationModel.permissions(prisma).get({ objects, permissions, userId })],
+                ['permissionsOrganization', async () => await OrganizationModel.permissions().get({ objects, permissions, prisma, userId })],
             ]
         });
     }
 })
 
-export const organizationPermissioner = (prisma: PrismaType): Permissioner<OrganizationPermission, OrganizationSearchInput> => ({
+export const organizationPermissioner = (): Permissioner<OrganizationPermission, OrganizationSearchInput> => ({
     async get({
         objects,
         permissions,
+        prisma,
         userId,
     }) {
-        // Initialize result with ID
-        const result = objects.map((o) => ({
-            canAddMembers: true,
-            canDelete: false,
-            canEdit: false,
-            canReport: true,
-            canStar: true,
-            canView: true,
-            isMember: false,
+        // Initialize result with default permissions
+        const result: (OrganizationPermission & { id?: string, handle?: string })[] = objects.map((o) => ({
+            handle: o.handle,
+            id: o.id,
+            canAddMembers: false, // own, even if isOpenToNewMembers is false or isPrivate is true
+            canDelete: false, // own
+            canEdit: false, // own
+            canReport: true, // !own && !isPrivate
+            canStar: false, // own || !isPrivate
+            canView: false, // own || !isPrivate
+            isMember: false, // is member, not necessarily owner
         }));
-        if (!userId) return result;
-        const ids = objects.map(x => x.id);
-        // Get user's admin roles for each organization
-        const roles = await OrganizationModel.query(prisma).hasRole(userId ?? '', ids);
-        // Find which organizations the user has admin roles for
-        for (let i = 0; i < objects.length; i++) {
-            const role = roles[i];
-            if (!role) continue;
-            // Set owner permissions
-            result[i].canDelete = true;
-            result[i].canEdit = true;
-            result[i].canView = true;
-            result[i].isMember = true;
+        // Check ownership
+        if (userId) {
+            // Query for all roles
+            const roles = await prisma.role.findMany({
+                where: {
+                    organization: {
+                        OR: [
+                            { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                            { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                        ]
+                    },
+                    assignees: { some: { user: { id: userId } } }
+                },
+                select: { title: true, organizationId: true }
+            });
+            // Loop through roles to set permissions.
+            // A role with title 'Admin' means you are the owner. Other roles mean 
+            // you are a member.
+            for (const role of roles) {
+                const index = result.findIndex((r) => r.id === role.organizationId);
+                if (index >= 0) {
+                    result[index] = {
+                        ...result[index],
+                        canAddMembers: result[index].canAddMembers || role.title === 'Admin',
+                        canDelete: result[index].canDelete || role.title === 'Admin',
+                        canEdit: result[index].canEdit || role.title === 'Admin',
+                        canReport: result[index].canReport === false ? false : role.title !== 'Admin',
+                        canStar: result[index].canStar || role.title === 'Admin',
+                        canView: result[index].canView || role.title === 'Admin',
+                        isMember: true,
+                    }
+                }
+            }
         }
-        // TODO isPrivate view check
-        // TODO check relationships for permissions
-        return result;
+        // Query all objects
+        const all = await prisma.organization.findMany({
+            where: {
+                OR: [
+                    { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
+                    { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
+                ]
+            },
+            select: { id: true, isPrivate: true },
+        })
+        // Set permissions for all objects
+        all.forEach((o) => {
+            const index = objects.findIndex((r) => r.id === o.id);
+            result[index] = {
+                ...result[index],
+                canReport: result[index].canReport === false ? false : !o.isPrivate,
+                canStar: result[index].canStar || !o.isPrivate,
+                canView: result[index].canView || !o.isPrivate,
+            }
+        });
+        // Return result with IDs and handles removed
+        result.forEach((r) => delete r.id && delete r.handle);
+        return result as OrganizationPermission[];
     },
     async canSearch({
         input,
+        prisma,
         userId
     }) {
         //TODO
         return 'full';
     },
-    ownershipQuery: (userId) => ({
-        roles: { some: { assignees: { some: { user: { id: userId } } } } },
-    }),
+    ownershipQuery: (userId) => organizationQuerier().hasRoleInOrganizationQuery(userId).organization,
 })
 
 export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
@@ -124,25 +165,38 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
             })
         })
     },
-    customQueries(input: OrganizationSearchInput): { [x: string]: any } {
-        return {
-            ...(input.isOpenToNewMembers !== undefined ? { isOpenToNewMembers: true } : {}),
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            ...(input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            ...(input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            ...(input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
-            ...(input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            ...(input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            ...(input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            ...(input.userId !== undefined ? { members: { some: { userId: input.userId } } } : {}),
-            ...(input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            ...(input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
-            ...(input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        }
+    customQueries(input: OrganizationSearchInput, userId: string | null | undefined): { [x: string]: any } {
+        return combineQueries([
+            visibilityBuilder({ model: OrganizationModel, userId, visibility: input.visibility }),
+            (input.isOpenToNewMembers !== undefined ? { isOpenToNewMembers: true } : {}),
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
+            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
+            (input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
+            (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
+            (input.userId !== undefined ? { members: { some: { userId: input.userId } } } : {}),
+            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
+            (input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
+            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
+        ])
     },
 })
 
-export const organizationQuerier = (prisma: PrismaType) => ({
+export const organizationQuerier = () => ({
+    /**
+     * Query for checking if a user has a specific role in an organization
+     */
+    hasRoleInOrganizationQuery: (userId: string, title: string = 'Admin') => (
+        { organization: { roles: { some: { title, assignees: { some: { user: { id: userId } } } } } } }
+    ),
+    /**
+     * Query for checking if a user is a member of an organization
+     */
+    isMemberOfOrganizationQuery: (userId: string) => (
+        { organization: { members: { some: { userId } } } }
+    ),
     /**
      * Determines if a user has a role of a list of organizations
      * @param userId The user's ID
@@ -150,7 +204,7 @@ export const organizationQuerier = (prisma: PrismaType) => ({
      * @param title The name of the role
      * @returns Array in the same order as the ids, with either admin/owner role data or undefined
      */
-    async hasRole(userId: string, organizationIds: (string | null | undefined)[], title: string = 'Admin'): Promise<Array<role | undefined>> {
+    async hasRole(prisma: PrismaType, userId: string, organizationIds: (string | null | undefined)[], title: string = 'Admin'): Promise<Array<role | undefined>> {
         if (organizationIds.length === 0) return [];
         // Take out nulls
         const idsToQuery = onlyValidIds(organizationIds);
@@ -313,6 +367,7 @@ export const OrganizationModel = ({
     permissions: organizationPermissioner,
     search: organizationSearcher(),
     query: organizationQuerier,
+    type: 'Organization' as GraphQLModelType,
 })
 
 //==============================================================

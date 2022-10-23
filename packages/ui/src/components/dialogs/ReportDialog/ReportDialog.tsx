@@ -2,15 +2,15 @@ import { useMutation } from '@apollo/client';
 import { reportCreateForm as validationSchema } from '@shared/validation';
 import { Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
 import { useFormik } from 'formik';
-import { reportCreate, reportCreateVariables } from 'graphql/generated/reportCreate';
+import { reportCreateVariables, reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { reportCreateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/mutationWrapper';
+import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ReportDialogProps } from '../types';
-import { getUserLanguages, PubSub } from 'utils';
-import { useEffect, useState } from 'react';
+import { getUserLanguages, usePromptBeforeUnload } from 'utils';
+import { useCallback, useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { DialogTitle, GridSubmitButtons, Selector } from 'components';
-import { v4 as uuid } from 'uuid';
+import { uuid } from '@shared/uuid';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators. 
@@ -48,7 +48,7 @@ export const ReportDialog = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
 
-    const [mutation, { loading }] = useMutation<reportCreate, reportCreateVariables>(reportCreateMutation);
+    const [mutation, { loading }] = useMutation(reportCreateMutation);
     const formik = useFormik({
         initialValues: {
             createdFor: reportFor,
@@ -61,7 +61,7 @@ export const ReportDialog = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper({
+            mutationWrapper<reportCreate_reportCreate, reportCreateVariables>({
                 mutation,
                 input: {
                     createdFor: reportFor,
@@ -71,9 +71,9 @@ export const ReportDialog = ({
                     language,
                     reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
                 },
-                successCondition: (response) => response.data.reportCreate !== null,
+                successCondition: (data) => data !== null,
+                successMessage: () => 'Report submitted.',
                 onSuccess: () => {
-                    PubSub.get().publishSnack({ message: 'Report submitted.' });
                     formik.resetForm();
                     onClose()
                 },
@@ -81,30 +81,19 @@ export const ReportDialog = ({
             })
         },
     });
+    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
-    /**
-     * On page leave, check if unsaved work. 
-     * If so, prompt for confirmation.
-     */
-    useEffect(() => {
-        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-            if (formik.dirty) {
-                e.preventDefault()
-                e.returnValue = ''
-            }
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [formik.dirty]);
-
-    const handleClose = () => {
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if formik is dirty and clicked outside
+        if (formik.dirty && reason === 'backdropClick') return;
+        // Otherwise, close
         formik.resetForm();
         onClose();
-    }
+    }, [formik, onClose]);
 
     return (
         <Dialog
-            onClose={handleClose}
+            onClose={handleCancel}
             open={open}
             aria-labelledby={titleAria}
             sx={{
@@ -123,7 +112,7 @@ export const ReportDialog = ({
                 ariaLabel={titleAria}
                 title={title}
                 helpText={helpText}
-                onClose={handleClose}
+                onClose={handleCancel}
             />
             <DialogContent>
                 <form onSubmit={formik.handleSubmit}>
@@ -133,6 +122,7 @@ export const ReportDialog = ({
                             currentLanguage={language}
                             handleCurrent={setLanguage}
                             session={session}
+                            translations={[{ language }]}
                             zIndex={zIndex}
                         />
                         {/* Text displaying what you are reporting */}
@@ -178,13 +168,12 @@ export const ReportDialog = ({
                         />
                         {/* Details multi-line text field */}
                         {/* Action buttons */}
-                        <Grid container sx={{ padding: 0 }}>
+                        <Grid container spacing={1}>
                             <GridSubmitButtons
-                                disabledCancel={formik.isSubmitting}
-                                disabledSubmit={formik.isSubmitting || !formik.isValid}
                                 errors={formik.errors}
                                 isCreate={true}
-                                onCancel={onClose}
+                                loading={formik.isSubmitting}
+                                onCancel={handleCancel}
                                 onSetSubmitting={formik.setSubmitting}
                                 onSubmit={formik.handleSubmit}
                             />

@@ -1,6 +1,5 @@
 import {
     Dialog,
-    DialogContent,
     IconButton,
     Stack,
     Tooltip,
@@ -8,7 +7,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StandardSelectOrCreateDialogProps } from '../types';
 import { Standard } from 'types';
 import { SearchList } from 'components/lists';
@@ -65,20 +64,25 @@ export const StandardSelectOrCreateDialog = ({
 
     // If standard selected from search, query for full data
     const [getStandard, { data: standardData }] = useLazyQuery<standard, standardVariables>(standardQuery);
-    const handeStandardSelect = useCallback((standard: Standard) => {
+    const queryingRef = useRef(false);
+    const fetchFullData = useCallback((standard: Standard) => {
         // Query for full standard data, if not already known (would be known if the same standard was selected last time)
         if (standardData?.standard?.id === standard.id) {
             handleAdd(standardData?.standard);
             onClose();
         } else {
+            queryingRef.current = true;
             getStandard({ variables: { input: { id: standard.id } } });
         }
+        // Return false so the list item does not navigate
+        return false;
     }, [getStandard, standardData, handleAdd, onClose]);
     useEffect(() => {
-        if (standardData?.standard) {
+        if (standardData?.standard && queryingRef.current) {
             handleAdd(standardData.standard);
             onClose();
         }
+        queryingRef.current = false;
     }, [handleAdd, onClose, handleCreateClose, standardData]);
 
     return (
@@ -89,8 +93,21 @@ export const StandardSelectOrCreateDialog = ({
             aria-labelledby={titleAria}
             sx={{
                 zIndex,
-                '& .MuiDialogContent-root': { overflow: 'visible', background: palette.background.default },
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialogContent-root': {
+                    overflow: 'visible',
+                    minWidth: 'min(600px, 100%)',
+                },
+                '& .MuiDialog-paperScrollBody': {
+                    overflow: 'visible',
+                    background: palette.background.default,
+                    margin: { xs: 0, sm: 2, md: 4 },
+                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    display: { xs: 'block', sm: 'inline-block' },
+                },
+                // Remove ::after element that is added to the dialog
+                '& .MuiDialog-container::after': {
+                    content: 'none',
+                },
             }}
         >
             {/* Popup for creating a new standard */}
@@ -112,32 +129,31 @@ export const StandardSelectOrCreateDialog = ({
                 title={'Add Standard'}
                 onClose={onClose}
             />
-            <DialogContent>
-                <Stack direction="column" spacing={2}>
-                    <Stack direction="row" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h4">Standards</Typography>
-                        <Tooltip title="Add new" placement="top">
-                            <IconButton
-                                size="medium"
-                                onClick={handleCreateOpen}
-                                sx={{ padding: 1 }}
-                            >
-                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    <SearchList
-                        itemKeyPrefix='standard-list-item'
-                        noResultsText={"None found. Maybe you should create one?"}
-                        searchType={SearchType.Standard}
-                        onObjectSelect={(newValue) => handeStandardSelect(newValue)}
-                        searchPlaceholder={'Select existing standard...'}
-                        session={session}
-                        take={20}
-                        zIndex={zIndex}
-                    />
+            <Stack direction="column" spacing={2}>
+                <Stack direction="row" alignItems="center" justifyContent="center">
+                    <Typography component="h2" variant="h4">Standards</Typography>
+                    <Tooltip title="Add new" placement="top">
+                        <IconButton
+                            size="medium"
+                            onClick={handleCreateOpen}
+                            sx={{ padding: 1 }}
+                        >
+                            <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
-            </DialogContent>
+                <SearchList
+                    id="standard-select-or-create-list"
+                    itemKeyPrefix='standard-list-item'
+                    noResultsText={"None found. Maybe you should create one?"}
+                    searchType={SearchType.Standard}
+                    beforeNavigation={fetchFullData}
+                    searchPlaceholder={'Select existing standard...'}
+                    session={session}
+                    take={20}
+                    zIndex={zIndex}
+                />
+            </Stack>
         </Dialog>
     )
 }

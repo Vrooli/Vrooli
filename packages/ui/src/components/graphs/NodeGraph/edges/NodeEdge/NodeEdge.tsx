@@ -1,12 +1,10 @@
 import { useCallback, useMemo } from 'react';
 import { NodeEdgeProps } from '../types';
-import {
-    AltRoute as BranchIcon,
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
-import { IconButton, Stack, Tooltip, useTheme } from '@mui/material';
+import { Stack, Tooltip, useTheme } from '@mui/material';
 import { BaseEdge } from '../BaseEdge/BaseEdge';
-import { AddIcon, EditIcon } from '@shared/icons';
+import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
+import { calculateNodeSize } from '../../nodes';
 
 /**
  * Displays a line between two nodes of a routine graph
@@ -27,7 +25,7 @@ export const NodeEdge = ({
     const { palette } = useTheme();
 
     // Store dimensions of edge
-    const thiccness = useMemo(() => Math.ceil(scale * 30), [scale]);
+    const thiccness = useMemo(() => Math.ceil(calculateNodeSize(30, scale)), [scale]);
 
     // Triggers edit menu in parent. This is needed because the link's from and to nodes
     // can be updated, and the edge doesn't have this information
@@ -56,80 +54,51 @@ export const NodeEdge = ({
             <Stack direction="row" spacing={1}>
                 {/* Insert Node */}
                 <Tooltip title='Insert node'>
-                    <IconButton
+                    <ColorIconButton
                         id="insert-node-on-edge-button"
+                        background={palette.secondary.main}
                         size="small"
                         onClick={() => { handleAdd(link) }}
                         aria-label='Insert node on edge'
-                        sx={{
-                            background: palette.secondary.main,
-                            transition: 'brightness 0.2s ease-in-out',
-                            '&:hover': {
-                                filter: `brightness(105%)`,
-                                background: palette.secondary.main,
-                            },
-                        }}
                     >
                         <AddIcon id="insert-node-on-edge-button-icon" fill={'white'} />
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>
                 {/* Insert Branch */}
                 <Tooltip title='Insert branch'>
-                    <IconButton
+                    <ColorIconButton
                         id="insert-branch-on-edge-button"
+                        background="#248791"
                         size="small"
                         onClick={() => { handleBranch(link) }}
                         aria-label='Insert branch on edge'
-                        sx={{
-                            background: '#248791',
-                            transition: 'brightness 0.2s ease-in-out',
-                            '&:hover': {
-                                filter: `brightness(105%)`,
-                                background: '#248791',
-                            },
-                        }}
                     >
-                        {/* Branch icon should be rotated 90 degrees */}
-                        <BranchIcon id="insert-branch-on-edge-button-icon" sx={{ fill: 'white', transform: 'rotate(90deg)' }} />
-                    </IconButton>
+                        <BranchIcon id="insert-branch-on-edge-button-icon" fill='white' />
+                    </ColorIconButton>
                 </Tooltip>
                 {/* Edit Link */}
                 <Tooltip title='Edit link'>
-                    <IconButton
+                    <ColorIconButton
                         id="edit-edge-button"
+                        background='#c5ab17'
                         size="small"
                         onClick={handleEditClick}
                         aria-label='Edit link'
-                        sx={{
-                            background: '#c5ab17',
-                            transition: 'brightness 0.2s ease-in-out',
-                            '&:hover': {
-                                filter: `brightness(105%)`,
-                                background: '#c5ab17',
-                            },
-                        }}
                     >
                         <EditIcon id="insert-node-on-edge-button-icon" fill={'white'} />
-                    </IconButton>
+                    </ColorIconButton>
                 </Tooltip>
                 {/* Delete link */}
                 <Tooltip title='Delete link'>
-                    <IconButton
+                    <ColorIconButton
                         id="delete-link-on-edge-button"
+                        background={palette.error.main}
                         size="small"
                         onClick={() => { handleDelete(link) }}
                         aria-label='Delete link button'
-                        sx={{
-                            background: palette.error.main,
-                            transition: 'brightness 0.2s ease-in-out',
-                            '&:hover': {
-                                filter: `brightness(105%)`,
-                                background: palette.error.main,
-                            },
-                        }}
                     >
-                        <DeleteIcon id="delete-link-on-edge-button-icon" sx={{ fill: 'white' }} />
-                    </IconButton>
+                        <DeleteIcon id="delete-link-on-edge-button-icon" fill='white' />
+                    </ColorIconButton>
                 </Tooltip>
             </Stack>
         );

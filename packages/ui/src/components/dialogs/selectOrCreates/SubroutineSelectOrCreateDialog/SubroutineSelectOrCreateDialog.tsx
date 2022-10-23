@@ -1,6 +1,5 @@
 import {
     Dialog,
-    DialogContent,
     IconButton,
     Stack,
     Tooltip,
@@ -8,7 +7,7 @@ import {
     useTheme
 } from '@mui/material';
 import { BaseObjectDialog, DialogTitle } from 'components';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubroutineSelectOrCreateDialogProps } from '../types';
 import { IsCompleteInput, IsInternalInput, Routine } from 'types';
 import { SearchList } from 'components/lists';
@@ -16,10 +15,11 @@ import { routineQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
-import { validate as uuidValidate } from 'uuid';
+import { uuidValidate } from '@shared/uuid';
 import { SearchType, routineSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
+import { SearchException, VisibilityType } from 'graphql/generated/globalTypes';
 
 const helpText =
     `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`
@@ -30,6 +30,7 @@ export const SubroutineSelectOrCreateDialog = ({
     handleAdd,
     handleClose,
     isOpen,
+    owner,
     nodeId,
     routineId,
     session,
@@ -66,44 +67,43 @@ export const SubroutineSelectOrCreateDialog = ({
 
     // If routine selected from search, query for full data
     const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
-    const handleRoutineSelect = useCallback((routine: Routine) => {
+    const queryingRef = useRef(false);
+    const fetchFullData = useCallback((routine: Routine) => {
+        queryingRef.current = true;
         getRoutine({ variables: { input: { id: routine.id } } });
+        // Return false so the list item does not navigate
+        return false;
     }, [getRoutine]);
     useEffect(() => {
-        if (routineData?.routine) {
+        if (routineData?.routine && queryingRef.current) {
             handleAdd(nodeId, routineData.routine);
             onClose();
         }
+        queryingRef.current = false;
     }, [handleAdd, onClose, handleCreateClose, nodeId, routineData]);
 
     /**
      * Query conditions change depending on a few factors
      */
     const where = useMemo(() => {
-        const validId: boolean = uuidValidate(routineId);
+        // If no routineId, then we are creating a new routine
+        if (!routineId || !uuidValidate(routineId)) return { visibility: VisibilityType.All };
         // Ignore current routine
-        const excludeIds = validId ? { excludeIds: [routineId] } : {};
+        const excludeIds = { excludeIds: [routineId] };
         // Don't include incomplete/internal routines, unless they're your own
-        const incomplete: IsCompleteInput = { isComplete: true, isCompleteExceptions: [] };
-        const internal: IsInternalInput = { isInternal: false, isInternalExceptions: [] };
-        if (validId) {
-            const except = {
-                id: routineId,
-                relation: 'parent',
+        const incomplete: IsCompleteInput = { isComplete: true };
+        const internal: IsInternalInput = { isInternal: false };
+        if (owner) {
+            const exception: SearchException = {
+                field: owner.__typename,
+                // Since exceptions support multiple data types, we must stringify the value
+                value: JSON.stringify(owner.id),
             }
-            incomplete.isCompleteExceptions.push(except);
-            internal.isInternalExceptions.push(except);
+            incomplete.isCompleteExceptions = [exception];
+            internal.isInternalExceptions = [exception];
         }
-        if (session.userId) {
-            const except = {
-                id: session.userId,
-                relation: 'user',
-            }
-            incomplete.isCompleteExceptions.push(except);
-            internal.isInternalExceptions.push(except);
-        }
-        return { ...excludeIds, ...incomplete, ...internal };
-    }, [routineId, session.userId]);
+        return { ...excludeIds, ...incomplete, ...internal, visibility: VisibilityType.All };
+    }, [owner, routineId]);
 
     return (
         <Dialog
@@ -115,9 +115,19 @@ export const SubroutineSelectOrCreateDialog = ({
                 zIndex,
                 '& .MuiDialogContent-root': {
                     overflow: 'visible',
-                    background: palette.background.default,
+                    minWidth: 'min(600px, 100%)',
                 },
-                '& .MuiDialog-paper': { overflow: 'visible' }
+                '& .MuiDialog-paperScrollBody': {
+                    overflow: 'visible',
+                    background: palette.background.default,
+                    margin: { xs: 0, sm: 2, md: 4 },
+                    maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    display: { xs: 'block', sm: 'inline-block' },
+                },
+                // Remove ::after element that is added to the dialog
+                '& .MuiDialog-container::after': {
+                    content: 'none',
+                },
             }}
         >
             {/* Popup for creating a new routine */}
@@ -127,6 +137,7 @@ export const SubroutineSelectOrCreateDialog = ({
                 zIndex={zIndex + 1}
             >
                 <RoutineCreate
+                    isSubroutine={true}
                     onCancel={handleCreateClose}
                     onCreated={handleCreated}
                     session={session}
@@ -139,33 +150,33 @@ export const SubroutineSelectOrCreateDialog = ({
                 title={'Add Subroutine'}
                 onClose={onClose}
             />
-            <DialogContent>
-                <Stack direction="column" spacing={2}>
-                    <Stack direction="row" alignItems="center" justifyContent="center">
-                        <Typography component="h2" variant="h4">Routines</Typography>
-                        <Tooltip title="Add new" placement="top">
-                            <IconButton
-                                size="medium"
-                                onClick={handleCreateOpen}
-                                sx={{ padding: 1 }}
-                            >
-                                <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    <SearchList
-                        itemKeyPrefix='routine-list-item'
-                        noResultsText={"None found. Maybe you should create one?"}
-                        searchType={SearchType.Routine}
-                        onObjectSelect={(newValue) => handleRoutineSelect(newValue)}
-                        searchPlaceholder={'Select existing subroutine...'}
-                        session={session}
-                        take={20}
-                        where={where}
-                        zIndex={zIndex}
-                    />
+            <Stack direction="column" spacing={2}>
+                <Stack direction="row" alignItems="center" justifyContent="center">
+                    <Typography component="h2" variant="h4">Routines</Typography>
+                    <Tooltip title="Add new" placement="top">
+                        <IconButton
+                            size="medium"
+                            onClick={handleCreateOpen}
+                            sx={{ padding: 1 }}
+                        >
+                            <AddIcon fill={palette.secondary.main} width='1.5em' height='1.5em' />
+                        </IconButton>
+                    </Tooltip>
                 </Stack>
-            </DialogContent>
+                <SearchList
+                    canSearch={Boolean(nodeId)} // Can only query when a node is selected
+                    id="subroutine-select-or-create-list"
+                    itemKeyPrefix='routine-list-item'
+                    noResultsText={"None found. Maybe you should create one?"}
+                    searchType={SearchType.Routine}
+                    beforeNavigation={fetchFullData}
+                    searchPlaceholder={'Select existing subroutine...'}
+                    session={session}
+                    take={20}
+                    where={where}
+                    zIndex={zIndex}
+                />
+            </Stack>
         </Dialog>
     )
 }

@@ -2,12 +2,11 @@
  * Search page for personal objects (active runs, completed runs, views, stars)
  */
 import { Box, Stack, Tab, Tabs, Typography } from "@mui/material";
-import { SearchList } from "components";
-import { useCallback, useMemo, useState } from "react";
+import { PageContainer, SearchList } from "components";
+import { useMemo, useState } from "react";
 import { useLocation } from '@shared/route';
 import { DevelopSearchPageProps } from "../types";
-import { parseSearchParams, openObject, SearchType, DevelopSearchPageTabOption as TabOption, addSearchParams } from "utils";
-import { ListProject, ListRoutine } from "types";
+import { parseSearchParams, SearchType, DevelopSearchPageTabOption as TabOption, addSearchParams } from "utils";
 
 // Tab data type
 type BaseParams = {
@@ -42,29 +41,25 @@ const tabParams: { [key in TabOption]: BaseParams } = {
 // [title, searchType] for each tab
 const tabOptions: [string, TabOption][] = Object.entries(tabParams).map(([key, value]) => [value.title, key as TabOption]);
 
-type SearchObject = ListProject | ListRoutine;
-
 export function DevelopSearchPage({
     session,
 }: DevelopSearchPageProps) {
     const [, setLocation] = useLocation();
 
-    const handleSelected = useCallback((selected: SearchObject) => { openObject(selected, setLocation) }, [setLocation]);
-
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(() => {
-        const searchParams = parseSearchParams(window.location.search);
+        const searchParams = parseSearchParams();
         const availableTypes: TabOption[] = tabOptions.map(t => t[1]);
         const index = availableTypes.indexOf(searchParams.type as TabOption);
         return Math.max(0, index);
     });
-    const handleTabChange = (_e, newIndex: number) => { 
+    const handleTabChange = (_e, newIndex: number) => {
         // Update search params
         addSearchParams(setLocation, {
             type: tabOptions[newIndex][1],
         });
         // Update tab index
-        setTabIndex(newIndex) 
+        setTabIndex(newIndex)
     };
 
     // On tab change, update BaseParams, document title, where, and URL
@@ -78,10 +73,7 @@ export function DevelopSearchPage({
     }, [tabIndex]);
 
     return (
-        <Box id='page' sx={{
-            padding: '0.5em',
-            paddingTop: { xs: '64px', md: '80px' },
-        }}>
+        <PageContainer>
             {/* Navigate between search pages */}
             <Box display="flex" justifyContent="center" width="100%">
                 <Tabs
@@ -112,15 +104,15 @@ export function DevelopSearchPage({
                 <Typography component="h2" variant="h4">{title}</Typography>
             </Stack>
             {searchType && <SearchList
+                id="develop-search-page-list"
                 itemKeyPrefix={itemKeyPrefix}
                 searchPlaceholder={'Search...'}
                 take={20}
                 searchType={searchType}
-                onObjectSelect={handleSelected}
                 session={session}
                 zIndex={200}
                 where={where}
             />}
-        </Box >
+        </PageContainer>
     )
 }

@@ -1,16 +1,9 @@
-import { SvgBase } from './base';
+import { SvgPath } from './base';
 import { SvgProps } from './types';
 
 export const RedoIcon = (props: SvgProps) => (
-    <SvgBase props={props}>
-        <path
-            style={{
-                stroke: props.fill ?? 'white',
-                strokeWidth: 1.89,
-                strokeLinecap: 'round',
-            }}
-            fill="none"
-            d="m19.93 14.2.05-1.63.05-1.63-2.06 1.6-2.06 1.59 2 .04zm-.5-.01c-8.32-9.93-15.52 0-15.52 0"
-        />
-    </SvgBase>
+    <SvgPath
+        props={props}
+        d="M10.8 8.9a9 9 0 0 0-2.6.7c-3.2 1.4-5 4-5 4-1 1 .6 2.2 1.5 1.1 0 0 1.7-2.3 4.2-3.4 1.3-.5 2.7-.8 4.4-.4 1 .3 2 .9 3 1.7l-3 2.6H21V9l-3.2 2.4a11 11 0 0 0-4-2.3 7.9 7.9 0 0 0-3-.2"
+    />
 )

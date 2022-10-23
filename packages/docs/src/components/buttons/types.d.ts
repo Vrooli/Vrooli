@@ -1,4 +1,11 @@
-import { ButtonProps } from '@mui/material';
+import { ButtonProps, IconButtonProps } from '@mui/material';
+
+export interface ColorIconButtonProps extends IconButtonProps {
+    background: string;
+    children: JSX.Element;
+    disabled?: boolean;
+    sx?: { [key: string]: any };
+}
 
 export interface HelpButtonProps extends ButtonProps {
     id?: string;

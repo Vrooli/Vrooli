@@ -1,33 +1,39 @@
-import { Box, Dialog, Grid, IconButton, Slider, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, Dialog, Grid, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
-import {
-    Pause as PauseIcon,
-    PlayCircle as RunIcon,
-} from '@mui/icons-material';
-import { BuildRunState, setSearchParams } from 'utils';
+import { BuildRunState, setSearchParams, uuidToBase36 } from 'utils';
 import { BuildBottomContainerProps } from '../types';
 import { useLocation } from '@shared/route';
 import { RunPickerMenu, UpTransition } from 'components/dialogs';
 import { RunView } from 'components/views';
 import { Run } from 'types';
-import { GridSubmitButtons } from 'components/buttons';
+import { ColorIconButton, GridSubmitButtons } from 'components/buttons';
+import { PauseIcon, PlayIcon } from '@shared/icons';
+
+const iconButtonProps = {
+    padding: 0, 
+    width: '48px', 
+    height: '48px',
+}
+
+const iconProps = (palette: Palette) => ({
+    fill: palette.primary.dark,
+    width: '30px',
+    height: '30px',
+})
 
 export const BuildBottomContainer = ({
     canSubmitMutate,
     canCancelMutate,
-    handleCancelAdd,
-    handleCancelUpdate,
-    handleAdd,
-    handleUpdate,
+    errors,
+    handleCancel,
+    handleSubmit,
     handleRunDelete,
     handleRunAdd,
-    handleScaleChange,
     hasPrevious,
     hasNext,
     isAdding,
     isEditing,
     loading,
-    scale,
     session,
     sliderColor,
     routine,
@@ -36,10 +42,6 @@ export const BuildBottomContainer = ({
 }: BuildBottomContainerProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-
-    const onScaleChange = useCallback((_event: any, newScale: number | number[]) => {
-        handleScaleChange(newScale as number);
-    }, [handleScaleChange]);
 
     const [isRunOpen, setIsRunOpen] = useState(false)
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
@@ -54,7 +56,7 @@ export const BuildBottomContainer = ({
         // Otherwise, open routine where last left off in run
         else {
             setSearchParams(setLocation, {
-                run: run.id,
+                run: uuidToBase36(run.id),
                 step: run.steps.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
             });
         }
@@ -81,41 +83,20 @@ export const BuildBottomContainer = ({
     };
 
     /**
-     * Slider for scaling the graph
-     */
-    const slider = useMemo(() => (
-        <Slider
-            aria-label="graph-scale"
-            defaultValue={1}
-            max={1}
-            min={0.25}
-            onChange={onScaleChange}
-            step={0.01}
-            value={scale}
-            valueLabelDisplay="auto"
-            sx={{
-                color: sliderColor,
-                maxWidth: '500px',
-                marginRight: 2,
-            }}
-        />
-    ), [scale, sliderColor, onScaleChange]);
-
-    /**
      * Display previous, play/pause, and next if not editing.
      * If editing, display update and cancel.
      */
     const buttons = useMemo(() => {
         return isEditing ?
             (
-                // TODO display contents invalidates width, but width wasn't working (making mobile display weird)
-                <Grid container spacing={1} sx={{ display: 'contents', width: 'min(50vw, 350px)' }}> 
+                <Grid container spacing={1} sx={{ width: 'min(100%, 600px)' }}>
                     <GridSubmitButtons
                         disabledCancel={loading || !canCancelMutate}
                         disabledSubmit={loading || !canSubmitMutate}
+                        errors={errors}
                         isCreate={isAdding}
-                        onCancel={handleCancelAdd}
-                        onSubmit={isAdding ? handleAdd : handleUpdate}
+                        onCancel={handleCancel}
+                        onSubmit={handleSubmit}
                     />
                 </Grid>
             ) :
@@ -128,15 +109,15 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                     {runState === BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
-                            <IconButton aria-label="pause-routine" size='large' sx={{ padding: 0, width: '48px', height: '48px' }}>
-                                <PauseIcon sx={{ fill: '#e4efee', marginBottom: 'auto', width: '48px', height: '48px' }} />
-                            </IconButton>
+                            <ColorIconButton aria-label="pause-routine" background='#e4efee' sx={iconButtonProps}>
+                                <PauseIcon {...iconProps(palette)} />
+                            </ColorIconButton>
                         </Tooltip>
                     ) : (
                         <Tooltip title="Run Routine" placement="top">
-                            <IconButton aria-label="run-routine" size='large' onClick={runRoutine} sx={{ padding: 0, width: '48px', height: '48px' }}>
-                                <RunIcon sx={{ fill: '#e4efee', marginBottom: 'auto', width: '48px', height: '48px' }} />
-                            </IconButton>
+                            <ColorIconButton aria-label="run-routine" onClick={runRoutine} background='#e4efee' sx={iconButtonProps}>
+                                <PlayIcon {...iconProps(palette)} />
+                            </ColorIconButton>
                         </Tooltip>
                     )}
                     {/* <Tooltip title={hasNext ? "Next" : ''} placement="top">
@@ -146,7 +127,7 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                 </Stack>
             )
-    }, [canCancelMutate, canSubmitMutate, handleAdd, handleCancelAdd, handleUpdate, isAdding, isEditing, loading, runRoutine, runState]);
+    }, [canCancelMutate, canSubmitMutate, errors, handleCancel, handleSubmit, isAdding, isEditing, loading, palette, runRoutine, runState]);
 
     return (
         <Box sx={{
@@ -189,7 +170,6 @@ export const BuildBottomContainer = ({
                     zIndex={zIndex + 1}
                 />}
             </Dialog>
-            {slider}
             {buttons}
         </Box>
     )

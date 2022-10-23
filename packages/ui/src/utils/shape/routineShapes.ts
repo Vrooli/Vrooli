@@ -10,7 +10,7 @@ export type RoutineTranslationShape = Omit<ShapeWrapper<RoutineTranslation>, 'la
     title: RoutineTranslationCreateInput['title'];
 }
 
-export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags'> & {
+export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'parent' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags' | 'translations'> & {
     id: string;
     inputs: InputShape[];
     nodeLinks?: NodeLinkShape[] | null;
@@ -83,7 +83,7 @@ export const shapeRoutineUpdate = (
     isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
     version: u.version !== o.version ? u.version : undefined,
     parentId: u.parent?.id !== o.parent?.id ? u.parent?.id : undefined,
-    // projectId: u.p
+    projectId: u.project?.id !== o.project?.id ? u.project?.id : undefined,
     userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
     organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
     ...shapeUpdateList({

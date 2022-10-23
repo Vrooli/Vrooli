@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy } from './types';
 import { Context } from '../context';
-import { countHelper, createHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper } from '../models';
+import { countHelper, createHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper, visibilityBuilder } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 
@@ -115,7 +115,6 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        includePrivate: Boolean
         isOpenToNewMembers: Boolean
         languages: [String!]
         minStars: Int
@@ -132,6 +131,7 @@ export const typeDef = gql`
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID
+        visibility: VisibilityType
     }
 
     # Return type for search result
@@ -168,30 +168,26 @@ export const resolvers = {
     OrganizationSortBy: OrganizationSortBy,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
-            await rateLimit({ info, max: 1000, req });
-            return readOneHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 1000, req });
+            return readOneHelper({ info, input, model: OrganizationModel, prisma, req })
         },
         organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
-            await rateLimit({ info, max: 1000, req });
-            // Can only show private if querying your own
-            const privateQuery = input.includePrivate ?
-                OrganizationModel.permissions(prisma).ownershipQuery(req.userId ?? '') :
-                { isPrivate: false };
-            return readManyHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId, additionalQueries: { ...privateQuery } })
+            await rateLimit({ info, maxUser: 1000, req });
+            return readManyHelper({ info, input, model: OrganizationModel, prisma, req })
         },
         organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
-            await rateLimit({ info, max: 1000, req });
-            return countHelper({ input, model: OrganizationModel, prisma })
+            await rateLimit({ info, maxUser: 1000, req });
+            return countHelper({ input, model: OrganizationModel, prisma, req })
         },
     },
     Mutation: {
         organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            await rateLimit({ info, max: 100, byAccountOrKey: true, req });
-            return createHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 100, req });
+            return createHelper({ info, input, model: OrganizationModel, prisma, req })
         },
         organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
-            await rateLimit({ info, max: 250, byAccountOrKey: true, req });
-            return updateHelper({ info, input, model: OrganizationModel, prisma, userId: req.userId })
+            await rateLimit({ info, maxUser: 250, req });
+            return updateHelper({ info, input, model: OrganizationModel, prisma, req })
         },
     }
 }

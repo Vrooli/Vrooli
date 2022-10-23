@@ -1,10 +1,18 @@
-import {  useQuery } from "@apollo/client";
+import { useQuery } from "@apollo/client";
 import { reports, reportsVariables } from "graphql/generated/reports";
 import { reportsQuery } from "graphql/query";
 import { APP_LINKS } from "@shared/consts";
 import { useMemo } from "react";
-import { useTheme } from "@mui/material";
-import { getLastUrlPart } from "utils";
+import { Box, useTheme } from "@mui/material";
+import { base36ToUuid, getLastUrlPart } from "utils";
+import { PageTitle } from "components/text";
+
+const helpText =
+    `This page shows all reports for a given object. 
+
+Soon, you will be able to contribute to the discussion by voting and commenting on reports. Once a report receives enough agreement, the object will be updated/deleted.
+
+Currently, only admins have the ability to delete objects. In the future, this will be handled by the community.`;
 
 export const CommentReportsView = (): JSX.Element => {
     const { loading, error, data } = useReportsQuery(APP_LINKS.Comment, 'commentId');
@@ -140,7 +148,7 @@ export const UserReportsView = (): JSX.Element => {
 }
 
 function useReportsQuery(appLink: string, queryField: string) {
-    const id = useMemo(() => getLastUrlPart(), []);
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
 
     return useQuery<reports, reportsVariables>(
         reportsQuery,
@@ -155,27 +163,30 @@ function useReportsQuery(appLink: string, queryField: string) {
 const BaseReportsView = (props: { data: reports }): JSX.Element => {
     const { palette } = useTheme();
     const edges = props.data.reports.edges;
-    return <>
-        {edges.map((edge, i) => {
-            const report = edge.node;
-            return <div 
-                key={i} 
-                style={{ 
-                    background: palette.background.paper,
-                    color: palette.background.textPrimary,
-                    borderRadius: "16px",
-                    boxShadow: "0 4px 16px 0 #00000050", 
-                    margin: "16px 16px 0 16px",
-                    padding: "1rem",
-                }}
-            >
-                <p style={{ margin: "0" }}>
-                    <b>Reason:</b> {report.reason}
-                </p>
-                <p style={{ margin: "1rem 0 0 0" }}>
-                    <b>Details:</b>  {report.details}
-                </p>
-            </div>
-        })}
-    </>;
+    return (
+        <>
+            <PageTitle title='Reports' helpText={helpText} />
+            {edges.map((edge, i) => {
+                const report = edge.node;
+                return <Box
+                    key={i}
+                    sx={{
+                        background: palette.background.paper,
+                        color: palette.background.textPrimary,
+                        borderRadius: "16px",
+                        boxShadow: 12,
+                        margin: "16px 16px 0 16px",
+                        padding: "1rem",
+                    }}
+                >
+                    <p style={{ margin: "0" }}>
+                        <b>Reason:</b> {report.reason}
+                    </p>
+                    <p style={{ margin: "1rem 0 0 0" }}>
+                        <b>Details:</b>  {report.details}
+                    </p>
+                </Box>
+            })}
+        </>
+    )
 }

@@ -1,38 +1,21 @@
 import {
     Box,
-    IconButton,
     Stack,
     Tooltip,
     Typography,
     useTheme,
 } from '@mui/material';
-import { getTranslation, openLink, PubSub, ResourceType, usePress } from 'utils';
-import { useCallback, useMemo } from 'react';
+import { firstString, getTranslation, getUserLanguages, openLink, PubSub, ResourceType, usePress } from 'utils';
+import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
-import { cardRoot } from '../../../cards/styles';
 import { multiLineEllipsis, noSelect } from 'styles';
-import {
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
-import { UsedForDisplay } from 'components/dialogs';
-import { EditIcon } from '@shared/icons';
-
-const buttonProps = {
-    position: 'absolute',
-    background: 'white',
-    top: '-15px',
-    color: (t) => t.palette.secondary.dark,
-    borderRadius: '100%',
-    transition: 'brightness 0.2s ease-in-out',
-    '&:hover': {
-        filter: `brightness(120%)`,
-        background: 'white',
-    },
-}
+import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
+import { DeleteIcon, EditIcon } from '@shared/icons';
+import { ColorIconButton } from 'components/buttons';
 
 /**
  * Determines if a resource is a URL, wallet payment address, or an ADA handle
@@ -49,132 +32,136 @@ const getResourceType = (link: string): ResourceType | null => {
 export const ResourceCard = ({
     canEdit,
     data,
-    handleEdit,
-    handleDelete,
     index,
-    onRightClick,
+    onContextMenu,
+    onEdit,
+    onDelete,
     session,
 }: ResourceCardProps) => {
-    const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { palette } = useTheme();
+
+    const [showIcons, setShowIcons] = useState(false);
 
     const { description, title } = useMemo(() => {
-        const languages = session?.languages ?? navigator.languages;
-        const description = getTranslation(data, 'description', languages, true);
-        const title = getTranslation(data, 'title', languages, true);
+        const languages = getUserLanguages(session);
+        const { description, title } = getTranslation(data, languages, true);
         return {
             description: (description && description.length > 0) ? description : data.link,
             title: (title && title.length > 0) ? title : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
         };
-    }, [data, session?.languages]);
+    }, [data, session]);
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
     }, [data]);
 
-    const handleClick = useCallback((target: React.MouseEvent['target']) => {
-        // Find the resource type
-        const resourceType = getResourceType(data.link);
-        // If null, show error
-        if (!resourceType) {
-            PubSub.get().publishSnack({ message: 'Unable to open link', severity: 'error' });
-            return;
+    const handleClick = useCallback((target: EventTarget) => {
+        // Check if edit or delete button was clicked
+        const targetId: string | undefined = target.id;
+        if (targetId && targetId.startsWith('edit-')) {
+            onEdit?.(index);
         }
-        // If URL, open in new tab
-        if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
-        // If wallet address, open dialog to copy to clipboard
-        else if (resourceType === ResourceType.Wallet) {
-            PubSub.get().publishAlertDialog({
-                message: `Wallet address: ${data.link}`,
-                buttons: [
-                    {
-                        text: 'Copy', onClick: () => {
-                            navigator.clipboard.writeText(data.link);
-                            PubSub.get().publishSnack({ message: 'Copied.', severity: 'success' });
-                        }
-                    },
-                    { text: 'Close' }
-                ]
-            });
+        else if (targetId && targetId.startsWith('delete-')) {
+            onDelete?.(index);
         }
-        // If handle, open ADA Handle payment site
-        else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
-    }, [data.link, setLocation]);
-    const handleRightClick = useCallback((target: React.MouseEvent['target']) => {
-        if (onRightClick) onRightClick(target, index);
-    }, [onRightClick, index]);
+        else {
+            // Find the resource type
+            const resourceType = getResourceType(data.link);
+            // If null, show error
+            if (!resourceType) {
+                PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
+                return;
+            }
+            // If URL, open in new tab
+            if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
+            // If wallet address, open dialog to copy to clipboard
+            else if (resourceType === ResourceType.Wallet) {
+                PubSub.get().publishAlertDialog({
+                    message: `Wallet address: ${data.link}`,
+                    buttons: [
+                        {
+                            text: 'Copy', onClick: () => {
+                                navigator.clipboard.writeText(data.link);
+                                PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
+                            }
+                        },
+                        { text: 'Close' }
+                    ]
+                });
+            }
+            // If handle, open ADA Handle payment site
+            else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
+        }
+    }, [data.link, index, onDelete, onEdit, setLocation]);
+    const handleContextMenu = useCallback((target: EventTarget) => {
+        if (onContextMenu) onContextMenu(target, index);
+    }, [onContextMenu, index]);
 
-    const pressEvents = usePress({ 
-        onLongPress: handleRightClick,
+    const handleHover = useCallback(() => {
+        if (canEdit) {
+            setShowIcons(true);
+        }
+    }, [canEdit]);
+
+    const handleHoverEnd = useCallback(() => { setShowIcons(false) }, []);
+
+    const pressEvents = usePress({
+        onLongPress: handleContextMenu,
         onClick: handleClick,
-        onRightClick: handleRightClick,
+        onHover: handleHover,
+        onHoverEnd: handleHoverEnd,
+        onRightClick: handleContextMenu,
+        hoverDelay: 100,
     });
 
-    const onEdit = useCallback((e) => {
-        e.stopPropagation();
-        handleEdit(index);
-    }, [handleEdit, index]);
-
-    const onDelete = useCallback((e) => {
-        e.stopPropagation();
-        handleDelete(index);
-    }, [handleDelete, index]);
-
     return (
-        <Tooltip placement="top" title={description ?? data.link}>
+        <Tooltip placement="top" title={`${description ? description + ' - ' : ''}${data.link}`}>
             <Box
                 {...pressEvents}
                 sx={{
-                    ...cardRoot,
                     ...noSelect,
+                    boxShadow: 12,
+                    background: (t: any) => t.palette.primary.light,
+                    color: (t: any) => t.palette.primary.contrastText,
+                    borderRadius: '16px',
+                    margin: 0,
                     padding: 1,
+                    cursor: canEdit ? 'pointer' : 'default',
                     width: '120px',
                     minWidth: '120px',
                     minHeight: '120px',
                     height: '120px',
-                    position: 'relative'
+                    position: 'relative',
+                    '&:hover': {
+                        filter: canEdit ? `brightness(120%)` : 'none',
+                        transition: 'filter 0.2s',
+                    },
                 } as any}
             >
-                {/* Delete/edit buttons */}
-                <Box sx={{
-                    width: '100%',
-                    height: '100%',
-                    position: 'absolute',
-                    top: '0',
-                    left: '0',
-                    opacity: '0',
-                    transition: 'opacity 0.2s ease-in-out',
-                    '&:hover': {
-                        opacity: canEdit ? '1' : '0',
-                    },
-                }}>
-                    <IconButton size="small" onClick={onEdit} aria-label="close" sx={{
-                        ...buttonProps,
-                        left: '-15px',
-                        background: '#c5ab17',
-                        color: 'white',
-                        transition: 'brightness 0.2s ease-in-out',
-                        '&:hover': {
-                            filter: `brightness(105%)`,
-                            background: '#c5ab17',
-                        },
-                    } as any}>
-                        <EditIcon />
-                    </IconButton>
-                    <IconButton size="small" onClick={onDelete} aria-label="close" sx={{
-                        ...buttonProps,
-                        right: '-15px',
-                        background: palette.error.main,
-                        color: 'white',
-                        transition: 'brightness 0.2s ease-in-out',
-                        '&:hover': {
-                            filter: `brightness(105%)`,
-                            background: palette.error.main,
-                        },
-                    } as any}>
-                        <DeleteIcon />
-                    </IconButton>
-                </Box>
+                {/* Edit and delete icons, only visible on hover */}
+                {showIcons && (
+                    <>
+                        <Tooltip title="Edit">
+                            <ColorIconButton
+                                id='edit-icon-button'
+                                background={palette.secondary.main}
+                                sx={{ position: 'absolute', top: 4, left: 4 }}
+                            >
+                                <EditIcon id='edit-icon' fill={palette.secondary.contrastText} />
+                            </ColorIconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                            <ColorIconButton
+                                id='delete-icon-button'
+                                background={palette.secondary.main}
+                                sx={{ position: 'absolute', top: 4, right: 4 }}
+                            >
+                                <DeleteIcon id='delete-icon' fill={palette.secondary.contrastText} />
+                            </ColorIconButton>
+                        </Tooltip>
+                    </>
+                )}
                 {/* Content */}
                 <Stack
                     direction="column"
@@ -197,7 +184,7 @@ export const ResourceCard = ({
                             lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
                         }}
                     >
-                        {title ?? data.link}
+                        {firstString(title, data.link)}
                     </Typography>
                 </Stack>
             </Box>

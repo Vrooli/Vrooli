@@ -1,3 +1,4 @@
+import { SnackSeverity } from "components";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -245,7 +246,7 @@ export const shapeUpdateList = <
         if (treatLikeConnects) {
             // If treating like connects, there must be an ID in every updated item
             if (!u.every(item => item && item[idField as string])) {
-                PubSub.get().publishSnack({ message: 'Invalid update: missing ID in update items', severity: 'error' });
+                PubSub.get().publishSnack({ message: 'Invalid update: missing ID in update items', severity: SnackSeverity.Error });
                 return {};
             }
             return shapeConnectList(updated as { [key in RelField]: (Input & { [key in IDField]: string })[] }, relationshipField, idField) as ShapeUpdateList<RelField, OutputCreate, OutputUpdate>;

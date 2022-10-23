@@ -1,7 +1,7 @@
 import { uniqBy } from "@shared/utils";
 import { NodeType, RunInputCreateInput, RunInputUpdateInput } from "graphql/generated/globalTypes";
 import { Node, NodeDataRoutineList, NodeLink, Routine, RunInput } from "types";
-import { v4 as uuid } from "uuid";
+import { uuid } from '@shared/uuid';
 import { Status } from "./consts";
 import { shapeRunInputCreate, shapeRunInputUpdate } from "./shape";
 import { shapeUpdateList } from "./shape/shapeTools";
@@ -283,11 +283,13 @@ export const initializeRoutine = (language: string): Routine => {
         operation: null,
     }
     return {
+        id: uuid(),
         inputs: [],
         outputs: [],
         nodes: [startNode, routineListNode, endNode],
         nodeLinks: [link1, link2],
         translations: [{
+            __typename: 'RoutineTranslation',
             id: uuid(),
             language,
             title: 'New Routine',

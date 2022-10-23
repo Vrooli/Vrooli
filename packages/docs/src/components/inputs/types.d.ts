@@ -21,6 +21,7 @@ export interface SearchBarProps extends InputProps {
 }
 
 export interface ThemeSwitchProps {
+    showText?: boolean;
     theme: 'light' | 'dark';
     onChange: (theme: 'light' | 'dark') => any;
 }

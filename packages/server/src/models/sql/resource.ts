@@ -2,13 +2,14 @@ import { resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from
 import { CODE } from "@shared/consts";
 import { Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, Count } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, ModelLogic, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
+import { combineQueries, CUDInput, CUDResult, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, relationshipToPrisma, RelationshipTypes, Searcher, selectHelper, ValidateMutationsInput } from "./base";
 import { CustomError } from "../../error";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
-import { OrganizationModel } from "./organization";
+import { OrganizationModel, organizationQuerier } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
+import { GraphQLModelType } from ".";
 
 //==============================================================
 /* #region Custom Components */
@@ -31,8 +32,9 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                     { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
@@ -43,21 +45,31 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
     },
     customQueries(input: ResourceSearchInput): { [x: string]: any } {
         // const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
-        return {
-            ...(input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-        }
+        return combineQueries([
+            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
+        ])
     },
+})
+
+// TODO create proper permissioner
+export const resourcePermissioner = () => ({
+    ownershipQuery: (userId: string) => ({
+        OR: [
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
+            { user: { id: userId } }
+        ]
+    })
 })
 
 export const resourceMutater = (prisma: PrismaType) => ({
     /**
-     * Verify that the user can add these resources to the given project
+     * Verify that the user can add these resources to the given object
      */
     async authorizedAdd(userId: string, resources: ResourceCreateInput[], prisma: PrismaType): Promise<void> {
         //TODO
     },
     /**
-     * Verify that the user can update/delete these resources to the given project
+     * Verify that the user can update/delete these resources to the given object
      */
     async authorizedUpdateOrDelete(userId: string, resourceIds: string[], prisma: PrismaType): Promise<void> {
         // Query all resources to find their owner
@@ -79,15 +91,15 @@ export const resourceMutater = (prisma: PrismaType) => ({
         const isOwner = async (userId: string, data: any) => {
             if (!data.list) return false;
             if (data.list.organization) {
-                const permissions = await OrganizationModel.permissions(prisma).get({ objects: [data.list.organization], userId });
+                const permissions = await OrganizationModel.permissions().get({ objects: [data.list.organization], prisma, userId });
                 return permissions[0].canEdit;
             }
             else if (data.list.project) {
-                const permissions = await ProjectModel.permissions(prisma).get({ objects: [data.list.project], userId });
+                const permissions = await ProjectModel.permissions().get({ objects: [data.list.project], prisma, userId });
                 return permissions[0].canEdit
             }
             else if (data.list.routine) {
-                const permissions = await RoutineModel.permissions(prisma).get({ objects: [data.list.routine], userId });
+                const permissions = await RoutineModel.permissions().get({ objects: [data.list.routine], prisma, userId });
                 return permissions[0].canEdit;
             }
             else if (data.list.user) {
@@ -130,14 +142,14 @@ export const resourceMutater = (prisma: PrismaType) => ({
         // Shape
         if (Array.isArray(formattedInput.create)) {
             // If title or description is not provided, try querying for the link's og tags TODO
-            const creates = [];
+            const creates: { [x: string]: any }[] = [];
             for (const create of formattedInput.create) {
                 creates.push(this.toDBShape(userId, create as any, true, true));
             }
             formattedInput.create = creates;
         }
         if (Array.isArray(formattedInput.update)) {
-            const updates = [];
+            const updates: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
             for (const update of formattedInput.update) {
                 updates.push({
                     where: update.where,
@@ -154,11 +166,12 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0087') });
+
+        // Check for max resources on object TODO
         if (createMany) {
             resourcesCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
             await this.authorizedAdd(userId as string, createMany, prisma);
-            // Check for max resources on object TODO
         }
         if (updateMany) {
             resourcesUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
@@ -215,7 +228,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 where: {
                     AND: [
                         { id: { in: deleteMany } },
-                        { list: { userId } },
+                        { list: resourcePermissioner().ownershipQuery(userId as string) },
                     ]
                 }
             })
@@ -241,6 +254,7 @@ export const ResourceModel = ({
     format: resourceFormatter(),
     mutate: resourceMutater,
     search: resourceSearcher(),
+    type: 'Resource' as GraphQLModelType,
 })
 
 //==============================================================

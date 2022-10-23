@@ -2,11 +2,14 @@
  * Label that turns into a text input when clicked. 
  * Stores new text until committed.
  */
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, IconButton, Stack, TextField } from '@mui/material';
+import { Dialog, DialogContent, DialogContentText, Grid, IconButton, Stack, TextField } from '@mui/material';
 import { useCallback, useEffect, useState } from 'react';
 import { EditableLabelProps } from '../types';
 import { DialogTitle } from 'components/dialogs';
-import { CancelIcon, EditIcon, SaveIcon } from '@shared/icons';
+import { EditIcon } from '@shared/icons';
+import { useFormik } from 'formik';
+import { GridSubmitButtons } from 'components/buttons';
+import * as yup from 'yup';
 
 const titleAria = 'editable-label-dialog-title';
 const descriptionAria = 'editable-label-dialog-description';
@@ -17,23 +20,29 @@ export const EditableLabel = ({
     placeholder,
     onDialogOpen,
     renderLabel,
-    text,
     sxs,
+    text,
+    validationSchema,
 }: EditableLabelProps) => {
-
     /**
      * Random string for unique ID
      */
     const [id] = useState(Math.random().toString(36).substr(2, 9));
 
-    // Stores changed text before committing
-    const [changedText, setChangedText] = useState<string>(text);
-    useEffect(() => {
-        setChangedText(text);
-    }, [text]);
-    const onTextChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        setChangedText(e.target.value);
-    }, []);
+    const formik = useFormik({
+        initialValues: {
+            text,
+        },
+        enableReinitialize: true,
+        validationSchema: validationSchema ? yup.object().shape({
+            text: validationSchema,
+        }) : undefined,
+        onSubmit: (values) => {
+            handleUpdate(values.text);
+            setActive(false);
+            formik.setSubmitting(false);
+        },
+    });
 
     // Used for editing the title of the routine
     const [active, setActive] = useState<boolean>(false);
@@ -42,18 +51,19 @@ export const EditableLabel = ({
             onDialogOpen(active);
         }
     }, [active, onDialogOpen]);
+
     const toggleActive = useCallback((event: any) => {
         if (!canEdit) return;
         setActive(!active)
     }, [active, canEdit]);
-    const save = useCallback(() => {
-        handleUpdate(changedText);
+
+    const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
+        // Don't close if formik is dirty and clicked outside
+        if (formik.dirty && reason === 'backdropClick') return;
+        // Otherwise, close
         setActive(false);
-    }, [changedText, handleUpdate]);
-    const cancel = useCallback(() => {
-        setChangedText(text ?? '');
-        setActive(false);
-    }, [text]);
+        formik.resetForm();
+    }, [formik]);
 
     return (
         <>
@@ -61,7 +71,7 @@ export const EditableLabel = ({
             <Dialog
                 open={active}
                 disableScrollLock={true}
-                onClose={() => { }}
+                onClose={handleCancel}
                 aria-labelledby={titleAria}
                 aria-describedby={descriptionAria}
                 sx={{
@@ -73,7 +83,7 @@ export const EditableLabel = ({
             >
                 <DialogTitle
                     ariaLabel={titleAria}
-                    onClose={cancel}
+                    onClose={handleCancel}
                     title="Edit Label"
                 />
                 <DialogContent>
@@ -81,34 +91,28 @@ export const EditableLabel = ({
                         <TextField
                             autoFocus
                             margin="dense"
-                            id="edit-label-input"
-                            label="Label"
+                            id="text"
                             type="text"
                             fullWidth
-                            value={changedText}
-                            onChange={onTextChange}
+                            value={formik.values.text}
+                            onChange={formik.handleChange}
+                            error={Boolean(formik.errors.text)}
+                            helperText={formik.errors.text}
                         />
                     </DialogContentText>
                 </DialogContent>
                 {/* Save and cancel buttons */}
-                <DialogActions>
-                    <Button
-                        type="submit"
-                        onClick={save}
-                        color="secondary"
-                        startIcon={<SaveIcon />}
-                    >
-                        Save
-                    </Button>
-                    <Button
-                        onClick={cancel}
-                        color="secondary"
-                        startIcon={<CancelIcon />}
-                    >
-                        Cancel
-                    </Button>
-                </DialogActions>
-            </Dialog >
+                <Grid container spacing={1} padding={1}>
+                    <GridSubmitButtons
+                        errors={formik.errors}
+                        isCreate={false}
+                        loading={formik.isSubmitting}
+                        onCancel={handleCancel}
+                        onSetSubmitting={formik.setSubmitting}
+                        onSubmit={formik.handleSubmit}
+                    />
+                </Grid>
+            </Dialog>
             {/* Non-popup elements */}
             <Stack direction="row" spacing={0} alignItems="center" sx={{ ...(sxs?.stack ?? {}) }}>
                 {/* Label */}

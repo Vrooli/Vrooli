@@ -1,14 +1,12 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
-import {
-    OpenInNew as OpenLinkIcon,
-} from "@mui/icons-material";
 import { useCallback, useMemo } from "react";
-import { containerShadow, multiLineEllipsis } from "styles";
+import { multiLineEllipsis } from "styles";
 import { Node, NodeDataEnd, NodeLink } from "types";
 import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
 import { HelpButton } from "components/buttons";
 import { NodeType } from "graphql/generated/globalTypes";
+import { OpenInNewIcon } from "@shared/icons";
 
 const helpText = 
 `The routine has encountered multiple possible paths to take, with no way to decide automatically which one to take. 
@@ -69,9 +67,7 @@ export const DecisionView = ({
             {/* Each decision as its own ListItem, with title and description */}
             {decisions.map((decision, index) => {
                 const languages = getUserLanguages(session);
-                const title = getTranslation(decision.node, 'title', languages, true)
-                const description = getTranslation(decision.node, 'description', languages, false);
-                const instructions = getTranslation(decision.node, 'instructions', languages, false);
+                const { description, title } = getTranslation(decision.node, languages, true);
                 return (<ListItem
                     disablePadding
                     onClick={() => { toDecision(index); }}
@@ -79,7 +75,7 @@ export const DecisionView = ({
                         display: 'flex',
                         background: decision.color,
                         color: 'white',
-                        ...containerShadow,
+                        boxShadow: 12,
                         borderRadius: '12px',
                     }}
                 >
@@ -95,13 +91,13 @@ export const DecisionView = ({
                             />
                             {/* Bio/Description */}
                             {description && <ListItemText
-                                primary={description ?? instructions}
+                                primary={description}
                                 sx={{ 
                                     ...multiLineEllipsis(2), 
                                 }}
                             />}
                         </Stack>
-                        <OpenLinkIcon />
+                        <OpenInNewIcon fill="white" />
                     </ListItemButton>
                 </ListItem>)
             })}

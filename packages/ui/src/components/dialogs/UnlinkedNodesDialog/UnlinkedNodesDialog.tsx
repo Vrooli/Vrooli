@@ -2,11 +2,6 @@
  * Displays nodes associated with a routine, but that are not linked to any other nodes.
  */
 import {
-    ExpandLess as ShrinkIcon,
-    ExpandMore as ExpandIcon,
-    Delete as DeleteIcon,
-} from '@mui/icons-material';
-import {
     Box,
     IconButton,
     Stack,
@@ -21,7 +16,7 @@ import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
-import { UnlinkedNodesIcon } from '@shared/icons';
+import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -44,9 +39,9 @@ export const UnlinkedNodesDialog = ({
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
-            label: getTranslation(node, 'title', [language], false) ?? null,
+            label: getTranslation(node, [language], false).title ?? null,
             labelVisible: false,
-            scale: 0.5,
+            scale: 0.8,
             zIndex,
         }
         // Determine node to display based on node type
@@ -91,10 +86,10 @@ export const UnlinkedNodesDialog = ({
                 paddingRight: 1,
                 marginRight: 1,
                 marginTop: open ? '4px' : 'unset',
-                maxHeight: { xs: '62vh', sm: '65vh', md: '72vh' },
+                maxHeight: { xs: '50vh', sm: '65vh', md: '72vh' },
                 overflowX: 'hidden',
                 overflowY: 'auto',
-                width: open ? '250px' : 'fit-content',
+                width: open ? { xs: '100%', sm: '375px' } : 'fit-content',
                 transition: 'height 1s ease-in-out',
                 zIndex: 1500,
                 "&::-webkit-scrollbar": {
@@ -118,7 +113,7 @@ export const UnlinkedNodesDialog = ({
                     <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? 'Unlinked ' : ''}({nodes.length})</Typography>
                     <Tooltip title={open ? 'Shrink' : 'Expand'}>
                         <IconButton edge="end" color="inherit" aria-label={open ? 'Shrink' : 'Expand'}>
-                            {open ? <ShrinkIcon sx={{ fill: palette.secondary.contrastText }} /> : <ExpandIcon sx={{ fill: palette.secondary.contrastText }} />}
+                            {open ? <ExpandLessIcon fill={palette.secondary.contrastText} /> : <ExpandMoreIcon fill={palette.secondary.contrastText} />}
                         </IconButton>
                     </Tooltip>
                 </Stack>
@@ -128,28 +123,21 @@ export const UnlinkedNodesDialog = ({
                             <Box key={node.id} sx={{ display: 'flex', alignItems: 'center' }}>
                                 {/* Miniature version of node */}
                                 <Box sx={{
-                                    width: '50px',
                                     height: '50px',
                                 }}>
                                     {createNode(node)}
                                 </Box>
                                 {/* Node title */}
-                                {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, 'title', [language], true)}</Typography>)}
+                                {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).title}</Typography>)}
                                 {/* Delete node icon */}
-                                <Tooltip title={`Delete ${getTranslation(node, 'title', [language], true)} node`} placement="left">
+                                <Tooltip title={`Delete ${getTranslation(node, [language], true).title} node`} placement="left">
                                     <Box sx={{ marginLeft: 'auto' }}>
                                         <IconButton
                                             color="inherit"
                                             onClick={() => handleNodeDelete(node.id)}
                                             aria-label={'Delete unlinked node'}
                                         >
-                                            <DeleteIcon sx={{
-                                                fill: palette.background.textPrimary,
-                                                '&:hover': {
-                                                    fill: '#ff6a6a'
-                                                },
-                                                transition: 'fill 0.5s ease-in-out',
-                                            }} />
+                                            <DeleteIcon fill={palette.background.textPrimary} />
                                         </IconButton>
                                     </Box>
                                 </Tooltip>
