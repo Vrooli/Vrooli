@@ -28,16 +28,23 @@ export const NodeGraph = ({
     handleLinkCreate,
     handleLinkUpdate,
     handleLinkDelete,
-    handleScaleChange,
     isEditing = true,
     labelVisible = true,
     language,
     links,
     nodesById,
-    scale = 1,
     zIndex,
 }: NodeGraphProps) => {
     const { palette } = useTheme();
+
+    // Determines the size of the nodes and edges
+    const [scale, setScale] = useState<number>(0);
+    const handleScaleChange = useCallback((delta: number, point: { x: number, y: number }) => {
+        PubSub.get().publishFastUpdate({ duration: 1000 });
+        // Theoretically can scale infinitely, but for now limit to -5 to 2
+        setScale(s => Math.min(Math.max(s + delta, -5), 2));
+        // TODO scale by point somehow
+    }, []);
 
     // Stores edges
     const [edges, setEdges] = useState<JSX.Element[]>([])
@@ -337,6 +344,9 @@ export const NodeGraph = ({
         />)
     }, [columns, dragId, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
 
+    // Positive modulo function
+    const mod = (n: number, m: number) => ((n % m) + m) % m;
+
     return (
         <Box id="graph-root" position="relative" sx={{
             cursor: 'move',
@@ -351,10 +361,9 @@ export const NodeGraph = ({
             KhtmlUserSelect: 'none',
             minWidth: '100%',
             // Graph fills remaining space that is not taken up by other elements. 
-            // These are: routine title (64px), other top build icons (48px),
-            // build bottom (64px), and iOS nav bar. This makes the size: 
-            // 100vh - (64 + 48 + 64) = calc(100vh - 176px).
-            height: 'calc(100vh - 176px - env(safe-area-inset-bottom))',
+            // These are: routine title (64px), other top build icons (48px). This makes the size: 
+            // 100vh - (64 + 48) = calc(100vh - 112px).
+            height: 'calc(100vh - 112px)',
             margin: 0,
             padding: 0,
             overflowX: 'auto',
@@ -370,12 +379,14 @@ export const NodeGraph = ({
                 width: 'fit-content',
                 minWidth: '100vw',
                 minHeight: '100%',
+                paddingLeft: 'env(safe-area-inset-left)',
+                paddingRight: 'env(safe-area-inset-right)',
                 // Create grid background pattern on stack, so it scrolls with content
                 '--line-color': palette.mode === 'light' ? `rgba(0 0 0 / .05)` : `rgba(255 255 255 / .05)`,
                 '--line-thickness': `1px`,
                 // Minor length is 1/5 of major length, and is always between 25 and 50 pixels
-                '--minor-length': `${(Math.abs(scale * 12.5) % 25) + 25}px`,
-                '--major-length': `${(Math.abs(scale * 62.5) % 125) + 125}px`,
+                '--minor-length': `${mod(scale * 12.5, 25) + 25}px`,
+                '--major-length': `${mod(scale * 62.5, 125) + 125}px`,
                 '--line': `var(--line-color) 0 var(--line-thickness)`,
                 '--small-body': `transparent var(--line-thickness) var(--minor-length)`,
                 '--large-body': `transparent var(--line-thickness) var(--major-length)`,

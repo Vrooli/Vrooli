@@ -88,8 +88,6 @@ export const BuildView = ({
     const [routineUpdate] = useMutation(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
-    // Determines the size of the nodes and edges
-    const [scale, setScale] = useState<number>(0);
     const canEdit = useMemo<boolean>(() => routine?.permissionsRoutine?.canEdit === true, [routine?.permissionsRoutine?.canEdit]);
 
     // Stores previous routine states for undo/redo
@@ -424,12 +422,6 @@ export const BuildView = ({
             nodeLinks: changedRoutine.nodeLinks.filter(l => l.id !== link.id),
         });
     }, [addToChangeStack, changedRoutine]);
-
-    const handleScaleDelta = useCallback((delta: number) => {
-        PubSub.get().publishFastUpdate({ duration: 1000 });
-        // Theoretically can scale infinitely, but for now limit to -5 to 2
-        setScale(s => Math.min(Math.max(s + delta, -5), 2));
-    }, []);
 
     const handleRunDelete = useCallback((run: Run) => {
         if (!changedRoutine) return;
@@ -1311,6 +1303,8 @@ export const BuildView = ({
                     background: palette.primary.dark,
                     color: palette.primary.contrastText,
                     height: '64px',
+                    paddingLeft: 'env(safe-area-inset-left)',
+                    paddingRight: 'env(safe-area-inset-right)',
                 }}>
                 {/* Title */}
                 <EditableLabel
@@ -1361,7 +1355,8 @@ export const BuildView = ({
                     height: '48px',
                     background: palette.primary.light,
                     color: palette.primary.contrastText,
-                    // ...smallHorizontalScrollbar(palette) TODO this is needed for mobile, but it breaks Unlinked dialog's overflow-y: visble. Internet solution is to use popover, but this would mess up dragging nodes into container
+                    paddingLeft: 'env(safe-area-inset-left)',
+                    paddingRight: 'env(safe-area-inset-right)',
                 }}
             >
                 <StatusButton status={status.status} messages={status.messages} sx={{
@@ -1414,7 +1409,6 @@ export const BuildView = ({
                 nodesOffGraph={nodesOffGraph}
                 zIndex={zIndex}
             />
-            {/* Displays main routine's information and some buttons */}
             <Box sx={{
                 background: palette.background.default,
                 bottom: '0',
@@ -1433,39 +1427,37 @@ export const BuildView = ({
                     handleNodeInsert={handleNodeInsert}
                     handleNodeUpdate={handleNodeUpdate}
                     handleNodeDrop={handleNodeDrop}
-                    handleScaleChange={handleScaleDelta}
                     isEditing={isEditing}
                     labelVisible={true}
                     language={language}
                     links={changedRoutine?.nodeLinks ?? []}
                     nodesById={nodesById}
-                    scale={scale}
-                    zIndex={zIndex}
-                />
-                <BuildBottomContainer
-                    canCancelMutate={!loading}
-                    canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
-                    errors={{
-                        ...(errors ?? {}),
-                        'graph': status.status !== Status.Valid ? status.messages : null,
-                        'unchanged': isEqual(routine, changedRoutine) ? 'No changes made' : null,
-                    }}
-                    handleCancel={revertChanges}
-                    handleSubmit={() => { formik.submitForm() }}
-                    handleRunDelete={handleRunDelete}
-                    handleRunAdd={handleRunAdd}
-                    hasNext={false}
-                    hasPrevious={false}
-                    isAdding={!uuidValidate(id)}
-                    isEditing={isEditing}
-                    loading={loading}
-                    session={session}
-                    sliderColor={palette.secondary.light}
-                    routine={routine}
-                    runState={BuildRunState.Stopped}
                     zIndex={zIndex}
                 />
             </Box>
+            <BuildBottomContainer
+                canCancelMutate={!loading}
+                canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
+                errors={{
+                    ...(errors ?? {}),
+                    'graph': status.status !== Status.Valid ? status.messages : null,
+                    'unchanged': isEqual(routine, changedRoutine) ? 'No changes made' : null,
+                }}
+                handleCancel={revertChanges}
+                handleSubmit={() => { formik.submitForm() }}
+                handleRunDelete={handleRunDelete}
+                handleRunAdd={handleRunAdd}
+                hasNext={false}
+                hasPrevious={false}
+                isAdding={!uuidValidate(id)}
+                isEditing={isEditing}
+                loading={loading}
+                session={session}
+                sliderColor={palette.secondary.light}
+                routine={routine}
+                runState={BuildRunState.Stopped}
+                zIndex={zIndex}
+            />
         </Box>
     )
 };

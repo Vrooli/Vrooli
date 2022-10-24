@@ -9,16 +9,16 @@ import { Run } from 'types';
 import { ColorIconButton, GridSubmitButtons } from 'components/buttons';
 import { PauseIcon, PlayIcon } from '@shared/icons';
 
-const iconButtonProps = {
+const iconButtonProps = (palette: Palette) => ({
     padding: 0, 
-    width: '48px', 
-    height: '48px',
-}
+    width: '54px', 
+    height: '54px',
+})
 
 const iconProps = (palette: Palette) => ({
-    fill: palette.primary.dark,
-    width: '30px',
-    height: '30px',
+    fill: palette.secondary.contrastText,
+    width: '36px',
+    height: '36px',
 })
 
 export const BuildBottomContainer = ({
@@ -109,13 +109,13 @@ export const BuildBottomContainer = ({
                     </Tooltip> */}
                     {runState === BuildRunState.Running ? (
                         <Tooltip title="Pause Routine" placement="top">
-                            <ColorIconButton aria-label="pause-routine" background='#e4efee' sx={iconButtonProps}>
+                            <ColorIconButton aria-label="pause-routine" background={palette.secondary.main} sx={iconButtonProps(palette)}>
                                 <PauseIcon {...iconProps(palette)} />
                             </ColorIconButton>
                         </Tooltip>
                     ) : (
                         <Tooltip title="Run Routine" placement="top">
-                            <ColorIconButton aria-label="run-routine" onClick={runRoutine} background='#e4efee' sx={iconButtonProps}>
+                            <ColorIconButton aria-label="run-routine" onClick={runRoutine} background={palette.secondary.main} sx={iconButtonProps(palette)}>
                                 <PlayIcon {...iconProps(palette)} />
                             </ColorIconButton>
                         </Tooltip>
@@ -132,14 +132,16 @@ export const BuildBottomContainer = ({
     return (
         <Box sx={{
             alignItems: 'center',
-            background: palette.primary.dark,
+            background: 'transparent',
             display: 'flex',
             justifyContent: 'center',
+            position: 'absolute',
+            zIndex: 2,
             bottom: 0,
-            paddingTop: 1,
-            paddingLeft: { xs: 1, sm: 4 },
-            paddingRight: { xs: 1, sm: 4 },
-            paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
+            right: 0,
+            paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
+            paddingLeft: 'calc(16px + env(safe-area-inset-left))',
+            paddingRight: 'calc(16px + env(safe-area-inset-right))',
             // safe-area-inset-bottom is the iOS navigation bar
             height: 'calc(64px + env(safe-area-inset-bottom))',
         }}>
