@@ -83,6 +83,17 @@ export function App() {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useMutation<any>(validateSessionMutation);
 
+    /**
+     * Sets theme state and meta tags
+     */
+    const setThemeAndMeta = useCallback((theme: Theme) => {
+        // Update state
+        setTheme(theme);
+        // Update meta tags, for theme-color and apple-mobile-web-app-status-bar-style
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.palette.primary.dark);
+        document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', theme.palette.primary.dark);
+    }, [setTheme]);
+
     // If anchor tag in url, scroll to element
     const hash = useReactHash();
     useEffect(() => {
@@ -147,8 +158,8 @@ export function App() {
             const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
             theme = prefersDark ? themes.dark : themes.light;
         }
-        setTheme(theme);
-    }, [session])
+        setThemeAndMeta(theme);
+    }, [session, setThemeAndMeta])
 
     // Detect online/offline status
     useEffect(() => {
@@ -248,14 +259,17 @@ export function App() {
                 setSession(s => ({ ...s, ...session }));
             }
         });
-        let themeSub = PubSub.get().subscribeTheme((data) => setTheme(themes[data] ?? themes.light));
+        let themeSub = PubSub.get().subscribeTheme((data) => {
+            const newTheme = themes[data] ?? themes.light
+            setThemeAndMeta(newTheme);
+        });
         return (() => {
             PubSub.get().unsubscribe(loadingSub);
             PubSub.get().unsubscribe(celebrationSub);
             PubSub.get().unsubscribe(sessionSub);
             PubSub.get().unsubscribe(themeSub);
         })
-    }, [checkSession]);
+    }, [checkSession, setThemeAndMeta]);
 
     return (
         <StyledEngineProvider injectFirst>
