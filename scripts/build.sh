@@ -129,6 +129,17 @@ else
     cd ../..
 fi
 
+# Create assetlinks.json file for Google Play Store
+if [ -z "${GOOGLE_PLAY_FINGERPRINT}" ]; then
+    error "GOOGLE_PLAY_FINGERPRINT is not set. Not creating build/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)."
+else
+    info "Creating build/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)..."
+    mkdir build/.well-known
+    cd ${HERE}/../packages/ui/build/.well-known
+    echo "[{\"relation\": [\"delegate_permission/common.handle_all_urls\"],\"target\": {\"namespace\": \"android_app\",\"package_name\": \"com.vrooli.twa\",\"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]}}]" > assetlinks.json
+    cd ../..
+fi
+
 # Copy build to VPS
 if [ -z "$DEPLOY" ]; then
     success "Build successful! Would you like to send the build to the production server? (y/N)"
