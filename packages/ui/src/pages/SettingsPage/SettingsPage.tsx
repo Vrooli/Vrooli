@@ -1,4 +1,4 @@
-import { Box, CircularProgress, List, ListItem, ListItemIcon, useTheme } from '@mui/material';
+import { CircularProgress, Grid, List, ListItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
 import { useLazyQuery } from '@apollo/client';
@@ -65,17 +65,19 @@ export function SettingsPage({
                     onClick={() => { setLocation(`${APP_LINKS.Settings}?page="${link}"`, { replace: true }) }}
                     sx={{
                         transition: 'brightness 0.2s ease-in-out',
-                        background: selected ? '#5bb6ce6e' : 'inherit',
+                        background: selected ? palette.primary.main : 'transparent',
+                        color: selected ? palette.primary.contrastText : palette.background.textPrimary,
                         padding: '8px 12px'
                     }}
                 >
                     <ListItemIcon>
-                        <Icon fill='rgba(0, 0, 0, 0.54)' />
+                        <Icon fill={selected ? palette.primary.contrastText : palette.background.textSecondary} />
                     </ListItemIcon>
+                    <ListItemText primary={label} />
                 </ListItem>
             )
         });
-    }, [selectedPage, setLocation]);
+    }, [palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, selectedPage, setLocation]);
 
     const mainContent: JSX.Element = useMemo(() => {
         switch (selectedPage) {
@@ -91,44 +93,19 @@ export function SettingsPage({
     }, [selectedPage, session, profile, onUpdated]);
 
     return (
-        <PageContainer sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-        }}>
-            <Box sx={{
-                boxShadow: { xs: 'none', sm: 12 },
-                borderRadius: { xs: 0, sm: 2 },
-                overflow: 'overlay',
-                background: palette.background.default,
-                width: 'min(100%, 700px)',
-                minHeight: '300px',
-                position: 'relative',
-                margin: 'auto',
-            }}>
-                {/* Left side drawer */}
-                <Box sx={{
-                    position: 'absolute',
-                    width: '50px',
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    backgroundColor: palette.mode === 'light' ? '#e4efff' : palette.primary.light,
-                    borderRight: `1px solid ${palette.mode === 'light' ? palette.text.primary : palette.background.default}`,
-
-                }}>
+        <PageContainer>
+            <Grid container spacing={0}>
+                {/* List of settings forms */}
+                <Grid item xs={12} md={6}>
                     <List>
                         {listItems}
                     </List>
-                </Box>
-                {/* Settings form */}
-                <Box sx={{
-                    marginLeft: '50px',
-                    width: 'calc(100% - 50px)',
-                }}>
+                </Grid>
+                {/* Current form */}
+                <Grid item xs={12} md={6}>
                     {loading ? <CircularProgress color="secondary" /> : mainContent}
-                </Box>
-            </Box>
+                </Grid>
+            </Grid>
         </PageContainer>
     )
 }

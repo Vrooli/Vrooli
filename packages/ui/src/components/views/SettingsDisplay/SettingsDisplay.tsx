@@ -7,7 +7,7 @@ import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, usePromptBeforeUnload } from "utils";
 import { SettingsDisplayProps } from "../types";
-import { GridSubmitButtons, HelpButton, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, HelpButton, PageTitle, SnackSeverity, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { uuid } from '@shared/uuid';
@@ -123,16 +123,7 @@ export const SettingsDisplay = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            {/* Title */}
-            <Stack direction="row" justifyContent="center" alignItems="center" sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                padding: 0.5,
-                marginBottom: 2,
-            }}>
-                <Typography component="h1" variant="h4">Display Preferences</Typography>
-                <HelpButton markdown={helpText} />
-            </Stack>
+            <PageTitle title="Display Preferences" helpText={helpText} />
             <Box sx={{ margin: 2, marginBottom: 5 }}>
                 <ThemeSwitch
                     theme={formik.values.theme as 'light' | 'dark'}

@@ -13,7 +13,7 @@ import { logOutMutation } from 'graphql/mutation';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
-import { DeleteAccountDialog, PasswordTextField, SnackSeverity } from "components";
+import { DeleteAccountDialog, PageTitle, PasswordTextField, SnackSeverity } from "components";
 import { profileEmailUpdateVariables, profileEmailUpdate_profileEmailUpdate } from "graphql/generated/profileEmailUpdate";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
@@ -124,19 +124,7 @@ export const SettingsAuthentication = ({
                 session={session}
                 zIndex={100}
             />
-            {/* Title */}
-            <Box sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                padding: 0.5,
-                marginBottom: 2,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-            }}>
-                <Typography component="h1" variant="h4" textAlign="center">Authentication</Typography>
-                <HelpButton markdown={helpText} />
-            </Box>
+            <PageTitle title="Authentication" helpText={helpText} />
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <WalletIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Connected Wallets</Typography>

@@ -1,4 +1,4 @@
-import { Autocomplete, Box, Container, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
+import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
@@ -10,14 +10,14 @@ import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationDat
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
-import { ColorIconButton, GridSubmitButtons, HelpButton } from "components/buttons";
+import { ColorIconButton, GridSubmitButtons } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
 import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { SnackSeverity } from "components";
+import { PageTitle, SnackSeverity } from "components";
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -161,19 +161,7 @@ export const SettingsProfile = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            {/* Title */}
-            <Box sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                padding: 0.5,
-                marginBottom: 2,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-            }}>
-                <Typography component="h1" variant="h4" textAlign="center">Update Profile</Typography>
-                <HelpButton markdown={helpText} />
-            </Box>
+            <PageTitle title="Update Profile" helpText={helpText} />
             <Container sx={{ paddingBottom: 2 }}>
                 <Grid container spacing={2}>
                     <Grid item xs={12}>
