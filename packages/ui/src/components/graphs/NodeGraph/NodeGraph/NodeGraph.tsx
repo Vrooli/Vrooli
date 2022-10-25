@@ -331,7 +331,6 @@ export const NodeGraph = ({
             key={`node-column-${index}`}
             id={`node-column-${index}`}
             columnIndex={index}
-            dragId={dragId}
             handleAction={handleAction}
             handleNodeUpdate={handleNodeUpdate}
             isEditing={isEditing}
@@ -342,7 +341,7 @@ export const NodeGraph = ({
             scale={scale}
             zIndex={zIndex}
         />)
-    }, [columns, dragId, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
+    }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
 
     // Positive modulo function
     const mod = (n: number, m: number) => ((n % m) + m) % m;

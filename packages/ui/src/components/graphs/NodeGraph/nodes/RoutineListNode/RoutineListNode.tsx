@@ -144,8 +144,8 @@ export const RoutineListNode = ({
         }
     }, [language, node]);
 
-    const minNodeSize = useMemo(() => `${calculateNodeSize(NodeWidth.RoutineList, scale)}px`, [scale]);
-    const maxNodeSize = useMemo(() => `${calculateNodeSize(NodeWidth.RoutineList, scale) * 2}px`, [scale]);
+    const minNodeSize = useMemo(() => calculateNodeSize(NodeWidth.RoutineList, scale), [scale]);
+    const maxNodeSize = useMemo(() => calculateNodeSize(NodeWidth.RoutineList, scale) * 2, [scale]);
     const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 5}px, 2em)`, [scale]);
     const addSize = useMemo(() => `max(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 48px)`, [scale]);
 
@@ -320,8 +320,8 @@ export const RoutineListNode = ({
             dragThreshold={DRAG_THRESHOLD}
             sx={{
                 zIndex: 5,
-                minWidth: minNodeSize,
-                maxWidth: collapseOpen ? maxNodeSize : minNodeSize,
+                minWidth: `${minNodeSize}px`,
+                maxWidth: collapseOpen ? `${maxNodeSize}px` : `${minNodeSize}px`,
                 fontSize: fontSize,
                 position: 'relative',
                 display: 'block',
@@ -365,7 +365,7 @@ export const RoutineListNode = ({
                     }}
                 >
                     {
-                        canExpand && (
+                        canExpand && minNodeSize > 100 && (
                             <IconButton
                                 id={`toggle-expand-icon-button-${node.id}`}
                                 aria-label={collapseOpen ? 'Collapse' : 'Expand'}

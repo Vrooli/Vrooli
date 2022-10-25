@@ -18,15 +18,12 @@ export const NodeColumn = ({
     labelVisible,
     language,
     links,
-    dragId,
     nodes,
     scale = 1,
     zIndex,
 }: NodeColumnProps) => {
     // Padding between cells
     const padding = useMemo(() => calculateNodeSize(25, scale), [scale]);
-    // Highlights column when a dragging node can be dropped on it
-    const isHighlighted = useMemo(() => dragId, [dragId]);
 
     /**
      * Create a node component for the given node data. 
@@ -118,9 +115,6 @@ export const NodeColumn = ({
             alignItems="center"
             sx={{
                 // pointerEvents: 'none',
-                backgroundColor: isHighlighted ? '#a2be6547' : 'transparent',
-                borderLeft: isHighlighted ? '1px solid #71c84f' : 'none',
-                borderRight: isHighlighted ? '1px solid #71c84f' : 'none',
                 gap: `${padding * 4}px`,
                 // Fill available if column is empty
                 width: nodes.length === 0 ? '-webkit-fill-available' : 'auto',
