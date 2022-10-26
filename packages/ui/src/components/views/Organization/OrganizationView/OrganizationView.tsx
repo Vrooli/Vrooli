@@ -6,16 +6,15 @@ import { useLazyQuery } from "@apollo/client";
 import { organization, organizationVariables } from "graphql/generated/organization";
 import { organizationQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
+import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { OrganizationViewProps } from "../types";
 import { Organization, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, openObject, placeholderColor, SearchType, uuidToBase36 } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, placeholderColor, SearchType, uuidToBase36 } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
-import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 
 enum TabOptions {
@@ -202,13 +201,6 @@ export const OrganizationView = ({
         }
     }, [organization, setLocation]);
 
-    // Menu for picking which routine type to add
-    const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
-    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
-        setAddRoutineAnchor(ev.currentTarget)
-    }, []);
-    const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
-
     /**
      * Displays name, avatar, bio, and quick links
      */
@@ -348,13 +340,13 @@ export const OrganizationView = ({
                 setLocation(`${APP_LINKS.Project}/add`);
                 break;
             case TabOptions.Routines:
-                openAddRoutine(event);
+                setLocation(`${APP_LINKS.Routine}/add`);
                 break;
             case TabOptions.Standards:
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType, openAddRoutine, setLocation]);
+    }, [currTabType, setLocation]);
 
     return (
         <>
@@ -367,13 +359,6 @@ export const OrganizationView = ({
                 onClose={closeMoreMenu}
                 session={session}
                 title='Organization Options'
-                zIndex={zIndex + 1}
-            />
-            {/* Add menu for selecting between single-step and multi-step routines */}
-            <SelectRoutineTypeMenu
-                anchorEl={addRoutineAnchor}
-                handleClose={closeAddRoutine}
-                session={session}
                 zIndex={zIndex + 1}
             />
             <Box sx={{

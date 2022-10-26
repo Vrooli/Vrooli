@@ -44,7 +44,7 @@ const stripUrl = (url: string) => {
 
 const titleAria = 'command-palette-dialog-title';
 
-const CommandPalette = ({
+export const CommandPalette = ({
     session
 }: CommandPaletteProps) => {
     const { palette } = useTheme();
@@ -171,5 +171,3 @@ const CommandPalette = ({
         </Dialog >
     );
 }
-
-export { CommandPalette };

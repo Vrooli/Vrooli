@@ -18,8 +18,6 @@ import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { DeleteIcon } from '@shared/icons';
 
-const titleAria = 'delete-object-dialog-title';
-
 export const DeleteDialog = ({
     handleClose,
     isOpen,
@@ -61,14 +59,13 @@ export const DeleteDialog = ({
         <Dialog
             open={isOpen}
             onClose={() => { close(); }}
-            aria-labelledby={titleAria}
             sx={{
                 zIndex
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
-                title={`Delete "${objectName}"`}
+                ariaLabel=''
+                title=''
                 onClose={() => { close() }}
             />
             <DialogContent>

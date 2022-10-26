@@ -18,7 +18,6 @@ export * from './RunPickerMenu/RunPickerMenu';
 export * from './RunStepsDialog/RunStepsDialog';
 export * from './SelectLanguageMenu/SelectLanguageMenu';
 export * from './selectOrCreates';
-export * from './SelectRoutineTypeMenu/SelectRoutineTypeMenu';
 export * from './Snack/Snack';
 export * from './SnackStack/SnackStack';
 export * from './SubroutineInfoDialog/SubroutineInfoDialog';

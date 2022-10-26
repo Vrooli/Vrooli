@@ -73,8 +73,9 @@ export interface ContentCollapseProps {
 export interface TextCollapseProps {
     helpText?: string;
     isOpen?: boolean;
+    loading?: boolean;
+    loadingLines?: number;
     onOpenChange?: (isOpen: boolean) => void;
-    showOnNoText?: boolean;
     title?: string | null;
     text?: string | null;
 }

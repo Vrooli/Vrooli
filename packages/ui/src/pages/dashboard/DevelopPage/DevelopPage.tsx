@@ -36,8 +36,7 @@ const recentText =
 
 const createPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Project', value: `${APP_LINKS.Project}/add` },
-    { label: 'Routine (Single Step)', value: `${APP_LINKS.Routine}/add` },
-    { label: 'Routine (Multi Step)', value: `${APP_LINKS.Routine}/add?build=true` },
+    { label: 'Routine', value: `${APP_LINKS.Routine}/add` },
 ]
 
 const zIndex = 200;

@@ -110,7 +110,7 @@ export const ResourceListVertical = ({
 
     return (
         <>
-            <Box sx={{
+            {list?.resources && list.resources.length > 0 && <Box sx={{
                 boxShadow: 12,
                 overflow: 'overlay',
                 borderRadius: '8px',
@@ -121,7 +121,7 @@ export const ResourceListVertical = ({
                 {/* Add resource dialog */}
                 {dialog}
                 {/* Resource list */}
-                {list?.resources?.map((c: Resource, index) => (
+                {list.resources.map((c: Resource, index) => (
                     <ResourceListItem
                         key={`resource-card-${index}`}
                         canEdit={canEdit}
@@ -133,7 +133,7 @@ export const ResourceListVertical = ({
                         session={session}
                     />
                 ))}
-            </Box>
+            </Box>}
             {/* Add resource button */}
             {canEdit && <Box sx={{
                 maxWidth: '400px',

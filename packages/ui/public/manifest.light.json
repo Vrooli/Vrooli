@@ -89,9 +89,9 @@
             "description": "View your active, completed, and starred routines - and more!"
         },
         {
-            "name": "Profile",
-            "url": "/profile",
-            "description": "View your profile and settings"
+            "name": "Create Routine",
+            "url": "/routine/add",
+            "description": "Create a new routine"
         },
         {
             "name": "Learn",

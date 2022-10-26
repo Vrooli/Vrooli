@@ -1,14 +1,13 @@
 import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, SnackSeverity, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formikToRunInputs, getTranslation, getUserLanguages, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, uuidToBase36 } from "utils";
+import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
 import { EllipsisIcon } from "@shared/icons";
-import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { APP_LINKS } from "@shared/consts";
 
 export const SubroutineView = ({

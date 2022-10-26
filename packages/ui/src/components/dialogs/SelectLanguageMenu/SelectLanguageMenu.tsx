@@ -120,9 +120,11 @@ export const SelectLanguageMenu = ({
     }, []);
 
     const languageOptions = useMemo<Array<[string, string]>>(() => {
+        console.log('languageoptions 1')
         // Find user languages
         const userLanguages = getUserLanguages(session);
         const selected = translations.map((translation) => getLanguageSubtag(translation.language));
+        console.log('languageoptions 2', selected)
         // Sort selected languages. Selected languages which are also user languages are first.
         const sortedSelectedLanguages = selected.sort((a, b) => {
             const aIndex = userLanguages.indexOf(a);
@@ -137,20 +139,22 @@ export const SelectLanguageMenu = ({
                 return aIndex - bIndex;
             }
         }) ?? [];
+        console.log('languageoptions 3', sortedSelectedLanguages)
         // Filter selected languages from user languages
         const userLanguagesFiltered = userLanguages.filter(l => selected.indexOf(l) === -1);
-        // Filter selected and user languages from auto-translateLanguages
-        const autoTranslateLanguagesFiltered = autoTranslateLanguages.filter(l => selected.indexOf(l) === -1 && userLanguages.indexOf(l) === -1);
+        // Filter selected and user languages from auto-translateLanguages TODO put back when this is implemented
+        //const autoTranslateLanguagesFiltered = autoTranslateLanguages.filter(l => selected.indexOf(l) === -1 && userLanguages.indexOf(l) === -1);
         // Filter selected and user and auto-translate languages from all languages (only when editing)
         const allLanguagesFiltered = isEditing ? (Object.keys(AllLanguages)).filter(l => selected.indexOf(l) === -1 && userLanguages.indexOf(l) === -1 && autoTranslateLanguages.indexOf(l) === -1) : [];
         // Create array with all available languages.
-        const displayed = [...sortedSelectedLanguages, ...userLanguagesFiltered, ...autoTranslateLanguagesFiltered, ...allLanguagesFiltered];
+        const displayed = [...sortedSelectedLanguages, ...userLanguagesFiltered, ...allLanguagesFiltered];//, ...autoTranslateLanguagesFiltered, ...allLanguagesFiltered]; TODO
         // Convert to array of [languageCode, languageDisplayName]
         let options: Array<[string, string]> = displayed.map(l => [l, AllLanguages[l]]);
         // Filter options with search string
         if (searchString.length > 0) {
             options = options.filter((o: [string, string]) => o[1].toLowerCase().includes(searchString.toLowerCase()));
         }
+        console.log('languageoptions 4', options)
         return options;
     }, [isEditing, searchString, session, translations]);
 
@@ -342,9 +346,10 @@ export const SelectLanguageMenu = ({
                     <IconButton size="large" sx={{ padding: '4px' }}>
                         <LanguageIcon fill={'white'} />
                     </IconButton>
-                    <Typography variant="body2" sx={{ color: 'white', marginRight: '8px' }}>
+                    {/* Only show language code when editing to save space. You'll know what language you're reading just by reading */}
+                    {isEditing && <Typography variant="body2" sx={{ color: 'white', marginRight: '8px' }}>
                         {currentLanguage?.toLocaleUpperCase()}
-                    </Typography>
+                    </Typography>}
                     {/* Drop down or drop up icon */}
                     <IconButton size="large" aria-label="language-select" sx={{ padding: '4px', marginLeft: '-8px' }}>
                         {open ? <ArrowDropUpIcon fill={'white'} /> : <ArrowDropDownIcon fill={'white'} />}

@@ -106,7 +106,7 @@ export const VersionDisplay = ({
                     {...pressEvents}
                     variant="body1"
                     sx={{
-                        cursor: 'pointer',
+                        cursor: listItems.length > 1 ? 'pointer' : 'default',
                     }}
                 >{`${prefix}${currentVersion}`}</Typography>
             </Tooltip>

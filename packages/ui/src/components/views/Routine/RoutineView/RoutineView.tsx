@@ -1,25 +1,24 @@
-import { Box, Button, CircularProgress, Dialog, Grid, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material"
+import { Box, Button, Dialog, Grid, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, VoteFor } from "@shared/consts";
+import { APP_LINKS } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
-import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, BuildView, ReportsLink, ResourceListHorizontal, RunPickerMenu, RunView, SelectLanguageMenu, StarButton, StatusButton, UpTransition, UpvoteDownvote, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BuildView, ResourceListHorizontal, RunPickerMenu, RunView, UpTransition, OwnerLabel, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow } from "components";
 import { RoutineViewProps } from "../types";
-import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getRoutineStatus, getTranslation, getUserLanguages, initializeRoutine, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, Status, useReactSearch, uuidToBase36 } from "utils";
+import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, initializeRoutine, ObjectAction, ObjectActionComplete, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, useReactSearch, uuidToBase36 } from "utils";
 import { Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
-import { CommentFor, NodeType, StarFor } from "graphql/generated/globalTypes";
-import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
+import { CommentFor, NodeType } from "graphql/generated/globalTypes";
 import { uuidValidate } from '@shared/uuid';
 import { runCompleteVariables, runComplete_runComplete } from "graphql/generated/runComplete";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
-import { EditIcon, EllipsisIcon, PlayIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
+import { RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 
 const statsHelpText =
@@ -30,6 +29,16 @@ const statsHelpText =
 **Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.
 
 There will be many more statistics in the near future.`
+
+const containerProps = (palette: Palette) => ({
+    boxShadow: 1,
+    background: palette.background.paper,
+    borderRadius: 1,
+    overflow: 'overlay',
+    marginTop: 4,
+    marginBottom: 4,
+    padding: 2,
+})
 
 export const RoutineView = ({
     partialData,
@@ -78,11 +87,9 @@ export const RoutineView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { canStar, canVote, title, description, instructions, status, statusMessages } = useMemo(() => {
-        const { canStar, canVote } = routine?.permissionsRoutine ?? {};
-        const { messages: statusMessages, status } = getRoutineStatus(routine ?? partialData);
+    const { title, description, instructions } = useMemo(() => {
         const { description, instructions, title } = getTranslation(routine ?? partialData, [language]);
-        return { canStar, canVote, title, description, instructions, status, statusMessages };
+        return { title, description, instructions };
     }, [routine, language, partialData]);
 
     useEffect(() => {
@@ -169,33 +176,10 @@ export const RoutineView = ({
     const stopRoutine = () => { setIsRunOpen(false) };
 
     const onEdit = useCallback(() => {
-        // Depends on if we're in a search popup or a normal routine page
-        const isMultiStep = (Array.isArray(routine?.nodes) && (routine?.nodes as Routine['nodes']).length > 1) ||
-            (Array.isArray(routine?.nodeLinks) && (routine?.nodeLinks as Routine['nodeLinks']).length > 0);
-        // If multi step, navigate to build page
-        if (isMultiStep) {
-            setSearchParams(setLocation, {
-                build: true,
-                edit: true,
-            });
-            setIsBuildOpen(true);
-        }
-        // Otherwise, edit as single step
-        else {
-            if (!routine) return;
-            setLocation(`${APP_LINKS.Routine}/edit/${getObjectSlug(routine)}`);
-        }
-    }, [routine, setLocation]);
+        id && setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(id)}`);
+    }, [setLocation, id]);
 
-    // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
-    const openMoreMenu = useCallback((ev: MouseEvent<any>) => {
-        setMoreMenuAnchor(ev.currentTarget);
-        ev.preventDefault();
-    }, []);
-    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
+    const onActionStart = useCallback((action: ObjectAction) => {
         switch (action) {
             case ObjectAction.Edit:
                 onEdit();
@@ -206,7 +190,7 @@ export const RoutineView = ({
         }
     }, [onEdit]);
 
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+    const onActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
@@ -289,40 +273,6 @@ export const RoutineView = ({
     }, [formik.values, routine, runComplete, setLocation, title]);
 
     /**
-     * If routine has nodes (i.e. is not just this page), display "View Graph" and "Start" (or "Continue") buttons. 
-     * Otherwise, display "Mark as Complete" button.
-     */
-    const actions = useMemo(() => {
-        // If routine has no nodes
-        if (!routine?.nodes?.length) {
-            // Only show if logged in
-            if (!getCurrentUser(session).id) return null;
-            return (
-                <Grid container spacing={1} mt={1}>
-                    <Grid item xs={12}>
-                        <Button startIcon={<SuccessIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
-                    </Grid>
-                </Grid>
-            )
-        }
-        // If routine has nodes
-        return (
-            <Grid container spacing={1} mt={1} justifyContent="center">
-                <Grid item xs={6}>
-                    <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button>
-                </Grid>
-                {/* Show continue if routine already has progress TODO */}
-                {status === Status.Valid && <Grid item xs={6}>
-                    {routine && routine.runs?.length > 0 ?
-                        <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Continue</Button> :
-                        <Button startIcon={<PlayIcon />} fullWidth onClick={runRoutine} color="secondary">Start</Button>
-                    }
-                </Grid>}
-            </Grid>
-        )
-    }, [routine, viewGraph, status, runRoutine, session, markAsComplete]);
-
-    /**
      * Copy current value of input to clipboard
      * @param fieldName Name of input
      */
@@ -352,65 +302,13 @@ export const RoutineView = ({
         />
     }, [loading, routine, session, zIndex]);
 
-    /**
-     * Display body or loading indicator
-     */
-    const body = useMemo(() => {
-        if (loading) return (
-            <Box sx={{
-                minHeight: 'min(300px, 25vh)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-            }}>
-                <CircularProgress color="secondary" />
-            </Box>
-        )
-        return (
-            <>
-                {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-                <Stack direction="column" spacing={2}>
-                    {/* Resources */}
-                    {resourceList}
-                    {/* Description */}
-                    <TextCollapse title="Description" text={description} showOnNoText={loading} />
-                    {/* Instructions */}
-                    <TextCollapse title="Instructions" text={instructions} showOnNoText={loading} />
-                    {/* Auto-generated inputs */}
-                    {Object.keys(formik.values).length > 0 && <ContentCollapse
-                        title="Inputs"
-                    >
-                        {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
-                            generateInputWithLabel({
-                                copyInput,
-                                disabled: false,
-                                fieldData,
-                                formik: formik,
-                                index,
-                                session,
-                                textPrimary: palette.background.textPrimary,
-                                onUpload: () => { },
-                                zIndex,
-                            })
-                        ))}
-                    </ContentCollapse>}
-                    {/* Stats */}
-                    {
-                        Array.isArray(routine?.nodes) && (routine as any).nodes.length > 0 &&
-                        <ContentCollapse title="Stats" helpText={statsHelpText}>
-                            <Typography variant="body1">Complexity: {routine?.complexity}</Typography>
-                            <Typography variant="body1">Simplicity: {routine?.simplicity}</Typography>
-                        </ContentCollapse>
-                    }
-                </Stack>
-                {/* Actions */}
-                {actions}
-            </>
-        )
-    }, [loading, resourceList, description, palette.background.textPrimary, instructions, formik, formValueMap, routine, actions, session, zIndex, copyInput]);
-
     return (
-        <>
+        <Box sx={{
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            width: 'min(100%, 700px)',
+            padding: 2,
+        }}>
             {/* Chooses which run to use */}
             <RunPickerMenu
                 anchorEl={selectRunAnchor}
@@ -459,172 +357,97 @@ export const RoutineView = ({
                     zIndex={zIndex + 1}
                 />
             </Dialog>
-            {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ObjectActionMenu
-                anchorEl={moreMenuAnchor}
-                object={routine as any}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
-                onClose={closeMoreMenu}
+            <ObjectTitle
+                language={language}
+                loading={loading}
+                title={title}
                 session={session}
-                title='Routine Options'
-                zIndex={zIndex + 1}
+                setLanguage={setLanguage}
+                translations={routine?.translations ?? partialData?.translations ?? []}
+                zIndex={zIndex}
             />
-            <Stack direction="column" sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: 'auto',
-                // xs: 100vh - navbar (64px) - bottom nav (56px) - iOS nav bar
-                // md: 100vh - navbar (80px)
-                minHeight: { xs: 'calc(100vh - 64px - 56px - env(safe-area-inset-bottom))', md: 'calc(100vh - 80px)' },
-                marginBottom: 8,
-            }}>
-                <Box sx={{
-                    boxShadow: 12,
-                    background: palette.background.paper,
-                    width: 'min(100%, 700px)',
-                    borderRadius: 1,
-                    overflow: 'overlay',
-                }}>
-                    {/* Main container */}
-                    <Box sx={{
-                        overflowY: 'auto',
-                        overflow: 'overlay',
-                    }}>
-                        {/* Heading container */}
-                        <Stack direction="column" spacing={1} sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: 2,
-                            marginBottom: 1,
-                            background: palette.primary.main,
-                            color: palette.primary.contrastText,
-                        }}>
-                            {/* Title */}
-                            <Stack direction="row" textAlign="center">
-                                {loading ?
-                                    <LinearProgress color="inherit" sx={{
-                                        borderRadius: 1,
-                                        width: '50vw',
-                                        height: 8,
-                                        marginTop: '12px !important',
-                                        marginBottom: '12px !important',
-                                        maxWidth: '300px',
-                                    }} /> :
-                                    <>
-                                        <Typography variant="h5">{title}</Typography>
-                                        {routine?.permissionsRoutine?.canEdit && <Tooltip title="Edit routine">
-                                            <IconButton
-                                                aria-label="Edit routine"
-                                                size="small"
-                                                onClick={onEdit}
-                                                sx={{
-                                                    height: 'fit-content',
-                                                    marginTop: 'auto',
-                                                    marginBottom: 'auto',
-                                                }}
-                                            >
-                                                <EditIcon fill={palette.secondary.light} />
-                                            </IconButton>
-                                        </Tooltip>}
-                                    </>
-                                }
-                            </Stack>
-                            <Stack direction="row" spacing={1} sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}>
-                                {
-                                    Array.isArray(routine?.nodes) && routine!.nodes.length > 0 && <StatusButton
-                                        status={status}
-                                        messages={statusMessages}
-                                        sx={{
-                                            marginTop: 'auto',
-                                            marginBottom: 'auto',
-                                            marginLeft: 2,
-                                        }}
-                                    />
-                                }
-                                <OwnerLabel objectType={ObjectType.Routine} owner={routine?.owner} session={session} />
-                                <VersionDisplay
-                                    currentVersion={routine?.version}
-                                    prefix={" - "}
-                                    versions={routine?.versions}
-                                />
-                                <SelectLanguageMenu
-                                    currentLanguage={language}
-                                    handleCurrent={setLanguage}
-                                    session={session}
-                                    translations={routine?.translations ?? partialData?.translations ?? []}
-                                    zIndex={zIndex}
-                                />
-                            </Stack>
-                        </Stack>
-                        {/* Body container */}
-                        <Box sx={{
-                            padding: 2,
-                        }}>
-                            {body}
-                        </Box>
-                    </Box>
-                    {/* Action buttons */}
-                    <Stack direction="row" spacing={1} sx={{
-                        display: 'flex',
-                        marginRight: 'auto',
-                        alignItems: 'center',
-                        padding: 2,
-                    }}>
-                        <UpvoteDownvote
-                            direction="row"
-                            disabled={!canVote}
-                            session={session}
-                            objectId={routine?.id ?? ''}
-                            voteFor={VoteFor.Routine}
-                            isUpvoted={routine?.isUpvoted}
-                            score={routine?.score}
-                            onChange={(isUpvote) => { routine && setRoutine({ ...routine, isUpvoted: isUpvote }); }}
-                        />
-                        <StarButton
-                            disabled={!canStar}
-                            session={session}
-                            objectId={routine?.id ?? ''}
-                            showStars={false}
-                            starFor={StarFor.Routine}
-                            isStar={routine?.isStarred ?? false}
-                            stars={routine?.stars ?? 0}
-                            onChange={(isStar: boolean) => { routine && setRoutine({ ...routine, isStarred: isStar }) }}
-                            tooltipPlacement="bottom"
-                        />
-                        {routine.id && <ReportsLink object={routine} />}
-                        <Tooltip title="More options">
-                            <IconButton
-                                aria-label="More"
-                                size="small"
-                                onClick={openMoreMenu}
-                                sx={{
-                                    display: 'block',
-                                    marginLeft: 'auto',
-                                    marginRight: 1,
-                                    padding: 0,
-                                }}
-                            >
-                                <EllipsisIcon fill={palette.background.textSecondary} />
-                            </IconButton>
-                        </Tooltip>
-                    </Stack>
-                    {/* Comments Container */}
-                    <CommentContainer
-                        language={language}
-                        objectId={id ?? ''}
-                        objectType={CommentFor.Routine}
-                        session={session}
-                        zIndex={zIndex}
-                    />
-                </Box>
+            {/* Resources */}
+            {resourceList}
+            {/* Box with description and instructions */}
+            <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                {/* Description */}
+                <TextCollapse title="Description" text={description} loading={loading} loadingLines={2} />
+                {/* Instructions */}
+                <TextCollapse title="Instructions" text={instructions} loading={loading} loadingLines={4} />
             </Stack>
-        </>
+            {/* Box with inputs, if this is a single-step routine */}
+            {Object.keys(formik.values).length > 0 && <Box sx={containerProps(palette)}>
+                <ContentCollapse
+                    isOpen={false}
+                    title="Inputs"
+                >
+                    {Object.values(formValueMap ?? {}).map((fieldData: FieldData, index: number) => (
+                        generateInputWithLabel({
+                            copyInput,
+                            disabled: false,
+                            fieldData,
+                            formik: formik,
+                            index,
+                            session,
+                            textPrimary: palette.background.textPrimary,
+                            onUpload: () => { },
+                            zIndex,
+                        })
+                    ))}
+                    {getCurrentUser(session).id && <Grid container spacing={1} mt={1}>
+                        <Grid item xs={12}>
+                            <Button startIcon={<SuccessIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
+                        </Grid>
+                    </Grid>}
+                </ContentCollapse>
+            </Box>}
+            {/* "View Graph" button if this is a multi-step routine */}
+            {routine?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
+            {/* Owner and version labels */}
+            <Stack direction="row" spacing={1} mt={4} mb={1}>
+                <OwnerLabel
+                    objectType={ObjectType.Routine}
+                    owner={routine?.owner}
+                    session={session}
+                    sxs={{ label: { color: palette.background.textPrimary } }}
+                />
+                <VersionDisplay
+                    currentVersion={routine?.version}
+                    prefix={" - "}
+                    versions={routine?.versions}
+                />
+            </Stack>
+            {/* Votes, reports, and other basic stats */}
+            <StatsCompact
+                handleObjectUpdate={updateRoutine}
+                loading={loading}
+                object={routine}
+                session={session}
+            />
+            {/* Action buttons */}
+            <ObjectActionsRow
+                exclude={[ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled by StatsCompact
+                onActionStart={onActionStart}
+                onActionComplete={onActionComplete}
+                object={routine}
+                session={session}
+                zIndex={zIndex}
+            />
+            {/* Comments */}
+            <Box sx={containerProps(palette)}>
+                <CommentContainer
+                    language={language}
+                    objectId={id ?? ''}
+                    objectType={CommentFor.Routine}
+                    session={session}
+                    zIndex={zIndex}
+                />
+            </Box>
+            {/* Play button fixed to bottom of screen, to start routine (if multi-step).
+            If the routine is invalid, this is greyed out with a tooltip on hover or press. 
+            If the routine is valid but incomplete, play button is available but user must accept alert dialog warning */}
+            <RunButton />
+            {/* TODO */}
+        </Box>
     )
 }

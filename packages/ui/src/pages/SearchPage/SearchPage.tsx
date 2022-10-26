@@ -2,7 +2,7 @@
  * Search page for organizations, projects, routines, standards, and users
  */
 import { Box, Button, IconButton, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material";
-import { PageContainer, SearchList, SelectRoutineTypeMenu, ShareSiteDialog, SnackSeverity } from "components";
+import { PageContainer, SearchList, ShareSiteDialog, SnackSeverity } from "components";
 import { useCallback, useMemo, useState } from "react";
 import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
@@ -108,13 +108,6 @@ export function SearchPage({
         return tabParams[searchType]
     }, [tabIndex]);
 
-    // Menu for picking which routine type to add
-    const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
-    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
-        setAddRoutineAnchor(ev.currentTarget)
-    }, []);
-    const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
-
     const onAddClick = useCallback((ev: any) => {
         const addUrl = `${getObjectUrlBase({ __typename: searchType as string })}/add`
         // If not logged in, redirect to login page
@@ -125,9 +118,9 @@ export function SearchPage({
             })}`);
             return;
         }
-        // If search type is a routine, open dialog to select routine type
+        // If search type is a routine, open create routine page
         if (searchType === SearchType.Routine) {
-            openAddRoutine(ev);
+            setLocation(`${APP_LINKS.Routine}/add`);
         }
         // If search type is a user, open start page
         else if (searchType === SearchType.User) {
@@ -137,7 +130,7 @@ export function SearchPage({
         else {
             setLocation(addUrl)
         }
-    }, [openAddRoutine, searchType, session, setLocation]);
+    }, [searchType, session, setLocation]);
 
     const onPopupButtonClick = useCallback((ev: any) => {
         const tabType = tabOptions[tabIndex][1];
@@ -178,13 +171,6 @@ export function SearchPage({
             <ShareSiteDialog
                 onClose={closeShareDialog}
                 open={shareDialogOpen}
-                zIndex={200}
-            />
-            {/* Add menu for selecting between single-step and multi-step routines */}
-            <SelectRoutineTypeMenu
-                anchorEl={addRoutineAnchor}
-                handleClose={closeAddRoutine}
-                session={session}
                 zIndex={200}
             />
             {/* Navigate between search pages */}

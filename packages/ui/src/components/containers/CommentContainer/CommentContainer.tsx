@@ -243,7 +243,6 @@ export function CommentContainer({
             id="comments"
             sx={{
                 overflow: 'overlay',
-                background: palette.background.paper,
                 width: 'min(100%, 700px)',
                 ...(sxs?.root ?? {}),
             }}

@@ -5,11 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectType, openObject, openObjectEdit, placeholderColor, usePress, useWindowSize } from 'utils';
+import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, openObjectEdit, placeholderColor, usePress, useWindowSize } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
-import { ObjectAction, ObjectActionComplete } from 'components/dialogs/types';
 import { ListProject, ListRoutine, ListStandard } from 'types';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
@@ -141,7 +140,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         voteFor={object?.__typename as VoteFor}
                         isUpvoted={object?.isUpvoted}
                         score={object?.score}
-                        onChange={(isUpvoted: boolean | null) => { }}
+                        onChange={(isUpvoted: boolean | null, score: number) => { }}
                     />
                 )
             default:
@@ -193,7 +192,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         voteFor={(object as any)?.__typename as VoteFor}
                         isUpvoted={(object as any)?.isUpvoted}
                         score={(object as any)?.score}
-                        onChange={(isUpvoted: boolean | null) => { }}
+                        onChange={(isUpvoted: boolean | null, score: number) => { }}
                     />
                 )}
                 {starFor && <StarButton

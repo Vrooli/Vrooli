@@ -1,36 +1,67 @@
 import { useMutation } from "@apollo/client";
-import { copyVariables, copy_copy } from 'graphql/generated/copy';
-import { forkVariables, fork_fork } from 'graphql/generated/fork';
-import { starVariables, star_star } from 'graphql/generated/star';
-import { voteVariables, vote_vote } from 'graphql/generated/vote';
+import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
+import { CopyType, DeleteOneType, ForkType, ReportFor, StarFor, VoteFor } from "@shared/consts";
+import { EllipsisIcon } from "@shared/icons";
+import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog, SnackSeverity } from "components/dialogs";
+import { copyVariables, copy_copy } from "graphql/generated/copy";
+import { forkVariables, fork_fork } from "graphql/generated/fork";
+import { starVariables, star_star } from "graphql/generated/star";
+import { voteVariables, vote_vote } from "graphql/generated/vote";
 import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
-import { useCallback, useMemo, useState } from "react";
-import { ReportFor, StarFor, VoteFor } from "@shared/consts";
-import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
-import { ObjectActionMenuProps } from "../types";
-import { mutationWrapper } from "graphql/utils/graphqlWrapper";
+import { mutationWrapper } from "graphql/utils";
+import React, { useCallback, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, PubSub } from "utils";
-import { CopyType, DeleteOneType, ForkType } from "graphql/generated/globalTypes";
-import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
+import { ObjectActionsRowProps } from "../types";
 
-export const ObjectActionMenu = ({
-    anchorEl,
+const commonButtonSx = (palette: Palette) => ({
+    color: 'inherit',
+    width: '48px',
+    height: '100%',
+})
+
+const commonIconProps = (palette: Palette) => ({
+    width: '30px',
+    height: '30px',
+})
+
+/**
+ * Horizontal list of action icons displayed on an object's view page. 
+ * Available icons are same as ObjectActionMenu. Actions that are not available are hidden.
+ * If there are more than 5 actions, rest are hidden in an overflow menu (i.e. ObjectActionMenu).
+ */
+export const ObjectActionsRow = ({
     exclude,
-    object,
     onActionComplete,
     onActionStart,
-    onClose,
+    object,
     session,
-    title,
     zIndex,
-}: ObjectActionMenuProps) => {
+}: ObjectActionsRowProps) => {
+    const { palette } = useTheme();
 
-    const { availableActions, id, name, objectType } = useMemo(() => ({
-        availableActions: getAvailableActions(object, session, exclude),
-        id: object?.id,
-        name: getListItemTitle(object, getUserLanguages(session)),
-        objectType: object?.__typename as ObjectType,
-    }), [exclude, object, session]);
+    const { actionsDisplayed, actionsExtra, id, name, objectType } = useMemo(() => {
+        let availableActions = getAvailableActions(object, session, exclude);
+        let actionsDisplayed: ObjectAction[];
+        let actionsExtra: ObjectAction[];
+        // If there are more than 5 actions, display the first 4 in the row, and the rest in the overflow menu
+        if (availableActions.length > 5) {
+            actionsDisplayed = availableActions.slice(0, 4);
+            actionsExtra = availableActions.slice(4);
+        }
+        // If there are 5 or less actions, display them all in the row
+        else {
+            actionsDisplayed = availableActions;
+            actionsExtra = [];
+        }
+        console.log('actionsDisplayed', actionsDisplayed);
+        return {
+            actionsDisplayed,
+            actionsExtra,
+            id: object?.id,
+            name: getListItemTitle(object, getUserLanguages(session)),
+            objectType: object?.__typename as ObjectType,
+        }
+    }, [exclude, object, session]);
 
     // States
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
@@ -142,14 +173,52 @@ export const ObjectActionMenu = ({
             case ObjectAction.VoteDown:
             case ObjectAction.VoteUp:
                 handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
+                break;
         }
-        onClose();
-    }, [handleCopy, handleFork, handleStar, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
+    }, [handleCopy, handleFork, handleStar, handleVote, objectType, onActionStart, openDelete, openDonate, openReport, openShare]);
 
-    const data = useMemo(() => getActionsDisplayData(availableActions), [availableActions]);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const openOverflowMenu = useCallback((event: React.MouseEvent) => {
+        setAnchorEl(event.target as HTMLElement)
+    }, []);
+    const closeOverflowMenu = useCallback(() => setAnchorEl(null), []);
+
+    const actions = useMemo(() => {
+        const displayData = getActionsDisplayData(actionsDisplayed);
+        const displayedActions = displayData.map((action, index) => {
+            const { Icon, iconColor, label, value } = action;
+            if (!Icon) return null;
+            return <Tooltip title={label} key={index}>
+                <IconButton sx={commonButtonSx(palette)} onClick={() => { onSelect(value) }}>
+                    <Icon {...commonIconProps(palette)} fill={iconColor === 'default' ? palette.secondary.main : iconColor} />
+                </IconButton>
+            </Tooltip>
+        })
+        // If there are extra actions, display an ellipsis button
+        if (actionsExtra.length > 0) {
+            displayedActions.push(
+                <Tooltip title="More" key={displayedActions.length}>
+                    <IconButton sx={commonButtonSx(palette)} onClick={openOverflowMenu}>
+                        <EllipsisIcon {...commonIconProps(palette)} fill={palette.secondary.main} />
+                    </IconButton>
+                </Tooltip>
+            )
+        }
+        return displayedActions;
+    }, [actionsDisplayed, actionsExtra.length, onSelect, openOverflowMenu, palette]);
 
     return (
-        <>
+        <Stack 
+        direction="row" 
+        spacing={1} 
+        sx={{ 
+            marginTop: 1, 
+            marginBottom: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            }}
+            >
             {/* Delete routine confirmation dialog */}
             {id && objectType in DeleteOneType && <DeleteDialog
                 isOpen={deleteOpen}
@@ -175,16 +244,20 @@ export const ObjectActionMenu = ({
                 onClose={closeShare}
                 zIndex={zIndex + 1}
             />
-            {/* Actual action dialog */}
-            <ListMenu
+            {/* Displayed actions */}
+            {actions}
+            {/* Overflow menu */}
+            {actionsExtra.length > 0 && <ObjectActionMenu
                 anchorEl={anchorEl}
-                data={data}
-                id={`${objectType}-options-menu-${id}`}
-                onClose={onClose}
-                onSelect={onSelect}
-                title={title}
-                zIndex={zIndex}
-            />
-        </>
+                exclude={[...(exclude ?? []), ...actionsDisplayed]}
+                object={object}
+                onActionStart={onSelect}
+                onActionComplete={onActionComplete}
+                onClose={closeOverflowMenu}
+                session={session}
+                title='Item Options'
+                zIndex={zIndex + 1}
+            />}
+        </Stack>
     )
 }

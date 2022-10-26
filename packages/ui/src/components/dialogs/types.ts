@@ -7,6 +7,7 @@ import { ListObjectType, SearchType, TagShape } from 'utils';
 import { SvgComponent, SvgProps } from '@shared/icons';
 import { RelationshipsObject } from 'components/inputs/types';
 import { SnackSeverity } from './Snack/Snack';
+import { ObjectAction, ObjectActionComplete } from 'utils/actions/objectActions';
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
@@ -183,44 +184,9 @@ export interface UserDialogProps {
     zIndex: number;
 };
 
-/**
- * All available actions an object can possibly have
- */
-export enum ObjectAction {
-    Copy = 'Copy',
-    Delete = "Delete",
-    Donate = "Donate",
-    Edit = "Edit",
-    FindInPage = "FindInPage",
-    Fork = "Fork",
-    Report = "Report",
-    Share = "Share",
-    Star = "Star",
-    StarUndo = "StarUndo",
-    Stats = "Stats",
-    VoteDown = "VoteDown",
-    VoteUp = "VoteUp",
-}
-
-/**
- * Indicates that a ObjectAction has been completed. 
- * Basically any action that requires updating state or navigating to a new page.
- */
-export enum ObjectActionComplete {
-    Copy = 'Copy',
-    Delete = "Delete",
-    EditComplete = "EditComplete",
-    EditCancel = "EditCanel",
-    Fork = "Fork",
-    Report = "Report",
-    Star = "Star",
-    StarUndo = "StarUndo",
-    VoteDown = "VoteDown",
-    VoteUp = "VoteUp",
-}
-
 export interface ObjectActionMenuProps {
     anchorEl: HTMLElement | null;
+    exclude?: ObjectAction[];
     object: ListObjectType | null | undefined;
     /**
      * Completed actions, which may require updating state or navigating to a new page
@@ -327,13 +293,6 @@ export interface SelectLanguageMenuProps {
      */
     translations: { language: string }[];
     sxs?: { root: any };
-    zIndex: number;
-}
-
-export interface SelectRoutineTypeMenuProps {
-    anchorEl: HTMLElement | null;
-    handleClose: () => any;
-    session: Session;
     zIndex: number;
 }
 

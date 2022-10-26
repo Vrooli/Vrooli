@@ -70,6 +70,10 @@ export interface ReportsLinkProps {
     object: (NavigableObject & { reportsCount: number }) | null | undefined;
 }
 
+export interface RunButtonProps {
+    
+}
+
 export interface ShareButtonProps {
     object: NavigableObject | null | undefined;
     zIndex: number;

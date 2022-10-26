@@ -1,6 +1,23 @@
 import { VoteFor } from '@shared/consts';
 import { SearchType } from 'components/dialogs';
-import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Session, Tag } from 'types';
+import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Project, Routine, Session, Standard, Tag } from 'types';
+import { ObjectAction } from 'utils';
+
+export type ObjectActionsRowPropsObject = Project | Routine | Standard;
+export interface ObjectActionsRowProps {
+    exclude?: ObjectAction[];
+    /**
+     * Completed actions, which may require updating state or navigating to a new page
+     */
+    onActionComplete: (action: ObjectActionComplete, data: any) => any;
+    /**
+     * Actions which cannot be performed by the menu
+     */
+    onActionStart: (action: ObjectAction.Edit | ObjectAction.Stats) => any;
+    object: T | null;
+    session: Session;
+    zIndex: number;
+}
 
 export type ObjectListItemType = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListUser;
 
@@ -109,5 +126,5 @@ export interface UpvoteDownvoteProps {
     isUpvoted?: boolean | null; // If not passed, then there is neither an upvote nor a downvote
     objectId: string;
     voteFor: VoteFor;
-    onChange: (isUpvote: boolean | null) => void;
+    onChange: (isUpvote: boolean | null, newScore: number) => void;
 }

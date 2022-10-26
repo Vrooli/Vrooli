@@ -21,9 +21,9 @@ import {
 import { forkVariables, fork_fork } from 'graphql/generated/fork';
 import { starVariables, star_star } from 'graphql/generated/star';
 import { voteVariables, vote_vote } from 'graphql/generated/vote';
-import { ObjectAction, BuildInfoDialogProps } from '../types';
+import { BuildInfoDialogProps } from '../types';
 import { DeleteDialog, EditableLabel, EditableTextCollapse, LanguageInput, OwnerLabel, RelationshipButtons, ReportDialog, ResourceListHorizontal, ShareObjectDialog, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
-import { addEmptyTranslation, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, ObjectType, removeTranslation } from 'utils';
+import { addEmptyTranslation, getTranslation, getTranslationData, handleTranslationBlur, handleTranslationChange, ObjectAction, ObjectType, removeTranslation } from 'utils';
 import { useLocation } from '@shared/route';
 import { APP_LINKS, DeleteOneType, ForkType, ReportFor, StarFor, VoteFor } from '@shared/consts';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';

@@ -1,14 +1,15 @@
 /**
  * Dialog for sharing an object
  */
-import { Box, Dialog, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Dialog, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { useMemo, useState } from 'react';
-import { getObjectSearchParams, getObjectSlug, getObjectUrlBase, ObjectType, usePress } from 'utils';
+import { useMemo } from 'react';
+import { getObjectSearchParams, getObjectSlug, getObjectUrlBase, ObjectType, PubSub, usePress } from 'utils';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
+import { SnackSeverity } from '../Snack/Snack';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -40,11 +41,9 @@ export const ShareObjectDialog = ({
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : 'Check out this object on Vrooli', [object]);
     const url = useMemo(() => object ? `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}` : window.location.href.split('?')[0].split('#')[0], [object]);
 
-    const [copied, setCopied] = useState<boolean>(false);
     const copyInviteLink = () => {
         navigator.clipboard.writeText(url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 5000);
+        PubSub.get().publishSnack({ message: 'Copied to clipboard', severity: SnackSeverity.Success });
     }
 
     /**
@@ -166,7 +165,6 @@ export const ShareObjectDialog = ({
                         value={window.location.href}
                     />
                 </Box>
-                {copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1} mt={2}>🎉 Copied! 🎉</Typography> : null}
             </Box>
         </Dialog>
     )

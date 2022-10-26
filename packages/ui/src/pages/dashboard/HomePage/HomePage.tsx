@@ -72,8 +72,7 @@ const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
 const createNewPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Organization', Icon: OrganizationIcon, value: `${APP_LINKS.Organization}/add` },
     { label: 'Project', Icon: ProjectIcon, value: `${APP_LINKS.Project}/add` },
-    { label: 'Routine (Single Step)', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add` },
-    { label: 'Routine (Multi Step)', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add?build=true` },
+    { label: 'Routine', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add` },
     { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Standard}/add` },
 ]
 

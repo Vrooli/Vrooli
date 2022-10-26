@@ -4,25 +4,33 @@ type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSea
 /**
  * Converts url search params to object
  * See https://stackoverflow.com/a/8649003/10240279
- * @param searchParams Search params (i.e. window.location.search)
  * @returns Object with key/value pairs, or empty object if no params
  */
-export const parseSearchParams = (searchParams: string): ParseSearchParamsResult => {
+export const parseSearchParams = (): ParseSearchParamsResult => {
+    const searchParams = window.location.search;
     if (searchParams.length <= 1 || !searchParams.startsWith('?')) return {};
-    const search = searchParams.substring(1);
+    let search = searchParams.substring(1);
     try {
+        // First, loop through and wrap all strings in quotes (if not already). 
+        // This is required to parse as a valid JSON object.
+        // Find every substring that's between a "=" and a "&" (or the end of the string).
+        // If it's not already wrapped in quotes, and it doesn't contain any URL encoded characters, and it is not a boolean, wrap it in quotes.
+        search = search.replace(/([^&=]+)=([^&]*)/g, (match, key, value) => {
+            if (value.startsWith('"') || value.includes('%') || value === 'true' || value === 'false') return match;
+            return `${key}="${value}"`;
+        });
         // Decode and parse the search params
         const parsed = JSON.parse('{"'
-        + decodeURI(search)
-            .replace(/&/g, ',"')
-            .replace(/=/g, '":')
-            .replace(/%2F/g, '/')
-            .replace(/%5B/g, '[')
-            .replace(/%5D/g, ']')
-            .replace(/%5C/g, '\\')
-            .replace(/%2C/g, ',')
-            .replace(/%3A/g, ':')
-        + '}');
+            + decodeURI(search)
+                .replace(/&/g, ',"')
+                .replace(/=/g, '":')
+                .replace(/%2F/g, '/')
+                .replace(/%5B/g, '[')
+                .replace(/%5D/g, ']')
+                .replace(/%5C/g, '\\')
+                .replace(/%2C/g, ',')
+                .replace(/%3A/g, ':')
+            + '}');
         // For any value that might be JSON, try to parse
         Object.keys(parsed).forEach((key) => {
             const value = parsed[key];
@@ -36,6 +44,7 @@ export const parseSearchParams = (searchParams: string): ParseSearchParamsResult
         });
         return parsed;
     } catch (error) {
+        console.error('Could not parse search params', error);
         return {};
     }
 }

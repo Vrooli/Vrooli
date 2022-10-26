@@ -121,20 +121,20 @@ export const ResourceCard = ({
                 {...pressEvents}
                 sx={{
                     ...noSelect,
-                    boxShadow: 12,
+                    boxShadow: 8,
                     background: (t: any) => t.palette.primary.light,
                     color: (t: any) => t.palette.primary.contrastText,
                     borderRadius: '16px',
                     margin: 0,
                     padding: 1,
-                    cursor: canEdit ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     width: '120px',
                     minWidth: '120px',
                     minHeight: '120px',
                     height: '120px',
                     position: 'relative',
                     '&:hover': {
-                        filter: canEdit ? `brightness(120%)` : 'none',
+                        filter: `brightness(120%)`,
                         transition: 'filter 0.2s',
                     },
                 } as any}

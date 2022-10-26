@@ -2,14 +2,14 @@
  * Dialog for spreading the word about the site.
  */
 import { APP_LINKS } from '@shared/consts';
-import { Box, Dialog, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Dialog, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { ShareSiteDialogProps } from '../types';
-import { useState } from 'react';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { usePress } from 'utils';
+import { PubSub, usePress } from 'utils';
 import { ColorIconButton } from 'components/buttons';
+import { SnackSeverity } from '../Snack/Snack';
 
 // Invite link
 const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;
@@ -32,12 +32,11 @@ export const ShareSiteDialog = ({
 }: ShareSiteDialogProps) => {
     const { palette } = useTheme();
 
-    const [copied, setCopied] = useState<boolean>(false);
     const openLink = (link: string) => window.open(link, '_blank', 'noopener,noreferrer');
+
     const copyInviteLink = () => {
         navigator.clipboard.writeText(inviteLink);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 5000);
+        PubSub.get().publishSnack({ message: 'Copied to clipboard', severity: SnackSeverity.Success });
     }
 
     /**
@@ -155,7 +154,6 @@ export const ShareSiteDialog = ({
                         value="https://vrooli.com"
                     />
                 </Box>
-                {copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1} mt={2}>🎉 Copied! 🎉</Typography> : null}
             </Box>
         </Dialog>
     )

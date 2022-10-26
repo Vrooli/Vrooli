@@ -7,7 +7,7 @@ import { standardQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, BaseStandardInput, CommentContainer, ResourceListHorizontal, SelectLanguageMenu, StarButton, TextCollapse, OwnerLabel, VersionDisplay, SnackSeverity } from "components";
 import { StandardViewProps } from "../types";
-import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getTranslation, getUserLanguages, ObjectType, openObject, PubSub, standardToFieldData } from "utils";
+import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, PubSub, standardToFieldData } from "utils";
 import { Standard } from "types";
 import { CommentFor, StarFor } from "graphql/generated/globalTypes";
 import { uuidValidate } from '@shared/uuid';
@@ -16,7 +16,6 @@ import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
 import { PreviewSwitch } from "components/inputs";
 import { EditIcon, EllipsisIcon } from "@shared/icons";
-import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 
 export const StandardView = ({
     partialData,
