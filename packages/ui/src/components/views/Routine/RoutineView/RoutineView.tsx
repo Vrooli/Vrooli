@@ -133,10 +133,14 @@ export const RoutineView = ({
         id && setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(id)}`);
     }, [setLocation, id]);
 
+    const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
+    const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
+    const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
+
     const onActionStart = useCallback((action: ObjectAction) => {
         switch (action) {
             case ObjectAction.Comment:
-                // openAddCommentDialog(); TODO
+                openAddCommentDialog();
                 break;
             case ObjectAction.Edit:
                 onEdit();
@@ -145,7 +149,7 @@ export const RoutineView = ({
                 //TODO
                 break;
         }
-    }, [onEdit]);
+    }, [onEdit, openAddCommentDialog]);
 
     const onActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
         switch (action) {
@@ -448,9 +452,11 @@ export const RoutineView = ({
             {/* Comments */}
             <Box sx={containerProps(palette)}>
                 <CommentContainer
+                    forceAddCommentOpen={isAddCommentOpen}
                     language={language}
                     objectId={id ?? ''}
                     objectType={CommentFor.Routine}
+                    onAddCommentClose={closeAddCommentDialog}
                     session={session}
                     zIndex={zIndex}
                 />

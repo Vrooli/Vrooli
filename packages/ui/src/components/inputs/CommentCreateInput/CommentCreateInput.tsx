@@ -3,7 +3,7 @@ import { DUMMY_ID, uuid } from "@shared/uuid";
 import { commentTranslationCreate } from "@shared/validation";
 import { CommentDialog } from "components/dialogs"
 import { useCallback, useMemo } from "react";
-import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, shapeCommentCreate, usePromptBeforeUnload, useWindowSize } from "utils";
+import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationChange, shapeCommentCreate, usePromptBeforeUnload, useWindowSize } from "utils";
 import { CommentCreateInputProps } from "../types"
 import { commentCreate as validationSchema } from '@shared/validation';
 import { commentCreateMutation } from "graphql/mutation";
@@ -69,17 +69,13 @@ export const CommentCreateInput = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty && formik.values.translationsCreate.some(t => t.text.trim().length > 0) });
 
-    const { text, errorText, touchedText, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
+    const { text, errorText, errors } = useMemo(() => {
+        const { error, value } = getTranslationData(formik, 'translationsCreate', language);
         return {
             text: value?.text ?? '',
             errorText: error?.text ?? '',
-            touchedText: touched?.text ?? false,
             errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationCreate),
         }
-    }, [formik, language]);
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsCreate', e, language)
     }, [formik, language]);
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsCreate', e, language);
@@ -88,17 +84,15 @@ export const CommentCreateInput = ({
     // If mobile, use CommentDialog
     if (isMobile) return (
         <CommentDialog
-            errors={errors}
             errorText={errorText}
             handleClose={handleClose}
+            handleSubmit={formik.handleSubmit}
             isAdding={true}
             isOpen={true}
             language={language}
-            onTranslationBlur={onTranslationBlur}
             onTranslationChange={onTranslationChange}
             parent={parent}
             text={text}
-            touchedText={touchedText}
             zIndex={zIndex + 1}
         />
     )
@@ -108,13 +102,13 @@ export const CommentCreateInput = ({
             <Box sx={{ margin: 2 }}>
                 <Typography component="h3" variant="h6" textAlign="left">Add comment</Typography>
                 <MarkdownInput
-                    id="add-comment"
+                    id={`add-comment-${parent?.id ?? 'root'}`}
                     placeholder="Please be nice to each other."
                     value={text}
                     minRows={3}
                     onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
-                    error={touchedText && Boolean(errorText)}
-                    helperText={touchedText ? errorText : null}
+                    error={text.length > 0 && Boolean(errorText)}
+                    helperText={text.length > 0 ? errorText : ''}
                 />
                 <Grid container spacing={1} sx={{
                     width: 'min(100%, 400px)',

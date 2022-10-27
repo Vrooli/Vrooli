@@ -613,7 +613,7 @@ export const MarkdownInput = ({
             {/* Helper text label */}
             {
                 helperText &&
-                <Typography variant="body1" sx={{ color: 'red' }}>
+                <Typography variant="body1" sx={{ color: 'red', paddingTop: 1 }}>
                     {helperText}
                 </Typography>
             }

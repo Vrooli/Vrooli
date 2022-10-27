@@ -139,6 +139,9 @@ export const ObjectActionsRow = ({
 
     const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
+            case ObjectAction.Comment:
+                onActionStart(ObjectAction.Comment);
+                break;
             case ObjectAction.Copy:
                 handleCopy();
                 break;

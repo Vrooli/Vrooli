@@ -26,17 +26,15 @@ export interface BaseObjectDialogProps extends DialogProps {
 };
 
 export interface CommentDialogProps {
-    errors: { [key: string]: string | string[] };
     errorText: string;
+    handleSubmit: () => void;
     handleClose: () => void;
     isAdding: boolean;
     isOpen: boolean;
     language: string;
-    onTranslationBlur: (e: { target: { name: string; }; }) => void;
     onTranslationChange: (e: { target: { name: string; value: string; }; }) => void;
     parent: Comment | null;
     text: string;
-    touchedText: boolean;
     zIndex: number;
 }
 

@@ -1,7 +1,8 @@
 import { AppBar, Box, Button, Dialog, Stack, Typography, useTheme } from "@mui/material";
 import { MarkdownInput } from "components/inputs";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { getTranslation } from "utils";
+import { PopoverWithArrow } from "../PopoverWithArrow/PopoverWithArrow";
 import { UpTransition } from "../transitions";
 import { CommentDialogProps } from "../types"
 
@@ -12,21 +13,19 @@ import { CommentDialogProps } from "../types"
  * CommentContainer
  */
 export const CommentDialog = ({
-    errors,
     errorText,
+    handleSubmit,
     handleClose,
     isAdding,
     isOpen,
     language,
-    onTranslationBlur,
     onTranslationChange,
     parent,
     text,
-    touchedText,
     zIndex,
 }: CommentDialogProps) => {
     const { palette } = useTheme();
-    console.log('comment dialog', touchedText, errorText);
+    console.log('comment dialog', errorText);
 
     const { parentText } = useMemo(() => {
         const { text } = getTranslation(parent, [language]);
@@ -35,7 +34,21 @@ export const CommentDialog = ({
         };
     }, [language, parent]);
 
-    const hasErrors = useMemo(() => Object.values(errors ?? {}).some((value) => value !== null && value !== undefined), [errors]);
+    // Errors popup
+    const [errorAnchorEl, setErrorAnchorEl] = useState<any | null>(null);
+    const openError = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+        ev.preventDefault();
+        setErrorAnchorEl(ev.currentTarget ?? ev.target)
+    }, []);
+    const closeError = useCallback(() => {
+        setErrorAnchorEl(null);
+    }, []);
+
+    const onSubmit = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+        // If formik invalid, display errors in popup
+        if (errorText.length > 0) openError(ev);
+        else handleSubmit();
+    }, [errorText.length, openError, handleSubmit]);
 
     if (!isOpen) return null;
     return (
@@ -45,7 +58,7 @@ export const CommentDialog = ({
             onClose={handleClose}
             open={isOpen}
             TransitionComponent={UpTransition}
-            sx={{ 
+            sx={{
                 zIndex: zIndex + 1,
                 '& .MuiDialog-paper': {
                     background: palette.background.default,
@@ -53,6 +66,22 @@ export const CommentDialog = ({
                 },
             }}
         >
+            {/* Errors popup */}
+            <PopoverWithArrow
+                anchorEl={errorAnchorEl}
+                handleClose={closeError}
+                sxs={{
+                    root: {
+                        // Remove horizontal spacing for list items
+                        '& ul': {
+                            paddingInlineStart: '20px',
+                            margin: '8px',
+                        }
+                    }
+                }}
+            >
+                {errorText}
+            </PopoverWithArrow>
             {/* App bar with Cancel, title, and Submit */}
             <AppBar sx={{ position: 'relative', background: palette.primary.dark }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
@@ -65,9 +94,14 @@ export const CommentDialog = ({
                         {isAdding ? 'Add comment' : 'Edit comment'}
                     </Typography>
                     {/* Submit button */}
-                    <Button disabled={hasErrors} variant="text" onClick={handleClose}>
-                        Submit
-                    </Button>
+                    <Box onClick={onSubmit}>
+                        <Button
+                            disabled={errorText.length > 0}
+                            variant="text"
+                        >
+                            Submit
+                        </Button>
+                    </Box>
                 </Box>
             </AppBar>
             {/* Main content */}
@@ -79,8 +113,8 @@ export const CommentDialog = ({
                     value={text}
                     minRows={6}
                     onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
-                    error={touchedText && Boolean(errorText)}
-                    helperText={touchedText ? errorText : null}
+                    error={text.length > 0 && Boolean(errorText)}
+                    helperText={text.length > 0 ? errorText : ''}
                     sxs={{
                         bar: {
                             borderRadius: 0,

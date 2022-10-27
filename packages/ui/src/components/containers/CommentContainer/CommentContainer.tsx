@@ -17,7 +17,6 @@ import { uuidValidate } from '@shared/uuid';
 import { AdvancedSearchDialog } from 'components/dialogs';
 import { SortMenu, TimeMenu } from 'components/lists';
 import { BuildIcon, SortIcon, HistoryIcon as TimeIcon, CreateIcon } from '@shared/icons';
-import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = searchTypeToParams.Comment;
@@ -42,9 +41,11 @@ const searchButtonStyle = (palette: Palette) => ({
 });
 
 export function CommentContainer({
+    forceAddCommentOpen,
     language,
     objectId,
     objectType,
+    onAddCommentClose,
     session,
     zIndex,
 }: CommentContainerProps) {
@@ -225,27 +226,26 @@ export function CommentContainer({
         }, ...curr]);
     }, []);
 
-    const onCommentUpdate = useCallback((comment: Comment) => {
-        setAllData(curr => {
-            const index = curr.findIndex(c => c.comment.id === comment.id);
-            if (index === -1) return curr;
-            const newCurr = [...curr];
-            newCurr[index] = {
-                ...newCurr[index],
-                comment,
-            };
-            return newCurr;
-        });
-    }, []);
-
     const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(isMobile);
     // Show add comment input if on desktop. For mobile, we'll show a button
-    useEffect(() => { setIsAddCommentOpen(!isMobile) }, [isMobile]);
-    const [commentToUpdate, setCommentToUpdate] = useState<Comment | null>(null);
+    useEffect(() => { setIsAddCommentOpen(!isMobile || (forceAddCommentOpen === true)) }, [forceAddCommentOpen, isMobile]);
     const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
-    const handleAddCommentClose = useCallback(() => setIsAddCommentOpen(false), []);
-    const handleUpdateCommentOpen = useCallback((comment: Comment) => { setCommentToUpdate(comment) }, []);
-    const handleUpdateCommentClose = useCallback(() => { setCommentToUpdate(null) }, []);
+    const handleAddCommentClose = useCallback(() => {
+        setIsAddCommentOpen(false);
+        if (onAddCommentClose) onAddCommentClose();
+    }, [onAddCommentClose]);
+
+    // The add component is always visible on desktop.
+    // If forceAddCommentOpen is true (i.e. parent container wants add comment to be open), 
+    // then we should scroll and focus the add comment input
+    useEffect(() => {
+        if (!forceAddCommentOpen || isMobile) return;
+        const addCommentInput = document.getElementById('markdown-input-add-comment-root');
+        if (addCommentInput) {
+            addCommentInput.scrollIntoView({ behavior: 'smooth' });
+            addCommentInput.focus();
+        }
+    }, [forceAddCommentOpen, isMobile]);
 
     return (
         <ContentCollapse title="Comments">
@@ -277,20 +277,6 @@ export function CommentContainer({
                     objectId={objectId}
                     objectType={objectType}
                     onCommentAdd={onCommentAdd}
-                    parent={null} // parent is the thread. This is a top-level comment, so no parent
-                    session={session}
-                    zIndex={zIndex}
-                />
-            }
-            {/* Update comment */}
-            {
-                commentToUpdate && <CommentUpdateInput
-                    comment={commentToUpdate}
-                    handleClose={handleUpdateCommentClose}
-                    language={language}
-                    objectId={objectId}
-                    objectType={objectType}
-                    onCommentUpdate={onCommentUpdate}
                     parent={null} // parent is the thread. This is a top-level comment, so no parent
                     session={session}
                     zIndex={zIndex}

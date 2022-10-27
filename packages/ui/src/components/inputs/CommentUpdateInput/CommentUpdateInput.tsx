@@ -3,7 +3,7 @@ import { DUMMY_ID } from "@shared/uuid";
 import { commentTranslationUpdate } from "@shared/validation";
 import { CommentDialog } from "components/dialogs"
 import { useCallback, useMemo } from "react";
-import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, shapeCommentUpdate, usePromptBeforeUnload, useWindowSize } from "utils";
+import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationChange, shapeCommentUpdate, usePromptBeforeUnload, useWindowSize } from "utils";
 import { CommentUpdateInputProps } from "../types"
 import { commentCreate as validationSchema } from '@shared/validation';
 import { commentUpdateMutation } from "graphql/mutation";
@@ -69,17 +69,13 @@ export const CommentUpdateInput = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty && formik.values.translationsUpdate.some(t => t.text.trim().length > 0) });
 
-    const { text, errorText, touchedText, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
+    const { text, errorText, errors } = useMemo(() => {
+        const { error, value } = getTranslationData(formik, 'translationsUpdate', language);
         return {
             text: value?.text ?? '',
             errorText: error?.text ?? '',
-            touchedText: touched?.text ?? false,
             errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', commentTranslationUpdate),
         }
-    }, [formik, language]);
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsUpdate', e, language);
@@ -88,17 +84,15 @@ export const CommentUpdateInput = ({
     // If mobile, use CommentDialog
     if (isMobile) return (
         <CommentDialog
-            errors={errors}
             errorText={errorText}
             handleClose={handleClose}
+            handleSubmit={formik.handleSubmit}
             isAdding={false}
             isOpen={true}
             language={language}
-            onTranslationBlur={onTranslationBlur}
             onTranslationChange={onTranslationChange}
             parent={parent}
             text={text}
-            touchedText={touchedText}
             zIndex={zIndex + 1}
         />
     )
@@ -113,8 +107,8 @@ export const CommentUpdateInput = ({
                     value={text}
                     minRows={3}
                     onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
-                    error={touchedText && Boolean(errorText)}
-                    helperText={touchedText ? errorText : null}
+                    error={text.length > 0 && Boolean(errorText)}
+                    helperText={text.length > 0 ? errorText : ''}
                 />
                 <Grid container spacing={1} sx={{
                     width: 'min(100%, 400px)',

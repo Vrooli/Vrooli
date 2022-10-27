@@ -4,9 +4,11 @@ import { TextFieldProps } from "@mui/material";
 import { MarkdownInputProps } from "components/inputs/types";
 
 export interface CommentContainerProps {
+    forceAddCommentOpen?: boolean;
     language: string;
     objectId: string;
     objectType: CommentFor;
+    onAddCommentClose?: () => void;
     session: Session;
     zIndex: number;
 }

@@ -13,7 +13,7 @@ export interface ObjectActionsRowProps {
     /**
      * Actions which cannot be performed by the menu
      */
-    onActionStart: (action: ObjectAction.Edit | ObjectAction.Stats) => any;
+    onActionStart: (action: ObjectAction.Comment | ObjectAction.Edit | ObjectAction.Stats) => any;
     object: T | null;
     session: Session;
     zIndex: number;
