@@ -3,7 +3,7 @@ export * from './AccountMenu/AccountMenu';
 export * from './AdvancedSearchDialog/AdvancedSearchDialog';
 export * from './AlertDialog/AlertDialog';
 export * from './BaseObjectDialog/BaseObjectDialog';
-export * from './BuildInfoDialog/BuildInfoDialog';
+export * from './CommentDialog/CommentDialog';
 export * from './DeleteAccountDialog/DeleteAccountDialog';
 export * from './DeleteDialog/DeleteDialog';
 export * from './DialogTitle/DialogTitle';

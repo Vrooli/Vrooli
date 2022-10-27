@@ -329,7 +329,6 @@ export const SelectLanguageMenu = ({
             {/* Selected language label */}
             <Tooltip title={AllLanguages[currentLanguage] ?? ''} placement="top">
                 <Stack direction="row" spacing={0} onClick={onOpen} sx={{
-                    ...(sxs?.root ?? {}),
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
@@ -342,6 +341,7 @@ export const SelectLanguageMenu = ({
                     },
                     transition: 'all 0.2s ease-in-out',
                     width: 'fit-content',
+                    ...(sxs?.root ?? {}),
                 }}>
                     <IconButton size="large" sx={{ padding: '4px' }}>
                         <LanguageIcon fill={'white'} />

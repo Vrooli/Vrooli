@@ -1,25 +1,27 @@
 import { Box, Button, Dialog, Grid, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, ResourceListUsedFor } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BuildView, ResourceListHorizontal, RunPickerMenu, RunView, UpTransition, OwnerLabel, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow } from "components";
+import { BuildView, ResourceListHorizontal, UpTransition, OwnerLabel, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton } from "components";
 import { RoutineViewProps } from "../types";
-import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, initializeRoutine, ObjectAction, ObjectActionComplete, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, useReactSearch, uuidToBase36 } from "utils";
-import { Routine, Run } from "types";
+import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, initializeRoutine, ObjectAction, ObjectActionComplete, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, TagShape, uuidToBase36 } from "utils";
+import { ResourceList, Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
-import { CommentFor, NodeType } from "graphql/generated/globalTypes";
-import { uuidValidate } from '@shared/uuid';
+import { CommentFor } from "graphql/generated/globalTypes";
+import { uuid, uuidValidate } from '@shared/uuid';
 import { runCompleteVariables, runComplete_runComplete } from "graphql/generated/runComplete";
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
 import { CommentContainer, ContentCollapse, TextCollapse } from "components/containers";
-import { RoutineIcon, SuccessIcon } from "@shared/icons";
+import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
+import { smallHorizontalScrollbar } from "components/lists/styles";
+import { RelationshipsObject } from "components/inputs/types";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -75,11 +77,7 @@ export const RoutineView = ({
         setRoutine(data.routine);
     }, [data]);
     const updateRoutine = useCallback((newRoutine: Routine) => { setRoutine(newRoutine); }, [setRoutine]);
-
-    const search = useReactSearch(null);
-    const { runId } = useMemo(() => ({
-        runId: typeof search.run === 'string' && uuidValidate(search.run) ? search.run : null,
-    }), [search]);
+    const canEdit = useMemo(() => getListItemPermissions(routine as any, session).canEdit, [routine, session]);
 
     const availableLanguages = useMemo<string[]>(() => (routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routine?.translations]);
     useEffect(() => {
@@ -115,27 +113,6 @@ export const RoutineView = ({
         setIsBuildOpen(false)
     }, []);
 
-    const [isRunOpen, setIsRunOpen] = useState(false)
-    const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
-    const handleRunSelect = useCallback((run: Run | null) => {
-        // If run is null, it means the routine will be opened without a run
-        if (!run) {
-            setSearchParams(setLocation, {
-                run: "test",
-                step: [1],
-            })
-        }
-        // Otherwise, open routine where last left off in run
-        else {
-            setSearchParams(setLocation, {
-                run: uuidToBase36(run.id),
-                step: run.steps?.length > 0 ? run.steps[run.steps.length - 1].step : undefined,
-            })
-        }
-        setIsRunOpen(true);
-    }, [setLocation]);
-    const handleSelectRunClose = useCallback(() => setSelectRunAnchor(null), []);
-
     const handleRunDelete = useCallback((run: Run) => {
         if (!routine) return;
         setRoutine({
@@ -152,35 +129,15 @@ export const RoutineView = ({
         });
     }, [routine]);
 
-    const runRoutine = useCallback((e: any) => {
-        // Validate routine before trying to run
-        if (!routine || !uuidValidate(routine.id)) {
-            PubSub.get().publishSnack({ message: 'Error loading routine.', severity: SnackSeverity.Error });
-            return;
-        }
-        // Find first node
-        const firstNode = routine?.nodes?.find(node => node.type === NodeType.Start);
-        if (!firstNode) {
-            PubSub.get().publishSnack({ message: 'Routine invalid - cannot run.', severity: SnackSeverity.Error });
-            return;
-        }
-        // If run specified use that
-        if (runId) {
-            handleRunSelect({ id: runId } as Run);
-        }
-        // Otherwise, open dialog to select runs
-        else {
-            setSelectRunAnchor(e.currentTarget);
-        }
-    }, [handleRunSelect, routine, runId]);
-    const stopRoutine = () => { setIsRunOpen(false) };
-
     const onEdit = useCallback(() => {
         id && setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(id)}`);
     }, [setLocation, id]);
 
     const onActionStart = useCallback((action: ObjectAction) => {
         switch (action) {
+            case ObjectAction.Comment:
+                // openAddCommentDialog(); TODO
+                break;
             case ObjectAction.Edit:
                 onEdit();
                 break;
@@ -286,21 +243,39 @@ export const RoutineView = ({
         }
     }, [formik]);
 
-    const resourceList = useMemo(() => {
-        if (!routine ||
-            !Array.isArray(routine.resourceLists) ||
-            routine.resourceLists.length < 1 ||
-            routine.resourceLists[0].resources.length < 1) return null;
-        return <ResourceListHorizontal
-            title={'Resources'}
-            list={routine.resourceLists[0]}
-            canEdit={false}
-            handleUpdate={() => { }} // Intentionally blank
-            loading={loading}
-            session={session}
-            zIndex={zIndex}
-        />
-    }, [loading, routine, session, zIndex]);
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: true,
+        isPrivate: false,
+        owner: null,
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
+
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+
+    // Handle tags
+    const [tags, setTags] = useState<TagShape[]>((partialData?.tags as TagShape[] | undefined) ?? []);
+
+    useEffect(() => {
+        setRelationships({
+            isComplete: routine?.isComplete ?? false,
+            isPrivate: routine?.isPrivate ?? false,
+            owner: routine?.owner ?? null,
+            parent: null,
+            // parent: routine?.parent ?? null, TODO
+            project: null, //TODO
+        });
+        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+        setTags(routine?.tags ?? []);
+    }, [routine]);
 
     return (
         <Box sx={{
@@ -309,34 +284,42 @@ export const RoutineView = ({
             width: 'min(100%, 700px)',
             padding: 2,
         }}>
-            {/* Chooses which run to use */}
-            <RunPickerMenu
-                anchorEl={selectRunAnchor}
-                handleClose={handleSelectRunClose}
-                onAdd={handleRunAdd}
-                onDelete={handleRunDelete}
-                onSelect={handleRunSelect}
-                routine={routine}
-                session={session}
-            />
-            {/* Dialog for running routine */}
-            <Dialog
-                id="run-routine-view-dialog"
-                fullScreen
-                open={isRunOpen}
-                onClose={stopRoutine}
-                TransitionComponent={UpTransition}
-                sx={{
-                    zIndex: zIndex + 1,
-                }}
-            >
-                {routine && <RunView
-                    handleClose={stopRoutine}
+            {/* Edit button (if canEdit) and run button, positioned at bottom corner of screen */}
+            <Stack direction="row" spacing={2} sx={{
+                position: 'fixed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: zIndex + 2,
+                bottom: 0,
+                right: 0,
+                // Accounts for BottomNav, BuildView, and edit/cancel buttons in BuildView
+                marginBottom: {
+                    xs: !isBuildOpen ? 'calc(56px + 16px + env(safe-area-inset-bottom))' : 'calc(16px + env(safe-area-inset-bottom))',
+                    md: 'calc(16px + env(safe-area-inset-bottom))'
+                },
+                marginLeft: 'calc(16px + env(safe-area-inset-left))',
+                marginRight: 'calc(16px + env(safe-area-inset-right))',
+                height: 'calc(64px + env(safe-area-inset-bottom))',
+            }}>
+                {/* Edit button */}
+                {canEdit ? (
+                    <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { onActionStart(ObjectAction.Edit) }} >
+                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </ColorIconButton>
+                ) : null}
+                {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
+                {routine?.nodes?.length ? <RunButton
+                    canEdit={canEdit}
+                    handleRunAdd={handleRunAdd}
+                    handleRunDelete={handleRunDelete}
+                    isBuildGraphOpen={isBuildOpen}
+                    isEditing={false}
                     routine={routine}
                     session={session}
-                    zIndex={zIndex + 1}
-                />}
-            </Dialog>
+                    zIndex={zIndex}
+                /> : null}
+            </Stack>
             {/* Dialog for building routine */}
             <Dialog
                 id="run-routine-view-dialog"
@@ -349,9 +332,13 @@ export const RoutineView = ({
                 }}
             >
                 <BuildView
+                    handleCancel={stopBuild}
                     handleClose={stopBuild}
+                    handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
+                    isEditing={false}
                     loading={loading}
                     onChange={updateRoutine}
+                    owner={relationships.owner}
                     routine={routine}
                     session={session}
                     zIndex={zIndex + 1}
@@ -366,8 +353,25 @@ export const RoutineView = ({
                 translations={routine?.translations ?? partialData?.translations ?? []}
                 zIndex={zIndex}
             />
+            {/* Relationships */}
+            <RelationshipButtons
+                disabled={true}
+                objectType={ObjectType.Routine}
+                onRelationshipsChange={onRelationshipsChange}
+                relationships={relationships}
+                session={session}
+                zIndex={zIndex}
+            />
             {/* Resources */}
-            {resourceList}
+            {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                title={'Resources'}
+                list={routine.resourceLists[0]}
+                canEdit={false}
+                handleUpdate={() => { }} // Intentionally blank
+                loading={loading}
+                session={session}
+                zIndex={zIndex}
+            />}
             {/* Box with description and instructions */}
             <Stack direction="column" spacing={4} sx={containerProps(palette)}>
                 {/* Description */}
@@ -403,8 +407,16 @@ export const RoutineView = ({
             </Box>}
             {/* "View Graph" button if this is a multi-step routine */}
             {routine?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
+            {/* Tags */}
+            {tags.length > 0 && <TagList
+                maxCharacters={30}
+                parentId={routine?.id ?? ''}
+                session={session}
+                tags={tags as any[]}
+                sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+            />}
             {/* Owner and version labels */}
-            <Stack direction="row" spacing={1} mt={4} mb={1}>
+            <Stack direction="row" spacing={1} mt={1} mb={1}>
                 <OwnerLabel
                     objectType={ObjectType.Routine}
                     owner={routine?.owner}
@@ -426,7 +438,7 @@ export const RoutineView = ({
             />
             {/* Action buttons */}
             <ObjectActionsRow
-                exclude={[ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled by StatsCompact
+                exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                 onActionStart={onActionStart}
                 onActionComplete={onActionComplete}
                 object={routine}
@@ -443,11 +455,6 @@ export const RoutineView = ({
                     zIndex={zIndex}
                 />
             </Box>
-            {/* Play button fixed to bottom of screen, to start routine (if multi-step).
-            If the routine is invalid, this is greyed out with a tooltip on hover or press. 
-            If the routine is valid but incomplete, play button is available but user must accept alert dialog warning */}
-            <RunButton />
-            {/* TODO */}
         </Box>
     )
 }

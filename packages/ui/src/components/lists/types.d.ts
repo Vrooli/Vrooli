@@ -112,6 +112,10 @@ export interface StatsListProps {
 }
 
 export interface TagListProps {
+    /**
+     * Maximum characters to display before tags are truncated
+     */
+    maxCharacters?: number;
     session: Session;
     parentId: string;
     sx?: { [x: string]: any };

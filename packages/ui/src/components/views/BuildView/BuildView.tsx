@@ -1,26 +1,19 @@
-import { Box, IconButton, Stack, Typography, useTheme } from '@mui/material';
-import { LinkDialog, NodeGraph, BuildBottomContainer, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, EditableLabel, BuildInfoDialog, HelpButton, userFromSession, SnackSeverity, GraphActions } from 'components';
+import { Box, IconButton, Stack, useTheme } from '@mui/material';
+import { LinkDialog, NodeGraph, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, HelpButton, SnackSeverity, GraphActions, LanguageInput, SelectLanguageMenu } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useMutation } from '@apollo/client';
-import { routineCreateMutation, routineUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { deleteArrayIndex, BuildAction, BuildRunState, Status, updateArray, getUserLanguages, parseSearchParams, shapeRoutineUpdate, shapeRoutineCreate, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, addSearchParams, keepSearchParams, TagShape, usePromptBeforeUnload, getFormikErrorsWithTranslations, handleTranslationChange, getTranslationData, getObjectUrlBase, getObjectSlug, openObject, ObjectAction } from 'utils';
-import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, ResourceList, Routine, Run } from 'types';
+import { deleteArrayIndex, BuildAction, Status, updateArray, getUserLanguages, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, keepSearchParams, usePromptBeforeUnload, addEmptyTranslation, removeTranslation } from 'utils';
+import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import { useLocation } from '@shared/route';
-import { APP_LINKS, ResourceListUsedFor } from '@shared/consts';
 import { isEqual } from '@shared/utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { BuildViewProps } from '../types';
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { StatusMessageArray } from 'components/buttons/types';
-import { StatusButton } from 'components/buttons';
-import { routineUpdateVariables, routineUpdate_routineUpdate } from 'graphql/generated/routineUpdate';
-import { routineCreateVariables, routineCreate_routineCreate } from 'graphql/generated/routineCreate';
+import { BuildEditButtons, StatusButton } from 'components/buttons';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
-import { CloseIcon, EditIcon } from '@shared/icons';
-import { requiredErrorMessage, routineTranslationUpdate, routineUpdate as validationSchema, title as titleValidation } from '@shared/validation';
+import { CloseIcon } from '@shared/icons';
+import { routineUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
-import { RelationshipsObject } from 'components/inputs/types';
 
 const helpText =
     `## What am I looking at?
@@ -57,9 +50,13 @@ const generateNewLink = (fromId: string, toId: string): NodeLinkShape => ({
 })
 
 export const BuildView = ({
+    handleCancel,
     handleClose,
+    handleSubmit,
+    isEditing,
     loading,
     onChange,
+    owner,
     routine,
     session,
     zIndex,
@@ -67,27 +64,11 @@ export const BuildView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const id: string = useMemo(() => routine?.id ?? '', [routine]);
-    const [isEditing, setIsEditing] = useState<boolean>(false);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    /**
-     * On page load, check if editing
-     */
-    useEffect(() => {
-        const searchParams = parseSearchParams();
-        const isCreate = window.location.pathname.split('/').pop() === 'add';
-        if (searchParams.edit || isCreate) {
-            setIsEditing(true);
-        }
-    }, [id]);
-
     const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
-    // Routine mutators
-    const [routineCreate] = useMutation(routineCreateMutation);
-    const [routineUpdate] = useMutation(routineUpdateMutation);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
-    const canEdit = useMemo<boolean>(() => routine?.permissionsRoutine?.canEdit === true, [routine?.permissionsRoutine?.canEdit]);
 
     // Stores previous routine states for undo/redo
     const [changeStack, setChangeStack] = useState<Routine[]>([]);
@@ -161,44 +142,6 @@ export const BuildView = ({
         }
     }, [clearChangeStack, routine, session]);
 
-    // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: false,
-        isPrivate: false,
-        owner: userFromSession(session),
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
-
-    // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
-    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        setResourceList(updatedList);
-    }, [setResourceList]);
-
-    // Handle tags
-    const [tags, setTags] = useState<TagShape[]>([]);
-    const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
-
-    useEffect(() => {
-        setRelationships({
-            isComplete: routine?.isComplete ?? false,
-            isPrivate: routine?.isPrivate ?? false,
-            owner: routine?.owner ?? null,
-            parent: null,
-            // parent: routine?.parent ?? null, TODO
-            project: null, //TODO
-        });
-        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
-        setTags(routine?.tags ?? []);
-    }, [routine]);
-
     // Formik validation
     const formik = useFormik({
         initialValues: {
@@ -216,86 +159,10 @@ export const BuildView = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
         onSubmit: (values) => {
-            // If routine is new, create it
-            if (window.location.pathname.split('/').pop() === 'add') {
-                if (!changedRoutine) {
-                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
-                    return;
-                }
-                mutationWrapper<routineCreate_routineCreate, routineCreateVariables>({
-                    mutation: routineCreate,
-                    input: shapeRoutineCreate({
-                        ...changedRoutine,
-                        id: uuid(),
-                        isInternal: values.isInternal,
-                        isComplete: relationships.isComplete,
-                        isPrivate: relationships.isPrivate,
-                        owner: relationships.owner,
-                        parent: relationships.parent as Routine | null | undefined,
-                        version: values.version,
-                        resourceLists: [resourceList],
-                        tags: tags,
-                        translations: values.translationsUpdate,
-                    }),
-                    onSuccess: (data) => {
-                        onChange(data);
-                        setLocation(`${getObjectUrlBase(data)}/${getObjectSlug(data)}?build=true`)
-                        PubSub.get().publishSnack({
-                            message: `Routine created!`,
-                            severity: SnackSeverity.Success,
-                            buttonText: 'Create another',
-                            buttonClicked: () => {
-                                setLocation(`add?build=true`, { replace: Boolean(sessionStorage.getItem('lastPath')) });
-                                window.location.reload();
-                            },
-                        })
-                    },
-                })
-            }
-            // Otherwise, update it
-            else {
-                // Don't update if no changes
-                if (!changedRoutine || isEqual(routine, changedRoutine)) {
-                    PubSub.get().publishSnack({ message: 'No changes detected', severity: SnackSeverity.Error });
-                    return;
-                }
-                if (!routine || !changedRoutine.id) {
-                    PubSub.get().publishSnack({ message: 'Cannot update: Invalid routine data', severity: SnackSeverity.Error });
-                    return;
-                }
-                mutationWrapper<routineUpdate_routineUpdate, routineUpdateVariables>({
-                    mutation: routineUpdate,
-                    input: shapeRoutineUpdate(routine, {
-                        ...changedRoutine,
-                        isInternal: values.isInternal,
-                        isComplete: relationships.isComplete,
-                        isPrivate: relationships.isPrivate,
-                        owner: relationships.owner,
-                        parent: relationships.parent as Routine | null | undefined,
-                        version: values.version,
-                        resourceLists: [resourceList],
-                        tags: tags,
-                        translations: values.translationsUpdate,
-                    }),
-                    successMessage: () => 'Routine updated.',
-                    onSuccess: (data) => {
-                        onChange(data);
-                        keepSearchParams(setLocation, ['build']);
-                        setIsEditing(false);
-                    },
-                })
-            }
+            if (changedRoutine) handleSubmit(changedRoutine);
         },
     });
     usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
-
-    const { title, errors } = useMemo(() => {
-        const { value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            title: value?.title ?? '',
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineTranslationUpdate),
-        }
-    }, [formik, language]);
 
     /**
      * Calculates:
@@ -422,36 +289,13 @@ export const BuildView = ({
         });
     }, [addToChangeStack, changedRoutine]);
 
-    const handleRunDelete = useCallback((run: Run) => {
-        if (!changedRoutine) return;
-        // Doesn't affect change stack
-        setChangedRoutine({
-            ...changedRoutine,
-            runs: changedRoutine.runs.filter(r => r.id !== run.id),
-        });
-    }, [changedRoutine]);
-
-    const handleRunAdd = useCallback((run: Run) => {
-        if (!changedRoutine) return;
-        // Doesn't affect change stack
-        setChangedRoutine({
-            ...changedRoutine,
-            runs: [run, ...changedRoutine.runs],
-        });
-    }, [changedRoutine]);
-
-    const startEditing = useCallback(() => {
-        addSearchParams(setLocation, { edit: true });
-        setIsEditing(true);
-    }, [setLocation]);
-
     const revertChanges = useCallback(() => {
         // Helper function to revert changes
         const revert = () => {
             // If updating routine, revert to original routine
             if (id) {
                 clearChangeStack(routine);
-                setIsEditing(false);
+                handleCancel();
             }
             // If adding new routine, go back
             else window.history.back();
@@ -472,7 +316,7 @@ export const BuildView = ({
         } else {
             revert();
         }
-    }, [changeStack.length, clearChangeStack, id, routine])
+    }, [changeStack.length, clearChangeStack, handleCancel, id, routine])
 
     /**
      * If closing with unsaved changes, prompt user to save
@@ -1109,39 +953,6 @@ export const BuildView = ({
         }
     }, [changedRoutine?.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
 
-    const handleRoutineAction = useCallback((action: ObjectAction, data: any) => {
-        switch (action) {
-            case ObjectAction.Delete:
-                setLocation(APP_LINKS.Home);
-                break;
-            case ObjectAction.Fork:
-                openObject(data.routine, setLocation);
-                window.location.reload();
-                break;
-            case ObjectAction.Star:
-            case ObjectAction.StarUndo:
-                if (data.success) {
-                    onChange({
-                        ...routine,
-                        isStarred: action === ObjectAction.Star,
-                    } as any)
-                }
-                break;
-            case ObjectAction.Stats:
-                //TODO
-                break;
-            case ObjectAction.VoteDown:
-            case ObjectAction.VoteUp:
-                if (data.success) {
-                    onChange({
-                        ...routine,
-                        isUpvoted: action === ObjectAction.VoteUp,
-                    } as any)
-                }
-                break;
-        }
-    }, [setLocation, onChange, routine]);
-
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
      * Also adds end nodes to the end of each unfinished path. 
@@ -1215,6 +1026,41 @@ export const BuildView = ({
         addToChangeStack(resultRoutine);
     }, [addToChangeStack, changedRoutine, columns]);
 
+    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
+    const handleAddLanguage = useCallback((newLanguage: string) => {
+        setLanguage(newLanguage);
+        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
+    }, [formik]);
+    const handleLanguageDelete = useCallback((language: string) => {
+        const newLanguages = [...languages.filter(l => l !== language)]
+        if (newLanguages.length === 0) return;
+        setLanguage(newLanguages[0]);
+        removeTranslation(formik, 'translationsUpdate', language);
+    }, [formik, languages]);
+
+    const languageComponent = useMemo(() => {
+        if (isEditing) return (
+            <LanguageInput
+                currentLanguage={language}
+                handleAdd={handleAddLanguage}
+                handleDelete={handleLanguageDelete}
+                handleCurrent={setLanguage}
+                session={session}
+                translations={formik.values.translationsUpdate}
+                zIndex={zIndex}
+            />
+        )
+        return (
+            <SelectLanguageMenu
+                currentLanguage={language}
+                handleCurrent={setLanguage}
+                session={session}
+                translations={formik.values.translationsUpdate}
+                zIndex={zIndex}
+            />
+        )
+    }, [formik.values.translationsUpdate, handleAddLanguage, handleLanguageDelete, isEditing, language, session, zIndex]);
+
     return (
         <Box sx={{
             display: 'flex',
@@ -1229,7 +1075,7 @@ export const BuildView = ({
                 handleClose={closeAddSubroutineDialog}
                 isOpen={Boolean(addSubroutineNode)}
                 nodeId={addSubroutineNode}
-                owner={relationships.owner}
+                owner={owner}
                 routineId={routine?.id}
                 session={session}
                 zIndex={zIndex + 3}
@@ -1292,40 +1138,32 @@ export const BuildView = ({
                 onClose={closeRoutineInfo}
                 zIndex={zIndex + 3}
             />
-            {/* Display top navbars */}
-            {/* First contains close icon and title */}
+            {/* Navbar */}
             <Stack
-                id="routine-title-and-language"
+                id="build-routine-information-bar"
                 direction="row"
+                spacing={2}
+                width="100%"
+                justifyContent="flex-start"
                 sx={{
                     zIndex: 2,
+                    height: '48px',
                     background: palette.primary.dark,
                     color: palette.primary.contrastText,
-                    height: '64px',
                     paddingLeft: 'env(safe-area-inset-left)',
                     paddingRight: 'env(safe-area-inset-right)',
-                }}>
-                {/* Title */}
-                <EditableLabel
-                    canEdit={isEditing}
-                    handleUpdate={(newText: string) => handleTranslationChange(formik, 'translationsUpdate', { target: { name: 'title', value: newText } }, language)}
-                    placeholder={loading ? 'Loading...' : 'Enter title...'}
-                    renderLabel={(t) => (
-                        <Typography
-                            component="h2"
-                            variant="h5"
-                            textAlign="center"
-                            sx={{
-                                fontSize: { xs: '1em', sm: '1.25em', md: '1.5em' },
-                            }}
-                        >{t ?? (loading ? 'Loading...' : 'Enter title')}</Typography>
-                    )}
-                    text={title}
-                    sxs={{
-                        stack: { marginLeft: 'auto' }
-                    }}
-                    validationSchema={titleValidation.required(requiredErrorMessage)}
-                />
+                }}
+            >
+                <StatusButton status={status.status} messages={status.messages} sx={{
+                    marginTop: 'auto',
+                    marginBottom: 'auto',
+                    marginLeft: 2,
+                    marginRight: 1,
+                }} />
+                {/* Language */}
+                {languageComponent}
+                {/* Help button */}
+                <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} sxRoot={{ margin: "auto", marginRight: 1 }} />
                 {/* Close Icon */}
                 <IconButton
                     edge="start"
@@ -1342,59 +1180,7 @@ export const BuildView = ({
                     <CloseIcon width='32px' height='32px' />
                 </IconButton>
             </Stack>
-            {/* Second contains additional info and icons */}
-            <Stack
-                id="build-routine-information-bar"
-                direction="row"
-                spacing={2}
-                width="100%"
-                justifyContent="space-between"
-                sx={{
-                    zIndex: 2,
-                    height: '48px',
-                    background: palette.primary.light,
-                    color: palette.primary.contrastText,
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
-                }}
-            >
-                <StatusButton status={status.status} messages={status.messages} sx={{
-                    marginTop: 'auto',
-                    marginBottom: 'auto',
-                    marginLeft: 2,
-                    marginRight: 1,
-                }} />
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    {/* Edit button */}
-                    {canEdit && !isEditing ? (
-                        <IconButton aria-label="confirm-title-change" onClick={startEditing} >
-                            <EditIcon fill={palette.secondary.light} />
-                        </IconButton>
-                    ) : null}
-                    {/* Help button */}
-                    <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} sxRoot={{ margin: "auto", marginRight: 1 }} />
-                    {/* Display overall routine description, insturctions, etc. */}
-                    <BuildInfoDialog
-                        formik={formik}
-                        handleAction={handleRoutineAction}
-                        handleLanguageChange={setLanguage}
-                        handleRelationshipsChange={onRelationshipsChange}
-                        handleResourcesUpdate={handleResourcesUpdate}
-                        handleTagsUpdate={handleTagsUpdate}
-                        handleUpdate={(updated: Routine) => { addToChangeStack(updated); }}
-                        isEditing={isEditing}
-                        language={language}
-                        loading={loading}
-                        relationships={relationships}
-                        routine={changedRoutine}
-                        session={session}
-                        sxs={{ icon: { fill: palette.secondary.light }, iconButton: { marginRight: 1 } }}
-                        tags={tags}
-                        zIndex={zIndex + 1}
-                    />
-                </Box>
-            </Stack>
-            {/* Third displays above graph, only when editing or the routine is incomplete */}
+            {/* Buttons displayed when editing (except for submit/cancel) */}
             <GraphActions
                 canRedo={canRedo}
                 canUndo={canUndo}
@@ -1434,28 +1220,18 @@ export const BuildView = ({
                     zIndex={zIndex}
                 />
             </Box>
-            <BuildBottomContainer
+            <BuildEditButtons
                 canCancelMutate={!loading}
                 canSubmitMutate={!loading && !isEqual(routine, changedRoutine)}
                 errors={{
-                    ...(errors ?? {}),
                     'graph': status.status !== Status.Valid ? status.messages : null,
                     'unchanged': isEqual(routine, changedRoutine) ? 'No changes made' : null,
                 }}
                 handleCancel={revertChanges}
                 handleSubmit={() => { formik.submitForm() }}
-                handleRunDelete={handleRunDelete}
-                handleRunAdd={handleRunAdd}
-                hasNext={false}
-                hasPrevious={false}
                 isAdding={!uuidValidate(id)}
                 isEditing={isEditing}
                 loading={loading}
-                session={session}
-                sliderColor={palette.secondary.light}
-                routine={routine}
-                runState={BuildRunState.Stopped}
-                zIndex={zIndex}
             />
         </Box>
     )

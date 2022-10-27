@@ -32,12 +32,8 @@ export const shortcuts: ShortcutItem[] = [
         link: `${APP_LINKS.Project}/add`,
     },
     {
-        label: 'Create new single-step routine',
+        label: 'Create new routine',
         link: `${APP_LINKS.Routine}/add`,
-    },
-    {
-        label: 'Create new multi-step routine',
-        link: `${APP_LINKS.Routine}/add?build=true`,
     },
     {
         label: 'Create new standard',

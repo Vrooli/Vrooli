@@ -2,8 +2,19 @@ import { ButtonProps, IconButtonProps } from '@mui/material';
 import { ReportFor, StarFor } from '@shared/consts';
 import { SvgProps } from 'assets/img/types';
 import React from 'react';
-import { NavigableObject, Session } from 'types';
+import { NavigableObject, Routine, Session } from 'types';
 import { Status } from 'utils';
+
+export interface BuildEditButtonsProps {
+    canSubmitMutate: boolean;
+    canCancelMutate: boolean;
+    errors: GridSubmitButtonsProps['errors'];
+    handleCancel: () => void;
+    handleSubmit: () => void;
+    isAdding: boolean;
+    isEditing: boolean;
+    loading: boolean;
+}
 
 export interface ColorIconButtonProps extends IconButtonProps {
     background: string;
@@ -71,7 +82,14 @@ export interface ReportsLinkProps {
 }
 
 export interface RunButtonProps {
-    
+    canEdit: boolean;
+    handleRunAdd: (run: Run) => void;
+    handleRunDelete: (run: Run) => void;
+    isBuildGraphOpen: boolean;
+    isEditing: boolean;
+    routine: Routine | null;
+    session: Session;
+    zIndex: number;
 }
 
 export interface ShareButtonProps {

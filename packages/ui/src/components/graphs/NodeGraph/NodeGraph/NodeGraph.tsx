@@ -359,10 +359,8 @@ export const NodeGraph = ({
             WebkitTouchCallout: 'none',
             KhtmlUserSelect: 'none',
             minWidth: '100%',
-            // Graph fills remaining space that is not taken up by other elements. 
-            // These are: routine title (64px), other top build icons (48px). This makes the size: 
-            // 100vh - (64 + 48) = calc(100vh - 112px).
-            height: 'calc(100vh - 112px)',
+            // Graph fills remaining space that is not taken up by other elements (i.e. navbar). 
+            height: 'calc(100vh - 48px)',
             margin: 0,
             padding: 0,
             overflowX: 'auto',

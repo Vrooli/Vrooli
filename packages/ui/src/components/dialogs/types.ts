@@ -1,11 +1,10 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { DeleteOneType } from '@shared/consts';
-import { NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { Comment, NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ListObjectType, SearchType, TagShape } from 'utils';
-import { SvgComponent, SvgProps } from '@shared/icons';
-import { RelationshipsObject } from 'components/inputs/types';
+import { ListObjectType, SearchType } from 'utils';
+import { SvgComponent } from '@shared/icons';
 import { SnackSeverity } from './Snack/Snack';
 import { ObjectAction, ObjectActionComplete } from 'utils/actions/objectActions';
 
@@ -25,6 +24,21 @@ export interface BaseObjectDialogProps extends DialogProps {
     title?: string;
     zIndex: number;
 };
+
+export interface CommentDialogProps {
+    errors: { [key: string]: string | string[] };
+    errorText: string;
+    handleClose: () => void;
+    isAdding: boolean;
+    isOpen: boolean;
+    language: string;
+    onTranslationBlur: (e: { target: { name: string; }; }) => void;
+    onTranslationChange: (e: { target: { name: string; value: string; }; }) => void;
+    parent: Comment | null;
+    text: string;
+    touchedText: boolean;
+    zIndex: number;
+}
 
 export interface DeleteAccountDialogProps {
     handleClose: (wasDeleted: boolean) => void;
@@ -212,25 +226,6 @@ export interface LinkDialogProps {
     nodeFrom?: Node | null; // Initial "from" node
     nodeTo?: Node | null; // Initial "to" node
     routine: Routine;
-    zIndex: number;
-}
-
-export interface BuildInfoDialogProps {
-    formik: any,
-    handleAction: (action: ObjectAction, data: any) => any;
-    handleLanguageChange: (newLanguage: string) => any;
-    handleRelationshipsChange: (newRelationshipsObject: Partial<RelationshipsObject>) => void;
-    handleResourcesUpdate: (updatedList: ResourceList) => void;
-    handleTagsUpdate: (tags: TagShape[]) => any;
-    handleUpdate: (routine: Routine) => any;
-    isEditing: boolean;
-    language: string;
-    loading: boolean;
-    relationships: RelationshipsObject;
-    routine: Routine | null;
-    session: Session;
-    sxs?: { icon: SvgProps, iconButton: any };
-    tags: TagShape[];
     zIndex: number;
 }
 
