@@ -37,27 +37,25 @@ export const OwnerLabel = ({
 
     const ownerLabel = useMemo(() => getLabel(owner, language ? [language] : getUserLanguages(session)), [language, owner, session]);
 
-    const ownerLink = useMemo<string>(() => {
-        if (!owner) return '';
-        return `${getObjectUrlBase(owner)}/${getObjectSlug(owner)}`
-    }, [owner]);
-
     const toOwner = useCallback(() => { 
         if (!owner) return;
         openObject(owner, setLocation); 
     }, [owner, setLocation]);
 
-    const handleClick = useCallback((event: any) => {
+    // We set href and onClick so users can open in new tab, while also supporting single-page app navigation TODO not working
+    const link = useMemo<string>(() => owner ? `${getObjectUrlBase(owner)}/${getObjectSlug(owner)}` : '', [owner]);
+    const onClick = useCallback((e: any) => { 
         if (typeof confirmOpen === 'function') {
-            event.preventDefault();
             confirmOpen(toOwner);
         }
+        // Prevent default so we don't use href
+        e.preventDefault();
     }, [confirmOpen, toOwner]);
 
     return (
         <Link
-            href={ownerLink}
-            onClick={handleClick}
+            to={link}
+            onClick={onClick}
             style={{
                 minWidth: 'auto',
                 padding: 0,

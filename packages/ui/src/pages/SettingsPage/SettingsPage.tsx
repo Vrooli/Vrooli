@@ -1,4 +1,4 @@
-import { CircularProgress, Grid, List, ListItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
+import { Box, CircularProgress, Collapse, Divider, Grid, List, ListItem, ListItemIcon, ListItemText, Typography, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
 import { useLazyQuery } from '@apollo/client';
@@ -10,9 +10,9 @@ import { profileQuery } from 'graphql/query';
 import { SettingsAuthentication } from 'components/views/SettingsAuthentication/SettingsAuthentication';
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
-import { useReactSearch } from 'utils';
-import { LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
-import { PageContainer } from 'components';
+import { useReactSearch, useWindowSize } from 'utils';
+import { ExpandLessIcon, ExpandMoreIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
+import { PageContainer, SearchBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 
 /**
@@ -35,7 +35,8 @@ const settingPages: { [x: string]: [SettingsForm, string, SvgComponent] } = {
 export function SettingsPage({
     session,
 }: SettingsPageProps) {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const [, setLocation] = useLocation();
     const searchParams = useReactSearch();
     const { selectedPage } = useMemo(() => ({
@@ -55,6 +56,10 @@ export function SettingsPage({
         if (updatedProfile) setProfile(updatedProfile);
     }, []);
 
+    const [isListOpen, setIsListOpen] = useState(isMobile);
+    const toggleList = useCallback(() => { setIsListOpen(!isListOpen) }, [isListOpen, setIsListOpen]);
+    const closeList = useCallback(() => { setIsListOpen(false) }, [setIsListOpen]);
+
     const listItems = useMemo(() => {
         return Object.values(settingPages).map(([link, label, Icon]: [SettingsForm, string, SvgComponent], index) => {
             const selected = link === selectedPage;
@@ -62,7 +67,10 @@ export function SettingsPage({
                 <ListItem
                     key={index}
                     button
-                    onClick={() => { setLocation(`${APP_LINKS.Settings}?page="${link}"`, { replace: true }) }}
+                    onClick={() => { 
+                        setLocation(`${APP_LINKS.Settings}?page="${link}"`, { replace: true });
+                        closeList();
+                    }}
                     sx={{
                         transition: 'brightness 0.2s ease-in-out',
                         background: selected ? palette.primary.main : 'transparent',
@@ -77,7 +85,7 @@ export function SettingsPage({
                 </ListItem>
             )
         });
-    }, [palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, selectedPage, setLocation]);
+    }, [closeList, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, selectedPage, setLocation]);
 
     const mainContent: JSX.Element = useMemo(() => {
         switch (selectedPage) {
@@ -94,15 +102,39 @@ export function SettingsPage({
 
     return (
         <PageContainer>
+            {/* Search bar to find settings */}
+            <Box sx={{
+                width: 'min(100%, 700px)',
+                margin: 'auto',
+                marginTop: 2,
+                marginBottom: 2,
+                paddingLeft: 2,
+                paddingRight: 2,
+            }}>
+                <SearchBar onChange={() => { }} value={''} />
+            </Box>
+            {/* Forms list and currnet form */}
             <Grid container spacing={0}>
-                {/* List of settings forms */}
+                {/* List of settings forms, which is collapsible only on mobile */}
                 <Grid item xs={12} md={6}>
-                    <List>
-                        {listItems}
-                    </List>
+                    {isMobile && <Box onClick={toggleList} sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        marginBottom: 1,
+                    }}>
+                        {isListOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        <Typography variant="h6" sx={{ marginLeft: 1 }}>Settings</Typography>
+                    </Box>}
+                    <Collapse in={!isMobile || isListOpen}>
+                        <List>
+                            {listItems}
+                        </List>
+                    </Collapse>
                 </Grid>
                 {/* Current form */}
                 <Grid item xs={12} md={6}>
+                    {isMobile && <Divider />}
                     {loading ? <CircularProgress color="secondary" /> : mainContent}
                 </Grid>
             </Grid>

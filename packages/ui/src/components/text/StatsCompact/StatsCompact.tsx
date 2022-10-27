@@ -4,7 +4,6 @@ import { ReportsLink } from "components/buttons";
 import { UpvoteDownvote } from "components/lists";
 import { useMemo } from "react";
 import { getListItemPermissions } from "utils";
-import { DateDisplay } from "../DateDisplay/DateDisplay"
 import { StatsCompactProps, StatsCompactPropsObject } from "../types"
 import { ViewsDisplay } from "../ViewsDisplay/ViewsDisplay";
 
@@ -55,12 +54,6 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
             />
             {/* Views */}
             <ViewsDisplay views={(object as any)?.views} />
-            {/* Date created */}
-            <DateDisplay
-                loading={loading}
-                showIcon={true}
-                timestamp={object?.created_at}
-            />
             {/* Reports */}
             {object?.id && <ReportsLink object={object as any} />}
         </Stack>

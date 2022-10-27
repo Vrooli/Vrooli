@@ -5,7 +5,7 @@ import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BuildView, ResourceListHorizontal, UpTransition, OwnerLabel, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton } from "components";
+import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
 import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, initializeRoutine, ObjectAction, ObjectActionComplete, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, TagShape, uuidToBase36 } from "utils";
 import { ResourceList, Routine, Run } from "types";
@@ -369,7 +369,7 @@ export const RoutineView = ({
             {/* Resources */}
             {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                 title={'Resources'}
-                list={routine.resourceLists[0]}
+                list={resourceList}
                 canEdit={false}
                 handleUpdate={() => { }} // Intentionally blank
                 loading={loading}
@@ -419,13 +419,13 @@ export const RoutineView = ({
                 tags={tags as any[]}
                 sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
             />}
-            {/* Owner and version labels */}
-            <Stack direction="row" spacing={1} mt={1} mb={1}>
-                <OwnerLabel
-                    objectType={ObjectType.Routine}
-                    owner={routine?.owner}
-                    session={session}
-                    sxs={{ label: { color: palette.background.textPrimary } }}
+            {/* Date and version labels */}
+            <Stack direction="row" spacing={1} mt={2} mb={1}>
+                {/* Date created */}
+                <DateDisplay
+                    loading={loading}
+                    showIcon={true}
+                    timestamp={routine?.created_at}
                 />
                 <VersionDisplay
                     currentVersion={routine?.version}
