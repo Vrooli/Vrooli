@@ -1,6 +1,7 @@
 import { Stack } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { Comment } from "types";
+import { updateArray } from "utils";
 import { CommentConnector } from "../CommentConnector/CommentConnector";
 import { CommentThreadItem } from "../CommentThreadItem/CommentThreadItem";
 import { CommentThreadProps } from "../types";
@@ -37,6 +38,14 @@ export const CommentThread = ({
     const removeComment = useCallback((comment: Comment) => {
         setChildData(curr => [...curr.filter(c => c.comment.id !== comment.id)]);
     }, []);
+    const updateComment = useCallback((comment: Comment) => {
+        const index = childData.findIndex(c => c.comment.id === comment.id);
+        if (index !== -1) return;
+        setChildData(curr => updateArray(curr, index, {
+            ...curr[index],
+            comment,
+        }));
+    }, [childData]);
 
     // list of comment items
     const children = useMemo(() => {
@@ -71,6 +80,7 @@ export const CommentThread = ({
                     data={data.comment}
                     handleCommentAdd={addComment}
                     handleCommentRemove={removeComment}
+                    handleCommentUpdate={updateComment}
                     isOpen={isOpen}
                     language={language}
                     loading={false}

@@ -345,9 +345,6 @@ export const StandardView = ({
                         objectId={id ?? ''}
                         objectType={CommentFor.Standard}
                         session={session}
-                        sxs={{
-                            root: { width: 'min(100%, 600px)' }
-                        }}
                         zIndex={zIndex}
                     />
                 </Box>

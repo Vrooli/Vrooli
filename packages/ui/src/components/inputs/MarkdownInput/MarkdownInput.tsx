@@ -56,7 +56,6 @@ const getLineEnd = (text: string, selectionStart: number) => {
     return text.substring(selectionStart).indexOf('\n') + selectionStart;
 }
 
-
 /**
  * Determines line the specified index is on.
  * @param text The entire text
@@ -113,9 +112,11 @@ export const MarkdownInput = ({
     error = false,
     helperText,
     minRows = 4,
+    onBlur,
     onChange,
     placeholder = '',
     value,
+    sxs,
 }: MarkdownInputProps) => {
     const { palette } = useTheme();
 
@@ -383,6 +384,7 @@ export const MarkdownInput = ({
                 background: palette.primary.light,
                 color: palette.primary.contrastText,
                 borderRadius: '0.5rem 0.5rem 0 0',
+                ...(sxs?.bar ?? {})
             }}>
                 {/* To the left is a stack for inserting titles, italics/bold, lists, and links */}
                 <Stack
@@ -588,6 +590,7 @@ export const MarkdownInput = ({
                             placeholder={placeholder}
                             rows={minRows}
                             value={internalValue}
+                            onBlur={onBlur}
                             onChange={(e) => { handleChange(e.target.value) }}
                             style={{
                                 padding: '16.5px 14px',
@@ -601,7 +604,8 @@ export const MarkdownInput = ({
                                 borderTop: 'none',
                                 fontFamily: 'inherit',
                                 fontSize: 'inherit',
-                                color: palette.text.primary
+                                color: palette.text.primary,
+                                ...(sxs?.textArea ?? {}),
                             }}
                         />
                     )

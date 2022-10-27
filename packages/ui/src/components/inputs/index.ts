@@ -1,4 +1,6 @@
 export * from './AutocompleteSearchBar/AutocompleteSearchBar';
+export * from './CommentCreateInput/CommentCreateInput';
+export * from './CommentUpdateInput/CommentUpdateInput';
 export * from './Dropzone/Dropzone';
 export * from './EditableLabel/EditableLabel';
 export * from './JsonInput/JsonInput';

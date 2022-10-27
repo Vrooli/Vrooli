@@ -1,4 +1,5 @@
 export * from './arrayTools';
+export * from './commentShapes';
 export * from './inputShapes';
 export * from './jsonTools';
 export * from './nodeLinkShapes';

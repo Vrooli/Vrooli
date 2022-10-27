@@ -1,50 +1,71 @@
 /**
  * Contains new comment input, and list of Reddit-style comments.
  */
-import { Box, Grid, Stack, Typography, useTheme } from '@mui/material';
+import { Box, Button, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
-import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
-import { useLazyQuery, useMutation } from '@apollo/client';
-import { commentCreateVariables, commentCreate_commentCreate } from 'graphql/generated/commentCreate';
-import { MarkdownInput } from 'components/inputs';
-import { useFormik } from 'formik';
-import { commentCreateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils';
-import { addSearchParams, getFormikErrorsWithTranslations, getTranslationData, handleTranslationBlur, handleTranslationChange, removeSearchParams, searchTypeToParams, usePromptBeforeUnload, useReactSearch } from 'utils';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLazyQuery } from '@apollo/client';
+import { CommentCreateInput } from 'components/inputs';
+import { addSearchParams, labelledSortOptions, parseSearchParams, removeSearchParams, SearchType, searchTypeToParams, SortValueToLabelMap, useWindowSize } from 'utils';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { TimeFrame } from 'graphql/generated/globalTypes';
 import { comments, commentsVariables } from 'graphql/generated/comments';
 import { useLocation } from '@shared/route';
 import { commentsQuery } from 'graphql/query';
 import { Comment, CommentThread as ThreadType } from 'types';
 import { CommentThread } from 'components/lists/comment';
-import { DUMMY_ID, uuidValidate } from '@shared/uuid';
-import { uuid } from '@shared/uuid';
-import { GridSubmitButtons } from 'components/buttons';
-import { getCurrentUser } from 'utils/authentication';
+import { uuidValidate } from '@shared/uuid';
+import { AdvancedSearchDialog } from 'components/dialogs';
+import { SortMenu, TimeMenu } from 'components/lists';
+import { BuildIcon, SortIcon, HistoryIcon as TimeIcon, CreateIcon } from '@shared/icons';
+import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
+import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
 
-const { advancedSearchSchema, defaultSortBy } = searchTypeToParams.Comment;
+const { advancedSearchSchema, defaultSortBy, sortByOptions } = searchTypeToParams.Comment;
+const sortOptionsLabelled = labelledSortOptions(sortByOptions);
+
+const searchButtonStyle = (palette: Palette) => ({
+    minHeight: '34px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: '50px',
+    border: `2px solid ${palette.secondary.main}`,
+    margin: 1,
+    padding: 0,
+    paddingLeft: 1,
+    paddingRight: 1,
+    cursor: 'pointer',
+    '&:hover': {
+        transform: 'scale(1.1)',
+    },
+    transition: 'transform 0.2s ease-in-out',
+});
 
 export function CommentContainer({
     language,
     objectId,
     objectType,
     session,
-    sxs,
     zIndex,
 }: CommentContainerProps) {
-    const { palette } = useTheme();
+    const { breakpoints, palette } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const [, setLocation] = useLocation();
-    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
     const [timeFrame, setTimeFrame] = useState<TimeFrame | undefined>(undefined);
-    // Handle URL params
-    const searchParams = useReactSearch(null);
     useEffect(() => {
+        const searchParams = parseSearchParams();
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
-        if (typeof searchParams.sort === 'string') setSortBy(searchParams.sort);
+        if (typeof searchParams.sort === 'string') {
+            // Check if sortBy is valid
+            if (searchParams.sort in sortByOptions) {
+                setSortBy(searchParams.sort);
+            } else {
+                setSortBy(defaultSortBy);
+            }
+        }
         if (typeof searchParams.time === 'object' &&
             !Array.isArray(searchParams.time) &&
             searchParams.time.hasOwnProperty('after') &&
@@ -54,11 +75,11 @@ export function CommentContainer({
                 before: new Date((searchParams.time as any).before),
             });
         }
-    }, [searchParams]);
+    }, []);
 
     const [sortAnchorEl, setSortAnchorEl] = useState<HTMLElement | null>(null);
     const [timeAnchorEl, setTimeAnchorEl] = useState<HTMLElement | null>(null);
-    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('Time');
+    const [timeFrameLabel, setTimeFrameLabel] = useState<string>('');
     const after = useRef<string | undefined>(undefined);
 
     /**
@@ -72,7 +93,7 @@ export function CommentContainer({
                 after: timeFrame.after?.toISOString() ?? '',
                 before: timeFrame.before?.toISOString() ?? '',
             } : undefined,
-        })
+        });
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
@@ -123,8 +144,30 @@ export function CommentContainer({
         return data.comments.threads ?? [];
     }, []);
 
+    const handleSortOpen = (event) => setSortAnchorEl(event.currentTarget);
+    const handleSortClose = (label?: string, selected?: string) => {
+        setSortAnchorEl(null);
+        if (selected) setSortBy(selected);
+    };
+
+    const handleTimeOpen = (event) => setTimeAnchorEl(event.currentTarget);
+    const handleTimeClose = (label?: string, frame?: { after?: Date | undefined, before?: Date | undefined }) => {
+        setTimeAnchorEl(null);
+        setTimeFrame(frame);
+        if (label) setTimeFrameLabel(label === 'All Time' ? '' : label);
+    };
+
+    /**
+     * Find sort by label when sortBy changes
+     */
+    const sortByLabel = useMemo(() => {
+        if (sortBy && sortBy in SortValueToLabelMap) return SortValueToLabelMap[sortBy];
+        return '';
+    }, [sortBy]);
+
     // Handle advanced search
     useEffect(() => {
+        const searchParams = parseSearchParams();
         // Open advanced search dialog, if needed
         if (typeof searchParams.advanced === 'boolean') setAdvancedSearchDialogOpen(searchParams.advanced);
         // Any search params that aren't advanced, search, sort, or time MIGHT be advanced search params
@@ -134,7 +177,7 @@ export function CommentContainer({
         // fields in both otherParams and allAdvancedSearchParams should be the new advanced search params
         const advancedData = Object.keys(otherParams).filter(k => allAdvancedSearchParams.includes(k));
         setAdvancedSearchParams(advancedData.reduce((acc, k) => ({ ...acc, [k]: otherParams[k] }), {}));
-    }, [searchParams]);
+    }, []);
 
     // Handle advanced search dialog
     const [advancedSearchDialogOpen, setAdvancedSearchDialogOpen] = useState<boolean>(false);
@@ -182,114 +225,129 @@ export function CommentContainer({
         }, ...curr]);
     }, []);
 
-    const [addMutation, { loading: loadingAdd }] = useMutation(commentCreateMutation);
-    const formik = useFormik({
-        initialValues: {
-            id: DUMMY_ID,
-            createdFor: objectType,
-            forId: objectId,
-            translationsCreate: [{
-                id: DUMMY_ID,
-                language,
-                text: '',
-            }],
-        },
-        validationSchema,
-        onSubmit: (values) => {
-            mutationWrapper<commentCreate_commentCreate, commentCreateVariables>({
-                mutation: addMutation,
-                input: {
-                    id: uuid(),
-                    createdFor: values.createdFor,
-                    forId: values.forId,
-                    translationsCreate: values.translationsCreate.map(t => ({
-                        ...t,
-                        id: t.id === DUMMY_ID ? uuid() : t.id,
-                    })),
-                },
-                successCondition: (data) => data !== null,
-                successMessage: () => 'Comment created',
-                onSuccess: (data) => {
-                    formik.resetForm();
-                    onCommentAdd(data);
-                },
-                onError: () => { formik.setSubmitting(false) },
-            })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+    const onCommentUpdate = useCallback((comment: Comment) => {
+        setAllData(curr => {
+            const index = curr.findIndex(c => c.comment.id === comment.id);
+            if (index === -1) return curr;
+            const newCurr = [...curr];
+            newCurr[index] = {
+                ...newCurr[index],
+                comment,
+            };
+            return newCurr;
+        });
+    }, []);
 
-    // Current text, as well as errors
-    const { text, errorText, touchedText, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
-        return {
-            text: value?.text ?? '',
-            errorText: error?.text ?? '',
-            touchedText: touched?.text ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationCreate),
-        }
-    }, [formik, language]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
+    const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(isMobile);
+    // Show add comment input if on desktop. For mobile, we'll show a button
+    useEffect(() => { setIsAddCommentOpen(!isMobile) }, [isMobile]);
+    const [commentToUpdate, setCommentToUpdate] = useState<Comment | null>(null);
+    const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
+    const handleAddCommentClose = useCallback(() => setIsAddCommentOpen(false), []);
+    const handleUpdateCommentOpen = useCallback((comment: Comment) => { setCommentToUpdate(comment) }, []);
+    const handleUpdateCommentClose = useCallback(() => { setCommentToUpdate(null) }, []);
 
     return (
-        <Box
-            id="comments"
-            sx={{
-                overflow: 'overlay',
-                width: 'min(100%, 700px)',
-                ...(sxs?.root ?? {}),
-            }}
-        >
+        <ContentCollapse title="Comments">
+            {/* Dialog for setting advanced search items */}
+            <AdvancedSearchDialog
+                handleClose={handleAdvancedSearchDialogClose}
+                handleSearch={handleAdvancedSearchDialogSubmit}
+                isOpen={advancedSearchDialogOpen}
+                searchType={SearchType.Comment}
+                session={session}
+                zIndex={zIndex + 1}
+            />
+            {/* Menu for selecting "sort by" type */}
+            <SortMenu
+                sortOptions={sortOptionsLabelled}
+                anchorEl={sortAnchorEl}
+                onClose={handleSortClose}
+            />
+            {/* Menu for selecting time created */}
+            <TimeMenu
+                anchorEl={timeAnchorEl}
+                onClose={handleTimeClose}
+            />
             {/* Add comment */}
-            <form>
-                <Box sx={{ margin: 2 }}>
-                    <Typography component="h3" variant="h6" textAlign="left">Add comment</Typography>
-                    <MarkdownInput
-                        id="add-comment"
-                        placeholder="Please be nice to each other."
-                        value={text}
-                        minRows={3}
-                        onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
-                        error={touchedText && Boolean(errorText)}
-                        helperText={touchedText ? errorText : null}
-                    />
-                    <Grid container spacing={1} sx={{
-                        width: 'min(100%, 400px)',
-                        marginLeft: 'auto',
-                        marginTop: 1,
-                    }}>
-                        <GridSubmitButtons
-                            disabledSubmit={!userId}
-                            errors={errors}
-                            isCreate={true}
-                            loading={formik.isSubmitting || loadingAdd}
-                            onCancel={formik.resetForm}
-                            onSetSubmitting={formik.setSubmitting}
-                            onSubmit={formik.submitForm}
-                        />
-                    </Grid>
+            {
+                isAddCommentOpen && <CommentCreateInput
+                    handleClose={handleAddCommentClose}
+                    language={language}
+                    objectId={objectId}
+                    objectType={objectType}
+                    onCommentAdd={onCommentAdd}
+                    parent={null} // parent is the thread. This is a top-level comment, so no parent
+                    session={session}
+                    zIndex={zIndex}
+                />
+            }
+            {/* Update comment */}
+            {
+                commentToUpdate && <CommentUpdateInput
+                    comment={commentToUpdate}
+                    handleClose={handleUpdateCommentClose}
+                    language={language}
+                    objectId={objectId}
+                    objectType={objectType}
+                    onCommentUpdate={onCommentUpdate}
+                    parent={null} // parent is the thread. This is a top-level comment, so no parent
+                    session={session}
+                    zIndex={zIndex}
+                />
+            }
+            {/* Sort & filter */}
+            {allData.length > 0 ? <>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', marginBottom: 1 }}>
+                    <Tooltip title="Sort by" placement="top">
+                        <Box
+                            onClick={handleSortOpen}
+                            sx={searchButtonStyle(palette)}
+                        >
+                            <SortIcon fill={palette.secondary.main} />
+                            <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{sortByLabel}</Typography>
+                        </Box>
+                    </Tooltip>
+                    <Tooltip title="Time created" placement="top">
+                        <Box
+                            onClick={handleTimeOpen}
+                            sx={searchButtonStyle(palette)}
+                        >
+                            <TimeIcon fill={palette.secondary.main} />
+                            <Typography variant="body2" sx={{ marginLeft: 0.5 }}>{timeFrameLabel}</Typography>
+                        </Box>
+                    </Tooltip>
+                    {advancedSearchParams && <Tooltip title="See all search settings" placement="top">
+                        <Box
+                            onClick={handleAdvancedSearchDialogOpen}
+                            sx={searchButtonStyle(palette)}
+                        >
+                            <BuildIcon fill={palette.secondary.main} />
+                            {Object.keys(advancedSearchParams).length > 0 && <Typography variant="body2" sx={{ marginLeft: 0.5 }}>
+                                *{Object.keys(advancedSearchParams).length}
+                            </Typography>}
+                        </Box>
+                    </Tooltip>}
                 </Box>
-            </form>
-            {/* Comments list */}
-            <Stack direction="column" spacing={2}>
-                {allData.map((thread, index) => (
-                    <CommentThread
-                        key={index}
-                        canOpen={true}
-                        data={thread}
-                        language={language}
-                        session={session}
-                        zIndex={zIndex}
-                    />
-                ))}
-            </Stack>
-        </Box>
+                {/* Comments list */}
+                <Stack direction="column" spacing={2}>
+                    {allData.map((thread, index) => (
+                        <CommentThread
+                            key={index}
+                            canOpen={true}
+                            data={thread}
+                            language={language}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    ))}
+                </Stack>
+            </> : (!isAddCommentOpen && isMobile) ? <Button
+                fullWidth
+                startIcon={<CreateIcon />}
+                onClick={handleAddCommentOpen}
+                sx={{ marginTop: 2 }}
+            >Add comment</Button> : null}
+        </ContentCollapse>
     );
 }

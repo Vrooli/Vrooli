@@ -1,29 +1,26 @@
-import { Box, Grid, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
+import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getFormikErrorsWithTranslations, getTranslation, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, usePromptBeforeUnload } from 'utils';
-import { MarkdownInput } from 'components/inputs';
+import { displayDate, getTranslation, getUserLanguages, ObjectType, PubSub } from 'utils';
+import { CommentCreateInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@shared/consts';
-import { commentCreate as validationSchema, commentTranslationCreate } from '@shared/validation';
-import { commentCreate, commentCreateVariables, commentCreate_commentCreate } from 'graphql/generated/commentCreate';
-import { commentCreateMutation, deleteOneMutation } from 'graphql/mutation';
-import { useFormik } from 'formik';
+import { deleteOneMutation } from 'graphql/mutation';
 import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
-import { DUMMY_ID, uuid } from '@shared/uuid';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
-import { GridSubmitButtons, ReportButton, StarButton } from 'components/buttons';
+import { ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
-import { uuidValidate } from '@shared/uuid';
 import { CommentFor } from 'graphql/generated/globalTypes';
+import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 
 export function CommentThreadItem({
     data,
     handleCommentAdd,
     handleCommentRemove,
+    handleCommentUpdate,
     isOpen,
     language,
     loading,
@@ -44,75 +41,6 @@ export function CommentThreadItem({
         const { text } = getTranslation(data, languages, true);
         return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };
     }, [data, session]);
-
-    const [replyOpen, setReplyOpen] = useState(false);
-    const [addMutation, { loading: loadingAdd }] = useMutation<commentCreate, commentCreateVariables>(commentCreateMutation);
-    const formik = useFormik({
-        initialValues: {
-            id: DUMMY_ID,
-            createdFor: objectType ,
-            forId: objectId,
-            parentId: data?.id,
-            translationsCreate: [{
-                id: DUMMY_ID,
-                language,
-                text: '',
-            }],
-        },
-        validationSchema,
-        enableReinitialize: true,
-        onSubmit: (values) => {
-            if (!data || !values.createdFor || !values.forId) return;
-            mutationWrapper<commentCreate_commentCreate, commentCreateVariables>({
-                mutation: addMutation,
-                input: {
-                    id: uuid(),
-                    createdFor: values.createdFor,
-                    forId: values.forId,
-                    parentId: values.parentId,
-                    translationsCreate: values.translationsCreate.map(t => ({
-                        ...t,
-                        id: t.id === DUMMY_ID ? uuid() : t.id,
-                    })),
-                },
-                successCondition: (data) => data !== null,
-                successMessage: () => 'Comment created.',
-                onSuccess: (data) => {
-                    formik.resetForm();
-                    setReplyOpen(false);
-                    handleCommentAdd(data);
-                },
-                onError: () => { formik.setSubmitting(false) },
-            })
-        },
-    });
-    usePromptBeforeUnload({ shouldPrompt: formik.dirty });
-
-    // Current text, as well as errors
-    const { text, errorText, touchedText, errors } = useMemo(() => {
-        console.log('comment threaditem gettransdata')
-        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
-        return {
-            text: value?.text ?? '',
-            errorText: error?.text ?? '',
-            touchedText: touched?.text ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationCreate),
-        }
-    }, [formik, language]);
-    // Handles blur on translation fields
-    const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
-        handleTranslationBlur(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
-    // Handles change on translation fields
-    const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
-        handleTranslationChange(formik, 'translationsCreate', e, language)
-    }, [formik, language]);
-
-    const openReplyInput = useCallback(() => { setReplyOpen(true) }, []);
-    const closeReplyInput = useCallback(() => {
-        formik.resetForm();
-        setReplyOpen(false)
-    }, [formik]);
 
     const [deleteMutation, { loading: loadingDelete }] = useMutation(deleteOneMutation);
     const handleDelete = useCallback(() => {
@@ -140,7 +68,12 @@ export function CommentThreadItem({
         });
     }, [data, deleteMutation, handleCommentRemove]);
 
-    const isLoggedIn = useMemo(() => session?.isLoggedIn === true && uuidValidate(session?.id ?? ''), [session]);
+    const [isAddCommentOpen, setIsAddCommentOpen] = useState<boolean>(false);
+    const [commentToUpdate, setCommentToUpdate] = useState<Comment | null>(null);
+    const handleAddCommentOpen = useCallback(() => setIsAddCommentOpen(true), []);
+    const handleAddCommentClose = useCallback(() => setIsAddCommentOpen(false), []);
+    const handleUpdateCommentOpen = useCallback((comment: Comment) => { setCommentToUpdate(comment) }, []);
+    const handleUpdateCommentClose = useCallback(() => { setCommentToUpdate(null) }, []);
 
     return (
         <>
@@ -231,7 +164,7 @@ export function CommentThreadItem({
                         />}
                         {canReply && <Tooltip title="Reply" placement='top'>
                             <IconButton
-                                onClick={openReplyInput}
+                                onClick={handleAddCommentOpen}
                             >
                                 <ReplyIcon fill={palette.background.textSecondary} />
                             </IconButton>
@@ -252,38 +185,33 @@ export function CommentThreadItem({
                             </IconButton>
                         </Tooltip>}
                     </Stack>}
-                    {/* New reply input */}
-                    {replyOpen && (
-                        <form>
-                            <Box sx={{ margin: 2 }}>
-                                <MarkdownInput
-                                    id={`add-reply-${data?.id}`}
-                                    placeholder="Please be nice to each other."
-                                    value={text}
-                                    minRows={3}
-                                    onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
-                                    error={touchedText && Boolean(errorText)}
-                                    helperText={touchedText ? errorText : null}
-                                />
-                                <Grid container spacing={1} sx={{
-                                    width: 'min(100%, 400px)',
-                                    marginLeft: 'auto',
-                                    marginTop: 1,
-                                }}>
-                                    <GridSubmitButtons
-                                        disabledCancel={formik.isSubmitting}
-                                        disabledSubmit={!isLoggedIn}
-                                        errors={errors}
-                                        isCreate={true}
-                                        loading={formik.isSubmitting || loadingAdd}
-                                        onCancel={closeReplyInput}
-                                        onSetSubmitting={formik.setSubmitting}
-                                        onSubmit={formik.submitForm}
-                                    />
-                                </Grid>
-                            </Box>
-                        </form>
-                    )}
+                    {/* Add comment */}
+                    {
+                        isAddCommentOpen && objectId && objectType && <CommentCreateInput
+                            handleClose={handleAddCommentClose}
+                            language={language}
+                            objectId={objectId}
+                            objectType={objectType}
+                            onCommentAdd={handleCommentAdd}
+                            parent={(object as any) ?? null}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    }
+                    {/* Update comment */}
+                    {
+                        commentToUpdate && objectId && objectType && <CommentUpdateInput
+                            comment={commentToUpdate as any}
+                            handleClose={handleUpdateCommentClose}
+                            language={language}
+                            objectId={objectId}
+                            objectType={objectType}
+                            onCommentUpdate={handleCommentUpdate}
+                            parent={(object as any) ?? null}
+                            session={session}
+                            zIndex={zIndex}
+                        />
+                    }
                 </Stack>
             </ListItem>
         </>
