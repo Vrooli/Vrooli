@@ -18,6 +18,7 @@ import { profileEmailUpdateVariables, profileEmailUpdate_profileEmailUpdate } fr
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { logOutVariables, logOut_logOut } from "graphql/generated/logOut";
+import { SettingsFormData } from "pages";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
@@ -241,4 +242,14 @@ export const SettingsAuthentication = ({
             >Delete Account</Button>
         </Box>
     )
+}
+
+export const settingsAuthenticationFormData: SettingsFormData = {
+    labels: ['Authentication', 'Authentication Update', 'Update Authentication'],
+    items: [
+        { id: 'wallet-list', labels: ['Connected Wallets', 'Wallet List', 'Wallets List'] },
+        { id: 'add-wallet-button', labels: ['Add Wallet', 'Wallet Add', 'Connect Wallet', 'Wallet Connect', 'New Wallet', 'Wallet New'] },
+        { id: 'email-list', labels: ['Connected Emails', 'Email List', 'Emails List'] },
+        { id: 'emailAddress', labels: ['Add Email', 'Email Add', 'Connect Email', 'Email Connect', 'New Email', 'Email New'] },
+    ],
 }

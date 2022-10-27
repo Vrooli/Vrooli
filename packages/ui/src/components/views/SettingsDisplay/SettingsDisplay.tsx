@@ -13,6 +13,7 @@ import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/gen
 import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
+import { SettingsFormData } from "pages";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -124,7 +125,7 @@ export const SettingsDisplay = ({
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
             <PageTitle title="Display Preferences" helpText={helpText} />
-            <Box sx={{ margin: 2, marginBottom: 5 }}>
+            <Box id="theme-switch-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <ThemeSwitch
                     theme={formik.values.theme as 'light' | 'dark'}
                     onChange={(t) => formik.setFieldValue('theme', t)}
@@ -135,7 +136,7 @@ export const SettingsDisplay = ({
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Favorite Topics</Typography>
                 <HelpButton markdown={interestsHelpText} />
             </Stack>
-            <Box sx={{ margin: 2, marginBottom: 5 }}>
+            <Box id="favorite-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
                     handleTagsUpdate={handleStarredTagsUpdate}
                     session={session}
@@ -148,7 +149,7 @@ export const SettingsDisplay = ({
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Hidden Topics</Typography>
                 <HelpButton markdown={hiddenHelpText} />
             </Stack>
-            <Box sx={{ margin: 2, marginBottom: 5 }}>
+            <Box id="hidden-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
                     handleTagsUpdate={handleHiddenTagsUpdate}
                     session={session}
@@ -157,7 +158,7 @@ export const SettingsDisplay = ({
                 />
             </Box>
             <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>
-                <Button color="secondary" startIcon={<SearchIcon />} onClick={() => { clearSearchHistory(session) }} sx={{
+                <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { clearSearchHistory(session) }} sx={{
                     marginLeft: 'auto',
                     marginRight: 'auto',
                 }}>Clear Search History</Button>
@@ -174,4 +175,14 @@ export const SettingsDisplay = ({
             </Grid>
         </form>
     )
+}
+
+export const settingsDisplayFormData: SettingsFormData = {
+    labels: ['Display Preferences', 'Appearance', 'Customization', 'Customize'],
+    items: [
+        { id: 'theme-switch-box', labels: ['Theme', 'Dark Mode', 'Light Mode', 'Color Scheme'] },
+        { id: 'favorite-topics-box', labels: ['Favorite Topics', 'Favorite Interests', 'Favorite Tags', 'Favorite Categories'] },
+        { id: 'hidden-topics-box', labels: ['Hidden Topics', 'Hidden Interests', 'Hidden Tags', 'Hidden Categories'] },
+        { id: 'clear-search-history-button', labels: ['Clear Search History', 'Erase Search History', 'Delete Search History'] },
+    ],
 }

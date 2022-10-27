@@ -114,7 +114,7 @@ export const EmailList = ({
 
     return (
         <form onSubmit={formik.handleSubmit}>
-            <Box sx={{
+            <Box id='email-list' sx={{
                 overflow: 'overlay',
                 border: '1px solid #e0e0e0',
                 borderRadius: '8px',

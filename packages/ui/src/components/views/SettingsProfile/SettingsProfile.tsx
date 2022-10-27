@@ -18,6 +18,7 @@ import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { PageTitle, SnackSeverity } from "components";
+import { SettingsFormData } from "pages";
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -250,4 +251,13 @@ export const SettingsProfile = ({
             </Grid>
         </form>
     )
+}
+
+export const settingsProfileFormData: SettingsFormData = {
+    labels: ['Update Profile', 'Profile Update', 'Update Account', 'Account Update'],
+    items: [
+        { id: 'ada-handle-select', labels: ['(ADA) Handle', 'ADA Handle', 'Cardano Handle', 'Account Handle', 'Profile Handle'] },
+        { id: 'name', labels: ['Name', 'Full Name', 'Display Name'] },
+        { id: 'bio', labels: ['Bio', 'Biography', 'About Me', 'About You', 'About'] },
+    ],
 }

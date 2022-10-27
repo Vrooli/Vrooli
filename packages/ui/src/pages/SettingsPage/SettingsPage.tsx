@@ -16,6 +16,22 @@ import { PageContainer, SearchBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 
 /**
+ * Describes a settings page button
+ */
+export interface SettingsFormItemData {
+    id: string;
+    labels: string[];
+}
+
+/**
+ * Describes a settings page form for the search bar
+ */
+export interface SettingsFormData { 
+    labels: string[];
+    items: SettingsFormItemData[];
+}
+
+/**
  * All settings forms. Same as their route names.
  */
 enum SettingsForm {

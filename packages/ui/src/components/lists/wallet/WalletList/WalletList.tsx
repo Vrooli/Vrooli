@@ -171,7 +171,7 @@ export const WalletList = ({
                 onClose={closeWalletInstallDialog}
                 zIndex={connectOpen ? 201 : 200}
             />
-            <Box sx={{
+            <Box id='wallet-list' sx={{
                 overflow: 'overlay',
                 border: `1px solid #e0e0e0`,
                 borderRadius: '8px',
@@ -192,7 +192,7 @@ export const WalletList = ({
                 ))}
             </Box>
             {/* Add new button */}
-            <Box sx={{
+            <Box id='add-wallet-button' sx={{
                 alignItems: 'center',
                 display: 'flex',
                 justifyContent: 'center',
