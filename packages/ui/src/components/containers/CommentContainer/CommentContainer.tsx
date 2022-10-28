@@ -42,6 +42,7 @@ const searchButtonStyle = (palette: Palette) => ({
 
 export function CommentContainer({
     forceAddCommentOpen,
+    isOpen,
     language,
     objectId,
     objectType,
@@ -248,7 +249,7 @@ export function CommentContainer({
     }, [forceAddCommentOpen, isMobile]);
 
     return (
-        <ContentCollapse title="Comments">
+        <ContentCollapse isOpen={isOpen} title="Comments">
             {/* Dialog for setting advanced search items */}
             <AdvancedSearchDialog
                 handleClose={handleAdvancedSearchDialogClose}

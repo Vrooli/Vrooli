@@ -5,6 +5,7 @@ import { MarkdownInputProps } from "components/inputs/types";
 
 export interface CommentContainerProps {
     forceAddCommentOpen?: boolean;
+    isOpen?: boolean;
     language: string;
     objectId: string;
     objectType: CommentFor;

@@ -402,11 +402,13 @@ export const RoutineView = ({
                             zIndex,
                         })
                     ))}
-                    {getCurrentUser(session).id && <Grid container spacing={1} mt={1}>
-                        <Grid item xs={12}>
-                            <Button startIcon={<SuccessIcon />} fullWidth onClick={markAsComplete} color="secondary">Mark as Complete</Button>
-                        </Grid>
-                    </Grid>}
+                    {getCurrentUser(session).id && <Button
+                        startIcon={<SuccessIcon />}
+                        fullWidth
+                        onClick={markAsComplete}
+                        color="secondary"
+                        sx={{ marginTop: 2 }}
+                    >Mark as Complete</Button>}
                 </ContentCollapse>
             </Box>}
             {/* "View Graph" button if this is a multi-step routine */}

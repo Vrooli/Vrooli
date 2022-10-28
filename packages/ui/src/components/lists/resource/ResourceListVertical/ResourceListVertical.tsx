@@ -1,8 +1,8 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { ResourceDialog, ResourceListItem } from 'components';
+import { ResourceDialog, ResourceListItem, ResourceListItemContextMenu } from 'components';
 import { ResourceListVerticalProps } from '../types';
-import { MouseEvent, useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
 import { Box, Button } from '@mui/material';
 import { useMutation } from '@apollo/client';
@@ -69,24 +69,25 @@ export const ResourceListVertical = ({
         }
     }, [deleteMutation, handleUpdate, list, mutate]);
 
-    // Right click context menu TODO
+    // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
-    const [selected, setSelected] = useState<any | null>(null);
-    const contextId = useMemo(() => `resource-context-menu-${selected?.link}`, [selected]);
-    const openContext = useCallback((ev: MouseEvent<HTMLButtonElement>, data: any) => {
-        setContextAnchor(ev.currentTarget);
-        setSelected(data);
-        ev.preventDefault();
-    }, []);
+    const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
+    const selectedIndex = useMemo(() => selectedResource ? list?.resources?.findIndex(r => r.id === selectedResource.id) : -1, [list, selectedResource]);
+    const contextId = useMemo(() => `resource-context-menu-${selectedResource?.id}`, [selectedResource]);
+    const openContext = useCallback((target: EventTarget, index: number) => {
+        setContextAnchor(target);
+        const resource = list?.resources[index];
+        setSelectedResource(resource as any);
+    }, [list?.resources]);
     const closeContext = useCallback(() => {
         setContextAnchor(null);
-        setSelected(null);
+        setSelectedResource(null);
     }, []);
 
     // Add/update resource dialog
     const [editingIndex, setEditingIndex] = useState<number>(-1);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const openDialog = useCallback(() => { setIsDialogOpen(true) }, []);
+    const openDialog = useCallback(() => { console.log('open dialog'); setIsDialogOpen(true) }, []);
     const closeDialog = useCallback(() => { setIsDialogOpen(false); setEditingIndex(-1) }, []);
     const openUpdateDialog = useCallback((index: number) => {
         setEditingIndex(index);
@@ -110,6 +111,23 @@ export const ResourceListVertical = ({
 
     return (
         <>
+            {/* Right-click context menu */}
+            <ResourceListItemContextMenu
+                canEdit={canEdit}
+                id={contextId}
+                anchorEl={contextAnchor}
+                index={selectedIndex ?? -1}
+                onClose={closeContext}
+                onAddBefore={() => { }} //TODO
+                onAddAfter={() => { }} //TODO
+                onDelete={onDelete}
+                onEdit={() => openUpdateDialog(selectedIndex ?? 0)}
+                onMove={() => { }} //TODO
+                resource={selectedResource}
+                zIndex={zIndex + 1}
+            />
+            {/* Add resource dialog */}
+            {dialog}
             {list?.resources && list.resources.length > 0 && <Box sx={{
                 boxShadow: 12,
                 overflow: 'overlay',
@@ -118,14 +136,13 @@ export const ResourceListVertical = ({
                 marginLeft: 'auto',
                 marginRight: 'auto',
             }}>
-                {/* Add resource dialog */}
-                {dialog}
                 {/* Resource list */}
                 {list.resources.map((c: Resource, index) => (
                     <ResourceListItem
                         key={`resource-card-${index}`}
                         canEdit={canEdit}
                         data={c}
+                        handleContextMenu={openContext}
                         handleEdit={() => openUpdateDialog(index)}
                         handleDelete={onDelete}
                         index={index}

@@ -53,7 +53,6 @@ export const ObjectActionsRow = ({
             actionsDisplayed = availableActions;
             actionsExtra = [];
         }
-        console.log('actionsDisplayed', actionsDisplayed);
         return {
             actionsDisplayed,
             actionsExtra,

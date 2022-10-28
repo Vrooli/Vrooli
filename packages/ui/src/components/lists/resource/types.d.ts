@@ -25,6 +25,7 @@ export interface ResourceListVerticalProps {
 export interface ResourceListItemProps {
     canEdit: boolean;
     data: Resource;
+    handleContextMenu: (target: EventTarget, index: number) => void;
     handleEdit: (index: number) => void;
     handleDelete: (index: number) => void;
     index: number;

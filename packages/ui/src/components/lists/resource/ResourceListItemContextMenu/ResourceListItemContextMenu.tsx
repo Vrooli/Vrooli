@@ -1,12 +1,13 @@
 import { ResourceListItemContextMenuProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
-import { ListMenu } from 'components';
-import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, SvgComponent } from '@shared/icons';
-import { getTranslation } from 'utils';
+import { ListMenu, SnackSeverity } from 'components';
+import { CopyIcon, DeleteIcon, EditIcon, MoveLeftIcon, MoveLeftRightIcon, MoveRightIcon, ShareIcon, SvgComponent } from '@shared/icons';
+import { getTranslation, PubSub } from 'utils';
 
 export enum ResourceContextMenuOption {
     AddBefore = 'AddBefore',
     AddAfter = 'AddAfter',
+    Copy = 'Copy',
     Delete = 'Delete',
     Edit = 'Edit',
     Move = 'Move',
@@ -16,10 +17,11 @@ export enum ResourceContextMenuOption {
 const listOptionsMap: { [key in ResourceContextMenuOption]: [string, SvgComponent] } = {
     [ResourceContextMenuOption.AddBefore]: ['Add resource before', MoveLeftIcon],
     [ResourceContextMenuOption.AddAfter]: ['Add resource after', MoveRightIcon],
-    [ResourceContextMenuOption.Edit]: ['Edit resource', EditIcon],
-    [ResourceContextMenuOption.Delete]: ['Delete resource', DeleteIcon],
-    [ResourceContextMenuOption.Move]: ['Move resource', MoveLeftRightIcon],
-    [ResourceContextMenuOption.Share]: ['Share resource', CopyIcon],
+    [ResourceContextMenuOption.Copy]: ['Copy link', CopyIcon],
+    [ResourceContextMenuOption.Edit]: ['Edit', EditIcon],
+    [ResourceContextMenuOption.Delete]: ['Delete', DeleteIcon],
+    [ResourceContextMenuOption.Move]: ['Move', MoveLeftRightIcon],
+    [ResourceContextMenuOption.Share]: ['Share', ShareIcon],
 }
 
 const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(listOptionsMap).map((o) => ({
@@ -52,6 +54,10 @@ export const ResourceListItemContextMenu = ({
                 break;
             case ResourceContextMenuOption.AddAfter:
                 onAddAfter(index);
+                break;
+            case ResourceContextMenuOption.Copy:
+                navigator.clipboard.writeText(resource?.link ?? '');
+                PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
                 break;
             case ResourceContextMenuOption.Delete:
                 onDelete(index);

@@ -1,14 +1,29 @@
-import { Box, CircularProgress, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { ObjectActionMenu, OwnerLabel, ResourceListHorizontal, SnackSeverity, TextCollapse, VersionDisplay } from "components";
+import { Box, Button, Grid, Palette, Stack, useTheme } from "@mui/material";
+import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, uuidToBase36 } from "utils";
+import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, TagShape, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
-import { EllipsisIcon } from "@shared/icons";
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, ResourceListUsedFor } from "@shared/consts";
+import { ResourceList, Routine } from "types";
+import { RelationshipsObject } from "components/inputs/types";
+import { smallHorizontalScrollbar } from "components/lists/styles";
+import { uuid } from "@shared/uuid";
+import { CommentFor } from "graphql/generated/globalTypes";
+import { SuccessIcon } from "@shared/icons";
+
+const containerProps = (palette: Palette) => ({
+    boxShadow: 1,
+    background: palette.background.paper,
+    borderRadius: 1,
+    overflow: 'overlay',
+    marginTop: 4,
+    marginBottom: 4,
+    padding: 2,
+})
 
 export const SubroutineView = ({
     loading,
@@ -20,14 +35,15 @@ export const SubroutineView = ({
     session,
     zIndex,
 }: SubroutineViewProps) => {
-    console.log('subroutine view', owner, routine?.isInternal, routine?.owner)
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
+    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const [internalRoutine, setInternalRoutine] = useState(routine);
     useEffect(() => {
         setInternalRoutine(routine);
     }, [routine]);
+    const updateRoutine = useCallback((routine: Routine) => { setInternalRoutine(routine); }, [setInternalRoutine]);
 
     const { description, instructions, title } = useMemo(() => {
         const languages = getUserLanguages(session);
@@ -125,22 +141,6 @@ export const SubroutineView = ({
         }
     }, [formik.values]);
 
-    const resourceList = useMemo(() => {
-        if (!internalRoutine ||
-            !Array.isArray(internalRoutine.resourceLists) ||
-            internalRoutine.resourceLists.length < 1 ||
-            internalRoutine.resourceLists[0].resources.length < 1) return null;
-        return <ResourceListHorizontal
-            title={'Resources'}
-            list={(internalRoutine as any).resourceLists[0]}
-            canEdit={false}
-            handleUpdate={() => { }} // Intentionally blank
-            loading={loading}
-            session={session}
-            zIndex={zIndex}
-        />
-    }, [internalRoutine, loading, session, zIndex]);
-
     const inputComponents = useMemo(() => {
         if (!internalRoutine?.inputs || !Array.isArray(internalRoutine?.inputs) || internalRoutine.inputs.length === 0) return null;
         return (
@@ -162,20 +162,19 @@ export const SubroutineView = ({
         )
     }, [copyInput, formValueMap, palette.background.textPrimary, formik, internalRoutine?.inputs, session, zIndex]);
 
-    // More menu
-    const [moreMenuAnchor, setMoreMenuAnchor] = useState<HTMLElement | null>(null);
-    const openMoreMenu = useCallback((ev: React.MouseEvent<HTMLElement>) => {
-        setMoreMenuAnchor(ev.currentTarget);
-        ev.preventDefault();
-    }, []);
-    const closeMoreMenu = useCallback(() => setMoreMenuAnchor(null), []);
-
     const onEdit = useCallback(() => {
         setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(internalRoutine?.id ?? '')}`);
     }, [internalRoutine?.id, setLocation]);
 
-    const onMoreActionStart = useCallback((action: ObjectAction) => {
+    const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
+    const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
+    const closeAddCommentDialog = useCallback(() => { setIsAddCommentOpen(false); }, []);
+
+    const onActionStart = useCallback((action: ObjectAction) => {
         switch (action) {
+            case ObjectAction.Comment:
+                openAddCommentDialog();
+                break;
             case ObjectAction.Edit:
                 onEdit();
                 break;
@@ -183,9 +182,9 @@ export const SubroutineView = ({
                 //TODO
                 break;
         }
-    }, [onEdit]);
+    }, [onEdit, openAddCommentDialog]);
 
-    const onMoreActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
+    const onActionComplete = useCallback((action: ObjectActionComplete, data: any) => {
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
@@ -216,92 +215,144 @@ export const SubroutineView = ({
         }
     }, [internalRoutine, setLocation]);
 
-    if (loading) return (
-        <Box sx={{
-            minHeight: 'min(300px, 25vh)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-        }}>
-            <CircularProgress color="secondary" />
-        </Box>
-    )
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>({
+        isComplete: true,
+        isPrivate: false,
+        owner: null,
+        parent: null,
+        project: null,
+    });
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
+        setRelationships({
+            ...relationships,
+            ...newRelationshipsObject,
+        });
+    }, [relationships]);
+
+    // Handle resources
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+
+    // Handle tags
+    const [tags, setTags] = useState<TagShape[]>([]);
+
+    useEffect(() => {
+        setRelationships({
+            isComplete: internalRoutine?.isComplete ?? false,
+            isPrivate: internalRoutine?.isPrivate ?? false,
+            owner: internalRoutine?.owner ?? null,
+            parent: null,
+            // parent: internalRoutine?.parent ?? null, TODO
+            project: null, //TODO
+        });
+        setResourceList(internalRoutine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+        setTags(internalRoutine?.tags ?? []);
+    }, [internalRoutine]);
+
     return (
         <Box sx={{
-            background: palette.background.paper,
-            overflowY: 'auto',
-            width: 'min(96vw, 600px)',
-            borderRadius: '8px',
-            overflow: 'overlay',
-            // safe-area-inset-bottom is the iOS navigation bar
-            marginBottom: 'calc(64px + env(safe-area-inset-bottom))',
-            boxShadow: 12,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            width: 'min(100%, 700px)',
+            padding: 2,
         }}>
-            {/* Popup menu displayed when "More" ellipsis pressed */}
-            <ObjectActionMenu
-                anchorEl={moreMenuAnchor}
-                object={internalRoutine as any}
-                onActionStart={onMoreActionStart}
-                onActionComplete={onMoreActionComplete}
-                onClose={closeMoreMenu}
+            <ObjectTitle
+                language={language}
+                loading={loading}
+                title={title}
                 session={session}
-                title='Subroutine Options'
-                zIndex={zIndex + 1}
+                setLanguage={setLanguage}
+                translations={internalRoutine?.translations ?? []}
+                zIndex={zIndex}
             />
-            {/* Heading container */}
-            <Stack direction="column" spacing={1} sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 2,
-                marginBottom: 1,
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-            }}>
-                {/* Show more ellipsis next to title */}
-                <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="h5">{title}</Typography>
-                    <Tooltip title="Options">
-                        <IconButton
-                            aria-label="More"
-                            size="small"
-                            onClick={openMoreMenu}
-                            sx={{
-                                display: 'block',
-                                marginLeft: 'auto',
-                                marginRight: 1,
-                            }}
-                        >
-                            <EllipsisIcon fill={palette.primary.contrastText} />
-                        </IconButton>
-                    </Tooltip>
-                </Stack>
-                <Stack direction="row" spacing={1}>
-                    <OwnerLabel
-                        confirmOpen={confirmLeave}
+            {/* Resources */}
+            {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
+                title={'Resources'}
+                list={resourceList}
+                canEdit={false}
+                handleUpdate={() => { }} // Intentionally blank
+                loading={loading}
+                session={session}
+                zIndex={zIndex}
+            />}
+            {/* Box with description and instructions */}
+            <Stack direction="column" spacing={4} sx={containerProps(palette)}>
+                {/* Description */}
+                <TextCollapse title="Description" text={description} loading={loading} loadingLines={2} />
+                {/* Instructions */}
+                <TextCollapse title="Instructions" text={instructions} loading={loading} loadingLines={4} />
+            </Stack>
+            <Box sx={containerProps(palette)}>
+                <ContentCollapse title="Inputs">
+                    {inputComponents}
+                    <Button startIcon={<SuccessIcon />} fullWidth onClick={() => { }} color="secondary" sx={{ marginTop: 2 }}>Submit</Button>
+                </ContentCollapse>
+            </Box>
+            {/* Action buttons */}
+            <ObjectActionsRow
+                exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                onActionStart={onActionStart}
+                onActionComplete={onActionComplete}
+                object={internalRoutine}
+                session={session}
+                zIndex={zIndex}
+            />
+            <Box sx={containerProps(palette)}>
+                <ContentCollapse isOpen={false} title="Additional Information">
+                    {/* Relationships */}
+                    <RelationshipButtons
+                        disabled={true}
                         objectType={ObjectType.Routine}
-                        owner={internalRoutine?.isInternal ? owner : internalRoutine?.owner}
+                        onRelationshipsChange={onRelationshipsChange}
+                        relationships={relationships}
+                        session={session}
+                        zIndex={zIndex}
+                    />
+                    {/* Tags */}
+                    {tags.length > 0 && <TagList
+                        maxCharacters={30}
+                        parentId={routine?.id ?? ''}
+                        session={session}
+                        tags={tags as any[]}
+                        sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
+                    />}
+                    {/* Date and version labels */}
+                    <Stack direction="row" spacing={1} mt={2} mb={1}>
+                        {/* Date created */}
+                        <DateDisplay
+                            loading={loading}
+                            showIcon={true}
+                            timestamp={internalRoutine?.created_at}
+                        />
+                        <VersionDisplay
+                            confirmVersionChange={confirmLeave}
+                            currentVersion={internalRoutine?.version}
+                            prefix={" - "}
+                            versions={internalRoutine?.versions}
+                        />
+                    </Stack>
+                    {/* Votes, reports, and other basic stats */}
+                    <StatsCompact
+                        handleObjectUpdate={updateRoutine}
+                        loading={loading}
+                        object={internalRoutine ?? null}
                         session={session}
                     />
-                    <VersionDisplay
-                        confirmVersionChange={confirmLeave}
-                        currentVersion={internalRoutine?.version}
-                        prefix={" - "}
-                        versions={internalRoutine?.versions}
-                    />
-                </Stack>
-            </Stack>
-            {/* Stack that shows routine info, such as resources, description, inputs/outputs */}
-            <Stack direction="column" spacing={2} padding={2}>
-                {/* Resources */}
-                {resourceList}
-                {/* Description */}
-                <TextCollapse title="Description" text={description} />
-                {/* Instructions */}
-                <TextCollapse title="Instructions" text={instructions} />
-                {/* Inputs */}
-                {inputComponents}
-            </Stack>
+                </ContentCollapse>
+            </Box>
+            {/* Comments */}
+            <Box sx={containerProps(palette)}>
+                <CommentContainer
+                    forceAddCommentOpen={isAddCommentOpen}
+                    isOpen={false}
+                    language={language}
+                    objectId={internalRoutine?.id ?? ''}
+                    objectType={CommentFor.Routine}
+                    onAddCommentClose={closeAddCommentDialog}
+                    session={session}
+                    zIndex={zIndex}
+                />
+            </Box>
         </Box>
     )
 }

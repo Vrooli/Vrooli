@@ -170,7 +170,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     alignItems: isMobile ? 'center' : 'start',
                 }}
             >
-                {!hideRole && permissions.canEdit && <Tooltip title={`Edit`}>
+                {!hideRole && permissions.canEdit &&
                     <Box
                         id={`edit-list-item-button-${id}`}
                         component="a"
@@ -185,8 +185,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                             paddingBottom: isMobile ? '0px' : '4px',
                         }}>
                         <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
-                    </Box>
-                </Tooltip>}
+                    </Box>}
                 {/* Add upvote/downvote if mobile */}
                 {isMobile && [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(object?.__typename as any) && (
                     <UpvoteDownvote
@@ -299,6 +298,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
             {/* Context menu */}
             <ObjectActionMenu
                 anchorEl={anchorEl}
+                exclude={[ObjectAction.Comment, ObjectAction.FindInPage]} // Find in page only relevant when viewing object - not in list. And shouldn't really comment without viewing full page
                 object={object}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}

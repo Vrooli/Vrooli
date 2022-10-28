@@ -375,14 +375,14 @@ export const RunView = ({
      * Interval to track time spent on each step.
      */
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
-    const [timeElapsed, setTimeElapsed] = useState<number>(0);
-    const [contextSwitches, setContextSwitches] = useState<number>(0);
+    const timeElapsed = useRef<number>(0);
+    const contextSwitches = useRef<number>(0);
     useEffect(() => {
         if (!currStepRunData) return;
         // Start tracking time
-        intervalRef.current = setInterval(() => { setTimeElapsed(t => t + 1); }, 1000);
+        intervalRef.current = setInterval(() => { timeElapsed.current += 1; }, 1000);
         // Reset context switches
-        setContextSwitches(currStepRunData.contextSwitches);
+        contextSwitches.current = 0;
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         }
@@ -394,7 +394,7 @@ export const RunView = ({
     useEffect(() => {
         const handleTabChange = (event: any) => {
             if (currStepRunData) {
-                setContextSwitches(c => c + 1);
+                contextSwitches.current += 1;
             }
         }
         window.addEventListener('focus', handleTabChange);
@@ -473,7 +473,6 @@ export const RunView = ({
         const subroutineStep = convertRoutineToStep(subroutine, languages);
         if (!subroutineStep) return;
         // Inject into steps
-        console.log('setting steps subroutinedata')
         setSteps(s => s ? insertStep(subroutineStep, s) : subroutineStep);
     }, [languages, subroutineData]);
 
@@ -581,7 +580,6 @@ export const RunView = ({
     const toPrevious = useCallback(() => {
         if (!previousStep) return;
         // Update current step
-        console.log('toprevious')
         setCurrStepLocation(previousStep);
     }, [previousStep, setCurrStepLocation]);
 
@@ -605,7 +603,6 @@ export const RunView = ({
             setCompletedComplexity(c => c + newlyCompletedComplexity);
         }
         // Update current step
-        console.log('tonext')
         if (nextStep) setCurrStepLocation(nextStep);
         // If in test mode return
         if (testMode || !run) return
@@ -616,8 +613,8 @@ export const RunView = ({
         const stepsUpdate = currStepRunData ? [{
             id: currStepRunData.id,
             status: RunStepStatus.Completed,
-            timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed,
-            contextSwitches: currStepRunData.contextSwitches + contextSwitches,
+            timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed.current,
+            contextSwitches: currStepRunData.contextSwitches + contextSwitches.current,
         }] : undefined
         const stepsCreate = currStepRunData ? undefined : [{
             id: uuid(),
@@ -626,8 +623,8 @@ export const RunView = ({
             nodeId: currParentListStep.nodeId,
             subroutineId: currParentListStep.routineId,
             step: currStepLocation,
-            timeElapsed,
-            contextSwitches,
+            timeElapsed: timeElapsed.current,
+            contextSwitches: contextSwitches.current,
         }];
         // If a next step exists, update
         if (nextStep) {
@@ -673,7 +670,7 @@ export const RunView = ({
                 },
             })
         }
-    }, [contextSwitches, currStepLocation, currStepRunData, handleClose, logRunComplete, logRunUpdate, nextStep, progress, routine, run, session, setLocation, steps, testMode, timeElapsed]);
+    }, [currStepLocation, currStepRunData, handleClose, logRunComplete, logRunUpdate, nextStep, progress, routine, run, session, setLocation, steps, testMode]);
 
     /**
      * End routine after reaching end node using a decision step. 
@@ -726,8 +723,8 @@ export const RunView = ({
         // Find current step in run data
         const stepUpdate = currStepRunData ? {
             id: currStepRunData.id,
-            timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed,
-            contextSwitches: currStepRunData.contextSwitches + contextSwitches,
+            timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed.current,
+            contextSwitches: currStepRunData.contextSwitches + contextSwitches.current,
         } : undefined
         // Send data to server
         mutationWrapper<runUpdate_runUpdate, runUpdateVariables>({
@@ -741,7 +738,7 @@ export const RunView = ({
                 setRun(data);
             }
         })
-    }, [contextSwitches, currStepRunData, logRunUpdate, run, testMode, timeElapsed]);
+    }, [currStepRunData, logRunUpdate, run, testMode]);
 
     /**
      * End routine early
@@ -773,6 +770,7 @@ export const RunView = ({
      * Displays either a subroutine view or decision view
      */
     const childView = useMemo(() => {
+        console.log('calculating childview', currentStep, run);
         if (!currentStep) return null;
         switch (currentStep.type) {
             case RoutineStepType.Subroutine:
@@ -857,8 +855,9 @@ export const RunView = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: 'auto',
+                    marginBottom: '72px + env(safe-area-inset-bottom)',
                     overflowY: 'auto',
-                    minHeight: '87vh',
+                    minHeight: '100vh',
                 }}>
                     {childView}
                 </Box>
@@ -877,56 +876,37 @@ export const RunView = ({
                     alignItems: 'center',
                 }}>
                     <Grid container spacing={2} sx={{
-                        maxWidth: '600px',
+                        width: 'min(100%, 700px)',
                         margin: 0,
                     }}>
                         {/* There are only ever 1 or 2 options shown. 
                         In either case, we want the buttons to be placed as 
                         if there are always 2 */}
-                        <Grid item xs={6} sx={{
-                            padding: '8px 4px 8px 4px',
-                            display: 'flex',
-                            justifyContent: 'center',
-                        }}>
+                        <Grid item xs={6} p={1}>
                             {previousStep && <Button
                                 fullWidth
                                 startIcon={<ArrowLeftIcon />}
                                 onClick={toPrevious}
                                 disabled={unsavedChanges}
-                                sx={{
-                                    width: 'min(48vw, 250px)',
-                                }}
                             >
-                                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                                    Previous
-                                </Box>
+                                Previous
                             </Button>}
                         </Grid>
-                        <Grid item xs={6} p={1} sx={{
-                            padding: '8px 4px 8px 4px',
-                            display: 'flex',
-                            justifyContent: 'center',
-                        }}>
+                        <Grid item xs={6} p={1}>
                             {nextStep && (<Button
                                 fullWidth
                                 startIcon={<ArrowRightIcon />}
                                 onClick={toNext} // NOTE: changes are saved on next click
                                 disabled={!subroutineComplete}
-                                sx={{ width: 'min(48vw, 250px)' }}
                             >
-                                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                                    Next
-                                </Box>
+                                Next
                             </Button>)}
                             {!nextStep && currentStep?.type !== RoutineStepType.Decision && (<Button
                                 fullWidth
                                 startIcon={<SuccessIcon />}
                                 onClick={toNext}
-                                sx={{ width: 'min(48vw, 250px)' }}
                             >
-                                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
-                                    Complete
-                                </Box>
+                                Complete
                             </Button>)}
                         </Grid>
                     </Grid>

@@ -28,6 +28,7 @@ export const SvgPath = ({ d, props }: Pick<SvgBaseProps, 'props'> & { d: string 
         // to show in Safari, so we but a high value here instead of undefined
         width={!props.width ? '24px' : props.width === 'unset' ? '5000px' : props.width}
         height={!props.height ? '24px' : props.height === 'unset' ? '5000px' : props.height}
+        pointerEvents="none"
         viewBox="0 0 24 24"
         xmlns="http://www.w3.org/2000/svg"
     >

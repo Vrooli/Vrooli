@@ -3,7 +3,9 @@
  */
 
 import { APP_LINKS } from "@shared/consts";
+import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
 import { NavigableObject, SetLocation } from "types";
+import { ResourceType } from "utils/consts";
 import { stringifySearchParams, uuidToBase36 } from "./urlTools";
 
 export enum ObjectType {
@@ -117,3 +119,28 @@ export const getObjectReportUrl = (object: NavigableObject) => `${getObjectUrlBa
  * @param object Object to open
  */
 export const openObjectReport = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectReportUrl(object));
+
+/**
+ * Determines if a resource is a URL, wallet payment address, or an ADA handle
+ * @param link String to check
+ * @returns ResourceType if type found, or null if not
+ */
+export const getResourceType = (link: string): ResourceType | null => {
+    if (urlRegex.test(link)) return ResourceType.Url;
+    if (walletAddressRegex.test(link)) return ResourceType.Wallet;
+    if (adaHandleRegex.test(link)) return ResourceType.Handle;
+    return null;
+}
+
+/**
+ * Finds the URL for a resource
+ * @param link Resource string. May be a URL, handle, or wallet address
+ * @returns link as a URL (i.e. wallet opens in cardanoscan, handle opens in handle.me)
+ */
+export const getResourceUrl = (link: string): string | undefined => {
+    const resourceType = getResourceType(link);
+    if (resourceType === ResourceType.Url) return link;
+    if (resourceType === ResourceType.Handle) return `https://handle.me/${link}`;
+    if (resourceType === ResourceType.Wallet) return `https://cardanoscan.io/address/${link}`;
+    return undefined;
+}
