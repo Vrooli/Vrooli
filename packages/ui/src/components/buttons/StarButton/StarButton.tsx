@@ -1,4 +1,4 @@
-import { Box, ListItemText, Stack, Tooltip, useTheme } from '@mui/material';
+import { Box, ListItemText, Stack, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
@@ -8,6 +8,8 @@ import { starMutation } from 'graphql/mutation';
 import { uuidValidate } from '@shared/uuid';
 import { StarFilledIcon, StarOutlineIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
+import { PubSub } from 'utils';
+import { SnackSeverity } from 'components/dialogs';
 
 export const StarButton = ({
     disabled = false,
@@ -49,12 +51,14 @@ export const StarButton = ({
         documentNodeWrapper<star_star, starVariables>({
             node: starMutation,
             input: { isStar, starFor, forId: objectId },
-            onSuccess: () => { if (onChange) onChange(isStar, event) },
+            onSuccess: () => { 
+                if (onChange) onChange(isStar, event) 
+                PubSub.get().publishSnack({ message: isStar ? 'Added to favorites' : 'Removed from favorites', severity: SnackSeverity.Success });
+            },
         })
     }, [userId, internalIsStar, starFor, objectId, onChange]);
 
     const Icon = internalIsStar ? StarFilledIcon : StarOutlineIcon;
-    const tooltip = internalIsStar ? 'Remove from favorites' : 'Add to favorites';
     const fill = useMemo<string>(() => {
         if (!userId || disabled) return 'rgb(189 189 189)';
         if (internalIsStar) return '#cbae30';
@@ -73,15 +77,13 @@ export const StarButton = ({
                 ...(sxs?.root ?? {}),
             }}
         >
-            <Tooltip placement={tooltipPlacement} title={tooltip}>
-                <Box onClick={handleClick} sx={{
-                    display: 'contents',
-                    cursor: userId ? 'pointer' : 'default',
-                    pointerEvents: disabled ? 'none' : 'all',
-                }}>
-                    <Icon fill={fill} />
-                </Box>
-            </Tooltip>
+            <Box onClick={handleClick} sx={{
+                display: 'contents',
+                cursor: userId ? 'pointer' : 'default',
+                pointerEvents: disabled ? 'none' : 'all',
+            }}>
+                <Icon fill={fill} />
+            </Box>
             {showStars && internalStars !== null && <ListItemText
                 primary={internalStars}
                 sx={{ ...multiLineEllipsis(1), pointerEvents: 'none' }}

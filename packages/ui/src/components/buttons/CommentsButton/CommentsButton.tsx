@@ -1,10 +1,10 @@
 import { Box, ListItemText, Stack, useTheme } from '@mui/material';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { CommentsButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useLocation } from '@shared/route';
-import { getObjectSlug, getObjectUrlBase } from 'utils';
 import { CommentIcon } from '@shared/icons';
+import { getObjectUrl } from 'utils';
 
 export const CommentsButton = ({
     commentsCount = 0,
@@ -15,12 +15,15 @@ export const CommentsButton = ({
     const [, setLocation] = useLocation();
 
     // When clicked, navigate to object's comment section
-    const handleClick = useCallback((e: any) => {
-        // Stop propagation
-        e.stopPropagation();
-        if (!object) return;
-        setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}#comments`)
-    }, [object, setLocation]);
+    const link = useMemo(() => object ? `${getObjectUrl(object)}#comments` : '', [object]);
+    const handleClick = useCallback((event: any) => {
+        // Stop propagation to prevent list item from being selected
+        event.stopPropagation();
+        // Prevent default to stop href from being used
+        event.preventDefault();
+        if (link.length === 0) return;
+        setLocation(link);
+    }, [link, setLocation]);
 
     return (
         <Stack
@@ -31,11 +34,15 @@ export const CommentsButton = ({
                 pointerEvents: 'none',
             }}
         >
-            <Box onClick={handleClick} sx={{
-                display: 'contents',
-                cursor: disabled ? 'none' : 'pointer',
-                pointerEvents: disabled ? 'none' : 'all',
-            }}>
+            <Box
+                component="a"
+                href={link}
+                onClick={handleClick}
+                sx={{
+                    display: 'contents',
+                    cursor: disabled ? 'none' : 'pointer',
+                    pointerEvents: disabled ? 'none' : 'all',
+                }}>
                 <CommentIcon fill={disabled ? 'rgb(189 189 189)' : palette.secondary.main} />
             </Box>
             <ListItemText

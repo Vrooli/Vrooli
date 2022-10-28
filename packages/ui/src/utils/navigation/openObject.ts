@@ -3,9 +3,7 @@
  */
 
 import { APP_LINKS } from "@shared/consts";
-import { SnackSeverity } from "components";
 import { NavigableObject, SetLocation } from "types";
-import { PubSub } from "utils/pubsub";
 import { stringifySearchParams, uuidToBase36 } from "./urlTools";
 
 export enum ObjectType {
@@ -83,31 +81,39 @@ export const getObjectSearchParams = (object: any) => {
 }
 
 /**
+ * Finds view page URL for any object with an id and __typename
+ * @param object Object being navigated to
+ */
+export const getObjectUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
+
+/**
  * Opens any object with an id and __typename
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
-export const openObject = (object: NavigableObject, setLocation: SetLocation) => {
-    // Check if __typename is in objectLinkMap
-    if (!ObjectType.hasOwnProperty(object.__typename)) {
-        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: SnackSeverity.Error });
-        return;
-    }
-    // Navigate to object page
-    setLocation(`${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`);
-}
+export const openObject = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectUrl(object));
+
+/**
+ * Finds edit page URL for any object with an id and __typename
+ * @param object Object being navigated to
+ */
+export const getObjectEditUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/edit/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
 
 /**
  * Opens the edit page for an object with an id and __typename
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
-export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => {
-    // Check if __typename is in objectLinkMap
-    if (!ObjectType.hasOwnProperty(object.__typename)) {
-        PubSub.get().publishSnack({ message: 'Could not parse object type.', severity: SnackSeverity.Error });
-        return;
-    }
-    // Navigate to object page TODO multi-step routines have different route. Maybe routine update should redirect when this is detected?
-    setLocation(`${getObjectUrlBase(object)}/edit/${getObjectSlug(object)}${getObjectSearchParams(object)}`);
-}
+export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectEditUrl(object));
+
+/**
+ * Finds report page URL for any object with an id and __typename
+ * @param object Object being navigated to
+ */
+export const getObjectReportUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/reports/${getObjectSlug(object)}`;
+
+/**
+ * Opens the report page for an object with an id and __typename
+ * @param object Object to open
+ */
+export const openObjectReport = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectReportUrl(object));

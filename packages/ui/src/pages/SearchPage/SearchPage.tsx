@@ -89,7 +89,8 @@ export function SearchPage({
         // Return valid index, or default to Routines
         return index < 0 ? 2 : index;
     });
-    const handleTabChange = (_e, newIndex: number) => {
+    const handleTabChange = (e, newIndex: number) => {
+        e.preventDefault();
         // Update search params
         addSearchParams(setLocation, {
             type: tabOptions[newIndex][1],
@@ -195,6 +196,8 @@ export function SearchPage({
                             {...{ 'aria-controls': `search-tabpanel-${index}` }}
                             label={option[0]}
                             color={index === 0 ? '#ce6c12' : 'default'}
+                            component="a"
+                            href={option[1]}
                         />
                     ))}
                 </Tabs>

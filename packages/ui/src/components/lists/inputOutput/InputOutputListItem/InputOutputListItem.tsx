@@ -12,6 +12,7 @@ import { generateInputComponent } from 'forms/generators';
 import { uuid } from '@shared/uuid';
 import Markdown from 'markdown-to-jsx';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
+import { linkColors } from 'styles';
 
 const defaultStandard = (item: InputOutputListItemProps['item'], generatedSchema?: FieldData | null): StandardShape => ({
     __typename: 'Standard',
@@ -246,7 +247,7 @@ export const InputOutputListItem = ({
                 background: palette.background.paper,
                 color: palette.background.textPrimary,
             }}>
-                <Grid container spacing={2} sx={{ padding: 1 }}>
+                <Grid container spacing={2} sx={{ padding: 1, ...linkColors(palette) }}>
                     <Grid item xs={12}>
                         {isEditing ? <TextField
                             fullWidth

@@ -1,13 +1,13 @@
 import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, InputType, ResourceListUsedFor } from "@shared/consts";
+import { InputType, ResourceListUsedFor } from "@shared/consts";
 import { useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, SnackSeverity, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
-import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectSlug, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, PubSub, standardToFieldData, TagShape } from "utils";
+import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, PubSub, standardToFieldData, TagShape } from "utils";
 import { ResourceList, Standard } from "types";
 import { CommentFor } from "graphql/generated/globalTypes";
 import { uuid, uuidValidate } from '@shared/uuid';
@@ -96,7 +96,7 @@ export const StandardView = ({
 
     const onEdit = useCallback(() => {
         if (!standard) return;
-        setLocation(`${APP_LINKS.Standard}/edit/${getObjectSlug(standard)}`);
+        setLocation(getObjectEditUrl(standard));
     }, [setLocation, standard]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);

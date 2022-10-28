@@ -56,6 +56,14 @@ export const shortcuts: ShortcutItem[] = [
         link: `${APP_LINKS.History}`,
     },
     {
+        label: 'View profile page',
+        link: `${APP_LINKS.Profile}`,
+    },
+    {
+        label: 'View settings page',
+        link: `${APP_LINKS.Settings}`,
+    },
+    {
         label: 'Search organizations',
         link: `${APP_LINKS.Search}?type=${SearchPageTabOption.Organizations}`,
     },

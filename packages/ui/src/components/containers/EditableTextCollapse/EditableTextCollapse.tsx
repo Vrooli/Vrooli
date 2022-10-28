@@ -5,7 +5,8 @@
 import { EditableTextCollapseProps } from '../types';
 import { ContentCollapse, MarkdownInput } from 'components';
 import Markdown from 'markdown-to-jsx';
-import { TextField } from '@mui/material';
+import { TextField, useTheme } from '@mui/material';
+import { linkColors } from 'styles';
 
 export function EditableTextCollapse({
     helpText,
@@ -18,14 +19,18 @@ export function EditableTextCollapse({
     title,
     text,
 }: EditableTextCollapseProps) {
-    if (!isEditing && (!text || text.trim().length === 0) && !showOnNoText) return null;
+    const { palette } = useTheme();
 
+    if (!isEditing && (!text || text.trim().length === 0) && !showOnNoText) return null;
     return (
         <ContentCollapse
             helpText={helpText}
             isOpen={isOpen}
             onOpenChange={onOpenChange}
             title={title}
+            sxs={{
+                root: { ...linkColors(palette) },
+            }}
         >
             {
                 isEditing ? 

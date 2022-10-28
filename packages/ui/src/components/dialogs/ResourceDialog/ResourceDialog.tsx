@@ -5,7 +5,7 @@ import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ResourceDialogProps } from '../types';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectSlug, getObjectUrlBase, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectUrl, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
 import { resourceCreateVariables, resourceCreate_resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdateVariables, resourceUpdate_resourceUpdate } from 'graphql/generated/resourceUpdate';
@@ -205,7 +205,7 @@ export const ResourceDialog = ({
         // Clear search string and close command palette
         closeSearch();
         // Create URL
-        const newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
+        const newLocation = getObjectUrl(newValue);
         // Update link
         formik.setFieldValue('link', `${window.location.origin}${newLocation}`);
     }, [closeSearch, formik]);

@@ -4,6 +4,7 @@ import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
 import { MenuTitle } from 'components/dialogs';
 import { HelpIcon } from '@shared/icons';
+import { linkColors } from 'styles';
 
 export const HelpButton = ({
     id = 'help-details-menu',
@@ -63,26 +64,10 @@ export const HelpButton = ({
                             '& .MuiMenu-list': {
                                 padding: 0,
                             },
-                            // Global link styles do not render correctly for some reason,
-                            // so we must set them again
-                            a: {
-                                color: palette.mode === 'light' ? '#001cd3' : '#dd86db',
-                                '&:visited': {
-                                    color: palette.mode === 'light' ? '#001cd3' : '#f551ef',
-                                },
-                                '&:active': {
-                                    color: palette.mode === 'light' ? '#001cd3' : '#f551ef',
-                                },
-                                '&:hover': {
-                                    color: palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
-                                },
-                                // Remove underline on links
-                                textDecoration: 'none',
-                            },
                         }}
                     >
                         <MenuTitle onClose={closeMenu} />
-                        <Box sx={{ padding: 2 }}>
+                        <Box sx={{ padding: 2, ...linkColors(palette) }}>
                             <Markdown>{markdown}</Markdown>
                         </Box>
                     </Menu>

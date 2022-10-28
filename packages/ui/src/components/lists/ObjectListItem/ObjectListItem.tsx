@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, openObjectEdit, placeholderColor, usePress, useWindowSize } from 'utils';
+import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
@@ -63,20 +63,23 @@ export function ObjectListItem<T extends ObjectListItemType>({
     }, []);
     const closeContextMenu = useCallback(() => setAnchorEl(null), []);
 
+    const link = useMemo(() => data ? getObjectUrl(data) : '', [data]);
     const handleClick = useCallback((target: EventTarget) => {
         if (!target.id || !target.id.startsWith('list-item-')) return;
         // If data not supplied, don't open
-        if (!data) return;
+        if (link.length === 0) return;
         // If beforeNavigation is supplied, call it
         if (beforeNavigation) {
             const shouldContinue = beforeNavigation(data);
             if (shouldContinue === false) return;
         }
         // Navigate to the object's page
-        openObject(data, setLocation);
-    }, [data, beforeNavigation, setLocation]);
+        setLocation(link);
+    }, [link, beforeNavigation, setLocation, data]);
 
+    const editUrl = useMemo(() => data ? getObjectEditUrl(data) : '', [data]);
     const handleEditClick = useCallback((event: any) => {
+        event.preventDefault();
         const target = event.target;
         if (!target.id || !target.id.startsWith('edit-list-item-')) return;
         // If data not supplied, don't open
@@ -87,8 +90,8 @@ export function ObjectListItem<T extends ObjectListItemType>({
             if (shouldContinue === false) return;
         }
         // Navigate to the object's edit page
-        openObjectEdit(data, setLocation);
-    }, [beforeNavigation, data, setLocation]);
+        setLocation(editUrl);
+    }, [beforeNavigation, data, editUrl, setLocation]);
 
     const pressEvents = usePress({
         onLongPress: handleContextMenu,
@@ -170,6 +173,8 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 {!hideRole && permissions.canEdit && <Tooltip title={`Edit`}>
                     <Box
                         id={`edit-list-item-button-${id}`}
+                        component="a"
+                        href={editUrl}
                         onClick={handleEditClick}
                         sx={{
                             display: 'flex',
@@ -214,7 +219,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 />}
             </Stack>
         )
-    }, [handleEditClick, hideRole, id, isMobile, object, palette.secondary.main, permissions.canComment, permissions.canEdit, permissions.canStar, permissions.canVote, session]);
+    }, [editUrl, handleEditClick, hideRole, id, isMobile, object, palette.secondary.main, permissions.canComment, permissions.canEdit, permissions.canStar, permissions.canVote, session]);
 
     /**
      * Run list items may get a progress bar
@@ -305,8 +310,12 @@ export function ObjectListItem<T extends ObjectListItemType>({
             {/* List item */}
             <ListItem
                 id={`list-item-${id}`}
-                {...pressEvents}
                 disablePadding
+                button
+                component="a"
+                href={link}
+                {...pressEvents}
+                onClick={(e) => { e.preventDefault() }}
                 sx={{
                     display: 'flex',
                     background: palette.background.paper,

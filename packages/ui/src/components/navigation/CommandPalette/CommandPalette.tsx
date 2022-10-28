@@ -4,7 +4,7 @@ import {
     DialogContent,
     useTheme,
 } from '@mui/material';
-import { actionsItems, getObjectSlug, getObjectUrlBase, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
+import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
 import { AutocompleteSearchBar } from 'components/inputs';
 import { APP_LINKS } from '@shared/consts';
 import { AutocompleteOption } from 'types';
@@ -111,7 +111,7 @@ export const CommandPalette = ({
         }
         // Otherwise, object url must be constructed
         else {
-            newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
+            newLocation = getObjectUrl(newValue);
         }
         // If new pathname is the same, reload page
         const shouldReload = stripUrl(`${window.location.origin}${newLocation}`) === stripUrl(window.location.href);

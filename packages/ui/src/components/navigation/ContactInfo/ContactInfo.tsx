@@ -41,7 +41,8 @@ export const ContactInfo = ({
                     <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
                         <BottomNavigationAction
                             label={label}
-                            onClick={(e) => openLink(e, link)}
+                            onClick={(e) => { e.preventDefault(); openLink(e, link) }}
+                            href={link}
                             icon={
                                 <ColorIconButton background={palette.secondary.main} >
                                     <Icon fill={palette.secondary.contrastText} />

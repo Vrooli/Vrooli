@@ -5,7 +5,7 @@ import { Box, Dialog, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { useMemo } from 'react';
-import { getObjectSearchParams, getObjectSlug, getObjectUrlBase, ObjectType, PubSub, usePress } from 'utils';
+import { getObjectUrl, ObjectType, PubSub, usePress } from 'utils';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
@@ -39,7 +39,7 @@ export const ShareObjectDialog = ({
     const { palette } = useTheme();
 
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : 'Check out this object on Vrooli', [object]);
-    const url = useMemo(() => object ? `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}` : window.location.href.split('?')[0].split('#')[0], [object]);
+    const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split('?')[0].split('#')[0], [object]);
 
     const copyInviteLink = () => {
         navigator.clipboard.writeText(url);

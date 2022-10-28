@@ -7,7 +7,6 @@ import {
     Box,
     Grid,
     IconButton,
-    Stack,
     SwipeableDrawer,
     TextField,
     Tooltip,
@@ -18,7 +17,7 @@ import { SubroutineInfoDialogProps } from '../types';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload } from 'utils';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { ResourceListUsedFor } from '@shared/consts';
-import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, OwnerLabel, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionInput } from 'components';
+import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
@@ -259,7 +258,13 @@ export const SubroutineInfoDialog = ({
             }}>
                 {/* Subroutine title and position */}
                 <Typography variant="h5">{title}</Typography>
-                <Typography variant="h6" ml={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
+                <Typography variant="h6" ml={1} mr={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
+                {/* Version */}
+                <VersionDisplay
+                    currentVersion={subroutine?.routine?.version}
+                    prefix={" - "}
+                    versions={subroutine?.routine?.version ? [subroutine?.routine?.version] : []} //TODO need to query versions
+                />
                 {/* Button to open in full page */}
                 {!subroutine?.routine?.isInternal && (
                     <Tooltip title="Open in full page">
@@ -267,17 +272,13 @@ export const SubroutineInfoDialog = ({
                             <OpenInNewIcon fill={palette.primary.contrastText} />
                         </IconButton>
                     </Tooltip>
-                )}{/* Owned by and version */}
-                <Stack direction="row" sx={{ marginLeft: 'auto' }}>
-                    <OwnerLabel objectType={ObjectType.Routine} owner={subroutine?.routine?.owner} session={session} />
-                    <Typography variant="body1">{subroutine?.routine?.version}</Typography>
-                </Stack>
+                )}
                 {/* Close button */}
                 <IconButton onClick={handleClose} sx={{
                     color: palette.primary.contrastText,
-                    borderRadius: 0,
                     borderBottom: `1px solid ${palette.primary.dark}`,
                     justifyContent: 'end',
+                    marginLeft: 'auto',
                 }}>
                     <CloseIcon />
                 </IconButton>

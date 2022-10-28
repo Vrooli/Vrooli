@@ -1,8 +1,8 @@
-import { getObjectSlug, getObjectUrlBase, getTranslation, getUserLanguages, ObjectType, openObject } from "utils";
+import { getTranslation, getUserLanguages, ObjectType, getObjectUrl } from "utils";
 import { Tooltip, Typography, useTheme } from "@mui/material"
 import { OwnerLabelProps } from "../types";
 import { Comment, Project, Routine, Standard, User } from "types";
-import { Link, useLocation } from "@shared/route";
+import { useLocation } from "@shared/route";
 import { useCallback, useMemo } from "react";
 
 /**
@@ -37,24 +37,25 @@ export const OwnerLabel = ({
 
     const ownerLabel = useMemo(() => getLabel(owner, language ? [language] : getUserLanguages(session)), [language, owner, session]);
 
-    const toOwner = useCallback(() => { 
-        if (!owner) return;
-        openObject(owner, setLocation); 
-    }, [owner, setLocation]);
-
     // We set href and onClick so users can open in new tab, while also supporting single-page app navigation TODO not working
-    const link = useMemo<string>(() => owner ? `${getObjectUrlBase(owner)}/${getObjectSlug(owner)}` : '', [owner]);
+    const link = useMemo<string>(() => owner ? getObjectUrl(owner) : '', [owner]);
+    const toOwner = useCallback(() => { 
+        if (link.length === 0) return;
+        setLocation(link);
+    }, [link, setLocation]);
     const onClick = useCallback((e: any) => { 
         if (typeof confirmOpen === 'function') {
             confirmOpen(toOwner);
+        } else {
+            toOwner();
         }
         // Prevent default so we don't use href
         e.preventDefault();
     }, [confirmOpen, toOwner]);
 
     return (
-        <Link
-            to={link}
+        <a
+            href={link}
             onClick={onClick}
             style={{
                 minWidth: 'auto',
@@ -78,6 +79,6 @@ export const OwnerLabel = ({
                     {ownerLabel}
                 </Typography>
             </Tooltip>
-        </Link>
+        </a>
     )
 }

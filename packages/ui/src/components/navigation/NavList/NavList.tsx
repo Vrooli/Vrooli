@@ -71,7 +71,8 @@ export const NavList = ({
             {/* Enter button displayed when not logged in */}
             {sessionChecked && session?.isLoggedIn !== true && (
                 <Button
-                    onClick={() => openLink(setLocation, APP_LINKS.Start)}
+                    href={APP_LINKS.Start}
+                    onClick={(e) => { e.preventDefault(); openLink(setLocation, APP_LINKS.Start) }}
                     startIcon={<LogInIcon />}
                     sx={{
                         background: '#387e30',
