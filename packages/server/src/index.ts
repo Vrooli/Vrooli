@@ -12,6 +12,7 @@ import { initStatsCronJobs } from './statsLog';
 import mongoose from 'mongoose';
 import { genErrorCode, logger, LogLevel } from './logger';
 import { initializeRedis } from './redisConn';
+import { openGraphChecker } from './openGraph';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -72,6 +73,9 @@ const main = async () => {
         credentials: true,
         origin: true, //safeOrigins(),
     }))
+
+    // Detect open graph crawlers, and send them open graph data
+    app.use(openGraphChecker);
 
     // Set static folders
     // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));

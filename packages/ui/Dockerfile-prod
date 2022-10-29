@@ -5,8 +5,10 @@ ARG PROJECT_DIR
 ARG VIRTUAL_PORT
 WORKDIR ${PROJECT_DIR}
 
+RUN yarn add express
+
 # Install global packages
-RUN yarn global add serve
+RUN yarn global add serve express
 
 # Copy required files
 COPY --chown=node:node package.json yarn.lock ./
