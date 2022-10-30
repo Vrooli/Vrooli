@@ -1,37 +1,6 @@
 # Run this file by typing: docker-compose up -f docker-compose-prod.yml -d
 version: "3.9"
 services:
-  ui:
-    build:
-      context: .
-      dockerfile: ./packages/ui/Dockerfile-prod
-      args:
-        PROJECT_DIR: "${PROJECT_DIR}"
-    container_name: ui
-    restart: always
-    environment:
-      NODE_ENV: "production"
-      REACT_APP_SERVER_LOCATION: "${SERVER_LOCATION}"
-      REACT_APP_PORT_SERVER: ${PORT_SERVER}
-      REACT_APP_SERVER_URL: "${SERVER_URL}"
-      REACT_APP_SITE_IP: "${SITE_IP}"
-      PROJECT_DIR: "${PROJECT_DIR}"
-      VIRTUAL_HOST: "${VIRTUAL_HOST}"
-      VIRTUAL_PATH: "/"
-      VIRTUAL_PORT: ${PORT_UI}
-      LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
-      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
-    ports:
-      - ${PORT_UI}:${PORT_UI}
-    networks:
-      - proxy
-      - app
-    volumes:
-      - ./packages/ui:${PROJECT_DIR}/packages/ui:z
-      - ./packages/shared:${PROJECT_DIR}/packages/shared:z
-    depends_on:
-      - server
-    command: /bin/sh -c "chmod +x ${PROJECT_DIR}/scripts/* && ${PROJECT_DIR}/scripts/ui.sh"
   server:
     build:
       context: .
@@ -63,7 +32,7 @@ services:
       SERVER_URL: "${SERVER_URL}"
       VIRTUAL_HOST: "${VIRTUAL_HOST}"
       VIRTUAL_PORT: ${PORT_SERVER}
-      VIRTUAL_PATH: "/api"
+      VIRTUAL_PATH: "/"
       LETSENCRYPT_HOST: "${VIRTUAL_HOST}"
       LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
     ports:
@@ -74,6 +43,7 @@ services:
     volumes:
       - ./packages/server:${PROJECT_DIR}/packages/server:z
       - ./packages/shared:${PROJECT_DIR}/packages/shared:z
+      - ./packages/ui:${PROJECT_DIR}/packages/ui:z
       - ./data/logs:${PROJECT_DIR}/data/logs:z
       - ./data/uploads:${PROJECT_DIR}/data/uploads:z
       - ./data/stats:${PROJECT_DIR}/data/stats:z

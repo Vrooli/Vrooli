@@ -13,6 +13,7 @@ import mongoose from 'mongoose';
 import { genErrorCode, logger, LogLevel } from './logger';
 import { initializeRedis } from './redisConn';
 import { openGraphChecker } from './openGraph';
+import path from 'path';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -73,6 +74,13 @@ const main = async () => {
         credentials: true,
         origin: true, //safeOrigins(),
     }))
+
+    app.use(express.static(`${process.env.PROJECT_DIR}/packages/ui/build`));
+    app.use(express.static(`${process.env.PROJECT_DIR}/packages/ui/public`));
+    app.use((req, res, next) => {
+        console.log('in get')
+        res.sendFile(`${process.env.PROJECT_DIR}/packages/ui/build/index.html`);
+    });
 
     // Detect open graph crawlers, and send them open graph data
     app.use(openGraphChecker);
