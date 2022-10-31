@@ -1,19 +1,17 @@
 import { Box, IconButton, Stack, useTheme } from '@mui/material';
 import { LinkDialog, NodeGraph, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, HelpButton, SnackSeverity, GraphActions, LanguageInput, SelectLanguageMenu } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { deleteArrayIndex, BuildAction, Status, updateArray, getUserLanguages, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, initializeRoutine, keepSearchParams, usePromptBeforeUnload, addEmptyTranslation, removeTranslation } from 'utils';
+import { deleteArrayIndex, BuildAction, Status, updateArray, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, keepSearchParams, usePromptBeforeUnload } from 'utils';
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import { useLocation } from '@shared/route';
 import { isEqual } from '@shared/utils';
 import { NodeType } from 'graphql/generated/globalTypes';
 import { BuildViewProps } from '../types';
-import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
+import { uuid, uuidValidate } from '@shared/uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { BuildEditButtons, StatusButton } from 'components/buttons';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { CloseIcon } from '@shared/icons';
-import { routineUpdate as validationSchema } from '@shared/validation';
-import { useFormik } from 'formik';
 
 const helpText =
     `## What am I looking at?
@@ -49,36 +47,38 @@ const generateNewLink = (fromId: string, toId: string): NodeLinkShape => ({
     toId,
 })
 
+// Routine with fields required for the build view
+type BuildRoutine = Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>
+
 export const BuildView = ({
     handleCancel,
     handleClose,
     handleSubmit,
     isEditing,
     loading,
-    onChange,
     owner,
     routine,
     session,
+    translationData,
     zIndex,
 }: BuildViewProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const id: string = useMemo(() => routine?.id ?? '', [routine]);
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const [changedRoutine, setChangedRoutine] = useState<Routine | null>(null);
+    const [changedRoutine, setChangedRoutine] = useState<BuildRoutine>(routine);
     // The routine's status (valid/invalid/incomplete)
     const [status, setStatus] = useState<StatusMessageArray>({ status: Status.Incomplete, messages: ['Calculating...'] });
 
     // Stores previous routine states for undo/redo
-    const [changeStack, setChangeStack] = useState<Routine[]>([]);
+    const [changeStack, setChangeStack] = useState<BuildRoutine[]>([]);
     const [changeStackIndex, setChangeStackIndex] = useState<number>(0);
-    const clearChangeStack = useCallback((routine: Routine | null) => {
+    const clearChangeStack = useCallback(() => {
         setChangeStack(routine ? [routine] : []);
         setChangeStackIndex(routine ? 0 : -1);
         PubSub.get().publishFastUpdate({ duration: 1000 });
         setChangedRoutine(routine);
-    }, [setChangeStack, setChangeStackIndex]);
+    }, [routine]);
     /**
      * Moves back one in the change stack
      */
@@ -104,7 +104,7 @@ export const BuildView = ({
     /**
      * Adds, to change stack, and removes anything from the change stack after the current index
      */
-    const addToChangeStack = useCallback((changedRoutine: Routine) => {
+    const addToChangeStack = useCallback((changedRoutine: BuildRoutine) => {
         const newChangeStack = [...changeStack];
         newChangeStack.splice(changeStackIndex + 1, newChangeStack.length - changeStackIndex - 1);
         newChangeStack.push(changedRoutine);
@@ -129,39 +129,9 @@ export const BuildView = ({
     }, [redo, undo]);
 
     useEffect(() => {
-        clearChangeStack(routine);
-        // Update language
-        if (routine) {
-            const userLanguages = getUserLanguages(session);
-            const routineLanguages = routine?.translations?.map(t => t.language)?.filter(l => typeof l === 'string' && l.length > 1) ?? [];
-            // Find the first language in the user's languages that is also in the routine's languages
-            const lang = userLanguages.find(l => routineLanguages.includes(l));
-            if (lang) setLanguage(lang);
-            else if (routineLanguages.length > 0) setLanguage(routineLanguages[0]);
-            else setLanguage(userLanguages[0]);
-        }
-    }, [clearChangeStack, routine, session]);
+        clearChangeStack();
+    }, [clearChangeStack, routine]);
 
-    // Formik validation
-    const formik = useFormik({
-        initialValues: {
-            id: routine?.id ?? DUMMY_ID,
-            translationsUpdate: routine?.translations ?? [{
-                id: DUMMY_ID,
-                language: language,
-                description: '',
-                instructions: '',
-                title: '',
-            }],
-            isInternal: routine?.isInternal ?? false,
-            version: routine?.version ?? '1.0.0',
-        },
-        enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
-        onSubmit: (values) => {
-            if (changedRoutine) handleSubmit(changedRoutine);
-        },
-    });
     usePromptBeforeUnload({ shouldPrompt: isEditing && changeStack.length > 1 });
 
     /**
@@ -176,14 +146,6 @@ export const BuildView = ({
         const { messages, nodesById, nodesOnGraph, nodesOffGraph, status } = getRoutineStatus(changedRoutine);
         // Check for critical errors
         if (messages.includes('No node or link data found')) {
-            // Create new routine data
-            const initialized = initializeRoutine(language);
-            // Set empty nodes and links
-            setChangedRoutine({
-                ...changedRoutine,
-                nodes: initialized.nodes,
-                nodeLinks: initialized.nodeLinks,
-            });
             return { columns: [], nodesOffGraph: [], nodesById: {} };
         }
         if (messages.includes('Ran into error determining node positions')) {
@@ -231,7 +193,7 @@ export const BuildView = ({
         columns.push([]);
         // Return
         return { columns, nodesOffGraph, nodesById };
-    }, [changedRoutine, language]);
+    }, [changedRoutine]);
 
     // Add subroutine dialog
     const [addSubroutineNode, setAddSubroutineNode] = useState<string | null>(null);
@@ -261,7 +223,6 @@ export const BuildView = ({
         setLinkDialogFrom(null);
         setLinkDialogTo(null);
         setIsLinkDialogOpen(false);
-        if (!changedRoutine) return;
         // If no link data, return
         if (!link) return;
         // Upsert link
@@ -282,7 +243,6 @@ export const BuildView = ({
      * Deletes a link, without deleting any nodes.
      */
     const handleLinkDelete = useCallback((link: NodeLink) => {
-        if (!changedRoutine) return;
         addToChangeStack({
             ...changedRoutine,
             nodeLinks: changedRoutine.nodeLinks.filter(l => l.id !== link.id),
@@ -294,7 +254,7 @@ export const BuildView = ({
         const revert = () => {
             // If updating routine, revert to original routine
             if (id) {
-                clearChangeStack(routine);
+                clearChangeStack();
                 handleCancel();
             }
             // If adding new routine, go back
@@ -316,7 +276,7 @@ export const BuildView = ({
         } else {
             revert();
         }
-    }, [changeStack.length, clearChangeStack, handleCancel, id, routine])
+    }, [changeStack.length, clearChangeStack, handleCancel, id])
 
     /**
      * If closing with unsaved changes, prompt user to save
@@ -340,7 +300,6 @@ export const BuildView = ({
      * @returns The new set of links
      */
     const calculateLinksAfterNodeRemove = useCallback((nodeId: string): NodeLink[] => {
-        if (!changedRoutine) return [];
         const deletingLinks = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId || l.toId === nodeId);
         const newLinks: NodeLinkShape[] = [];
         // Find all "from" and "to" nodes in the deleting links
@@ -372,7 +331,7 @@ export const BuildView = ({
         row: number | null
     ): { columnIndex: number, rowIndex: number } => {
         if (column === null || row === null) return { columnIndex: -1, rowIndex: -1 };
-        const columnNodes = changedRoutine?.nodes?.filter(n => n.columnIndex === column) ?? [];
+        const columnNodes = changedRoutine.nodes?.filter(n => n.columnIndex === column) ?? [];
         let rowIndex: number = row;
         // eslint-disable-next-line no-loop-func
         while (columnNodes.some(n => n.rowIndex !== null && n.rowIndex === rowIndex) && rowIndex <= 100) {
@@ -380,7 +339,7 @@ export const BuildView = ({
         }
         if (rowIndex > 100) return { columnIndex: -1, rowIndex: -1 };
         return { columnIndex: column, rowIndex };
-    }, [changedRoutine?.nodes]);
+    }, [changedRoutine.nodes]);
 
     /**
      * Generates a new routine list node object, but doesn't add it to the routine
@@ -406,13 +365,13 @@ export const BuildView = ({
             translations: [{
                 __typename: 'NodeTranslation',
                 id: uuid(),
-                language,
-                title: `Node ${(changedRoutine?.nodes?.length ?? 0) - 1}`,
+                language: translationData.language,
+                title: `Node ${(changedRoutine.nodes?.length ?? 0) - 1}`,
                 description: '',
             }],
         }
         return newNode;
-    }, [closestOpenPosition, language, changedRoutine?.nodes?.length]);
+    }, [closestOpenPosition, translationData.language, changedRoutine.nodes?.length]);
 
     /**
      * Generates new end node object, but doesn't add it to the routine
@@ -441,7 +400,6 @@ export const BuildView = ({
      * This assumes that the link is valid.
      */
     const handleLinkCreate = useCallback((link: NodeLink) => {
-        if (!changedRoutine) return;
         addToChangeStack({
             ...changedRoutine,
             nodeLinks: [...changedRoutine.nodeLinks, link]
@@ -452,7 +410,6 @@ export const BuildView = ({
      * Updates an existing link between two nodes
      */
     const handleLinkUpdate = useCallback((link: NodeLink) => {
-        if (!changedRoutine) return;
         const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.id === link.id);
         if (linkIndex === -1) return;
         addToChangeStack({
@@ -466,7 +423,6 @@ export const BuildView = ({
      * Also attemps to create new links to replace the deleted links.
      */
     const handleNodeDelete = useCallback((nodeId: string) => {
-        if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
         const linksList = calculateLinksAfterNodeRemove(nodeId);
@@ -481,7 +437,6 @@ export const BuildView = ({
      * Deletes a subroutine from a node
      */
     const handleSubroutineDelete = useCallback((nodeId: string, subroutineId: string) => {
-        if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
         const node = changedRoutine.nodes[nodeIndex];
@@ -504,7 +459,6 @@ export const BuildView = ({
      * Drops or unlinks a node
      */
     const handleNodeDrop = useCallback((nodeId: string, columnIndex: number | null, rowIndex: number | null) => {
-        if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
         // If columnIndex and rowIndex null, then it is being unlinked
@@ -628,7 +582,6 @@ export const BuildView = ({
      * Updates a node's data
      */
     const handleNodeUpdate = useCallback((node: Node) => {
-        if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === node.id);
         if (nodeIndex === -1) return;
         addToChangeStack({
@@ -641,7 +594,6 @@ export const BuildView = ({
      * Inserts a new routine list node along an edge
      */
     const handleNodeInsert = useCallback((link: NodeLink) => {
-        if (!changedRoutine) return;
         // Find link index
         const linkIndex = changedRoutine.nodeLinks.findIndex(l => l.fromId === link.fromId && l.toId === link.toId);
         // Delete link
@@ -681,7 +633,6 @@ export const BuildView = ({
      * Inserts a new routine list node, with its own branch
      */
     const handleBranchInsert = useCallback((link: NodeLink) => {
-        if (!changedRoutine) return;
         // Find "to" node. New node will be placed in its column
         const toNode = changedRoutine.nodes.find(n => n.id === link.toId);
         if (!toNode) {
@@ -710,7 +661,6 @@ export const BuildView = ({
      * Adds a subroutine routine list
      */
     const handleSubroutineAdd = useCallback((nodeId: string, routine: Routine) => {
-        if (!changedRoutine) return;
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
         const routineList: NodeDataRoutineList = changedRoutine.nodes[nodeIndex].data as NodeDataRoutineList;
@@ -741,7 +691,6 @@ export const BuildView = ({
      */
     const handleSubroutineReorder = useCallback((nodeId: string, oldIndex: number, newIndex: number) => {
         // Find routines being swapped
-        if (!changedRoutine) return;
         // Node containing routine list data with ID nodeId
         const nodeIndex = changedRoutine.nodes.findIndex(n => n.data?.id === nodeId);
         if (nodeIndex === -1) return;
@@ -771,7 +720,6 @@ export const BuildView = ({
      * Add a new end node AFTER a node
      */
     const handleAddEndAfter = useCallback((nodeId: string) => {
-        if (!changedRoutine) return;
         // Find links where this node is the "from" node
         const links = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId);
         // If multiple links, open a dialog to select which one to add after
@@ -802,7 +750,6 @@ export const BuildView = ({
      * Add a new routine list AFTER a node
      */
     const handleAddListAfter = useCallback((nodeId: string) => {
-        if (!changedRoutine) return;
         // Find links where this node is the "from" node
         const links = changedRoutine.nodeLinks.filter(l => l.fromId === nodeId);
         // If multiple links, open a dialog to select which one to add after
@@ -832,7 +779,6 @@ export const BuildView = ({
      * Add a new routine list BEFORE a node
      */
     const handleAddListBefore = useCallback((nodeId: string) => {
-        if (!changedRoutine) return;
         // Find links where this node is the "to" node
         const links = changedRoutine.nodeLinks.filter(l => l.toId === nodeId);
         // If multiple links, open a dialog to select which one to add before
@@ -863,7 +809,6 @@ export const BuildView = ({
      * Updates the current selected subroutine
      */
     const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeDataRoutineListItem) => {
-        if (!changedRoutine) return;
         // Update routine
         addToChangeStack({
             ...changedRoutine,
@@ -910,7 +855,7 @@ export const BuildView = ({
     }, [changedRoutine, openedSubroutine, routine]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
-        const node = changedRoutine?.nodes?.find(n => n.id === nodeId);
+        const node = changedRoutine.nodes?.find(n => n.id === nodeId);
         switch (action) {
             case BuildAction.AddIncomingLink:
                 setLinkDialogTo(node ?? null);
@@ -951,7 +896,7 @@ export const BuildView = ({
                 if (node) setMoveNode(node);
                 break;
         }
-    }, [changedRoutine?.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
+    }, [changedRoutine.nodes, handleNodeDelete, handleSubroutineDelete, handleSubroutineOpen, handleNodeDrop, handleAddEndAfter, handleAddListAfter, handleAddListBefore]);
 
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
@@ -959,7 +904,6 @@ export const BuildView = ({
      * Also removes links that don't have both a valid fromId and toId.
      */
     const cleanUpGraph = useCallback(() => {
-        if (!changedRoutine) return;
         const resultRoutine = JSON.parse(JSON.stringify(changedRoutine));
         // Loop through the columns, and remove gaps in rowIndex
         for (const column of columns) {
@@ -1026,40 +970,28 @@ export const BuildView = ({
         addToChangeStack(resultRoutine);
     }, [addToChangeStack, changedRoutine, columns]);
 
-    const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
-    const handleAddLanguage = useCallback((newLanguage: string) => {
-        setLanguage(newLanguage);
-        addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
-    }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
-        const newLanguages = [...languages.filter(l => l !== language)]
-        if (newLanguages.length === 0) return;
-        setLanguage(newLanguages[0]);
-        removeTranslation(formik, 'translationsUpdate', language);
-    }, [formik, languages]);
-
     const languageComponent = useMemo(() => {
         if (isEditing) return (
             <LanguageInput
-                currentLanguage={language}
-                handleAdd={handleAddLanguage}
-                handleDelete={handleLanguageDelete}
-                handleCurrent={setLanguage}
+                currentLanguage={translationData.language}
+                handleAdd={translationData.handleAddLanguage}
+                handleDelete={translationData.handleDeleteLanguage}
+                handleCurrent={translationData.setLanguage}
                 session={session}
-                translations={formik.values.translationsUpdate}
+                translations={translationData.translations}
                 zIndex={zIndex}
             />
         )
         return (
             <SelectLanguageMenu
-                currentLanguage={language}
-                handleCurrent={setLanguage}
+                currentLanguage={translationData.language}
+                handleCurrent={translationData.setLanguage}
                 session={session}
-                translations={formik.values.translationsUpdate}
+                translations={translationData.translations}
                 zIndex={zIndex}
             />
         )
-    }, [formik.values.translationsUpdate, handleAddLanguage, handleLanguageDelete, isEditing, language, session, zIndex]);
+    }, [translationData, isEditing, session, zIndex]);
 
     return (
         <Box sx={{
@@ -1085,8 +1017,8 @@ export const BuildView = ({
                 handleSelect={handleNodeInsert}
                 handleClose={closeAddAfterLinkDialog}
                 isOpen={Boolean(addAfterLinkNode)}
-                nodes={changedRoutine?.nodes ?? []}
-                links={changedRoutine?.nodeLinks ?? []}
+                nodes={changedRoutine.nodes}
+                links={changedRoutine.nodeLinks}
                 nodeId={addAfterLinkNode}
                 session={session}
                 zIndex={zIndex + 3}
@@ -1096,8 +1028,8 @@ export const BuildView = ({
                 handleSelect={handleNodeInsert}
                 handleClose={closeAddBeforeLinkDialog}
                 isOpen={Boolean(addBeforeLinkNode)}
-                nodes={changedRoutine?.nodes ?? []}
-                links={changedRoutine?.nodeLinks ?? []}
+                nodes={changedRoutine.nodes}
+                links={changedRoutine.nodeLinks}
                 nodeId={addBeforeLinkNode}
                 session={session}
                 zIndex={zIndex + 3}
@@ -1108,7 +1040,7 @@ export const BuildView = ({
                 handleDelete={handleLinkDelete}
                 isAdd={true}
                 isOpen={isLinkDialogOpen}
-                language={language}
+                language={translationData.language}
                 link={undefined}
                 nodeFrom={linkDialogFrom}
                 nodeTo={linkDialogTo}
@@ -1120,7 +1052,7 @@ export const BuildView = ({
             {moveNode && <MoveNodeDialog
                 handleClose={closeMoveNodeDialog}
                 isOpen={Boolean(moveNode)}
-                language={language}
+                language={translationData.language}
                 node={moveNode}
                 routine={changedRoutine}
                 zIndex={zIndex + 3}
@@ -1128,7 +1060,7 @@ export const BuildView = ({
             {/* Displays routine information when you click on a routine list item*/}
             <SubroutineInfoDialog
                 data={openedSubroutine}
-                defaultLanguage={language}
+                defaultLanguage={translationData.language}
                 isEditing={isEditing}
                 handleUpdate={handleSubroutineUpdate}
                 handleReorder={handleSubroutineReorder}
@@ -1142,28 +1074,25 @@ export const BuildView = ({
             <Stack
                 id="build-routine-information-bar"
                 direction="row"
-                spacing={2}
+                spacing={1}
                 width="100%"
+                display="flex"
+                alignItems="center"
                 justifyContent="flex-start"
                 sx={{
                     zIndex: 2,
                     height: '48px',
                     background: palette.primary.dark,
                     color: palette.primary.contrastText,
-                    paddingLeft: 'env(safe-area-inset-left)',
-                    paddingRight: 'env(safe-area-inset-right)',
+                    paddingLeft: 'calc(8px + env(safe-area-inset-left))',
+                    paddingRight: 'calc(8px + env(safe-area-inset-right))',
                 }}
             >
-                <StatusButton status={status.status} messages={status.messages} sx={{
-                    marginTop: 'auto',
-                    marginBottom: 'auto',
-                    marginLeft: 2,
-                    marginRight: 1,
-                }} />
+                <StatusButton status={status.status} messages={status.messages} />
                 {/* Language */}
                 {languageComponent}
                 {/* Help button */}
-                <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} sxRoot={{ margin: "auto", marginRight: 1 }} />
+                <HelpButton markdown={helpText} sx={{ fill: palette.secondary.light }} />
                 {/* Close Icon */}
                 <IconButton
                     edge="start"
@@ -1171,10 +1100,8 @@ export const BuildView = ({
                     onClick={onClose}
                     color="inherit"
                     sx={{
-                        marginLeft: 'auto',
-                        marginRight: 1,
-                        marginTop: 'auto',
-                        marginBottom: 'auto',
+                        position: 'absolute',
+                        right: 'env(safe-area-inset-right)',
                     }}
                 >
                     <CloseIcon width='32px' height='32px' />
@@ -1190,7 +1117,7 @@ export const BuildView = ({
                 handleRedo={redo}
                 handleUndo={undo}
                 isEditing={isEditing}
-                language={language}
+                language={translationData.language}
                 nodesOffGraph={nodesOffGraph}
                 zIndex={zIndex}
             />
@@ -1214,8 +1141,8 @@ export const BuildView = ({
                     handleNodeDrop={handleNodeDrop}
                     isEditing={isEditing}
                     labelVisible={true}
-                    language={language}
-                    links={changedRoutine?.nodeLinks ?? []}
+                    language={translationData.language}
+                    links={changedRoutine.nodeLinks}
                     nodesById={nodesById}
                     zIndex={zIndex}
                 />
@@ -1228,7 +1155,7 @@ export const BuildView = ({
                     'unchanged': isEqual(routine, changedRoutine) ? 'No changes made' : null,
                 }}
                 handleCancel={revertChanges}
-                handleSubmit={() => { formik.submitForm() }}
+                handleSubmit={() => { handleSubmit(changedRoutine) }}
                 isAdding={!uuidValidate(id)}
                 isEditing={isEditing}
                 loading={loading}

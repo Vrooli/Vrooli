@@ -223,7 +223,7 @@ export interface LinkDialogProps {
     link?: NodeLink; // Link to display on open, if editing
     nodeFrom?: Node | null; // Initial "from" node
     nodeTo?: Node | null; // Initial "to" node
-    routine: Routine;
+    routine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>;
     zIndex: number;
 }
 

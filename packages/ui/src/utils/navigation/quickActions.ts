@@ -151,6 +151,10 @@ export const shortcuts: ShortcutItem[] = [
         label: 'FAQ',
         link: `${APP_LINKS.FAQ}`,
     },
+    {
+        label: 'Tutorial',
+        link: `${APP_LINKS.Tutorial}`,
+    },
 ]
 
 /**

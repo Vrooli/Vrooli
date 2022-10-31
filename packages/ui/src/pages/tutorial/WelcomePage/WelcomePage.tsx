@@ -4,7 +4,7 @@ import { useLocation } from '@shared/route';
 import { clickSize } from 'styles';
 import { useEffect } from 'react';
 import { PubSub } from 'utils';
-import { ArticleIcon, HelpIcon, PlayIcon, ProfileIcon, YouTubeIcon } from '@shared/icons';
+import { ArticleIcon, LearnIcon, PlayIcon, ProfileIcon } from '@shared/icons';
 import { PageContainer } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 import { WelcomePageProps } from 'pages/types';
@@ -57,34 +57,29 @@ export const WelcomePage = ({
                 background: palette.mode === 'light' ? palette.primary.dark : palette.background.paper,
                 color: palette.mode === 'light' ? palette.primary.contrastText : palette.background.textPrimary,
             }}>
-                <Typography component="h1" variant="h2" mb={1}>Welcome to Vrooli!</Typography>
+                <Typography component="h1" variant="h2" mb={1}>Welcome to Vrooli!🥳</Typography>
                 <Typography component="h2" variant="h4" mb={3}>Not sure where to start?</Typography>
                 <Stack direction="column" spacing={1} mb={2} sx={{ alignItems: 'center' }}>
                     <Button
-                        onClick={() => openLink("https://www.youtube.com/watch?v=hBHaPYi5esQ")}
-                        startIcon={<YouTubeIcon fill="black" />}
+                        onClick={() => setLocation(APP_LINKS.Tutorial)}
+                        startIcon={<LearnIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >Understand the vision</Button>
+                    >View a Short Tutorial</Button>
                     <Button
-                        onClick={() => setLocation(APP_LINKS.FAQ)}
-                        startIcon={<HelpIcon fill="black" />}
+                        onClick={() => setLocation(APP_LINKS.Example)}
+                        startIcon={<PlayIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >Read the FAQ</Button>
-                    <Button
-                        onClick={() => openLink("https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4?usp=sharing")}
-                        startIcon={<ArticleIcon fill="black" />}
-                        sx={{ ...buttonProps, marginBottom: 0 }}
-                    >Read the White Paper</Button>
+                    >Run Example</Button>
                     {Boolean(getCurrentUser(session).id) && <Button
                         onClick={() => setLocation(`${APP_LINKS.Settings}?page="profile"`)}
                         startIcon={<ProfileIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Set Up Profile</Button>}
                     <Button
-                        onClick={() => setLocation(APP_LINKS.Example)}
-                        startIcon={<PlayIcon fill="black" />}
+                        onClick={() => openLink("https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4?usp=sharing")}
+                        startIcon={<ArticleIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
-                    >Run Example</Button>
+                    >Read the White Paper</Button>
                 </Stack>
                 <Box sx={{
                     ...clickSize,

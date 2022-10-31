@@ -1,20 +1,27 @@
-import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
+import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { routineCreate as validationSchema, routineTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineCreateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, parseSearchParams, removeTranslation, shapeRoutineCreate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, ObjectType, OutputShape, parseSearchParams, PubSub, removeTranslation, shapeRoutineCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
-import { ResourceList } from "types";
+import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
+import { ResourceList, Routine } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineCreateVariables, routineCreate_routineCreate } from "graphql/generated/routineCreate";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
+import { RoutineIcon } from "@shared/icons";
+
+const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).
+
+A single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.
+
+A multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
 
 export const RoutineCreate = ({
     isSubroutine = false,
@@ -72,6 +79,8 @@ export const RoutineCreate = ({
         initialValues: {
             id: uuid(),
             isInternal: false,
+            nodeLinks: [] as Routine['nodeLinks'],
+            nodes: [] as Routine['nodes'],
             translationsCreate: [{
                 id: uuid(),
                 language: getUserLanguages(session)[0],
@@ -91,6 +100,8 @@ export const RoutineCreate = ({
                     isInternal: values.isInternal,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
+                    nodeLinks: values.nodeLinks,
+                    nodes: values.nodes,
                     owner: relationships.owner,
                     parent: relationships.parent as RelationshipItemRoutine | null,
                     project: relationships.project,
@@ -106,6 +117,7 @@ export const RoutineCreate = ({
         },
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
+
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -129,7 +141,7 @@ export const RoutineCreate = ({
         setLanguage(newLanguage);
         addEmptyTranslation(formik, 'translationsCreate', newLanguage);
     }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
+    const handleDeleteLanguage = useCallback((language: string) => {
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         setLanguage(newLanguages[0]);
@@ -143,6 +155,62 @@ export const RoutineCreate = ({
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsCreate', e, language)
     }, [formik, language]);
+
+    const [isGraphOpen, setIsGraphOpen] = useState(false);
+    const handleGraphOpen = useCallback(() => {
+        // Create initial nodes/links, if not already created
+        if (formik.values.nodes.length === 0 && formik.values.nodeLinks.length === 0) {
+            const { nodes, nodeLinks } = initializeRoutineGraph(language);
+            formik.setValues({
+                ...formik.values,
+                nodes,
+                nodeLinks,
+            });
+        }
+        setIsGraphOpen(true);
+    }, [formik, language]);
+    const handleGraphClose = useCallback(() => { setIsGraphOpen(false); }, [setIsGraphOpen]);
+    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: Routine['nodes'], nodeLinks: Routine['nodeLinks'] }) => {
+        formik.setFieldValue('nodes', nodes);
+        formik.setFieldValue('nodeLinks', nodeLinks);
+        setIsGraphOpen(false);
+    }, [formik]);
+
+    // You can use this component to create both single-step and multi-step routines.
+    // The beginning of the form is information shared between both types of routines.
+    const [isMultiStep, setIsMultiStep] = useState<boolean | null>(null);
+    const handleMultiStepChange = useCallback((isMultiStep: boolean) => {
+        // If setting from true to false, check if any nodes or nodeLinks have been added. 
+        // If so, prompt the user to confirm (these will be lost).
+        if (isMultiStep === false && (formik.values.nodes.length > 0 || formik.values.nodeLinks.length > 0)) {
+            PubSub.get().publishAlertDialog({
+                message: 'This will delete the routine graph. Are you sure you want to continue?',
+                buttons: [{
+                    text: 'Yes',
+                    onClick: () => { setIsMultiStep(false); handleGraphClose(); }
+                }, {
+                    text: 'Cancel',
+                }]
+            })
+        }
+        // If settings from false to true, check if any inputs or outputs have been added.
+        // If so, prompt the user to confirm (these will be lost).
+        else if (isMultiStep === true && (inputsList.length > 0 || outputsList.length > 0)) {
+            PubSub.get().publishAlertDialog({
+                message: 'This will delete the inputs and outputs. Are you sure you want to continue?',
+                buttons: [{
+                    text: 'Yes',
+                    onClick: () => { setIsMultiStep(true); handleGraphOpen(); }
+                }, {
+                    text: 'Cancel',
+                }]
+            })
+        }
+        // Otherwise, just set the value.
+        else {
+            setIsMultiStep(isMultiStep);
+        }
+    }, [formik.values.nodes.length, formik.values.nodeLinks.length, inputsList.length, outputsList.length, handleGraphClose, handleGraphOpen]);
 
     const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
@@ -172,7 +240,7 @@ export const RoutineCreate = ({
                     <LanguageInput
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
-                        handleDelete={handleLanguageDelete}
+                        handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
                         session={session}
                         translations={formik.values.translationsCreate}
@@ -213,7 +281,7 @@ export const RoutineCreate = ({
                         placeholder="Instructions"
                         value={instructions}
                         minRows={4}
-                        onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText }})}
+                        onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText } })}
                         error={touchedInstructions && Boolean(errorInstructions)}
                         helperText={touchedInstructions ? errorInstructions : null}
                     />
@@ -234,28 +302,6 @@ export const RoutineCreate = ({
                         }}
                         error={formik.touched.version && Boolean(formik.errors.version)}
                         helperText={formik.touched.version ? formik.errors.version : null}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <InputOutputContainer
-                        isEditing={true}
-                        handleUpdate={handleInputsUpdate}
-                        isInput={true}
-                        language={language}
-                        list={inputsList}
-                        session={session}
-                        zIndex={zIndex}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <InputOutputContainer
-                        isEditing={true}
-                        handleUpdate={handleOutputsUpdate}
-                        isInput={false}
-                        language={language}
-                        list={outputsList}
-                        session={session}
-                        zIndex={zIndex}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -296,6 +342,89 @@ export const RoutineCreate = ({
                             />
                         </Tooltip>
                     </Grid>
+                )}
+                {/* Selector for single-step or multi-step routine */}
+                <Grid item xs={12}>
+                    {/* Title with help text */}
+                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+                        <Typography variant="h4" component="h4">Use Subroutines?</Typography>
+                        <HelpButton markdown={helpTextSubroutines} />
+                    </Stack>
+                    {/* Yes/No buttons */}
+                    <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1}>
+                        <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? 'outlined' : 'contained'}>Yes</Button>
+                        <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? 'outlined' : 'contained'}>No</Button>
+                    </Stack>
+                </Grid>
+                {/* Data displayed only by multi-step routines */}
+                {isMultiStep === true && (
+                    <>
+                        {/* Dialog for building routine graph */}
+                        <Dialog
+                            id="run-routine-view-dialog"
+                            fullScreen
+                            open={isGraphOpen}
+                            onClose={handleGraphClose}
+                            TransitionComponent={UpTransition}
+                            sx={{ zIndex: zIndex + 1 }}
+                        >
+                            <BuildView
+                                handleCancel={handleGraphClose}
+                                handleClose={handleGraphClose}
+                                handleSubmit={handleGraphSubmit}
+                                isEditing={true}
+                                loading={false}
+                                owner={relationships.owner}
+                                routine={{
+                                    id: formik.values.id,
+                                    nodeLinks: formik.values.nodeLinks,
+                                    nodes: formik.values.nodes,
+                                }}
+                                translationData={{
+                                    language,
+                                    setLanguage,
+                                    handleAddLanguage,
+                                    handleDeleteLanguage,
+                                    translations: formik.values.translationsCreate as any[],
+                                }}
+                                session={session}
+                                zIndex={zIndex + 1}
+                            />
+                        </Dialog>
+                        {/* Button to display graph */}
+                        <Grid item xs={12}>
+                            <Button startIcon={<RoutineIcon />} fullWidth color="secondary" onClick={handleGraphOpen} variant="contained">View Graph</Button>
+                        </Grid>
+                        {/* # nodes, # links, Simplicity, complexity & other graph stats */}
+                        {/* TODO */}
+                    </>
+                )}
+                {/* Data displayed only by single-step routines */}
+                {isMultiStep === false && (
+                    <>
+                        <Grid item xs={12}>
+                            <InputOutputContainer
+                                isEditing={true}
+                                handleUpdate={handleInputsUpdate}
+                                isInput={true}
+                                language={language}
+                                list={inputsList}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <InputOutputContainer
+                                isEditing={true}
+                                handleUpdate={handleOutputsUpdate}
+                                isInput={false}
+                                language={language}
+                                list={outputsList}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                        </Grid>
+                    </>
                 )}
                 <GridSubmitButtons
                     disabledSubmit={!isLoggedIn}

@@ -71,13 +71,18 @@ export interface RunViewProps extends ViewProps<Routine> {
 export interface BuildViewProps extends ViewProps<Routine> {
     handleCancel: () => void;
     handleClose: () => void;
-    handleSubmit: (updatedRoutine: Routine) => void;
+    handleSubmit: (updatedRoutine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>) => void;
     isEditing: boolean;
     loading: boolean;
-    onChange: (routine: Routine) => void;
     owner: RelationshipsObject['owner'] | null;
-    routine: Routine | null;
-    zIndex: number;
+    routine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>;
+    translationData: {
+        language: string;
+        setLanguage: (language: string) => void;
+        handleAddLanguage: (language: string) => void;
+        handleDeleteLanguage: (language: string) => void;
+        translations: Routine['translations'];
+    };
 }
 
 export interface ErrorBoundaryProps {

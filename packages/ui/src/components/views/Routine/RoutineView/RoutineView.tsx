@@ -1,4 +1,4 @@
-import { Box, Button, Dialog, Grid, Palette, Stack, useTheme } from "@mui/material"
+import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, ResourceListUsedFor } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
@@ -7,7 +7,7 @@ import { routineQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
-import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, initializeRoutine, ObjectAction, ObjectActionComplete, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, TagShape, uuidToBase36 } from "utils";
+import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, TagShape, uuidToBase36 } from "utils";
 import { ResourceList, Routine, Run } from "types";
 import { runCompleteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
@@ -71,7 +71,7 @@ export const RoutineView = ({
         }
     }, [getData, id, versionGroupId])
 
-    const [routine, setRoutine] = useState<Routine>(initializeRoutine(language));
+    const [routine, setRoutine] = useState<Routine | null>(null);
     useEffect(() => {
         if (!data?.routine) return;
         setRoutine(data.routine);
@@ -95,14 +95,6 @@ export const RoutineView = ({
     }, [title]);
 
     const [isBuildOpen, setIsBuildOpen] = useState<boolean>(Boolean(parseSearchParams()?.build));
-    /**
-     * If routine ID is not valid, create default routine data
-     */
-    useEffect(() => {
-        if (!id || !uuidValidate(id)) {
-            setRoutine(initializeRoutine(language))
-        }
-    }, [id, language]);
     const viewGraph = useCallback(() => {
         setSearchParams(setLocation, {
             build: true,
@@ -325,7 +317,7 @@ export const RoutineView = ({
                 /> : null}
             </Stack>
             {/* Dialog for building routine */}
-            <Dialog
+            {routine && <Dialog
                 id="run-routine-view-dialog"
                 fullScreen
                 open={isBuildOpen}
@@ -341,13 +333,19 @@ export const RoutineView = ({
                     handleSubmit={() => { }} //Intentionally blank, since this is a read-only view
                     isEditing={false}
                     loading={loading}
-                    onChange={updateRoutine}
                     owner={relationships.owner}
                     routine={routine}
                     session={session}
+                    translationData={{
+                        language,
+                        setLanguage,
+                        handleAddLanguage: () => { },
+                        handleDeleteLanguage: () => { },
+                        translations: routine.translations,
+                    }}
                     zIndex={zIndex + 1}
                 />
-            </Dialog>
+            </Dialog>}
             <ObjectTitle
                 language={language}
                 loading={loading}

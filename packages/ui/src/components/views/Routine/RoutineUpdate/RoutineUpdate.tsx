@@ -8,10 +8,10 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
-import { ResourceList } from "types";
+import { ResourceList, Routine } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineUpdateVariables, routineUpdate_routineUpdate } from "graphql/generated/routineUpdate";
@@ -96,6 +96,8 @@ export const RoutineUpdate = ({
     const [mutation] = useMutation(routineUpdateMutation);
     const formik = useFormik({
         initialValues: {
+            nodeLinks: routine?.nodeLinks ?? [] as Routine['nodeLinks'],
+            nodes: routine?.nodes ?? [] as Routine['nodes'],
             translationsUpdate: routine?.translations ?? [{
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
@@ -174,6 +176,26 @@ export const RoutineUpdate = ({
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsUpdate', e, language)
     }, [formik, language]);
+
+    const [isGraphOpen, setIsGraphOpen] = useState(false);
+    const handleGraphOpen = useCallback(() => {
+        // Create initial nodes/links, if not already created
+        if (formik.values.nodes.length === 0 && formik.values.nodeLinks.length === 0) {
+            const { nodes, nodeLinks } = initializeRoutineGraph(language);
+            formik.setValues({
+                ...formik.values,
+                nodes,
+                nodeLinks,
+            });
+        }
+        setIsGraphOpen(true);
+    }, [formik, language]);
+    const handleGraphClose = useCallback(() => { setIsGraphOpen(false); }, [setIsGraphOpen]);
+    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: Routine['nodes'], nodeLinks: Routine['nodeLinks'] }) => {
+        formik.setFieldValue('nodes', nodes);
+        formik.setFieldValue('nodeLinks', nodeLinks);
+        setIsGraphOpen(false);
+    }, [formik]);
 
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>

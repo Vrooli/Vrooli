@@ -9,7 +9,7 @@ import {
     Tooltip,
     useTheme,
 } from '@mui/material';
-import { DiscordIcon, GitHubIcon, SvgComponent, TwitterIcon } from '@shared/icons';
+import { InfoIcon, DiscordIcon, GitHubIcon, StatsIcon, SvgComponent, TwitterIcon } from '@shared/icons';
 import { CopyrightBreadcrumbs } from 'components';
 import { useLocation } from '@shared/route';
 import { openLink } from 'utils';
@@ -21,7 +21,7 @@ const contactLinks: [string, string, string, string, SvgComponent][] = [
     ['contact-github', 'Check out the source code, or contribute :)', SOCIALS.GitHub, 'Source Code', GitHubIcon],
 ]
 
-const aboutUsLink = `${LANDING_URL}${LANDING_LINKS.About}`
+const aboutUsLink = `${LANDING_URL}${LANDING_LINKS.AboutUs}`
 const viewStatsLink = APP_LINKS.Stats
 
 export const Footer = () => {
@@ -58,6 +58,9 @@ export const Footer = () => {
                             onClick={(e) => { e.preventDefault(); openLink(setLocation, aboutUsLink) }}
                             sx={{ padding: 2 }}
                         >
+                            <ListItemIcon>
+                                <InfoIcon fill={palette.primary.contrastText} />
+                            </ListItemIcon>
                             <ListItemText primary="About Us" sx={{ color: palette.primary.contrastText }} />
                         </ListItem>
                         <ListItem
@@ -66,6 +69,9 @@ export const Footer = () => {
                             onClick={(e) => { e.preventDefault(); openLink(setLocation, viewStatsLink) }}
                             sx={{ padding: 2 }}
                         >
+                            <ListItemIcon>
+                                <StatsIcon fill={palette.primary.contrastText} />
+                            </ListItemIcon>
                             <ListItemText primary="View Stats" sx={{ color: palette.primary.contrastText }} />
                         </ListItem>
                     </List>
