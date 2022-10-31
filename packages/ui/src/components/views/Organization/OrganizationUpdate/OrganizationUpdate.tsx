@@ -142,7 +142,7 @@ export const OrganizationUpdate = ({
             <Grid item xs={12}>
                 <PageTitle title="Update Organization" />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} mb={4}>
                 <RelationshipButtons
                     objectType={ObjectType.Organization}
                     onRelationshipsChange={onRelationshipsChange}
@@ -175,7 +175,7 @@ export const OrganizationUpdate = ({
                     helperText={touchedName && errorName}
                 />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} mb={4}>
                 <TextField
                     fullWidth
                     id="bio"
@@ -189,23 +189,6 @@ export const OrganizationUpdate = ({
                     error={touchedBio && Boolean(errorBio)}
                     helperText={touchedBio && errorBio}
                 />
-            </Grid>
-            <Grid item xs={12}>
-                <Tooltip placement={'top'} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
-                    <FormControlLabel
-                        label='Open to new members?'
-                        control={
-                            <Checkbox
-                                id='organization-is-open-to-new-members'
-                                size="medium"
-                                name='isOpenToNewMembers'
-                                color='secondary'
-                                checked={formik.values.isOpenToNewMembers}
-                                onChange={formik.handleChange}
-                            />
-                        }
-                    />
-                </Tooltip>
             </Grid>
             <Grid item xs={12}>
                 <ResourceListHorizontal
@@ -225,6 +208,23 @@ export const OrganizationUpdate = ({
                     session={session}
                     tags={tags}
                 />
+            </Grid>
+            <Grid item xs={12} mb={4}>
+                <Tooltip placement={'top'} title='Indicates if this organization should be displayed when users are looking for an organization to join'>
+                    <FormControlLabel
+                        label='Open to new members?'
+                        control={
+                            <Checkbox
+                                id='organization-is-open-to-new-members'
+                                size="medium"
+                                name='isOpenToNewMembers'
+                                color='secondary'
+                                checked={formik.values.isOpenToNewMembers}
+                                onChange={formik.handleChange}
+                            />
+                        }
+                    />
+                </Tooltip>
             </Grid>
             <GridSubmitButtons
                 errors={errors}

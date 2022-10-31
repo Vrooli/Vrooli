@@ -1,19 +1,22 @@
 import {
+    Box,
+    Collapse,
     Divider,
     IconButton,
     List,
     ListItem,
     ListItemIcon,
     ListItemText,
-    Menu,
+    SwipeableDrawer,
+    Typography,
     useTheme,
 } from '@mui/material';
 import { Stack } from '@mui/system';
-import { CloseIcon, LogOutIcon, PlusIcon, UserIcon } from '@shared/icons';
+import { CloseIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, LogOutIcon, PlusIcon, UserIcon } from '@shared/icons';
 import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { profileUpdateVariables, profileUpdate_profileUpdate } from 'graphql/generated/profileUpdate';
 import { useMutation } from '@apollo/client';
@@ -27,6 +30,7 @@ import { getCurrentUser, guestSession } from 'utils/authentication';
 import { SessionUser } from 'types';
 import { logOutVariables, logOut_logOut } from 'graphql/generated/logOut';
 import { switchCurrentAccountVariables, switchCurrentAccount_switchCurrentAccount } from 'graphql/generated/switchCurrentAccount';
+import { ContactInfo } from 'components/navigation';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;
@@ -40,6 +44,11 @@ export const AccountMenu = ({
     const [, setLocation] = useLocation();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const open = Boolean(anchorEl);
+
+    // Additional resources collapse
+    const [isAdditionalResourcesOpen, setIsAdditionalResourcesOpen] = useState(false);
+    const toggleAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(!isAdditionalResourcesOpen) }, [isAdditionalResourcesOpen]);
+    const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false) }, []);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
     const [mutation] = useMutation(profileUpdateMutation);
@@ -79,7 +88,8 @@ export const AccountMenu = ({
     const handleClose = useCallback(() => {
         formik.handleSubmit();
         onClose();
-    }, [formik, onClose]);
+        closeAdditionalResources();
+    }, [closeAdditionalResources, formik, onClose]);
 
     const [switchCurrentAccount] = useMutation(switchCurrentAccountMutation);
     const handleUserClick = useCallback((user: SessionUser) => {
@@ -139,34 +149,17 @@ export const AccountMenu = ({
     ), [accounts, handleUserClick]);
 
     return (
-        <Menu
-            id='account-menu-id'
-            disableScrollLock={true}
-            autoFocus={true}
+        <SwipeableDrawer
+            anchor="right"
             open={open}
-            anchorEl={anchorEl}
-            anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right',
-            }}
-            transformOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right',
-            }}
+            onOpen={() => { }}
             onClose={(e) => { handleClose() }}
             sx={{
                 zIndex: 20000,
-                '& .MuiMenu-paper': {
+                '& .MuiDrawer-paper': {
                     background: palette.background.default,
-                    minWidth: 'min(100%, 250px)',
-                    boxShadow: 12,
-                },
-                '& .MuiMenu-list': {
-                    paddingTop: '0',
-                },
-                '& .MuiList-root': {
-                    padding: '0',
-                },
+                    overflowY: 'auto',
+                }
             }}
         >
             {/* Custom menu title with theme switch, preferred language selector, text size quantity box, and close icon */}
@@ -183,6 +176,8 @@ export const AccountMenu = ({
                     color: palette.primary.contrastText,
                     textAlign: 'center',
                     fontSize: { xs: '1.5rem', sm: '2rem' },
+                    height: { xs: '64px', md: '80px' }, // Matches navbar height
+                    paddingRight: 3, // Matches navbar padding
                 }}
             >
                 {/* Theme switch */}
@@ -202,11 +197,11 @@ export const AccountMenu = ({
                     onClick={handleClose}
                     sx={{ marginLeft: 'auto' }}
                 >
-                    <CloseIcon fill={palette.primary.contrastText} />
+                    <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
             </Stack>
             {/* List of logged/in accounts */}
-            <List>
+            <List sx={{ paddingTop: 0, paddingBottom: 0 }}>
                 {profileListItems}
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* Buttons to add account and log out */}
@@ -223,6 +218,26 @@ export const AccountMenu = ({
                     <ListItemText primary={'Log out'} />
                 </ListItem>}
             </List>
-        </Menu>
+            <Divider sx={{ background: palette.background.textSecondary }} />
+            {/* Additional Resources */}
+            <Stack direction="row" spacing={1} onClick={toggleAdditionalResources} sx={{
+                display: 'flex',
+                alignItems: 'center',
+                textAlign: 'left',
+                paddingLeft: 2,
+                paddingRight: 2,
+                paddingTop: 1,
+                paddingBottom: 1,
+            }}>
+                <Box sx={{ minWidth: '56px', display: 'flex', alignItems: 'center' }}>
+                    <HelpIcon fill={palette.background.textPrimary} />
+                </Box>
+                <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: '0 !important' }}>Additional Resources</Typography>
+                {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} /> : <ExpandLessIcon fill={palette.background.textPrimary} />}
+            </Stack>
+            <Collapse in={isAdditionalResourcesOpen} sx={{ display: 'inline-block' }}>
+                <ContactInfo />
+            </Collapse>
+        </SwipeableDrawer>
     )
 }

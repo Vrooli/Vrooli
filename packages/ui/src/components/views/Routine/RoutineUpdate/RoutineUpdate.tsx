@@ -202,7 +202,7 @@ export const RoutineUpdate = ({
             <Grid item xs={12}>
                 <PageTitle title="Update Routine" />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} mb={4}>
                 <RelationshipButtons
                     isFormDirty={formik.dirty}
                     objectType={ObjectType.Routine}
@@ -251,7 +251,7 @@ export const RoutineUpdate = ({
                     helperText={touchedDescription && errorDescription}
                 />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} mb={4}>
                 <MarkdownInput
                     id="instructions"
                     placeholder="Instructions"
@@ -260,24 +260,6 @@ export const RoutineUpdate = ({
                     onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText } })}
                     error={touchedInstructions && Boolean(errorInstructions)}
                     helperText={touchedInstructions ? errorInstructions : null}
-                />
-            </Grid>
-            <Grid item xs={12}>
-                <VersionInput
-                    fullWidth
-                    id="version"
-                    name="version"
-                    value={formik.values.version}
-                    onBlur={formik.handleBlur}
-                    onChange={(newVersion: string) => {
-                        formik.setFieldValue('version', newVersion);
-                        setRelationships({
-                            ...relationships,
-                            isComplete: false,
-                        })
-                    }}
-                    error={formik.touched.version && Boolean(formik.errors.version)}
-                    helperText={formik.touched.version ? formik.errors.version : null}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -319,6 +301,24 @@ export const RoutineUpdate = ({
                     handleTagsUpdate={handleTagsUpdate}
                     session={session}
                     tags={tags}
+                />
+            </Grid>
+            <Grid item xs={12} mb={4}>
+                <VersionInput
+                    fullWidth
+                    id="version"
+                    name="version"
+                    value={formik.values.version}
+                    onBlur={formik.handleBlur}
+                    onChange={(newVersion: string) => {
+                        formik.setFieldValue('version', newVersion);
+                        setRelationships({
+                            ...relationships,
+                            isComplete: false,
+                        })
+                    }}
+                    error={formik.touched.version && Boolean(formik.errors.version)}
+                    helperText={formik.touched.version ? formik.errors.version : null}
                 />
             </Grid>
             <GridSubmitButtons

@@ -13,8 +13,8 @@ export const PullToRefresh = () => {
         willRefresh: false,
         startX: null,
     });
-    // Determine if in PWA mode
-    const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+    // Determine if in standalone (i.e. app is downloaded) mode
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
 
     // Detect scroll
     useEffect(() => {
@@ -43,7 +43,7 @@ export const PullToRefresh = () => {
         };
     }, []);
 
-    if (!isPWA) return null;
+    if (!isStandalone) return null;
     return (
         <Box
             id='pull-to-refresh'

@@ -167,7 +167,7 @@ export const StandardCreate = ({
                 <Grid item xs={12}>
                     <PageTitle title="Create Standard" />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} mb={4}>
                     <RelationshipButtons
                         objectType={ObjectType.Standard}
                         onRelationshipsChange={onRelationshipsChange}
@@ -200,7 +200,7 @@ export const StandardCreate = ({
                         helperText={formik.touched.name && formik.errors.name}
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} mb={4}>
                     <TextField
                         fullWidth
                         id="description"
@@ -281,7 +281,7 @@ export const StandardCreate = ({
                         zIndex={zIndex}
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} mb={4}>
                     <TagSelector
                         handleTagsUpdate={handleTagsUpdate}
                         session={session}

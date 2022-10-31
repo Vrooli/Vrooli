@@ -150,7 +150,7 @@ export const StandardUpdate = ({
             <Grid item xs={12}>
                 <PageTitle title="Update Standard" />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} mb={4}>
                 <RelationshipButtons
                     objectType={ObjectType.Standard}
                     onRelationshipsChange={onRelationshipsChange}
@@ -170,7 +170,7 @@ export const StandardUpdate = ({
                     zIndex={zIndex}
                 />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} mb={4}>
                 <TextField
                     fullWidth
                     id="description"

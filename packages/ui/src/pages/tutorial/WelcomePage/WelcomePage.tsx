@@ -1,4 +1,4 @@
-import { APP_LINKS } from '@shared/consts';
+import { APP_LINKS, WHITE_PAPER_URL } from '@shared/consts';
 import { Box, Button, Link, Stack, Typography, useTheme } from '@mui/material';
 import { useLocation } from '@shared/route';
 import { clickSize } from 'styles';
@@ -76,7 +76,7 @@ export const WelcomePage = ({
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Set Up Profile</Button>}
                     <Button
-                        onClick={() => openLink("https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4?usp=sharing")}
+                        onClick={() => openLink(WHITE_PAPER_URL)}
                         startIcon={<ArticleIcon fill="black" />}
                         sx={{ ...buttonProps, marginBottom: 0 }}
                     >Read the White Paper</Button>

@@ -134,7 +134,7 @@ export const ProjectCreate = ({
                 <Grid item xs={12}>
                     <PageTitle title="Create Project" />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} mb={4}>
                     <RelationshipButtons
                         objectType={ObjectType.Project}
                         onRelationshipsChange={onRelationshipsChange}
@@ -167,7 +167,7 @@ export const ProjectCreate = ({
                         helperText={touchedName && errorName}
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} mb={4}>
                     <TextField
                         fullWidth
                         id="description"
@@ -194,7 +194,7 @@ export const ProjectCreate = ({
                         zIndex={zIndex}
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} mb={4}>
                     <TagSelector
                         handleTagsUpdate={handleTagsUpdate}
                         session={session}

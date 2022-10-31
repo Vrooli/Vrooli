@@ -33,6 +33,9 @@ export const Footer = () => {
         return !disableList.some(disable => pathname.startsWith(disable));
     }, [pathname]);
 
+    // Dont' display footer when app is running standalone
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) return null;
     return (
         <Box
             display={showFooter ? 'block' : 'none'}

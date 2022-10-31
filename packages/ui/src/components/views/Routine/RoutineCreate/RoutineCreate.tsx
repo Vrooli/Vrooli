@@ -226,7 +226,7 @@ export const RoutineCreate = ({
                 <Grid item xs={12}>
                     <PageTitle title="Create Routine" />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} mb={4}>
                     <RelationshipButtons
                         isFormDirty={formik.dirty}
                         objectType={ObjectType.Routine}
@@ -275,7 +275,7 @@ export const RoutineCreate = ({
                         helperText={touchedDescription && errorDescription}
                     />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} mb={4}>
                     <MarkdownInput
                         id="instructions"
                         placeholder="Instructions"
@@ -284,24 +284,6 @@ export const RoutineCreate = ({
                         onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText } })}
                         error={touchedInstructions && Boolean(errorInstructions)}
                         helperText={touchedInstructions ? errorInstructions : null}
-                    />
-                </Grid>
-                <Grid item xs={12}>
-                    <VersionInput
-                        fullWidth
-                        id="version"
-                        name="version"
-                        value={formik.values.version}
-                        onBlur={formik.handleBlur}
-                        onChange={(newVersion: string) => {
-                            formik.setFieldValue('version', newVersion);
-                            setRelationships({
-                                ...relationships,
-                                isComplete: false,
-                            })
-                        }}
-                        error={formik.touched.version && Boolean(formik.errors.version)}
-                        helperText={formik.touched.version ? formik.errors.version : null}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -321,6 +303,24 @@ export const RoutineCreate = ({
                         handleTagsUpdate={handleTagsUpdate}
                         session={session}
                         tags={tags}
+                    />
+                </Grid>
+                <Grid item xs={12} mb={4}>
+                    <VersionInput
+                        fullWidth
+                        id="version"
+                        name="version"
+                        value={formik.values.version}
+                        onBlur={formik.handleBlur}
+                        onChange={(newVersion: string) => {
+                            formik.setFieldValue('version', newVersion);
+                            setRelationships({
+                                ...relationships,
+                                isComplete: false,
+                            })
+                        }}
+                        error={formik.touched.version && Boolean(formik.errors.version)}
+                        helperText={formik.touched.version ? formik.errors.version : null}
                     />
                 </Grid>
                 {/* Is internal checkbox */}
@@ -344,9 +344,9 @@ export const RoutineCreate = ({
                     </Grid>
                 )}
                 {/* Selector for single-step or multi-step routine */}
-                <Grid item xs={12}>
+                <Grid item xs={12} mb={2}>
                     {/* Title with help text */}
-                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={1}>
+                    <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} mb={2}>
                         <Typography variant="h4" component="h4">Use Subroutines?</Typography>
                         <HelpButton markdown={helpTextSubroutines} />
                     </Stack>
@@ -392,7 +392,7 @@ export const RoutineCreate = ({
                             />
                         </Dialog>
                         {/* Button to display graph */}
-                        <Grid item xs={12}>
+                        <Grid item xs={12} mb={4}>
                             <Button startIcon={<RoutineIcon />} fullWidth color="secondary" onClick={handleGraphOpen} variant="contained">View Graph</Button>
                         </Grid>
                         {/* # nodes, # links, Simplicity, complexity & other graph stats */}
@@ -413,7 +413,7 @@ export const RoutineCreate = ({
                                 zIndex={zIndex}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} mb={4}>
                             <InputOutputContainer
                                 isEditing={true}
                                 handleUpdate={handleOutputsUpdate}

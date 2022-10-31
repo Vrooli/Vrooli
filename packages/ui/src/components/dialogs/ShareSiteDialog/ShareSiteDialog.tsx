@@ -51,11 +51,11 @@ export const ShareSiteDialog = ({
     }
 
     /**
-    * When QR code is long-pressed in PWA, open copy/save photo dialog
+    * When QR code is long-pressed in standalone (i.e. app is downloaded), open copy/save photo dialog
     */
     const handleQRCodeLongPress = () => {
-        const isPWA = window.matchMedia('(display-mode: standalone)').matches;
-        if (!isPWA) return;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        if (!isStandalone) return;
         // Find image using parent element's ID
         const qrCode = document.getElementById('qr-code-box')?.firstChild as HTMLImageElement;
         if (!qrCode) return;

@@ -6,6 +6,7 @@ import { BreadcrumbsBaseProps } from '../types';
 import { useMemo } from 'react';
 import { useLocation } from '@shared/route';
 import { openLink } from 'utils';
+import { noSelect } from 'styles';
 
 export const BreadcrumbsBase = ({
     paths,
@@ -39,7 +40,8 @@ export const BreadcrumbsBase = ({
                     display: 'flex',
                     flexDirection: 'row',
                     alignItems: 'center',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    ...noSelect,
                 }
             }}
             separator={separator}
