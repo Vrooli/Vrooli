@@ -5,8 +5,8 @@ import { Comment, NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineLis
 import { ReportFor } from 'graphql/generated/globalTypes';
 import { ListObjectType, SearchType } from 'utils';
 import { SvgComponent } from '@shared/icons';
-import { SnackSeverity } from './Snack/Snack';
 import { ObjectAction, ObjectActionComplete } from 'utils/actions/objectActions';
+import { CookiePreferences } from 'utils/cookies';
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
@@ -37,6 +37,11 @@ export interface CommentDialogProps {
     text: string;
     zIndex: number;
 }
+
+export interface CookieSettingsDialogProps {
+    handleClose: (preferences?: CookiePreferences) => void;
+    isOpen: boolean;
+};
 
 export interface DeleteAccountDialogProps {
     handleClose: (wasDeleted: boolean) => void;
@@ -328,17 +333,4 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, 'open' | 'sx'>
         root?: { [x: string]: any };
         content?: { [x: string]: any };
     }
-}
-
-export interface SnackProps {
-    buttonClicked?: (event?: any) => any;
-    buttonText?: string;
-    /**
-     * Anything you'd like to log in development mode
-     */
-    data?: any;
-    handleClose: () => any;
-    id: string;
-    message?: string;
-    severity?: SnackSeverity;
 }

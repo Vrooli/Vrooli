@@ -18,7 +18,7 @@ import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStatus } from "graphql/generated/globalTypes";
 import { DeleteIcon } from "@shared/icons";
-import { SnackSeverity } from "../Snack/Snack";
+import { SnackSeverity } from "components";
 
 const titleAria = 'run-picker-dialog-title';
 

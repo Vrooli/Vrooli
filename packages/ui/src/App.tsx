@@ -21,6 +21,20 @@ import { Session } from 'types';
 import Confetti from 'react-confetti';
 import { CODE } from '@shared/consts';
 import { guestSession } from 'utils/authentication';
+import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
+
+/**
+ * Attempts to find theme without using session, defaulting to light
+ */
+const findThemeWithoutSession = (): Theme => {
+    // First, try getting theme from local storage
+    const cookieTheme = getCookieTheme();
+    if (cookieTheme) return themes[cookieTheme];
+    // If not found or invalid, try getting theme from window
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Default to light if not found
+    return prefersDark ? themes.dark : themes.light;
+}
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -66,14 +80,15 @@ export function App() {
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
-    const [theme, setTheme] = useState(themes.light);
+    const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useMutation<any>(validateSessionMutation);
 
     /**
-     * Sets theme state and meta tags
+     * Sets theme state and meta tags. Meta tags allow standalone apps to
+     * use the theme color as the status bar color.
      */
     const setThemeAndMeta = useCallback((theme: Theme) => {
         // Update state
@@ -81,6 +96,8 @@ export function App() {
         // Update meta tags, for theme-color and apple-mobile-web-app-status-bar-style
         document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.palette.primary.dark);
         document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', theme.palette.primary.dark);
+        // Also store in local storage
+        setCookieTheme(theme.palette.mode);
     }, [setTheme]);
 
     // If anchor tag in url, scroll to element
@@ -139,25 +156,29 @@ export function App() {
 
     useEffect(() => {
         // Determine theme
-        let theme: Theme | undefined;
+        let theme: Theme | null | undefined;
         // Try getting theme from session
         if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme];
-        // If not found or invalid, try getting theme from window
-        if (!theme) {
-            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            theme = prefersDark ? themes.dark : themes.light;
-        }
+        // If not found, try alternative methods
+        if (!theme) theme = findThemeWithoutSession();
+        // Update theme state, meta tags, and local storage
         setThemeAndMeta(theme);
     }, [session, setThemeAndMeta])
 
-    // Detect online/offline status
+    // Detect online/offline status, as well as "This site uses cookies" banner
     useEffect(() => {
         window.addEventListener('online', () => {
-            PubSub.get().publishSnack({ message: 'You are now online', severity: SnackSeverity.Success });
+            PubSub.get().publishSnack({ id: 'online-status', message: 'You are now online', severity: SnackSeverity.Success });
         });
         window.addEventListener('offline', () => {
-            PubSub.get().publishSnack({ message: 'No internet connection', severity: SnackSeverity.Error });
+            // ID is the same so there is ever only one online/offline snack displayed at a time
+            PubSub.get().publishSnack({ autoHideDuration: 'persist', id: 'online-status', message: 'No internet connection', severity: SnackSeverity.Error });
         });
+        // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
+        const cookiePreferences = getCookiePreferences();
+        if (!window.matchMedia('(display-mode: standalone)').matches && !cookiePreferences) {
+            PubSub.get().publishCookies();
+        }
     }, []);
 
     // Handle site-wide keyboard shortcuts

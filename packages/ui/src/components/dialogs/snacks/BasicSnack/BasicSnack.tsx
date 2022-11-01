@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { IconButton, Button, useTheme, Palette, Box, Typography } from '@mui/material';
 import { CloseIcon, ErrorIcon, InfoIcon, SuccessIcon, SvgComponent, WarningIcon } from '@shared/icons';
-import { SnackProps } from '../types';
+import { BasicSnackProps } from '../types';
 
 export enum SnackSeverity {
     Error = 'error',
@@ -34,29 +34,29 @@ const severityStyle = (severity: SnackSeverity | undefined, palette: Palette) =>
     return { backgroundColor, color };
 }
 
-const DURATION = 4000;
-
 /**
- * Individual snack item in the snack stack. 
+ * Basic snack item in the snack stack. 
  * Look changes based on severity. 
  * Supports a button with a callback.
  */
-export const Snack = ({
+export const BasicSnack = ({
     buttonClicked,
     buttonText,
     data,
+    duration,
     handleClose,
     id,
     message,
     severity,
-}: SnackProps) => {
+}: BasicSnackProps) => {
     const { palette } = useTheme();
 
     const [open, setOpen] = useState<boolean>(true);
-    // Timout to close the snack
+    // Timout to close the snack, if not persistent
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     // Timeout starts immediately
     useEffect(() => {
+        if (duration === 'persist') return;
         timeoutRef.current = setTimeout(() => {
             // First set to close
             setOpen(false);
@@ -64,13 +64,13 @@ export const Snack = ({
             timeoutRef.current = setTimeout(() => {
                 handleClose();
             }, 400);
-        }, DURATION);
+        }, duration ?? 5000);
         return () => {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
         }
-    }, [handleClose]);
+    }, [duration, handleClose]);
 
     useEffect(() => {
         // Log snack errors if in development
@@ -96,6 +96,7 @@ export const Snack = ({
     return (
         <Box sx={{
             display: 'flex',
+            pointerEvents: 'auto',
             justifyContent: 'space-between',
             alignItems: 'center',
             maxWidth: { xs: '100%', sm: '600px' },
@@ -103,7 +104,8 @@ export const Snack = ({
             transform: open ? 'translateX(0)' : 'translateX(-150%)',
             transition: 'transform 0.4s ease-in-out',
             padding: '8px 16px',
-            borderRadius: '12px',
+            borderRadius: 2,
+            boxShadow: 8,
             ...severityStyle(severity, palette),
         }}>
             {/* Icon */}

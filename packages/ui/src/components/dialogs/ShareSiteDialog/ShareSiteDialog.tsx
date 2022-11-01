@@ -8,8 +8,7 @@ import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { PubSub, usePress } from 'utils';
-import { ColorIconButton } from 'components/buttons';
-import { SnackSeverity } from '../Snack/Snack';
+import { ColorIconButton, SnackSeverity } from 'components';
 
 // Invite link
 const inviteLink = `https://vrooli.com${APP_LINKS.Start}`;

@@ -13,6 +13,7 @@ export const Pubs = {
     ...COOKIE,
     Celebration: "celebration",
     CommandPalette: "commandPalette",
+    Cookies: "cookies", // For cookie consent dialog
     FastUpdate: "fastUpdate",
     FindInPage: "findInPage",
     Loading: "loading",
@@ -27,12 +28,16 @@ export const Pubs = {
 export type Pubs = ValueOf<typeof Pubs>;
 
 export type SnackPub = {
+    autoHideDuration?: number | 'persist';
+    buttonClicked?: (event?: any) => any;
+    buttonText?: string;
+    data?: any;
+    /**
+     * If ID is set, a snack with the same ID will be replaced
+     */
+    id?: string;
     message?: string;
     severity: SnackSeverity;
-    data?: any;
-    buttonText?: string;
-    buttonClicked?: (event?: any) => any;
-    autoHideDuration?: number;
 }
 
 export class PubSub {
@@ -56,6 +61,9 @@ export class PubSub {
     }
     publishCommandPalette() {
         this.publish(Pubs.CommandPalette);
+    }
+    publishCookies() {
+        this.publish(Pubs.Cookies);
     }
     publishFindInPage() {
         this.publish(Pubs.FindInPage);
@@ -108,6 +116,9 @@ export class PubSub {
     }
     subscribeCommandPalette(subscriber: () => void) {
         return this.subscribe(Pubs.CommandPalette, subscriber);
+    }
+    subscribeCookies(subscriber: () => void) {
+        return this.subscribe(Pubs.Cookies, subscriber);
     }
     subscribeFindInPage(subscriber: () => void) {
         return this.subscribe(Pubs.FindInPage, subscriber);

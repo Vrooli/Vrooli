@@ -8,8 +8,7 @@ import { useMemo } from 'react';
 import { getObjectUrl, ObjectType, PubSub, usePress } from 'utils';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
-import { SnackSeverity } from '../Snack/Snack';
+import { ColorIconButton, SnackSeverity } from 'components';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {

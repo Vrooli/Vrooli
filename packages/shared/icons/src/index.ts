@@ -62,6 +62,7 @@ export * from './InstagramIcon';
 export * from './InvisibleIcon';
 export * from './ItalicIcon';
 export * from './LanguageIcon';
+export * from './LargeCookieIcon';
 export * from './LearnIcon';
 export * from './LightModeIcon';
 export * from './LinkedInIcon';
