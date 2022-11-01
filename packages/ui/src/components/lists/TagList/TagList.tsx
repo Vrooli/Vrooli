@@ -9,8 +9,6 @@ export const TagList = ({
     sx,
     tags,
 }: TagListProps) => {
-    // temp
-    tags = [{ tag: 'entrepreneurship' }, { tag: 'cardano' }, { tag: 'internet' }, { tag: 'code' }, { tag: 'yeet' }, { tag: 'over' }, { tag: 'the' }, { tag: 'lazy' }, { tag: 'dog' }];
     const { palette } = useTheme();
 
     const [chips, numTagsCutOff] = useMemo(() => {

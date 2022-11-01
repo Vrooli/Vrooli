@@ -18,7 +18,7 @@ export function ListMenu<T>({
     anchorEl,
     onSelect,
     onClose,
-    title = 'Select Item',
+    title,
     data,
     zIndex,
 }: ListMenuProps<T>) {
@@ -32,7 +32,7 @@ export function ListMenu<T>({
             '& .MuiListItemText-secondary': {
                 color: 'red',
             },
-        }}/>;
+        }} />;
         const fill = !iconColor || ['default', 'unset'].includes(iconColor) ? palette.background.textSecondary : iconColor;
         const itemIcon = Icon ? (
             <ListItemIcon>
@@ -79,11 +79,11 @@ export function ListMenu<T>({
                 }
             }}
         >
-            <MenuTitle
+            {title && <MenuTitle
                 ariaLabel={titleAria}
                 title={title}
                 onClose={() => { onClose() }}
-            />
+            />}
             <List>
                 {items}
             </List>

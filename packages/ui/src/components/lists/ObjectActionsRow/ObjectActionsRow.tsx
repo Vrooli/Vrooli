@@ -257,7 +257,6 @@ export const ObjectActionsRow = ({
                 onActionComplete={onActionComplete}
                 onClose={closeOverflowMenu}
                 session={session}
-                title='Item Options'
                 zIndex={zIndex + 1}
             />}
         </Stack>

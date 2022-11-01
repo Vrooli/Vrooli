@@ -87,7 +87,6 @@ export const ResourceListItemContextMenu = ({
         <ListMenu
             id={id}
             anchorEl={anchorEl}
-            title='Resource Options'
             data={listOptionsFiltered}
             onSelect={onMenuItemSelect}
             onClose={onClose}

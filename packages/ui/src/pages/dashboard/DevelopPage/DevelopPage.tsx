@@ -12,6 +12,7 @@ import { useLocation } from '@shared/route';
 import { DevelopPageProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { getCurrentUser } from 'utils/authentication';
+import { ProjectIcon, RoutineIcon } from '@shared/icons';
 
 const completedText =
     `Find projects and routines that you've recently completed
@@ -35,8 +36,8 @@ const recentText =
     `Recently updated projects and routines`
 
 const createPopupOptions: ListMenuItemData<string>[] = [
-    { label: 'Project', value: `${APP_LINKS.Project}/add` },
-    { label: 'Routine', value: `${APP_LINKS.Routine}/add` },
+    { label: 'Project', Icon: ProjectIcon, value: `${APP_LINKS.Project}/add` },
+    { label: 'Routine', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add` },
 ]
 
 const zIndex = 200;
@@ -129,7 +130,6 @@ export const DevelopPage = ({
             <ListMenu
                 id={`create-project-or-routine-menu`}
                 anchorEl={createAnchor}
-                title='Select Object Type'
                 data={createPopupOptions}
                 onSelect={handleAdvancedSearchSelect}
                 onClose={closeCreateSelect}

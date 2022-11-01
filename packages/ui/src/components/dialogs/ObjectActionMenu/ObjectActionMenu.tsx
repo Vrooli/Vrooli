@@ -21,7 +21,6 @@ export const ObjectActionMenu = ({
     onActionStart,
     onClose,
     session,
-    title,
     zIndex,
 }: ObjectActionMenuProps) => {
 
@@ -182,7 +181,6 @@ export const ObjectActionMenu = ({
                 id={`${objectType}-options-menu-${id}`}
                 onClose={onClose}
                 onSelect={onSelect}
-                title={title}
                 zIndex={zIndex}
             />
         </>

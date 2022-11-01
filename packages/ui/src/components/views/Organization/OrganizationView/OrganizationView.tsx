@@ -358,7 +358,6 @@ export const OrganizationView = ({
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
-                title='Organization Options'
                 zIndex={zIndex + 1}
             />
             <Box sx={{

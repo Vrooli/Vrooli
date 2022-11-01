@@ -327,7 +327,6 @@ export const HomePage = ({
             <ListMenu
                 id={`open-advanced-search-menu`}
                 anchorEl={advancedSearchAnchor}
-                title='Select Object Type'
                 data={advancedSearchPopupOptions}
                 onSelect={handleAdvancedSearchSelect}
                 onClose={closeAdvancedSearch}
@@ -337,7 +336,6 @@ export const HomePage = ({
             <ListMenu
                 id={`create-new-object-menu`}
                 anchorEl={createNewAnchor}
-                title='Create New...'
                 data={createNewPopupOptions}
                 onSelect={handleCreateNewSelect}
                 onClose={closeCreateNew}

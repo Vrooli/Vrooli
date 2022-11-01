@@ -12,6 +12,8 @@ import { ContactInfoProps } from '../types';
 import { ColorIconButton } from 'components/buttons';
 import { CopyrightBreadcrumbs } from 'components/breadcrumbs';
 import { noSelect } from 'styles';
+import { openLink } from 'utils';
+import { useLocation } from '@shared/route';
 
 const contactInfo: [string, string, string, SvgComponent][] = [
     ['Find us on Twitter', 'Twitter', SOCIALS.Twitter, TwitterIcon],
@@ -30,10 +32,11 @@ export const ContactInfo = ({
     ...props
 }: ContactInfoProps) => {
     const { palette } = useTheme();
+    const [, setLocation] = useLocation();
 
-    const openLink = (e: React.MouseEvent<any>, link: string) => {
-        window.open(link, '_blank', 'noopener,noreferrer');
+    const handleLink = (e: React.MouseEvent<any>, link: string) => {
         e.preventDefault();
+        openLink(setLocation, link);
     }
 
     return (
@@ -58,7 +61,7 @@ export const ContactInfo = ({
                     <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
                         <BottomNavigationAction
                             label={label}
-                            onClick={(e) => { e.preventDefault(); openLink(e, link) }}
+                            onClick={(e) => { e.preventDefault(); handleLink(e, link) }}
                             href={link}
                             icon={
                                 <ColorIconButton background={palette.secondary.main} >
@@ -87,7 +90,7 @@ export const ContactInfo = ({
                     <Tooltip key={`additional-info-button-${index}`} title={tooltip} placement="top">
                         <BottomNavigationAction
                             label={label}
-                            onClick={(e) => { e.preventDefault(); openLink(e, link) }}
+                            onClick={(e) => { e.preventDefault(); handleLink(e, link) }}
                             href={link}
                             icon={
                                 <ColorIconButton background={palette.secondary.main} >

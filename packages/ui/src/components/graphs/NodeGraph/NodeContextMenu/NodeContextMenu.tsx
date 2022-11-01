@@ -51,7 +51,6 @@ export const NodeContextMenu = ({
         <ListMenu
             id={id}
             anchorEl={anchorEl}
-            title='Node Options'
             data={availableOptions}
             onSelect={handleSelect}
             onClose={handleClose}

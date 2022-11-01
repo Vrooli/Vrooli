@@ -365,7 +365,6 @@ export const UserView = ({
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
-                title='User Options'
                 zIndex={zIndex + 1}
             />
             <Box sx={{

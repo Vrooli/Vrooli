@@ -324,7 +324,6 @@ export const ProjectView = ({
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
                 session={session}
-                title='Project Options'
                 zIndex={zIndex + 1}
             />
             <Box sx={{

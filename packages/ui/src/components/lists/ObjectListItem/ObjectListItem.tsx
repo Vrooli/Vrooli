@@ -304,7 +304,6 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 onActionComplete={onMoreActionComplete}
                 onClose={closeContextMenu}
                 session={session}
-                title='Item Options'
                 zIndex={zIndex + 1}
             />
             {/* List item */}

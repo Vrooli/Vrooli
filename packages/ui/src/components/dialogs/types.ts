@@ -210,7 +210,6 @@ export interface ObjectActionMenuProps {
     onActionStart: (action: ObjectAction.Edit | ObjectAction.Stats) => any;
     onClose: () => any;
     session: Session;
-    title: string;
     zIndex: number;
 }
 
