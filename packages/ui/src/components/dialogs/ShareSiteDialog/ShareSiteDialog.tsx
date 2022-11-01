@@ -17,6 +17,10 @@ const postTitle = 'Vrooli - Visual Work Routines';
 // Invite message for social media posts
 const postText = `The future of work in a decentralized world. ${inviteLink}`;
 
+const emailUrl = `mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`;
+const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`;
+const linkedInUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`;
+
 const buttonProps = (palette: Palette) => ({
     height: '48px',
     width: '48px',
@@ -100,7 +104,8 @@ export const ShareSiteDialog = ({
                     </Tooltip>
                     <Tooltip title="Share by email">
                         <ColorIconButton
-                            onClick={() => openLink(`mailto:?subject=${encodeURIComponent(postTitle)}&body=${encodeURIComponent(postText)}`)}
+                            href={emailUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
@@ -109,7 +114,8 @@ export const ShareSiteDialog = ({
                     </Tooltip>
                     <Tooltip title="Tweet about us">
                         <ColorIconButton
-                            onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(postText)}`)}
+                            href={twitterUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
@@ -118,7 +124,8 @@ export const ShareSiteDialog = ({
                     </Tooltip>
                     <Tooltip title="Post on LinkedIn">
                         <ColorIconButton
-                            onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(inviteLink)}&title=${encodeURIComponent(postTitle)}&summary=${encodeURIComponent(postText)}`)}
+                            href={linkedInUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >

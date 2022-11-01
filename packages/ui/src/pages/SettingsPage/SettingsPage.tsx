@@ -14,6 +14,7 @@ import { useReactSearch, useWindowSize } from 'utils';
 import { ExpandLessIcon, ExpandMoreIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
 import { PageContainer, SearchBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
+import { noSelect } from 'styles';
 
 /**
  * Describes a settings page button
@@ -138,8 +139,10 @@ export function SettingsPage({
                         justifyContent: 'center',
                         alignItems: 'center',
                         marginBottom: 1,
+                        cursor: 'pointer',
+                        ...noSelect,
                     }}>
-                        {isListOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        {isListOpen ? <ExpandLessIcon fill={palette.background.textPrimary} /> : <ExpandMoreIcon fill={palette.background.textPrimary} />}
                         <Typography variant="h6" sx={{ marginLeft: 1 }}>Settings</Typography>
                     </Box>}
                     <Collapse in={!isMobile || isListOpen}>

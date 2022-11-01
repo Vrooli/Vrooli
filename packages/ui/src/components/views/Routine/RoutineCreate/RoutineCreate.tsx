@@ -228,6 +228,7 @@ export const RoutineCreate = ({
                 </Grid>
                 <Grid item xs={12} mb={4}>
                     <RelationshipButtons
+                        isEditing={true}
                         isFormDirty={formik.dirty}
                         objectType={ObjectType.Routine}
                         onRelationshipsChange={onRelationshipsChange}
@@ -344,7 +345,7 @@ export const RoutineCreate = ({
                     </Grid>
                 )}
                 {/* Selector for single-step or multi-step routine */}
-                <Grid item xs={12} mb={2}>
+                <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>
                     {/* Title with help text */}
                     <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} mb={2}>
                         <Typography variant="h4" component="h4">Use Subroutines?</Typography>

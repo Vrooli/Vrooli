@@ -228,7 +228,7 @@ export const StandardView = ({
             />
             {/* Relationships */}
             <RelationshipButtons
-                disabled={true}
+                isEditing={false}
                 objectType={ObjectType.Routine}
                 onRelationshipsChange={onRelationshipsChange}
                 relationships={relationships}

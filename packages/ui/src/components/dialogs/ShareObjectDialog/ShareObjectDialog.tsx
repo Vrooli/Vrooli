@@ -40,7 +40,11 @@ export const ShareObjectDialog = ({
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : 'Check out this object on Vrooli', [object]);
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split('?')[0].split('#')[0], [object]);
 
-    const copyInviteLink = () => {
+    const emailUrl = useMemo(() => `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`, [title, url]);
+    const twitterUrl = useMemo(() => `https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`, [url]);
+    const linkedInUrl = useMemo(() => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`, [title, url]);
+
+    const copyLink = () => {
         navigator.clipboard.writeText(url);
         PubSub.get().publishSnack({ message: 'Copied to clipboard', severity: SnackSeverity.Success });
     }
@@ -102,7 +106,7 @@ export const ShareObjectDialog = ({
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
                     <Tooltip title="Copy invite link">
                         <ColorIconButton
-                            onClick={copyInviteLink}
+                            onClick={copyLink}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
@@ -111,7 +115,8 @@ export const ShareObjectDialog = ({
                     </Tooltip>
                     <Tooltip title="Share by email">
                         <ColorIconButton
-                            onClick={() => openLink(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`)}
+                            href={emailUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
@@ -120,7 +125,8 @@ export const ShareObjectDialog = ({
                     </Tooltip>
                     <Tooltip title="Tweet about us">
                         <ColorIconButton
-                            onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`)}
+                            href={twitterUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
@@ -129,7 +135,8 @@ export const ShareObjectDialog = ({
                     </Tooltip>
                     <Tooltip title="Post on LinkedIn">
                         <ColorIconButton
-                            onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`)}
+                            href={linkedInUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >

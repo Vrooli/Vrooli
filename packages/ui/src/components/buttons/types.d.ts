@@ -20,6 +20,8 @@ export interface ColorIconButtonProps extends IconButtonProps {
     background: string;
     children: JSX.Element | null;
     disabled?: boolean;
+    href?: string;
+    onClick?: (event: React.MouseEvent<any>) => void;
     sx?: { [key: string]: any };
 }
 

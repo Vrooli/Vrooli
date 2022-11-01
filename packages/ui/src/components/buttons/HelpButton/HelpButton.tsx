@@ -4,7 +4,7 @@ import Markdown from 'markdown-to-jsx';
 import { HelpButtonProps } from '../types';
 import { MenuTitle } from 'components/dialogs';
 import { HelpIcon } from '@shared/icons';
-import { linkColors } from 'styles';
+import { linkColors, noSelect } from 'styles';
 
 export const HelpButton = ({
     id = 'help-details-menu',
@@ -67,7 +67,7 @@ export const HelpButton = ({
                         }}
                     >
                         <MenuTitle onClose={closeMenu} />
-                        <Box sx={{ padding: 2, ...linkColors(palette) }}>
+                        <Box sx={{ padding: 2, ...linkColors(palette), ...noSelect }}>
                             <Markdown>{markdown}</Markdown>
                         </Box>
                     </Menu>

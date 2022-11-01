@@ -144,6 +144,7 @@ export const ProjectUpdate = ({
             </Grid>
             <Grid item xs={12} mb={4}>
                 <RelationshipButtons
+                    isEditing={true}
                     objectType={ObjectType.Project}
                     onRelationshipsChange={onRelationshipsChange}
                     relationships={relationships}

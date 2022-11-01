@@ -471,11 +471,11 @@ export interface YupSchema {
  * on the width of the screen.
  */
 export type GridItemSpacing = number | string | {
-    xs?: number | 'auto' | boolean;
-    sm?: number | 'auto' | boolean;
-    md?: number | 'auto' | boolean;
-    lg?: number | 'auto' | boolean;
-    xl?: number | 'auto' | boolean;
+    xs?: number | 'auto';
+    sm?: number | 'auto';
+    md?: number | 'auto';
+    lg?: number | 'auto';
+    xl?: number | 'auto';
 }
 
 /**

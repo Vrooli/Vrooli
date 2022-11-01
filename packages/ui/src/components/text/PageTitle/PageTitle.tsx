@@ -1,5 +1,6 @@
 import { Stack, Typography } from "@mui/material";
 import { HelpButton } from "components/buttons";
+import { noSelect } from "styles";
 import { PageTitleProps } from "../types";
 
 export const PageTitle = ({
@@ -16,6 +17,7 @@ export const PageTitle = ({
                     textAlign: 'center',
                     sx: { marginTop: 2, marginBottom: 2 },
                     fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
+                    ...noSelect,
                     ...(sxs?.text || {}),
                 }}
             >{title}</Typography>
@@ -29,6 +31,7 @@ export const PageTitle = ({
             sx={{
                 marginTop: 2,
                 marginBottom: 2,
+                ...noSelect,
                 ...(sxs?.stack || {}),
             }}
         >

@@ -30,7 +30,7 @@ export const ReportsLink = ({
                 href={link}
                 onClick={onClick}
             >
-                <ReportIcon />
+                <ReportIcon fill={palette.background.textPrimary} />
                 <Typography variant="body1" sx={{ ml: 0.5, color: palette.background.textPrimary }}>({object.reportsCount})</Typography>
             </IconButton>
         </Tooltip>

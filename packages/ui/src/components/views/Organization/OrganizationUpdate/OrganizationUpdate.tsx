@@ -144,6 +144,7 @@ export const OrganizationUpdate = ({
             </Grid>
             <Grid item xs={12} mb={4}>
                 <RelationshipButtons
+                    isEditing={true}
                     objectType={ObjectType.Organization}
                     onRelationshipsChange={onRelationshipsChange}
                     relationships={relationships}

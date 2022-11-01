@@ -12,7 +12,7 @@ import {
     useTheme,
 } from '@mui/material';
 import { Stack } from '@mui/system';
-import { CloseIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, LogOutIcon, PlusIcon, UserIcon } from '@shared/icons';
+import { CloseIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, LogOutIcon, PlusIcon, SettingsIcon, UserIcon } from '@shared/icons';
 import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
@@ -130,6 +130,11 @@ export const AccountMenu = ({
         setLocation(APP_LINKS.Home);
     }, [handleClose, session, logOut, setLocation]);
 
+    const handleOpenSettings = useCallback(() => {
+        setLocation(APP_LINKS.Settings);
+        handleClose();
+    }, [handleClose, setLocation]);
+
 
     const accounts = useMemo(() => session.users ?? [], [session.users]);
     const profileListItems = accounts.map((account) => (
@@ -200,7 +205,7 @@ export const AccountMenu = ({
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
             </Stack>
-            {/* List of logged/in accounts */}
+            {/* List of logged/in accounts, authentication-related actions, and additional quick links */}
             <List sx={{ paddingTop: 0, paddingBottom: 0 }}>
                 {profileListItems}
                 <Divider sx={{ background: palette.background.textSecondary }} />
@@ -217,8 +222,15 @@ export const AccountMenu = ({
                     </ListItemIcon>
                     <ListItemText primary={'Log out'} />
                 </ListItem>}
+                <Divider sx={{ background: palette.background.textSecondary }} />
+                {/* Settings page */}
+                <ListItem button onClick={handleOpenSettings}>
+                    <ListItemIcon>
+                        <SettingsIcon fill={palette.background.textPrimary} />
+                    </ListItemIcon>
+                    <ListItemText primary={'Settings'} />
+                </ListItem>
             </List>
-            <Divider sx={{ background: palette.background.textSecondary }} />
             {/* Additional Resources */}
             <Stack direction="row" spacing={1} onClick={toggleAdditionalResources} sx={{
                 display: 'flex',

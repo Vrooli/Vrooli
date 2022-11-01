@@ -169,6 +169,7 @@ export const StandardCreate = ({
                 </Grid>
                 <Grid item xs={12} mb={4}>
                     <RelationshipButtons
+                        isEditing={true}
                         objectType={ObjectType.Standard}
                         onRelationshipsChange={onRelationshipsChange}
                         relationships={relationships}

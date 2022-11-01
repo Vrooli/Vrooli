@@ -1,4 +1,4 @@
-import { Box, CircularProgress, Grid, TextField } from "@mui/material"
+import { Box, Button, CircularProgress, Dialog, Grid, Stack, TextField, Typography } from "@mui/material"
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -9,13 +9,20 @@ import { routineTranslationUpdate, routineUpdate as validationSchema } from '@sh
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
-import { GridSubmitButtons, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession, VersionInput } from "components";
+import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceList, Routine } from "types";
 import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineUpdateVariables, routineUpdate_routineUpdate } from "graphql/generated/routineUpdate";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
+import { RoutineIcon } from "@shared/icons";
+
+const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).
+
+A single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.
+
+A multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
 
 export const RoutineUpdate = ({
     onCancel,
@@ -96,6 +103,7 @@ export const RoutineUpdate = ({
     const [mutation] = useMutation(routineUpdateMutation);
     const formik = useFormik({
         initialValues: {
+            id: id ?? DUMMY_ID,
             nodeLinks: routine?.nodeLinks ?? [] as Routine['nodeLinks'],
             nodes: routine?.nodes ?? [] as Routine['nodes'],
             translationsUpdate: routine?.translations ?? [{
@@ -162,7 +170,7 @@ export const RoutineUpdate = ({
         setLanguage(newLanguage);
         addEmptyTranslation(formik, 'translationsUpdate', newLanguage);
     }, [formik]);
-    const handleLanguageDelete = useCallback((language: string) => {
+    const handleDeleteLanguage = useCallback((language: string) => {
         const newLanguages = [...languages.filter(l => l !== language)]
         if (newLanguages.length === 0) return;
         setLanguage(newLanguages[0]);
@@ -197,6 +205,43 @@ export const RoutineUpdate = ({
         setIsGraphOpen(false);
     }, [formik]);
 
+    // You can use this component to create both single-step and multi-step routines.
+    // The beginning of the form is information shared between both types of routines.
+    const [isMultiStep, setIsMultiStep] = useState<boolean | null>(null);
+    useEffect(() => { setIsMultiStep(formik.values.nodes.length > 0); }, [formik.values.nodes]);
+    const handleMultiStepChange = useCallback((isMultiStep: boolean) => {
+        // If setting from true to false, check if any nodes or nodeLinks have been added. 
+        // If so, prompt the user to confirm (these will be lost).
+        if (isMultiStep === false && (formik.values.nodes.length > 0 || formik.values.nodeLinks.length > 0)) {
+            PubSub.get().publishAlertDialog({
+                message: 'This will delete the routine graph. Are you sure you want to continue?',
+                buttons: [{
+                    text: 'Yes',
+                    onClick: () => { setIsMultiStep(false); handleGraphClose(); }
+                }, {
+                    text: 'Cancel',
+                }]
+            })
+        }
+        // If settings from false to true, check if any inputs or outputs have been added.
+        // If so, prompt the user to confirm (these will be lost).
+        else if (isMultiStep === true && (inputsList.length > 0 || outputsList.length > 0)) {
+            PubSub.get().publishAlertDialog({
+                message: 'This will delete the inputs and outputs. Are you sure you want to continue?',
+                buttons: [{
+                    text: 'Yes',
+                    onClick: () => { setIsMultiStep(true); handleGraphOpen(); }
+                }, {
+                    text: 'Cancel',
+                }]
+            })
+        }
+        // Otherwise, just set the value.
+        else {
+            setIsMultiStep(isMultiStep);
+        }
+    }, [formik.values.nodes.length, formik.values.nodeLinks.length, inputsList.length, outputsList.length, handleGraphClose, handleGraphOpen]);
+
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
@@ -204,6 +249,7 @@ export const RoutineUpdate = ({
             </Grid>
             <Grid item xs={12} mb={4}>
                 <RelationshipButtons
+                    isEditing={true}
                     isFormDirty={formik.dirty}
                     objectType={ObjectType.Routine}
                     onRelationshipsChange={onRelationshipsChange}
@@ -216,7 +262,7 @@ export const RoutineUpdate = ({
                 <LanguageInput
                     currentLanguage={language}
                     handleAdd={handleAddLanguage}
-                    handleDelete={handleLanguageDelete}
+                    handleDelete={handleDeleteLanguage}
                     handleCurrent={setLanguage}
                     session={session}
                     translations={formik.values.translationsUpdate}
@@ -263,28 +309,6 @@ export const RoutineUpdate = ({
                 />
             </Grid>
             <Grid item xs={12}>
-                <InputOutputContainer
-                    isEditing={true}
-                    handleUpdate={handleInputsUpdate}
-                    isInput={true}
-                    language={language}
-                    list={inputsList}
-                    session={session}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            <Grid item xs={12}>
-                <InputOutputContainer
-                    isEditing={true}
-                    handleUpdate={handleOutputsUpdate}
-                    isInput={false}
-                    language={language}
-                    list={outputsList}
-                    session={session}
-                    zIndex={zIndex}
-                />
-            </Grid>
-            <Grid item xs={12}>
                 <ResourceListHorizontal
                     title={'Resources'}
                     list={resourceList}
@@ -321,6 +345,93 @@ export const RoutineUpdate = ({
                     helperText={formik.touched.version ? formik.errors.version : null}
                 />
             </Grid>
+            {/* Selector for single-step or multi-step routine */}
+            <Grid item xs={12} mb={isMultiStep === null ? 8 : 2}>
+                {/* Title with help text */}
+                <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} mb={2} >
+                    <Typography variant="h4" component="h4">Use Subroutines?</Typography>
+                    <HelpButton markdown={helpTextSubroutines} />
+                </Stack >
+                {/* Yes/No buttons */}
+                <Stack direction="row" display="flex" alignItems="center" justifyContent="center" spacing={1} >
+                    <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(true)} variant={isMultiStep === true ? 'outlined' : 'contained'}>Yes</Button>
+                    <Button fullWidth color="secondary" onClick={() => handleMultiStepChange(false)} variant={isMultiStep === false ? 'outlined' : 'contained'}>No</Button>
+                </Stack >
+            </Grid >
+            {/* Data displayed only by multi-step routines */}
+            {
+                isMultiStep === true && (
+                    <>
+                        {/* Dialog for building routine graph */}
+                        <Dialog
+                            id="run-routine-view-dialog"
+                            fullScreen
+                            open={isGraphOpen}
+                            onClose={handleGraphClose}
+                            TransitionComponent={UpTransition}
+                            sx={{ zIndex: zIndex + 1 }}
+                        >
+                            <BuildView
+                                handleCancel={handleGraphClose}
+                                handleClose={handleGraphClose}
+                                handleSubmit={handleGraphSubmit}
+                                isEditing={true}
+                                loading={false}
+                                owner={relationships.owner}
+                                routine={{
+                                    id: formik.values.id,
+                                    nodeLinks: formik.values.nodeLinks,
+                                    nodes: formik.values.nodes,
+                                }}
+                                translationData={{
+                                    language,
+                                    setLanguage,
+                                    handleAddLanguage,
+                                    handleDeleteLanguage,
+                                    translations: formik.values.translationsUpdate as any[],
+                                }}
+                                session={session}
+                                zIndex={zIndex + 1}
+                            />
+                        </Dialog>
+                        {/* Button to display graph */}
+                        <Grid item xs={12} mb={4}>
+                            <Button startIcon={<RoutineIcon />} fullWidth color="secondary" onClick={handleGraphOpen} variant="contained">View Graph</Button>
+                        </Grid>
+                        {/* # nodes, # links, Simplicity, complexity & other graph stats */}
+                        {/* TODO */}
+                    </>
+                )
+            }
+            {/* Data displayed only by single-step routines */}
+            {
+                isMultiStep === false && (
+                    <>
+                        <Grid item xs={12}>
+                            <InputOutputContainer
+                                isEditing={true}
+                                handleUpdate={handleInputsUpdate}
+                                isInput={true}
+                                language={language}
+                                list={inputsList}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                        </Grid>
+                        <Grid item xs={12} mb={4}>
+                            <InputOutputContainer
+                                isEditing={true}
+                                handleUpdate={handleOutputsUpdate}
+                                isInput={false}
+                                language={language}
+                                list={outputsList}
+                                session={session}
+                                zIndex={zIndex}
+                            />
+                        </Grid>
+                    </>
+                )
+            }
             <GridSubmitButtons
                 errors={errors}
                 isCreate={false}
@@ -329,8 +440,8 @@ export const RoutineUpdate = ({
                 onSetSubmitting={formik.setSubmitting}
                 onSubmit={formik.handleSubmit}
             />
-        </Grid>
-    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, title, onTranslationBlur, onTranslationChange, touchedTitle, errorTitle, description, touchedDescription, errorDescription, instructions, touchedInstructions, errorInstructions, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
+        </Grid >
+    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, title, onTranslationBlur, onTranslationChange, touchedTitle, errorTitle, description, touchedDescription, errorDescription, instructions, touchedInstructions, errorInstructions, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, isMultiStep, isGraphOpen, handleGraphClose, handleGraphSubmit, handleDeleteLanguage, handleGraphOpen, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, errors, onCancel, handleMultiStepChange]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{
