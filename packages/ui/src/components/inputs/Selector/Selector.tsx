@@ -8,7 +8,6 @@ export function Selector<T extends string | number | { [x: string]: any }>({
     getOptionLabel,
     handleChange,
     fullWidth = false,
-    multiple = false,
     inputAriaLabel = 'select-label',
     noneOption = false,
     label = 'Select',
@@ -20,8 +19,13 @@ export function Selector<T extends string | number | { [x: string]: any }>({
 }: SelectorProps<T>) {
     const { palette, typography } = useTheme();
 
-    const getOptionStyle = useCallback((option: T) => {
-        const isSelected = selected && getOptionLabel(selected) === getOptionLabel(option);
+    // Render all labels
+    const labels = useMemo(() => options.map((option) => getOptionLabel(option)), [options, getOptionLabel]);
+    // Find option from label
+    const findOption = useCallback((label: string) => options.find((option) => getOptionLabel(option) === label), [options, getOptionLabel]);
+
+    const getOptionStyle = useCallback((label: string) => {
+        const isSelected = selected && getOptionLabel(selected) === label;
         return {
             fontWeight: isSelected ? typography.fontWeightMedium : typography.fontWeightRegular,
         };
@@ -49,14 +53,12 @@ export function Selector<T extends string | number | { [x: string]: any }>({
             </InputLabel>
             <Select
                 labelId={inputAriaLabel}
-                value={selected}
-                onChange={handleChange as any}
+                value={selected ? getOptionLabel(selected) : ''}
+                onChange={(e) => handleChange(findOption(e.target.value as string) as T, e)}
                 label={label}
                 required={required}
                 disabled={disabled}
-                multiple={multiple}
                 variant="filled"
-                renderValue={() => (<span>{selected ? getOptionLabel(selected) : ''}</span>)}
                 {...props}
                 sx={{
                     ...sx,
@@ -71,13 +73,13 @@ export function Selector<T extends string | number | { [x: string]: any }>({
                     ) : null
                 }
                 {
-                    options.map((o, index) => (
+                    labels.map((label) => (
                         <MenuItem
-                            key={`select-option-${index}`}
-                            value={getOptionLabel(o)}
-                            sx={getOptionStyle(o)}
+                            key={label}
+                            value={label}
+                            style={getOptionStyle(label)}
                         >
-                            {getOptionLabel(o)}
+                            {label}
                         </MenuItem>
                     ))
                 }

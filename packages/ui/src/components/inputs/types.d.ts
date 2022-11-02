@@ -1,4 +1,4 @@
-import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
+import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { CommentFor } from 'graphql/generated/globalTypes';
 import { ChangeEvent } from 'react';
@@ -308,7 +308,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     disabled?: boolean;
     fullWidth?: boolean;
     getOptionLabel: (option: T) => string;
-    handleChange: (event: ChangeEvent<{ name?: string; value: T }>) => any;
+    handleChange: (selected: T, event: SelectChangeEvent<any>) => any;
     inputAriaLabel?: string;
     label?: string;
     multiple?: false;

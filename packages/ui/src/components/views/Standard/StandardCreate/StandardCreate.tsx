@@ -41,8 +41,8 @@ export const StandardCreate = ({
 
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
-    const handleInputTypeSelect = useCallback((event: any) => {
-        setInputType(event.target.value)
+    const handleInputTypeSelect = useCallback((selected: InputTypeOption) => {
+        setInputType(selected);
     }, []);
 
     // Handle standard schema

@@ -134,7 +134,7 @@ export const ReportDialog = ({
                             getOptionLabel={(r) => ReportReasons[r]}
                             selected={formik.values.reason}
                             onBlur={formik.handleBlur}
-                            handleChange={(e) => formik.setFieldValue('reason', e.target.value)}
+                            handleChange={(c) => formik.setFieldValue('reason', c)}
                             fullWidth
                             inputAriaLabel="select reason"
                             label="Reason"
