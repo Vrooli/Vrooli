@@ -67,8 +67,8 @@ const useStyles = makeStyles(() => ({
             color: '#000',
         },
         '@font-face': {
-            fontFamily: 'Lato',
-            src: `local('Lato'), url(${SakBunderan}) format('truetype')`,
+            fontFamily: 'SakBunderan',
+            src: `local('SakBunderan'), url(${SakBunderan}) format('truetype')`,
             fontDisplay: 'swap',
         },
 

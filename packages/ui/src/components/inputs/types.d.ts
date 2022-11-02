@@ -303,19 +303,19 @@ export interface SearchBarProps extends InputProps {
     onChange: (updatedText: string) => any;
 }
 
-export interface SelectorProps extends SelectProps {
-    options: any[];
-    getOptionLabel?: (option: any) => string;
-    selected: any;
-    handleChange: (change: any) => any;
-    fullWidth?: boolean;
-    multiple?: boolean;
-    inputAriaLabel?: string;
-    noneOption?: boolean;
-    label?: string;
-    required?: boolean;
-    disabled?: boolean;
+export interface SelectorProps<T extends string | number | { [x: string]: any }> extends SelectProps {
     color?: string;
+    disabled?: boolean;
+    fullWidth?: boolean;
+    getOptionLabel: (option: T) => string;
+    handleChange: (event: ChangeEvent<{ name?: string; value: T }>) => any;
+    inputAriaLabel?: string;
+    label?: string;
+    multiple?: false;
+    noneOption?: boolean;
+    options: T[];
+    required?: boolean;
+    selected: T | null | undefined;
     sx?: { [x: string]: any };
 }
 

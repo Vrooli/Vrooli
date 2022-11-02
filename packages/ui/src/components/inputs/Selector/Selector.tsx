@@ -1,11 +1,11 @@
 import { useCallback, useMemo } from 'react';
-import { Box, Chip, FormControl, InputLabel, MenuItem, Select, Theme, useTheme } from '@mui/material';
+import { FormControl, InputLabel, MenuItem, Select, useTheme } from '@mui/material';
 import { SelectorProps } from '../types';
 
-export const Selector = ({
+export function Selector<T extends string | number | { [x: string]: any }>({
     options,
-    getOptionLabel,
     selected,
+    getOptionLabel,
     handleChange,
     fullWidth = false,
     multiple = false,
@@ -17,27 +17,22 @@ export const Selector = ({
     color,
     sx,
     ...props
-}: SelectorProps) => {
-    const { palette } = useTheme();
+}: SelectorProps<T>) {
+    const { palette, typography } = useTheme();
 
-    const getOptionStyle = useCallback((theme: Theme, option: any) => {
-        const label = getOptionLabel ? getOptionLabel(option) : option;
+    const getOptionStyle = useCallback((option: T) => {
+        const isSelected = selected && getOptionLabel(selected) === getOptionLabel(option);
         return {
-            fontWeight:
-                options.find(o => (getOptionLabel ? getOptionLabel(o) : o) === label)
-                    ? theme.typography.fontWeightRegular
-                    : theme.typography.fontWeightMedium,
+            fontWeight: isSelected ? typography.fontWeightMedium : typography.fontWeightRegular,
         };
-    }, [options, getOptionLabel]);
+    }, [getOptionLabel, selected, typography.fontWeightMedium, typography.fontWeightRegular]);
 
     /**
      * Determines if label should be shrunk
      */
     const shrinkLabel = useMemo(() => {
         if (!selected) return false;
-        if (typeof selected === 'string') return selected.length > 0;
-        if (getOptionLabel && selected) return getOptionLabel(selected).length > 0;
-        return false; 
+        return getOptionLabel(selected).length > 0;
     }, [selected, getOptionLabel]);
 
     return (
@@ -55,34 +50,13 @@ export const Selector = ({
             <Select
                 labelId={inputAriaLabel}
                 value={selected}
-                onChange={handleChange}
+                onChange={handleChange as any}
                 label={label}
                 required={required}
                 disabled={disabled}
                 multiple={multiple}
-                renderValue={() => {
-                    // If nothing is selected, don't display anything
-                    if (!selected || (Array.isArray(selected) && selected.length === 0)) {
-                        return '';
-                    }
-                    // If not multiple, just display the selected option
-                    if (!multiple) {
-                        return getOptionLabel ? getOptionLabel(selected) : selected;
-                    }
-                    // If multiple, display all selected options as chips
-                    return (
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                            }}
-                        >
-                            {selected.map((o) => (
-                                <Chip label={getOptionLabel ? getOptionLabel(o) : o} key={o} />
-                            ))}
-                        </Box>
-                    )
-                }}
+                variant="filled"
+                renderValue={() => (<span>{selected ? getOptionLabel(selected) : ''}</span>)}
                 {...props}
                 sx={{
                     ...sx,
@@ -100,10 +74,10 @@ export const Selector = ({
                     options.map((o, index) => (
                         <MenuItem
                             key={`select-option-${index}`}
-                            value={o}
-                            sx={(t) => getOptionStyle(t, o)}
+                            value={getOptionLabel(o)}
+                            sx={getOptionStyle(o)}
                         >
-                            {getOptionLabel ? getOptionLabel(o) : o}
+                            {getOptionLabel(o)}
                         </MenuItem>
                     ))
                 }
