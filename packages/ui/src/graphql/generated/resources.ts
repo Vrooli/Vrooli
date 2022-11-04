@@ -10,7 +10,7 @@ import { ResourceSearchInput, ResourceUsedFor } from "./globalTypes";
 // ====================================================
 
 export interface resources_resources_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   endCursor: string | null;
   hasNextPage: boolean;
 }

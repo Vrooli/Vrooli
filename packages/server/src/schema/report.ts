@@ -66,7 +66,7 @@ export const typeDef = gql`
 
     # Return type for search result
     type ReportSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [ReportEdge!]!
     }
 

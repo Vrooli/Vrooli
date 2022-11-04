@@ -13,7 +13,7 @@ export const typeDef = gql`
     enum DeleteOneType {
         Comment
         Email
-        Node
+        RoutineNode
         Organization
         Project
         Report
@@ -42,11 +42,11 @@ export const resolvers = {
             const validTypes: Array<keyof typeof DeleteOneType> = [
                 DeleteOneType.Comment, 
                 DeleteOneType.Email,
-                DeleteOneType.Node,
                 DeleteOneType.Organization,
                 DeleteOneType.Project,
                 DeleteOneType.Report,
                 DeleteOneType.Routine,
+                DeleteOneType.RoutineNode,
                 DeleteOneType.Run,
                 DeleteOneType.Standard,
                 DeleteOneType.Wallet,

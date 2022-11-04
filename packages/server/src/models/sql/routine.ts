@@ -1,4 +1,4 @@
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, NodeRoutineListItem, NodeCreateInput, NodeUpdateInput, NodeRoutineListCreateInput, NodeRoutineListUpdateInput, NodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, Count, ResourceListUsedFor, RoutineNodeRoutineListItem, RoutineNodeCreateInput, RoutineNodeUpdateInput, RoutineNodeRoutineListCreateInput, RoutineNodeRoutineListUpdateInput, RoutineNodeRoutineListItemCreateInput, RoutinePermission } from "../../schema/types";
 import { PrismaType, RecursivePartial } from "../../types";
 import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, DuplicateInput, DuplicateResult, exceptionsBuilder, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, PartialGraphQLInfo, Permissioner, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeJoinTablesHelper, Searcher, selectHelper, toPartialGraphQLInfo, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { CustomError } from "../../error";
@@ -10,7 +10,7 @@ import { OrganizationModel, organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { NodeModel } from "./node";
+import { RoutineNodeModel } from "./routineNode";
 import { StandardModel } from "./standard";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
@@ -44,7 +44,7 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
         },
         'forks': 'Routine',
         'inputs': 'InputItem',
-        'nodes': 'Node',
+        'nodes': 'RoutineNode',
         'outputs': 'OutputItem',
         'owner': {
             'User': 'User',
@@ -458,18 +458,18 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Initialize node dictionary to map node IDs to their subroutine IDs
         const subroutineIdsByNode: { [id: string]: string[] } = {};
         // Find the ID of every subroutine
-        const subroutineIds: string[] = nodes.map((node: any | NodeCreateInput | NodeUpdateInput) => {
+        const subroutineIds: string[] = nodes.map((node: any | RoutineNodeCreateInput | RoutineNodeUpdateInput) => {
             // Calculate the list of subroutines after mutations are applied
-            let ids: string[] = node.nodeRoutineList?.routines?.map((item: NodeRoutineListItem) => item.routine.id) ?? [];
-            if ((data as NodeCreateInput).nodeRoutineListCreate) {
-                const listCreate = (data as NodeCreateInput).nodeRoutineListCreate as NodeRoutineListCreateInput;
+            let ids: string[] = node.nodeRoutineList?.routines?.map((item: RoutineNodeRoutineListItem) => item.routine.id) ?? [];
+            if ((data as RoutineNodeCreateInput).nodeRoutineListCreate) {
+                const listCreate = (data as RoutineNodeCreateInput).nodeRoutineListCreate as RoutineNodeRoutineListCreateInput;
                 // Handle creates
-                ids = ids.concat(listCreate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
+                ids = ids.concat(listCreate.routinesCreate?.map((item: RoutineNodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
             }
-            else if ((data as NodeUpdateInput).nodeRoutineListUpdate) {
-                const listUpdate = (data as NodeUpdateInput).nodeRoutineListUpdate as NodeRoutineListUpdateInput;
+            else if ((data as RoutineNodeUpdateInput).nodeRoutineListUpdate) {
+                const listUpdate = (data as RoutineNodeUpdateInput).nodeRoutineListUpdate as RoutineNodeRoutineListUpdateInput;
                 // Handle creates
-                ids = ids.concat(listUpdate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
+                ids = ids.concat(listUpdate.routinesCreate?.map((item: RoutineNodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
                 // Handle deletes. No need to handle updates, as routine items cannot switch their routine associations
                 if (listUpdate.routinesDelete) {
                     ids = ids.filter(id => !listUpdate.routinesDelete?.find(deletedId => deletedId === id));
@@ -551,8 +551,8 @@ export const routineMutater = (prisma: PrismaType) => ({
             tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Routine'),
             inputs: await this.relationshipBuilderInput(userId, data, isAdd),
             outputs: await this.relationshipBuilderOutput(userId, data, isAdd),
-            nodes: await NodeModel.mutate(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, isAdd),
-            nodeLinks: NodeModel.mutate(prisma).relationshipBuilderNodeLink(userId, data, isAdd),
+            nodes: await RoutineNodeModel.mutate(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, isAdd),
+            nodeLinks: RoutineNodeModel.mutate(prisma).relationshipBuilderNodeLink(userId, data, isAdd),
             translations: TranslationModel.relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, isAdd),
         }
     },

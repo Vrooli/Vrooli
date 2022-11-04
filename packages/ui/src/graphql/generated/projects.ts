@@ -10,7 +10,7 @@ import { ProjectSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface projects_projects_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   endCursor: string | null;
   hasNextPage: boolean;
 }

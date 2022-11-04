@@ -18,7 +18,6 @@ export const typeDef = gql`
         Private
     }
 
-    scalar Date
     scalar Upload
 
     # Used for Projects, Standards, and Routines, since they can be created 
@@ -27,12 +26,12 @@ export const typeDef = gql`
 
     # Used for filtering by date created/updated, as well as fetching metrics (e.g. monthly active users)
     input TimeFrame {
-        after: Date
-        before: Date
+        after: DateTime
+        before: DateTime
     }
 
     # Return type for a cursor-based pagination's pageInfo response
-    type PageInfo {
+    type PageResultInfo {
         hasNextPage: Boolean!
         endCursor: String
     }
@@ -105,20 +104,6 @@ export const typeDef = gql`
 export const resolvers = {
     VisibilityType: VisibilityType,
     Upload: GraphQLUpload,
-    Date: new GraphQLScalarType({
-        name: "Date",
-        description: "Custom description for the date scalar",
-        // Assumes data is either Unix timestamp or Date object
-        parseValue(value) {
-            return new Date(value).toISOString(); // value from the client
-        },
-        serialize(value) {
-            return new Date(value).getTime(); // value sent to the client
-        },
-        parseLiteral(ast: any) {
-            return new Date(ast).toDateString(); // ast value is always in string format
-        }
-    }),
     Contributor: {
         __resolveType(obj: any) { return resolveContributor(obj) },
     },

@@ -49,7 +49,7 @@ export const typeDef = gql`
     }
 
     type StarSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [StarEdge!]!
     }
 

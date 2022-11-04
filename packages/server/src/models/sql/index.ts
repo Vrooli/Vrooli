@@ -10,11 +10,6 @@ export enum GraphQLModelType {
     InputItem = 'InputItem',
     LearnPageResult = 'LearnPageResult',
     Member = 'Member',
-    Node = 'Node',
-    NodeEnd = 'NodeEnd',
-    NodeLoop = 'NodeLoop',
-    NodeRoutineList = 'NodeRoutineList',
-    NodeRoutineListItem = 'NodeRoutineListItem',
     Organization = 'Organization',
     OutputItem = 'OutputItem',
     Profile = 'Profile',
@@ -27,6 +22,11 @@ export enum GraphQLModelType {
     ResourceList = 'ResourceList',
     Role = 'Role',
     Routine = 'Routine',
+    RoutineNode = 'RoutineNode',
+    RoutineNodeEnd = 'RoutineNodeEnd',
+    RoutineNodeLoop = 'RoutineNodeLoop',
+    RoutineNodeRoutineList = 'RoutineNodeRoutineList',
+    RoutineNodeRoutineListItem = 'RoutineNodeRoutineListItem',
     Run = 'Run',
     RunInput = 'RunInput',
     RunStep = 'RunStep',
@@ -45,8 +45,6 @@ export * from './comment';
 export * from './email';
 export * from './inputItem';
 export * from './member';
-export * from './node';
-export * from './nodeRoutineList';
 export * from './organization';
 export * from './outputItem';
 export * from './profile';
@@ -56,6 +54,8 @@ export * from './resource';
 export * from './resourceList';
 export * from './role';
 export * from './routine';
+export * from './routineNode';
+export * from './routineNodeRoutineList';
 export * from './run';
 export * from './standard';
 export * from './star';

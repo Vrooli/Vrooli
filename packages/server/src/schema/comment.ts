@@ -43,8 +43,8 @@ export const typeDef = gql`
 
     type Comment {
         id: ID!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         commentedOn: CommentedOn!
         creator: Contributor
         isStarred: Boolean!

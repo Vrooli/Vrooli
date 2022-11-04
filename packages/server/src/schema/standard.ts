@@ -53,8 +53,8 @@ export const typeDef = gql`
     }
     type Standard {
         id: ID!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         default: String
         name: String!
         isDeleted: Boolean!
@@ -138,7 +138,7 @@ export const typeDef = gql`
     }
 
     type StandardSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [StandardEdge!]!
     }
 

@@ -10,7 +10,7 @@ import { ViewSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface views_views_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   endCursor: string | null;
   hasNextPage: boolean;
 }

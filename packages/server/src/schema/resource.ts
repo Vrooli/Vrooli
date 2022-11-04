@@ -62,8 +62,8 @@ export const typeDef = gql`
     }
     type Resource {
         id: ID!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         listId: ID!
         index: Int
         link: String!
@@ -105,7 +105,7 @@ export const typeDef = gql`
 
     # Return type for search result
     type ResourceSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [ResourceEdge!]!
     }
 

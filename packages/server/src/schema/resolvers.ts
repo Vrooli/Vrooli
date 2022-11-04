@@ -21,14 +21,14 @@ export const resolveCommentedOn = (obj: any): GraphQLModelType => {
     return GraphQLModelType.Project;
 }
 
-export const resolveNodeData = (obj: any): GraphQLModelType => {
+export const resolveRoutineNodeData = (obj: any): GraphQLModelType => {
     if (!obj) {
-        logger.log(LogLevel.error, 'Null or undefined passed to resolveNodeData', { code: genErrorCode('0218') });
-        return GraphQLModelType.NodeEnd;
+        logger.log(LogLevel.error, 'Null or undefined passed to resolveRoutineNodeData', { code: genErrorCode('0218') });
+        return GraphQLModelType.RoutineNodeEnd;
     }
-    // Only NodeEnd has wasSuccessful field
-    if (obj.hasOwnProperty('wasSuccessful')) return GraphQLModelType.NodeEnd;;
-    return GraphQLModelType.NodeRoutineList;
+    // Only RoutineNodeEnd has wasSuccessful field
+    if (obj.hasOwnProperty('wasSuccessful')) return GraphQLModelType.RoutineNodeEnd;
+    return GraphQLModelType.RoutineNodeRoutineList;
 }
 
 export const resolveProjectOrRoutine = (obj: any): GraphQLModelType => {

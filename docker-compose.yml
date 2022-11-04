@@ -106,6 +106,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+  neo4j:
+    image: neo4j
+    container_name: neo4j
+    ports:
+        - "7474:7474"
+        - "7687:7687"
+    environment:
+        - NEO4J_AUTH=none
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   redis:
     image: redis:7-alpine
     container_name: redis

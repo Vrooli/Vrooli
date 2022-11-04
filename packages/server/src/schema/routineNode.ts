@@ -1,94 +1,94 @@
 import { gql } from 'apollo-server-express';
-import { createHelper, NodeModel, updateHelper } from '../models';
+import { createHelper, RoutineNodeModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Node, NodeCreateInput, NodeUpdateInput } from './types';
+import { RoutineNode, RoutineNodeCreateInput, RoutineNodeUpdateInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from '@prisma/client';
 import { rateLimit } from '../rateLimit';
-import { resolveNodeData } from './resolvers';
+import { resolveRoutineNodeData } from './resolvers';
 const { NodeType } = pkg;
 
 export const typeDef = gql`
-    enum NodeType {
+    enum RoutineNodeType {
         End
         Redirect
         RoutineList
         Start
     }
 
-    union NodeData = NodeEnd | NodeRoutineList
+    union RoutineNodeData = RoutineNodeEnd | RoutineNodeRoutineList
 
-    input NodeCreateInput {
+    input RoutineNodeCreateInput {
         id: ID!
         columnIndex: Int
         rowIndex: Int
-        type: NodeType
+        type: RoutineNodeType
         loopCreate: LoopCreateInput
-        nodeEndCreate: NodeEndCreateInput
-        nodeRoutineListCreate: NodeRoutineListCreateInput
+        nodeEndCreate: RoutineNodeEndCreateInput
+        nodeRoutineListCreate: RoutineNodeRoutineListCreateInput
         routineId: ID
-        translationsCreate: [NodeTranslationCreateInput!]
+        translationsCreate: [RoutineNodeTranslationCreateInput!]
     }
-    input NodeUpdateInput {
+    input RoutineNodeUpdateInput {
         id: ID!
         columnIndex: Int
         rowIndex: Int
-        type: NodeType
+        type: RoutineNodeType
         loopDelete: ID
         loopCreate: LoopCreateInput
         loopUpdate: LoopUpdateInput
-        nodeEndCreate: NodeEndCreateInput
-        nodeEndUpdate: NodeEndUpdateInput
-        nodeRoutineListCreate: NodeRoutineListCreateInput
-        nodeRoutineListUpdate: NodeRoutineListUpdateInput
+        nodeEndCreate: RoutineNodeEndCreateInput
+        nodeEndUpdate: RoutineNodeEndUpdateInput
+        nodeRoutineListCreate: RoutineNodeRoutineListCreateInput
+        nodeRoutineListUpdate: RoutineNodeRoutineListUpdateInput
         routineId: ID
         translationsDelete: [ID!]
-        translationsCreate: [NodeTranslationCreateInput!]
-        translationsUpdate: [NodeTranslationUpdateInput!]
+        translationsCreate: [RoutineNodeTranslationCreateInput!]
+        translationsUpdate: [RoutineNodeTranslationUpdateInput!]
     }
-    type Node {
+    type RoutineNode {
         id: ID!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         columnIndex: Int
         routineId: ID!
         rowIndex: Int
-        type: NodeType!
+        type: RoutineNodeType!
         loop: Loop
-        data: NodeData
+        data: RoutineNodeData
         routine: Routine!
-        translations: [NodeTranslation!]!
+        translations: [RoutineNodeTranslation!]!
     }
 
-    input NodeTranslationCreateInput {
+    input RoutineNodeTranslationCreateInput {
         id: ID!
         language: String!
         title: String!
         description: String
     }
-    input NodeTranslationUpdateInput {
+    input RoutineNodeTranslationUpdateInput {
         id: ID!
         language: String
         title: String
         description: String
     }
-    type NodeTranslation {
+    type RoutineNodeTranslation {
         id: ID!
         language: String!
         title: String!
         description: String
     }
 
-    input NodeEndCreateInput {
+    input RoutineNodeEndCreateInput {
         id: ID!
         wasSuccessful: Boolean
     }
-    input NodeEndUpdateInput {
+    input RoutineNodeEndUpdateInput {
         id: ID!
         wasSuccessful: Boolean
     }
-    type NodeEnd {
+    type RoutineNodeEnd {
         id: ID!
         wasSuccessful: Boolean!
     }
@@ -157,127 +157,127 @@ export const typeDef = gql`
         title: String!
     }
 
-    input NodeRoutineListCreateInput {
+    input RoutineNodeRoutineListCreateInput {
         id: ID!
         isOrdered: Boolean
         isOptional: Boolean
-        routinesCreate: [NodeRoutineListItemCreateInput!]
+        routinesCreate: [RoutineNodeRoutineListItemCreateInput!]
     }
-    input NodeRoutineListUpdateInput {
+    input RoutineNodeRoutineListUpdateInput {
         id: ID!
         isOrdered: Boolean
         isOptional: Boolean
         routinesDelete: [ID!]
-        routinesCreate: [NodeRoutineListItemCreateInput!]
-        routinesUpdate: [NodeRoutineListItemUpdateInput!]
+        routinesCreate: [RoutineNodeRoutineListItemCreateInput!]
+        routinesUpdate: [RoutineNodeRoutineListItemUpdateInput!]
     }
-    type NodeRoutineList {
+    type RoutineNodeRoutineList {
         id: ID!
         isOrdered: Boolean!
         isOptional: Boolean!
-        routines: [NodeRoutineListItem!]!
+        routines: [RoutineNodeRoutineListItem!]!
     }
 
-    input NodeRoutineListItemCreateInput {
+    input RoutineNodeRoutineListItemCreateInput {
         id: ID!
         index: Int!
         isOptional: Boolean
         routineConnect: ID!
-        translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
+        translationsCreate: [RoutineNodeRoutineListItemTranslationCreateInput!]
     }
-    input NodeRoutineListItemUpdateInput {
+    input RoutineNodeRoutineListItemUpdateInput {
         id: ID!
         index: Int
         isOptional: Boolean
         routineUpdate: RoutineUpdateInput
         translationsDelete: [ID!]
-        translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
-        translationsUpdate: [NodeRoutineListItemTranslationUpdateInput!]
+        translationsCreate: [RoutineNodeRoutineListItemTranslationCreateInput!]
+        translationsUpdate: [RoutineNodeRoutineListItemTranslationUpdateInput!]
     }
-    type NodeRoutineListItem {
+    type RoutineNodeRoutineListItem {
         id: ID!
         index: Int!
         isOptional: Boolean!
         routine: Routine!
-        translations: [NodeRoutineListItemTranslation!]!
+        translations: [RoutineNodeRoutineListItemTranslation!]!
     }
 
-    input NodeRoutineListItemTranslationCreateInput {
+    input RoutineNodeRoutineListItemTranslationCreateInput {
         id: ID!
         language: String!
         description: String
         title: String
     }
-    input NodeRoutineListItemTranslationUpdateInput {
+    input RoutineNodeRoutineListItemTranslationUpdateInput {
         id: ID!
         language: String
         description: String
         title: String
     }
-    type NodeRoutineListItemTranslation {
+    type RoutineNodeRoutineListItemTranslation {
         id: ID!
         language: String!
         description: String
         title: String
     }
 
-    input NodeLinkCreateInput {
+    input RoutineNodeLinkCreateInput {
         id: ID!
-        whens: [NodeLinkWhenCreateInput!]
+        whens: [RoutineNodeLinkWhenCreateInput!]
         operation: String
         fromId: ID!
         toId: ID!
     }
-    input NodeLinkUpdateInput {
+    input RoutineNodeLinkUpdateInput {
         id: ID!
-        whensCreate: [NodeLinkWhenCreateInput!]
-        whensUpdate: [NodeLinkWhenUpdateInput!]
+        whensCreate: [RoutineNodeLinkWhenCreateInput!]
+        whensUpdate: [RoutineNodeLinkWhenUpdateInput!]
         whensDelete: [ID!]
         operation: String
         fromId: ID
         toId: ID
     }
-    type NodeLink{
+    type RoutineNodeLink{
         id: ID!
-        whens: [NodeLinkWhen!]!
+        whens: [RoutineNodeLinkWhen!]!
         operation: String
         fromId: ID!
         toId: ID!
     }
 
-    input NodeLinkWhenCreateInput {
+    input RoutineNodeLinkWhenCreateInput {
         id: ID!
         linkId: ID
-        translationsCreate: [NodeLinkWhenTranslationCreateInput!]
+        translationsCreate: [RoutineNodeLinkWhenTranslationCreateInput!]
         condition: String!
     }
-    input NodeLinkWhenUpdateInput {
+    input RoutineNodeLinkWhenUpdateInput {
         id: ID!
         linkId: ID
         translationsDelete: [ID!]
-        translationsCreate: [NodeLinkWhenTranslationCreateInput!]
-        translationsUpdate: [NodeLinkWhenTranslationUpdateInput!]
+        translationsCreate: [RoutineNodeLinkWhenTranslationCreateInput!]
+        translationsUpdate: [RoutineNodeLinkWhenTranslationUpdateInput!]
         condition: String
     }
-    type NodeLinkWhen {
+    type RoutineNodeLinkWhen {
         id: ID!
-        translations: [NodeLinkWhenTranslation!]!
+        translations: [RoutineNodeLinkWhenTranslation!]!
         condition: String!
     } 
 
-    input NodeLinkWhenTranslationCreateInput {
+    input RoutineNodeLinkWhenTranslationCreateInput {
         id: ID!
         language: String!
         description: String
         title: String!
     }
-    input NodeLinkWhenTranslationUpdateInput {
+    input RoutineNodeLinkWhenTranslationUpdateInput {
         id: ID!
         language: String
         description: String
         title: String
     }
-    type NodeLinkWhenTranslation {
+    type RoutineNodeLinkWhenTranslation {
         id: ID!
         language: String!
         description: String
@@ -285,15 +285,15 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        nodeCreate(input: NodeCreateInput!): Node!
-        nodeUpdate(input: NodeUpdateInput!): Node!
+        routineNodeCreate(input: RoutineNodeCreateInput!): RoutineNode!
+        routineNodeUpdate(input: RoutineNodeUpdateInput!): RoutineNode!
     }
 `
 
 export const resolvers = {
-    NodeType: NodeType,
-    NodeData: {
-        __resolveType(obj: any) { return resolveNodeData(obj) }
+    RoutineNodeType: NodeType,
+    RoutineNodeData: {
+        __resolveType(obj: any) { return resolveRoutineNodeData(obj) }
     },
     Mutation: {
         /**
@@ -301,13 +301,13 @@ export const resolvers = {
          * Note that the order of a routine (i.e. previous, next) cannot be updated with this mutation. 
          * @returns Updated node
          */
-        nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
+        routineNodeCreate: async (_parent: undefined, { input }: IWrap<RoutineNodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<RoutineNode>> => {
             await rateLimit({ info, maxUser: 2000, req });
-            return createHelper({ info, input, model: NodeModel, prisma, req })
+            return createHelper({ info, input, model: RoutineNodeModel, prisma, req })
         },
-        nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
+        routineNodeUpdate: async (_parent: undefined, { input }: IWrap<RoutineNodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<RoutineNode>> => {
             await rateLimit({ info, maxUser: 2000, req });
-            return updateHelper({ info, input, model: NodeModel, prisma, req })
+            return updateHelper({ info, input, model: RoutineNodeModel, prisma, req })
         },
     }
 }

@@ -10,7 +10,7 @@ import { LogSearchInput, LogType } from "./globalTypes";
 // ====================================================
 
 export interface logs_logs_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   endCursor: string | null;
   hasNextPage: boolean;
 }

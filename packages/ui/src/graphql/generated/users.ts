@@ -10,7 +10,7 @@ import { UserSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface users_users_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   endCursor: string | null;
   hasNextPage: boolean;
 }

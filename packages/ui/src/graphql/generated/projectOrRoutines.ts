@@ -10,7 +10,7 @@ import { ProjectOrRoutineSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface projectOrRoutines_projectOrRoutines_pageInfo {
-  __typename: "ProjectOrRoutinePageInfo";
+  __typename: "ProjectOrRoutinePageResultInfo";
   endCursorProject: string | null;
   endCursorRoutine: string | null;
   hasNextPage: boolean;

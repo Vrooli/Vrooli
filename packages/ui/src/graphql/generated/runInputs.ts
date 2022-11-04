@@ -10,7 +10,7 @@ import { RunInputSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface runInputs_runInputs_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   endCursor: string | null;
   hasNextPage: boolean;
 }

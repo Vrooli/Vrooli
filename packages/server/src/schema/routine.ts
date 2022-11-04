@@ -35,8 +35,8 @@ export const typeDef = gql`
         projectId: ID
         createdByUserId: ID
         createdByOrganizationId: ID
-        nodesCreate: [NodeCreateInput!]
-        nodeLinksCreate: [NodeLinkCreateInput!]
+        nodesCreate: [RoutineNodeCreateInput!]
+        nodeLinksCreate: [RoutineNodeLinkCreateInput!]
         inputsCreate: [InputItemCreateInput!]
         outputsCreate: [OutputItemCreateInput!]
         resourceListsCreate: [ResourceListCreateInput!]
@@ -55,11 +55,11 @@ export const typeDef = gql`
         organizationId: ID
         projectId: ID
         nodesDelete: [ID!]
-        nodesCreate: [NodeCreateInput!]
-        nodesUpdate: [NodeUpdateInput!]
+        nodesCreate: [RoutineNodeCreateInput!]
+        nodesUpdate: [RoutineNodeUpdateInput!]
         nodeLinksDelete: [ID!]
-        nodeLinksCreate: [NodeLinkCreateInput!]
-        nodeLinksUpdate: [NodeLinkUpdateInput!]
+        nodeLinksCreate: [RoutineNodeLinkCreateInput!]
+        nodeLinksUpdate: [RoutineNodeLinkUpdateInput!]
         inputsCreate: [InputItemCreateInput!]
         inputsUpdate: [InputItemUpdateInput!]
         inputsDelete: [ID!]
@@ -78,10 +78,10 @@ export const typeDef = gql`
     }
     type Routine {
         id: ID!
-        completedAt: Date
+        completedAt: DateTime
         complexity: Int!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         isAutomatable: Boolean
         isComplete: Boolean!
         isDeleted: Boolean!
@@ -102,10 +102,10 @@ export const typeDef = gql`
         creator: Contributor
         forks: [Routine!]!
         inputs: [InputItem!]!
-        nodeLists: [NodeRoutineList!]!
-        nodes: [Node!]!
+        nodeLists: [RoutineNodeRoutineList!]!
+        nodes: [RoutineNode!]!
         nodesCount: Int
-        nodeLinks: [NodeLink!]!
+        nodeLinks: [RoutineNodeLink!]!
         outputs: [OutputItem!]!
         owner: Contributor
         parent: Routine
@@ -281,7 +281,7 @@ export const typeDef = gql`
 
     # Return type for search result
     type RoutineSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [RoutineEdge!]!
     }
 

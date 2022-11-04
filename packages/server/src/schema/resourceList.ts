@@ -52,8 +52,8 @@ export const typeDef = gql`
     }
     type ResourceList {
         id: ID!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         index: Int
         usedFor: ResourceListUsedFor
         organization: Organization
@@ -100,7 +100,7 @@ export const typeDef = gql`
 
     # Return type for search result
     type ResourceListSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [ResourceListEdge!]!
     }
 

@@ -10,7 +10,7 @@ import { StandardSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface standards_standards_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   endCursor: string | null;
   hasNextPage: boolean;
 }

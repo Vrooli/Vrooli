@@ -95,7 +95,7 @@ export const typeDef = gql`
         creditsUsed: Int!
         creditsTotal: Int!
         locksWhenCreditsUsed: Boolean!
-        nextResetAt: Date!
+        nextResetAt: DateTime!
     }
 
     extend type Mutation {

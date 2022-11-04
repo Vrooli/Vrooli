@@ -52,7 +52,7 @@ export const typeDef = gql`
     }
     type Log {
         id: ID!
-        timestamp: Date!
+        timestamp: DateTime!
         action: LogType!
         object1Type: String
         object1Id: ID
@@ -77,7 +77,7 @@ export const typeDef = gql`
  
     # Return type for search result
     type LogSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [LogEdge!]!
     }
  

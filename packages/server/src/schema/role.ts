@@ -20,8 +20,8 @@ export const typeDef = gql`
     }
     type Role {
         id: ID!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         title: String!
         translations: [RoleTranslation!]!
         organization: Organization!

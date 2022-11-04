@@ -16,10 +16,10 @@ import { genErrorCode } from '../logger';
 
 export const typeDef = gql`
     enum CopyType {
-        Node
         Organization
         Project
         Routine
+        RoutineNode
         Standard
     }  
 
@@ -41,10 +41,10 @@ export const typeDef = gql`
     }
 
     type CopyResult {
-        node: Node
         organization: Organization
         project: Project
         routine: Routine
+        routineNode: RoutineNode
         standard: Standard
     }
 
@@ -68,10 +68,10 @@ export const resolvers = {
         copy: async (_parent: undefined, { input }: IWrap<CopyInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<CopyResult> => {
             await rateLimit({ info, maxUser: 500, req });
             const validTypes: Array<keyof typeof CopyType> = [
-                CopyType.Node,
                 CopyType.Organization,
                 CopyType.Project,
                 CopyType.Routine,
+                CopyType.RoutineNode,
                 CopyType.Standard,
             ];
             if (!validTypes.includes(input.objectType as keyof typeof CopyType)) {

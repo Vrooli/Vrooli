@@ -49,8 +49,8 @@ export const typeDef = gql`
     }
     type Organization {
         id: ID!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         handle: String
         isOpenToNewMembers: Boolean!
         isPrivate: Boolean!
@@ -136,7 +136,7 @@ export const typeDef = gql`
 
     # Return type for search result
     type OrganizationSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [OrganizationEdge!]!
     }
 

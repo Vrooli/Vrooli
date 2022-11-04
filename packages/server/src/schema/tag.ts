@@ -45,8 +45,8 @@ export const typeDef = gql`
     type Tag {
         id: ID!
         tag: String!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         stars: Int!
         isStarred: Boolean!
         isOwn: Boolean!
@@ -94,7 +94,7 @@ export const typeDef = gql`
 
     # Return type for search result
     type TagSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [TagEdge!]!
     }
 

@@ -1,4 +1,4 @@
-import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../../schema/types";
+import { RoutineNodeRoutineList, RoutineNodeRoutineListCreateInput, RoutineNodeRoutineListUpdateInput } from "../../schema/types";
 import { FormatConverter, relationshipToPrisma, RelationshipTypes } from "./base";
 import { nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@shared/validation";
 import { PrismaType } from "../../types";
@@ -10,18 +10,18 @@ import { GraphQLModelType } from ".";
 /* #region Custom Components */
 //==============================================================
 
-export const nodeRoutineListFormatter = (): FormatConverter<NodeRoutineList, any> => ({
+export const nodeRoutineListFormatter = (): FormatConverter<RoutineNodeRoutineList, any> => ({
     relationshipMap: {
-        '__typename': 'NodeRoutineList',
+        '__typename': 'RoutineNodeRoutineList',
         'routines': {
-            '__typename': 'NodeRoutineListItem',
+            '__typename': 'RoutineNodeRoutineListItem',
             'routine': 'Routine',
         },
     },
 })
 
 export const nodeRoutineListMutater = (prisma: PrismaType) => ({
-    async toDBShapeCreate(userId: string | null, data: NodeRoutineListCreateInput): Promise<any> {
+    async toDBShapeCreate(userId: string | null, data: RoutineNodeRoutineListCreateInput): Promise<any> {
         return {
             id: data.id,
             isOrdered: data.isOrdered,
@@ -29,7 +29,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             routines: await this.relationshipBuilderRoutineListNodeItem(userId, data, true)
         }
     },
-    async toDBShapeUpdate(userId: string | null, data: NodeRoutineListUpdateInput): Promise<any> {
+    async toDBShapeUpdate(userId: string | null, data: RoutineNodeRoutineListUpdateInput): Promise<any> {
         return {
             isOrdered: data.isOrdered,
             isOptional: data.isOptional,
@@ -126,11 +126,11 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export const NodeRoutineListModel = ({
+export const RoutineNodeRoutineListModel = ({
     prismaObject: (prisma: PrismaType) => prisma.node_routine_list,
     format: nodeRoutineListFormatter(),
     mutate: nodeRoutineListMutater,
-    type: 'NodeRoutineList' as GraphQLModelType,
+    type: 'RoutineNodeRoutineList' as GraphQLModelType,
 })
 
 //==============================================================

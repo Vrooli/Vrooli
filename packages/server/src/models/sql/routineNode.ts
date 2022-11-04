@@ -1,4 +1,4 @@
-import { Count, Node, NodeCreateInput, NodeUpdateInput } from "../../schema/types";
+import { Count, RoutineNode, RoutineNodeCreateInput, RoutineNodeUpdateInput } from "../../schema/types";
 import { CUDInput, CUDResult, FormatConverter, relationshipToPrisma, RelationshipTypes, selectHelper, modelToGraphQL, ValidateMutationsInput, onlyValidIds } from "./base";
 import { CustomError } from "../../error";
 import { CODE } from "@shared/consts";
@@ -7,7 +7,7 @@ import { PrismaType } from "../../types";
 import { validateProfanity } from "../../utils/censor";
 import { TranslationModel } from "./translation";
 import { genErrorCode } from "../../logger";
-import { NodeRoutineListModel } from "./nodeRoutineList";
+import { RoutineNodeRoutineListModel } from "./routineNodeRoutineList";
 import { GraphQLModelType } from ".";
 
 const MAX_NODES_IN_ROUTINE = 100;
@@ -16,20 +16,20 @@ const MAX_NODES_IN_ROUTINE = 100;
 /* #region Custom Components */
 //==============================================================
 
-export const nodeFormatter = (): FormatConverter<Node, any> => ({
+export const nodeFormatter = (): FormatConverter<RoutineNode, any> => ({
     relationshipMap: {
-        '__typename': 'Node',
+        '__typename': 'RoutineNode',
         'data': {
-            'NodeEnd': 'NodeEnd',
-            'NodeRoutineList': 'NodeRoutineList',
+            'RoutineNodeEnd': 'RoutineNodeEnd',
+            'RoutineNodeRoutineList': 'RoutineNodeRoutineList',
         },
-        'loop': 'NodeLoop',
+        'loop': 'RoutineNodeLoop',
         'routine': 'Routine',
     },
     unionMap: {
         'data': {
-            'NodeEnd': 'nodeEnd',
-            'NodeRoutineList': 'nodeRoutineList',
+            'RoutineNodeEnd': 'nodeEnd',
+            'RoutineNodeRoutineList': 'nodeRoutineList',
         },
     },
 })
@@ -103,7 +103,7 @@ export const nodeVerifier = () => ({
             throw new CustomError(CODE.ErrorUnknown, `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`, { code: genErrorCode('0052') });
         }
     },
-    profanityCheck(data: (NodeCreateInput | NodeUpdateInput)[]): void {
+    profanityCheck(data: (RoutineNodeCreateInput | RoutineNodeUpdateInput)[]): void {
         validateProfanity(data.map((d: any) => ({
             condition: d.condition,
             description: d.description,
@@ -113,7 +113,7 @@ export const nodeVerifier = () => ({
 })
 
 export const nodeMutater = (prisma: PrismaType) => ({
-    async toDBShape(userId: string | null, data: NodeCreateInput | NodeUpdateInput): Promise<any> {
+    async toDBShape(userId: string | null, data: RoutineNodeCreateInput | RoutineNodeUpdateInput): Promise<any> {
         let nodeData: { [x: string]: any } = {
             id: data.id,
             columnIndex: data.columnIndex ?? undefined,
@@ -125,13 +125,13 @@ export const nodeMutater = (prisma: PrismaType) => ({
         // Create type-specific data, and make sure other types are null
         nodeData.nodeEnd = undefined;
         nodeData.nodeRoutineList = undefined;
-        if ((data as NodeCreateInput)?.nodeEndCreate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, data, true);
-        else if ((data as NodeUpdateInput)?.nodeEndUpdate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, data, false);
-        if ((data as NodeCreateInput).nodeRoutineListCreate) nodeData.nodeRoutineList = await NodeRoutineListModel.mutate(prisma).relationshipBuilder(userId, data, true);
-        else if ((data as NodeUpdateInput)?.nodeRoutineListUpdate) nodeData.nodeRoutineList = await NodeRoutineListModel.mutate(prisma).relationshipBuilder(userId, data, false);
+        if ((data as RoutineNodeCreateInput)?.nodeEndCreate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, data, true);
+        else if ((data as RoutineNodeUpdateInput)?.nodeEndUpdate) nodeData.nodeEnd = this.relationshipBuilderEndNode(userId, data, false);
+        if ((data as RoutineNodeCreateInput).nodeRoutineListCreate) nodeData.nodeRoutineList = await RoutineNodeRoutineListModel.mutate(prisma).relationshipBuilder(userId, data, true);
+        else if ((data as RoutineNodeUpdateInput)?.nodeRoutineListUpdate) nodeData.nodeRoutineList = await RoutineNodeRoutineListModel.mutate(prisma).relationshipBuilder(userId, data, false);
         if (nodeData.loop) {
             if (data.loopCreate) nodeData.loop = this.relationshipBuilderLoop(userId, data, true);
-            else if ((data as NodeUpdateInput)?.loopUpdate) nodeData.loop = this.relationshipBuilderLoop(userId, data, false);
+            else if ((data as RoutineNodeUpdateInput)?.loopUpdate) nodeData.loop = this.relationshipBuilderLoop(userId, data, false);
         }
         return nodeData;
     },
@@ -171,8 +171,8 @@ export const nodeMutater = (prisma: PrismaType) => ({
         // Validate input, with routine ID added to each update node
         await this.validateMutations({
             userId,
-            createMany: createMany as NodeCreateInput[],
-            updateMany: updateMany as { where: { id: string }, data: NodeUpdateInput }[],
+            createMany: createMany as RoutineNodeCreateInput[],
+            updateMany: updateMany as { where: { id: string }, data: RoutineNodeUpdateInput }[],
             deleteMany: deleteMany?.map(d => d.id)
         });
         return Object.keys(formattedInput).length > 0 ? {
@@ -337,7 +337,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
      */
     async validateMutations({
         userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<NodeCreateInput, NodeUpdateInput>): Promise<void> {
+    }: ValidateMutationsInput<RoutineNodeCreateInput, RoutineNodeUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
         if (!userId)
             throw new CustomError(CODE.Unauthorized, 'Must pass valid userId to validateMutations', { code: genErrorCode('0054') });
@@ -362,7 +362,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
     /**
      * Performs adds, updates, and deletes of nodes. First validates that every action is allowed.
      */
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<NodeCreateInput, NodeUpdateInput>): Promise<CUDResult<Node>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineNodeCreateInput, RoutineNodeUpdateInput>): Promise<CUDResult<RoutineNode>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -416,11 +416,11 @@ export const nodeMutater = (prisma: PrismaType) => ({
 /* #region Model */
 //==============================================================
 
-export const NodeModel = ({
+export const RoutineNodeModel = ({
     prismaObject: (prisma: PrismaType) => prisma.node,
     format: nodeFormatter(),
     mutate: nodeMutater,
-    type: 'Node' as GraphQLModelType,
+    type: 'RoutineNode' as GraphQLModelType,
     verify: nodeVerifier(),
 })
 

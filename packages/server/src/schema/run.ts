@@ -41,9 +41,9 @@ export const typeDef = gql`
         contextSwitches: Int!
         isPrivate: Boolean!
         permissionsRun: RunPermission!
-        timeStarted: Date
+        timeStarted: DateTime
         timeElapsed: Int
-        timeCompleted: Date
+        timeCompleted: DateTime
         title: String!
         status: RunStatus!
         routine: Routine
@@ -62,14 +62,14 @@ export const typeDef = gql`
         id: ID!
         order: Int!
         contextSwitches: Int!
-        timeStarted: Date
+        timeStarted: DateTime
         timeElapsed: Int
-        timeCompleted: Date
+        timeCompleted: DateTime
         title: String!
         status: RunStepStatus!
         step: [Int!]!
         run: Run!
-        node: Node
+        node: RoutineNode
         subroutine: Routine
     }
 
@@ -91,7 +91,7 @@ export const typeDef = gql`
 
     # Return type for search result
     type RunSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [RunEdge!]!
     }
 

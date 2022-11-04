@@ -3,7 +3,7 @@
  */
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
-import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutinePageInfo, ProjectOrRoutineEdge, ProjectOrOrganizationEdge, ProjectOrOrganizationPageInfo, ProjectOrRoutine, ProjectOrOrganization } from './types';
+import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutinePageResultInfo, ProjectOrRoutineEdge, ProjectOrOrganizationEdge, ProjectOrOrganizationPageResultInfo, ProjectOrRoutine, ProjectOrOrganization } from './types';
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context } from '../context';
@@ -80,11 +80,11 @@ export const typeDef = gql`
     }
 
     type ProjectOrRoutineSearchResult {
-        pageInfo: ProjectOrRoutinePageInfo!
+        pageInfo: ProjectOrRoutinePageResultInfo!
         edges: [ProjectOrRoutineEdge!]!
     }
 
-    type ProjectOrRoutinePageInfo {
+    type ProjectOrRoutinePageResultInfo {
         hasNextPage: Boolean!
         endCursorProject: String
         endCursorRoutine: String
@@ -126,11 +126,11 @@ export const typeDef = gql`
     }
 
     type ProjectOrOrganizationSearchResult {
-        pageInfo: ProjectOrOrganizationPageInfo!
+        pageInfo: ProjectOrOrganizationPageResultInfo!
         edges: [ProjectOrOrganizationEdge!]!
     }
 
-    type ProjectOrOrganizationPageInfo {
+    type ProjectOrOrganizationPageResultInfo {
         hasNextPage: Boolean!
         endCursorProject: String
         endCursorOrganization: String

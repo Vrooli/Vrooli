@@ -10,7 +10,7 @@ import { RoutineSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface routines_routines_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   endCursor: string | null;
   hasNextPage: boolean;
 }

@@ -49,21 +49,21 @@ export enum CommentSortBy {
 }
 
 export enum CopyType {
-    Node = "Node",
     Organization = "Organization",
     Project = "Project",
     Routine = "Routine",
+    RoutineNode = "RoutineNode",
     Standard = "Standard",
 }
 
 export enum DeleteOneType {
     Comment = "Comment",
     Email = "Email",
-    Node = "Node",
     Organization = "Organization",
     Project = "Project",
     Report = "Report",
     Routine = "Routine",
+    RoutineNode = "RoutineNode",
     Run = "Run",
     Standard = "Standard",
     Wallet = "Wallet",

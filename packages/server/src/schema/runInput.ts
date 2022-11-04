@@ -32,7 +32,7 @@ export const typeDef = gql`
     }
 
     type RunInputSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [RunInputEdge!]!
     }
 

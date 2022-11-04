@@ -10,7 +10,7 @@ import { ReportSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface reports_reports_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   hasNextPage: boolean;
   endCursor: string | null;
 }

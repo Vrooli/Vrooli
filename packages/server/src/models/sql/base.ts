@@ -1,9 +1,9 @@
 // Components for providing basic functionality to model objects
-import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, PageInfo, Session, SessionUser, Success, TimeFrame, VisibilityType } from '../../schema/types';
+import { CopyInput, CopyType, Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, PageResultInfo, Session, SessionUser, Success, TimeFrame, VisibilityType } from '../../schema/types';
 import { PrismaType, RecursivePartial, ReqForUserAuth } from '../../types';
 import { GraphQLResolveInfo } from 'graphql';
 import { CommentModel } from './comment';
-import { NodeModel } from './node';
+import { RoutineNodeModel } from './routineNode';
 import { OrganizationModel } from './organization';
 import { ProjectModel } from './project';
 import { ReportModel } from './report';
@@ -33,7 +33,7 @@ import { RunModel } from './run';
 import pkg from 'lodash';
 import { WalletModel } from './wallet';
 import { RunStepModel } from './runStep';
-import { NodeRoutineListModel } from './nodeRoutineList';
+import { RoutineNodeRoutineListModel } from './routineNodeRoutineList';
 import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
 import { calculateVersionsFromString } from '@shared/validation';
@@ -212,7 +212,7 @@ export type JoinMap = { [key: string]: string };
 export type CountMap = { [key: string]: string };
 
 export type PaginatedSearchResult = {
-    pageInfo: PageInfo;
+    pageInfo: PageResultInfo;
     edges: Array<{
         cursor: string;
         node: any;
@@ -291,8 +291,6 @@ export const ObjectMap = {
     'Email': EmailModel,
     'InputItem': InputItemModel,
     'Member': MemberModel, // TODO create searcher for members
-    'Node': NodeModel,
-    'NodeRoutineList': NodeRoutineListModel,
     'Organization': OrganizationModel,
     'OutputItem': OutputItemModel,
     'Profile': ProfileModel,
@@ -302,6 +300,8 @@ export const ObjectMap = {
     'ResourceList': ResourceListModel,
     'Role': RoleModel,
     'Routine': RoutineModel,
+    'RoutineNode': RoutineNodeModel,
+    'RoutineNodeRoutineList': RoutineNodeRoutineListModel,
     'Run': RunModel,
     'RunInput': RunInputModel,
     'Standard': StandardModel,
@@ -1740,17 +1740,17 @@ export async function copyHelper({
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
         '__typename': 'Copy',
-        'node': 'Node',
         'organization': 'Organization',
         'project': 'Project',
         'routine': 'Routine',
+        'routineNode': 'RoutineNode',
         'standard': 'Standard',
     }));
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0231') });
     const { object } = await model.mutate(prisma).duplicate!({ userId, objectId: input.id, isFork: false, createCount: 0 });
     // If not a node, log for stats
-    if (input.objectType !== CopyType.Node) {
+    if (input.objectType !== CopyType.RoutineNode) {
         // No need to await this, since it is not needed for the response
         Log.collection.insertOne({
             timestamp: Date.now(),

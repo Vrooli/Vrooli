@@ -10,7 +10,7 @@ import { StarSearchInput } from "./globalTypes";
 // ====================================================
 
 export interface stars_stars_pageInfo {
-  __typename: "PageInfo";
+  __typename: "PageResultInfo";
   endCursor: string | null;
   hasNextPage: boolean;
 }

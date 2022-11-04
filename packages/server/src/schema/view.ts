@@ -19,7 +19,7 @@ export const typeDef = gql`
     type View {
         id: ID!
         from: User!
-        lastViewed: Date!
+        lastViewed: DateTime!
         title: String!
         to: ProjectOrOrganizationOrRoutineOrStandardOrUser!
     }
@@ -34,7 +34,7 @@ export const typeDef = gql`
     }
 
     type ViewSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [ViewEdge!]!
     }
 

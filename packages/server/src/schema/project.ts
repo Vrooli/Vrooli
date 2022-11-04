@@ -56,9 +56,9 @@ export const typeDef = gql`
     }
     type Project {
         id: ID!
-        completedAt: Date
-        created_at: Date!
-        updated_at: Date!
+        completedAt: DateTime
+        created_at: DateTime!
+        updated_at: DateTime!
         handle: String
         isComplete: Boolean!
         isPrivate: Boolean!
@@ -140,7 +140,7 @@ export const typeDef = gql`
 
     # Return type for search result
     type ProjectSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [ProjectEdge!]!
     }
 

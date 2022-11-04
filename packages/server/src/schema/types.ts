@@ -157,18 +157,18 @@ export type CopyInput = {
 
 export type CopyResult = {
   __typename?: 'CopyResult';
-  node?: Maybe<Node>;
   organization?: Maybe<Organization>;
   project?: Maybe<Project>;
   routine?: Maybe<Routine>;
+  routineNode?: Maybe<RoutineNode>;
   standard?: Maybe<Standard>;
 };
 
 export enum CopyType {
-  Node = 'Node',
   Organization = 'Organization',
   Project = 'Project',
   Routine = 'Routine',
+  RoutineNode = 'RoutineNode',
   Standard = 'Standard'
 }
 
@@ -189,11 +189,11 @@ export type DeleteOneInput = {
 export enum DeleteOneType {
   Comment = 'Comment',
   Email = 'Email',
-  Node = 'Node',
   Organization = 'Organization',
   Project = 'Project',
   Report = 'Report',
   Routine = 'Routine',
+  RoutineNode = 'RoutineNode',
   Run = 'Run',
   Standard = 'Standard',
   Wallet = 'Wallet'
@@ -439,7 +439,7 @@ export type LogSearchInput = {
 export type LogSearchResult = {
   __typename?: 'LogSearchResult';
   edges: Array<LogEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum LogSortBy {
@@ -572,8 +572,8 @@ export type Mutation = {
   guestLogIn: Session;
   logDeleteMany: Count;
   logOut: Session;
-  nodeCreate: Node;
-  nodeUpdate: Node;
+  routineNodeCreate: RoutineNode;
+  routineNodeUpdate: RoutineNode;
   organizationCreate: Organization;
   organizationUpdate: Organization;
   profileEmailUpdate: Profile;
@@ -685,13 +685,13 @@ export type MutationLogOutArgs = {
 };
 
 
-export type MutationNodeCreateArgs = {
-  input: NodeCreateInput;
+export type MutationRoutineNodeCreateArgs = {
+  input: RoutineNodeCreateInput;
 };
 
 
-export type MutationNodeUpdateArgs = {
-  input: NodeUpdateInput;
+export type MutationRoutineNodeUpdateArgs = {
+  input: RoutineNodeUpdateInput;
 };
 
 
@@ -874,241 +874,241 @@ export type MutationWriteAssetsArgs = {
   input: WriteAssetsInput;
 };
 
-export type Node = {
-  __typename?: 'Node';
+export type RoutineNode = {
+  __typename?: 'RoutineNode';
   columnIndex?: Maybe<Scalars['Int']>;
   created_at: Scalars['Date'];
-  data?: Maybe<NodeData>;
+  data?: Maybe<RoutineNodeData>;
   id: Scalars['ID'];
   loop?: Maybe<Loop>;
   routine: Routine;
   routineId: Scalars['ID'];
   rowIndex?: Maybe<Scalars['Int']>;
-  translations: Array<NodeTranslation>;
-  type: NodeType;
+  translations: Array<RoutineNodeTranslation>;
+  type: RoutineNodeType;
   updated_at: Scalars['Date'];
 };
 
-export type NodeCreateInput = {
+export type RoutineNodeCreateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
   loopCreate?: InputMaybe<LoopCreateInput>;
-  nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
-  nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
+  nodeEndCreate?: InputMaybe<RoutineNodeEndCreateInput>;
+  nodeRoutineListCreate?: InputMaybe<RoutineNodeRoutineListCreateInput>;
   routineId?: InputMaybe<Scalars['ID']>;
   rowIndex?: InputMaybe<Scalars['Int']>;
-  translationsCreate?: InputMaybe<Array<NodeTranslationCreateInput>>;
-  type?: InputMaybe<NodeType>;
+  translationsCreate?: InputMaybe<Array<RoutineNodeTranslationCreateInput>>;
+  type?: InputMaybe<RoutineNodeType>;
 };
 
-export type NodeData = NodeEnd | NodeRoutineList;
+export type RoutineNodeData = RoutineNodeEnd | RoutineNodeRoutineList;
 
-export type NodeEnd = {
-  __typename?: 'NodeEnd';
+export type RoutineNodeEnd = {
+  __typename?: 'RoutineNodeEnd';
   id: Scalars['ID'];
   wasSuccessful: Scalars['Boolean'];
 };
 
-export type NodeEndCreateInput = {
+export type RoutineNodeEndCreateInput = {
   id: Scalars['ID'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
-export type NodeEndUpdateInput = {
+export type RoutineNodeEndUpdateInput = {
   id: Scalars['ID'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
-export type NodeLink = {
-  __typename?: 'NodeLink';
+export type RoutineNodeLink = {
+  __typename?: 'RoutineNodeLink';
   fromId: Scalars['ID'];
   id: Scalars['ID'];
   operation?: Maybe<Scalars['String']>;
   toId: Scalars['ID'];
-  whens: Array<NodeLinkWhen>;
+  whens: Array<RoutineNodeLinkWhen>;
 };
 
-export type NodeLinkCreateInput = {
+export type RoutineNodeLinkCreateInput = {
   fromId: Scalars['ID'];
   id: Scalars['ID'];
   operation?: InputMaybe<Scalars['String']>;
   toId: Scalars['ID'];
-  whens?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
+  whens?: InputMaybe<Array<RoutineNodeLinkWhenCreateInput>>;
 };
 
-export type NodeLinkUpdateInput = {
+export type RoutineNodeLinkUpdateInput = {
   fromId?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
   operation?: InputMaybe<Scalars['String']>;
   toId?: InputMaybe<Scalars['ID']>;
-  whensCreate?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
+  whensCreate?: InputMaybe<Array<RoutineNodeLinkWhenCreateInput>>;
   whensDelete?: InputMaybe<Array<Scalars['ID']>>;
-  whensUpdate?: InputMaybe<Array<NodeLinkWhenUpdateInput>>;
+  whensUpdate?: InputMaybe<Array<RoutineNodeLinkWhenUpdateInput>>;
 };
 
-export type NodeLinkWhen = {
-  __typename?: 'NodeLinkWhen';
+export type RoutineNodeLinkWhen = {
+  __typename?: 'RoutineNodeLinkWhen';
   condition: Scalars['String'];
   id: Scalars['ID'];
-  translations: Array<NodeLinkWhenTranslation>;
+  translations: Array<RoutineNodeLinkWhenTranslation>;
 };
 
-export type NodeLinkWhenCreateInput = {
+export type RoutineNodeLinkWhenCreateInput = {
   condition: Scalars['String'];
   id: Scalars['ID'];
   linkId?: InputMaybe<Scalars['ID']>;
-  translationsCreate?: InputMaybe<Array<NodeLinkWhenTranslationCreateInput>>;
+  translationsCreate?: InputMaybe<Array<RoutineNodeLinkWhenTranslationCreateInput>>;
 };
 
-export type NodeLinkWhenTranslation = {
-  __typename?: 'NodeLinkWhenTranslation';
+export type RoutineNodeLinkWhenTranslation = {
+  __typename?: 'RoutineNodeLinkWhenTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
   title: Scalars['String'];
 };
 
-export type NodeLinkWhenTranslationCreateInput = {
+export type RoutineNodeLinkWhenTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
   title: Scalars['String'];
 };
 
-export type NodeLinkWhenTranslationUpdateInput = {
+export type RoutineNodeLinkWhenTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
   title?: InputMaybe<Scalars['String']>;
 };
 
-export type NodeLinkWhenUpdateInput = {
+export type RoutineNodeLinkWhenUpdateInput = {
   condition?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   linkId?: InputMaybe<Scalars['ID']>;
-  translationsCreate?: InputMaybe<Array<NodeLinkWhenTranslationCreateInput>>;
+  translationsCreate?: InputMaybe<Array<RoutineNodeLinkWhenTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<NodeLinkWhenTranslationUpdateInput>>;
+  translationsUpdate?: InputMaybe<Array<RoutineNodeLinkWhenTranslationUpdateInput>>;
 };
 
-export type NodeRoutineList = {
-  __typename?: 'NodeRoutineList';
+export type RoutineNodeRoutineList = {
+  __typename?: 'RoutineNodeRoutineList';
   id: Scalars['ID'];
   isOptional: Scalars['Boolean'];
   isOrdered: Scalars['Boolean'];
-  routines: Array<NodeRoutineListItem>;
+  routines: Array<RoutineNodeRoutineListItem>;
 };
 
-export type NodeRoutineListCreateInput = {
+export type RoutineNodeRoutineListCreateInput = {
   id: Scalars['ID'];
   isOptional?: InputMaybe<Scalars['Boolean']>;
   isOrdered?: InputMaybe<Scalars['Boolean']>;
-  routinesCreate?: InputMaybe<Array<NodeRoutineListItemCreateInput>>;
+  routinesCreate?: InputMaybe<Array<RoutineNodeRoutineListItemCreateInput>>;
 };
 
-export type NodeRoutineListItem = {
-  __typename?: 'NodeRoutineListItem';
+export type RoutineNodeRoutineListItem = {
+  __typename?: 'RoutineNodeRoutineListItem';
   id: Scalars['ID'];
   index: Scalars['Int'];
   isOptional: Scalars['Boolean'];
   routine: Routine;
-  translations: Array<NodeRoutineListItemTranslation>;
+  translations: Array<RoutineNodeRoutineListItemTranslation>;
 };
 
-export type NodeRoutineListItemCreateInput = {
+export type RoutineNodeRoutineListItemCreateInput = {
   id: Scalars['ID'];
   index: Scalars['Int'];
   isOptional?: InputMaybe<Scalars['Boolean']>;
   routineConnect: Scalars['ID'];
-  translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
+  translationsCreate?: InputMaybe<Array<RoutineNodeRoutineListItemTranslationCreateInput>>;
 };
 
-export type NodeRoutineListItemTranslation = {
-  __typename?: 'NodeRoutineListItemTranslation';
+export type RoutineNodeRoutineListItemTranslation = {
+  __typename?: 'RoutineNodeRoutineListItemTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
   title?: Maybe<Scalars['String']>;
 };
 
-export type NodeRoutineListItemTranslationCreateInput = {
+export type RoutineNodeRoutineListItemTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
   title?: InputMaybe<Scalars['String']>;
 };
 
-export type NodeRoutineListItemTranslationUpdateInput = {
+export type RoutineNodeRoutineListItemTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
   title?: InputMaybe<Scalars['String']>;
 };
 
-export type NodeRoutineListItemUpdateInput = {
+export type RoutineNodeRoutineListItemUpdateInput = {
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
   isOptional?: InputMaybe<Scalars['Boolean']>;
   routineUpdate?: InputMaybe<RoutineUpdateInput>;
-  translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
+  translationsCreate?: InputMaybe<Array<RoutineNodeRoutineListItemTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<NodeRoutineListItemTranslationUpdateInput>>;
+  translationsUpdate?: InputMaybe<Array<RoutineNodeRoutineListItemTranslationUpdateInput>>;
 };
 
-export type NodeRoutineListUpdateInput = {
+export type RoutineNodeRoutineListUpdateInput = {
   id: Scalars['ID'];
   isOptional?: InputMaybe<Scalars['Boolean']>;
   isOrdered?: InputMaybe<Scalars['Boolean']>;
-  routinesCreate?: InputMaybe<Array<NodeRoutineListItemCreateInput>>;
+  routinesCreate?: InputMaybe<Array<RoutineNodeRoutineListItemCreateInput>>;
   routinesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  routinesUpdate?: InputMaybe<Array<NodeRoutineListItemUpdateInput>>;
+  routinesUpdate?: InputMaybe<Array<RoutineNodeRoutineListItemUpdateInput>>;
 };
 
-export type NodeTranslation = {
-  __typename?: 'NodeTranslation';
+export type RoutineNodeTranslation = {
+  __typename?: 'RoutineNodeTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
   title: Scalars['String'];
 };
 
-export type NodeTranslationCreateInput = {
+export type RoutineNodeTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
   title: Scalars['String'];
 };
 
-export type NodeTranslationUpdateInput = {
+export type RoutineNodeTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
   title?: InputMaybe<Scalars['String']>;
 };
 
-export enum NodeType {
+export enum RoutineNodeType {
   End = 'End',
   Redirect = 'Redirect',
   RoutineList = 'RoutineList',
   Start = 'Start'
 }
 
-export type NodeUpdateInput = {
+export type RoutineNodeUpdateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
   loopCreate?: InputMaybe<LoopCreateInput>;
   loopDelete?: InputMaybe<Scalars['ID']>;
   loopUpdate?: InputMaybe<LoopUpdateInput>;
-  nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
-  nodeEndUpdate?: InputMaybe<NodeEndUpdateInput>;
-  nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
-  nodeRoutineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
+  nodeEndCreate?: InputMaybe<RoutineNodeEndCreateInput>;
+  nodeEndUpdate?: InputMaybe<RoutineNodeEndUpdateInput>;
+  nodeRoutineListCreate?: InputMaybe<RoutineNodeRoutineListCreateInput>;
+  nodeRoutineListUpdate?: InputMaybe<RoutineNodeRoutineListUpdateInput>;
   routineId?: InputMaybe<Scalars['ID']>;
   rowIndex?: InputMaybe<Scalars['Int']>;
-  translationsCreate?: InputMaybe<Array<NodeTranslationCreateInput>>;
+  translationsCreate?: InputMaybe<Array<RoutineNodeTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<NodeTranslationUpdateInput>>;
-  type?: InputMaybe<NodeType>;
+  translationsUpdate?: InputMaybe<Array<RoutineNodeTranslationUpdateInput>>;
+  type?: InputMaybe<RoutineNodeType>;
 };
 
 export type Organization = {
@@ -1201,7 +1201,7 @@ export type OrganizationSearchInput = {
 export type OrganizationSearchResult = {
   __typename?: 'OrganizationSearchResult';
   edges: Array<OrganizationEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum OrganizationSortBy {
@@ -1305,8 +1305,8 @@ export type OutputItemUpdateInput = {
   translationsUpdate?: InputMaybe<Array<OutputItemTranslationUpdateInput>>;
 };
 
-export type PageInfo = {
-  __typename?: 'PageInfo';
+export type PageResultInfo = {
+  __typename?: 'PageResultInfo';
   endCursor?: Maybe<Scalars['String']>;
   hasNextPage: Scalars['Boolean'];
 };
@@ -1433,8 +1433,8 @@ export type ProjectOrOrganizationEdge = {
 
 export type ProjectOrOrganizationOrRoutineOrStandardOrUser = Organization | Project | Routine | Standard | User;
 
-export type ProjectOrOrganizationPageInfo = {
-  __typename?: 'ProjectOrOrganizationPageInfo';
+export type ProjectOrOrganizationPageResultInfo = {
+  __typename?: 'ProjectOrOrganizationPageResultInfo';
   endCursorOrganization?: Maybe<Scalars['String']>;
   endCursorProject?: Maybe<Scalars['String']>;
   hasNextPage: Scalars['Boolean'];
@@ -1473,7 +1473,7 @@ export type ProjectOrOrganizationSearchInput = {
 export type ProjectOrOrganizationSearchResult = {
   __typename?: 'ProjectOrOrganizationSearchResult';
   edges: Array<ProjectOrOrganizationEdge>;
-  pageInfo: ProjectOrOrganizationPageInfo;
+  pageInfo: ProjectOrOrganizationPageResultInfo;
 };
 
 export enum ProjectOrOrganizationSortBy {
@@ -1493,8 +1493,8 @@ export type ProjectOrRoutineEdge = {
   node: ProjectOrRoutine;
 };
 
-export type ProjectOrRoutinePageInfo = {
-  __typename?: 'ProjectOrRoutinePageInfo';
+export type ProjectOrRoutinePageResultInfo = {
+  __typename?: 'ProjectOrRoutinePageResultInfo';
   endCursorProject?: Maybe<Scalars['String']>;
   endCursorRoutine?: Maybe<Scalars['String']>;
   hasNextPage: Scalars['Boolean'];
@@ -1538,7 +1538,7 @@ export type ProjectOrRoutineSearchInput = {
 export type ProjectOrRoutineSearchResult = {
   __typename?: 'ProjectOrRoutineSearchResult';
   edges: Array<ProjectOrRoutineEdge>;
-  pageInfo: ProjectOrRoutinePageInfo;
+  pageInfo: ProjectOrRoutinePageResultInfo;
 };
 
 export enum ProjectOrRoutineSortBy {
@@ -1596,7 +1596,7 @@ export type ProjectSearchInput = {
 export type ProjectSearchResult = {
   __typename?: 'ProjectSearchResult';
   edges: Array<ProjectEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum ProjectSortBy {
@@ -1997,7 +1997,7 @@ export type ReportSearchInput = {
 export type ReportSearchResult = {
   __typename?: 'ReportSearchResult';
   edges: Array<ReportEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum ReportSortBy {
@@ -2118,7 +2118,7 @@ export type ResourceListSearchInput = {
 export type ResourceListSearchResult = {
   __typename?: 'ResourceListSearchResult';
   edges: Array<ResourceListEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum ResourceListSortBy {
@@ -2192,7 +2192,7 @@ export type ResourceSearchInput = {
 export type ResourceSearchResult = {
   __typename?: 'ResourceSearchResult';
   edges: Array<ResourceEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum ResourceSortBy {
@@ -2324,9 +2324,9 @@ export type Routine = {
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
-  nodeLinks: Array<NodeLink>;
-  nodeLists: Array<NodeRoutineList>;
-  nodes: Array<Node>;
+  nodeLinks: Array<RoutineNodeLink>;
+  nodeLists: Array<RoutineNodeRoutineList>;
+  nodes: Array<RoutineNode>;
   nodesCount?: Maybe<Scalars['Int']>;
   outputs: Array<OutputItem>;
   owner?: Maybe<Contributor>;
@@ -2364,8 +2364,8 @@ export type RoutineCreateInput = {
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
-  nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
+  nodeLinksCreate?: InputMaybe<Array<RoutineNodeLinkCreateInput>>;
+  nodesCreate?: InputMaybe<Array<RoutineNodeCreateInput>>;
   outputsCreate?: InputMaybe<Array<OutputItemCreateInput>>;
   parentId?: InputMaybe<Scalars['ID']>;
   projectId?: InputMaybe<Scalars['ID']>;
@@ -2432,7 +2432,7 @@ export type RoutineSearchInput = {
 export type RoutineSearchResult = {
   __typename?: 'RoutineSearchResult';
   edges: Array<RoutineEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum RoutineSortBy {
@@ -2486,12 +2486,12 @@ export type RoutineUpdateInput = {
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
+  nodeLinksCreate?: InputMaybe<Array<RoutineNodeLinkCreateInput>>;
   nodeLinksDelete?: InputMaybe<Array<Scalars['ID']>>;
-  nodeLinksUpdate?: InputMaybe<Array<NodeLinkUpdateInput>>;
-  nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
+  nodeLinksUpdate?: InputMaybe<Array<RoutineNodeLinkUpdateInput>>;
+  nodesCreate?: InputMaybe<Array<RoutineNodeCreateInput>>;
   nodesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  nodesUpdate?: InputMaybe<Array<NodeUpdateInput>>;
+  nodesUpdate?: InputMaybe<Array<RoutineNodeUpdateInput>>;
   organizationId?: InputMaybe<Scalars['ID']>;
   outputsCreate?: InputMaybe<Array<OutputItemCreateInput>>;
   outputsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -2600,7 +2600,7 @@ export type RunInputSearchInput = {
 export type RunInputSearchResult = {
   __typename?: 'RunInputSearchResult';
   edges: Array<RunInputEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum RunInputSortBy {
@@ -2641,7 +2641,7 @@ export type RunSearchInput = {
 export type RunSearchResult = {
   __typename?: 'RunSearchResult';
   edges: Array<RunEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum RunSortBy {
@@ -2667,7 +2667,7 @@ export type RunStep = {
   __typename?: 'RunStep';
   contextSwitches: Scalars['Int'];
   id: Scalars['ID'];
-  node?: Maybe<Node>;
+  node?: Maybe<RoutineNode>;
   order: Scalars['Int'];
   run: Run;
   status: RunStepStatus;
@@ -2842,7 +2842,7 @@ export type StandardSearchInput = {
 export type StandardSearchResult = {
   __typename?: 'StandardSearchResult';
   edges: Array<StandardEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum StandardSortBy {
@@ -2936,7 +2936,7 @@ export type StarSearchInput = {
 export type StarSearchResult = {
   __typename?: 'StarSearchResult';
   edges: Array<StarEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum StarSortBy {
@@ -3045,7 +3045,7 @@ export type TagSearchInput = {
 export type TagSearchResult = {
   __typename?: 'TagSearchResult';
   edges: Array<TagEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum TagSortBy {
@@ -3168,7 +3168,7 @@ export type UserSearchInput = {
 export type UserSearchResult = {
   __typename?: 'UserSearchResult';
   edges: Array<UserEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum UserSortBy {
@@ -3226,7 +3226,7 @@ export type ViewSearchInput = {
 export type ViewSearchResult = {
   __typename?: 'ViewSearchResult';
   edges: Array<ViewEdge>;
-  pageInfo: PageInfo;
+  pageInfo: PageResultInfo;
 };
 
 export enum ViewSortBy {

@@ -23,8 +23,8 @@ export const typeDef = gql`
     # User information available for you own account
     type Profile {
         id: ID!
-        created_at: Date!
-        updated_at: Date!
+        created_at: DateTime!
+        updated_at: DateTime!
         handle: String
         name: String!
         theme: String!
@@ -52,7 +52,7 @@ export const typeDef = gql`
     # User information available for other accounts
     type User {
         id: ID!
-        created_at: Date!
+        created_at: DateTime!
         handle: String
         name: String!
         stars: Int!
@@ -140,7 +140,7 @@ export const typeDef = gql`
 
     # Return type for search result
     type UserSearchResult {
-        pageInfo: PageInfo!
+        pageInfo: PageResultInfo!
         edges: [UserEdge!]!
     }
 

@@ -16,7 +16,7 @@ export const runStepFormatter = (): FormatConverter<RunStep, any> => ({
     relationshipMap: {
         '__typename': 'RunStep',
         'run': 'Run',
-        'node': 'Node',
+        'node': 'RoutineNode',
         'subroutine': 'Routine',
     },
 })

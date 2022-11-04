@@ -5,13 +5,14 @@ import cors from "cors";
 import { ApolloServer } from 'apollo-server-express';
 import { depthLimit } from './depthLimit';
 import { graphqlUploadExpress } from 'graphql-upload';
-import { schema } from './schema';
 import { context } from './context';
 import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
 import mongoose from 'mongoose';
 import { genErrorCode, logger, LogLevel } from './logger';
 import { initializeRedis } from './redisConn';
+import { createDriver } from './db/driver';
+import { neoSchema } from './schema';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -53,6 +54,10 @@ const main = async () => {
     } catch (error) {
         logger.log(LogLevel.error, '🚨 Failed to connect to Redis', { code: genErrorCode('0207'), error });
     }
+    // Neo4j
+    const driver = createDriver()
+    const session = driver.session()
+    console.log('Neo4j driver created!')
 
     const app = express();
 
@@ -85,7 +90,7 @@ const main = async () => {
     const apollo_options = new ApolloServer({
         cache: 'bounded' as any,
         introspection: process.env.NODE_ENV === 'development',
-        schema: schema,
+        schema: await neoSchema.getSchema(),
         context: (c) => context(c), // Allows request and response to be included in the context
         validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
     });
