@@ -214,56 +214,62 @@ export const resolvers = {
                 }
             }
         },
-        emailSignUp: async (_parent: undefined, { input }: IWrap<EmailSignUpInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
+        emailSignUp: async (_parent: undefined, { input }: IWrap<EmailSignUpInput>, { driver, prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             await rateLimit({ info, maxUser: 10, req });
             // Validate input format
             emailSignUpSchema.validateSync(input, { abortEarly: false });
             // Check for censored words
             if (hasProfanity(input.name))
                 throw new CustomError(CODE.BannedWord, 'Name includes banned word', { code: genErrorCode('0140') });
-            // Check if email exists
-            const existingEmail = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
-            if (existingEmail) throw new CustomError(CODE.EmailInUse, 'Email already in use', { code: genErrorCode('0141') });
-            // Create user object
-            const user = await prisma.user.create({
-                data: {
-                    name: input.name,
-                    password: ProfileModel.verify.hashPassword(input.password),
-                    theme: input.theme,
-                    status: AccountStatus.Unlocked,
-                    emails: {
-                        create: [
-                            { emailAddress: input.email },
-                        ]
-                    },
-                    resourceLists: {
-                        create: [
-                            {
-                                usedFor: ResourceListUsedFor.Learn,
-                            },
-                            {
-                                usedFor: ResourceListUsedFor.Research,
-                            },
-                            {
-                                usedFor: ResourceListUsedFor.Develop,
-                            },
-                            {
-                                usedFor: ResourceListUsedFor.Display,
-                            }
-                        ]
-                    }
-                }
-            });
-            if (!user)
-                throw new CustomError(CODE.ErrorUnknown, 'Could not create user', { code: genErrorCode('0142') });
-            // Create session from user object
-            const session = await ProfileModel.verify.toSession(user, prisma, req);
-            // Set up session token
-            await generateSessionJwt(res, session);
-            // Send verification email
-            await ProfileModel.verify.setupVerificationCode(input.email, prisma);
-            // Return user data
-            return session;
+            // Check if email exists in neo4j
+            const emailExists = await driver.session().run(`
+                MATCH (e:Email {emailAddress: $email})
+                RETURN e
+            `, { email: input.email });
+            console.log('neo4j email exists', emailExists.records);
+            throw new CustomError(CODE.NotImplemented);
+            // const existingEmail = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
+            // if (existingEmail) throw new CustomError(CODE.EmailInUse, 'Email already in use', { code: genErrorCode('0141') });
+            // // Create user object
+            // const user = await prisma.user.create({
+            //     data: {
+            //         name: input.name,
+            //         password: ProfileModel.verify.hashPassword(input.password),
+            //         theme: input.theme,
+            //         status: AccountStatus.Unlocked,
+            //         emails: {
+            //             create: [
+            //                 { emailAddress: input.email },
+            //             ]
+            //         },
+            //         resourceLists: {
+            //             create: [
+            //                 {
+            //                     usedFor: ResourceListUsedFor.Learn,
+            //                 },
+            //                 {
+            //                     usedFor: ResourceListUsedFor.Research,
+            //                 },
+            //                 {
+            //                     usedFor: ResourceListUsedFor.Develop,
+            //                 },
+            //                 {
+            //                     usedFor: ResourceListUsedFor.Display,
+            //                 }
+            //             ]
+            //         }
+            //     }
+            // });
+            // if (!user)
+            //     throw new CustomError(CODE.ErrorUnknown, 'Could not create user', { code: genErrorCode('0142') });
+            // // Create session from user object
+            // const session = await ProfileModel.verify.toSession(user, prisma, req);
+            // // Set up session token
+            // await generateSessionJwt(res, session);
+            // // Send verification email
+            // await ProfileModel.verify.setupVerificationCode(input.email, prisma);
+            // // Return user data
+            // return session;
         },
         emailRequestPasswordChange: async (_parent: undefined, { input }: IWrap<EmailRequestPasswordChangeInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ info, maxUser: 10, req });

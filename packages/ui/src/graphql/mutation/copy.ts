@@ -1,17 +1,14 @@
 import { gql } from 'graphql-tag';
-import { nodeFields, organizationFields, projectFields, routineFields, standardFields } from 'graphql/fragment';
+import { organizationFields, projectFields, routineFields, routineNodeFields, standardFields } from 'graphql/fragment';
 
 export const copyMutation = gql`
-    ${nodeFields}
     ${organizationFields}
     ${projectFields}
     ${routineFields}
+    ${routineNodeFields}
     ${standardFields}
     mutation copy($input: CopyInput!) {
         copy(input: $input) {
-            node {
-                ...nodeFields
-            }
             organization {
                 ...organizationFields
             }
@@ -20,6 +17,9 @@ export const copyMutation = gql`
             }
             routine {
                 ...routineFields
+            }
+            routineNode {
+                ...routineNodeFields
             }
             standard {
                 ...standardFields

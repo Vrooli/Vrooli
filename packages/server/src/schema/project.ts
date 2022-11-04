@@ -65,18 +65,18 @@ export const typeDef = gql`
         isStarred: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
+        starsAggregate: Count!
+        votesAggregate: Count!
+        viewsAggregate: Count!
         comments: [Comment!]!
-        commentsCount: Int!
+        commentsAggregate: Count!
         creator: Contributor
         forks: [Project!]!
         owner: Contributor
         parent: Project
         permissionsProject: ProjectPermission!
         reports: [Report!]!
-        reportsCount: Int!
+        reportsAggregate: Count!
         resourceLists: [ResourceList!]
         routines: [Routine!]!
         starredBy: [User!]

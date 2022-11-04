@@ -29,7 +29,6 @@ export const typeDef = gql`
         name: String!
         theme: String!
         status: AccountStatus!
-        history: [Log!]!
         comments: [Comment!]!
         roles: [Role!]!
         emails: [Email!]!
@@ -55,8 +54,8 @@ export const typeDef = gql`
         created_at: DateTime!
         handle: String
         name: String!
-        stars: Int!
-        views: Int!
+        starsAggregate: Count!
+        viewsAggregate: Count!
         isStarred: Boolean!
         isViewed: Boolean!
         comments: [Comment!]!
@@ -65,7 +64,7 @@ export const typeDef = gql`
         projectsCreated: [Project!]!
         starredBy: [User!]!
         reports: [Report!]!
-        reportsCount: Int!
+        reportsAggregate: Count!
         routines: [Routine!]!
         routinesCreated: [Routine!]!
         translations: [UserTranslation!]!

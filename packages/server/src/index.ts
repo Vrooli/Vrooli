@@ -8,7 +8,6 @@ import { graphqlUploadExpress } from 'graphql-upload';
 import { context } from './context';
 import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
-import mongoose from 'mongoose';
 import { genErrorCode, logger, LogLevel } from './logger';
 import { initializeRedis } from './redisConn';
 import { createDriver } from './db/driver';
@@ -36,17 +35,6 @@ const main = async () => {
     // Setup databases
     // Prisma
     await setupDatabase();
-    // MongoDB
-    try {
-        mongoose.set('debug', process.env.NODE_ENV === 'development');
-        await mongoose.connect(process.env.MONGO_CONN ?? '', {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        } as mongoose.ConnectOptions);
-        logger.log(LogLevel.info, '✅ Connected to MongoDB');
-    } catch (error) {
-        logger.log(LogLevel.error, '🚨 Failed to connect to MongoDB', { code: genErrorCode('0191'), error });
-    }
     // Redis 
     try {
         await initializeRedis();

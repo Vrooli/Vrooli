@@ -54,18 +54,18 @@ export const typeDef = gql`
         handle: String
         isOpenToNewMembers: Boolean!
         isPrivate: Boolean!
-        stars: Int!
-        views: Int!
+        starsAggregate: Count!
+        viewsAggregate: Count!
         isStarred: Boolean!
         isViewed: Boolean!
         comments: [Comment!]!
-        commentsCount: Int!
+        commentsAggregate: Count!
         members: [Member!]!
-        membersCount: Int!
+        membersAggregate: Count!
         permissionsOrganization: OrganizationPermission
         projects: [Project!]!
         reports: [Report!]!
-        reportsCount: Int!
+        reportsAggregate: Count!
         resourceLists: [ResourceList!]!
         roles: [Role!]
         routines: [Routine!]!

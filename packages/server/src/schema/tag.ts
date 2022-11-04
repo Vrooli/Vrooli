@@ -47,7 +47,7 @@ export const typeDef = gql`
         tag: String!
         created_at: DateTime!
         updated_at: DateTime!
-        stars: Int!
+        starsAggregate: Count!
         isStarred: Boolean!
         isOwn: Boolean!
         starredBy: [User!]!

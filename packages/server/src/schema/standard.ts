@@ -69,15 +69,15 @@ export const typeDef = gql`
         version: String!
         versionGroupId: ID!
         versions: [String!]!
-        score: Int!
-        stars: Int!
-        views: Int!
+        starsAggregate: Count!
+        votesAggregate: Count!
+        viewsAggregate: Count!
         comments: [Comment!]!
-        commentsCount: Int!
+        commentsAggregate: Count!
         creator: Contributor
         permissionsStandard: StandardPermission!
         reports: [Report!]!
-        reportsCount: Int!
+        reportsAggregate: Count!
         resourceLists: [ResourceList!]!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!

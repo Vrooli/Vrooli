@@ -45,15 +45,15 @@ export const typeDef = gql`
         id: ID!
         created_at: DateTime!
         updated_at: DateTime!
-        commentedOn: CommentedOn!
+        commentedOn: CommentedOn! @relationship(type: "COMMENTED_ON", direction: OUT)
         creator: Contributor
         isStarred: Boolean!
         isUpvoted: Boolean
         permissionsComment: CommentPermission
-        reports: [Report!]!
-        reportsCount: Int!
-        score: Int!
-        stars: Int!
+        reports: [Report!]! @relationship(type: "RECIEVED_REPORT", direction: IN)
+        reportsAggregate: Count!
+        votesAggregate: Count!
+        starsAggregate: Count!
         starredBy: [User!]
         translations: [CommentTranslation!]!
     }

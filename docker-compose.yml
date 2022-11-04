@@ -52,7 +52,6 @@ services:
       DB_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
       CREATE_MOCK_DATA: "${CREATE_MOCK_DATA}"
       DB_PULL: "${DB_PULL}"
-      MONGO_CONN: "${MONGO_CONN}"
       PORT_TRANSLATE: "${PORT_TRANSLATE}"
       SITE_EMAIL_FROM: "${SITE_EMAIL_FROM}"
       ADMIN_WALLET: "${ADMIN_WALLET}"

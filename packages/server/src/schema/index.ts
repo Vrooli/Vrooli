@@ -1,4 +1,3 @@
-import { makeExecutableSchema } from '@graphql-tools/schema';
 import { Neo4jGraphQL } from '@neo4j/graphql';
 import * as Root from './root';
 import * as Auth from './auth';
@@ -7,7 +6,7 @@ import * as DeleteOne from './deleteOne';
 import * as Duplicate from './duplicate';
 import * as Email from './email';
 import * as Feedback from './feedback';
-import * as Log from './log';
+// import * as Log from './log';
 import * as Organization from './organization';
 import * as Pages from './pages';
 import * as Project from './project';
@@ -28,12 +27,10 @@ import * as User from './user';
 import * as View from './view';
 import * as Vote from './vote';
 import * as Wallet from './wallet';
-import pkg from 'lodash';
 import { createDriver } from '../db/driver';
-const { merge } = pkg;
 
 const models = [
-    Root, Auth, Comment, DeleteOne, Duplicate, Email, Feedback, Log,
+    Root, Auth, Comment, DeleteOne, Duplicate, Email, Feedback, //Log,
     Organization, Pages, Project, Report, Resource, ResourceList, Role,
     Routine, RoutineNode, Run, RunInput, Standard, Star, Tag, Translate, Unions, User, View, Vote, Wallet
 ]

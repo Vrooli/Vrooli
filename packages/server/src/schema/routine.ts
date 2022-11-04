@@ -90,21 +90,21 @@ export const typeDef = gql`
         isStarred: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
-        score: Int!
         simplicity: Int!
-        stars: Int!
-        views: Int!
+        starsAggregate: Count!
+        votesAggregate: Count!
+        viewsAggregate: Count!
         version: String!
         versionGroupId: ID!
         versions: [String!]!
         comments: [Comment!]!
-        commentsCount: Int!
+        commentsAggregate: Count!
         creator: Contributor
         forks: [Routine!]!
         inputs: [InputItem!]!
         nodeLists: [RoutineNodeRoutineList!]!
         nodes: [RoutineNode!]!
-        nodesCount: Int
+        nodesAggregate: Count!
         nodeLinks: [RoutineNodeLink!]!
         outputs: [OutputItem!]!
         owner: Contributor
@@ -112,7 +112,7 @@ export const typeDef = gql`
         permissionsRoutine: RoutinePermission!
         project: Project
         reports: [Report!]!
-        reportsCount: Int!
+        reportsAggregate: Count!
         resourceLists: [ResourceList!]!
         runs: [Run!]!
         starredBy: [User!]!
