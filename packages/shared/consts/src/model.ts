@@ -162,6 +162,8 @@ export enum RoutineSortBy {
     CommentsAsc = "CommentsAsc",
     DateCreatedDesc = "DateCreatedDesc",
     DateCreatedAsc = "DateCreatedAsc",
+    DateCompletedDesc = "DateCompletedDesc",
+    DateCompletedAsc = "DateCompletedAsc",
     DateUpdatedDesc = "DateUpdatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
 }
@@ -171,6 +173,13 @@ export enum RunSortBy {
     DateStartedDesc = "DateStartedDesc",
     DateCompletedAsc = "DateCompletedAsc",
     DateCompletedDesc = "DateCompletedDesc",
+    DateCreatedAsc = "DateCreatedAsc",
+    DateCreatedDesc = "DateCreatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+}
+
+export enum RunInputSortBy {
     DateCreatedAsc = "DateCreatedAsc",
     DateCreatedDesc = "DateCreatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",

@@ -1,10 +1,11 @@
-import { User, UserSortBy, UserSearchInput, ResourceListUsedFor, } from "../schema/types";
+import { User, ResourceListUsedFor, UserSearchInput, } from "../schema/types";
 import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, FormatConverter, getSearchStringQueryHelper, removeCountFieldsHelper, removeJoinTablesHelper, Searcher } from "./base";
 import { PrismaType, RecursivePartial } from "../types";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { omit } from "@shared/utils";
 import { GraphQLModelType } from ".";
+import { UserSortBy } from "@shared/consts";
 
 //==============================================================
 /* #region Custom Components */

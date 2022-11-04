@@ -140,7 +140,7 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
     },
 })
 
-export const commentPermissioner = (): Permissioner<CommentPermission, CommentSearchInput> => ({
+export const commentPermissioner = (): Permissioner<CommentPermission, any> => ({
     async get({
         objects,
         permissions,
@@ -316,7 +316,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
      */
     async searchNested(
         req: ReqForUserAuth,
-        input: CommentSearchInput,
+        input: any,
         info: GraphQLInfo | PartialGraphQLInfo,
         nestLimit: number = 2,
     ): Promise<CommentSearchResult> {

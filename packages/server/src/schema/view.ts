@@ -8,7 +8,7 @@ import { genErrorCode } from '../logger';
 import { getUserId, readManyHelper, ViewModel } from '../models';
 import { rateLimit } from '../rateLimit';
 import { IWrap } from '../types';
-import { ViewSearchInput, ViewSearchResult } from './types';
+import { ViewSearchResult } from './types';
 
 export const typeDef = gql`
     enum ViewSortBy {
@@ -51,7 +51,7 @@ export const typeDef = gql`
 export const resolvers = {
     ViewSortBy: ViewSortBy,
     Query: {
-        views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
+        views: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
             assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
             const userId = getUserId(req);

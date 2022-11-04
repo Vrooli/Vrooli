@@ -1,10 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, ResourceModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSearchResult, ResourceFor, ResourceSortBy, ResourceUsedFor } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Resource, ResourceCountInput, ResourceCreateInput, ResourceUpdateInput, ResourceSearchResult, ResourceUsedFor } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
+import { ResourceFor, ResourceSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum ResourceFor {
@@ -143,7 +144,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: ResourceModel, prisma, req })
         },
-        resources: async (_parent: undefined, { input }: IWrap<ResourceSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ResourceSearchResult> => {
+        resources: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ResourceSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, model: ResourceModel, prisma, req })
         },

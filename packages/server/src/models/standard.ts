@@ -1,9 +1,9 @@
 import { standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
-import { CODE, DeleteOneType } from "@shared/consts";
+import { CODE, DeleteOneType, StandardSortBy } from "@shared/consts";
 import { omit } from '@shared/utils';
 import { CustomError } from "../error";
 import { PrismaType, RecursivePartial } from "../types";
-import { Standard, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSortBy, Count, StandardPermission } from "../schema/types";
+import { Standard, StandardCreateInput, StandardUpdateInput, Count, StandardPermission, StandardSearchInput } from "../schema/types";
 import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, CUDInput, CUDResult, deleteOneHelper, FormatConverter, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, Permissioner, relationshipToPrisma, removeCountFieldsHelper, removeJoinTablesHelper, Searcher, selectHelper, validateMaxObjects, ValidateMutationsInput, validateObjectOwnership, visibilityBuilder } from "./base";
 import { validateProfanity } from "../utils/censor";
 import { organizationQuerier } from "./organization";
@@ -100,7 +100,7 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
     }
 })
 
-export const standardPermissioner = (): Permissioner<StandardPermission, StandardSearchInput> => ({
+export const standardPermissioner = (): Permissioner<StandardPermission, any> => ({
     async get({
         objects,
         permissions,

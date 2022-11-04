@@ -1,9 +1,9 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../schema/types";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, Count, ResourceListUsedFor, OrganizationPermission, OrganizationSearchInput } from "../schema/types";
 import { addJoinTablesHelper, CUDInput, CUDResult, FormatConverter, removeJoinTablesHelper, Searcher, selectHelper, modelToGraphQL, ValidateMutationsInput, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, Permissioner, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries, onlyValidHandles } from "./base";
 import { CustomError } from "../error";
 import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
-import { CODE } from '@shared/consts';
+import { CODE, OrganizationSortBy } from '@shared/consts';
 import { omit } from '@shared/utils';
 import { role } from "@prisma/client";
 import { TagModel } from "./tag";
@@ -53,7 +53,7 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
     }
 })
 
-export const organizationPermissioner = (): Permissioner<OrganizationPermission, OrganizationSearchInput> => ({
+export const organizationPermissioner = (): Permissioner<OrganizationPermission, any> => ({
     async get({
         objects,
         permissions,

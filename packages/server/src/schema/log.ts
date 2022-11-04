@@ -3,7 +3,7 @@
  */
 import { gql } from 'apollo-server-express';
 import { IWrap } from '../types';
-import { Count, LogSortBy, DeleteManyInput, LogSearchResult, LogSearchInput } from './types';
+import { Count, DeleteManyInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';

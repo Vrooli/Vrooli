@@ -1,6 +1,6 @@
 import { CODE, VoteFor } from "@shared/consts";
 import { CustomError } from "../error";
-import { LogType, Vote, VoteInput } from "../schema/types";
+import { Vote, VoteInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { FormatConverter, onlyValidIds } from "./base";
 import { genErrorCode, logger, LogLevel } from "../logger";

@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@shared/consts';
+import { CODE, UserSortBy } from '@shared/consts';
 import { CustomError } from '../error';
 import { countHelper, getUserId, ProfileModel, readManyHelper, readOneHelper, UserModel } from '../models';
-import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput, UserSortBy } from './types';
+import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdOrHandleInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -182,7 +182,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: UserModel, prisma, req });
         },
-        users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
+        users: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, model: UserModel, prisma, req });
         },

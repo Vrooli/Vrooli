@@ -1,7 +1,7 @@
-import { CODE, StarFor } from "@shared/consts";
+import { CODE, StarFor, StarSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils'; 
 import { CustomError } from "../error";
-import { LogType, Star, StarInput, StarSearchInput, StarSortBy } from "../schema/types";
+import { Star, StarInput, StarSearchInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "../types";
 import { combineQueries, FormatConverter, getSearchStringQueryHelper, ModelLogic, ObjectMap, onlyValidIds, readManyHelper, Searcher } from "./base";
 import { genErrorCode, logger, LogLevel } from "../logger";

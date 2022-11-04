@@ -1,10 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
-import { FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSearchResult, OrganizationSortBy } from './types';
+import { FindByIdOrHandleInput, Organization, OrganizationCountInput, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchResult } from './types';
 import { Context } from '../context';
 import { countHelper, createHelper, OrganizationModel, readManyHelper, readOneHelper, updateHelper, visibilityBuilder } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
+import { OrganizationSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum OrganizationSortBy {
@@ -171,7 +172,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: OrganizationModel, prisma, req })
         },
-        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
+        organizations: async (_parent: undefined, { input }: IWrap<any>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, model: OrganizationModel, prisma, req })
         },

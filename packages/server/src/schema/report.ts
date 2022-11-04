@@ -1,10 +1,11 @@
 import { gql } from 'apollo-server-express';
-import { FindByIdInput, Report, ReportCountInput, ReportCreateInput, ReportFor, ReportSearchInput, ReportSearchResult, ReportSortBy, ReportUpdateInput } from './types';
+import { FindByIdInput, Report, ReportCountInput, ReportCreateInput, ReportFor, ReportSearchResult, ReportUpdateInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, readManyHelper, readOneHelper, ReportModel, updateHelper } from '../models';
 import { rateLimit } from '../rateLimit';
+import { ReportSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum ReportFor {
@@ -102,7 +103,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: ReportModel, prisma, req })
         },
-        reports: async (_parent: undefined, { input }: IWrap<ReportSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ReportSearchResult> => {
+        reports: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ReportSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, model: ReportModel, prisma, req })
         },

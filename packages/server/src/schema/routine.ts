@@ -1,10 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy, FindByVersionInput } from './types';
+import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, Success, RoutineSearchResult, FindByVersionInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, updateHelper, visibilityBuilder } from '../models';
 import { rateLimit } from '../rateLimit';
+import { RoutineSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum RoutineSortBy {
@@ -317,7 +318,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: RoutineModel, prisma, req });
         },
-        routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
+        routines: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, model: RoutineModel, prisma, req });
         },

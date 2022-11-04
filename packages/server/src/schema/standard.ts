@@ -1,10 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { countHelper, createHelper, readManyHelper, readOneHelper, StandardModel, updateHelper, visibilityBuilder } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSearchResult, StandardSortBy, FindByVersionInput } from './types';
+import { FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchResult, FindByVersionInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
+import { StandardSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum StandardSortBy {
@@ -172,7 +173,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: StandardModel, prisma, req });
         },
-        standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
+        standards: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, model: StandardModel, prisma, req });
         },

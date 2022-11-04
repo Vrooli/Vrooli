@@ -45,6 +45,7 @@
         "jsonwebtoken": "^8.5.1",
         "lodash": "^4.17.21",
         "neo4j-driver": "^5.2.0",
+        "neo4j-graphql-js": "^2.19.4",
         "node-cron": "^3.0.0",
         "node-fetch": "^3.2.10",
         "nodemailer": "^6.6.0",

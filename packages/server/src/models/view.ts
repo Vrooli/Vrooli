@@ -1,7 +1,7 @@
-import { CODE, ViewFor } from "@shared/consts";
+import { CODE, ViewFor, ViewSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils'
 import { CustomError } from "../error";
-import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../schema/types";
+import { Count, User, ViewSearchInput } from "../schema/types";
 import { PrismaType, RecursivePartial } from "../types";
 import { combineQueries, FormatConverter, getSearchStringQueryHelper, lowercaseFirstLetter, ModelLogic, ObjectMap, onlyValidIds, readManyHelper, Searcher, timeFrameToPrisma } from "./base";
 import { genErrorCode, logger, LogLevel } from "../logger";

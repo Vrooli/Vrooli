@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { CODE, StarSortBy } from '@shared/consts';
 import { CustomError } from '../error';
-import { StarFor, StarInput, StarSearchInput, StarSearchResult, Success } from './types';
+import { StarFor, StarInput, StarSearchResult, Success } from './types';
 import { IWrap } from '../types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
@@ -74,7 +74,7 @@ export const resolvers = {
         __resolveType(obj: any) { return resolveStarTo(obj) },
     },
     Query: {
-        stars: async (_parent: undefined, { input }: IWrap<StarSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StarSearchResult> => {
+        stars: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StarSearchResult> => {
             assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
             const userId = getUserId(req);

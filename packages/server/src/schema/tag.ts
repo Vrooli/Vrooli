@@ -1,10 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, TagModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchInput, TagSearchResult, TagSortBy } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Tag, TagCountInput, TagCreateInput, TagUpdateInput, TagSearchResult } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
+import { TagSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum TagSortBy {
@@ -130,7 +131,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: TagModel, prisma, req })
         },
-        tags: async (_parent: undefined, { input }: IWrap<TagSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<TagSearchResult> => {
+        tags: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<TagSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
             return readManyHelper({ info, input, model: TagModel, prisma, req })
         },

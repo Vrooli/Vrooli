@@ -1,11 +1,12 @@
 import { gql } from 'apollo-server-express';
-import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from './types';
+import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchResult, CommentUpdateInput, FindByIdInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { CommentModel, countHelper, createHelper, readOneHelper, updateHelper } from '../models';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { rateLimit } from '../rateLimit';
 import { resolveCommentedOn } from './resolvers';
+import { CommentSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum CommentFor {
@@ -143,7 +144,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: CommentModel, prisma, req })
         },
-        comments: async (_parent: undefined, { input }: IWrap<CommentSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<CommentSearchResult> => {
+        comments: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<CommentSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
             return CommentModel.query(prisma).searchNested(req, input, info);
         },

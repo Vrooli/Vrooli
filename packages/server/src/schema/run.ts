@@ -1,13 +1,13 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
-import { Count, DeleteManyInput, FindByIdInput, Run, RunCancelInput, RunCompleteInput, RunCountInput, RunCreateInput, RunSearchInput, RunSearchResult, RunSortBy, RunStatus, RunStepStatus, RunUpdateInput } from './types';
+import { Count, DeleteManyInput, FindByIdInput, Run, RunCancelInput, RunCompleteInput, RunCountInput, RunCreateInput, RunSearchResult, RunStatus, RunStepStatus, RunUpdateInput } from './types';
 import { Context } from '../context';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteManyHelper, getUserId, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
 import { rateLimit } from '../rateLimit';
 import { CustomError } from '../error';
 import { genErrorCode } from '../logger';
-import { CODE } from '@shared/consts';
+import { CODE, RunSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum RunSortBy {
@@ -194,7 +194,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 1000, req });
             return readOneHelper({ info, input, model: RunModel, prisma, req });
         },
-        runs: async (_parent: undefined, { input }: IWrap<RunSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RunSearchResult> => {
+        runs: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RunSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
             const userId = getUserId(req);
             if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to view runs.', { code: genErrorCode('0273') });

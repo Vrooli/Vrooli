@@ -446,7 +446,7 @@ const profileMutater = (prisma: PrismaType) => ({
             ...(input.starredTagsCreate ?? []),
             ...((input.starredTagsConnect ?? []).map(t => ({
                 tag: t
-            }))),
+            }))) as any
         ];
         // Create new tags
         const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel.mutate(prisma).toDBShape(userId, tag)));
