@@ -1,7 +1,7 @@
-import { PrismaType } from "../../types";
-import { Role } from "../../schema/types";
-import { FormatConverter, addJoinTablesHelper, removeJoinTablesHelper } from "./builder";
-import { GraphQLModelType } from ".";
+import { Role } from "../schema/types";
+import { PrismaType } from "../types";
+import { addJoinTablesHelper, removeJoinTablesHelper } from "./builder";
+import { FormatConverter, GraphQLModelType } from "./types";
 
 //==============================================================
 /* #region Custom Components */

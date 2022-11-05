@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
-import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
+import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
 import { Context, rateLimit } from '../middleware';
-import { countHelper, createHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper, visibilityBuilder } from '../models';
+import { countHelper, createHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`

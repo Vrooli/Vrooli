@@ -1,19 +1,18 @@
-import { CODE, StarFor } from "@shared/consts";
+import { CODE, StarFor, StarSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils'; 
-import { CustomError } from "../../error";
-import { LogType, Star, StarInput, StarSearchInput, StarSortBy } from "../../schema/types";
-import { PrismaType, RecursivePartial } from "../../types";
-import { combineQueries, FormatConverter, getSearchStringQueryHelper, ModelLogic, ObjectMap, onlyValidIds, readManyHelper, Searcher } from "./builder";
-import { genErrorCode, logger, LogLevel } from "../../logger";
-import { Log } from "../../models/nosql";
-import { resolveStarTo } from "../../schema/resolvers";
+import { combineQueries, getSearchStringQueryHelper, ObjectMap, onlyValidIds } from "./builder";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
-import { GraphQLModelType } from ".";
+import { CustomError, genErrorCode, logger, LogLevel, Trigger } from "../events";
+import { resolveStarTo } from "../schema/resolvers";
+import { Star, StarSearchInput, StarInput, LogType } from "../schema/types";
+import { RecursivePartial, PrismaType } from "../types";
+import { readManyHelper } from "./actions";
+import { FormatConverter, GraphQLModelType, ModelLogic, Searcher } from "./types";
 
 //==============================================================
 /* #region Custom Components */
@@ -58,7 +57,7 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
             // Query for each type
             const tos: any[] = [];
             for (const type of Object.keys(toIdsByType)) {
-                const validTypes: Array<keyof typeof GraphQLModelType> = [
+                const validTypes: GraphQLModelType[] = [
                     'Comment',
                     'Organization',
                     'Project',
@@ -67,10 +66,10 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
                     'Tag',
                     'User',
                 ];
-                if (!validTypes.includes(type as keyof typeof GraphQLModelType)) {
+                if (!validTypes.includes(type as GraphQLModelType)) {
                     throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
                 }
-                const model: ModelLogic<any, any, any> = ObjectMap[type as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
+                const model: ModelLogic<any, any, any> = ObjectMap[type as GraphQLModelType] as ModelLogic<any, any, any>;
                 const paginated = await readManyHelper({
                     info: partial.to[type],
                     input: { ids: toIdsByType[type] },
@@ -167,14 +166,8 @@ const starMutater = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { stars: starringFor.stars + 1 }
             })
-            // Log star event
-            Log.collection.insertOne({
-                timestamp: Date.now(),
-                userId: userId,
-                action: LogType.Star,
-                object1Type: input.starFor,
-                object1Id: input.forId,
-            }).catch(error => logger.log(LogLevel.error, 'Failed creating "Star" log', { code: genErrorCode('0201'), error }));
+            // Handle trigger
+            await Trigger(prisma).objectStar(true, input.starFor, input.forId, userId);
         }
         // If star did exist and we don't want to star, delete
         else if (star && !input.isStar) {
@@ -185,14 +178,8 @@ const starMutater = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { stars: starringFor.stars - 1 }
             })
-            // Log unstar event
-            Log.collection.insertOne({
-                timestamp: Date.now(),
-                userId: userId,
-                action: LogType.RemoveStar,
-                object1Type: input.starFor,
-                object1Id: input.forId,
-            }).catch(error => logger.log(LogLevel.error, 'Failed creating "Remove Star" log', { code: genErrorCode('0202'), error }));
+            // Handle trigger
+            await Trigger(prisma).objectStar(false, input.starFor, input.forId, userId);
         }
         return true;
     }

@@ -1,7 +1,6 @@
-import { GraphQLModelType } from ".";
 import { OutputItem } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter } from "./builder";
+import { FormatConverter, GraphQLModelType } from "./types";
 
 //==============================================================
 /* #region Custom Components */

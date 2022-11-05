@@ -1,10 +1,10 @@
 import Bull from 'bull';
 import { emailProcess } from './process.js';
-import { HOST, PORT } from '../../redisConn';
 import { APP_URL, BUSINESS_NAME } from '@shared/consts';
 import fs from 'fs';
+import { PORT, HOST } from '../../redisConn.js';
 
-const welcomeTemplate = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/src/worker/email/templates/welcome.html`).toString();
+const welcomeTemplate = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/server/src/notify/email/templates/welcome.html`).toString();
 
 const emailQueue = new Bull('email', { redis: { port: PORT, host: HOST } });
 emailQueue.process(emailProcess);

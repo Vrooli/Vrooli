@@ -1,19 +1,18 @@
-import { CODE, ViewFor } from "@shared/consts";
+import { CODE, ViewFor, ViewSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils'
-import { CustomError } from "../../error";
-import { Count, LogType, User, ViewSearchInput, ViewSortBy } from "../../schema/types";
-import { PrismaType, RecursivePartial } from "../../types";
-import { combineQueries, FormatConverter, getSearchStringQueryHelper, lowercaseFirstLetter, ModelLogic, ObjectMap, onlyValidIds, readManyHelper, Searcher, timeFrameToPrisma } from "./builder";
-import { genErrorCode, logger, LogLevel } from "../../logger";
-import { Log } from "../../models/nosql";
+import { combineQueries, getSearchStringQueryHelper, lowercaseFirstLetter, ObjectMap, onlyValidIds, timeFrameToPrisma } from "./builder";
 import { OrganizationModel, organizationQuerier } from "./organization";
-import { initializeRedis } from "../../redisConn";
-import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../../schema/resolvers";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { UserModel } from "./user";
 import { StandardModel } from "./standard";
-import { GraphQLModelType } from ".";
+import { CustomError, genErrorCode, logger, LogLevel } from "../events";
+import { initializeRedis } from "../redisConn";
+import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../schema/resolvers";
+import { User, ViewSearchInput, LogType, Count } from "../schema/types";
+import { RecursivePartial, PrismaType } from "../types";
+import { readManyHelper } from "./actions";
+import { FormatConverter, GraphQLModelType, ModelLogic, Searcher } from "./types";
 
 //==============================================================
 /* #region Custom Components */
@@ -60,17 +59,17 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
             // Query for each type
             const tos: any[] = [];
             for (const type of Object.keys(toIdsByType)) {
-                const validTypes: Array<keyof typeof GraphQLModelType> = [
+                const validTypes: Array<GraphQLModelType> = [
                     'Organization',
                     'Project',
                     'Routine',
                     'Standard',
                     'User',
                 ];
-                if (!validTypes.includes(type as keyof typeof GraphQLModelType)) {
+                if (!validTypes.includes(type as GraphQLModelType)) {
                     throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
                 }
-                const model = ObjectMap[type as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
+                const model = ObjectMap[type as GraphQLModelType] as ModelLogic<any, any, any>;
                 const paginated = await readManyHelper({
                     info: partial.to[type],
                     input: { ids: toIdsByType[type] },
@@ -257,14 +256,6 @@ const viewMutater = (prisma: PrismaType) => ({
                 where: { id: input.forId },
                 data: { views: viewFor.views + 1 }
             })
-            // Log view
-            Log.collection.insertOne({
-                timestamp: Date.now(),
-                userId: userId,
-                action: LogType.View,
-                object1Type: input.viewFor,
-                object1Id: input.forId,
-            }).catch(error => logger.log(LogLevel.error, 'Failed creating "View" log', { code: genErrorCode('0203'), error }));
         }
         // Update last viewed time
         await client.set(redisKey, new Date().toISOString());

@@ -1,5 +1,5 @@
-import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode, logger, LogLevel } from "../../events";
+import { CODE, DeleteOneType } from "@shared/consts";
+import { CustomError, genErrorCode, logger, LogLevel, Trigger } from "../../events";
 import { Count, LogType } from "../../schema/types";
 import { getUserId } from "../builder";
 import { DeleteManyHelperProps } from "./types";
@@ -23,18 +23,10 @@ export async function deleteManyHelper({
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: input.ids });
     if (!deleted)
         throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
-    // If organization, project, routine, or standard, log for stats
     const objectType = model.format.relationshipMap.__typename;
-    if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
-        const logs = input.ids.map((id: string) => ({
-            timestamp: Date.now(),
-            userId: userId,
-            action: LogType.Delete,
-            object1Type: objectType,
-            object1Id: id,
-        }));
-        // No need to await this, since it is not needed for the response
-        Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Delete" logs', { code: genErrorCode('0197'), error }));
+    // Handle trigger
+    for (const id of input.ids) {
+        await Trigger(prisma).objectDelete(objectType as DeleteOneType, id, userId);
     }
     return deleted
 }

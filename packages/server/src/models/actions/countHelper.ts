@@ -22,7 +22,7 @@ export async function countHelper<GraphQLModel, CountInput extends CountInputBas
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Create query for visibility, if supported
     let visibilityQuery: { [x: string]: any } | undefined;
-    if (([GraphQLModelType.Organization, GraphQLModelType.Project, GraphQLModelType.Routine, GraphQLModelType.Run, GraphQLModelType.Standard] as string[]).includes(model.type)) {
+    if ((['Organization', 'Project', 'Routine', 'Run', 'Standard']).includes(model.type)) {
         visibilityQuery = visibilityBuilder({ model, userId, visibility });
     }
     // Count objects that match queries

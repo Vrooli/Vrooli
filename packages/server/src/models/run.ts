@@ -1,18 +1,16 @@
 import { runsCreate, runsUpdate } from "@shared/validation";
-import { CODE } from "@shared/consts";
-import { CustomError } from "../../error";
-import { Count, LogType, Run, RunCancelInput, RunCompleteInput, RunCreateInput, RunPermission, RunSearchInput, RunSortBy, RunStatus, RunUpdateInput } from "../../schema/types";
-import { PrismaType } from "../../types";
-import { addSupplementalFields, CUDInput, CUDResult, FormatConverter, GraphQLInfo, modelToGraphQL, Searcher, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, ValidateMutationsInput, Permissioner, getSearchStringQueryHelper, combineQueries, onlyValidIds } from "./builder";
-import { genErrorCode, logger, LogLevel } from "../../logger";
-import { Log } from "../../models/nosql";
+import { CODE, RunSortBy } from "@shared/consts";
+import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, getSearchStringQueryHelper, combineQueries, onlyValidIds } from "./builder";
 import { RunStepModel } from "./runStep";
-import { run } from "@prisma/client";
-import { validateProfanity } from "../../utils/censor";
+import { run, RunStatus } from "@prisma/client";
 import { RunInputModel } from "./runInput";
 import { organizationQuerier } from "./organization";
 import { routinePermissioner } from "./routine";
-import { GraphQLModelType } from ".";
+import { CustomError, genErrorCode, logger, LogLevel, Trigger } from "../events";
+import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, LogType, RunCompleteInput, RunCancelInput } from "../schema/types";
+import { PrismaType } from "../types";
+import { validateProfanity } from "../utils/censor";
+import { FormatConverter, Searcher, Permissioner, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo } from "./types";
 
 //==============================================================
 /* #region Custom Components */
@@ -223,20 +221,10 @@ export const runMutater = (prisma: PrismaType) => ({
                 // Add to created array
                 created = created ? [...created, converted] : [converted];
             }
-            // Log run starts 
-            const logData: any[] = [];
-            for (let i = 0; i < created.length; i++) {
-                logData.push({
-                    timestamp: Date.now(),
-                    userId,
-                    action: LogType.RoutineStartIncomplete,
-                    object1Type: GraphQLModelType.Run,
-                    object1Id: created[i].id,
-                    object2Type: GraphQLModelType.Routine,
-                    object2Id: createMany[i].routineId,
-                })
+            // Handle trigger
+            for (const c of created) {
+                await Trigger(prisma).runStart(c.id, userId);
             }
-            Log.collection.insertMany(logData).catch(error => logger.log(LogLevel.error, 'Failed creating "Run Start" log', { code: genErrorCode('0198'), error }));
         }
         if (updateMany) {
             // Loop through each update input
@@ -376,16 +364,8 @@ export const runMutater = (prisma: PrismaType) => ({
         let converted: any = modelToGraphQL(run, partial);
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
-        // Log run completion
-        Log.collection.insertOne({
-            timestamp: Date.now(),
-            userId,
-            action: LogType.RoutineComplete,
-            object1Type: GraphQLModelType.Run,
-            object1Id: input.id,
-            object2Type: GraphQLModelType.Routine,
-            object2Id: run.routineId,
-        }).catch(error => logger.log(LogLevel.error, 'Failed creating "Run Complete" log', { code: genErrorCode('0199'), error }));
+        // Handle trigger
+        await Trigger(prisma).runComplete(input.id, userId, input.wasSuccessful ?? false);
         // Return converted object
         return converted as Run;
     },
@@ -418,16 +398,6 @@ export const runMutater = (prisma: PrismaType) => ({
         let converted: any = modelToGraphQL(updated, partial);
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
-        // Log run cancellation
-        Log.collection.insertOne({
-            timestamp: Date.now(),
-            userId,
-            action: LogType.RoutineCancel,
-            object1Type: GraphQLModelType.Run,
-            object1Id: input.id,
-            object2Type: GraphQLModelType.Routine,
-            object2Id: object.routineId,
-        }).catch(error => logger.log(LogLevel.error, 'Failed creating "Run Cancel" log', { code: genErrorCode('0200'), error }));
         // Return converted object
         return converted as Run;
     },

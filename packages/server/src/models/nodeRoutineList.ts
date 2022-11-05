@@ -1,10 +1,10 @@
 import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../schema/types";
-import { FormatConverter, relationshipToPrisma, RelationshipTypes } from "./builder";
+import { relationshipToPrisma, RelationshipTypes } from "./builder";
 import { nodeRoutineListCreate, nodeRoutineListItemsCreate, nodeRoutineListItemsUpdate, nodeRoutineListUpdate, nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpdate } from "@shared/validation";
 import { PrismaType } from "../types";
 import { RoutineModel } from "./routine";
 import { TranslationModel } from "./translation";
-import { GraphQLModelType } from ".";
+import { FormatConverter, GraphQLModelType } from "./types";
 
 //==============================================================
 /* #region Custom Components */

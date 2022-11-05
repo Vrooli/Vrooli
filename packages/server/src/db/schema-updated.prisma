@@ -3,7 +3,7 @@
 // 1. Order routine inputs/outputs ✅
 // 2. Routine scheduling ✅
 // 3. Personal time scheduling ✅
-// 4. Organization time scheduling, including meetings
+// 4. Organization time scheduling, including meetings ✅
 // 5. Labels (different than tags) for personal or organization use ✅
 // 6. Improved versioning of routines and standards ✅
 // 7. Pull requests for updating versioned objects ✅
@@ -19,7 +19,7 @@
 // 16. Smart contracts ✅
 // 17. APIs and calling them
 // 18. Notes (organized using projects) ✅
-// 19. Issues. Has comments, labels, and a status. That's about it
+// 19. Issues. Has comments, votes, reports, labels, and a status. Can be applied to apis, organizations, projects, routines, smart contracts, and standards
 // 20. Site statistics ✅
 // 21. Object statistics ✅
 // 22. Suggest run data public, so owners can view it (e.g. polls) ✅
@@ -47,6 +47,7 @@
 // 34. Fundraising/funding
 // 35. Personal and organization checklists
 // 36. Add invitedBy relation to users
+// 37. Transfer object request
 generator client {
     provider = "prisma-client-js"
 }
@@ -95,7 +96,7 @@ model api_version {
     id         String        @id @default(uuid()) @db.Uuid
     created_at DateTime      @default(now()) @db.Timestamptz(6)
     updated_at DateTime      @default(now()) @db.Timestamptz(6)
-callLink          String            @unique @db.VarChar(1024)
+    callLink          String            @unique @db.VarChar(1024)
     documentationLink String            @db.VarChar(1024)
     apiId             String           @db.Uuid
     api               api              @relation(fields: [apiId], references: [id])
@@ -365,7 +366,9 @@ model label {
     routines                routine_labels[]
     smartContracts          smart_contract_labels[]
     standards               standard_labels[]
-    userSchedules           user_schedule_labels[]
+    schedulesOrganization           organization_schedule_labels[]
+    schedulesRun                     run_schedule_labels[]
+    schedulesUser                    user_schedule_labels[]
     createdByUser           user?                   @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
     createdByOrganization   organization?           @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
     translations            label_translation[]
@@ -559,6 +562,7 @@ model organization {
     notes                 note[]
     apis                  api[]
     comments              comment[]
+    schedules             organization_schedule[]
     smartContractsCreated smart_contract[]           @relation("smart_contract_organization_creator")
     smartContracts        smart_contract[]           @relation("smart_contract_organization_owner")
     tags                  organization_tags[]
@@ -579,7 +583,55 @@ model organization {
 }
 
 model organization_schedule {
-    fdsafdsa include isPrivate, translatable label and description and meeting link, and labels
+    id        String  @id @default(uuid()) @db.Uuid
+    inviteId  String? @db.Uuid
+    openToAnyoneWithInvite Boolean @default(false)
+    showOnOrganizationProfile Boolean @default(false)
+    schedule   String  @db.VarChar(128)
+    timezone   String? @db.VarChar(128)
+    eventStart DateTime? @db.Timestamptz(6)
+    eventEnd   DateTime? @db.Timestamptz(6)
+    recurring  Boolean @default(false)
+    recurrStart DateTime? @db.Timestamptz(6)
+    recurrEnd  DateTime? @db.Timestamptz(6)
+    organizationId String @db.Uuid
+    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    restrictedToRoles fdsfsasfd
+    attendees organization_schedule_attendees[]
+    invites organization_schedule_invites[]
+    labels organization_schedule_label[]
+    translations fdsafdsa // with translatable meeting link
+}
+
+model organization_schedule_attendees {
+    id        String  @id @default(uuid()) @db.Uuid
+    scheduleId String @db.Uuid
+    schedule   organization_schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    userId     String @db.Uuid
+    user       user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([scheduleId, userId])
+}
+
+model organization_schedule_invites {
+    id        String  @id @default(uuid()) @db.Uuid
+    status    MeetingInviteStatus @default(Pending)
+    scheduleId String @db.Uuid
+    schedule   organization_schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    userId     String @db.Uuid
+    user       user @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([scheduleId, userId])
+}
+
+model organization_schedule_labels {
+    id         String  @id @default(uuid()) @db.Uuid
+    labelledId String  @db.Uuid
+    labelId    String  @db.Uuid
+    labelled   organization_schedule @relation(fields: [labelledId], references: [id], onDelete: Cascade)
+    label      label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+    @@unique([labelledId, labelId], name: "organization_schedule_labels_labelledid_labelid_unique")
 }
 
 model organization_translation {
@@ -704,6 +756,18 @@ model pull_request {
     smartContract smart_contract? @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
     standard    standard?    @relation(fields: [standardId], references: [id], onDelete: Cascade)
     comments    comment[]
+}
+
+model question {
+fdsafds
+}
+
+model quiz {
+    fdsfadafds
+}
+
+model quiz_question {
+    fdsafds
 }
 
 model report {
@@ -1026,13 +1090,17 @@ model run_step {
 
 model run_schedule {
     id        String  @id @default(uuid()) @db.Uuid
-    scheduleType ScheduleType
-    schedule   String  @db.VarChar(128)
     attemptAutomatic Boolean @default(true)
     maxAutomaticAttempts Int     @default(2)
     timezone   String? @db.VarChar(128)
-    window     Int?    @default(0)
+    windowStart DateTime? @db.Timestamptz(6)
+    windowEnd   DateTime? @db.Timestamptz(6)
+    recurring  Boolean @default(false)
+    recurrStart DateTime? @db.Timestamptz(6)
+    recurrEnd  DateTime? @db.Timestamptz(6)
     run       run   @relation(fields: [id], references: [id], onDelete: Cascade)
+    labels fdsafasfdsafsd
+    translations fdsfsafds
 }
 
 model smart_contract {
@@ -1290,6 +1358,8 @@ model user {
     awards                         award[]
     comments                       comment[]
     emails                         email[]
+    meetingsAttending           organization_schedule_attendees[]
+    meetingsInvited             organization_schedule_invites[]
     organizations                  organization_users[]
     projectsCreated                project[]            @relation("project_user_creator")
     projects                       project[]            @relation("project_user_owner")
@@ -1300,6 +1370,7 @@ model user {
     routinesCreated                routine[]            @relation("routine_user_creator")
     routines                       routine[]            @relation("routine_user_owner")
     runs                           run[]                @relation("run_user")
+    schedules                      user_schedule[]
     smartContractsCreated          smart_contract[]     @relation("smart_contract_user_creator")
     smartContracts                 smart_contract[]     @relation("smart_contract_user_owner")
     standards                      standard[]
@@ -1352,14 +1423,17 @@ model user_roles {
 
 model user_schedule {
     id        String  @id @default(uuid()) @db.Uuid
-    scheduleType ScheduleType
     schedule   String  @db.VarChar(128)
     timezone   String? @db.VarChar(128)
-    window     Int?    @default(0)
-    name       String  @db.VarChar(128)
-    description String? @db.VarChar(2048)
-    labels     user_schedule_labels[]
-    run       run   @relation(fields: [id], references: [id], onDelete: Cascade)
+    eventStart DateTime? @db.Timestamptz(6)
+    eventEnd   DateTime? @db.Timestamptz(6)
+    recurring  Boolean @default(false)
+    recurrStart DateTime? @db.Timestamptz(6)
+    recurrEnd  DateTime? @db.Timestamptz(6)
+    userId String @db.Uuid
+    user   user @relation(fields: [userId], references: [id], onDelete: Cascade)
+    labels user_schedule_label[]
+    translations fdsfadasfd
 }
 
 model user_schedule_labels {
@@ -1490,6 +1564,12 @@ enum IssueStatus {
     Rejected
 }
 
+enum MeetingInviteStatus {
+    Pending
+    Accepted
+    Rejected
+}
+
 enum NodeType {
     End
     Redirect
@@ -1566,9 +1646,4 @@ enum RunStepStatus {
     InProgress
     Completed
     Skipped
-}
-
-enum ScheduleType {
-    Cron
-    Date
 }

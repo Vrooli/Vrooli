@@ -7,9 +7,10 @@ import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, Orga
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
-import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
+import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, ProjectModel, readManyAsFeedHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
 import { CustomError } from '../events/error';
 import { assertRequestFrom } from '../auth/auth';
+import { PartialGraphQLInfo } from '../models/types';
 
 export const typeDef = gql`
 
@@ -105,7 +106,7 @@ export const resolvers = {
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query organizations
-            const { nodes: organizations } = await readManyAsFeed({
+            const { nodes: organizations } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.organizations as PartialGraphQLInfo,
@@ -113,7 +114,7 @@ export const resolvers = {
                 model: OrganizationModel,
             });
             // Query projects
-            const { nodes: projects } = await readManyAsFeed({
+            const { nodes: projects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.projects as PartialGraphQLInfo,
@@ -121,7 +122,7 @@ export const resolvers = {
                 model: ProjectModel,
             });
             // Query routines
-            const { nodes: routines } = await readManyAsFeed({
+            const { nodes: routines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.routines as PartialGraphQLInfo,
@@ -129,7 +130,7 @@ export const resolvers = {
                 model: RoutineModel,
             });
             // Query standards
-            const { nodes: standards } = await readManyAsFeed({
+            const { nodes: standards } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.standards as PartialGraphQLInfo,
@@ -137,7 +138,7 @@ export const resolvers = {
                 model: StandardModel,
             });
             // Query users
-            const { nodes: users } = await readManyAsFeed({
+            const { nodes: users } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery },
                 info: partial.users as PartialGraphQLInfo,
@@ -176,7 +177,7 @@ export const resolvers = {
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query courses
-            const { nodes: courses } = await readManyAsFeed({
+            const { nodes: courses } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.courses as PartialGraphQLInfo,
@@ -184,7 +185,7 @@ export const resolvers = {
                 model: ProjectModel,
             });
             // Query tutorials
-            const { nodes: tutorials } = await readManyAsFeed({
+            const { nodes: tutorials } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.tutorials as PartialGraphQLInfo,
@@ -226,7 +227,7 @@ export const resolvers = {
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query processes
-            const { nodes: processes } = await readManyAsFeed({
+            const { nodes: processes } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.processes as PartialGraphQLInfo,
@@ -234,14 +235,14 @@ export const resolvers = {
                 model: RoutineModel,
             });
             // Query newlyCompleted
-            const { nodes: newlyCompletedProjects } = await readManyAsFeed({
+            const { nodes: newlyCompletedProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: (partial.newlyCompleted as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.DateCompletedAsc, isComplete: true },
                 model: ProjectModel,
             });
-            const { nodes: newlyCompletedRoutines } = await readManyAsFeed({
+            const { nodes: newlyCompletedRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: (partial.newlyCompleted as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
@@ -249,7 +250,7 @@ export const resolvers = {
                 model: RoutineModel,
             });
             // Query needVotes
-            const { nodes: needVotes } = await readManyAsFeed({
+            const { nodes: needVotes } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.needVotes as PartialGraphQLInfo,
@@ -257,7 +258,7 @@ export const resolvers = {
                 model: ProjectModel,
             });
             // Query needInvestments
-            const { nodes: needInvestments } = await readManyAsFeed({
+            const { nodes: needInvestments } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.needInvestments as PartialGraphQLInfo,
@@ -265,7 +266,7 @@ export const resolvers = {
                 model: ProjectModel,
             });
             // Query needMembers
-            const { nodes: needMembers } = await readManyAsFeed({
+            const { nodes: needMembers } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: partial.needMembers as PartialGraphQLInfo,
                 input: { take, isOpenToNewMembers: true, sortBy: OrganizationSortBy.StarsDesc },
@@ -328,42 +329,42 @@ export const resolvers = {
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query for routines you've completed
-            const { nodes: completedRoutines } = await readManyAsFeed({
+            const { nodes: completedRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.completed as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
                 input: { take, isComplete: true, isInternal: false, userId, sortBy: RoutineSortBy.DateCompletedAsc },
                 model: RoutineModel,
             });
             // Query for projects you've completed
-            const { nodes: completedProjects } = await readManyAsFeed({
+            const { nodes: completedProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.completed as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, isComplete: true, userId, sortBy: ProjectSortBy.DateCompletedAsc },
                 model: ProjectModel,
             });
             // Query for routines you're currently working on
-            const { nodes: inProgressRoutines } = await readManyAsFeed({
+            const { nodes: inProgressRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.inProgress as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
                 input: { take, isComplete: false, isInternal: false, userId, sortBy: RoutineSortBy.DateCreatedAsc },
                 model: RoutineModel,
             });
             // Query for projects you're currently working on
-            const { nodes: inProgressProjects } = await readManyAsFeed({
+            const { nodes: inProgressProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.inProgress as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, isComplete: false, userId, sortBy: ProjectSortBy.DateCreatedAsc },
                 model: ProjectModel,
             });
             // Query recently created/updated routines
-            const { nodes: recentRoutines } = await readManyAsFeed({
+            const { nodes: recentRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.recent as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
                 input: { take, userId, sortBy: RoutineSortBy.DateUpdatedAsc, isInternal: false },
                 model: RoutineModel,
             });
             // Query recently created/updated projects
-            const { nodes: recentProjects } = await readManyAsFeed({
+            const { nodes: recentProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.recent as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, userId, sortBy: ProjectSortBy.DateUpdatedAsc },
@@ -421,7 +422,7 @@ export const resolvers = {
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query for incomplete runs
-            const { nodes: activeRuns } = await readManyAsFeed({
+            const { nodes: activeRuns } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { userId },
                 info: partial.activeRuns as PartialGraphQLInfo,
@@ -429,7 +430,7 @@ export const resolvers = {
                 model: RunModel,
             });
             // Query for complete runs
-            const { nodes: completedRuns } = await readManyAsFeed({
+            const { nodes: completedRuns } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { userId },
                 info: partial.completedRuns as PartialGraphQLInfo,
@@ -437,7 +438,7 @@ export const resolvers = {
                 model: RunModel,
             });
             // Query recently viewed objects (of any type)
-            const { nodes: recentlyViewed } = await readManyAsFeed({
+            const { nodes: recentlyViewed } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { userId },
                 info: partial.recentlyViewed as PartialGraphQLInfo,
@@ -445,7 +446,7 @@ export const resolvers = {
                 model: ViewModel,
             });
             // Query recently starred objects (of any type). Make sure to ignore tags
-            const { nodes: recentlyStarred } = await readManyAsFeed({
+            const { nodes: recentlyStarred } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { userId },
                 info: partial.recentlyStarred as PartialGraphQLInfo,

@@ -93,7 +93,7 @@ export const awardVariants: { [key in AwardCategory]?: (count: number) => number
  * Inserts a new award into the database
  */
 export const insertAward = async () => {
-    fdsafd
+    // fdsafd
 }
 
 // TODO functions to check if user should receive award
@@ -102,10 +102,14 @@ export const insertAward = async () => {
  * Maps trigger events to award functions which determine if the user should receive
  * an award
  */
-export const TriggersToAwards: { [key in ActionTrigger]?: [] } = {
-    [ActionTrigger.Create]: []
-}
+// export const TriggersToAwards: { [key in ActionTrigger]?: [] } = {
+//     [ActionTrigger.Create]: []
+// }
 
+/**
+ * Handles tracking awards for a user. If a new award is earned, a notification
+ * can be sent to the user (push or email)
+ */
 export const Award = (prisma: PrismaType) => ({
     update: async (userId: string, award: AwardCategory, progressDelta: number) => {
         //TODO

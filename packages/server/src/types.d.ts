@@ -1,6 +1,4 @@
 import pkg from '@prisma/client';
-import { Request } from 'express';
-import { Maybe } from 'schema/types';
 import { SessionUser } from './schema/types';
 
 // Request type

@@ -1,6 +1,6 @@
 import Bull from 'bull';
+import { PORT, HOST } from '../../redisConn.js';
 import { smsProcess } from './process.js';
-import { HOST, PORT } from '../../redisConn';
 
 const smsQueue = new Bull('email', { redis: { port: PORT, host: HOST } });
 smsQueue.process(smsProcess);

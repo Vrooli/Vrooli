@@ -44,10 +44,6 @@ export type DeleteOneHelperProps = {
 export type ForkHelperProps<GraphQLModelType> = {
     info: GraphQLInfo | PartialGraphQLInfo,
     input: ForkInput,
-    /**
-     * If false, the UI won't bug you about creating a pull request
-     */
-    intendToPullRequest: boolean,
     model: ModelLogic<GraphQLModelType, any, any>,
     prisma: PrismaType,
     req: ReqForUserAuth;

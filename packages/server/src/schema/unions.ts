@@ -4,13 +4,11 @@
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
 import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutinePageInfo, ProjectOrRoutineEdge, ProjectOrOrganizationEdge, ProjectOrOrganizationPageInfo, ProjectOrRoutine, ProjectOrOrganization } from './types';
-import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
-import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, toPartialGraphQLInfo } from '../models';
-import { CustomError } from '../events/error';
+import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, ProjectModel, readManyAsFeedHelper, RoutineModel, toPartialGraphQLInfo } from '../models';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
-import { genErrorCode } from '../events/logger';
+import { PartialGraphQLInfo } from '../models/types';
 
 export const typeDef = gql`
     enum ProjectOrRoutineSortBy {
@@ -171,7 +169,7 @@ export const resolvers = {
             // Query projects
             let projects;
             if (input.objectType === undefined || input.objectType === 'Project') {
-                projects = await readManyAsFeed({
+                projects = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Project,
                     input: {
@@ -204,7 +202,7 @@ export const resolvers = {
             // Query routines
             let routines;
             if (input.objectType === undefined || input.objectType === 'Routine') {
-                routines = await readManyAsFeed({
+                routines = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Routine,
                     input: {
@@ -283,7 +281,7 @@ export const resolvers = {
             // Query projects
             let projects;
             if (input.objectType === undefined || input.objectType === 'Project') {
-                projects = await readManyAsFeed({
+                projects = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Project,
                     input: {
@@ -316,7 +314,7 @@ export const resolvers = {
             // Query organizations
             let organizations;
             if (input.objectType === undefined || input.objectType === 'Organization') {
-                organizations = await readManyAsFeed({
+                organizations = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Organization,
                     input: {

@@ -1,12 +1,13 @@
 import { gql } from 'apollo-server-express';
 import { DeleteOneInput, Success } from './types';
 import { IWrap } from '../types';
-import { deleteOneHelper, GraphQLModelType, ModelLogic, ObjectMap } from '../models';
+import { deleteOneHelper, ObjectMap } from '../models';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../events/error';
 import { CODE, DeleteOneType } from '@shared/consts';
 import { genErrorCode } from '../events/logger';
+import { GraphQLModelType, ModelLogic } from '../models/types';
 
 export const typeDef = gql`
     enum DeleteOneType {
@@ -53,7 +54,7 @@ export const resolvers = {
             if (!validTypes.includes(input.objectType as keyof typeof DeleteOneType)) {
                 throw new CustomError(CODE.InvalidArgs, 'Invalid delete object type.', { code: genErrorCode('0216') });
             }
-            const model: ModelLogic<any, any, any> = ObjectMap[input.objectType as keyof typeof GraphQLModelType] as ModelLogic<any, any, any>;
+            const model: ModelLogic<any, any, any> = ObjectMap[input.objectType as GraphQLModelType] as ModelLogic<any, any, any>;
             return deleteOneHelper({ input, model, prisma, req });
         },
     }

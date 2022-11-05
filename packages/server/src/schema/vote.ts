@@ -1,12 +1,9 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@shared/consts';
-import { CustomError } from '../events/error';
 import { VoteInput, Success, VoteFor } from './types';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { getUserId, VoteModel } from '../models';
-import { genErrorCode } from '../events/logger';
 import { resolveVoteTo } from './resolvers';
 import { assertRequestFrom } from '../auth/auth';
 

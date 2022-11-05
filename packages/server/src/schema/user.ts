@@ -28,7 +28,6 @@ export const typeDef = gql`
         name: String!
         theme: String!
         status: AccountStatus!
-        history: [Log!]!
         comments: [Comment!]!
         roles: [Role!]!
         emails: [Email!]!

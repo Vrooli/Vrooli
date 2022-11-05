@@ -11,7 +11,6 @@ import { ForkHelperProps } from "./types";
 export async function forkHelper({
     info,
     input,
-    intendToPullRequest,
     model,
     prisma,
     req,
@@ -23,7 +22,7 @@ export async function forkHelper({
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
     // Check permissions
     const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }) : [{}];
-    if (!permissions[0].canFork && !permissions[0].canCopy) {
+    if (!permissions[0].canFork && !permissions[0].canFork) {
         throw new CustomError(CODE.Unauthorized, 'Not allowed to fork object', { code: genErrorCode('0262') });
     }
     // Partially convert info

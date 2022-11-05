@@ -1,7 +1,8 @@
 import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode } from "../../events";
+import { CustomError, genErrorCode, Trigger } from "../../events";
 import { RecursivePartial } from "../../types";
 import { addSupplementalFields, getUserId, toPartialGraphQLInfo } from "../builder";
+import { GraphQLModelType } from "../types";
 import { CreateHelperProps } from "./types";
 
 /**
@@ -29,18 +30,10 @@ export async function createHelper<GraphQLModel>({
     const cudResult = await model.mutate!(prisma).cud!({ partialInfo, userId, createMany: [input] });
     const { created } = cudResult;
     if (created && created.length > 0) {
-        // If organization, project, routine, or standard, log for stats
-        const objectType = partialInfo.__typename;
-        if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
-            const logs = created.map((c: any) => ({
-                timestamp: Date.now(),
-                userId: userId,
-                action: LogType.Create,
-                object1Type: objectType,
-                object1Id: c.id,
-            }));
-            // No need to await this, since it is not needed for the response
-            Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Create" log', { code: genErrorCode('0194'), error }));
+        const objectType = partialInfo.__typename as GraphQLModelType;
+        // Handle trigger
+        for (const id of input.ids) {
+            await Trigger(prisma).objectCreate(objectType, id, userId);
         }
         return (await addSupplementalFields(prisma, userId, created, partialInfo))[0] as any;
     }

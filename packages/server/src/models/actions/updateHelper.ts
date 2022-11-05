@@ -31,19 +31,8 @@ export async function updateHelper<GraphQLModel>({
     // Update objects. cud will check permissions
     const { updated } = await model.mutate!(prisma).cud!({ partialInfo, userId, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
-        // If organization, project, routine, or standard, log for stats
-        const objectType = partialInfo.__typename;
-        if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
-            const logs = updated.map((c: any) => ({
-                timestamp: Date.now(),
-                userId: userId,
-                action: LogType.Update,
-                object1Type: objectType,
-                object1Id: c.id,
-            }));
-            // No need to await this, since it is not needed for the response
-            Log.collection.insertMany(logs).catch(error => logger.log(LogLevel.error, 'Failed creating "Update" log', { code: genErrorCode('0195'), error }));
-        }
+        // Handle new version trigger, if applicable
+        //TODO
         return (await addSupplementalFields(prisma, userId, updated, partialInfo))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in updateHelper', { code: genErrorCode('0032') });

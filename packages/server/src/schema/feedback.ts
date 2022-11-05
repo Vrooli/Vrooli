@@ -1,10 +1,10 @@
 import { feedbackCreate } from '@shared/validation';
 import { gql } from 'apollo-server-express';
 import { IWrap } from '../types';
-import { feedbackNotifyAdmin } from '../worker/email/queue';
 import { FeedbackInput, Success } from './types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
+import { feedbackNotifyAdmin } from '../notify';
 
 export const typeDef = gql`
     input FeedbackInput {

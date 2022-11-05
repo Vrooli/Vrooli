@@ -1,5 +1,5 @@
 import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode, logger, LogLevel } from "../../events";
+import { CustomError, genErrorCode, logger, LogLevel, Trigger } from "../../events";
 import { Success, LogType } from "../../schema/types";
 import { getUserId } from "../builder";
 import { DeleteOneHelperProps } from "./types";
@@ -22,18 +22,8 @@ export async function deleteOneHelper({
     // Delete object. cud will check permissions
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userId, deleteMany: [input.id] });
     if (deleted?.count && deleted.count > 0) {
-        // If organization, project, routine, or standard, log for stats
-        const objectType = model.format.relationshipMap.__typename;
-        if (objectType === 'Organization' || objectType === 'Project' || objectType === 'Routine' || objectType === 'Standard') {
-            // No need to await this, since it is not needed for the response
-            Log.collection.insertOne({
-                timestamp: Date.now(),
-                userId: userId,
-                action: LogType.Delete,
-                object1Type: objectType,
-                object1Id: input.id,
-            }).catch(error => logger.log(LogLevel.error, 'Failed creating "Delete" log', { code: genErrorCode('0196'), error }));
-        }
+        // Handle trigger
+        await Trigger(prisma).objectDelete(input.objectType, input.id, userId);
         return { success: true }
     }
     return { success: false };

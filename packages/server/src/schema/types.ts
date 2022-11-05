@@ -279,6 +279,7 @@ export type FindHandlesInput = {
 
 export type ForkInput = {
   id: Scalars['ID'];
+  intendToPullRequest: Scalars['Boolean'];
   objectType: ForkType;
 };
 

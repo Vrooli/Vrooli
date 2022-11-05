@@ -2,55 +2,51 @@ import { GraphQLResolveInfo } from "graphql";
 import { Count, PageInfo, TimeFrame } from "../schema/types";
 import { PrismaType, RecursivePartial } from "../types";
 
-export enum GraphQLModelType {
-    // Api = 'Api',
-    Comment = 'Comment',
-    Copy = 'Copy',
-    DevelopPageResult = 'DevelopPageResult',
-    Email = 'Email',
-    Fork = 'Fork',
-    Handle = 'Handle',
-    HistoryPageResult = 'HistoryPageResult',
-    HomePageResult = 'HomePageResult',
-    InputItem = 'InputItem',
-    LearnPageResult = 'LearnPageResult',
-    Member = 'Member',
-    Node = 'Node',
-    NodeEnd = 'NodeEnd',
-    NodeLoop = 'NodeLoop',
-    NodeRoutineList = 'NodeRoutineList',
-    NodeRoutineListItem = 'NodeRoutineListItem',
-    Organization = 'Organization',
-    OutputItem = 'OutputItem',
-    Profile = 'Profile',
-    Project = 'Project',
-    ProjectOrRoutineSearchResult = 'ProjectOrRoutineSearchResult',
-    ProjectOrOrganizationSearchResult = 'ProjectOrOrganizationSearchResult',
-    Report = 'Report',
-    ResearchPageResult = 'ResearchPageResult',
-    Resource = 'Resource',
-    ResourceList = 'ResourceList',
-    Role = 'Role',
-    Routine = 'Routine',
-    Run = 'Run',
-    RunInput = 'RunInput',
-    RunStep = 'RunStep',
-    Standard = 'Standard',
-    Star = 'Star',
-    Tag = 'Tag',
-    TagHidden = 'TagHidden',
-    User = 'User',
-    View = 'View',
-    Vote = 'Vote',
-    Wallet = 'Wallet',
-}
+export type GraphQLModelType =
+    'Comment' |
+    'Copy' |
+    'DevelopPageResult' |
+    'Email' |
+    'Fork' |
+    'Handle' |
+    'HistoryPageResult' |
+    'HomePageResult' |
+    'InputItem' |
+    'LearnPageResult' |
+    'Member' |
+    'Node' |
+    'NodeEnd' |
+    'NodeLoop' |
+    'NodeRoutineList' |
+    'NodeRoutineListItem' |
+    'Organization' |
+    'OutputItem' |
+    'Profile' |
+    'Project' |
+    'ProjectOrRoutineSearchResult' |
+    'ProjectOrOrganizationSearchResult' |
+    'Report' |
+    'ResearchPageResult' |
+    'Resource' |
+    'ResourceList' |
+    'Role' |
+    'Routine' | 'Run' |
+    'RunInput' |
+    'RunStep' |
+    'Standard' |
+    'Star' | 'Tag' |
+    'TagHidden' |
+    'User' |
+    'View' |
+    'Vote' |
+    'Wallet';
 
 /**
  * Basic structure of an object's business layer.
  * Every business layer object has at least a PrismaType object and a format converter. 
  * Everything else is optional
  */
- export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
+export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
     format: FormatConverter<GraphQLModel, PermissionObject>;
     prismaObject: (prisma: PrismaType) => PrismaType[keyof PrismaType];
     search?: Searcher<SearchInput>;
@@ -58,7 +54,7 @@ export enum GraphQLModelType {
     permissions?: () => Permissioner<PermissionObject, SearchInput>;
     verify?: { [x: string]: any };
     query?: (prisma: PrismaType) => Querier;
-    type: keyof typeof GraphQLModelType;
+    type: GraphQLModelType;
 }
 
 /**
@@ -72,8 +68,8 @@ export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
  * This type of data is also easier to hard-code in a pinch.
  */
 export interface PartialGraphQLInfo {
-    [x: string]: keyof typeof GraphQLModelType | undefined | boolean | { [x: string]: PartialGraphQLInfo };
-    __typename?: keyof typeof GraphQLModelType;
+    [x: string]: GraphQLModelType | undefined | boolean | { [x: string]: PartialGraphQLInfo };
+    __typename?: GraphQLModelType;
 }
 
 /**
@@ -90,9 +86,9 @@ export type PartialPrismaSelect = { [x: string]: any };
  */
 export type PrismaSelect = { [x: string]: any };
 
-type NestedGraphQLModelType = keyof typeof GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType };
+type NestedGraphQLModelType = GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType };
 
-export type RelationshipMap<GraphQLModel> = { [key in keyof GraphQLModel]?: NestedGraphQLModelType } & { __typename: keyof typeof GraphQLModelType };
+export type RelationshipMap<GraphQLModel> = { [key in keyof GraphQLModel]?: NestedGraphQLModelType } & { __typename: GraphQLModelType };
 
 export type UnionMap<GraphQLModel> = { [key in keyof GraphQLModel]?: { [x: string]: string } };
 
@@ -148,7 +144,7 @@ export type FormatConverter<GraphQLModel, PermissionObject> = {
 /**
  * Describes shape of component that can be sorted in a specific order
  */
- export type Searcher<SearchInput> = {
+export type Searcher<SearchInput> = {
     defaultSort: any;
     getSortQuery: (sortBy: string) => any;
     getSearchStringQuery: (searchString: string, languages?: string[]) => any;

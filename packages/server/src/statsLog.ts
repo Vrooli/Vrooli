@@ -22,7 +22,6 @@
 import cron from 'node-cron';
 import { PrismaType } from './types';
 import pkg from '@prisma/client';
-import { StatAllTime, StatDay, StatMonth, StatWeek, StatYear } from './models';
 import { genErrorCode, logger, LogLevel } from './events/logger';
 const { PrismaClient } = pkg;
 
@@ -283,31 +282,31 @@ async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in
  */
 async function logStats(timeInterval: StatTimeInterval) {
     try {
-        // Query the database for the statistics relevant to this time interval
-        const stats = await calculateStats(timeInterval);
-        // Create and save new MongoDB object for this time interval
-        switch (timeInterval) {
-            case StatTimeInterval.Daily:
-                const dailyStats = new StatDay(stats);
-                await dailyStats.save();
-                break;
-            case StatTimeInterval.Weekly:
-                const weeklyStats = new StatWeek(stats);
-                await weeklyStats.save();
-                break;
-            case StatTimeInterval.Monthly:
-                const monthlyStats = new StatMonth(stats);
-                await monthlyStats.save();
-                break;
-            case StatTimeInterval.Yearly:
-                const yearlyStats = new StatYear(stats);
-                await yearlyStats.save();
-                break;
-            case StatTimeInterval.AllTime:
-                const allTimeStats = new StatAllTime(stats);
-                await allTimeStats.save();
-                break;
-        }
+        // // Query the database for the statistics relevant to this time interval
+        // const stats = await calculateStats(timeInterval);
+        // // Create and save new MongoDB object for this time interval
+        // switch (timeInterval) {
+        //     case StatTimeInterval.Daily:
+        //         const dailyStats = new StatDay(stats);
+        //         await dailyStats.save();
+        //         break;
+        //     case StatTimeInterval.Weekly:
+        //         const weeklyStats = new StatWeek(stats);
+        //         await weeklyStats.save();
+        //         break;
+        //     case StatTimeInterval.Monthly:
+        //         const monthlyStats = new StatMonth(stats);
+        //         await monthlyStats.save();
+        //         break;
+        //     case StatTimeInterval.Yearly:
+        //         const yearlyStats = new StatYear(stats);
+        //         await yearlyStats.save();
+        //         break;
+        //     case StatTimeInterval.AllTime:
+        //         const allTimeStats = new StatAllTime(stats);
+        //         await allTimeStats.save();
+        //         break;
+        // }
     } catch (error) {
         logger.log(LogLevel.error, 'Caught error logging stats', { code: genErrorCode('0192'), error });
     }
