@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { CODE, COOKIE } from '@shared/consts';
-import { CustomError } from '../error';
+import { CustomError } from '../events/error';
 import { Session, SessionUser } from '../schema/types';
 import { RecursivePartial } from '../types';
-import { genErrorCode, logger, LogLevel } from '../logger';
+import { genErrorCode, logger, LogLevel } from '../events/logger';
 import { isSafeOrigin } from '../utils';
 import { getUserId } from '../models';
 import { uuidValidate } from '@shared/uuid';

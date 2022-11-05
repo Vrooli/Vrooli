@@ -2,12 +2,11 @@ import { gql } from 'apollo-server-express';
 import { DeleteOneInput, Success } from './types';
 import { IWrap } from '../types';
 import { deleteOneHelper, GraphQLModelType, ModelLogic, ObjectMap } from '../models';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { rateLimit } from '../rateLimit';
-import { CustomError } from '../error';
+import { CustomError } from '../events/error';
 import { CODE, DeleteOneType } from '@shared/consts';
-import { genErrorCode } from '../logger';
+import { genErrorCode } from '../events/logger';
 
 export const typeDef = gql`
     enum DeleteOneType {

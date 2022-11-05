@@ -23,7 +23,7 @@ import cron from 'node-cron';
 import { PrismaType } from './types';
 import pkg from '@prisma/client';
 import { StatAllTime, StatDay, StatMonth, StatWeek, StatYear } from './models';
-import { genErrorCode, logger, LogLevel } from './logger';
+import { genErrorCode, logger, LogLevel } from './events/logger';
 const { PrismaClient } = pkg;
 
 // Cron syntax created using this website: https://crontab.guru/

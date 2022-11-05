@@ -1,10 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { IWrap } from '../types';
 import { RunInputSortBy } from './types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { readManyHelper, RunInputModel } from '../models';
-import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum RunInputSortBy {

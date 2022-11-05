@@ -1,10 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy, FindByVersionInput } from './types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, updateHelper, visibilityBuilder } from '../models';
-import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum RoutineSortBy {

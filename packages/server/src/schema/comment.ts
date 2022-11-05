@@ -2,9 +2,8 @@ import { gql } from 'apollo-server-express';
 import { Comment, CommentCountInput, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { CommentModel, countHelper, createHelper, readOneHelper, updateHelper } from '../models';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { rateLimit } from '../rateLimit';
 import { resolveCommentedOn } from './resolvers';
 
 export const typeDef = gql`

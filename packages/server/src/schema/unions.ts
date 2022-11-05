@@ -6,12 +6,11 @@ import { GraphQLResolveInfo } from "graphql";
 import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutinePageInfo, ProjectOrRoutineEdge, ProjectOrOrganizationEdge, ProjectOrOrganizationPageInfo, ProjectOrRoutine, ProjectOrOrganization } from './types';
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, toPartialGraphQLInfo } from '../models';
-import { CustomError } from '../error';
-import { rateLimit } from '../rateLimit';
+import { CustomError } from '../events/error';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
-import { genErrorCode } from '../logger';
+import { genErrorCode } from '../events/logger';
 
 export const typeDef = gql`
     enum ProjectOrRoutineSortBy {

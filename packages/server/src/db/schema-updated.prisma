@@ -15,7 +15,7 @@
 // 12. Node conditions
 // 13. Routine suggestions
 // 14. Reporting improvements (report status and report responses) ✅
-// 15. Reputation system
+// 15. Reputation system (your reputation is stored in awards table) ✅
 // 16. Smart contracts ✅
 // 17. APIs and calling them
 // 18. Notes (organized using projects) ✅
@@ -38,13 +38,15 @@
 // 28. Quiz object. Stores status, questions with weights, scoreToPass. Can be personal (created by you or auto-generated to 
 // test your understanding of previously-run learning routines), or attached to a post or routine.
 // 29. Quiz results object. Stores score, correct/incorrect answers, and time taken
-// 29. Achievements
-// 30. Streaks
+// 29. Awards. Stores progress instead of isComplete. For rewards with only one tier, progress is 0 or 1. For rewards with multiple tiers,
+// progress is the number of times you've completed that action. The closest lower tier is the one you're currently on. ✅
+// 30. Streaks ✅
 // 31. Project maps
 // 32. Improved role permissions
 // 33. Multi-role routines
 // 34. Fundraising/funding
 // 35. Personal and organization checklists
+// 36. Add invitedBy relation to users
 generator client {
     provider = "prisma-client-js"
 }
@@ -52,6 +54,18 @@ generator client {
 datasource db {
     provider = "postgresql"
     url      = env("DB_URL")
+}
+
+model award {
+    id              String                @id @default(uuid()) @db.Uuid
+    created_at      DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at      DateTime              @default(now()) @db.Timestamptz(6)
+    timeCompleted   DateTime              @db.Timestamptz(6)
+    category            AwardCategory        
+    progress        Int                   @default(0)
+    isComplete      Boolean               @default(false)
+    userId          String               @db.Uuid
+    user            user?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model api {
@@ -85,6 +99,7 @@ callLink          String            @unique @db.VarChar(1024)
     documentationLink String            @db.VarChar(1024)
     apiId             String           @db.Uuid
     api               api              @relation(fields: [apiId], references: [id])
+    intendToPullRequest Boolean         @default(false)
     resourceLists     resource_list[]
     translations      api_version_translation[]
     version        String                        @default("1.0.0") @db.VarChar(16)
@@ -332,6 +347,7 @@ model handle {
 
 model issue {
     asdfsadf fdsafsdfdsafdsafdasf
+    status   IssueStatus
 }
 
 model label {
@@ -342,6 +358,9 @@ model label {
     color                   String?                 @db.VarChar(7)
     createdByUserId         String?                 @db.Uuid
     createdByOrganizationId String?                 @db.Uuid
+    apis                    api_labels[]             
+    issues                  issue_labels[]
+    notes                   note_labels[]
     projects                project_labels[]
     routines                routine_labels[]
     smartContracts          smart_contract_labels[]
@@ -510,6 +529,7 @@ model note_version {
 id         String        @id @default(uuid()) @db.Uuid
     created_at DateTime      @default(now()) @db.Timestamptz(6)
     updated_at DateTime      @default(now()) @db.Timestamptz(6)
+    intendToPullRequest Boolean @default(true)
     isPrivate Boolean       @default(false)
     noteId    String        @db.Uuid
     note      note          @relation(fields: [noteId], references: [id], onDelete: Cascade)
@@ -850,6 +870,7 @@ model routine_version {
     created_at     DateTime                      @default(now()) @db.Timestamptz(6)
     updated_at     DateTime                      @default(now()) @db.Timestamptz(6)
     complexity     Int                           @default(1)
+    intendToPullRequest Boolean                   @default(false)
     isAutomatable  Boolean                       @default(false)
     isComplete     Boolean                       @default(true)
     isDeleted      Boolean                       @default(false)
@@ -1056,6 +1077,7 @@ model smart_contract_version {
     content         String                               @db.VarChar(8192)
     smartContractId String                               @db.Uuid
     version         String                               @default("1.0.0") @db.VarChar(16)
+    intendToPullRequest Boolean                            @default(false)
     isComplete      Boolean                              @default(false)
     isDeleted       Boolean                              @default(false)
     isPrivate       Boolean                              @default(false)
@@ -1140,6 +1162,7 @@ model standard_version {
     standardId     String                         @db.Uuid
     yup            String?                        @db.VarChar(8192)
     version        String                         @default("1.0.0") @db.VarChar(16)
+    intendToPullRequest Boolean                      @default(false)
     isCompleted    Boolean                        @default(false)
     isDeleted      Boolean                        @default(false)
     isPrivate      Boolean                        @default(false)
@@ -1257,11 +1280,14 @@ model user {
     name                           String               @db.VarChar(128)
     theme                          String               @default("light") @db.VarChar(255)
     handle                         String?              @unique @db.VarChar(16)
+    currentStreak                  Int                  @default(0)
+    longestStreak                  Int                  @default(0)
     stars                          Int                  @default(0)
     views                          Int                  @default(0)
     status                         AccountStatus        @default(Unlocked)
     apis                           api[]
     apiKeys                        api_key[]
+    awards                         award[]
     comments                       comment[]
     emails                         email[]
     organizations                  organization_users[]
@@ -1426,6 +1452,44 @@ enum AccountStatus {
     HardLocked
 }
 
+enum AwardCategory {
+    AccountAnniversary 
+    AccountNew 
+    ApiCreate 
+    CommentCreate 
+    IssueCreate 
+    NoteCreate 
+    ObjectStar 
+    ObjectVote 
+    OrganizationCreate 
+    OrgnanizationJoin 
+    PostCreate 
+    ProjectCreate 
+    PullRequestCreate 
+    PullRequestComplete 
+    QuestionAnswer 
+    QuestionCreate 
+    QuizComplete 
+    ReportEnd 
+    ReportContribute 
+    Reputation 
+    RoutineComplete 
+    RoutineCompleteLearning 
+    RoutineCompleteOnChristmas  // Easter egg
+    RoutineCreate 
+    SmartContractCreate 
+    StandardCreate 
+    Streak 
+    UserInvited 
+}
+
+enum IssueStatus {
+    Open
+    ClosedResolved
+    CloseUnresolved
+    Rejected
+}
+
 enum NodeType {
     End
     Redirect
@@ -1447,7 +1511,11 @@ enum PullRequestStatus {
 }
 
 enum ReportStatus {
-    Closed
+    ClosedDeleted
+    ClosedFalseReport
+    ClosedNonIssue
+    ClosedResolved
+    ClosedSuspended
     Open
 }
 

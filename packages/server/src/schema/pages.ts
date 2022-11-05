@@ -6,10 +6,9 @@ import { GraphQLResolveInfo } from "graphql";
 import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, HistoryPageInput, HistoryPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, RunStatus, RunSortBy, ViewSortBy } from './types';
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
-import { CustomError } from '../error';
-import { rateLimit } from '../rateLimit';
+import { CustomError } from '../events/error';
 import { assertRequestFrom } from '../auth/auth';
 
 export const typeDef = gql`

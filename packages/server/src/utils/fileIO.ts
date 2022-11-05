@@ -1,6 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import { genErrorCode, logger, LogLevel } from '../logger';
+import { genErrorCode, logger, LogLevel } from '../events/logger';
 
 // How many times a file name should be checked before giving up
 // ex: if 'billy.png' is taken, tries 'billy-1.png', 'billy-2.png', etc.

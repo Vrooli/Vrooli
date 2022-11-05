@@ -1,6 +1,6 @@
 import { CODE } from "@shared/consts";
-import { CustomError } from "../error";
-import { genErrorCode } from "../logger";
+import { CustomError } from "../events/error";
+import { genErrorCode } from "../events/logger";
 
 /**
  * Recursively sorts keys of an object alphabetically. 

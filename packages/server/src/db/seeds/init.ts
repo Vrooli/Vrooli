@@ -6,7 +6,7 @@ import { InputType } from '@shared/consts';
 import { ProfileModel } from '../../models';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
-import { genErrorCode, logger, LogLevel } from '../../logger';
+import { genErrorCode, logger, LogLevel } from '../../events/logger';
 import { uuid } from '@shared/uuid';
 const { AccountStatus, NodeType, ResourceUsedFor, ResourceListUsedFor } = pkg;
 

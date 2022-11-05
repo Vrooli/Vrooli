@@ -1,10 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { countHelper, createHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper, visibilityBuilder } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
-import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum ProjectSortBy {

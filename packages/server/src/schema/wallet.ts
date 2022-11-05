@@ -1,15 +1,14 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Wallet, WalletUpdateInput } from './types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { getUserId, onlyValidIds, updateHelper, WalletModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
-import { CustomError } from '../error';
+import { CustomError } from '../events/error';
 import { CODE } from '@shared/consts';
 import { serializedAddressToBech32 } from '../auth/walletAuth';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import { rateLimit } from '../rateLimit';
-import { genErrorCode } from '../logger';
+import { genErrorCode } from '../events/logger';
 
 export const typeDef = gql`
 

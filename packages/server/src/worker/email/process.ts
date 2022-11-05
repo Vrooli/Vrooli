@@ -1,4 +1,4 @@
-import { genErrorCode, logger, LogLevel } from '../../logger';
+import { genErrorCode, logger, LogLevel } from '../../events/logger';
 import nodemailer from 'nodemailer';
 
 const HOST = 'smtp.gmail.com';

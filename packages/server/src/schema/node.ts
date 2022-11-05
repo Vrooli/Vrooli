@@ -2,10 +2,9 @@ import { gql } from 'apollo-server-express';
 import { createHelper, NodeModel, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
 import { Node, NodeCreateInput, NodeUpdateInput } from './types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from '@prisma/client';
-import { rateLimit } from '../rateLimit';
 import { resolveNodeData } from './resolvers';
 const { NodeType } = pkg;
 

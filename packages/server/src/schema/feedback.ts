@@ -3,9 +3,8 @@ import { gql } from 'apollo-server-express';
 import { IWrap } from '../types';
 import { feedbackNotifyAdmin } from '../worker/email/queue';
 import { FeedbackInput, Success } from './types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     input FeedbackInput {

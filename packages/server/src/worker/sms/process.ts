@@ -1,4 +1,4 @@
-import { genErrorCode, logger, LogLevel } from "../../logger";
+import { genErrorCode, logger, LogLevel } from "../../events/logger";
 
 let texting_client: any = null;
 try {

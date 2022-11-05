@@ -1,12 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteManyInput, FindByIdInput, Run, RunCancelInput, RunCompleteInput, RunCountInput, RunCreateInput, RunSearchInput, RunSearchResult, RunSortBy, RunStatus, RunStepStatus, RunUpdateInput } from './types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteManyHelper, getUserId, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
-import { rateLimit } from '../rateLimit';
-import { CustomError } from '../error';
-import { genErrorCode } from '../logger';
+import { CustomError } from '../events/error';
+import { genErrorCode } from '../events/logger';
 import { CODE } from '@shared/consts';
 
 export const typeDef = gql`

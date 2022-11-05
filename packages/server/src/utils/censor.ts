@@ -1,8 +1,8 @@
-import { CustomError } from '../error';
+import { CustomError } from '../events/error';
 import fs from 'fs';
 import { CODE } from '@shared/consts';
 import { isObject } from '@shared/utils';
-import { genErrorCode } from '../logger';
+import { genErrorCode } from '../events/logger';
 import pkg from 'lodash';
 const { flatten } = pkg;
 

@@ -1,13 +1,12 @@
 import { gql } from 'apollo-server-express';
 import { CODE } from '@shared/consts';
-import { CustomError } from '../error';
+import { CustomError } from '../events/error';
 import { StarInput, Success, Translate, TranslateInput } from './types';
 import { IWrap } from '../types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { StarModel } from '../models';
-import { rateLimit } from '../rateLimit';
-import { genErrorCode } from '../logger';
+import { genErrorCode } from '../events/logger';
 import fetch from 'node-fetch';
 
 export const typeDef = gql`

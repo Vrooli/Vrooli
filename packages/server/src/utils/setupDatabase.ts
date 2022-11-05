@@ -2,7 +2,7 @@
 // Sets up database on server initialization
 import pkg from '@prisma/client';
 import { init } from '../db/seeds/init.js';
-import { genErrorCode, logger, LogLevel } from '../logger';
+import { genErrorCode, logger, LogLevel } from '../events/logger';
 import { PrismaType } from '../types';
 const { PrismaClient } = pkg;
 const prisma = new PrismaClient();

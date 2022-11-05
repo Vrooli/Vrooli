@@ -6,7 +6,7 @@
  *  3. Repeat for all other object types in the union
  */
 
-import { genErrorCode, logger, LogLevel } from "../logger";
+import { genErrorCode, logger, LogLevel } from "../events/logger";
 import { GraphQLModelType } from "../models";
 
 export const resolveCommentedOn = (obj: any): GraphQLModelType => {

@@ -1,10 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { FindByIdInput, Report, ReportCountInput, ReportCreateInput, ReportFor, ReportSearchInput, ReportSearchResult, ReportSortBy, ReportUpdateInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, readManyHelper, readOneHelper, ReportModel, updateHelper } from '../models';
-import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
     enum ReportFor {

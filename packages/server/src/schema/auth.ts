@@ -5,18 +5,18 @@
 import { gql } from 'apollo-server-express';
 import { emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema } from '@shared/validation';
 import { CODE, COOKIE } from "@shared/consts";
-import { CustomError } from '../error';
+import { CustomError } from '../events/error';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/walletAuth';
 import { assertRequestFrom, generateSessionJwt } from '../auth/auth.js';
 import { IWrap, RecursivePartial } from '../types';
 import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, ApiKeyStatus, LogOutInput, SwitchCurrentAccountInput } from './types';
 import { GraphQLResolveInfo } from 'graphql';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { hasProfanity } from '../utils/censor';
 import pkg from '@prisma/client';
-import { rateLimit } from '../rateLimit';
-import { genErrorCode } from '../logger';
+import { genErrorCode } from '../events/logger';
 import { getUserId, ProfileModel } from '../models';
+import { Trigger } from '../events';
 const { AccountStatus, ResourceListUsedFor } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -260,8 +260,8 @@ export const resolvers = {
             const session = await ProfileModel.verify.toSession(user, prisma, req);
             // Set up session token
             await generateSessionJwt(res, session);
-            // Send verification email
-            await ProfileModel.verify.setupVerificationCode(input.email, prisma);
+            // Trigger new account
+            await Trigger(prisma).acountNew(user.id, input.email);
             // Return user data
             return session;
         },

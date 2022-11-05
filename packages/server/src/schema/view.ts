@@ -2,11 +2,10 @@ import { CODE, ViewSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from 'graphql';
 import { assertRequestFrom } from '../auth/auth';
-import { Context } from '../context';
-import { CustomError } from '../error';
-import { genErrorCode } from '../logger';
+import { Context, rateLimit } from '../middleware';
+import { CustomError } from '../events/error';
+import { genErrorCode } from '../events/logger';
 import { getUserId, readManyHelper, ViewModel } from '../models';
-import { rateLimit } from '../rateLimit';
 import { IWrap } from '../types';
 import { ViewSearchInput, ViewSearchResult } from './types';
 

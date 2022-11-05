@@ -1,10 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Email, EmailCreateInput, EmailUpdateInput, Success } from './types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { createHelper, EmailModel, ProfileModel, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
-import { rateLimit } from '../rateLimit';
 
 export const typeDef = gql`
 
