@@ -44,7 +44,7 @@
 // 32. Improved role permissions
 // 33. Multi-role routines
 // 34. Fundraising/funding
-// 35. Personal and organization checklists
+// 35. Personal reminders, overall and by schedule ✅
 // 36. Add invitedBy relation to users ✅
 // 37. Transfer object request ✅
 // 38. Update resource lists so only one per object. Also add them to user schedules. This will allow the Home page to be more dynamic ✅
@@ -951,6 +951,28 @@ model quiz_question_translation {
     @@unique([questionId, language])
 }
 
+model reminder_list {
+    id          String  @id @default(uuid()) @db.Uuid
+    created_at  DateTime     @default(now()) @db.Timestamptz(6)
+    updated_at  DateTime     @default(now()) @db.Timestamptz(6)
+    user        user?
+    userSchedule user_schedule?
+    reminders   reminder[]
+}
+
+model reminder {
+    id          String  @id @default(uuid()) @db.Uuid
+    created_at  DateTime     @default(now()) @db.Timestamptz(6)
+    updated_at  DateTime     @default(now()) @db.Timestamptz(6)
+    name        String  @db.VarChar(128)
+    description String? @db.VarChar(2048)
+    dueDate     DateTime? @db.Timestamptz(6)
+    reminderListId String  @db.Uuid
+    reminderList reminder_list @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
+    starredBy   star[]  @relation("star_reminder")
+    votedBy     vote[]  @relation("vote_reminder")
+}
+
 model report {
     id              String            @id @default(uuid()) @db.Uuid
     reason          String            @db.VarChar(128)
@@ -1583,6 +1605,7 @@ model user {
     longestStreak                  Int                  @default(0)
     stars                          Int                  @default(0)
     views                          Int                  @default(0)
+    reminderListId                 String?              @db.Uuid @unique
     resourceListId                 String?              @db.Uuid
     status                         AccountStatus        @default(Unlocked)
     apis                           api[]
@@ -1601,6 +1624,7 @@ model user {
     sentReports                    report[]             @relation("report_from")
     reports                        report[]
     reportResponses                report_response[]
+    reminderList                   reminder_list?      @relation(fields: [reminderListId], references: [id], onDelete: SetNull)
     resourceList                   resource_list?       @relation(fields: [resourceListId], references: [id], onDelete: SetNull)
     routinesCreated                routine[]            @relation("routine_user_creator")
     routines                       routine[]            @relation("routine_user_owner")
@@ -1667,8 +1691,10 @@ model user_schedule {
     recurring  Boolean @default(false)
     recurrStart DateTime? @db.Timestamptz(6)
     recurrEnd  DateTime? @db.Timestamptz(6)
+    reminderListId String? @db.Uuid @unique
     resourceListId String? @db.Uuid
     userId String @db.Uuid
+    reminderList reminder_list? @relation(fields: [reminderListId], references: [id], onDelete: SetNull)
     resourceList resource_list? @relation(fields: [resourceListId], references: [id], onDelete: SetNull)
     user   user @relation(fields: [userId], references: [id], onDelete: Cascade)
     labels user_schedule_label[]
