@@ -100,7 +100,7 @@ export interface RadioProps {
 /**
  * Props for rendering a Selector input component
  */
-export interface SelectorProps extends Omit<SP, 'selected' | 'handleChange' | 'zIndex'> {
+export interface SelectorProps<T extends string | number | { [x: string]: any; }> extends Omit<SP<T>, 'selected' | 'handleChange' | 'zIndex'> {
     defaultValue?: any; // Ignored for now
 }
 
@@ -278,7 +278,7 @@ export interface FieldDataSelector extends FieldDataBase {
     /**
      * Extra props for the input component, depending on the type
      */
-    props: SelectorProps;
+    props: SelectorProps<any>;
 }
 
 /**

@@ -167,10 +167,6 @@ export const RoutineView = ({
                 openObject(data.routine, setLocation);
                 window.location.reload();
                 break;
-            case ObjectActionComplete.Copy:
-                openObject(data.routine, setLocation);
-                window.location.reload();
-                break;
         }
     }, [routine, setLocation]);
 

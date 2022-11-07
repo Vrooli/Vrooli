@@ -1,4 +1,4 @@
-import { Box, Button, Grid, Palette, Stack, useTheme } from "@mui/material";
+import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
 import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, TagShape, uuidToBase36 } from "utils";
@@ -205,10 +205,6 @@ export const SubroutineView = ({
                 }
                 break;
             case ObjectActionComplete.Fork:
-                openObject(data.routine, setLocation);
-                window.location.reload();
-                break;
-            case ObjectActionComplete.Copy:
                 openObject(data.routine, setLocation);
                 window.location.reload();
                 break;

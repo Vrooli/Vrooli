@@ -1,13 +1,12 @@
 import { useMutation } from "@apollo/client";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
-import { CopyType, DeleteOneType, ForkType, ReportFor, StarFor, VoteFor } from "@shared/consts";
+import { DeleteOneType, ForkType, ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { EllipsisIcon } from "@shared/icons";
 import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog, SnackSeverity } from "components/dialogs";
-import { copyVariables, copy_copy } from "graphql/generated/copy";
 import { forkVariables, fork_fork } from "graphql/generated/fork";
 import { starVariables, star_star } from "graphql/generated/star";
 import { voteVariables, vote_vote } from "graphql/generated/vote";
-import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
+import { forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import React, { useCallback, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, PubSub } from "utils";
@@ -81,26 +80,9 @@ export const ObjectActionsRow = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [copy] = useMutation(copyMutation);
     const [fork] = useMutation(forkMutation);
     const [star] = useMutation(starMutation);
     const [vote] = useMutation(voteMutation);
-
-    const handleCopy = useCallback(() => {
-        if (!id) return;
-        // Check if objectType can be converted to CopyType
-        const copyType = CopyType[objectType];
-        if (!copyType) {
-            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: SnackSeverity.Error });
-            return;
-        }
-        mutationWrapper<copy_copy, copyVariables>({
-            mutation: copy,
-            input: { id, objectType: copyType },
-            successMessage: () => `${name} copied.`,
-            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Copy, data) },
-        })
-    }, [copy, id, name, objectType, onActionComplete]);
 
     const handleFork = useCallback(() => {
         if (!id) return;
@@ -141,9 +123,6 @@ export const ObjectActionsRow = ({
             case ObjectAction.Comment:
                 onActionStart(ObjectAction.Comment);
                 break;
-            case ObjectAction.Copy:
-                handleCopy();
-                break;
             case ObjectAction.Delete:
                 openDelete();
                 break;
@@ -177,7 +156,7 @@ export const ObjectActionsRow = ({
                 handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
                 break;
         }
-    }, [handleCopy, handleFork, handleStar, handleVote, objectType, onActionStart, openDelete, openDonate, openReport, openShare]);
+    }, [handleFork, handleStar, handleVote, objectType, onActionStart, openDelete, openDonate, openReport, openShare]);
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const openOverflowMenu = useCallback((event: React.MouseEvent) => {

@@ -18,6 +18,10 @@ declare global {
              */
             isLoggedIn?: boolean;
             /**
+             * User's current time zone
+             */
+            timeZone?: string;
+            /**
              * Users logged in with this session (if isLoggedIn is true)
              */
             users?: SessionUser[];

@@ -194,10 +194,6 @@ export const OrganizationView = ({
                 openObject(data.organization, setLocation);
                 window.location.reload();
                 break;
-            case ObjectActionComplete.Copy:
-                openObject(data.organization, setLocation);
-                window.location.reload();
-                break;
         }
     }, [organization, setLocation]);
 

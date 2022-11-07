@@ -141,10 +141,6 @@ export const StandardView = ({
                 openObject(data.standard, setLocation);
                 window.location.reload();
                 break;
-            case ObjectActionComplete.Copy:
-                openObject(data.standard, setLocation);
-                window.location.reload();
-                break;
         }
     }, [standard, setLocation]);
 

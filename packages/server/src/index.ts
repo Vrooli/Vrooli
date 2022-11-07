@@ -47,6 +47,7 @@ const main = async () => {
     // app.use(express.json());
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));
+    // For parsing cookies
     app.use(cookieParser(process.env.JWT_SECRET));
 
     // For authentication

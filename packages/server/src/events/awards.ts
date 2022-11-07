@@ -89,13 +89,6 @@ export const awardVariants: { [key in AwardCategory]?: (count: number) => number
     [AwardCategory.UserInvite]: (count: number) => closestLower(count, [5, 10, 25, 50, 100]),
 };
 
-/**
- * Inserts a new award into the database
- */
-export const insertAward = async () => {
-    // fdsafd
-}
-
 // TODO functions to check if user should receive award
 
 /**
@@ -110,8 +103,30 @@ export const insertAward = async () => {
  * Handles tracking awards for a user. If a new award is earned, a notification
  * can be sent to the user (push or email)
  */
-export const Award = (prisma: PrismaType) => ({
-    update: async (userId: string, award: AwardCategory, progressDelta: number) => {
-        //TODO
-    }
+export const Award = (prisma: PrismaType, userId: string) => ({
+    /**
+     * Upserts an award into the database. If the award progress reaches a new goal,
+     * the user is notified
+     * @param category The category of the award
+     * @param progress The progress of the award
+     */
+    update: async (category: AwardCategory, progress: number): any => {
+        // const award = await prisma.award.upsert({
+        //     where: {
+        //         userId_category: {
+        //             userId,
+        //             category,
+        //         },
+        //     },
+        //     update: {
+        //         progress,
+        //     },
+        //     create: {
+        //         userId,
+        //         category,
+        //         progress,
+        //     },
+        // });
+        // return award;
+    },
 })

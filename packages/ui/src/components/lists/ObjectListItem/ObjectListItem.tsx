@@ -284,12 +284,6 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 openObject(forkData, setLocation);
                 window.location.reload();
                 break;
-            case ObjectActionComplete.Copy:
-                // Data is in first key with a value
-                const copyData: any = Object.values(data).find((v) => typeof v === 'object');
-                openObject(copyData, setLocation);
-                window.location.reload();
-                break;
         }
     }, [object, setLocation]);
 

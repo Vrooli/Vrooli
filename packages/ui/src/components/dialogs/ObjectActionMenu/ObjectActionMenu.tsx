@@ -1,16 +1,15 @@
 import { useMutation } from "@apollo/client";
-import { copyVariables, copy_copy } from 'graphql/generated/copy';
 import { forkVariables, fork_fork } from 'graphql/generated/fork';
 import { starVariables, star_star } from 'graphql/generated/star';
 import { voteVariables, vote_vote } from 'graphql/generated/vote';
-import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
+import { forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, PubSub } from "utils";
-import { CopyType, DeleteOneType, ForkType } from "graphql/generated/globalTypes";
+import { DeleteOneType, ForkType } from "graphql/generated/globalTypes";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
 export const ObjectActionMenu = ({
@@ -50,26 +49,9 @@ export const ObjectActionMenu = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [copy] = useMutation(copyMutation);
     const [fork] = useMutation(forkMutation);
     const [star] = useMutation(starMutation);
     const [vote] = useMutation(voteMutation);
-
-    const handleCopy = useCallback(() => {
-        if (!id) return;
-        // Check if objectType can be converted to CopyType
-        const copyType = CopyType[objectType];
-        if (!copyType) {
-            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: SnackSeverity.Error });
-            return;
-        }
-        mutationWrapper<copy_copy, copyVariables>({
-            mutation: copy,
-            input: { id, objectType: copyType },
-            successMessage: () => `${name} copied.`,
-            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Copy, data) },
-        })
-    }, [copy, id, name, objectType, onActionComplete]);
 
     const handleFork = useCallback(() => {
         if (!id) return;
@@ -107,9 +89,6 @@ export const ObjectActionMenu = ({
 
     const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
-            case ObjectAction.Copy:
-                handleCopy();
-                break;
             case ObjectAction.Delete:
                 openDelete();
                 break;
@@ -143,7 +122,7 @@ export const ObjectActionMenu = ({
                 handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
         }
         onClose();
-    }, [handleCopy, handleFork, handleStar, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
+    }, [handleFork, handleStar, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
 
     const data = useMemo(() => getActionsDisplayData(availableActions), [availableActions]);
 

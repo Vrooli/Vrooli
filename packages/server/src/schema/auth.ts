@@ -7,7 +7,7 @@ import { emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswo
 import { CODE, COOKIE } from "@shared/consts";
 import { CustomError } from '../events/error';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/walletAuth';
-import { assertRequestFrom, generateSessionJwt } from '../auth/auth.js';
+import { assertRequestFrom, generateSessionJwt, updateSessionTimeZone } from '../auth/auth.js';
 import { IWrap, RecursivePartial } from '../types';
 import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, ApiKeyStatus, LogOutInput, SwitchCurrentAccountInput } from './types';
 import { GraphQLResolveInfo } from 'graphql';
@@ -62,6 +62,10 @@ export const typeDef = gql`
         id: ID!
     }
 
+    input ValidateSessionInput {
+        timeZone: String
+    }
+
     input WalletInitInput {
         stakingAddress: String!
         nonceDescription: String
@@ -88,6 +92,7 @@ export const typeDef = gql`
 
     type Session {
         isLoggedIn: Boolean!
+        timeZone: String
         users: [SessionUser!]
     }
 
@@ -108,7 +113,7 @@ export const typeDef = gql`
         emailResetPassword(input: EmailResetPasswordInput!): Session!
         guestLogIn: Session!
         logOut(input: LogOutInput!): Session!
-        validateSession: Session!
+        validateSession(input: ValidateSessionInput!): Session!
         switchCurrentAccount(input: SwitchCurrentAccountInput!): Session!
         walletInit(input: WalletInitInput!): String!
         walletComplete(input: WalletCompleteInput!): WalletComplete!
@@ -340,7 +345,7 @@ export const resolvers = {
                 return session;
             }
         },
-        validateSession: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
+        validateSession: async (_parent: undefined, { input }: IWrap<any>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             await rateLimit({ info, maxUser: 5000, req });
             const userId = getUserId(req);
             // If session is expired
@@ -348,6 +353,8 @@ export const resolvers = {
                 res.clearCookie(COOKIE.Jwt);
                 throw new CustomError(CODE.SessionExpired, 'Session expired. Please log in again');
             }
+            // If timezone is updated, update session
+            updateSessionTimeZone(req, res, input.timeZone);
             // If guest, return default session
             if (req.isLoggedIn !== true) {
                 // Make sure session is cleared

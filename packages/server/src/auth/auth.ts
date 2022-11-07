@@ -48,6 +48,7 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         // Now, set token and role variables for other middleware to use
         req.apiToken = payload.apiToken ?? false;
         req.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
+        req.timeZone = payload.timeZone ?? 'UTC';
         // Users, but make sure they all have unique ids
         req.users = [...new Map((payload.users ?? []).map((user: SessionUser) => [user.id, user])).values()] as SessionUser[];
         req.validToken = true;
@@ -62,6 +63,7 @@ interface BasicToken {
 }
 interface SessionToken extends BasicToken {
     isLoggedIn: boolean;
+    timeZone: string;
     // Supports logging in with multiple accounts
     users: SessionUser[];
 }
@@ -89,6 +91,7 @@ export async function generateSessionJwt(res: Response, session: RecursivePartia
     const tokenContents: SessionToken = {
         ...basicToken(),
         isLoggedIn: session.isLoggedIn ?? false,
+        timeZone: session.timeZone ?? 'UTC',
         // Make sure users are unique by id
         users: [...new Map((session.users ?? []).map((user: SessionUser) => [user.id, user])).values()],
     }
@@ -125,6 +128,41 @@ export async function generateApiJwt(res: Response, apiToken: string): Promise<u
         secure: process.env.NODE_ENV === 'production',
         maxAge: SESSION_MILLI
     });
+}
+
+/**
+ * Update the session token with new time zone information.
+ * Does not extend the max age of the token.
+ */
+export async function updateSessionTimeZone(req: Request, res: Response, timeZone: string): Promise<undefined> {
+    if (req.timeZone === timeZone) return;
+    const { cookies } = req;
+    const token = cookies[COOKIE.Jwt];
+    if (token === null || token === undefined) {
+        logger.log(LogLevel.error, '❗️ No session token found', { code: genErrorCode('0006') });
+        return;
+    }
+    if (!process.env.JWT_SECRET) {
+        logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0007') });
+        return;
+    }
+    jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
+        if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
+            logger.log(LogLevel.error, '❗️ Session token is invalid', { code: genErrorCode('0008') });
+            return;
+        }
+        const tokenContents: SessionToken = {
+            ...payload,
+            timeZone,
+        }
+        const newToken = jwt.sign(tokenContents, process.env.JWT_SECRET);
+        res.cookie(COOKIE.Jwt, newToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            // Max age should be the same as the old token
+            maxAge: payload.exp - Date.now(),
+        });
+    })
 }
 
 /**

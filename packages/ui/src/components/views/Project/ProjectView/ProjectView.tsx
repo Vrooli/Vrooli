@@ -151,10 +151,6 @@ export const ProjectView = ({
                 openObject(data.project, setLocation);
                 window.location.reload();
                 break;
-            case ObjectActionComplete.Copy:
-                openObject(data.project, setLocation);
-                window.location.reload();
-                break;
         }
     }, [project, setLocation]);
 

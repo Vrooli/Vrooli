@@ -24,6 +24,7 @@ import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
 import { errorToMessage, hasErrorCode } from 'graphql/utils';
+import { subscribeUserToPush } from 'serviceWorkerRegistration';
 
 export const SignUpForm = ({
     onFormChange = () => { },
@@ -53,7 +54,13 @@ export const SignUpForm = ({
                     PubSub.get().publishSession(data)
                     PubSub.get().publishAlertDialog({
                         message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
-                        buttons: [{ text: 'OK', onClick: () => setLocation(APP_LINKS.Welcome) }]
+                        buttons: [{
+                            text: 'OK', onClick: () => {
+                                setLocation(APP_LINKS.Welcome);
+                                // Request user to enable notifications
+                                subscribeUserToPush();
+                            }
+                        }]
                     });
                 },
                 onError: (response) => {

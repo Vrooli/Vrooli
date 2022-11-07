@@ -36,8 +36,9 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : '',
         ...props
     }),
-    [InputType.Selector]: (props: Partial<SelectorProps>): SelectorProps => ({ 
+    [InputType.Selector]: (props: Partial<SelectorProps<any>>): SelectorProps<any> => ({ 
         options: [],
+        getOptionLabel: (option: any) => option,
         ...props 
     }),
     [InputType.Slider]: (props: SliderProps) => {

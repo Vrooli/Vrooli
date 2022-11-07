@@ -1,6 +1,7 @@
 import { DeleteOneType, ForkType, StarFor, VoteFor } from "@shared/consts";
 import { ProfileModel } from "../models";
 import { GraphQLModelType } from "../models/types";
+import { Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award, AwardCategory } from "./awards";
 
@@ -42,13 +43,24 @@ export const Trigger = (prisma: PrismaType) => ({
         // Send a welcome/verification email (if not created with wallet)
         if (emailAddress) await ProfileModel.verify.setupVerificationCode(emailAddress, prisma);
         // Give the user an award
-        Award(prisma).update(userId, AwardCategory.AccountNew, 1);
+        Award(prisma, userId).update(AwardCategory.AccountNew, 1);
     },
-    objectComplete: async (objectType: GraphQLModelType, objectId: string, userId: string) => { },
+    objectComplete: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
+        // Track award progress, if object is a pull request, quiz, or routine
+        const completeTrackableTypes = ['PullRequest', 'Quiz', 'Routine'];
+        if (completeTrackableTypes.includes(objectType)) {
+            // If routine, there are additional progress checks
+            // Check if routine is a learning routine
+            asdfasd
+            // Check if it is Christmas in the user's timezone
+            asdfasd
+            Award(prisma).update(userId, AwardCategory.Com, 1);
+        }
+    },
     objectCreate: async (objectType: GraphQLModelType, objectId: string, userId: string) => { },
     objectDelete: async (objectType: DeleteOneType, objectId: string, userId: string) => { },
     objectFork: async (objectType: ForkType, parentId: string, userId: string) => {
-        
+
     },
     objectStar: async (isStar: boolean, objectType: StarFor, objectId: string, userId: string) => { },
     objectVote: async (isUpvote: boolean | null, objectType: VoteFor, objectId: string, userId: string) => { },
@@ -57,10 +69,10 @@ export const Trigger = (prisma: PrismaType) => ({
     questionAnswer: async (questionId: string, userId: string) => { },
     reportClose: async (reportId: string, userId: string) => { },
     reportContribute: async (reportId: string, userId: string) => { },
-    runComplete: async (runId: string, userId: string, wasSuccessful: boolean) => { 
+    runComplete: async (runId: string, userId: string, wasSuccessful: boolean) => {
         // If completed automatically, send notification to user
     },
-    runStart: async (runId: string, userId: string) => { 
+    runStart: async (runId: string, userId: string) => {
         // If started automatically, send notification to user
     },
     sessionValidate: async (userId: string) => { },

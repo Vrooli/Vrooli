@@ -1,14 +1,13 @@
 import { ListMenuItemData } from "components/dialogs/types";
 import { Session } from "types";
 import { getListItemIsStarred, getListItemIsUpvoted, getListItemPermissions, ListObjectType } from "utils/display";
-import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
+import { BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
 
 /**
  * All available actions an object can possibly have
  */
  export enum ObjectAction {
     Comment = 'Comment',
-    Copy = 'Copy',
     Delete = "Delete",
     Donate = "Donate",
     Edit = "Edit",
@@ -28,7 +27,6 @@ import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIco
  * Basically any action that requires updating state or navigating to a new page.
  */
 export enum ObjectActionComplete {
-    Copy = 'Copy',
     Delete = "Delete",
     EditComplete = "EditComplete",
     EditCancel = "EditCanel",
@@ -83,7 +81,6 @@ export const getAvailableActions = (object: ListObjectType | null | undefined, s
     // Check Fork
     if (isLoggedIn && permissions.canFork) {
         options.push(ObjectAction.Fork);
-        options.push(ObjectAction.Copy);
     }
     // Check Report
     if (isLoggedIn && permissions.canReport) {
@@ -105,7 +102,6 @@ export const getAvailableActions = (object: ListObjectType | null | undefined, s
  */
  const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boolean] } = ({
     [ObjectAction.Comment]: ['Comment', ReplyIcon, 'default', false],
-    [ObjectAction.Copy]: ['Copy', CopyIcon, 'default', false],
     [ObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
     [ObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
     [ObjectAction.Edit]: ['Edit', EditIcon, "default", false],

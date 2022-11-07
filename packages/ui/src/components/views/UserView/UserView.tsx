@@ -200,10 +200,6 @@ export const UserView = ({
                 openObject(data.user, setLocation);
                 window.location.reload();
                 break;
-            case ObjectActionComplete.Copy:
-                openObject(data.user, setLocation);
-                window.location.reload();
-                break;
         }
     }, [user, setLocation]);
 

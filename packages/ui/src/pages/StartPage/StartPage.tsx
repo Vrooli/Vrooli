@@ -32,6 +32,7 @@ import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'graphql/utils';
 import { guestLogIn_guestLogIn } from 'graphql/generated/guestLogIn';
 import { getCurrentUser } from 'utils/authentication';
+import { subscribeUserToPush } from 'serviceWorkerRegistration';
 
 const helpText =
     `Logging in allows you to vote, save favorites, and contribute to the community.
@@ -156,6 +157,8 @@ export const StartPage = ({
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard
             setLocation(walletCompleteResult?.firstLogIn ? APP_LINKS.Welcome : (redirect ?? APP_LINKS.Home));
+            // Request user to enable notifications
+            subscribeUserToPush();
         }
     }, [openWalletConnectDialog, openWalletInstallDialog, toEmailLogIn, setLocation, redirect])
 
