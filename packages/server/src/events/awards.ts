@@ -352,7 +352,7 @@ export const Award = (prisma: PrismaType, userId: string) => ({
      * @param category The category of the award
      * @param progress The progress of the award
      */
-    update: async (category: AwardCategory, progress: number): any => {
+    update: async (category: AwardCategory, progress: number) => {
         // const award = await prisma.award.upsert({
         //     where: {
         //         userId_category: {

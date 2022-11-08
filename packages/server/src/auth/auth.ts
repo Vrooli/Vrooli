@@ -63,7 +63,7 @@ interface BasicToken {
 }
 interface SessionToken extends BasicToken {
     isLoggedIn: boolean;
-    timeZone: string;
+    timeZone?: string;
     // Supports logging in with multiple accounts
     users: SessionUser[];
 }
@@ -91,7 +91,7 @@ export async function generateSessionJwt(res: Response, session: RecursivePartia
     const tokenContents: SessionToken = {
         ...basicToken(),
         isLoggedIn: session.isLoggedIn ?? false,
-        timeZone: session.timeZone ?? 'UTC',
+        timeZone: session.timeZone,
         // Make sure users are unique by id
         users: [...new Map((session.users ?? []).map((user: SessionUser) => [user.id, user])).values()],
     }
@@ -155,7 +155,7 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
             ...payload,
             timeZone,
         }
-        const newToken = jwt.sign(tokenContents, process.env.JWT_SECRET);
+        const newToken = jwt.sign(tokenContents, process.env.JWT_SECRET as string);
         res.cookie(COOKIE.Jwt, newToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',

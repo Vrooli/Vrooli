@@ -57,7 +57,7 @@
         "test": "react-scripts test",
         "eject": "react-scripts eject",
         "analyze": "source-map-explorer build/static/js/*",
-        "graphql-generate": "apollo client:codegen --target typescript --endpoint=http://localhost:5329/api/v1 --outputFlat --includes \"src/graphql/**/*.ts\" --excludes \"src/graphql/generated\" src/graphql/generated"
+        "graphql-generate": "apollo client:codegen --target typescript --endpoint=http://localhost:5329/api/v2 --outputFlat --includes \"src/graphql/**/*.ts\" --excludes \"src/graphql/generated\" src/graphql/generated"
     },
     "browserslist": [
         ">0.2%",

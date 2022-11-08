@@ -533,7 +533,7 @@ export const resolvers = {
                 }
             })
             // Create session token
-            const session = await ProfileModel.verify.toSession({ id: userId }, prisma, req)
+            const session = await ProfileModel.verify.toSession({ id: userId as string }, prisma, req)
             // Add session token to return payload
             await generateSessionJwt(res, session);
             return {

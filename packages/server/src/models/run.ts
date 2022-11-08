@@ -365,7 +365,7 @@ export const runMutater = (prisma: PrismaType) => ({
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
         // Handle trigger
-        await Trigger(prisma).runComplete(input.id, userId, input.wasSuccessful ?? false);
+        await Trigger(prisma).runComplete(input.id, userId, input.wasRunAutomatically ?? false, input.wasSuccessful ?? false);
         // Return converted object
         return converted as Run;
     },

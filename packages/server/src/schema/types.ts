@@ -2545,6 +2545,7 @@ export type RunCompleteInput = {
   title: Scalars['String'];
   version: Scalars['String'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
+  wasRunAutomatically?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type RunCountInput = {
@@ -2730,7 +2731,7 @@ export type SendVerificationEmailInput = {
 export type Session = {
   __typename?: 'Session';
   isLoggedIn: Scalars['Boolean'];
-  timeZone: Scalars['String'];
+  timeZone?: Scalars['String'];
   users?: Maybe<Array<SessionUser>>;  
 };
 

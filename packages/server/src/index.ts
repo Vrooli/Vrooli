@@ -65,12 +65,10 @@ const main = async () => {
     // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));
 
     // Set up image uploading
-    app.use(`/api/v1`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }))
+    app.use(`/api/v2`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }))
 
-    /**
-     * Apollo Server for GraphQL
-     */
-    const apollo_options = new ApolloServer({
+    // Apollo server for latest API version
+    const apollo_options_latest = new ApolloServer({
         cache: 'bounded' as any,
         introspection: process.env.NODE_ENV === 'development',
         schema: schema,
@@ -78,13 +76,30 @@ const main = async () => {
         validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
     });
     // Start server
-    await apollo_options.start();
+    await apollo_options_latest.start();
     // Configure server with ExpressJS settings and path
-    apollo_options.applyMiddleware({
+    apollo_options_latest.applyMiddleware({
         app,
-        path: `/api/v1`,
+        path: `/api/v2`,
         cors: false
     });
+    // Additional Apollo server that wraps the latest version. Uses previous endpoint, and transforms the schema
+    // to be compatible with the latest version.
+    // const apollo_options_previous = new ApolloServer({
+    //     cache: 'bounded' as any,
+    //     introspection: process.env.NODE_ENV === 'development',
+    //     schema: schema,
+    //     context: (c) => context(c), // Allows request and response to be included in the context
+    //     validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
+    // });
+    // // Start server
+    // await apollo_options_previous.start();
+    // // Configure server with ExpressJS settings and path
+    // apollo_options_previous.applyMiddleware({
+    //     app,
+    //     path: `/api/v2`,
+    //     cors: false
+    // });
     // Start Express server
     app.listen(5329);
 

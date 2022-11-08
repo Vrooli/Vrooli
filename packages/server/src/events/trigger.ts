@@ -49,12 +49,9 @@ export const Trigger = (prisma: PrismaType) => ({
         // Track award progress, if object is a pull request, quiz, or routine
         const completeTrackableTypes = ['PullRequest', 'Quiz', 'Routine'];
         if (completeTrackableTypes.includes(objectType)) {
-            // If routine, there are additional progress checks
-            // Check if routine is a learning routine
-            asdfasd
-            // Check if it is Christmas in the user's timezone
-            asdfasd
-            Award(prisma).update(userId, AwardCategory.Com, 1);
+            // // If routine, check if routine is a learning routine
+            // asdfasd
+            // Award(prisma).update(userId, AwardCategory.Com, 1);
         }
     },
     objectCreate: async (objectType: GraphQLModelType, objectId: string, userId: string) => { },
@@ -69,8 +66,9 @@ export const Trigger = (prisma: PrismaType) => ({
     questionAnswer: async (questionId: string, userId: string) => { },
     reportClose: async (reportId: string, userId: string) => { },
     reportContribute: async (reportId: string, userId: string) => { },
-    runComplete: async (runId: string, userId: string, wasSuccessful: boolean) => {
+    runComplete: async (runId: string, userId: string, wasAutomatic: boolean, wasSuccessful: boolean) => {
         // If completed automatically, send notification to user
+        if (wasAutomatic) Notify(prisma, userId).pushRunComplete(runId);
     },
     runStart: async (runId: string, userId: string) => {
         // If started automatically, send notification to user

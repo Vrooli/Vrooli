@@ -223,7 +223,7 @@ export const resolvers = {
         },
         runComplete: async (_parent: undefined, { input }: IWrap<RunCompleteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return RunModel.mutate(prisma).complete(getUserId(req) ?? '', input, info);
+            return RunModel.mutate(prisma).complete(getUserId(req) ?? '', { ...input, wasRunAutomatically: false }, info);
         },
         runCancel: async (_parent: undefined, { input }: IWrap<RunCancelInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
             await rateLimit({ info, maxUser: 1000, req });
