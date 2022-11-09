@@ -94,7 +94,7 @@ const forMapper = {
 }
 
 export const reportMutater = (prisma: PrismaType) => ({
-    async toDBShapeAdd(userId: string, data: ReportCreateInput): Promise<Prisma.reportUpsertArgs['create']> {
+    async toDBAdd(userId: string, data: ReportCreateInput): Promise<Prisma.reportUpsertArgs['create']> {
         return {
             id: data.id,
             language: data.language,
@@ -105,7 +105,7 @@ export const reportMutater = (prisma: PrismaType) => ({
             [forMapper[data.createdFor]]: { connect: { id: data.createdForId } },
         }
     },
-    async toDBShapeUpdate(userId: string, data: ReportUpdateInput): Promise<Prisma.reportUpsertArgs['update']> {
+    async toDBUpdate(userId: string, data: ReportUpdateInput): Promise<Prisma.reportUpsertArgs['update']> {
         return {
             reason: data.reason ?? undefined,
             details: data.details,
@@ -144,7 +144,7 @@ export const reportMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeAdd(userId, input);
+                const data = await this.toDBAdd(userId, input);
                 // Create object
                 const currCreated = await prisma.report.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -164,7 +164,7 @@ export const reportMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.report.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId, input.data),
+                    data: await this.toDBUpdate(userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

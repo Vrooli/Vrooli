@@ -26,7 +26,7 @@ export const emailVerifier = () => ({
 })
 
 export const emailMutater = (prisma: PrismaType) => ({
-    toDBShapeAdd(userId: string, data: EmailCreateInput): any {
+    toDBAdd(userId: string, data: EmailCreateInput): any {
         return {
             userId,
             emailAddress: data.emailAddress,
@@ -34,7 +34,7 @@ export const emailMutater = (prisma: PrismaType) => ({
             receivesBusinessUpdates: data.receivesBusinessUpdates ?? true,
         }
     },
-    toDBShapeUpdate(userId: string, data: EmailUpdateInput): any {
+    toDBUpdate(userId: string, data: EmailUpdateInput): any {
         return {
             id: data.id,
             receivesAccountUpdates: data.receivesAccountUpdates ?? undefined,
@@ -102,7 +102,7 @@ export const emailMutater = (prisma: PrismaType) => ({
                     throw new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0046') });
                 // Create object
                 const currCreated = await prisma.email.create({
-                    data: this.toDBShapeAdd(userId, input),
+                    data: this.toDBAdd(userId, input),
                     ...selectHelper(partialInfo)
                 });
                 // Send verification email
@@ -130,7 +130,7 @@ export const emailMutater = (prisma: PrismaType) => ({
                 // Update
                 object = await prisma.email.update({
                     where: input.where,
-                    data: this.toDBShapeUpdate(userId, input.data),
+                    data: this.toDBUpdate(userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

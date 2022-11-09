@@ -1240,8 +1240,6 @@ model routine {
     stars                   Int               @default(0)
     views                   Int               @default(0)
     permissions         String             @db.VarChar(4096)
-    apiCallData             String?           @db.VarChar(8192)
-    smartContractCallData   String?           @db.VarChar(8192)
     createdByUserId         String?           @db.Uuid
     createdByOrganizationId String?           @db.Uuid
     organizationId          String?           @db.Uuid
@@ -1274,6 +1272,7 @@ model routine_version {
     id             String                        @id @default(uuid()) @db.Uuid
     created_at     DateTime                      @default(now()) @db.Timestamptz(6)
     updated_at     DateTime                      @default(now()) @db.Timestamptz(6)
+    apiCallData             String?           @db.VarChar(8192)
     complexity     Int                           @default(1)
     intendToPullRequest Boolean                   @default(false)
     isAutomatable  Boolean                       @default(false)
@@ -1284,6 +1283,7 @@ model routine_version {
     simplicity     Int                           @default(1)
     timesStarted   Int                           @default(0)
     timesCompleted Int                           @default(0)
+    smartContractCallData   String?           @db.VarChar(8192)
     resourceListId String?                       @db.Uuid @unique
     apiId                   String?           @db.Uuid
     smartContractId         String?           @db.Uuid
@@ -1583,7 +1583,6 @@ model standard {
     id                      String             @id @default(uuid()) @db.Uuid
     created_at              DateTime           @default(now()) @db.Timestamptz(6)
     updated_at              DateTime           @default(now()) @db.Timestamptz(6)
-    default                 String?            @db.VarChar(1024)
     hasCompleteVersion      Boolean            @default(false)
     name                    String             @db.VarChar(128)
     votes                   Int                @default(0)

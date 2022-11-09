@@ -221,7 +221,7 @@ export const organizationQuerier = () => ({
 })
 
 export const organizationMutater = (prisma: PrismaType) => ({
-    async toDBShapeBase(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput) {
+    async toDBBase(userId: string, data: OrganizationCreateInput | OrganizationUpdateInput) {
         return {
             id: data.id,
             handle: data.handle ?? undefined,
@@ -233,21 +233,21 @@ export const organizationMutater = (prisma: PrismaType) => ({
             translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }
     },
-    async toDBShapeCreate(userId: string | null, data: OrganizationCreateInput): Promise<Prisma.organizationUpsertArgs['create']> {
+    async toDBCreate(userId: string, data: OrganizationCreateInput): Promise<Prisma.organizationUpsertArgs['create']> {
         // Add yourself as a member
-        const members = { members: { create: { user: { connect: { id: userId ?? '' } } } } };
+        const members = { members: { create: { user: { connect: { id: userId } } } } };
         // Create an Admin role assignment for yourself
-        const roles = { roles: { create: { title: 'Admin', assignees: { create: { user: { connect: { id: userId ?? '' } } } } } } };
+        const roles = { roles: { create: { title: 'Admin', assignees: { create: { user: { connect: { id: userId } } } } } } };
         return {
             ...members,
             ...roles,
-            ...this.toDBShapeBase(userId, data),
+            ...this.toDBBase(userId, data),
         }
     },
-    async toDBShapeUpdate(userId: string | null, data: OrganizationUpdateInput): Promise<Prisma.organizationUpsertArgs['update']> {
+    async toDBUpdate(userId: string, data: OrganizationUpdateInput): Promise<Prisma.organizationUpsertArgs['update']> {
         // TODO members
         return {
-            ...this.toDBShapeBase(userId, data),
+            ...this.toDBBase(userId, data),
         }
     },
     async validateMutations({
@@ -301,7 +301,7 @@ export const organizationMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeCreate(userId, input);
+                const data = await this.toDBCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.organization.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -319,7 +319,7 @@ export const organizationMutater = (prisma: PrismaType) => ({
                     where: {
                         AND: [
                             input.where,
-                            { members: { some: { userId: userId ?? '' } } },
+                            { members: { some: { userId: userId } } },
                         ]
                     }
                 })
@@ -327,7 +327,7 @@ export const organizationMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.organization.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId, input.data),
+                    data: await this.toDBUpdate(userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

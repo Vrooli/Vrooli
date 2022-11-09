@@ -79,10 +79,14 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 id: true,
                 list: {
                     select: {
+                        apiVersion: { select: { id: true } },
                         organization: { select: { id: true } },
+                        post: { select: { id: true } },
                         project: { select: { id: true } },
-                        routine: { select: { id: true } },
-                        user: { select: { id: true } },
+                        routineVersion: { select: { id: true } },
+                        smartContractVersion: { select: { id: true } },
+                        standardVersion: { select: { id: true } },
+                        userSchedule: { select: { userId: true } },
                     }
                 }
             }
@@ -90,48 +94,76 @@ export const resourceMutater = (prisma: PrismaType) => ({
         // Check if user is owner of all resources
         const isOwner = async (userId: string, data: any) => {
             if (!data.list) return false;
+            // if (data.list.apiVersion) {
+            //     const permissions = await ApiModel.permissions().get({ objects: [data.list.apiVersion], prisma, userId });
+            //     return permissions[0].canEdit;
+            // }
             if (data.list.organization) {
                 const permissions = await OrganizationModel.permissions().get({ objects: [data.list.organization], prisma, userId });
                 return permissions[0].canEdit;
             }
+            // else if (data.list.post) {
+            //     const permissions = await PostModel.permissions().get({ objects: [data.list.post], prisma, userId });
+            //     return permissions[0].canEdit;
+            // }
             else if (data.list.project) {
                 const permissions = await ProjectModel.permissions().get({ objects: [data.list.project], prisma, userId });
                 return permissions[0].canEdit
             }
-            else if (data.list.routine) {
-                const permissions = await RoutineModel.permissions().get({ objects: [data.list.routine], prisma, userId });
+            else if (data.list.routineVersion) {
+                const permissions = await RoutineModel.permissions().get({ objects: [data.list.routineVersion], prisma, userId });
                 return permissions[0].canEdit;
             }
-            else if (data.list.user) {
-                return data.list.user.id === userId;
+            // else if (data.list.smartContractVersion) {
+            //     const permissions = await SmartContractModel.permissions().get({ objects: [data.list.smartContractVersion], prisma, userId });
+            //     return permissions[0].canEdit;
+            // }
+            // else if (data.list.standardVersion) {
+            //     const permissions = await StandardModel.permissions().get({ objects: [data.list.standardVersion], prisma, userId });
+            //     return permissions[0].canEdit;
+            // }
+            else if (data.list.userSchedule) {
+                return data.list.userSchedule.userId === userId;
             }
             return false;
         }
         if (!existingResources.some(r => isOwner(userId, r)))
             throw new CustomError(CODE.Unauthorized, 'You do not own the resource, or are not an admin of its organization', { code: genErrorCode('0086') });
     },
-    toDBShapeBase(userId: string, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean, listId: string | undefined) {
+    toDBBase(userId: string, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) {
         return {
             id: data.id,
-            listId,
             index: data.index,
-            link: data.link,
-            usedFor: data.usedFor,
             translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceCreate, update: resourceUpdate }, isAdd),
         };
     },
-    toDBShapeCreate(userId: string, data: ResourceCreateInput, listId: string | undefined): Prisma.resourceUpsertArgs['create'] | Prisma.resourceCreateWithoutListInput {
+    toDBRelationshipCreate(userId: string, data: ResourceCreateInput): Prisma.resourceCreateWithoutListInput {
         return {
-            ...this.toDBShapeBase(userId, data, true, listId),
+            ...this.toDBBase(userId, data, true),
+            link: data.link,
+            usedFor: data.usedFor,
         };
     },
-    toDBShapeUpdate(userId: string, data: ResourceUpdateInput, listId: string | undefined): Prisma.resourceUpsertArgs['update'] | Prisma.resourceUpdateWithoutListInput {
+    toDBRelationshipUpdate(userId: string, data: ResourceUpdateInput): Prisma.resourceUpdateWithoutListInput {
         return {
-            ...this.toDBShapeBase(userId, data, false, listId),
+            ...this.toDBBase(userId, data, false),
+            link: data.link ?? undefined,
+            usedFor: data.usedFor ?? undefined,
+        };
+    },
+    toDBCreate(userId: string, data: ResourceCreateInput & { listId: string }): Prisma.resourceUpsertArgs['create'] {
+        return {
+            ...this.toDBRelationshipCreate(userId, data),
+            listId: data.listId,
+        };
+    },
+    toDBUpdate(userId: string, data: ResourceUpdateInput): Prisma.resourceUpsertArgs['update'] {
+        return {
+            ...this.toDBRelationshipUpdate(userId, data),
         };
     },
     async relationshipBuilder(
-        userId: string | null,
+        userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'resources',
@@ -154,7 +186,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             // If title or description is not provided, try querying for the link's og tags TODO
             const creates: { [x: string]: any }[] = [];
             for (const create of formattedInput.create) {
-                creates.push(this.toDBShapeCreate(userId, create as any, true, true));
+                creates.push(this.toDBRelationshipCreate(userId, create as any));
             }
             formattedInput.create = creates;
         }
@@ -163,7 +195,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             for (const update of formattedInput.update) {
                 updates.push({
                     where: update.where,
-                    data: this.toDBShapeUpdate(userId, update.data as any, false, true),
+                    data: this.toDBRelationshipUpdate(userId, update.data as any),
                 })
             }
             formattedInput.update = updates;
@@ -186,7 +218,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             await this.authorizedUpdateOrDelete(userId as string, updateMany.map(u => u.where.id), prisma);
         }
     },
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceCreateInput, ResourceUpdateInput>): Promise<CUDResult<Resource>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceCreateInput & { listId: string }, ResourceUpdateInput>): Promise<CUDResult<Resource>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -195,7 +227,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             for (const input of createMany) {
                 // If title or description is not provided, try querying for the link's og tags TODO
                 // Call createData helper function
-                const data = await this.toDBShapeCreate(userId, input, true, false);
+                const data = this.toDBCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.resource.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -221,7 +253,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.resource.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId, input.data, false, false),
+                    data: this.toDBUpdate(userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

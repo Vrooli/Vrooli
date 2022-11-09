@@ -476,7 +476,7 @@ export const resolvers = {
                         wallets: {
                             connect: { id: walletData.id }
                         },
-                        resourceLists: {
+                        resourceList: {
                             create: [
                                 {
                                     usedFor: ResourceListUsedFor.Learn,

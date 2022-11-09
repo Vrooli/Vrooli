@@ -36,15 +36,6 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
             'User': 'User',
         }
     },
-    unionMap: {
-        'to': {
-            'Organization': 'organization',
-            'Project': 'project',
-            'Routine': 'routine',
-            'Standard': 'standard',
-            'User': 'user',
-        },
-    },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<View>[]> {
         // Query for data that view is applied to
         if (isObject(partial.to)) {

@@ -135,7 +135,7 @@ export const typeDef = gql`
         id: ID!
         nodeId: ID
         contextSwitches: Int
-        subroutineId: ID
+        subroutineVersionId: ID
         order: Int!
         step: [Int!]!
         timeElapsed: Int

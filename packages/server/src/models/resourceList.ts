@@ -8,6 +8,10 @@ import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, Resourc
 import { PrismaType } from "../types";
 import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
+import { routinePermissioner } from "./routine";
+import { organizationPermissioner } from "./organization";
+import { projectPermissioner } from "./project";
+import { standardPermissioner } from "./standard";
 
 //==============================================================
 /* #region Custom Components */
@@ -33,8 +37,9 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                     { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
@@ -50,7 +55,7 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
 })
 
 export const resourceListMutater = (prisma: PrismaType) => ({
-    async toDBShapeBase(userId: string , data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) {
+    async toDBBase(userId: string, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) {
         return {
             id: data.id,
             organizationId: data.organizationId ?? undefined,
@@ -61,18 +66,18 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceListTranslationsCreate, update: resourceListTranslationsUpdate }, isAdd),
         };
     },
-    async toDBShapeCreate(userId: string , data: ResourceListCreateInput, isAdd: boolean): Promise<Prisma.resource_listUpsertArgs['create']> {
+    async toDBCreate(userId: string, data: ResourceListCreateInput, isAdd: boolean): Promise<Prisma.resource_listUpsertArgs['create']> {
         return {
-            ...(await this.toDBShapeBase(userId, data, isAdd)),
+            ...(await this.toDBBase(userId, data, isAdd)),
         };
     },
-    async toDBShapeUpdate(userId: string , data: ResourceListUpdateInput, isAdd: boolean): Promise<Prisma.resource_listUpsertArgs['update']> {
+    async toDBUpdate(userId: string, data: ResourceListUpdateInput, isAdd: boolean): Promise<Prisma.resource_listUpsertArgs['update']> {
         return {
-            ...(await this.toDBShapeBase(userId, data, isAdd)),
+            ...(await this.toDBBase(userId, data, isAdd)),
         };
     },
     async relationshipBuilder(
-        userId: string ,
+        userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'resourceList',
@@ -93,13 +98,13 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
             const create = formattedInput.create[0];
             // If title or description is not provided, try querying for the link's og tags TODO
-            formattedInput.create = await this.toDBShapeCreate(userId, create, true);
+            formattedInput.create = await this.toDBCreate(userId, create, true);
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
             const update = formattedInput.update[0].data;
             formattedInput.update = {
                 where: update.where,
-                data: await this.toDBShapeUpdate(userId, update.data, false),
+                data: await this.toDBUpdate(userId, update.data, false),
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
@@ -128,7 +133,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             for (const input of createMany) {
                 // If title or description is not provided, try querying for the link's og tags TODO
                 // Call createData helper function
-                const data = await this.toDBShapeCreate(userId, input, true);
+                const data = await this.toDBCreate(userId, input, true);
                 // Create object
                 const currCreated = await prisma.resource_list.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -149,7 +154,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.resource_list.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId, input.data, false),
+                    data: await this.toDBUpdate(userId, input.data, false),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
@@ -163,7 +168,18 @@ export const resourceListMutater = (prisma: PrismaType) => ({
                 where: {
                     AND: [
                         { id: { in: deleteMany } },
-                        { userId },
+                        {
+                            OR: [
+                                // { apiVersion: apiPermissioner().ownershipQuery(userId) },
+                                { organization: organizationPermissioner().ownershipQuery(userId) },
+                                // { post: postPermissioner().ownershipQuery(userId) },
+                                { project: projectPermissioner().ownershipQuery(userId) },
+                                { routineVersion: routinePermissioner().ownershipQuery(userId) },
+                                // { smartContractVersion: smartContractPermissioner().ownershipQuery(userId) },
+                                { standardVersion: standardPermissioner().ownershipQuery(userId) },
+                                { userSchedule: { userId } },
+                            ]
+                        }
                     ]
                 }
             })

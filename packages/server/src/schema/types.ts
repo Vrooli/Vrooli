@@ -906,7 +906,7 @@ export type NodeRoutineListItem = {
   id: Scalars['ID'];
   index: Scalars['Int'];
   isOptional: Scalars['Boolean'];
-  routine: Routine;
+  routineVersion: Routine;
   translations: Array<NodeRoutineListItemTranslation>;
 };
 
@@ -2366,7 +2366,7 @@ export type RoutineTranslationUpdateInput = {
 };
 
 export type RoutineUpdateInput = {
-  id: Scalars['ID'];
+  versionId?: InputMaybe<Scalars['ID']>;
   inputsCreate?: InputMaybe<Array<InputItemCreateInput>>;
   inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   inputsUpdate?: InputMaybe<Array<InputItemUpdateInput>>;
@@ -2572,7 +2572,7 @@ export type RunStepCreateInput = {
   nodeId?: InputMaybe<Scalars['ID']>;
   order: Scalars['Int'];
   step: Array<Scalars['Int']>;
-  subroutineId?: InputMaybe<Scalars['ID']>;
+  subroutineVersionId?: InputMaybe<Scalars['ID']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
   title: Scalars['String'];
 };

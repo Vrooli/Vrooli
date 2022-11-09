@@ -158,7 +158,7 @@ export const runPermissioner = (): Permissioner<RunPermission, RunSearchInput> =
  * Handles run instances of routines
  */
 export const runMutater = (prisma: PrismaType) => ({
-    async toDBShapeCreate(userId: string, data: RunCreateInput): Promise<Prisma.runUpsertArgs['create']> {
+    async toDBCreate(userId: string, data: RunCreateInput): Promise<Prisma.runUpsertArgs['create']> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
             id: data.id,
@@ -170,7 +170,7 @@ export const runMutater = (prisma: PrismaType) => ({
             userId,
         }
     },
-    async toDBShapeUpdate(userId: string, updateData: RunUpdateInput, existingData: Run): Promise<Prisma.runUpsertArgs['update']> {
+    async toDBUpdate(userId: string, updateData: RunUpdateInput, existingData: Run): Promise<Prisma.runUpsertArgs['update']> {
         return {
             timeElapsed: (existingData.timeElapsed ?? 0) + (updateData.timeElapsed ?? 0),
             completedComplexity: (existingData.completedComplexity ?? 0) + (updateData.completedComplexity ?? 0),
@@ -209,7 +209,7 @@ export const runMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeCreate(userId, input);
+                const data = await this.toDBCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.run.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -231,7 +231,7 @@ export const runMutater = (prisma: PrismaType) => ({
                 })
                 if (!object) throw new CustomError(CODE.ErrorUnknown, 'Run not found.', { code: genErrorCode('0176') });
                 // Update object
-                const data = await this.toDBShapeUpdate(userId, input.data, object as any)
+                const data = await this.toDBUpdate(userId, input.data, object as any)
                 const currUpdated = await prisma.run.update({
                     where: input.where,
                     data,

@@ -44,16 +44,6 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
         'tags': 'Tag',
         'wallets': 'Wallet',
     },
-    unionMap: {
-        'creator': {
-            'User': 'createdByUser',
-            'Organization': 'createdByOrganization',
-        },
-        'owner': {
-            'User': 'user',
-            'Organization': 'organization',
-        }
-    },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
@@ -252,7 +242,7 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
 })
 
 export const projectMutater = (prisma: PrismaType) => ({
-    async toDBShapeBase(userId: string, data: ProjectCreateInput | ProjectUpdateInput) {
+    async toDBBase(userId: string, data: ProjectCreateInput | ProjectUpdateInput) {
         return {
             id: data.id,
             isComplete: data.isComplete ?? undefined,
@@ -264,15 +254,15 @@ export const projectMutater = (prisma: PrismaType) => ({
             translations: TranslationModel.relationshipBuilder(userId, data, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
         }
     },
-    async toDBShapeCreate(userId: string, data: ProjectCreateInput): Promise<Prisma.projectUpsertArgs['create']> {
+    async toDBCreate(userId: string, data: ProjectCreateInput): Promise<Prisma.projectUpsertArgs['create']> {
         return {
-            ...this.toDBShapeBase(userId, data),
+            ...this.toDBBase(userId, data),
             parentId: data.parentId ?? undefined,
         }
     },
-    async toDBShapeUpdate(userId: string, data: ProjectUpdateInput): Promise<Prisma.projectUpsertArgs['update']> {
+    async toDBUpdate(userId: string, data: ProjectUpdateInput): Promise<Prisma.projectUpsertArgs['update']> {
         return {
-            ...this.toDBShapeBase(userId, data),
+            ...this.toDBBase(userId, data),
         }
     },
     /**
@@ -312,7 +302,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                let data = await this.toDBShapeCreate(userId, input);
+                let data = await this.toDBCreate(userId, input);
                 // Associate with either organization or user
                 if (input.createdByOrganizationId) {
                     data = {
@@ -342,7 +332,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Call createData helper function
-                let data = await this.toDBShapeUpdate(userId, input.data);
+                let data = await this.toDBUpdate(userId, input.data);
                 // Find object
                 let object = await prisma.project.findFirst({ where: input.where })
                 if (!object)

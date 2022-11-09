@@ -80,21 +80,21 @@ export const tagVerifier = () => ({
 })
 
 export const tagMutater = (prisma: PrismaType) => ({
-    toDBShapeBase(userId: string, data: TagCreateInput | TagUpdateInput) {
+    toDBBase(userId: string | null, data: TagCreateInput | TagUpdateInput) {
         return {
             tag: data.tag,
             createdByUserId: userId,
             translations: TranslationModel.relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
         }
     },
-    async toDBShapeCreate(userId: string, data: TagCreateInput): Promise<Prisma.tagUpsertArgs['create']> {
+    async toDBCreate(userId: string | null, data: TagCreateInput): Promise<Prisma.tagUpsertArgs['create']> {
         return {
-            ...this.toDBShapeBase(userId, data),
+            ...this.toDBBase(userId, data),
         }
     },
-    async toDBShapeUpdate(userId: string, data: TagUpdateInput): Promise<Prisma.tagUpsertArgs['update']> {
+    async toDBUpdate(userId: string | null, data: TagUpdateInput): Promise<Prisma.tagUpsertArgs['update']> {
         return {
-            ...this.toDBShapeBase(userId, data),
+            ...this.toDBBase(userId, data),
         }
     },
     /**
@@ -194,7 +194,7 @@ export const tagMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeCreate(input.anonymous ? null : userId, input);
+                const data = await this.toDBCreate(input.anonymous ? null : userId, input);
                 // Create object
                 const currCreated = await prisma.tag.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -215,7 +215,7 @@ export const tagMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.tag.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(input.data.anonymous ? null : userId, input.data),
+                    data: await this.toDBUpdate(input.data.anonymous ? null : userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

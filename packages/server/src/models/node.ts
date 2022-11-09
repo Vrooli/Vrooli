@@ -27,12 +27,6 @@ export const nodeFormatter = (): FormatConverter<Node, any> => ({
         'loop': 'NodeLoop',
         'routine': 'Routine',
     },
-    unionMap: {
-        'data': {
-            'NodeEnd': 'nodeEnd',
-            'NodeRoutineList': 'nodeRoutineList',
-        },
-    },
 })
 
 /**
@@ -93,7 +87,7 @@ export const nodeVerifier = () => ({
 })
 
 export const nodeMutater = (prisma: PrismaType) => ({
-    async toDBShapeBase(userId: string, data: NodeCreateInput | NodeUpdateInput) {
+    async toDBBase(userId: string, data: NodeCreateInput | NodeUpdateInput) {
         return {
             id: data.id,
             columnIndex: data.columnIndex ?? undefined,
@@ -111,15 +105,15 @@ export const nodeMutater = (prisma: PrismaType) => ({
                     undefined,
         };
     },
-    async toDBShapeCreate(userId: string, data: NodeCreateInput): Promise<Prisma.nodeUpsertArgs['create']> {
+    async toDBCreate(userId: string, data: NodeCreateInput): Promise<Prisma.nodeUpsertArgs['create']> {
         return { 
-            ...(await this.toDBShapeBase(userId, data)), 
+            ...(await this.toDBBase(userId, data)), 
             routineVersionId: data.routineVersionId,
             type: data.type,
         };
     },
-    async toDBShapeUpdate(userId: string, data: NodeUpdateInput): Promise<Prisma.nodeUpsertArgs['update']> {
-        return this.toDBShapeBase(userId, data);
+    async toDBUpdate(userId: string, data: NodeUpdateInput): Promise<Prisma.nodeUpsertArgs['update']> {
+        return this.toDBBase(userId, data);
     },
     /**
      * Add, update, or delete a node relationship on a routine
@@ -140,7 +134,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
         if (createMany) {
             let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
-                result.push(await this.toDBShapeCreate(userId, data as any));
+                result.push(await this.toDBCreate(userId, data as any));
             }
             createMany = result;
         }
@@ -149,7 +143,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
             for (const data of updateMany) {
                 result.push({
                     where: data.where,
-                    data: await this.toDBShapeUpdate(userId, data.data as any),
+                    data: await this.toDBUpdate(userId, data.data as any),
                 })
             }
             updateMany = result;
@@ -355,7 +349,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
             for (const input of createMany) {
                 // Create object
                 const currCreated = await prisma.node.create({
-                    data: await this.toDBShapeCreate(userId, input),
+                    data: await this.toDBCreate(userId, input),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
@@ -370,7 +364,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.node.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId, input.data),
+                    data: await this.toDBUpdate(userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

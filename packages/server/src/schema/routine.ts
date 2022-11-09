@@ -44,12 +44,12 @@ export const typeDef = gql`
         translationsCreate: [RoutineTranslationCreateInput!]
     }
     input RoutineUpdateInput {
-        id: ID!
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
         isPrivate: Boolean
-        versionLabel: String
+        versionId: ID # If versionId passed, then we're updating an existing version
+        versionLabel: String # If version label passed, then we're creating a new version
         userId: ID
         organizationId: ID
         projectId: ID

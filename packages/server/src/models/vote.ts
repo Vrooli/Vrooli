@@ -21,14 +21,6 @@ export const voteFormatter = (): FormatConverter<Vote, any> => ({
             'Tag': 'Tag',
         }
     },
-    unionMap: {
-        'to': {
-            'Comment': 'comment',
-            'Project': 'project',
-            'Routine': 'routine',
-            'Standard': 'standard',
-        },
-    },
 })
 
 const forMapper = {

@@ -36,17 +36,6 @@ export const commentFormatter = (): FormatConverter<Comment, CommentPermission> 
         'reports': 'Report',
         'starredBy': 'User',
     },
-    unionMap: {
-        'creator': {
-            'User': 'user',
-            'Organization': 'organization',
-        },
-        'commentedOn': {
-            'Project': 'project',
-            'Routine': 'routine',
-            'Standard': 'standard',
-        }
-    },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
@@ -192,7 +181,7 @@ export const commentPermissioner = (): Permissioner<CommentPermission, CommentSe
                         OR: [
                             { projectId: null },
                             { project: { isPrivate: false } },
-                            { project: projectPermissioner().ownershipQuery(userId ?? '') },
+                            { project: projectPermissioner().ownershipQuery(userId) },
                         ]
                     },
                     // routineId is null, routine is public, or user owns routine
@@ -200,7 +189,7 @@ export const commentPermissioner = (): Permissioner<CommentPermission, CommentSe
                         OR: [
                             { routineId: null },
                             { routine: { isPrivate: false } },
-                            { routine: routinePermissioner().ownershipQuery(userId ?? '') },
+                            { routine: routinePermissioner().ownershipQuery(userId) },
                         ]
                     },
                     // standardId is null, standard is public, or user owns standard
@@ -208,7 +197,7 @@ export const commentPermissioner = (): Permissioner<CommentPermission, CommentSe
                         OR: [
                             { standardId: null },
                             { standard: { isPrivate: false } },
-                            { standard: standardPermissioner().ownershipQuery(userId ?? '') },
+                            { standard: standardPermissioner().ownershipQuery(userId) },
                         ]
                     },
                 ]

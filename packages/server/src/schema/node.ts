@@ -197,7 +197,7 @@ export const typeDef = gql`
         id: ID!
         index: Int!
         isOptional: Boolean!
-        routine: Routine!
+        routineVersion: Routine!
         translations: [NodeRoutineListItemTranslation!]!
     }
 

@@ -448,7 +448,7 @@ const profileMutater = (prisma: PrismaType) => ({
             }))),
         ];
         // Create new tags
-        const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel.mutate(prisma).toDBShape(userId, tag)));
+        const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel.mutate(prisma).toDBCreate(userId, tag)));
         const createdTags = await prisma.$transaction(
             createTagsData.map((data) =>
                 prisma.tag.upsert({
@@ -479,7 +479,6 @@ const profileMutater = (prisma: PrismaType) => ({
             name: input.name ?? undefined,
             theme: input.theme ?? undefined,
             hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder(userId, input, false),
-            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, input, false),
             starred: {
                 create: starredCreate,
                 delete: starredDelete,

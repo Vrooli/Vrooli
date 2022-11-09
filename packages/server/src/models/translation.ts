@@ -77,7 +77,7 @@ export const translationMutater = () => ({
     * Add, update, or remove translation data for an object.
     */
     relationshipBuilder(
-        userId: string,
+        userId: string | null,
         input: { [x: string]: any },
         validators: { create: any, update: any },
         isAdd: boolean = true,
@@ -85,14 +85,14 @@ export const translationMutater = () => ({
         // Convert input to Prisma shape
         let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'translations', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate
-        this.validateMutations({ userId, ...formattedInput }, validators);
+        this.validateMutations({ userId: '', ...formattedInput }, validators);
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     /**
      * Validate adds, updates, and deletes
      */
     async validateMutations<CreateInput, UpdateInput>(
-        { userId, createMany, updateMany, deleteMany }: ValidateMutationsInput<CreateInput, UpdateInput>,
+        { createMany, updateMany, deleteMany }: ValidateMutationsInput<CreateInput, UpdateInput>,
         validators: { create: any, update: any }
     ): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;

@@ -7,9 +7,9 @@ import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
-import { CustomError, genErrorCode, logger, LogLevel, Trigger } from "../events";
+import { CustomError, genErrorCode, Trigger } from "../events";
 import { resolveStarTo } from "../schema/resolvers";
-import { Star, StarSearchInput, StarInput, LogType } from "../schema/types";
+import { Star, StarSearchInput, StarInput } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "./actions";
 import { FormatConverter, GraphQLModelType, ModelLogic, Searcher } from "./types";
@@ -31,17 +31,6 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
             'Tag': 'Tag',
             'User': 'User',
         }
-    },
-    unionMap: {
-        'to': {
-            'Comment': 'comment',
-            'Organization': 'organization',
-            'Project': 'project',
-            'Routine': 'routine',
-            'Standard': 'standard',
-            'Tag': 'tag',
-            'User': 'user',
-        },
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Star>[]> {
         // Query for data that star is applied to

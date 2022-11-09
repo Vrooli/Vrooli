@@ -22,7 +22,7 @@ export const nodeRoutineListFormatter = (): FormatConverter<NodeRoutineList, any
 })
 
 export const nodeRoutineListMutater = (prisma: PrismaType) => ({
-    async toDBShapeCreate(userId: string, data: NodeRoutineListCreateInput): Promise<Prisma.node_routine_listCreateNestedOneWithoutNodeInput['create']> {
+    async toDBCreate(userId: string, data: NodeRoutineListCreateInput): Promise<Prisma.node_routine_listCreateNestedOneWithoutNodeInput['create']> {
         return {
             id: data.id,
             isOrdered: data.isOrdered ?? undefined,
@@ -30,7 +30,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             routines: await this.relationshipBuilderRoutineListNodeItem(userId, data, true)
         }
     },
-    async toDBShapeUpdate(userId: string, data: NodeRoutineListUpdateInput): Promise<Prisma.node_routine_listUpdateOneWithoutNodeNestedInput['update']> {
+    async toDBUpdate(userId: string, data: NodeRoutineListUpdateInput): Promise<Prisma.node_routine_listUpdateOneWithoutNodeNestedInput['update']> {
         return {
             isOrdered: data.isOrdered ?? undefined,
             isOptional: data.isOptional ?? undefined,
@@ -105,7 +105,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             // Check for valid arguments
             nodeRoutineListCreate.validateSync(create, { abortEarly: false });
             // Convert nested relationships
-            formattedInput.create = await this.toDBShapeCreate(userId, create);
+            formattedInput.create = await this.toDBCreate(userId, create);
         }
         // Validate update
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
@@ -113,7 +113,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             // Check for valid arguments
             nodeRoutineListUpdate.validateSync(update, { abortEarly: false });
             // Convert nested relationships
-            formattedInput.update = await this.toDBShapeUpdate(userId, update);
+            formattedInput.update = await this.toDBUpdate(userId, update);
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },

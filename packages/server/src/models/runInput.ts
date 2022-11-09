@@ -71,16 +71,27 @@ export const runInputVerifier = () => ({
  * Handles mutations of run inputs
  */
 export const runInputMutater = (prisma: PrismaType) => ({
-    async toDBShapeCreate(userId: string, data: RunInputCreateInput): Promise<Prisma.run_inputUncheckedCreateWithoutRunInput> {
+    toDBRelationshipCreate(userId: string, data: RunInputCreateInput): Prisma.run_inputUncheckedCreateWithoutRunInput {
         return {
             id: data.id,
             data: data.data,
             inputId: data.inputId,
         }
     },
-    async toDBShapeUpdate(userId: string, data: RunInputUpdateInput): Promise<Prisma.run_inputUpsertArgs['update']> {
+    toDBRelationshipUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_inputUncheckedUpdateWithoutRunInput {
         return {
             data: data.data
+        }
+    },
+    toDBCreate(userId: string, data: RunInputCreateInput & { runId: string }): Prisma.run_inputUpsertArgs['create'] {
+        return {
+            ...this.toDBRelationshipCreate(userId, data),
+            runId: data.runId,
+        }
+    },
+    toDBUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_inputUpsertArgs['update'] {
+        return {
+            ...this.toDBRelationshipUpdate(userId, data),
         }
     },
     async relationshipBuilder(
@@ -96,7 +107,7 @@ export const runInputMutater = (prisma: PrismaType) => ({
         if (createMany) {
             let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
-                result.push(await this.toDBShapeCreate(userId, data as any));
+                result.push(await this.toDBRelationshipCreate(userId, data as any));
             }
             createMany = result;
         }
@@ -105,7 +116,7 @@ export const runInputMutater = (prisma: PrismaType) => ({
             for (const data of updateMany) {
                 result.push({
                     where: data.where,
-                    data: await this.toDBShapeUpdate(userId, data.data as any),
+                    data: await this.toDBRelationshipUpdate(userId, data.data as any),
                 })
             }
             updateMany = result;
@@ -145,7 +156,7 @@ export const runInputMutater = (prisma: PrismaType) => ({
     /**
      * Performs adds, updates, and deletes of inputs. First validates that every action is allowed.
      */
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunInputCreateInput, RunInputUpdateInput>): Promise<CUDResult<RunInput>> {
+    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunInputCreateInput & { runId: string }, RunInputUpdateInput>): Promise<CUDResult<RunInput>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
@@ -153,7 +164,7 @@ export const runInputMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeCreate(userId, input);
+                const data = await this.toDBCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.run_input.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -173,7 +184,7 @@ export const runInputMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.run_input.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId, input.data),
+                    data: await this.toDBUpdate(userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

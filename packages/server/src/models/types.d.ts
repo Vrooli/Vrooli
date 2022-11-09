@@ -86,11 +86,9 @@ export type PartialPrismaSelect = { [x: string]: any };
  */
 export type PrismaSelect = { [x: string]: any };
 
-type NestedGraphQLModelType = GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType };
+export type NestedGraphQLModelType = GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType } | { root: GraphQLModelType } | { root: NestedGraphQLModelType };
 
 export type RelationshipMap<GraphQLModel> = { [key in keyof GraphQLModel]?: NestedGraphQLModelType } & { __typename: GraphQLModelType };
-
-export type UnionMap<GraphQLModel> = { [key in keyof GraphQLModel]?: { [x: string]: string } };
 
 /**
  * Helper functions for converting between Prisma types and GraphQL types
@@ -99,14 +97,15 @@ export type FormatConverter<GraphQLModel, PermissionObject> = {
     /**
      * Maps relationship names to their GraphQL type. 
      * If the relationship is a union (i.e. has mutliple possible types), 
-     * the GraphQL type will be an object of field/GraphQLModelType pairs.
+     * the GraphQL type will be an object of field/GraphQLModelType pairs. 
+     * NOTE: The keyword "root" is used to indicate that a relationship belongs in the root 
+     * object. This only applies when working with versioned data
      */
     relationshipMap: RelationshipMap<GraphQLModel>;
     /**
-     * Maps GraphQL union fields to their corresponding Prisma fields. 
-     * Each field is a key from the GraphQLModel type
+     * Maps primitive fields in a versioned object's root table to the GraphQL type. 
      */
-    unionMap?: UnionMap<GraphQLModel>;
+    rootFields?: string[];
     /**
      * Add join tables which are not present in GraphQL object
      */

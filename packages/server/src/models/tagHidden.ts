@@ -19,19 +19,34 @@ export const tagHiddenFormatter = (): FormatConverter<TagHidden, any> => ({
 })
 
 export const tagHiddenMutater = (prisma: PrismaType) => ({
-    async toDBShapeCreate(userId: string, data: TagHiddenCreateInput, isRelationship: boolean): Promise<Prisma.user_tag_hiddenUpsertArgs['create']> {
+    async toDBBase(userId: string, data: TagHiddenCreateInput | TagHiddenUpdateInput) {
         // Tags are built as many-to-many, but in this case we want a one-to-one relationship. 
         // So we must modify the data a bit.
         const tagData = await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'TagHidden', 'tag');
         let tag: any = tagData && Array.isArray(tagData.create) ? tagData.create[0].tag : undefined;
         return {
             id: data.id,
-            userId: isRelationship ? undefined : userId,
             isBlur: data.isBlur ?? false,
             tag,
         }
     },
-    async toDBShapeUpdate(userId: string, data: TagHiddenUpdateInput): Promise<Prisma.user_tag_hiddenUpsertArgs['update']> {
+    async toDBRelationshipCreate(userId: string, data: TagHiddenCreateInput): Promise<Prisma.user_tag_hiddenCreateWithoutUserInput> {
+        return {
+            ...(await this.toDBBase(userId, data)),
+        }
+    },
+    async toDBRelationshipUpdate(userId: string, data: TagHiddenUpdateInput): Promise<Prisma.user_tag_hiddenUpdateWithoutUserInput> {
+        return {
+            isBlur: data?.isBlur ?? undefined,
+        }
+    },
+    async toDBCreate(userId: string, data: TagHiddenCreateInput): Promise<Prisma.user_tag_hiddenUpsertArgs['create']> {
+        return {
+            ...(await this.toDBBase(userId, data)),
+            user: { connect: { id: userId } },
+        }
+    },
+    async toDBUpdate(userId: string, data: TagHiddenUpdateInput): Promise<Prisma.user_tag_hiddenUpsertArgs['update']> {
         return {
             isBlur: data?.isBlur ?? undefined,
         }
@@ -54,7 +69,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             let result: any[] = [];
             for (let data of createMany) {
                 // Convert nested relationships
-                result.push(await this.toDBShapeCreate(userId, data as any, true))
+                result.push(await this.toDBRelationshipCreate(userId, data as any))
             }
             createMany = result;
         }
@@ -64,7 +79,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             let result: any[] = [];
             for (let data of updateMany) {
                 // Convert nested relationships
-                result.push(await this.toDBShapeUpdate(userId, data.data as TagHiddenUpdateInput))
+                result.push(await this.toDBRelationshipUpdate(userId, data.data as TagHiddenUpdateInput))
             }
             updateMany = updateMany.map(u => ({
                 where: u.where,
@@ -97,7 +112,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeCreate(userId ?? '', input, false);
+                const data = await this.toDBCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.user_tag_hidden.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -111,13 +126,13 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             for (const input of updateMany) {
                 // Find in database
                 let object = await prisma.user_tag_hidden.findFirst({
-                    where: { ...input.where, userId: userId ?? '' },
+                    where: { ...input.where, userId: userId },
                 })
                 if (!object) throw new CustomError(CODE.ErrorUnknown, 'Could not find TagHidden to update', { code: genErrorCode('0188') });
                 // Update object
                 const currUpdated = await prisma.user_tag_hidden.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId ?? '', input.data),
+                    data: await this.toDBUpdate(userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

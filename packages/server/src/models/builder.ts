@@ -31,8 +31,7 @@ import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
-import { calculateVersionsFromString } from '@shared/validation';
-import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, UnionMap, ValidateMutationsInput } from './types';
+import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, ValidateMutationsInput } from './types';
 import { CustomError, genErrorCode } from '../events';
 import { TimeFrame, VisibilityType } from '../schema/types';
 const { difference, flatten, merge } = pkg;
@@ -75,14 +74,14 @@ export const ObjectMap = {
  * @param obj - object to check
  * @returns True if obj is a relationship object, false otherwise
  */
-const isRelationshipObject = (obj: any): boolean => isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
+const isRelationshipObject = (obj: any): obj is Object => isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
 
 /**
  * Determines if an object is an array of relationship objects, and not a relationship object.
  * @param obj - object to check
  * @returns True if obj is an array of relationship objects, false otherwise
  */
-const isRelationshipArray = (obj: any): boolean => Array.isArray(obj) && obj.every(e => isRelationshipObject(e));
+const isRelationshipArray = (obj: any): obj is Object[] => Array.isArray(obj) && obj.every(isRelationshipObject);
 
 /**
  * Filters out any invalid IDs from an array of IDs.
@@ -237,30 +236,40 @@ export const removeCountFieldsHelper = (obj: any, map: CountMap): any => {
 }
 
 /**
- * Deconstructs a GraphQL object's union fields into database fields
+ * Deconstructs a GraphQL object's relationship fields into database fields. It's the opposite of constructRelationshipsHelper
  * @param data - GraphQL-shaped object
- * @param unionMap - Mapping of GraphQL union field names to Prisma object field names
+ * @param relationshipMap - Mapping of relationship names to their transform shapes
  * @returns DB-shaped object
  */
-export const deconstructUnionsHelper = <GraphQLModel>(data: { [x: string]: any }, unionMap: UnionMap<GraphQLModel>): { [x: string]: any } => {
+export const deconstructRelationshipsHelper = <GraphQLModel>(data: { [x: string]: any }, relationshipMap: RelationshipMap<GraphQLModel>): { [x: string]: any } => {
     // Create result object
     let result: { [x: string]: any } = data;
-    // For each union field
-    for (const [key, value] of Object.entries(unionMap)) {
+    // Filter out all fields in the relationshipMap that don't have an object value
+    const relationshipFields: [string, { [key: string]: any }][] = Object.entries(relationshipMap).filter(([key, value]) => isRelationshipObject(value)) as any[];
+    // For each relationship field
+    for (const [key, value] of relationshipFields) {
         // If it's not in data, continue
         if (!data[key]) continue;
         // Get data in union field
-        const unionData = data[key];
+        let unionData = data[key];
         // Remove the union field from the result
         delete result[key];
         // If not an object, skip
-        if(!isObject(unionData)) continue;
-        // Value is an object where the keys are possible types of the union object, and values are the db field associated with that type
+        if (!isRelationshipObject(unionData)) continue;
+        // Determine if data should be wrapped in a "root" field
+        const isWrapped = Object.keys(value).length === 1 && Object.keys(value)[0] === 'root';
+        const unionMap: { [key: string]: string } = isWrapped ? value.root : value;
+        // unionMap is an object where the keys are possible types of the union object, and values are the db field associated with that type
         // Iterate over the possible types
-        for (const [type, dbField] of Object.entries(value as { [x: string]: string })) {
-            // If the type is in the union data, add the db field to the result
+        for (const [type, dbField] of Object.entries(unionMap)) {
+            // If the type is in the union data, add the db field to the result. 
+            // Don't forget to handle "root" field
             if (unionData[type]) {
-                result[dbField] = unionData[type];
+                if (isWrapped) {
+                    result.root = isRelationshipObject(result.root) ? { ...result.root, [dbField]: unionData[type] } : { [dbField]: unionData[type] };
+                } else {
+                    result[dbField] = unionData[type];
+                }
             }
         }
     }
@@ -268,24 +277,38 @@ export const deconstructUnionsHelper = <GraphQLModel>(data: { [x: string]: any }
 }
 
 /**
- * Constructs a GraphQL object's union fields from Prisma select fields
+ * Constructs a GraphQL object's relationship fields from database fields. It's the opposite of deconstructRelationshipsHelper
  * @param partialInfo - Partial info object
- * @param unionMap - Mapping of GraphQL union field names to Prisma object field names
+ * @param relationshipMap - Mapping of GraphQL union field names to Prisma object field names
  * @returns partialInfo object with union fields added
  */
-export const constructUnionsHelper = <GraphQLModel>(partialInfo: { [x: string]: any }, unionMap: UnionMap<GraphQLModel>): { [x: string]: any } => {
+export const constructRelationshipsHelper = <GraphQLModel>(partialInfo: { [x: string]: any }, relationshipMap: RelationshipMap<GraphQLModel>): { [x: string]: any } => {
     // Create result object
     let result: { [x: string]: any } = partialInfo;
-    // For each union field
-    for (const [key, value] of Object.entries(unionMap)) {
+    // Filter out all fields in the relationshipMap that don't have an object value
+    const relationshipFields: [string, { [key: string]: any }][] = Object.entries(relationshipMap).filter(([key, value]) => isRelationshipObject(value)) as any[];
+    // For each relationship field
+    for (const [key, value] of relationshipFields) {
+        // Determine if data should be unwrapped from a "root" field
+        const isWrapped = Object.keys(value).length === 1 && Object.keys(value)[0] === 'root';
+        const unionMap: { [key: string]: string } = isWrapped ? value.root : value;
         // For each type, dbField pair
-        for (const [_, dbField] of Object.entries(value as { [x: string]: string })) {
+        for (const [_, dbField] of Object.entries(unionMap)) {
             // If the dbField is in the partialInfo
-            if (result[dbField as string]) {
+            const isInPartialInfo = isWrapped ? result.root && result.root[dbField] !== undefined : result[dbField] !== undefined;
+            if (isInPartialInfo) {
                 // Set the union field to the dbField
-                result[key] = result[dbField as string];
+                if (isWrapped) {
+                    result.root = isRelationshipObject(result.root) ? { ...result.root, [key]: result.root[dbField] } : { [key]: result.root[dbField] };
+                } else {
+                    result[key] = result[dbField];
+                }
                 // Delete the dbField from the result
-                delete result[dbField as string];
+                if (isWrapped) {
+                    delete result.root[dbField];
+                } else {
+                    delete result[dbField];
+                }
             }
         }
     }
@@ -420,7 +443,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
         if (formatter.removeSupplementalFields) result = formatter.removeSupplementalFields(result);
-        if (formatter.unionMap) result = deconstructUnionsHelper(result, formatter.unionMap);
+        result = deconstructRelationshipsHelper(result, formatter.relationshipMap);
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
         if (formatter.addCountFields) result = formatter.addCountFields(result);
     }
@@ -472,7 +495,7 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     const type: string | undefined = partialInfo?.__typename;
     const formatter: FormatConverter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined as any;
     if (formatter) {
-        if (formatter.unionMap) data = constructUnionsHelper(data, formatter.unionMap);
+        data = constructRelationshipsHelper(data, formatter.relationshipMap);
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
         if (formatter.removeCountFields) data = formatter.removeCountFields(data);
     }
@@ -1398,7 +1421,7 @@ export async function validateObjectOwnership({
             throw new CustomError(CODE.Unauthorized, 'User permissions invalid', { code: genErrorCode('0257') });
         }
         // Check organizations using roles
-        const roles = await OrganizationModel.query().hasRole(prisma, userId ?? '', organizationIds);
+        const roles = await OrganizationModel.query().hasRole(prisma, userId, organizationIds);
         // If any role is undefined, the user is not authorized
         if (roles.some(x => x === undefined)) {
             throw new CustomError(CODE.Unauthorized, 'Organization permissions invalid', { code: genErrorCode('0258') });
@@ -1408,7 +1431,7 @@ export async function validateObjectOwnership({
             const projects = await prisma.project.findMany({
                 where: {
                     id: { in: projectIds },
-                    ...ProjectModel.permissions().ownershipQuery(userId ?? ''),
+                    ...ProjectModel.permissions().ownershipQuery(userId),
                 },
             })
             if (projects.length !== projectIds.length) {
@@ -1632,10 +1655,10 @@ export async function getLatestVersion({
             orderBy: { versionIndex: 'desc' as const },
             select: { id: true },
         }
-        const latestVersion = objectType === 'Routine' ? 
+        const latestVersion = objectType === 'Routine' ?
             await prisma.routine_version.findFirst(query) : objectType === 'SmartContract' ?
-            await prisma.smart_contract_version.findFirst(query) : 
-            await prisma.standard_version.findFirst(query);
+                await prisma.smart_contract_version.findFirst(query) :
+                await prisma.standard_version.findFirst(query);
         return latestVersion?.id;
     }
 }

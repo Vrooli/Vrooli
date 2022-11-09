@@ -31,12 +31,12 @@ export const runStepVerifier = () => ({
  * Handles mutations of run steps
  */
 export const runStepMutater = (prisma: PrismaType) => ({
-    async toDBShapeCreate(userId: string, data: RunStepCreateInput): Promise<Prisma.run_stepUpsertArgs['create']> {
+    async toDBCreate(userId: string, data: RunStepCreateInput): Promise<Prisma.run_stepUpsertArgs['create']> {
         return {
             id: data.id,
             nodeId: data.nodeId,
             contextSwitches: data.contextSwitches ?? undefined,
-            subroutineId: data.subroutineId,
+            subroutineVersionId: data.subroutineVersionId,
             order: data.order,
             status: RunStepStatus.InProgress,
             step: data.step,
@@ -44,7 +44,7 @@ export const runStepMutater = (prisma: PrismaType) => ({
             title: data.title,
         }
     },
-    async toDBShapeUpdate(userId: string, data: RunStepUpdateInput): Promise<Prisma.run_stepUpsertArgs['update']> {
+    async toDBUpdate(userId: string, data: RunStepUpdateInput): Promise<Prisma.run_stepUpsertArgs['update']> {
         return {
             contextSwitches: data.contextSwitches ?? undefined,
             status: data.status ?? undefined,
@@ -64,7 +64,7 @@ export const runStepMutater = (prisma: PrismaType) => ({
         if (createMany) {
             let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
-                result.push(await this.toDBShapeCreate(userId, data as any));
+                result.push(await this.toDBCreate(userId, data as any));
             }
             createMany = result;
         }
@@ -73,7 +73,7 @@ export const runStepMutater = (prisma: PrismaType) => ({
             for (const data of updateMany) {
                 result.push({
                     where: data.where,
-                    data: await this.toDBShapeUpdate(userId, data.data as any),
+                    data: await this.toDBUpdate(userId, data.data as any),
                 })
             }
             updateMany = result;
@@ -121,7 +121,7 @@ export const runStepMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeCreate(userId, input);
+                const data = await this.toDBCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.run_step.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -141,7 +141,7 @@ export const runStepMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.run_step.update({
                     where: input.where,
-                    data: await this.toDBShapeUpdate(userId, input.data),
+                    data: await this.toDBUpdate(userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL
