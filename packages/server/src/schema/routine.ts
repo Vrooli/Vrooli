@@ -29,7 +29,7 @@ export const typeDef = gql`
         isComplete: Boolean
         isInternal: Boolean
         isPrivate: Boolean
-        version: String
+        versionLabel: String
         parentId: ID
         projectId: ID
         createdByUserId: ID
@@ -49,7 +49,7 @@ export const typeDef = gql`
         isComplete: Boolean
         isInternal: Boolean
         isPrivate: Boolean
-        version: String
+        versionLabel: String
         userId: ID
         organizationId: ID
         projectId: ID
@@ -93,9 +93,9 @@ export const typeDef = gql`
         simplicity: Int!
         stars: Int!
         views: Int!
-        version: String!
-        versionGroupId: ID!
-        versions: [String!]!
+        versionLabel: String!
+        rootId: ID!
+        versions: [Version!]!
         comments: [Comment!]!
         commentsCount: Int!
         creator: Contributor

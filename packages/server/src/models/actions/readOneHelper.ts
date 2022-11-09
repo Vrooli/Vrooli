@@ -29,7 +29,7 @@ export async function readOneHelper<GraphQLModel>({
     // If using versionGroupId, find the latest completed version in that group and use that id from now on
     let id: string | null | undefined;
     if ((input as FindByVersionInput).versionGroupId) {
-        const versionId = await getLatestVersion({ objectType: model.type as 'Routine' | 'Standard', prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
+        const versionId = await getLatestVersion({ objectType: model.type as 'Api' | 'Note' | 'Routine' | 'SmartContract' | 'Standard', prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
         id = versionId;
     } else {
         id = input.id;

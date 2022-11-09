@@ -14,6 +14,7 @@ import { CustomError, genErrorCode } from "../events";
 import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, Count, ProjectSortBy } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { FormatConverter, Permissioner, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { Prisma } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -251,6 +252,29 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
 })
 
 export const projectMutater = (prisma: PrismaType) => ({
+    async toDBShapeBase(userId: string, data: ProjectCreateInput | ProjectUpdateInput) {
+        return {
+            id: data.id,
+            isComplete: data.isComplete ?? undefined,
+            isPrivate: data.isPrivate ?? undefined,
+            completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
+            permissions: JSON.stringify({}),
+            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, true),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Project'),
+            translations: TranslationModel.relationshipBuilder(userId, data, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
+        }
+    },
+    async toDBShapeCreate(userId: string, data: ProjectCreateInput): Promise<Prisma.projectUpsertArgs['create']> {
+        return {
+            ...this.toDBShapeBase(userId, data),
+            parentId: data.parentId ?? undefined,
+        }
+    },
+    async toDBShapeUpdate(userId: string, data: ProjectUpdateInput): Promise<Prisma.projectUpsertArgs['update']> {
+        return {
+            ...this.toDBShapeBase(userId, data),
+        }
+    },
     /**
      * Validate adds, updates, and deletes
      */
@@ -258,8 +282,6 @@ export const projectMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ProjectCreateInput, ProjectUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0073') });
         // Validate userIds and organizationIds
         await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Project' });
         // Validate max projects
@@ -284,27 +306,13 @@ export const projectMutater = (prisma: PrismaType) => ({
      */
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ProjectCreateInput, ProjectUpdateInput>): Promise<CUDResult<Project>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        /**
-         * Helper function for creating create/update Prisma value
-         */
-        const createData = async (input: ProjectCreateInput | ProjectUpdateInput): Promise<{ [x: string]: any }> => ({
-            id: input.id,
-            handle: (input as ProjectUpdateInput).handle ?? undefined,
-            isComplete: input.isComplete ?? undefined,
-            isPrivate: input.isPrivate ?? undefined,
-            completedAt: (input.isComplete === true) ? new Date().toISOString() : (input.isComplete === false) ? null : undefined,
-            parentId: (input as ProjectCreateInput)?.parentId ?? undefined,
-            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, input, true),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, input, 'Project'),
-            translations: TranslationModel.relationshipBuilder(userId, input, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
-        })
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
         if (createMany) {
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                let data = await createData(input);
+                let data = await this.toDBShapeCreate(userId, input);
                 // Associate with either organization or user
                 if (input.createdByOrganizationId) {
                     data = {
@@ -334,7 +342,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Call createData helper function
-                let data = await createData(input.data);
+                let data = await this.toDBShapeUpdate(userId, input.data);
                 // Find object
                 let object = await prisma.project.findFirst({ where: input.where })
                 if (!object)

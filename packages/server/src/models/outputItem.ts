@@ -22,7 +22,7 @@ export const outputItemFormatter = (): FormatConverter<OutputItem, any> => ({
 //==============================================================
 
 export const OutputItemModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.routine_output,
+    prismaObject: (prisma: PrismaType) => prisma.routine_version_output,
     format: outputItemFormatter(),
     type: 'OutputItem' as GraphQLModelType,
 })

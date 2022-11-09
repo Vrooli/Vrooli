@@ -6,6 +6,7 @@ import { RunStep, RunStepCreateInput, RunStepUpdateInput, Count } from "../schem
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, ValidateMutationsInput } from "./types";
+import { Prisma } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -30,11 +31,11 @@ export const runStepVerifier = () => ({
  * Handles mutations of run steps
  */
 export const runStepMutater = (prisma: PrismaType) => ({
-    async toDBShapeAdd(userId: string, data: RunStepCreateInput): Promise<any> {
+    async toDBShapeCreate(userId: string, data: RunStepCreateInput): Promise<Prisma.run_stepUpsertArgs['create']> {
         return {
             id: data.id,
             nodeId: data.nodeId,
-            contextSwitches: data.contextSwitches,
+            contextSwitches: data.contextSwitches ?? undefined,
             subroutineId: data.subroutineId,
             order: data.order,
             status: RunStepStatus.InProgress,
@@ -43,7 +44,7 @@ export const runStepMutater = (prisma: PrismaType) => ({
             title: data.title,
         }
     },
-    async toDBShapeUpdate(userId: string, data: RunStepUpdateInput): Promise<any> {
+    async toDBShapeUpdate(userId: string, data: RunStepUpdateInput): Promise<Prisma.run_stepUpsertArgs['update']> {
         return {
             contextSwitches: data.contextSwitches ?? undefined,
             status: data.status ?? undefined,
@@ -63,7 +64,7 @@ export const runStepMutater = (prisma: PrismaType) => ({
         if (createMany) {
             let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
-                result.push(await this.toDBShapeAdd(userId, data as any));
+                result.push(await this.toDBShapeCreate(userId, data as any));
             }
             createMany = result;
         }
@@ -94,8 +95,6 @@ export const runStepMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RunStepCreateInput, RunStepUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0176') });
         if (createMany) {
             stepsCreate.validateSync(createMany, { abortEarly: false });
             runStepVerifier().profanityCheck(createMany);
@@ -116,14 +115,13 @@ export const runStepMutater = (prisma: PrismaType) => ({
      */
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunStepCreateInput, RunStepUpdateInput>): Promise<CUDResult<RunStep>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        if (!userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0177') });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
         if (createMany) {
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeAdd(userId, input);
+                const data = await this.toDBShapeCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.run_step.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL

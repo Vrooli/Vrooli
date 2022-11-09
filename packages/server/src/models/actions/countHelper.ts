@@ -1,6 +1,6 @@
 import { VisibilityType } from "../../schema/types";
 import { combineQueries, getUserId, timeFrameToPrisma, visibilityBuilder } from "../builder";
-import { CountInputBase, GraphQLModelType } from "../types";
+import { CountInputBase } from "../types";
 import { CountHelperProps } from "./types";
 
 /**

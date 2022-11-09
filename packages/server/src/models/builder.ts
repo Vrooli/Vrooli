@@ -1592,15 +1592,16 @@ export async function validateMaxObjects({
     }
 }
 
+
 interface GetLatestVersionProps {
     includeIncomplete?: boolean,
-    objectType: 'Routine' | 'Standard',
+    objectType: 'Api' | 'Note' | 'Routine' | 'SmartContract' | 'Standard',
     prisma: PrismaType,
     versionGroupId: string,
 }
 
 /**
- * Finds the latest version of a versioned object
+ * Finds the latest version of a versioned object. This includes apis, notes, routines, smart contracts, and standards
  * @returns The id of the latest version
  */
 export async function getLatestVersion({
@@ -1609,29 +1610,32 @@ export async function getLatestVersion({
     prisma,
     versionGroupId,
 }: GetLatestVersionProps): Promise<string | undefined> {
-    // Helper function to compare version strings
-    const compareVersions = (a: string, b: string): number => {
-        // Parse versions
-        const { major: major1, moderate: moderate1, minor: minor1 } = calculateVersionsFromString(a);
-        const { major: major2, moderate: moderate2, minor: minor2 } = calculateVersionsFromString(b);
-        // If major version is less than minimum
-        if (major1 < major2) return -1;
-        // If major version is equal to minimum and moderate version is less than minimum
-        if (major1 === major2 && moderate1 < moderate2) return -1;
-        // If major and moderate versions are equal to minimum and minor version is less than minimum
-        if (major1 === major2 && moderate1 === moderate2 && minor1 < minor2) return -1;
-        // If all versions are equal
-        if (major1 === major2 && moderate1 === moderate2 && minor1 === minor2) return 0;
-        // Else
-        return 1;
+    // Handle apis and notes, which don't have an "isComplete" field
+    if (objectType === 'Api') {
+        const query = {
+            where: {
+                rootId: versionGroupId,
+            },
+            orderBy: { versionIndex: 'desc' as const },
+            select: { id: true },
+        }
+        const latestVersion = objectType === 'Api' ? await prisma.api_version.findFirst(query) : await prisma.note_version.findFirst(query);
+        return latestVersion?.id;
     }
-    // Query versions
-    const select = { id: true, version: true };
-    const versions = objectType === 'Routine' ? 
-        await prisma.routine.findMany({ where: { versionGroupId, isComplete: includeIncomplete ? undefined : true }, select }) :
-        await prisma.standard.findMany({ where: { versionGroupId }, select });
-    // Sort versions
-    versions.sort((a, b) => compareVersions(a.version, b.version));
-    // Return latest version, or undefined if no versions
-    return versions.length > 0 ? versions[versions.length - 1].id : undefined;
+    // Handle other objects, which have an "isComplete" field
+    if (objectType === 'Routine') {
+        const query = {
+            where: {
+                rootId: versionGroupId,
+                isComplete: includeIncomplete ? undefined : true,
+            },
+            orderBy: { versionIndex: 'desc' as const },
+            select: { id: true },
+        }
+        const latestVersion = objectType === 'Routine' ? 
+            await prisma.routine_version.findFirst(query) : objectType === 'SmartContract' ?
+            await prisma.smart_contract_version.findFirst(query) : 
+            await prisma.standard_version.findFirst(query);
+        return latestVersion?.id;
+    }
 }

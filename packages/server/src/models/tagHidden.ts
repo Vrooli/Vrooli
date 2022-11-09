@@ -6,6 +6,7 @@ import { CustomError, genErrorCode } from "../events";
 import { TagHidden, TagHiddenCreateInput, TagHiddenUpdateInput, Count } from "../schema/types";
 import { PrismaType } from "../types";
 import { FormatConverter, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { Prisma } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -18,7 +19,7 @@ export const tagHiddenFormatter = (): FormatConverter<TagHidden, any> => ({
 })
 
 export const tagHiddenMutater = (prisma: PrismaType) => ({
-    async toDBShapeAdd(userId: string, data: TagHiddenCreateInput, isRelationship: boolean): Promise<any> {
+    async toDBShapeCreate(userId: string, data: TagHiddenCreateInput, isRelationship: boolean): Promise<Prisma.user_tag_hiddenUpsertArgs['create']> {
         // Tags are built as many-to-many, but in this case we want a one-to-one relationship. 
         // So we must modify the data a bit.
         const tagData = await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'TagHidden', 'tag');
@@ -30,7 +31,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             tag,
         }
     },
-    async toDBShapeUpdate(userId: string, data: TagHiddenUpdateInput): Promise<any> {
+    async toDBShapeUpdate(userId: string, data: TagHiddenUpdateInput): Promise<Prisma.user_tag_hiddenUpsertArgs['update']> {
         return {
             isBlur: data?.isBlur ?? undefined,
         }
@@ -53,7 +54,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             let result: any[] = [];
             for (let data of createMany) {
                 // Convert nested relationships
-                result.push(await this.toDBShapeAdd(userId, data as any, true))
+                result.push(await this.toDBShapeCreate(userId, data as any, true))
             }
             createMany = result;
         }
@@ -80,7 +81,6 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<TagHiddenCreateInput, TagHiddenUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0187') });
         if (createMany) {
             tagHiddensCreate.validateSync(createMany, { abortEarly: false });
             // Check for max tags TODO
@@ -97,7 +97,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeAdd(userId ?? '', input, false);
+                const data = await this.toDBShapeCreate(userId ?? '', input, false);
                 // Create object
                 const currCreated = await prisma.user_tag_hidden.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL

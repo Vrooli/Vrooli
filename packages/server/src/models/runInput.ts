@@ -6,6 +6,7 @@ import { RunInput, RunInputCreateInput, RunInputUpdateInput, Count } from "../sc
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
 import { FormatConverter, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { Prisma } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -70,14 +71,14 @@ export const runInputVerifier = () => ({
  * Handles mutations of run inputs
  */
 export const runInputMutater = (prisma: PrismaType) => ({
-    async toDBShapeAdd(userId: string, data: RunInputCreateInput): Promise<any> {
+    async toDBShapeCreate(userId: string, data: RunInputCreateInput): Promise<Prisma.run_inputUncheckedCreateWithoutRunInput> {
         return {
             id: data.id,
             data: data.data,
             inputId: data.inputId,
         }
     },
-    async toDBShapeUpdate(userId: string, data: RunInputUpdateInput): Promise<any> {
+    async toDBShapeUpdate(userId: string, data: RunInputUpdateInput): Promise<Prisma.run_inputUpsertArgs['update']> {
         return {
             data: data.data
         }
@@ -95,7 +96,7 @@ export const runInputMutater = (prisma: PrismaType) => ({
         if (createMany) {
             let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
-                result.push(await this.toDBShapeAdd(userId, data as any));
+                result.push(await this.toDBShapeCreate(userId, data as any));
             }
             createMany = result;
         }
@@ -126,8 +127,6 @@ export const runInputMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RunInputCreateInput, RunInputUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0176') });
         if (createMany) {
             runInputsCreate.validateSync(createMany, { abortEarly: false });
             runInputVerifier().profanityCheck(createMany);
@@ -148,14 +147,13 @@ export const runInputMutater = (prisma: PrismaType) => ({
      */
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunInputCreateInput, RunInputUpdateInput>): Promise<CUDResult<RunInput>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        if (!userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0177') });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
         if (createMany) {
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeAdd(userId, input);
+                const data = await this.toDBShapeCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.run_input.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL

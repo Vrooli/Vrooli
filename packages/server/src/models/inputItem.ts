@@ -22,7 +22,7 @@ export const inputItemFormatter = (): FormatConverter<InputItem, any> => ({
 //==============================================================
 
 export const InputItemModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.routine_input,
+    prismaObject: (prisma: PrismaType) => prisma.routine_version_input,
     format: inputItemFormatter(),
     type: 'InputItem' as GraphQLModelType,
 })

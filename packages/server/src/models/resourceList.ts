@@ -7,6 +7,7 @@ import { CustomError, genErrorCode } from "../events";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, Count } from "../schema/types";
 import { PrismaType } from "../types";
 import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { Prisma } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -49,7 +50,7 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
 })
 
 export const resourceListMutater = (prisma: PrismaType) => ({
-    async toDBShape(userId: string | null, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean): Promise<any> {
+    async toDBShapeBase(userId: string , data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) {
         return {
             id: data.id,
             organizationId: data.organizationId ?? undefined,
@@ -60,16 +61,26 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceListTranslationsCreate, update: resourceListTranslationsUpdate }, isAdd),
         };
     },
+    async toDBShapeCreate(userId: string , data: ResourceListCreateInput, isAdd: boolean): Promise<Prisma.resource_listUpsertArgs['create']> {
+        return {
+            ...(await this.toDBShapeBase(userId, data, isAdd)),
+        };
+    },
+    async toDBShapeUpdate(userId: string , data: ResourceListUpdateInput, isAdd: boolean): Promise<Prisma.resource_listUpsertArgs['update']> {
+        return {
+            ...(await this.toDBShapeBase(userId, data, isAdd)),
+        };
+    },
     async relationshipBuilder(
-        userId: string | null,
+        userId: string ,
         input: { [x: string]: any },
         isAdd: boolean = true,
-        relationshipName: string = 'resourceLists',
+        relationshipName: string = 'resourceList',
     ): Promise<{ [x: string]: any } | undefined> {
         const fieldExcludes = ['createdFor', 'createdForId'];
         // Convert input to Prisma shape. Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by resource lists (since they can only be applied to one object)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
+        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
         // Validate
         const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
         await this.validateMutations({
@@ -79,23 +90,17 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             deleteMany: deleteMany?.map(d => d.id)
         });
         // Shape
-        if (Array.isArray(formattedInput.create)) {
+        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
+            const create = formattedInput.create[0];
             // If title or description is not provided, try querying for the link's og tags TODO
-            const creates: { [x: string]: any }[] = [];
-            for (const create of formattedInput.create) {
-                creates.push(await this.toDBShape(userId, create as any, true));
-            }
-            formattedInput.create = creates;
+            formattedInput.create = await this.toDBShapeCreate(userId, create, true);
         }
-        if (Array.isArray(formattedInput.update)) {
-            const updates: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
-            for (const update of formattedInput.update) {
-                updates.push({
-                    where: update.where,
-                    data: await this.toDBShape(userId, update.data as any, false),
-                })
+        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
+            const update = formattedInput.update[0].data;
+            formattedInput.update = {
+                where: update.where,
+                data: await this.toDBShapeUpdate(userId, update.data, false),
             }
-            formattedInput.update = updates;
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
@@ -103,8 +108,6 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0089') });
         // TODO check that user can add resource to this forId, like in node validateMutations
         if (createMany) {
             resourceListsCreate.validateSync(createMany, { abortEarly: false });
@@ -125,7 +128,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             for (const input of createMany) {
                 // If title or description is not provided, try querying for the link's og tags TODO
                 // Call createData helper function
-                const data = await this.toDBShape(userId, input, true);
+                const data = await this.toDBShapeCreate(userId, input, true);
                 // Create object
                 const currCreated = await prisma.resource_list.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -146,7 +149,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.resource_list.update({
                     where: input.where,
-                    data: await this.toDBShape(userId, input.data, false),
+                    data: await this.toDBShapeUpdate(userId, input.data, false),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

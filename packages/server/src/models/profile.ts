@@ -16,7 +16,7 @@ import { Request } from "express";
 import { CustomError, genErrorCode } from "../events";
 import { readOneHelper } from "./actions";
 import { FormatConverter, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType } from "./types";
-import pkg from '@prisma/client';
+import pkg, { Prisma } from '@prisma/client';
 import { sendResetPasswordLink, sendVerificationLink } from "../notify";
 const { AccountStatus } = pkg;
 
@@ -474,12 +474,12 @@ const profileMutater = (prisma: PrismaType) => ({
             select: { id: true }
         }) : [];
         //Create user data
-        let userData: { [x: string]: any } = {
+        let userData: Prisma.userUpsertArgs['update'] = {
             handle: input.handle,
-            name: input.name,
-            theme: input.theme,
+            name: input.name ?? undefined,
+            theme: input.theme ?? undefined,
             hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder(userId, input, false),
-            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, input, false),
+            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, input, false),
             starred: {
                 create: starredCreate,
                 delete: starredDelete,

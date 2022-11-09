@@ -1,6 +1,6 @@
 import { CODE, VoteFor } from "@shared/consts";
-import { CustomError, genErrorCode, logger, LogLevel, Trigger } from "../events";
-import { Vote, VoteInput, LogType } from "../schema/types";
+import { CustomError, genErrorCode, Trigger } from "../events";
+import { Vote, VoteInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { onlyValidIds } from "./builder";
 import { FormatConverter, GraphQLModelType } from "./types";

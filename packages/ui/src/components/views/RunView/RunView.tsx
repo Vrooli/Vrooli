@@ -658,7 +658,6 @@ export const RunView = ({
                     finalStepCreate: stepsCreate ? stepsCreate[0] : undefined,
                     finalStepUpdate: stepsUpdate ? stepsUpdate[0] : undefined,
                     title: getTranslation(routine, getUserLanguages(session), true).title ?? 'Unnamed Routine',
-                    version: routine.version ?? '',
                     wasSuccessful,
                     ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
                 },

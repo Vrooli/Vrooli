@@ -1,6 +1,6 @@
 import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode, logger, LogLevel, Trigger } from "../../events";
-import { Success, LogType } from "../../schema/types";
+import { CustomError, genErrorCode, Trigger } from "../../events";
+import { Success } from "../../schema/types";
 import { getUserId } from "../builder";
 import { DeleteOneHelperProps } from "./types";
 

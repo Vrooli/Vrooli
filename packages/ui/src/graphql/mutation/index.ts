@@ -1,6 +1,5 @@
 export * from './commentCreate';
 export * from './commentUpdate';
-export * from './copy';
 export * from './deleteOne';
 export * from './emailCreate';
 export * from './emailLogIn';

@@ -422,8 +422,6 @@ export const commentMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<CommentCreateInput, CommentUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0038') });
         if (createMany) {
             commentsCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany)

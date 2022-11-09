@@ -23,7 +23,7 @@ export const memberFormatter = (): FormatConverter<Member, any> => ({
 //==============================================================
 
 export const MemberModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.organization_users,
+    prismaObject: (prisma: PrismaType) => prisma.member,
     format: memberFormatter(),
     type: 'Member' as GraphQLModelType,
 })

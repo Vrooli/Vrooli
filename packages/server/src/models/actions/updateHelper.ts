@@ -1,6 +1,5 @@
 import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode, logger, LogLevel } from "../../events";
-import { LogType } from "../../schema/types";
+import { CustomError, genErrorCode } from "../../events";
 import { RecursivePartial } from "../../types";
 import { addSupplementalFields, getUserId, toPartialGraphQLInfo } from "../builder";
 import { UpdateHelperProps } from "./types";

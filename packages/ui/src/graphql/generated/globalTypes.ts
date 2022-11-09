@@ -24,14 +24,6 @@ export enum CommentSortBy {
   VotesDesc = "VotesDesc",
 }
 
-export enum CopyType {
-  Node = "Node",
-  Organization = "Organization",
-  Project = "Project",
-  Routine = "Routine",
-  Standard = "Standard",
-}
-
 export enum DeleteOneType {
   Comment = "Comment",
   Email = "Email",
@@ -50,36 +42,6 @@ export enum ForkType {
   Project = "Project",
   Routine = "Routine",
   Standard = "Standard",
-}
-
-export enum LogSortBy {
-  DateCreatedAsc = "DateCreatedAsc",
-  DateCreatedDesc = "DateCreatedDesc",
-}
-
-export enum LogType {
-  Copy = "Copy",
-  Create = "Create",
-  Delete = "Delete",
-  Downvote = "Downvote",
-  Fork = "Fork",
-  OrganizationAddMember = "OrganizationAddMember",
-  OrganizationJoin = "OrganizationJoin",
-  OrganizationLeave = "OrganizationLeave",
-  OrganizationRemoveMember = "OrganizationRemoveMember",
-  OrganizationUpdateMember = "OrganizationUpdateMember",
-  ProjectComplete = "ProjectComplete",
-  RemoveStar = "RemoveStar",
-  RemoveVote = "RemoveVote",
-  RoutineCancel = "RoutineCancel",
-  RoutineComplete = "RoutineComplete",
-  RoutineStartCanceled = "RoutineStartCanceled",
-  RoutineStartCompleted = "RoutineStartCompleted",
-  RoutineStartIncomplete = "RoutineStartIncomplete",
-  Star = "Star",
-  Update = "Update",
-  Upvote = "Upvote",
-  View = "View",
 }
 
 export enum NodeType {
@@ -352,11 +314,6 @@ export interface CommentUpdateInput {
   translationsUpdate?: CommentTranslationUpdateInput[] | null;
 }
 
-export interface CopyInput {
-  id: string;
-  objectType: CopyType;
-}
-
 export interface DeleteManyInput {
   ids: string[];
 }
@@ -428,6 +385,7 @@ export interface FindHandlesInput {
 
 export interface ForkInput {
   id: string;
+  intendToPullRequest: boolean;
   objectType: ForkType;
 }
 
@@ -479,20 +437,6 @@ export interface InputItemUpdateInput {
 
 export interface LogOutInput {
   id?: string | null;
-}
-
-export interface LogSearchInput {
-  actions?: string[] | null;
-  after?: string | null;
-  createdTimeFrame?: TimeFrame | null;
-  data?: string | null;
-  ids?: string[] | null;
-  sortBy?: LogSortBy | null;
-  object1Type?: string | null;
-  object1Id?: string | null;
-  object2Type?: string | null;
-  object2Id?: string | null;
-  take?: number | null;
 }
 
 export interface LoopCreateInput {
@@ -1545,6 +1489,10 @@ export interface UserTranslationUpdateInput {
   id: string;
   language?: string | null;
   bio?: string | null;
+}
+
+export interface ValidateSessionInput {
+  timeZone?: string | null;
 }
 
 export interface ViewSearchInput {

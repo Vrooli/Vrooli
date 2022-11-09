@@ -3,6 +3,8 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
+import { ValidateSessionInput } from "./globalTypes";
+
 // ====================================================
 // GraphQL mutation operation: validateSession
 // ====================================================
@@ -24,4 +26,8 @@ export interface validateSession_validateSession {
 
 export interface validateSession {
   validateSession: validateSession_validateSession;
+}
+
+export interface validateSessionVariables {
+  input: ValidateSessionInput;
 }

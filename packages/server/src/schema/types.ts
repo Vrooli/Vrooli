@@ -150,28 +150,6 @@ export type CommentedOn = Project | Routine | Standard;
 
 export type Contributor = Organization | User;
 
-export type CopyInput = {
-  id: Scalars['ID'];
-  objectType: CopyType;
-};
-
-export type CopyResult = {
-  __typename?: 'CopyResult';
-  node?: Maybe<Node>;
-  organization?: Maybe<Organization>;
-  project?: Maybe<Project>;
-  routine?: Maybe<Routine>;
-  standard?: Maybe<Standard>;
-};
-
-export enum CopyType {
-  Node = 'Node',
-  Organization = 'Organization',
-  Project = 'Project',
-  Routine = 'Routine',
-  Standard = 'Standard'
-}
-
 export type Count = {
   __typename?: 'Count';
   count: Scalars['Int'];
@@ -392,86 +370,9 @@ export type LearnPageResult = {
   tutorials: Array<Routine>;
 };
 
-export type Log = {
-  __typename?: 'Log';
-  action: LogType;
-  data?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  object1Id?: Maybe<Scalars['ID']>;
-  object1Type?: Maybe<Scalars['String']>;
-  object2Id?: Maybe<Scalars['ID']>;
-  object2Type?: Maybe<Scalars['String']>;
-  timestamp: Scalars['Date'];
-};
-
-export type LogCreateInput = {
-  action: LogType;
-  data?: InputMaybe<Scalars['String']>;
-  object1Id?: InputMaybe<Scalars['ID']>;
-  object1Type?: InputMaybe<Scalars['String']>;
-  object2Id?: InputMaybe<Scalars['ID']>;
-  object2Type?: InputMaybe<Scalars['String']>;
-};
-
-export type LogEdge = {
-  __typename?: 'LogEdge';
-  cursor: Scalars['String'];
-  node: Log;
-};
-
 export type LogOutInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
-
-export type LogSearchInput = {
-  actions?: InputMaybe<Array<Scalars['String']>>;
-  after?: InputMaybe<Scalars['String']>;
-  createdTimeFrame?: InputMaybe<TimeFrame>;
-  data?: InputMaybe<Scalars['String']>;
-  ids?: InputMaybe<Array<Scalars['ID']>>;
-  object1Id?: InputMaybe<Scalars['ID']>;
-  object1Type?: InputMaybe<Scalars['String']>;
-  object2Id?: InputMaybe<Scalars['ID']>;
-  object2Type?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<LogSortBy>;
-  take?: InputMaybe<Scalars['Int']>;
-};
-
-export type LogSearchResult = {
-  __typename?: 'LogSearchResult';
-  edges: Array<LogEdge>;
-  pageInfo: PageInfo;
-};
-
-export enum LogSortBy {
-  DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc'
-}
-
-export enum LogType {
-  Copy = 'Copy',
-  Create = 'Create',
-  Delete = 'Delete',
-  Downvote = 'Downvote',
-  Fork = 'Fork',
-  OrganizationAddMember = 'OrganizationAddMember',
-  OrganizationJoin = 'OrganizationJoin',
-  OrganizationLeave = 'OrganizationLeave',
-  OrganizationRemoveMember = 'OrganizationRemoveMember',
-  OrganizationUpdateMember = 'OrganizationUpdateMember',
-  ProjectComplete = 'ProjectComplete',
-  RemoveStar = 'RemoveStar',
-  RemoveVote = 'RemoveVote',
-  RoutineCancel = 'RoutineCancel',
-  RoutineComplete = 'RoutineComplete',
-  RoutineStartCanceled = 'RoutineStartCanceled',
-  RoutineStartCompleted = 'RoutineStartCompleted',
-  RoutineStartIncomplete = 'RoutineStartIncomplete',
-  Star = 'Star',
-  Update = 'Update',
-  Upvote = 'Upvote',
-  View = 'View'
-}
 
 export type Loop = {
   __typename?: 'Loop';
@@ -559,7 +460,6 @@ export type Mutation = {
   apiKeyValidate: Success;
   commentCreate: Comment;
   commentUpdate: Comment;
-  copy: CopyResult;
   deleteOne: Success;
   emailCreate: Email;
   emailLogIn: Session;
@@ -571,7 +471,6 @@ export type Mutation = {
   feedbackCreate: Success;
   fork: ForkResult;
   guestLogIn: Session;
-  logDeleteMany: Count;
   logOut: Session;
   nodeCreate: Node;
   nodeUpdate: Node;
@@ -626,11 +525,6 @@ export type MutationCommentUpdateArgs = {
 };
 
 
-export type MutationCopyArgs = {
-  input: CopyInput;
-};
-
-
 export type MutationDeleteOneArgs = {
   input: DeleteOneInput;
 };
@@ -673,11 +567,6 @@ export type MutationFeedbackCreateArgs = {
 
 export type MutationForkArgs = {
   input: ForkInput;
-};
-
-
-export type MutationLogDeleteManyArgs = {
-  input?: InputMaybe<DeleteManyInput>;
 };
 
 
@@ -851,6 +740,11 @@ export type MutationUserDeleteOneArgs = {
 };
 
 
+export type MutationValidateSessionArgs = {
+  input: ValidateSessionInput;
+};
+
+
 export type MutationVoteArgs = {
   input: VoteInput;
 };
@@ -896,10 +790,10 @@ export type NodeCreateInput = {
   loopCreate?: InputMaybe<LoopCreateInput>;
   nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
   nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
-  routineId?: InputMaybe<Scalars['ID']>;
+  routineVersionId: Scalars['ID'];
   rowIndex?: InputMaybe<Scalars['Int']>;
   translationsCreate?: InputMaybe<Array<NodeTranslationCreateInput>>;
-  type?: InputMaybe<NodeType>;
+  type: NodeType;
 };
 
 export type NodeData = NodeEnd | NodeRoutineList;
@@ -1104,7 +998,7 @@ export type NodeUpdateInput = {
   nodeEndUpdate?: InputMaybe<NodeEndUpdateInput>;
   nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   nodeRoutineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
-  routineId?: InputMaybe<Scalars['ID']>;
+  routineVersionId?: InputMaybe<Scalars['ID']>;
   rowIndex?: InputMaybe<Scalars['Int']>;
   translationsCreate?: InputMaybe<Array<NodeTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -1319,7 +1213,6 @@ export type Profile = {
   emails: Array<Email>;
   handle?: Maybe<Scalars['String']>;
   hiddenTags?: Maybe<Array<TagHidden>>;
-  history: Array<Log>;
   id: Scalars['ID'];
   name: Scalars['String'];
   projects: Array<Project>;
@@ -1667,7 +1560,6 @@ export type Query = {
   historyPage: HistoryPageResult;
   homePage: HomePageResult;
   learnPage: LearnPageResult;
-  logs: LogSearchResult;
   organization?: Maybe<Organization>;
   organizations: OrganizationSearchResult;
   organizationsCount: Scalars['Int'];
@@ -1738,11 +1630,6 @@ export type QueryHistoryPageArgs = {
 
 export type QueryHomePageArgs = {
   input: HomePageInput;
-};
-
-
-export type QueryLogsArgs = {
-  input: LogSearchInput;
 };
 
 
@@ -2374,7 +2261,7 @@ export type RoutineCreateInput = {
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<RoutineTranslationCreateInput>>;
-  version?: InputMaybe<Scalars['String']>;
+  versionLabel?: InputMaybe<Scalars['String']>;
 };
 
 export type RoutineEdge = {
@@ -2508,7 +2395,7 @@ export type RoutineUpdateInput = {
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<RoutineTranslationUpdateInput>>;
   userId?: InputMaybe<Scalars['ID']>;
-  version?: InputMaybe<Scalars['String']>;
+  versionLabel?: InputMaybe<Scalars['String']>;
 };
 
 export type Run = {
@@ -2545,7 +2432,6 @@ export type RunCompleteInput = {
   title: Scalars['String'];
   version: Scalars['String'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
-  wasRunAutomatically?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type RunCountInput = {
@@ -2557,10 +2443,9 @@ export type RunCreateInput = {
   id: Scalars['ID'];
   inputsCreate?: InputMaybe<Array<RunInputCreateInput>>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  routineId: Scalars['ID'];
+  routineVersionId: Scalars['ID'];
   stepsCreate?: InputMaybe<Array<RunStepCreateInput>>;
   title: Scalars['String'];
-  version: Scalars['String'];
 };
 
 export type RunEdge = {
@@ -2731,8 +2616,8 @@ export type SendVerificationEmailInput = {
 export type Session = {
   __typename?: 'Session';
   isLoggedIn: Scalars['Boolean'];
-  timeZone?: Scalars['String'];
-  users?: Maybe<Array<SessionUser>>;  
+  timeZone?: Maybe<Scalars['String']>;
+  users?: Maybe<Array<SessionUser>>;
 };
 
 export type SessionUser = {
@@ -2799,7 +2684,7 @@ export type StandardCreateInput = {
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
   type: Scalars['String'];
-  version?: InputMaybe<Scalars['String']>;
+  versionLabel?: InputMaybe<Scalars['String']>;
   yup?: InputMaybe<Scalars['String']>;
 };
 
@@ -3200,6 +3085,10 @@ export type UserTranslationUpdateInput = {
   bio?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
+};
+
+export type ValidateSessionInput = {
+  timeZone?: InputMaybe<Scalars['String']>;
 };
 
 export type View = {

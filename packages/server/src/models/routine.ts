@@ -19,6 +19,7 @@ import { RecursivePartial, PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { deleteOneHelper } from "./actions";
 import { FormatConverter, PartialGraphQLInfo, Permissioner, Searcher, ValidateMutationsInput, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType } from "./types";
+import { Prisma } from "@prisma/client";
 
 type NodeWeightData = {
     simplicity: number,
@@ -96,8 +97,8 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
                         let runs: any[] = await prisma.run.findMany({
                             where: {
                                 AND: [
-                                    { routineId: { in: ids } },
-                                    { userId },
+                                    { routineVersion: { root: { id: { in: ids } } } },
+                                    { user: { id: userId } }
                                 ]
                             },
                             ...selectHelper(runPartial)
@@ -532,7 +533,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         // if (uniqueNodes.length < combinedNodes.length) throw new CustomError(CODE.NodeDuplicatePosition);
         return;
     },
-    async toDBShape(userId: string | null, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean): Promise<any> {
+    async toDBShapeBase(userId: string, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean) {
         const [simplicity, complexity] = await this.calculateComplexity(data);
         return {
             id: data.id,
@@ -543,11 +544,11 @@ export const routineMutater = (prisma: PrismaType) => ({
             complexity: complexity,
             simplicity: simplicity,
             isInternal: data.isInternal ?? undefined,
-            parentId: (data as RoutineCreateInput)?.parentId ?? undefined,
             projectId: data.projectId ?? undefined,
-            version: data.version ?? undefined,
+            versionLabel: data.versionLabel ?? undefined,
             versionGroupId: isAdd ? uuid() : undefined,
-            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
+            permissions: JSON.stringify({}),
+            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
             tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Routine'),
             inputs: await this.relationshipBuilderInput(userId, data, isAdd),
             outputs: await this.relationshipBuilderOutput(userId, data, isAdd),
@@ -556,13 +557,24 @@ export const routineMutater = (prisma: PrismaType) => ({
             translations: TranslationModel.relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, isAdd),
         }
     },
+    async toDBShapeCreate(userId: string, data: RoutineCreateInput): Promise<Prisma.routineUpsertArgs['create']> {
+        return {
+            ...(await this.toDBShapeBase(userId, data, true)),
+            parentId: data?.parentId ?? undefined,
+        }
+    },
+    async toDBShapeUpdate(userId: string, data: RoutineUpdateInput): Promise<Prisma.routineUpsertArgs['update']> {
+        return {
+            ...(await this.toDBShapeBase(userId, data, false)),
+        }
+    },
     /**
     * Add, update, or remove routine inputs from a routine.
     * NOTE: Input is whole routine data, not just the inputs. 
     * This is because we may need the node data to calculate inputs
     */
     async relationshipBuilderInput(
-        userId: string | null,
+        userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {
@@ -629,7 +641,7 @@ export const routineMutater = (prisma: PrismaType) => ({
      * This is because we may need the node data to calculate outputs
      */
     async relationshipBuilderOutput(
-        userId: string | null,
+        userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {
@@ -693,7 +705,7 @@ export const routineMutater = (prisma: PrismaType) => ({
      * must do this separately, and return the routine's ID.
      */
     async relationshipBuilder(
-        userId: string | null,
+        userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<string | undefined> {
@@ -710,7 +722,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         });
         // Shape
         if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
-            const create = await this.toDBShape(userId, formattedInput.create[0], true);
+            const create = await this.toDBShapeCreate(userId, formattedInput.create[0], true);
             // Create routine
             const routine = await prisma.routine.create({
                 data: create,
@@ -724,7 +736,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             return undefined;
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
-            const update = await this.toDBShape(userId, formattedInput.update[0].data, false);
+            const update = await this.toDBShapeUpdate(userId, formattedInput.update[0].data, false);
             // Update routine
             const routine = await prisma.routine.update({
                 where: { id: update.id },
@@ -752,8 +764,6 @@ export const routineMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RoutineCreateInput, RoutineUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0093') });
         // Validate userIds, organizationIds, and projectIds
         await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Routine' });
         // Validate max objects
@@ -786,7 +796,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                let data = await this.toDBShape(userId, input, true);
+                let data = await this.toDBShapeCreate(userId, input, true);
                 // Associate with either organization or user
                 if (input.createdByOrganizationId) {
                     data = {
@@ -813,7 +823,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             // Loop through each update input
             for (const input of updateMany) {
                 // Call createData helper function
-                let data = await this.toDBShape(userId, input.data, false);
+                let data = await this.toDBShapeUpdate(userId, input.data, false);
                 // Find object
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)

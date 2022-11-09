@@ -22,11 +22,11 @@ export const typeDef = gql`
         id: ID!
         columnIndex: Int
         rowIndex: Int
-        type: NodeType
+        type: NodeType!
         loopCreate: LoopCreateInput
         nodeEndCreate: NodeEndCreateInput
         nodeRoutineListCreate: NodeRoutineListCreateInput
-        routineId: ID
+        routineVersionId: ID!
         translationsCreate: [NodeTranslationCreateInput!]
     }
     input NodeUpdateInput {
@@ -41,7 +41,7 @@ export const typeDef = gql`
         nodeEndUpdate: NodeEndUpdateInput
         nodeRoutineListCreate: NodeRoutineListCreateInput
         nodeRoutineListUpdate: NodeRoutineListUpdateInput
-        routineId: ID
+        routineVersionId: ID
         translationsDelete: [ID!]
         translationsCreate: [NodeTranslationCreateInput!]
         translationsUpdate: [NodeTranslationUpdateInput!]

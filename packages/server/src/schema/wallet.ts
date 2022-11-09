@@ -131,7 +131,6 @@ export const resolvers = {
                                 id: true,
                                 userId: true,
                                 organizationId: true,
-                                projectId: true,
                             }
                         }
                     }
@@ -143,7 +142,7 @@ export const resolvers = {
                         where: { id: { in: badLinks.map(({ id }) => id) } },
                         data: { walletId: currWallet.id }
                     })
-                    // Remove the handle from the user, organization, or project linked to a wallet with one of the bad handles
+                    // Remove the handle from the user or organization linked to a wallet with one of the bad handles
                     const userIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.userId));
                     await prisma.user.updateMany({
                         where: { id: { in: userIds } },
@@ -152,11 +151,6 @@ export const resolvers = {
                     const organizationIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.organizationId));
                     await prisma.organization.updateMany({
                         where: { id: { in: organizationIds } },
-                        data: { handle: null }
-                    });
-                    const projectIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.projectId));
-                    await prisma.project.updateMany({
-                        where: { id: { in: projectIds } },
                         data: { handle: null }
                     });
                 }

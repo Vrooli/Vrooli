@@ -26,7 +26,7 @@ export const emailVerifier = () => ({
 })
 
 export const emailMutater = (prisma: PrismaType) => ({
-    toDBShapeAdd(userId: string | null, data: EmailCreateInput): any {
+    toDBShapeAdd(userId: string, data: EmailCreateInput): any {
         return {
             userId,
             emailAddress: data.emailAddress,
@@ -34,7 +34,7 @@ export const emailMutater = (prisma: PrismaType) => ({
             receivesBusinessUpdates: data.receivesBusinessUpdates ?? true,
         }
     },
-    toDBShapeUpdate(userId: string | null, data: EmailUpdateInput): any {
+    toDBShapeUpdate(userId: string, data: EmailUpdateInput): any {
         return {
             id: data.id,
             receivesAccountUpdates: data.receivesAccountUpdates ?? undefined,
@@ -42,7 +42,7 @@ export const emailMutater = (prisma: PrismaType) => ({
         }
     },
     async relationshipBuilder(
-        userId: string | null,
+        userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'emails',
@@ -64,8 +64,6 @@ export const emailMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<EmailCreateInput, EmailUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0043') });
         if (createMany) {
             emailsCreate.validateSync(createMany, { abortEarly: false });
             emailVerifier().profanityCheck(createMany);

@@ -9,6 +9,7 @@ import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, Count } from "../s
 import { RecursivePartial, PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
 import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { Prisma } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -79,11 +80,21 @@ export const tagVerifier = () => ({
 })
 
 export const tagMutater = (prisma: PrismaType) => ({
-    async toDBShape(userId: string | null, data: TagCreateInput | TagUpdateInput): Promise<any> {
+    toDBShapeBase(userId: string, data: TagCreateInput | TagUpdateInput) {
         return {
             tag: data.tag,
             createdByUserId: userId,
             translations: TranslationModel.relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
+        }
+    },
+    async toDBShapeCreate(userId: string, data: TagCreateInput): Promise<Prisma.tagUpsertArgs['create']> {
+        return {
+            ...this.toDBShapeBase(userId, data),
+        }
+    },
+    async toDBShapeUpdate(userId: string, data: TagUpdateInput): Promise<Prisma.tagUpsertArgs['update']> {
+        return {
+            ...this.toDBShapeBase(userId, data),
         }
     },
     /**
@@ -97,7 +108,7 @@ export const tagMutater = (prisma: PrismaType) => ({
         'TagHidden': 'user_tags_hidden_userid_tagTag_unique',
     },
     async relationshipBuilder(
-        userId: string | null,
+        userId: string,
         input: { [x: string]: any },
         parentType: keyof typeof this.parentMapper,
         relationshipName: string = 'tags',
@@ -156,8 +167,6 @@ export const tagMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<TagCreateInput, TagUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0112') });
         if (createMany) {
             tagsCreate.validateSync(createMany, { abortEarly: false });
             tagVerifier().profanityCheck(createMany);
@@ -185,7 +194,7 @@ export const tagMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShape(input.anonymous ? null : userId, input);
+                const data = await this.toDBShapeCreate(input.anonymous ? null : userId, input);
                 // Create object
                 const currCreated = await prisma.tag.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -206,7 +215,7 @@ export const tagMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.tag.update({
                     where: input.where,
-                    data: await this.toDBShape(input.data.anonymous ? null : userId, input.data),
+                    data: await this.toDBShapeUpdate(input.data.anonymous ? null : userId, input.data),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

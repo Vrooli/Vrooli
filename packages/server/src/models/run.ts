@@ -2,12 +2,12 @@ import { runsCreate, runsUpdate } from "@shared/validation";
 import { CODE, RunSortBy } from "@shared/consts";
 import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, getSearchStringQueryHelper, combineQueries, onlyValidIds } from "./builder";
 import { RunStepModel } from "./runStep";
-import { run, RunStatus } from "@prisma/client";
+import { Prisma, run, RunStatus } from "@prisma/client";
 import { RunInputModel } from "./runInput";
 import { organizationQuerier } from "./organization";
 import { routinePermissioner } from "./routine";
-import { CustomError, genErrorCode, logger, LogLevel, Trigger } from "../events";
-import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, LogType, RunCompleteInput, RunCancelInput } from "../schema/types";
+import { CustomError, genErrorCode, Trigger } from "../events";
+import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
 import { FormatConverter, Searcher, Permissioner, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo } from "./types";
@@ -158,20 +158,19 @@ export const runPermissioner = (): Permissioner<RunPermission, RunSearchInput> =
  * Handles run instances of routines
  */
 export const runMutater = (prisma: PrismaType) => ({
-    async toDBShapeAdd(userId: string, data: RunCreateInput): Promise<any> {
+    async toDBShapeCreate(userId: string, data: RunCreateInput): Promise<Prisma.runUpsertArgs['create']> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
             id: data.id,
             timeStarted: new Date(),
-            routineId: data.routineId,
+            routineVersionId: data.routineVersionId,
             status: RunStatus.InProgress,
             steps: await RunStepModel.mutate(prisma).relationshipBuilder(userId, data, true, 'step'),
             title: data.title,
             userId,
-            version: data.version,
         }
     },
-    async toDBShapeUpdate(userId: string, updateData: RunUpdateInput, existingData: Run): Promise<any> {
+    async toDBShapeUpdate(userId: string, updateData: RunUpdateInput, existingData: Run): Promise<Prisma.runUpsertArgs['update']> {
         return {
             timeElapsed: (existingData.timeElapsed ?? 0) + (updateData.timeElapsed ?? 0),
             completedComplexity: (existingData.completedComplexity ?? 0) + (updateData.completedComplexity ?? 0),
@@ -184,8 +183,6 @@ export const runMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<RunCreateInput, RunUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0174') });
         if (createMany) {
             runsCreate.validateSync(createMany, { abortEarly: false });
             runVerifier().profanityCheck(createMany);
@@ -206,14 +203,13 @@ export const runMutater = (prisma: PrismaType) => ({
      */
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
         await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        if (!userId) throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0175') });
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
         if (createMany) {
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeAdd(userId, input);
+                const data = await this.toDBShapeCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.run.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -336,11 +332,10 @@ export const runMutater = (prisma: PrismaType) => ({
                     timeCompleted: new Date(),
                     timeElapsed: input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0,
                     contextSwitches: input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0,
-                    routineId: input.id,
+                    routineVersionId: input.id,
                     status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
                     title: input.title,
                     userId,
-                    version: input.version,
                     steps: {
                         create: input.finalStepCreate ? {
                             order: input.finalStepCreate.order ?? 1,
@@ -365,7 +360,7 @@ export const runMutater = (prisma: PrismaType) => ({
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
         // Handle trigger
-        await Trigger(prisma).runComplete(input.id, userId, input.wasRunAutomatically ?? false, input.wasSuccessful ?? false);
+        await Trigger(prisma).runComplete(input.id, userId, false, input.wasSuccessful ?? false);
         // Return converted object
         return converted as Run;
     },

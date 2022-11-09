@@ -8,6 +8,7 @@ import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput, Count 
 import { RecursivePartial, PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
 import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { Prisma, ReportStatus } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -93,17 +94,18 @@ const forMapper = {
 }
 
 export const reportMutater = (prisma: PrismaType) => ({
-    async toDBShapeAdd(userId: string | null, data: ReportCreateInput): Promise<any> {
+    async toDBShapeAdd(userId: string, data: ReportCreateInput): Promise<Prisma.reportUpsertArgs['create']> {
         return {
             id: data.id,
             language: data.language,
             reason: data.reason,
             details: data.details,
+            status: ReportStatus.Open,
             from: { connect: { id: userId } },
             [forMapper[data.createdFor]]: { connect: { id: data.createdForId } },
         }
     },
-    async toDBShapeUpdate(userId: string | null, data: ReportUpdateInput): Promise<any> {
+    async toDBShapeUpdate(userId: string, data: ReportUpdateInput): Promise<Prisma.reportUpsertArgs['update']> {
         return {
             reason: data.reason ?? undefined,
             details: data.details,
@@ -113,8 +115,6 @@ export const reportMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ReportCreateInput, ReportUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0083') });
         if (createMany) {
             reportsCreate.validateSync(createMany, { abortEarly: false });
             reportVerifier().profanityCheck(createMany);

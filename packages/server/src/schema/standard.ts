@@ -28,7 +28,7 @@ export const typeDef = gql`
         type: String!
         props: String!
         yup: String
-        version: String
+        versionLabel: String
         createdByUserId: ID
         createdByOrganizationId: ID
         resourceListsCreate: [ResourceListCreateInput!]
@@ -49,6 +49,7 @@ export const typeDef = gql`
         translationsDelete: [ID!]
         translationsCreate: [StandardTranslationCreateInput!]
         translationsUpdate: [StandardTranslationUpdateInput!]
+        versionLabel: String! # Cannot update existing version, so we must pass in a new version label
     }
     type Standard {
         id: ID!
@@ -65,9 +66,9 @@ export const typeDef = gql`
         type: String!
         props: String!
         yup: String
-        version: String!
-        versionGroupId: ID!
-        versions: [String!]!
+        versionLabel: String!
+        rootId: ID!
+        versions: [Version!]!
         score: Int!
         stars: Int!
         views: Int!

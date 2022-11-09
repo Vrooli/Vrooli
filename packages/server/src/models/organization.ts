@@ -4,7 +4,7 @@ import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraph
 import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
 import { CODE } from '@shared/consts';
 import { omit } from '@shared/utils';
-import { role } from "@prisma/client";
+import { Prisma, role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
@@ -221,7 +221,19 @@ export const organizationQuerier = () => ({
 })
 
 export const organizationMutater = (prisma: PrismaType) => ({
-    async toDBShapeAdd(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
+    async toDBShapeBase(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput) {
+        return {
+            id: data.id,
+            handle: data.handle ?? undefined,
+            isOpenToNewMembers: data.isOpenToNewMembers ?? undefined,
+            isPrivate: data.isPrivate ?? undefined,
+            permissions: JSON.stringify({}),
+            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
+            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Organization'),
+            translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
+        }
+    },
+    async toDBShapeCreate(userId: string | null, data: OrganizationCreateInput): Promise<Prisma.organizationUpsertArgs['create']> {
         // Add yourself as a member
         const members = { members: { create: { user: { connect: { id: userId ?? '' } } } } };
         // Create an Admin role assignment for yourself
@@ -229,33 +241,19 @@ export const organizationMutater = (prisma: PrismaType) => ({
         return {
             ...members,
             ...roles,
-            id: data.id,
-            handle: (data as OrganizationUpdateInput).handle ?? undefined,
-            isOpenToNewMembers: data.isOpenToNewMembers ?? undefined,
-            isPrivate: data.isPrivate ?? undefined,
-            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Organization'),
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
+            ...this.toDBShapeBase(userId, data),
         }
     },
-    async toDBShapeUpdate(userId: string | null, data: OrganizationCreateInput | OrganizationUpdateInput): Promise<any> {
+    async toDBShapeUpdate(userId: string | null, data: OrganizationUpdateInput): Promise<Prisma.organizationUpsertArgs['update']> {
         // TODO members
         return {
-            id: data.id,
-            handle: (data as OrganizationUpdateInput).handle ?? null,
-            isOpenToNewMembers: data.isOpenToNewMembers ?? undefined,
-            isPrivate: data.isPrivate ?? undefined,
-            resourceLists: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Organization'),
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
+            ...this.toDBShapeBase(userId, data),
         }
     },
     async validateMutations({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0055') });
         if (createMany) {
             organizationsCreate.validateSync(createMany, { abortEarly: false });
             TranslationModel.profanityCheck(createMany);
@@ -266,7 +264,7 @@ export const organizationMutater = (prisma: PrismaType) => ({
             // if (existingCount + (createMany?.length ?? 0) - (deleteMany?.length ?? 0) > 100) {
             //     throw new CustomError(CODE.MaxOrganizationsReached, 'Cannot create any more organizations with this account - maximum reached', { code: genErrorCode('0056') });
             // }
-            // TODO handle
+            // TODO verify handle
         }
         if (updateMany) {
             organizationsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
@@ -303,7 +301,7 @@ export const organizationMutater = (prisma: PrismaType) => ({
             // Loop through each create input
             for (const input of createMany) {
                 // Call createData helper function
-                const data = await this.toDBShapeAdd(userId, input);
+                const data = await this.toDBShapeCreate(userId, input);
                 // Create object
                 const currCreated = await prisma.organization.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL

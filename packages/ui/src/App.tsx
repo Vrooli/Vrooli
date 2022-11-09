@@ -14,7 +14,7 @@ import { PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { ApolloError, useMutation } from '@apollo/client';
+import { useMutation } from '@apollo/client';
 import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
@@ -22,6 +22,8 @@ import Confetti from 'react-confetti';
 import { CODE } from '@shared/consts';
 import { guestSession } from 'utils/authentication';
 import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
+import { hasErrorCode, mutationWrapper } from 'graphql/utils';
+import { validateSessionVariables, validateSession_validateSession } from 'graphql/generated/validateSession';
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -210,30 +212,30 @@ export function App() {
             return;
         }
         // Check if previous log in exists
-        validateSession().then(({ data }) => {
-            setSession(data?.validateSession);
-        }).catch((response: ApolloError) => {
-            // Check if error is expired/invalid session
-            let isInvalidSession = false;
-            if (response.graphQLErrors && response.graphQLErrors.length > 0) {
-                const error = response.graphQLErrors[0];
-                if (error.extensions.code === CODE.SessionExpired.code) {
+        mutationWrapper<validateSession_validateSession, validateSessionVariables>({
+            mutation: validateSession,
+            input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+            onSuccess: (data) => { setSession(data) },
+            onError: (error: any) => {
+                let isInvalidSession = false;
+                // Check if error is expired/invalid session
+                if (hasErrorCode(error, CODE.SessionExpired)) {
                     isInvalidSession = true;
                     // Log in development mode
-                    if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
+                    if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', error);
                 }
-            }
-            // If error is something else, notify user
-            if (!isInvalidSession) {
-                PubSub.get().publishSnack({
-                    message: 'Failed to connect to server.',
-                    severity: SnackSeverity.Error,
-                    buttonText: 'Reload',
-                    buttonClicked: () => window.location.reload(),
-                });
-            }
-            // If not logged in as guest and failed to log in as user, set guest session
-            if (!session) setSession(guestSession)
+                // If error is something else, notify user
+                if (!isInvalidSession) {
+                    PubSub.get().publishSnack({
+                        message: 'Failed to connect to server.',
+                        severity: SnackSeverity.Error,
+                        buttonText: 'Reload',
+                        buttonClicked: () => window.location.reload(),
+                    });
+                }
+                // If not logged in as guest and failed to log in as user, set guest session
+                if (!session) setSession(guestSession)
+            },
         })
     }, [validateSession])
 

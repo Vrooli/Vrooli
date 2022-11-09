@@ -109,9 +109,8 @@ export const typeDef = gql`
     input RunCreateInput {
         id: ID!
         isPrivate: Boolean
-        routineId: ID!
+        routineVersionId: ID!
         title: String!
-        version: String!
         stepsCreate: [RunStepCreateInput!]
         inputsCreate: [RunInputCreateInput!]
         # If scheduling info provided, not starting immediately
@@ -151,7 +150,7 @@ export const typeDef = gql`
     }
 
     input RunCompleteInput {
-        id: ID! # Run ID if "exists" is true, or routine ID if "exists" is false
+        id: ID! # Run ID if "exists" is true, or routine version ID if "exists" is false
         completedComplexity: Int # Even though the run was completed, the user may not have completed every subroutine
         exists: Boolean # If true, run ID is provided, otherwise routine ID so we can create a run
         title: String! # Title of routine, so run name stays consistent even if routine updates/deletes
@@ -160,7 +159,6 @@ export const typeDef = gql`
         inputsDelete: [ID!]
         inputsCreate: [RunInputCreateInput!]
         inputsUpdate: [RunInputUpdateInput!]
-        version: String! # Version of routine which was ran
         wasSuccessful: Boolean
     }
 
@@ -223,7 +221,7 @@ export const resolvers = {
         },
         runComplete: async (_parent: undefined, { input }: IWrap<RunCompleteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return RunModel.mutate(prisma).complete(getUserId(req) ?? '', { ...input, wasRunAutomatically: false }, info);
+            return RunModel.mutate(prisma).complete(getUserId(req) ?? '', input, info);
         },
         runCancel: async (_parent: undefined, { input }: IWrap<RunCancelInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
             await rateLimit({ info, maxUser: 1000, req });

@@ -91,7 +91,7 @@ export async function generateSessionJwt(res: Response, session: RecursivePartia
     const tokenContents: SessionToken = {
         ...basicToken(),
         isLoggedIn: session.isLoggedIn ?? false,
-        timeZone: session.timeZone,
+        timeZone: session.timeZone ?? undefined,
         // Make sure users are unique by id
         users: [...new Map((session.users ?? []).map((user: SessionUser) => [user.id, user])).values()],
     }

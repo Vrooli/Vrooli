@@ -232,14 +232,14 @@ export type CountInputBase = {
 }
 
 export interface ValidateMutationsInput<Create, Update> {
-    userId: string | null,
+    userId: string,
     createMany?: Create[] | null | undefined,
     updateMany?: { where: { [x: string]: any }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,
 }
 
 export interface CUDInput<Create, Update> {
-    userId: string | null,
+    userId: string,
     createMany?: Create[] | null | undefined,
     updateMany?: { where: { [x: string]: any }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,

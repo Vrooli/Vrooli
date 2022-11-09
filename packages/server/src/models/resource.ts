@@ -9,6 +9,7 @@ import { CustomError, genErrorCode } from "../events";
 import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput, Count } from "../schema/types";
 import { PrismaType } from "../types";
 import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { Prisma } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -109,14 +110,24 @@ export const resourceMutater = (prisma: PrismaType) => ({
         if (!existingResources.some(r => isOwner(userId, r)))
             throw new CustomError(CODE.Unauthorized, 'You do not own the resource, or are not an admin of its organization', { code: genErrorCode('0086') });
     },
-    toDBShape(userId: string | null, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean, isRelationship: boolean): any {
+    toDBShapeBase(userId: string, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean, listId: string | undefined) {
         return {
             id: data.id,
-            listId: !isRelationship ? data.listId : undefined,
+            listId,
             index: data.index,
             link: data.link,
             usedFor: data.usedFor,
             translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceCreate, update: resourceUpdate }, isAdd),
+        };
+    },
+    toDBShapeCreate(userId: string, data: ResourceCreateInput, listId: string | undefined): Prisma.resourceUpsertArgs['create'] | Prisma.resourceCreateWithoutListInput {
+        return {
+            ...this.toDBShapeBase(userId, data, true, listId),
+        };
+    },
+    toDBShapeUpdate(userId: string, data: ResourceUpdateInput, listId: string | undefined): Prisma.resourceUpsertArgs['update'] | Prisma.resourceUpdateWithoutListInput {
+        return {
+            ...this.toDBShapeBase(userId, data, false, listId),
         };
     },
     async relationshipBuilder(
@@ -143,7 +154,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             // If title or description is not provided, try querying for the link's og tags TODO
             const creates: { [x: string]: any }[] = [];
             for (const create of formattedInput.create) {
-                creates.push(this.toDBShape(userId, create as any, true, true));
+                creates.push(this.toDBShapeCreate(userId, create as any, true, true));
             }
             formattedInput.create = creates;
         }
@@ -152,7 +163,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             for (const update of formattedInput.update) {
                 updates.push({
                     where: update.where,
-                    data: this.toDBShape(userId, update.data as any, false, true),
+                    data: this.toDBShapeUpdate(userId, update.data as any, false, true),
                 })
             }
             formattedInput.update = updates;
@@ -163,9 +174,6 @@ export const resourceMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<ResourceCreateInput, ResourceUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0087') });
-
         // Check for max resources on object TODO
         if (createMany) {
             resourcesCreate.validateSync(createMany, { abortEarly: false });
@@ -187,7 +195,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             for (const input of createMany) {
                 // If title or description is not provided, try querying for the link's og tags TODO
                 // Call createData helper function
-                const data = await this.toDBShape(userId, input, true, false);
+                const data = await this.toDBShapeCreate(userId, input, true, false);
                 // Create object
                 const currCreated = await prisma.resource.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
@@ -213,7 +221,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
                 // Update object
                 const currUpdated = await prisma.resource.update({
                     where: input.where,
-                    data: await this.toDBShape(userId, input.data, false, false),
+                    data: await this.toDBShapeUpdate(userId, input.data, false, false),
                     ...selectHelper(partialInfo)
                 });
                 // Convert to GraphQL

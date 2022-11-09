@@ -5,6 +5,7 @@ import { PrismaType } from "../types";
 import { RoutineModel } from "./routine";
 import { TranslationModel } from "./translation";
 import { FormatConverter, GraphQLModelType } from "./types";
+import { Prisma } from "@prisma/client";
 
 //==============================================================
 /* #region Custom Components */
@@ -21,18 +22,18 @@ export const nodeRoutineListFormatter = (): FormatConverter<NodeRoutineList, any
 })
 
 export const nodeRoutineListMutater = (prisma: PrismaType) => ({
-    async toDBShapeCreate(userId: string | null, data: NodeRoutineListCreateInput): Promise<any> {
+    async toDBShapeCreate(userId: string, data: NodeRoutineListCreateInput): Promise<Prisma.node_routine_listCreateNestedOneWithoutNodeInput['create']> {
         return {
             id: data.id,
-            isOrdered: data.isOrdered,
-            isOptional: data.isOptional,
+            isOrdered: data.isOrdered ?? undefined,
+            isOptional: data.isOptional ?? undefined,
             routines: await this.relationshipBuilderRoutineListNodeItem(userId, data, true)
         }
     },
-    async toDBShapeUpdate(userId: string | null, data: NodeRoutineListUpdateInput): Promise<any> {
+    async toDBShapeUpdate(userId: string, data: NodeRoutineListUpdateInput): Promise<Prisma.node_routine_listUpdateOneWithoutNodeNestedInput['update']> {
         return {
-            isOrdered: data.isOrdered,
-            isOptional: data.isOptional,
+            isOrdered: data.isOrdered ?? undefined,
+            isOptional: data.isOptional ?? undefined,
             routines: await this.relationshipBuilderRoutineListNodeItem(userId, data, false)
         }
     },
@@ -40,7 +41,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
      * Add, update, or remove routine list node item data from a node
      */
     async relationshipBuilderRoutineListNodeItem(
-        userId: string | null,
+        userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {
@@ -90,7 +91,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
      * Since this is a one-to-one relationship, we cannot return arrays
      */
     async relationshipBuilder(
-        userId: string | null,
+        userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {

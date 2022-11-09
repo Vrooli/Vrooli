@@ -5,6 +5,7 @@ import { Wallet, WalletUpdateInput, Count } from "../schema/types";
 import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper } from "./builder";
+import { organizationQuerier } from "./organization";
 import { FormatConverter, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
 
 //==============================================================
@@ -61,7 +62,7 @@ export const walletVerifier = (prisma: PrismaType) => ({
 
 export const walletMutater = (prisma: PrismaType) => ({
     async relationshipBuilder(
-        userId: string | null,
+        userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'wallets',
@@ -83,8 +84,6 @@ export const walletMutater = (prisma: PrismaType) => ({
         userId, createMany, updateMany, deleteMany
     }: ValidateMutationsInput<unknown, WalletUpdateInput>): Promise<void> {
         if (!createMany && !updateMany && !deleteMany) return;
-        if (!userId)
-            throw new CustomError(CODE.Unauthorized, 'User must be logged in to perform CRUD operations', { code: genErrorCode('0121') });
         if (createMany) {
             // Not allowed to create wallets this way
             throw new CustomError(CODE.InternalError, 'Not allowed to create wallets with this method', { code: genErrorCode('0122') });
@@ -120,7 +119,12 @@ export const walletMutater = (prisma: PrismaType) => ({
                     where: {
                         AND: [
                             input.where,
-                            { userId },// TODO or organization
+                            {
+                                OR: [
+                                    organizationQuerier().hasRoleInOrganizationQuery(userId),
+                                    { user: { id: userId } }
+                                ]
+                            }
                         ]
                     }
                 })
@@ -144,7 +148,12 @@ export const walletMutater = (prisma: PrismaType) => ({
                 where: {
                     AND: [
                         { id: { in: deleteMany } },
-                        { userId },//TODO
+                        {
+                            OR: [
+                                organizationQuerier().hasRoleInOrganizationQuery(userId),
+                                { user: { id: userId } }
+                            ]
+                        }
                     ]
                 },
                 select: {

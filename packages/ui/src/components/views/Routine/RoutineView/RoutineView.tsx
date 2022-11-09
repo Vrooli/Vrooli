@@ -207,10 +207,9 @@ export const RoutineView = ({
         mutationWrapper<runComplete_runComplete, runCompleteVariables>({
             mutation: runComplete,
             input: {
-                id: routine.id,
+                id: routineVersion.id,
                 exists: false,
                 title: title ?? 'Unnamed Routine',
-                version: routine?.version ?? '',
                 ...runInputsCreate(formikToRunInputs(formik.values)),
             },
             successMessage: () => 'Routine completed!🎉',
