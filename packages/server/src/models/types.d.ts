@@ -1,6 +1,8 @@
 import { GraphQLResolveInfo } from "graphql";
 import { Count, PageInfo, TimeFrame } from "../schema/types";
 import { PrismaType, RecursivePartial } from "../types";
+import { ObjectSchema } from 'yup';
+import { Prisma } from "@prisma/client";
 
 export type GraphQLModelType =
     'Comment' |
@@ -249,6 +251,22 @@ export interface CUDResult<GraphQLObject> {
     created?: RecursivePartial<GraphQLObject>[],
     updated?: RecursivePartial<GraphQLObject>[],
     deleted?: Count, // Number of deleted organizations
+}
+
+export interface CUDHelperInput<GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }, GraphQLObject, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }> {
+    objectType: GraphQLModelType,
+    userId: string,
+    prisma: PrismaType,
+    prismaObject: (prisma: PrismaType) => Prisma.commentDelegate<Prisma.RejectOnNotFound | Prisma.RejectPerOperation | undefined>,
+    createMany?: GraphQLCreate[] | null | undefined,
+    updateMany?: { where: { [x: string]: any }, data: GraphQLUpdate }[] | null | undefined,
+    deleteMany?: string[] | null | undefined,
+    partialInfo: PartialGraphQLInfo,
+    yup: { yupCreate: ObjectSchema, yupUpdate: ObjectSchema },
+    shape: { 
+        shapeCreate: (userId: string, create: GraphQLCreate) => (Promise<DBCreate> | DBCreate),
+        shapeUpdate: (userId: string, update: GraphQLUpdate) => (Promise<DBUpdate> | DBUpdate),
+    },
 }
 
 export interface DuplicateInput {

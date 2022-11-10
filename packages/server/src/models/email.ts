@@ -1,16 +1,12 @@
 import { CODE } from "@shared/consts";
 import { emailsCreate, emailsUpdate } from "@shared/validation";
-import { Count, Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
+import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper } from "./builder";
-import { validateProfanity } from "../utils/censor";
-import { ProfileModel } from "./profile";
+import { relationshipToPrisma, RelationshipTypes } from "./builder";
 import { CustomError, genErrorCode } from "../events";
-import { FormatConverter, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
-
-//==============================================================
-/* #region Custom Components */
-//==============================================================
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Permissioner } from "./types";
+import { cudHelper } from "./actions";
+import { Prisma } from "@prisma/client";
 
 export const emailFormatter = (): FormatConverter<Email, any> => ({
     relationshipMap: {
@@ -19,26 +15,51 @@ export const emailFormatter = (): FormatConverter<Email, any> => ({
     }
 })
 
-export const emailVerifier = () => ({
-    profanityCheck(data: EmailCreateInput[]): void {
-        validateProfanity(data.map(d => d.emailAddress));
+export const emailPermissioner = (): Permissioner<any, any> => ({
+    async get() {
+        return [] as any;
     },
+    ownershipQuery: (userId) => ({
+        user: { id: userId }
+    }),
+})
+
+export const emailValidator = () => ({
+    // Profanity fields to check in addition to translated fields
+    additionalProfanityFields: ['emailAddress'],
+    // Prevent creating emails if at least one is already in use
+    preventCreateIf: [{
+        query: (createMany: EmailCreateInput[]) => ({ emailAddress: { in: createMany.map(email => email.emailAddress) } }),
+        error: () => new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0044') })
+    }],
+    // Prevent deleting emails if it will leave you with less than one 
+    // verified authentification method
+    preventDeleteIf: [{
+    }],
+    // // Check if user has at least one verified authentication method, besides the one being deleted
+    // const numberOfVerifiedEmailDeletes = emails.filter(email => email.verified).length;
+    // const verifiedEmailsCount = await prisma.email.count({
+    //     where: { userId, verified: true }//TODO or organizationId
+    // })
+    // const verifiedWalletsCount = await prisma.wallet.count({
+    //     where: { userId, verified: true }//TODO or organizationId
+    // })
+    // const wontHaveVerifiedEmail = numberOfVerifiedEmailDeletes >= verifiedEmailsCount;
+    // const wontHaveVerifiedWallet = verifiedWalletsCount <= 0;
+    // if (wontHaveVerifiedEmail || wontHaveVerifiedWallet)
+    //     throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods", { code: genErrorCode('0049') });
 })
 
 export const emailMutater = (prisma: PrismaType) => ({
-    toDBAdd(userId: string, data: EmailCreateInput): any {
+    shapeCreate(userId: string, data: EmailCreateInput): Prisma.emailUpsertArgs['create'] {
         return {
             userId,
             emailAddress: data.emailAddress,
-            receivesAccountUpdates: data.receivesAccountUpdates ?? true,
-            receivesBusinessUpdates: data.receivesBusinessUpdates ?? true,
         }
     },
-    toDBUpdate(userId: string, data: EmailUpdateInput): any {
+    shapeUpdate(userId: string, data: EmailUpdateInput): Prisma.emailUpsertArgs['update'] {
         return {
             id: data.id,
-            receivesAccountUpdates: data.receivesAccountUpdates ?? undefined,
-            receivesBusinessUpdates: data.receivesBusinessUpdates ?? undefined,
         }
     },
     async relationshipBuilder(
@@ -51,151 +72,34 @@ export const emailMutater = (prisma: PrismaType) => ({
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by emails (since they can only be applied to one object)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] });
-        const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        await this.validateMutations({
-            userId,
-            createMany: createMany as EmailCreateInput[],
-            updateMany: updateMany as { where: { id: string }, data: EmailUpdateInput }[],
-            deleteMany: deleteMany?.map(d => d.id)
-        });
+        if (Array.isArray(formattedInput.create)) {
+            formattedInput.create = formattedInput.create.map(d => this.shapeCreate(userId, d as any));
+        }
+        if (Array.isArray(formattedInput.update)) {
+            formattedInput.update = formattedInput.update.map(d => ({
+                where: d.where,
+                data: this.shapeUpdate(userId, d.data as any),
+            }));
+        }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
-    async validateMutations({
-        userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<EmailCreateInput, EmailUpdateInput>): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        if (createMany) {
-            emailsCreate.validateSync(createMany, { abortEarly: false });
-            emailVerifier().profanityCheck(createMany);
-            // Make sure emails aren't already in use
-            const emails = await prisma.email.findMany({
-                where: { emailAddress: { in: createMany.map(email => email.emailAddress) } },
-            });
-            if (emails.length > 0)
-                throw new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0044') });
-        }
-        if (updateMany) {
-            emailsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            // Make sure emails are owned by user
-            const emails = await prisma.email.findMany({
-                where: {
-                    AND: [
-                        { id: { in: updateMany.map(email => email.where.id) } },
-                        { userId },
-                    ],
-                },
-            });
-            if (emails.length !== updateMany.length)
-                throw new CustomError(CODE.EmailInUse, 'At least one of these emails is not yours', { code: genErrorCode('0045') });
-        }
-    },
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<EmailCreateInput, EmailUpdateInput>): Promise<CUDResult<Email>> {
-        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        // Perform mutations
-        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
-        if (createMany) {
-            // Loop through each create input
-            for (const input of createMany) {
-                // Check for existing email
-                const existing = await prisma.email.findUnique({ where: { emailAddress: input.emailAddress } });
-                if (existing)
-                    throw new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0046') });
-                // Create object
-                const currCreated = await prisma.email.create({
-                    data: this.toDBAdd(userId, input),
-                    ...selectHelper(partialInfo)
-                });
-                // Send verification email
-                await ProfileModel.verify.setupVerificationCode(input.emailAddress, prisma);
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partialInfo);
-                // Add to created array
-                created = created ? [...created, converted] : [converted];
-            }
-        }
-        if (updateMany) {
-            // Loop through each update input
-            for (const input of updateMany) {
-                // Find in database
-                let object = await prisma.email.findFirst({
-                    where: {
-                        AND: [
-                            input.where,
-                            { userId },
-                        ]
-                    }
-                })
-                if (!object)
-                    throw new CustomError(CODE.NotFound, "Email not found", { code: genErrorCode('0047') });
-                // Update
-                object = await prisma.email.update({
-                    where: input.where,
-                    data: this.toDBUpdate(userId, input.data),
-                    ...selectHelper(partialInfo)
-                });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(object, partialInfo);
-                // Add to updated array
-                updated = updated ? [...updated, converted] : [converted];
-            }
-        }
-        if (deleteMany) {
-            // Find
-            const emails = await prisma.email.findMany({
-                where: {
-                    AND: [
-                        { id: { in: deleteMany } },
-                        { userId },
-                    ]
-                },
-                select: {
-                    id: true,
-                    verified: true,
-                }
-            })
-            if (!emails)
-                throw new CustomError(CODE.NotFound, "Email not found", { code: genErrorCode('0048') });
-            // Check if user has at least one verified authentication method, besides the one being deleted
-            const numberOfVerifiedEmailDeletes = emails.filter(email => email.verified).length;
-            const verifiedEmailsCount = await prisma.email.count({
-                where: { userId, verified: true }//TODO or organizationId
-            })
-            const verifiedWalletsCount = await prisma.wallet.count({
-                where: { userId, verified: true }//TODO or organizationId
-            })
-            const wontHaveVerifiedEmail = numberOfVerifiedEmailDeletes >= verifiedEmailsCount;
-            const wontHaveVerifiedWallet = verifiedWalletsCount <= 0;
-            if (wontHaveVerifiedEmail || wontHaveVerifiedWallet)
-                throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods", { code: genErrorCode('0049') });
-            // Delete
-            deleted = await prisma.email.deleteMany({
-                where: { id: { in: deleteMany } },
-            });
-        }
-        return {
-            created: createMany ? created : undefined,
-            updated: updateMany ? updated : undefined,
-            deleted: deleteMany ? deleted : undefined,
-        };
+    cud(params: CUDInput<EmailCreateInput, EmailUpdateInput>): Promise<CUDResult<Email>> {
+        return cudHelper({
+            ...params,
+            objectType: 'Email',
+            prisma,
+            prismaObject: (p) => p.email,
+            yup: { yupCreate: emailsCreate, yupUpdate: emailsUpdate },
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+        })
     },
 })
-
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
 
 export const EmailModel = ({
     prismaObject: (prisma: PrismaType) => prisma.email,
     format: emailFormatter(),
     mutate: emailMutater,
+    permissions: emailPermissioner,
     type: 'Email' as GraphQLModelType,
-    verify: emailVerifier(),
+    validate: emailValidator,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

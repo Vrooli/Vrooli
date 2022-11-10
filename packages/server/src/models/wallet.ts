@@ -8,10 +8,6 @@ import { modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper }
 import { organizationQuerier } from "./organization";
 import { FormatConverter, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
         '__typename': 'Wallet',
@@ -71,13 +67,6 @@ export const walletMutater = (prisma: PrismaType) => ({
         // Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by wallets (since they can only be applied to one object)
         let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] });
-        const { update: updateMany, delete: deleteMany } = formattedInput;
-        await this.validateMutations({
-            userId,
-            createMany: [],
-            updateMany: updateMany as { where: { id: string }, data: WalletUpdateInput }[],
-            deleteMany: deleteMany?.map(d => d.id)
-        });
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
     async validateMutations({
@@ -188,14 +177,6 @@ export const walletMutater = (prisma: PrismaType) => ({
     },
 })
 
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
-
 export const WalletModel = ({
     prismaObject: (prisma: PrismaType) => prisma.wallet,
     format: walletFormatter(),
@@ -203,7 +184,3 @@ export const WalletModel = ({
     type: 'Wallet' as GraphQLModelType,
     verify: walletVerifier,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

@@ -12,10 +12,6 @@ import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
 import { FormatConverter, Searcher, Permissioner, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo } from "./types";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 export const runFormatter = (): FormatConverter<Run, any> => ({
     relationshipMap: {
         '__typename': 'Run',
@@ -397,14 +393,6 @@ export const runMutater = (prisma: PrismaType) => ({
         return converted as Run;
     },
 })
-
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
 
 export const RunModel = ({
     prismaObject: (prisma: PrismaType) => prisma.run,

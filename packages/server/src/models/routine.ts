@@ -2,7 +2,7 @@ import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, addSu
 import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@shared/validation";
 import { CODE, DeleteOneType, ResourceListUsedFor } from "@shared/consts";
 import { omit } from '@shared/utils';
-import { OrganizationModel, organizationQuerier } from "./organization";
+import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -12,7 +12,6 @@ import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
-import { uuid } from '@shared/uuid';
 import { CustomError, genErrorCode } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, Count, RoutineSortBy } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
@@ -27,10 +26,6 @@ type NodeWeightData = {
     optionalInputs: number,
     allInputs: number,
 }
-
-//==============================================================
-/* #region Custom Components */
-//==============================================================
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' };
@@ -510,19 +505,19 @@ export const routineMutater = (prisma: PrismaType) => ({
     },
     async toDBBase(userId: string, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean) {
         return {
+            root: {
+                isPrivate: data.isPrivate ?? undefined,
+                hasCompleteVersion: (data.isComplete === true) ? true : (data.isComplete === false) ? false : undefined,
+                completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
+                project: data.projectId ? { connect: { id: data.projectId } } : undefined,
+                tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Routine'),
+                permissions: JSON.stringify({}),
+            },
             isAutomatable: data.isAutomatable ?? undefined,
             isComplete: data.isComplete ?? undefined,
-            isPrivate: data.isPrivate ?? undefined,
-            completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
-            complexity: complexity,
-            simplicity: simplicity,
             isInternal: data.isInternal ?? undefined,
-            projectId: data.projectId ?? undefined,
             versionLabel: data.versionLabel ?? undefined,
-            versionGroupId: isAdd ? uuid() : undefined,
-            permissions: JSON.stringify({}),
             resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Routine'),
             inputs: await this.relationshipBuilderInput(userId, data, isAdd),
             outputs: await this.relationshipBuilderOutput(userId, data, isAdd),
             nodes: await NodeModel.mutate(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, isAdd),
@@ -530,20 +525,39 @@ export const routineMutater = (prisma: PrismaType) => ({
             translations: TranslationModel.relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, isAdd),
         }
     },
-    async toDBCreate(userId: string, data: RoutineCreateInput): Promise<Prisma.routineUpsertArgs['create']> {
+    async toDBCreate(userId: string, data: RoutineCreateInput): Promise<Prisma.routine_versionUpsertArgs['create']> {
         const [simplicity, complexity] = await this.calculateComplexity(data);
+        const base = await this.toDBBase(userId, data, true);
         return {
-            ...(await this.toDBBase(userId, data, true)),
+            ...base,
+            root: {
+                create: {
+                    ...base.root,
+                    parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
+                    createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                    organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                    createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                    user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                }
+            },
             id: data.id,
-            parentId: data?.parentId ?? undefined,
-            complexity: complexity,
-            simplicity: simplicity,
+            complexity,
+            simplicity,
         }
     },
-    async toDBUpdate(userId: string, data: RoutineUpdateInput): Promise<Prisma.routineUpsertArgs['update']> {
+    async toDBUpdate(userId: string, data: RoutineUpdateInput): Promise<Prisma.routine_versionUpsertArgs['update']> {
         const [simplicity, complexity] = await this.calculateComplexity(data, data.versionId);
+        const base = await this.toDBBase(userId, data, false);
         return {
-            ...(await this.toDBBase(userId, data, false)),
+            ...base,
+            root: {
+                update: {
+                    ...base.root,
+                    // parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
+                    organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+                    user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+                }
+            },
             complexity: complexity,
             simplicity: simplicity,
         }
@@ -592,7 +606,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Validate update
         if (Array.isArray(updateMany)) {
             inputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[]  = [];
+            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
             for (let update of updateMany) {
                 // Check for censored words
                 if (hasProfanity(update.data.name, update.data.description))
@@ -692,19 +706,11 @@ export const routineMutater = (prisma: PrismaType) => ({
         // Convert input to Prisma shape
         const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
         let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'routine', isAdd, fieldExcludes })
-        // Validate
-        const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        await this.validateMutations({
-            userId,
-            createMany: createMany as RoutineCreateInput[],
-            updateMany: updateMany as { where: { id: string }, data: RoutineUpdateInput }[],
-            deleteMany: deleteMany?.map((d: any) => d.id)
-        });
         // Shape
         if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
             const create = await this.toDBCreate(userId, formattedInput.create[0]);
             // Create routine
-            const routine = await prisma.routine.create({
+            const routine = await prisma.routine_version.create({
                 data: create,
             })
             return routine?.id ?? null;
@@ -777,22 +783,8 @@ export const routineMutater = (prisma: PrismaType) => ({
             for (const input of createMany) {
                 // Call createData helper function
                 let data = await this.toDBCreate(userId, input);
-                // Associate with either organization or user
-                if (input.createdByOrganizationId) {
-                    data = {
-                        ...data,
-                        organization: { connect: { id: input.createdByOrganizationId } },
-                        createdByOrganization: { connect: { id: input.createdByOrganizationId } },
-                    };
-                } else {
-                    data = {
-                        ...data,
-                        user: { connect: { id: userId } },
-                        createdByUser: { connect: { id: userId } },
-                    };
-                }
                 // Create object
-                const currCreated = await prisma.routine.create({ data, ...selectHelper(partialInfo) });
+                const currCreated = await prisma.routine_version.create({ data, ...selectHelper(partialInfo) });
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currCreated, partialInfo);
                 // Add to created array
@@ -808,27 +800,12 @@ export const routineMutater = (prisma: PrismaType) => ({
                 let object = await prisma.routine.findFirst({ where: input.where })
                 if (!object)
                     throw new CustomError(CODE.NotFound, 'Routine not found', { code: genErrorCode('0098') });
-                // Associate with either organization or user. This will remove the association with the other.
-                if (input.data.organizationId) {
-                    data = {
-                        ...data,
-                        organization: { connect: { id: input.data.organizationId } },
-                        user: { disconnect: true },
-                    };
-                } else {
-                    data = {
-                        ...data,
-                        user: { connect: { id: userId } },
-                        organization: { disconnect: true },
-                    };
-                }
                 // Update object
-                const currUpdated = await prisma.routine.update({
+                const currUpdated = await prisma.routine_version.update({
                     where: input.where,
                     data,
                     ...selectHelper(partialInfo)
                 });
-                // TODO handle version update
                 // Convert to GraphQL
                 const converted = modelToGraphQL(currUpdated, partialInfo);
                 // Add to updated array
@@ -1254,14 +1231,6 @@ export const routineMutater = (prisma: PrismaType) => ({
     }
 })
 
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
-
 export const RoutineModel = ({
     prismaObject: (prisma: PrismaType) => prisma.routine,
     format: routineFormatter(),
@@ -1270,7 +1239,3 @@ export const RoutineModel = ({
     search: routineSearcher(),
     type: 'Routine' as GraphQLModelType,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

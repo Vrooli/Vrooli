@@ -1,54 +1,64 @@
-import { relationshipToPrisma, RelationshipTypes } from "./builder";
+import { isRelationshipArray, isRelationshipObject, relationshipToPrisma, RelationshipTypes } from "./builder";
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode } from "../events";
 import { hasProfanity } from "../utils/censor";
 import { ValidateMutationsInput } from "./types";
 
-export type TranslatableObject = {
-    translationsCreate?: { [x: string]: any }[] | null;
-    translationsUpdate?: { [x: string]: any }[] | null;
-}
-
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 export const translationMutater = () => ({
     /**
+     * Recursively collects translation objects from input and returns them in a flat array.
+     * A translation object is any object with stored in a field with the name "translationsCreate" or "translationsUpdate".
+     * @param input The input object to collect translations from
+     * @returns An array of translation objects
+     */
+    collectTranslations: (input: { [x: string]: any }): { [x: string]: any }[] => {
+        const translations: { [x: string]: any }[] = [];
+        // Handle base case
+        if (input.translationsCreate) {
+            translations.push(...input.translationsCreate);
+        }
+        if (input.translationsUpdate) {
+            translations.push(...input.translationsUpdate);
+        }
+        // Handle recursive case
+        for (const key in input) {
+            if (isRelationshipArray(input[key])) {
+                for (const item of input[key]) {
+                    translations.push(...translationMutater().collectTranslations(item));
+                }
+            }
+            else if (isRelationshipObject(input[key])) {
+                translations.push(...translationMutater().collectTranslations(input[key]));
+            }
+        }
+        return translations;
+    },
+    /**
      * Throws an error if a object's translations contain any banned words.
-     * Checks for censored words on any field that:
+     * Recursively checks for censored words on any field that:
      * 1. Is not "id"
      * 2. Does not end with "Id"
      * 3. Has a string value
      * @params input An array of objects with translations
      */
-    profanityCheck(input: (TranslatableObject | null | undefined)[]): void {
-        const objects: TranslatableObject[] = input.filter(Boolean) as TranslatableObject[];
-        // Collect all fields that are not an ID
+    profanityCheck(input: { [x: string]: any }[]): void {
+        // Find all translation objects
+        const translations: { [x: string]: any }[] = [];
+        for (const item of input) {
+            translations.push(...translationMutater().collectTranslations(item));
+        }
+        // Collect all fields in translation objects that are not an ID
         let fields: string[] = [];
-        for (const obj of objects) {
-            const { translationsCreate, translationsUpdate } = obj;
-            if (translationsCreate) {
-                for (let i = 0; i < translationsCreate.length; i++) {
-                    const currTranslation = translationsCreate[i];
-                    for (const [key, value] of Object.entries(currTranslation)) {
-                        if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
-                            fields.push(value);
-                        }
-                    }
-                }
-            }
-            if (translationsUpdate) {
-                for (let i = 0; i < translationsUpdate.length; i++) {
-                    const currTranslation = translationsUpdate[i];
-                    for (const [key, value] of Object.entries(currTranslation)) {
-                        if (key !== 'id' && !key.endsWith('Id') && typeof value === 'string') {
-                            fields.push(value);
-                        }
-                    }
+        for (const obj of translations) {
+            for (const key in obj) {
+                if (key !== 'id' && !key.endsWith('Id') && typeof obj[key] === 'string') {
+                    fields.push(key);
                 }
             }
         }
+        // Remove duplicates
+        fields = [...new Set(fields)];
+        // Check for profanity
         if (hasProfanity(...fields))
             throw new CustomError(CODE.BannedWord, 'Banned word detected', { code: genErrorCode('0115'), fields });
     },
@@ -106,19 +116,7 @@ export const translationMutater = () => ({
     },
 })
 
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
-
 // NOTE: Not a ModelLogic type because it does not map to a specific table
 export const TranslationModel = ({
     ...(translationMutater()),
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

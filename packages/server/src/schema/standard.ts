@@ -40,6 +40,8 @@ export const typeDef = gql`
         id: ID!
         makeAnonymous: Boolean
         isPrivate: Boolean
+        userId: ID
+        organizationId: ID
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]

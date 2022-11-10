@@ -1,16 +1,12 @@
 import { stepsCreate, stepsUpdate } from "@shared/validation";
-import { CODE, RunStepStatus } from "@shared/consts";
-import { modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper } from "./builder";
-import { CustomError, genErrorCode } from "../events";
-import { RunStep, RunStepCreateInput, RunStepUpdateInput, Count } from "../schema/types";
+import { RunStepStatus } from "@shared/consts";
+import { relationshipToPrisma, RelationshipTypes } from "./builder";
+import { RunStep, RunStepCreateInput, RunStepUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, ValidateMutationsInput } from "./types";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
-
-//==============================================================
-/* #region Custom Components */
-//==============================================================
+import { cudHelper } from "./actions";
 
 export const runStepFormatter = (): FormatConverter<RunStep, any> => ({
     relationshipMap: {
@@ -31,24 +27,39 @@ export const runStepVerifier = () => ({
  * Handles mutations of run steps
  */
 export const runStepMutater = (prisma: PrismaType) => ({
-    async toDBCreate(userId: string, data: RunStepCreateInput): Promise<Prisma.run_stepUpsertArgs['create']> {
+    shapeBase(userId: string, data: RunStepCreateInput | RunStepUpdateInput) {
         return {
             id: data.id,
-            nodeId: data.nodeId,
             contextSwitches: data.contextSwitches ?? undefined,
+            timeElapsed: data.timeElapsed,
+        }
+    },
+    shapeRelationshipCreate(userId: string, data: RunStepCreateInput): Prisma.run_stepUncheckedCreateWithoutRunInput {
+        return {
+            ...this.shapeBase(userId, data),
+            nodeId: data.nodeId,
             subroutineVersionId: data.subroutineVersionId,
             order: data.order,
             status: RunStepStatus.InProgress,
             step: data.step,
-            timeElapsed: data.timeElapsed,
             title: data.title,
         }
     },
-    async toDBUpdate(userId: string, data: RunStepUpdateInput): Promise<Prisma.run_stepUpsertArgs['update']> {
+    shapeRelationshipUpdate(userId: string, data: RunStepUpdateInput): Prisma.run_stepUncheckedUpdateWithoutRunInput {
         return {
-            contextSwitches: data.contextSwitches ?? undefined,
+            ...this.shapeBase(userId, data),
             status: data.status ?? undefined,
-            timeElapsed: data.timeElapsed ?? undefined,
+        }
+    },
+    shapeCreate(userId: string, data: RunStepCreateInput & { runId: string }): Prisma.run_stepUpsertArgs['create'] {
+        return {
+            ...this.shapeRelationshipCreate(userId, data),
+            runId: data.runId,
+        }
+    },
+    shapeUpdate(userId: string, data: RunStepUpdateInput): Prisma.run_stepUpsertArgs['update'] {
+        return {
+            ...this.shapeRelationshipUpdate(userId, data),
         }
     },
     async relationshipBuilder(
@@ -64,7 +75,7 @@ export const runStepMutater = (prisma: PrismaType) => ({
         if (createMany) {
             let result: { [x: string]: any }[] = [];
             for (const data of createMany) {
-                result.push(await this.toDBCreate(userId, data as any));
+                result.push(await this.shapeRelationshipCreate(userId, data as any));
             }
             createMany = result;
         }
@@ -73,103 +84,31 @@ export const runStepMutater = (prisma: PrismaType) => ({
             for (const data of updateMany) {
                 result.push({
                     where: data.where,
-                    data: await this.toDBUpdate(userId, data.data as any),
+                    data: await this.shapeRelationshipUpdate(userId, data.data as any),
                 })
             }
             updateMany = result;
         }
-        // Validate input, with routine ID added to each update node
-        await this.validateMutations({
-            userId,
-            createMany: createMany as RunStepCreateInput[],
-            updateMany: updateMany as { where: { id: string }, data: RunStepUpdateInput }[],
-            deleteMany: deleteMany?.map(d => d.id)
-        });
         return Object.keys(formattedInput).length > 0 ? {
             create: createMany,
             update: updateMany,
             delete: deleteMany
         } : undefined;
     },
-    async validateMutations({
-        userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<RunStepCreateInput, RunStepUpdateInput>): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        if (createMany) {
-            stepsCreate.validateSync(createMany, { abortEarly: false });
-            runStepVerifier().profanityCheck(createMany);
-        }
-        if (updateMany) {
-            stepsUpdate.validateSync(updateMany.map(u => ({ ...u.data, id: u.where.id })), { abortEarly: false });
-            runStepVerifier().profanityCheck(updateMany.map(u => u.data));
-            // Check that user owns each step
-            //TODO
-        }
-        if (deleteMany) {
-            // Check that user owns each step
-            //TODO
-        }
-    },
     /**
      * Performs adds, updates, and deletes of steps. First validates that every action is allowed.
      */
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunStepCreateInput, RunStepUpdateInput>): Promise<CUDResult<RunStep>> {
-        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        // Perform mutations
-        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
-        if (createMany) {
-            // Loop through each create input
-            for (const input of createMany) {
-                // Call createData helper function
-                const data = await this.toDBCreate(userId, input);
-                // Create object
-                const currCreated = await prisma.run_step.create({ data, ...selectHelper(partialInfo) });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partialInfo);
-                // Add to created array
-                created = created ? [...created, converted] : [converted];
-            }
-        }
-        if (updateMany) {
-            // Loop through each update input
-            for (const input of updateMany) {
-                // Find in database
-                let object = await prisma.run_step.findFirst({
-                    where: { ...input.where, run: { user: { id: userId } } },
-                })
-                if (!object) throw new CustomError(CODE.ErrorUnknown, 'Step not found.', { code: genErrorCode('0176') });
-                // Update object
-                const currUpdated = await prisma.run_step.update({
-                    where: input.where,
-                    data: await this.toDBUpdate(userId, input.data),
-                    ...selectHelper(partialInfo)
-                });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partialInfo);
-                // Add to updated array
-                updated = updated ? [...updated, converted] : [converted];
-            }
-        }
-        if (deleteMany) {
-            deleted = await prisma.run_step.deleteMany({
-                where: { id: { in: deleteMany } }
-            })
-        }
-        return {
-            created: createMany ? created : undefined,
-            updated: updateMany ? updated : undefined,
-            deleted: deleteMany ? deleted : undefined,
-        };
+    async cud(params: CUDInput<RunStepCreateInput & { runId: string }, RunStepUpdateInput>): Promise<CUDResult<RunStep>> {
+        return cudHelper({
+            ...params,
+            objectType: 'RunStep',
+            prisma,
+            prismaObject: (p) => p.run_step,
+            yup: { yupCreate: stepsCreate, yupUpdate: stepsUpdate },
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+        })
     },
 })
-
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
 
 export const RunStepModel = ({
     prismaObject: (prisma: PrismaType) => prisma.run_step,

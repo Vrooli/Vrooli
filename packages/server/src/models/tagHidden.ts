@@ -8,10 +8,6 @@ import { PrismaType } from "../types";
 import { FormatConverter, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 export const tagHiddenFormatter = (): FormatConverter<TagHidden, any> => ({
     relationshipMap: {
         '__typename': 'TagHidden',
@@ -158,21 +154,9 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
     },
 })
 
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
-
 export const TagHiddenModel = ({
     prismaObject: (prisma: PrismaType) => prisma.wallet,
     format: tagHiddenFormatter(),
     mutate: tagHiddenMutater,
     type: 'TagHidden' as GraphQLModelType,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

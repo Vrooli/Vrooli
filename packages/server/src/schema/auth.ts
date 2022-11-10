@@ -17,7 +17,7 @@ import pkg from '@prisma/client';
 import { genErrorCode } from '../events/logger';
 import { getUserId, ProfileModel } from '../models';
 import { Trigger } from '../events';
-const { AccountStatus, ResourceListUsedFor } = pkg;
+const { AccountStatus } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
 
@@ -240,22 +240,6 @@ export const resolvers = {
                         create: [
                             { emailAddress: input.email },
                         ]
-                    },
-                    resourceLists: {
-                        create: [
-                            {
-                                usedFor: ResourceListUsedFor.Learn,
-                            },
-                            {
-                                usedFor: ResourceListUsedFor.Research,
-                            },
-                            {
-                                usedFor: ResourceListUsedFor.Develop,
-                            },
-                            {
-                                usedFor: ResourceListUsedFor.Display,
-                            }
-                        ]
                     }
                 }
             });
@@ -475,22 +459,6 @@ export const resolvers = {
                         name: `user${randomString(8)}`,
                         wallets: {
                             connect: { id: walletData.id }
-                        },
-                        resourceList: {
-                            create: [
-                                {
-                                    usedFor: ResourceListUsedFor.Learn,
-                                },
-                                {
-                                    usedFor: ResourceListUsedFor.Research,
-                                },
-                                {
-                                    usedFor: ResourceListUsedFor.Develop,
-                                },
-                                {
-                                    usedFor: ResourceListUsedFor.Display,
-                                }
-                            ]
                         }
                     },
                     select: { id: true }

@@ -11,10 +11,6 @@ import { validateProfanity } from "../utils/censor";
 import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' };
 const supplementalFields = ['isStarred', 'isOwn'];
 export const tagFormatter = (): FormatConverter<Tag, any> => ({
@@ -237,14 +233,6 @@ export const tagMutater = (prisma: PrismaType) => ({
     },
 })
 
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
-
 export const TagModel = ({
     prismaObject: (prisma: PrismaType) => prisma.tag,
     format: tagFormatter(),
@@ -253,7 +241,3 @@ export const TagModel = ({
     type: 'Tag' as GraphQLModelType,
     verify: tagVerifier(),
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

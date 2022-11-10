@@ -7,10 +7,6 @@ import { TranslationModel } from "./translation";
 import { FormatConverter, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 export const nodeRoutineListFormatter = (): FormatConverter<NodeRoutineList, any> => ({
     relationshipMap: {
         '__typename': 'NodeRoutineList',
@@ -22,7 +18,7 @@ export const nodeRoutineListFormatter = (): FormatConverter<NodeRoutineList, any
 })
 
 export const nodeRoutineListMutater = (prisma: PrismaType) => ({
-    async toDBCreate(userId: string, data: NodeRoutineListCreateInput): Promise<Prisma.node_routine_listCreateNestedOneWithoutNodeInput['create']> {
+    async shapeCreate(userId: string, data: NodeRoutineListCreateInput): Promise<Prisma.node_routine_listCreateNestedOneWithoutNodeInput['create']> {
         return {
             id: data.id,
             isOrdered: data.isOrdered ?? undefined,
@@ -30,7 +26,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             routines: await this.relationshipBuilderRoutineListNodeItem(userId, data, true)
         }
     },
-    async toDBUpdate(userId: string, data: NodeRoutineListUpdateInput): Promise<Prisma.node_routine_listUpdateOneWithoutNodeNestedInput['update']> {
+    async shapeUpdate(userId: string, data: NodeRoutineListUpdateInput): Promise<Prisma.node_routine_listUpdateOneWithoutNodeNestedInput['update']> {
         return {
             isOrdered: data.isOrdered ?? undefined,
             isOptional: data.isOptional ?? undefined,
@@ -105,7 +101,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             // Check for valid arguments
             nodeRoutineListCreate.validateSync(create, { abortEarly: false });
             // Convert nested relationships
-            formattedInput.create = await this.toDBCreate(userId, create);
+            formattedInput.create = await this.shapeCreate(userId, create);
         }
         // Validate update
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
@@ -113,19 +109,11 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             // Check for valid arguments
             nodeRoutineListUpdate.validateSync(update, { abortEarly: false });
             // Convert nested relationships
-            formattedInput.update = await this.toDBUpdate(userId, update);
+            formattedInput.update = await this.shapeUpdate(userId, update);
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
 })
-
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
 
 export const NodeRoutineListModel = ({
     prismaObject: (prisma: PrismaType) => prisma.node_routine_list,
@@ -133,7 +121,3 @@ export const NodeRoutineListModel = ({
     mutate: nodeRoutineListMutater,
     type: 'NodeRoutineList' as GraphQLModelType,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

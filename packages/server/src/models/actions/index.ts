@@ -1,5 +1,6 @@
 export * from './countHelper';
 export * from './createHelper';
+export * from './cudHelper';
 export * from './deleteManyHelper';
 export * from './deleteOneHelper';
 export * from './forkHelper';

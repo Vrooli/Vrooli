@@ -8,10 +8,6 @@ import { validateProfanity } from "../utils/censor";
 import { FormatConverter, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
     relationshipMap: {
         '__typename': 'RunInput',
@@ -121,13 +117,6 @@ export const runInputMutater = (prisma: PrismaType) => ({
             }
             updateMany = result;
         }
-        // Validate input, with routine ID added to each update node
-        await this.validateMutations({
-            userId,
-            createMany: createMany as RunInputCreateInput[],
-            updateMany: updateMany as { where: { id: string }, data: RunInputUpdateInput }[],
-            deleteMany: deleteMany?.map(d => d.id)
-        });
         return Object.keys(formattedInput).length > 0 ? {
             create: createMany,
             update: updateMany,
@@ -205,14 +194,6 @@ export const runInputMutater = (prisma: PrismaType) => ({
         };
     },
 })
-
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
 
 export const RunInputModel = ({
     prismaObject: (prisma: PrismaType) => prisma.run_input,

@@ -14,10 +14,6 @@ import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "./actions";
 import { FormatConverter, GraphQLModelType, ModelLogic, Searcher } from "./types";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 export interface View {
     __typename?: 'View';
     from: User;
@@ -275,14 +271,6 @@ const viewMutater = (prisma: PrismaType) => ({
     },
 })
 
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
-
 export const ViewModel = ({
     prismaObject: (prisma: PrismaType) => prisma.view,
     mutate: viewMutater,
@@ -291,7 +279,3 @@ export const ViewModel = ({
     query: viewQuerier,
     type: 'View' as GraphQLModelType,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

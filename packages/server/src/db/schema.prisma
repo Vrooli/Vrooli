@@ -61,6 +61,7 @@ model api_version {
     updated_at DateTime      @default(now()) @db.Timestamptz(6)
     callLink          String            @unique @db.VarChar(1024)
     documentationLink String            @db.VarChar(1024)
+    isLatest       Boolean                       @default(false)
     rootId             String           @db.Uuid
     resourceListId    String?          @db.Uuid @unique
     versionIndex            Int               @default(0)
@@ -577,6 +578,7 @@ id         String        @id @default(uuid()) @db.Uuid
     created_at DateTime      @default(now()) @db.Timestamptz(6)
     updated_at DateTime      @default(now()) @db.Timestamptz(6)
     intendToPullRequest Boolean @default(true)
+    isLatest       Boolean                       @default(false)
     isPrivate Boolean       @default(false)
     rootId    String        @db.Uuid
     versionIndex            Int               @default(0)
@@ -650,7 +652,8 @@ model organization {
     resourceList          resource_list?             @relation("resource_list_organization", fields: [resourceListId], references: [id], onDelete: SetNull)
     routinesCreated       routine[]                  @relation("routine_organization_creator")
     routines              routine[]                  @relation("routine_organization_owner")
-    standards             standard[]
+    standardsCreated      standard[]                 @relation("standard_organization_creator")
+    standards             standard[]                @relation("standard_organization_owner")
     starredBy             star[]                     @relation("star_organization")
     viewedBy              view[]                     @relation("view_organization")
     wallets               wallet[]
@@ -1233,6 +1236,7 @@ model routine {
     created_at              DateTime          @default(now()) @db.Timestamptz(6)
     updated_at              DateTime          @default(now()) @db.Timestamptz(6)
     hasCompleteVersion      Boolean           @default(false)
+    completedAt             DateTime?             @db.Timestamptz(6)
     isDeleted               Boolean           @default(false)
     isInternal              Boolean           @default(false)
     isPrivate               Boolean           @default(false)
@@ -1278,6 +1282,7 @@ model routine_version {
     isAutomatable  Boolean                       @default(false)
     isComplete     Boolean                       @default(true)
     isDeleted      Boolean                       @default(false)
+    isLatest       Boolean                       @default(false)
     isPrivate      Boolean                       @default(false)
     rootId      String                        @db.Uuid
     simplicity     Int                           @default(1)
@@ -1490,6 +1495,7 @@ model smart_contract {
     created_at              DateTime                 @default(now()) @db.Timestamptz(6)
     updated_at              DateTime                 @default(now()) @db.Timestamptz(6)
     hasCompleteVersion      Boolean                  @default(false)
+    completedAt             DateTime?             @db.Timestamptz(6)
     isDeleted               Boolean                  @default(false)
     isPrivate               Boolean                  @default(false)
     votes                   Int                      @default(0)
@@ -1531,6 +1537,7 @@ model smart_contract_version {
     default         String?                              @db.VarChar(1024)
     type            String
     content         String                               @db.VarChar(8192)
+    isLatest       Boolean                       @default(false)
     resourceListId  String?                              @db.Uuid @unique
     rootId String                               @db.Uuid
     versionIndex            Int               @default(0)
@@ -1584,6 +1591,7 @@ model standard {
     created_at              DateTime           @default(now()) @db.Timestamptz(6)
     updated_at              DateTime           @default(now()) @db.Timestamptz(6)
     hasCompleteVersion      Boolean            @default(false)
+    completedAt             DateTime?             @db.Timestamptz(6)
     name                    String             @db.VarChar(128)
     votes                   Int                @default(0)
     stars                   Int                @default(0)
@@ -1595,8 +1603,12 @@ model standard {
     views                   Int                @default(0)
     createdByUserId         String?            @db.Uuid
     createdByOrganizationId String?            @db.Uuid
-    createdByOrganization   organization?      @relation(fields: [createdByOrganizationId], references: [id], onDelete: SetNull)
-    createdByUser           user?              @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+    userId                  String?            @db.Uuid
+    organizationId          String?            @db.Uuid
+    createdByOrganization   organization?      @relation("standard_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: SetNull)
+    createdByUser           user?              @relation("standard_user_creator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+    organization            organization?      @relation("standard_organization_owner", fields: [organizationId], references: [id], onDelete: SetNull)
+    user                    user?              @relation("standard_user_owner", fields: [userId], references: [id], onDelete: SetNull)
     comments                comment[]
     issues                 issue[]
     labels                  standard_labels[]
@@ -1623,6 +1635,7 @@ model standard_version {
     default        String?                        @db.VarChar(1024)
     type           String
     props          String                         @db.VarChar(8192)
+    isLatest       Boolean                       @default(false)
     resourceListId String?                        @db.Uuid @unique
     rootId     String                         @db.Uuid
     yup            String?                        @db.VarChar(8192)
@@ -1825,7 +1838,8 @@ model user {
     schedules                      user_schedule[]
     smartContractsCreated          smart_contract[]     @relation("smart_contract_user_creator")
     smartContracts                 smart_contract[]     @relation("smart_contract_user_owner")
-    standards                      standard[]
+    standardsCreated               standard[]           @relation("standard_user_creator")
+    standards                      standard[]          @relation("standard_user_owner")
     starred                        star[]               @relation("star_by")
     starredBy                      star[]               @relation("star_user")
     tags                           tag[]

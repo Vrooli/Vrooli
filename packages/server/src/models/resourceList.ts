@@ -1,27 +1,45 @@
 import { resourceListsCreate, resourceListsUpdate, resourceListTranslationsCreate, resourceListTranslationsUpdate } from "@shared/validation";
-import { CODE, ResourceListSortBy } from "@shared/consts";
-import { combineQueries, getSearchStringQueryHelper, modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper } from "./builder";
+import { ResourceListSortBy } from "@shared/consts";
+import { combineQueries, getSearchStringQueryHelper, relationshipToPrisma, RelationshipTypes } from "./builder";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
-import { CustomError, genErrorCode } from "../events";
-import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, Count } from "../schema/types";
+import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Permissioner } from "./types";
 import { Prisma } from "@prisma/client";
 import { routinePermissioner } from "./routine";
 import { organizationPermissioner } from "./organization";
 import { projectPermissioner } from "./project";
 import { standardPermissioner } from "./standard";
-
-//==============================================================
-/* #region Custom Components */
-//==============================================================
+import { cudHelper } from "./actions";
 
 export const resourceListFormatter = (): FormatConverter<ResourceList, any> => ({
     relationshipMap: {
         '__typename': 'ResourceList',
         'resources': 'Resource',
     },
+})
+
+export const resourceListPermissioner = (): Permissioner<any, ResourceListSearchInput> => ({
+    async get() {
+        return [] as any;
+    },
+    async canSearch() {
+        //TODO
+        return 'full';
+    },
+    ownershipQuery: (userId) => ({
+        OR: [
+            // { apiVersion: apiPermissioner().ownershipQuery(userId) },
+            { organization: organizationPermissioner().ownershipQuery(userId) },
+            // { post: postPermissioner().ownershipQuery(userId) },
+            { project: projectPermissioner().ownershipQuery(userId) },
+            { routineVersion: routinePermissioner().ownershipQuery(userId) },
+            // { smartContractVersion: smartContractPermissioner().ownershipQuery(userId) },
+            { standardVersion: standardPermissioner().ownershipQuery(userId) },
+            { userSchedule: { userId } },
+        ]
+    })
 })
 
 export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
@@ -55,28 +73,28 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
 })
 
 export const resourceListMutater = (prisma: PrismaType) => ({
-    async toDBBase(userId: string, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) {
+    shapeBase(userId: string, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) {
         return {
             id: data.id,
             organizationId: data.organizationId ?? undefined,
             projectId: data.projectId ?? undefined,
             routineId: data.routineId ?? undefined,
             userId: data.userId ?? undefined,
-            resources: await ResourceModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
+            resources: ResourceModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
             translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceListTranslationsCreate, update: resourceListTranslationsUpdate }, isAdd),
         };
     },
-    async toDBCreate(userId: string, data: ResourceListCreateInput, isAdd: boolean): Promise<Prisma.resource_listUpsertArgs['create']> {
+    shapeCreate(userId: string, data: ResourceListCreateInput, isAdd: boolean): Prisma.resource_listUpsertArgs['create'] {
         return {
-            ...(await this.toDBBase(userId, data, isAdd)),
+            ...this.shapeBase(userId, data, isAdd),
         };
     },
-    async toDBUpdate(userId: string, data: ResourceListUpdateInput, isAdd: boolean): Promise<Prisma.resource_listUpsertArgs['update']> {
+    shapeUpdate(userId: string, data: ResourceListUpdateInput, isAdd: boolean): Prisma.resource_listUpsertArgs['update'] {
         return {
-            ...(await this.toDBBase(userId, data, isAdd)),
+            ...this.shapeBase(userId, data, isAdd),
         };
     },
-    async relationshipBuilder(
+    relationshipBuilder(
         userId: string,
         input: { [x: string]: any },
         isAdd: boolean = true,
@@ -86,128 +104,38 @@ export const resourceListMutater = (prisma: PrismaType) => ({
         // Convert input to Prisma shape. Also remove anything that's not an create, update, or delete, as connect/disconnect
         // are not supported by resource lists (since they can only be applied to one object)
         let formattedInput: any = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate
-        const { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        await this.validateMutations({
-            userId,
-            createMany: createMany as ResourceListCreateInput[],
-            updateMany: updateMany as { where: { id: string }, data: ResourceListUpdateInput }[],
-            deleteMany: deleteMany?.map(d => d.id)
-        });
         // Shape
         if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
             const create = formattedInput.create[0];
             // If title or description is not provided, try querying for the link's og tags TODO
-            formattedInput.create = await this.toDBCreate(userId, create, true);
+            formattedInput.create = this.shapeCreate(userId, create, true);
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
             const update = formattedInput.update[0].data;
             formattedInput.update = {
                 where: update.where,
-                data: await this.toDBUpdate(userId, update.data, false),
+                data: this.shapeUpdate(userId, update.data, false),
             }
         }
         return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
     },
-    async validateMutations({
-        userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        // TODO check that user can add resource to this forId, like in node validateMutations
-        if (createMany) {
-            resourceListsCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel.profanityCheck(createMany);
-            // Check for max resources on object TODO
-        }
-        if (updateMany) {
-            resourceListsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel.profanityCheck(updateMany.map(u => u.data));
-        }
-    },
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<CUDResult<ResourceList>> {
-        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        // Perform mutations
-        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
-        if (createMany) {
-            // Loop through each create input
-            for (const input of createMany) {
-                // If title or description is not provided, try querying for the link's og tags TODO
-                // Call createData helper function
-                const data = await this.toDBCreate(userId, input, true);
-                // Create object
-                const currCreated = await prisma.resource_list.create({ data, ...selectHelper(partialInfo) });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partialInfo);
-                // Add to created array
-                created = created ? [...created, converted] : [converted];
-            }
-        }
-        if (updateMany) {
-            // Loop through each update input
-            for (const input of updateMany) {
-                // Find in database
-                let object = await prisma.report.findFirst({
-                    where: { ...input.where, userId }
-                })
-                if (!object)
-                    throw new CustomError(CODE.ErrorUnknown, 'Object not found', { code: genErrorCode('0090') });
-                // Update object
-                const currUpdated = await prisma.resource_list.update({
-                    where: input.where,
-                    data: await this.toDBUpdate(userId, input.data, false),
-                    ...selectHelper(partialInfo)
-                });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partialInfo);
-                // Add to updated array
-                updated = updated ? [...updated, converted] : [converted];
-            }
-        }
-        if (deleteMany) {
-            deleted = await prisma.resource_list.deleteMany({
-                where: {
-                    AND: [
-                        { id: { in: deleteMany } },
-                        {
-                            OR: [
-                                // { apiVersion: apiPermissioner().ownershipQuery(userId) },
-                                { organization: organizationPermissioner().ownershipQuery(userId) },
-                                // { post: postPermissioner().ownershipQuery(userId) },
-                                { project: projectPermissioner().ownershipQuery(userId) },
-                                { routineVersion: routinePermissioner().ownershipQuery(userId) },
-                                // { smartContractVersion: smartContractPermissioner().ownershipQuery(userId) },
-                                { standardVersion: standardPermissioner().ownershipQuery(userId) },
-                                { userSchedule: { userId } },
-                            ]
-                        }
-                    ]
-                }
-            })
-        }
-        return {
-            created: createMany ? created : undefined,
-            updated: updateMany ? updated : undefined,
-            deleted: deleteMany ? deleted : undefined,
-        };
+    async cud(params: CUDInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<CUDResult<ResourceList>> {
+        return cudHelper({
+            ...params,
+            objectType: 'ResourceList',
+            prisma,
+            prismaObject: (p) => p.resource_list,
+            yup: { yupCreate: resourceListsCreate, yupUpdate: resourceListsUpdate },
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+        })
     },
 })
-
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
 
 export const ResourceListModel = ({
     prismaObject: (prisma: PrismaType) => prisma.resource_list,
     format: resourceListFormatter(),
     mutate: resourceListMutater,
+    permissions: resourceListPermissioner,
     search: resourceListSearcher(),
     type: 'ResourceList' as GraphQLModelType,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

@@ -14,10 +14,6 @@ import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "./actions";
 import { FormatConverter, GraphQLModelType, ModelLogic, Searcher } from "./types";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 export const starFormatter = (): FormatConverter<Star, any> => ({
     relationshipMap: {
         '__typename': 'Star',
@@ -200,14 +196,6 @@ const starQuerier = (prisma: PrismaType) => ({
     },
 })
 
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
-
 export const StarModel = ({
     prismaObject: (prisma: PrismaType) => prisma.star,
     format: starFormatter(),
@@ -216,7 +204,3 @@ export const StarModel = ({
     search: starSearcher(),
     type: 'Star' as GraphQLModelType,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

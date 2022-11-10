@@ -54,7 +54,9 @@ export const Trigger = (prisma: PrismaType) => ({
             // Award(prisma).update(userId, AwardCategory.Com, 1);
         }
     },
-    objectCreate: async (objectType: GraphQLModelType, objectId: string, userId: string) => { },
+    objectCreate: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
+        // Don't forget to handle new emails
+     },
     objectDelete: async (objectType: DeleteOneType, objectId: string, userId: string) => { },
     objectFork: async (objectType: ForkType, parentId: string, userId: string) => {
 

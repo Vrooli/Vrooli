@@ -2772,6 +2772,8 @@ export type StandardUpdateInput = {
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   makeAnonymous?: InputMaybe<Scalars['Boolean']>;
+  organizationId?: InputMaybe<Scalars['ID']>;
+  userId?: InputMaybe<Scalars['ID']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;

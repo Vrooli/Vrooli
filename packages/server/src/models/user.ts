@@ -7,10 +7,6 @@ import { User, UserSearchInput } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { FormatConverter, Searcher, GraphQLModelType } from "./types";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
 const supplementalFields = ['isStarred', 'isViewed'];
@@ -80,21 +76,9 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
     },
 })
 
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
-
 export const UserModel = ({
     prismaObject: (prisma: PrismaType) => prisma.user,
     format: userFormatter(),
     search: userSearcher(),
     type: 'User' as GraphQLModelType,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

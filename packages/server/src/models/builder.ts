@@ -74,14 +74,14 @@ export const ObjectMap = {
  * @param obj - object to check
  * @returns True if obj is a relationship object, false otherwise
  */
-const isRelationshipObject = (obj: any): obj is Object => isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
+export const isRelationshipObject = (obj: any): obj is Object => isObject(obj) && Object.prototype.toString.call(obj) !== '[object Date]';
 
 /**
  * Determines if an object is an array of relationship objects, and not a relationship object.
  * @param obj - object to check
  * @returns True if obj is an array of relationship objects, false otherwise
  */
-const isRelationshipArray = (obj: any): obj is Object[] => Array.isArray(obj) && obj.every(isRelationshipObject);
+export const isRelationshipArray = (obj: any): obj is Object[] => Array.isArray(obj) && obj.every(isRelationshipObject);
 
 /**
  * Filters out any invalid IDs from an array of IDs.
@@ -1379,7 +1379,7 @@ interface ValidateObjectOwnership extends ValidateMutationsInput<{
     organizationId?: string | null | undefined,
     projectId?: string | null | undefined,
 }> {
-    objectType: 'Project' | 'Routine' | 'Standard',
+    objectType: GraphQLModelType,
     prisma: PrismaType,
 }
 
@@ -1489,7 +1489,7 @@ interface ValidateMaxObjects extends ValidateMutationsInput<{
     organizationId?: string | null | undefined,
 }> {
     maxCount: number,
-    objectType: 'Project' | 'Routine' | 'Standard',
+    objectType: GraphQLModelType,
     prisma: PrismaType,
 }
 

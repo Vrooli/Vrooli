@@ -5,10 +5,6 @@ import { PrismaType } from "../types";
 import { onlyValidIds } from "./builder";
 import { FormatConverter, GraphQLModelType } from "./types";
 
-//==============================================================
-/* #region Custom Components */
-//==============================================================
-
 export const voteFormatter = (): FormatConverter<Vote, any> => ({
     relationshipMap: {
         '__typename': 'Vote',
@@ -132,14 +128,6 @@ const voteQuerier = (prisma: PrismaType) => ({
     },
 })
 
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
-
 export const VoteModel = ({
     prismaObject: (prisma: PrismaType) => prisma.vote,
     format: voteFormatter(),
@@ -147,7 +135,3 @@ export const VoteModel = ({
     query: voteQuerier,
     type: 'Vote' as GraphQLModelType,
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

@@ -10,7 +10,6 @@ import { TagModel } from "./tag";
 import { EmailModel } from "./email";
 import { TranslationModel } from "./translation";
 import { WalletModel } from "./wallet";
-import { ResourceListModel } from "./resourceList";
 import { TagHiddenModel } from "./tagHidden";
 import { Request } from "express";
 import { CustomError, genErrorCode } from "../events";
@@ -425,6 +424,7 @@ const profileQuerier = (prisma: PrismaType) => ({
 })
 
 const profileMutater = (prisma: PrismaType) => ({
+    async validateMutations() { },
     async updateProfile(
         userId: string,
         input: ProfileUpdateInput,
