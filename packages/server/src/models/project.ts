@@ -1,8 +1,8 @@
 import { projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
 import { omit } from '@shared/utils';
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, onlyValidHandles, onlyValidIds, permissionsCheck, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
-import { OrganizationModel, organizationQuerier } from "./organization";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, onlyValidHandles, onlyValidIds, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
+import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -11,10 +11,11 @@ import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
 import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
-import { FormatConverter, Permissioner, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, Permissioner, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
+import { permissionsCheck } from "./validators";
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -149,8 +150,8 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
         if (input.organizationId) {
             const isMember = await permissionsCheck({
                 actions: ['isMember'],
-                model: OrganizationModel,
-                object: { id: input.organizationId },
+                objectType: 'Organization',
+                objectIds: [input.organizationId],
                 prisma,
                 userId,
             })
@@ -158,9 +159,9 @@ export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSe
         }
         if (input.parentId) {
             const canEdit = await permissionsCheck({
-                model: ProjectModel,
-                object: { id: input.parentId },
                 actions: ['canEdit'],
+                objectType: 'Project',
+                objectIds: [input.parentId],
                 prisma,
                 userId,
             })
@@ -237,8 +238,8 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
     },
 })
 
-export const projectValidator = () => ({
-    // createMany.forEach(input => TranslationModel.validateLineBreaks(input, ['description'], CODE.LineBreaksDescription));
+export const projectValidator = (): Validator<Project, Prisma.projectWhereInput> => ({
+    // createMany.forEach(input => lineBreaksCheck(input, ['description'], CODE.LineBreaksDescription));
     // for (const input of updateMany) {
 })
 
@@ -281,7 +282,6 @@ export const projectMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Project',
             prisma,
-            prismaObject: (p) => p.project,
             yup: { yupCreate: projectsCreate, yupUpdate: projectsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {
@@ -300,5 +300,5 @@ export const ProjectModel = ({
     permissions: projectPermissioner,
     search: projectSearcher(),
     type: 'Project' as GraphQLModelType,
-    validator: projectValidator(),
+    validate: projectValidator(),
 })

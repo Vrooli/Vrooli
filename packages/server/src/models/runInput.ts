@@ -99,8 +99,7 @@ export const runInputMutater = (prisma: PrismaType) => ({
             data,
             relationshipName,
             isAdd,
-            // connect/disconnect not supported by run inputs (since they can only be applied to one run)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
             userId,
         });
@@ -113,7 +112,6 @@ export const runInputMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'RunInput',
             prisma,
-            prismaObject: (p) => p.run_input,
             yup: { yupCreate: runInputsCreate, yupUpdate: runInputsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

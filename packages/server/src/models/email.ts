@@ -2,9 +2,9 @@ import { CODE } from "@shared/consts";
 import { emailsCreate, emailsUpdate } from "@shared/validation";
 import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
+import { relationshipBuilderHelper } from "./builder";
 import { CustomError, genErrorCode } from "../events";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Permissioner } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Permissioner, Validator } from "./types";
 import { cudHelper } from "./actions";
 import { Prisma } from "@prisma/client";
 
@@ -24,9 +24,13 @@ export const emailPermissioner = (): Permissioner<any, any> => ({
     }),
 })
 
-export const emailValidator = () => ({
-    // Profanity fields to check in addition to translated fields
-    additionalProfanityFields: ['emailAddress'],
+export const emailValidator = (): Validator<Email, Prisma.emailWhereInput> => ({
+    validatedRelationshipMap: {
+        'user': 'User',
+    },
+    permissionsQuery: (userId) => ({ user: { id: userId } }),
+    profanityFields: ['emailAddress'],
+
     // Prevent creating emails if at least one is already in use
     preventCreateIf: [{
         query: (createMany: EmailCreateInput[]) => ({ emailAddress: { in: createMany.map(email => email.emailAddress) } }),
@@ -72,8 +76,7 @@ export const emailMutater = (prisma: PrismaType) => ({
             data, 
             relationshipName, 
             isAdd, 
-            // connect/disconnect not supported by emails (since they can only be applied to one object)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             userId,
         });
@@ -83,7 +86,6 @@ export const emailMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Email',
             prisma,
-            prismaObject: (p) => p.email,
             yup: { yupCreate: emailsCreate, yupUpdate: emailsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

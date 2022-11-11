@@ -56,7 +56,7 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
                 if (!validTypes.includes(type as GraphQLModelType)) {
                     throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
                 }
-                const model = ObjectMap[type as GraphQLModelType] as ModelLogic<any, any, any>;
+                const model = ObjectMap[type as GraphQLModelType] as ModelLogic<any, any, any, any>;
                 const paginated = await readManyHelper({
                     info: partial.to[type],
                     input: { ids: toIdsByType[type] },

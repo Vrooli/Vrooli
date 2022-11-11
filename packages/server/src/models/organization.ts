@@ -1,5 +1,5 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, Count, ResourceListUsedFor, OrganizationPermission } from "../schema/types";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission } from "../schema/types";
 import { addJoinTablesHelper, removeJoinTablesHelper, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries, onlyValidHandles } from "./builder";
 import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
 import { omit } from '@shared/utils';
@@ -9,7 +9,7 @@ import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
-import { FormatConverter, Permissioner, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, Permissioner, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
 
@@ -178,15 +178,15 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
     },
 })
 
-export const organizationValidator = () => ({
+export const organizationValidator = (): Validator<Organization, Prisma.organizationWhereInput> => ({
     // if (!createMany && !updateMany && !deleteMany) return;
     // if (createMany) {
-    //     createMany.forEach(input => TranslationModel.validateLineBreaks(input, ['bio'], CODE.LineBreaksBio));
+    //     createMany.forEach(input => lineBreaksCheck(input, ['bio'], CODE.LineBreaksBio));
     // }
     // if (updateMany) {
     //     for (const input of updateMany) {
     //         await WalletModel.verify(prisma).verifyHandle('Organization', input.where.id, input.data.handle);
-    //         TranslationModel.validateLineBreaks(input.data, ['bio'], CODE.LineBreaksBio);
+    //         lineBreaksCheck(input.data, ['bio'], CODE.LineBreaksBio);
     //     }
     // }
 })
@@ -266,7 +266,6 @@ export const organizationMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Organization',
             prisma,
-            prismaObject: (p) => p.organization,
             yup: { yupCreate: organizationsCreate, yupUpdate: organizationsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {
@@ -286,5 +285,5 @@ export const OrganizationModel = ({
     search: organizationSearcher(),
     query: organizationQuerier,
     type: 'Organization' as GraphQLModelType,
-    validator: organizationValidator(),
+    validate: organizationValidator(),
 })

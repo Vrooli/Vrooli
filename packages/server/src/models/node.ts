@@ -1,10 +1,10 @@
 import { Node, NodeCreateInput, NodeUpdateInput } from "../schema/types";
-import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
+import { relationshipBuilderHelper } from "./builder";
 import { nodeTranslationCreate, nodeTranslationUpdate, nodesCreate, nodesUpdate } from "@shared/validation";
 import { PrismaType } from "../types";
 import { TranslationModel } from "./translation";
 import { NodeRoutineListModel } from "./nodeRoutineList";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Permissioner } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Permissioner, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { routinePermissioner } from "./routine";
 import { cudHelper } from "./actions";
@@ -32,7 +32,7 @@ export const nodePermissioner = (): Permissioner<any, any> => ({
     }),
 })
 
-export const nodeValidator = () => ({
+export const nodeValidator = (): Validator<Node, Prisma.nodeWhereInput> => ({
     // Don't allow more than 100 nodes in a routine
     // if (numAdding < 0) return;
     //     const existingCount = await prisma.routine_version.findUnique({
@@ -86,8 +86,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
             data,
             relationshipName,
             isAdd,
-            // connect/disconnect not supported by nodes (since they can only be applied to one routine)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             userId,
         });
@@ -104,8 +103,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
             data,
             relationshipName: 'whens',
             isAdd,
-            // connect/disconnect not supported by node links whens (since they can only be applied to one node link)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             userId,
         })
     },
@@ -121,8 +119,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
             data,
             relationshipName: 'nodeLinks',
             isAdd,
-            // connect/disconnect not supported by node data (since they can only be applied to one node)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: (userId: string, cuData: { [x: string]: any }, isAdd: boolean) => {
                 let { fromId, toId, ...rest } = cuData;
                 return {
@@ -149,8 +146,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
             relationshipName: 'nodeEnd',
             isAdd,
             isOneToOne: true,
-            // connect/disconnect not supported by node data (since they can only be applied to one node)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             userId,
         })
     },
@@ -166,8 +162,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
             data,
             relationshipName: 'whiles',
             isAdd,
-            // connect/disconnect not supported by node data (since they can only be applied to one node)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             userId,
         })
     },
@@ -183,8 +178,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
             data,
             relationshipName: 'loop',
             isAdd,
-            // connect/disconnect not supported by node data (since they can only be applied to one node)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: (userId: string, cuData: { [x: string]: any }, isAdd: boolean) => ({
                 ...cuData,
                 whiles: this.relationshipBuilderLoopWhiles(userId, cuData, isAdd)
@@ -200,7 +194,6 @@ export const nodeMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Node',
             prisma,
-            prismaObject: (p) => p.node,
             yup: { yupCreate: nodesCreate, yupUpdate: nodesUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

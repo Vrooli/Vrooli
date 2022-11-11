@@ -16,7 +16,7 @@ import { CustomError, genErrorCode, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, Count, RoutineSortBy } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { cudHelper, deleteOneHelper } from "./actions";
-import { FormatConverter, PartialGraphQLInfo, Permissioner, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType } from "./types";
+import { FormatConverter, PartialGraphQLInfo, Permissioner, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 
 type NodeWeightData = {
@@ -288,7 +288,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     },
 })
 
-export const routineValidator = () => ({
+export const routineValidator = (): Validator<Routine, Prisma.routineWhereInput> => ({
     // if (createMany) {
     //     createMany.forEach(input => this.validateNodePositions(input));
     // }
@@ -586,8 +586,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             data,
             relationshipName: 'inputs',
             isAdd,
-            // connect/disconnect not supported by inputs (since they can only be applied to one routine)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: {
                 shapeCreate: async (userId, cuData) => ({
                     id: cuData.id,
@@ -620,8 +619,7 @@ export const routineMutater = (prisma: PrismaType) => ({
             data,
             relationshipName: 'outputs',
             isAdd,
-            // connect/disconnect not supported by inputs (since they can only be applied to one routine)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: {
                 shapeCreate: async (userId, cuData) => ({
                     id: cuData.id,
@@ -669,7 +667,6 @@ export const routineMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Routine',
             prisma,
-            prismaObject: (p) => p.routine,
             yup: { yupCreate: routinesCreate, yupUpdate: routinesUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {
@@ -1094,5 +1091,5 @@ export const RoutineModel = ({
     permissions: routinePermissioner,
     search: routineSearcher(),
     type: 'Routine' as GraphQLModelType,
-    validator: routineValidator()
+    validate: routineValidator()
 })

@@ -2,7 +2,8 @@ import { CODE, ViewFor } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
 import { FindByIdOrHandleInput, FindByVersionInput } from "../../schema/types";
 import { RecursivePartial } from "../../types";
-import { addSupplementalFields, getLatestVersion, getUserId, modelToGraphQL, permissionsCheck, selectHelper, toPartialGraphQLInfo } from "../builder";
+import { addSupplementalFields, getLatestVersion, getUserId, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builder";
+import { permissionsCheck } from "../validators";
 import { ViewModel } from "../view";
 import { ReadOneHelperProps } from "./types";
 
@@ -31,14 +32,18 @@ export async function readOneHelper<GraphQLModel>({
     if ((input as FindByVersionInput).versionGroupId) {
         const versionId = await getLatestVersion({ objectType: model.type as 'Api' | 'Note' | 'Routine' | 'SmartContract' | 'Standard', prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
         id = versionId;
+    } 
+    // If using handle, find the id of the object with that handle
+    else if ((input as FindByIdOrHandleInput).handle) {
+        asdfasdf
     } else {
         id = input.id;
     }
     // Check permissions
     const authorized = await permissionsCheck({
-        model,
-        object: { id: id || (input as FindByIdOrHandleInput).handle as string },
         actions: ['canView'],
+        objectType,
+        objectIds: [id as string],
         prisma,
         userId,
     });

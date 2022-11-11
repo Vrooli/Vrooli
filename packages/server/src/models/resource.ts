@@ -98,8 +98,7 @@ export const resourceMutater = (prisma: PrismaType) => ({
             data,
             relationshipName,
             isAdd,
-            // connect/disconnect not supported by node resources (since they can only be applied to one object)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
             userId,
         });
@@ -109,7 +108,6 @@ export const resourceMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Resource',
             prisma,
-            prismaObject: (p) => p.resource,
             yup: { yupCreate: resourcesCreate, yupUpdate: resourcesUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

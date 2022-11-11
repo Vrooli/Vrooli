@@ -10,7 +10,7 @@ import { CustomError, genErrorCode, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
-import { FormatConverter, Searcher, Permissioner, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo } from "./types";
+import { FormatConverter, Searcher, Permissioner, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator } from "./types";
 import { cudHelper } from "./actions";
 
 export const runFormatter = (): FormatConverter<Run, any> => ({
@@ -71,7 +71,7 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
     },
 })
 
-export const runValidator = () => ({
+export const runValidator = (): Validator<Run, Prisma.runWhereInput> => ({
     // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
     //     validateProfanity(data.map((d: any) => d.title));
     // },
@@ -191,7 +191,6 @@ export const runMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Run',
             prisma,
-            prismaObject: (p) => p.run,
             yup: { yupCreate: runsCreate, yupUpdate: runsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {

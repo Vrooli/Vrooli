@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { CODE } from "@shared/consts";
 import { walletsUpdate } from '@shared/validation';
 import { CustomError, genErrorCode } from "../events";
@@ -5,8 +6,8 @@ import { Wallet, WalletUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { cudHelper } from "./actions";
-import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { relationshipBuilderHelper } from "./builder";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
 
 export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
@@ -17,7 +18,7 @@ export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     },
 })
 
-export const walletValidator = () => ({
+export const walletValidator = (): Validator<Wallet, Prisma.walletWhereInput> => ({
     /**
      * Maps GraphQLModelType to wallet relationship field
      */
@@ -84,8 +85,7 @@ export const walletMutater = (prisma: PrismaType) => ({
             data,
             relationshipName,
             isAdd,
-            // connect/disconnect not supported by wallets (since they can only be applied to one run)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             userId,
         });
     },
@@ -94,7 +94,6 @@ export const walletMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Wallet',
             prisma,
-            prismaObject: (p) => p.wallet,
             yup: { yupCreate: walletsUpdate, yupUpdate: walletsUpdate },
             shape: {
                 shapeCreate: () => {

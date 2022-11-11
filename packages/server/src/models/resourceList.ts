@@ -105,8 +105,7 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             relationshipName,
             isAdd,
             isOneToOne: true,
-            // connect/disconnect not supported by resource lists (since they can only be applied to one object)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             userId,
         });
@@ -116,7 +115,6 @@ export const resourceListMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'ResourceList',
             prisma,
-            prismaObject: (p) => p.resource_list,
             yup: { yupCreate: resourceListsCreate, yupUpdate: resourceListsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

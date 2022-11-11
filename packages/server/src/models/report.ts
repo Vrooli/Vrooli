@@ -4,7 +4,7 @@ import { omit } from '@shared/utils';
 import { addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper } from "./builder";
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
@@ -67,7 +67,7 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
     },
 })
 
-export const reportValidator = () => ({
+export const reportValidator = (): Validator<Report, Prisma.reportWhereInput> => ({
     // // TODO not sure if report should have profanity check, since someone might 
     // // just be trying to submit a report for a profane word
     // profanityCheck(data: (ReportCreateInput | ReportUpdateInput)[]): void {
@@ -113,7 +113,6 @@ export const reportMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Report',
             prisma,
-            prismaObject: (p) => p.report,
             yup: { yupCreate: reportsCreate, yupUpdate: reportsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {

@@ -1,14 +1,13 @@
-import { addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, relationshipBuilderHelper, RelationshipTypes, removeJoinTablesHelper, selectHelper } from "./builder";
+import { addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper, removeJoinTablesHelper } from "./builder";
 import { tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@shared/validation";
-import { CODE, TagSortBy } from "@shared/consts";
+import { TagSortBy } from "@shared/consts";
 import { omit } from '@shared/utils';
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
-import { CustomError, genErrorCode } from "../events";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, Count } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
-import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 
@@ -161,7 +160,6 @@ export const tagMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Tag',
             prisma,
-            prismaObject: (p) => p.tag,
             yup: { yupCreate: tagsCreate, yupUpdate: tagsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

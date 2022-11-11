@@ -328,8 +328,6 @@ export async function init(prisma: PrismaType) {
                 isAutomatable: false,
                 versionLabel: '1.0.0',
                 versionIndex: 0,
-                inputs: {}, //TODO
-                outputs: {}, //TODO
                 resourceList: {
                     create: [
                         {
@@ -390,8 +388,6 @@ export async function init(prisma: PrismaType) {
                 isAutomatable: false,
                 versionLabel: '1.0.0',
                 versionIndex: 0,
-                inputs: {}, //TODO
-                outputs: {}, //TODO
                 resourceList: {
                     create: [
                         {

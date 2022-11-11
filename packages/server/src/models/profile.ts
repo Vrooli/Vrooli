@@ -17,6 +17,7 @@ import { readOneHelper } from "./actions";
 import { FormatConverter, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType } from "./types";
 import pkg, { Prisma } from '@prisma/client';
 import { sendResetPasswordLink, sendVerificationLink } from "../notify";
+import { lineBreaksCheck, profanityCheck } from "./validators";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -433,8 +434,8 @@ const profileMutater = (prisma: PrismaType) => ({
         await WalletModel.validate.verifyHandle(prisma, 'User', userId, input.handle);
         if (hasProfanity(input.name))
             throw new CustomError(CODE.BannedWord, 'User name contains banned word', { code: genErrorCode('0066') });
-        TranslationModel.profanityCheck([input]);
-        TranslationModel.validateLineBreaks(input, ['bio'], CODE.LineBreaksBio)
+        profanityCheck([input], { __typename: 'User' });
+        lineBreaksCheck(input, ['bio'], CODE.LineBreaksBio)
         // Convert info to partial select
         const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)

@@ -14,7 +14,6 @@ import { UserModel } from './user';
 import { StarModel } from './star';
 import { VoteModel } from './vote';
 import { EmailModel } from './email';
-import { CODE } from '@shared/consts';
 import { isObject } from '@shared/utils';
 import { ProfileModel } from './profile';
 import { MemberModel } from './member';
@@ -31,8 +30,7 @@ import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
-import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, ValidateMutationsInput } from './types';
-import { CustomError, genErrorCode } from '../events';
+import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap } from './types';
 import { TimeFrame, VisibilityType } from '../schema/types';
 const { difference, flatten, merge } = pkg;
 
@@ -619,6 +617,11 @@ export interface RelationshipBuilderHelperArgs<IDField extends string, GraphQLCr
      */
     isAdd: boolean,
     /**
+     * True if object can be transferred to another parent object. Some cases where this is false are 
+     * emails, phone numbers, etc.
+     */
+    isTransferable?: boolean,
+    /**
      * True if relationship is one-to-one
      */
     isOneToOne?: boolean,
@@ -682,6 +685,7 @@ export const relationshipBuilderHelper = async<IDField extends string, GraphQLCr
     data,
     relationshipName,
     isAdd,
+    isTransferable = true,
     isOneToOne = false,
     fieldExcludes = [],
     relExcludes = [],
@@ -698,7 +702,9 @@ export const relationshipBuilderHelper = async<IDField extends string, GraphQLCr
     update?: OneOrArray<{ where: { [key in IDField]: string }, data: { [x: string]: any } }>,
 } | undefined> => {
     // Determine valid operations, and remove operations that should be excluded
-    const ops = difference(isAdd ? [RelationshipTypes.connect, RelationshipTypes.create] : Object.values(RelationshipTypes), relExcludes)
+    let ops = isAdd ? [RelationshipTypes.connect, RelationshipTypes.create] : Object.values(RelationshipTypes);
+    if (!isTransferable) ops = difference(ops, [RelationshipTypes.connect, RelationshipTypes.disconnect]);
+    ops = difference(ops, relExcludes);
     // Create result object
     let converted: { [x: string]: any } = {};
     // Loop through object's keys
@@ -1123,40 +1129,6 @@ export const addSupplementalFieldsMultiTypes = async (
     return formatted;
 }
 
-type PermissionsHelper<PermissionObject> = {
-    /**
-     * Array of actions to check for
-     */
-    actions: string[];
-    model: ModelLogic<any, any, PermissionObject>;
-    object: ({ id: string } & { [x: string]: any });
-    prisma: PrismaType;
-    userId: string | null;
-}
-
-//TODO needs better typescript handling
-/**
- * Helper function to verify that a user has the correct permissions to perform an action on an object.
- * @returns True if the user has the correct permissions, false otherwise
- */
-export async function permissionsCheck<PermissionObject>({
-    actions,
-    model,
-    object,
-    prisma,
-    userId,
-}: PermissionsHelper<PermissionObject>): Promise<boolean> {
-    if (!model.permissions) return true;
-    // Query object's permissions
-    const perms = await model.permissions().get({ objects: [object], prisma, userId });
-    for (const action of actions) {
-        if (!perms[0][action as keyof PermissionObject]) {
-            return false;
-        }
-    }
-    return true;
-}
-
 type AddSupplementalFieldsHelper = {
     objects: ({ id: string } & { [x: string]: any })[],
     partial: PartialGraphQLInfo,
@@ -1390,7 +1362,7 @@ export function exceptionsBuilder({
 }
 
 type VisibilityBuilderProps<GraphQLModelType> = {
-    model: ModelLogic<GraphQLModelType, any, any>,
+    model: ModelLogic<GraphQLModelType, any, any, any>,
     userId: string | null | undefined,
     visibility?: VisibilityType | null | undefined,
 }
@@ -1425,300 +1397,5 @@ export function visibilityBuilder<GraphQLModelType>({
             query = { OR: [query, { isPrivate: false }] };
         }
         return query;
-    }
-}
-
-interface ValidateObjectOwnership extends ValidateMutationsInput<{
-    id: string,
-    createdByUserId?: string | null | undefined,
-    createdByOrganizationId?: string | null | undefined,
-    projectId?: string | null | undefined,
-}, {
-    id: string,
-    userId?: string | null | undefined,
-    organizationId?: string | null | undefined,
-    projectId?: string | null | undefined,
-}> {
-    objectType: GraphQLModelType,
-    prisma: PrismaType,
-}
-
-type ValidateHelperData = {
-    id: string,
-    createdByUserId?: string | null | undefined,
-    createdByOrganizationId?: string | null | undefined,
-    projectId?: string | null | undefined,
-    userId?: string | null | undefined,
-    organizationId?: string | null | undefined,
-}
-
-/**
- * Validates that the user has permission to create/update/delete a project, routine or standard. 
- * Checks user/organization, project, and version
- */
-export async function validateObjectOwnership({
-    createMany,
-    deleteMany,
-    objectType,
-    prisma,
-    updateMany,
-    userId,
-}: ValidateObjectOwnership) {
-    /**
-     * Helper for validating ownership of objects. 
-     * Throws an error if the user does not have permission to create/update/delete the object
-     */
-    const validateHelper = async (data: ValidateHelperData[], isExisting: boolean): Promise<void> => {
-        // Collect IDs by object type
-        const userIds = onlyValidIds([...data.map(x => x.createdByUserId), ...data.map(x => x.userId)]);
-        const organizationIds = onlyValidIds([...data.map(x => x.createdByOrganizationId), ...data.map(x => x.organizationId)]);
-        // For projects, only need to check if isExisting is true. For existing 
-        // data, we only check user/organization ownership in case permissions 
-        // get messed up
-        const projectIds = isExisting ? [] : onlyValidIds(data.map(x => x.projectId));
-        // If any userId is not yours, throw error
-        if (userIds.some(x => x !== userId)) {
-            throw new CustomError(CODE.Unauthorized, 'User permissions invalid', { code: genErrorCode('0257') });
-        }
-        // Check organizations using roles
-        const roles = await OrganizationModel.query().hasRole(prisma, userId, organizationIds);
-        // If any role is undefined, the user is not authorized
-        if (roles.some(x => x === undefined)) {
-            throw new CustomError(CODE.Unauthorized, 'Organization permissions invalid', { code: genErrorCode('0258') });
-        }
-        // Check projects using projects' user/organization ownership
-        if (projectIds.length > 0) {
-            const projects = await prisma.project.findMany({
-                where: {
-                    id: { in: projectIds },
-                    ...ProjectModel.permissions().ownershipQuery(userId),
-                },
-            })
-            if (projects.length !== projectIds.length) {
-                throw new CustomError(CODE.Unauthorized, 'Project permissions invalid', { code: genErrorCode('0259') });
-            }
-        }
-    }
-    /**
-     * Helper for querying existing objects to validate ownership
-     */
-    const queryHelper = async (ids: string[]): Promise<ValidateHelperData[]> => {
-        if (objectType === 'Project') {
-            return await prisma.project.findMany({
-                where: { id: { in: ids } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-        }
-        else if (objectType === 'Routine') {
-            return await prisma.routine.findMany({
-                where: { id: { in: ids } },
-                select: { id: true, userId: true, organizationId: true, projectId: true },
-            });
-        }
-        else {
-            return await prisma.standard.findMany({
-                where: { id: { in: ids } },
-                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
-            });
-        }
-    }
-    // Validate createMany
-    if (createMany) {
-        await validateHelper(createMany, false);
-    }
-    // Validate updateMany
-    if (updateMany) {
-        await validateHelper(updateMany.map(u => u.data), false);
-        const existingObjects = await queryHelper(updateMany.map(u => u.where.id));
-        await validateHelper(existingObjects, true);
-    }
-    // Validate deleteMany
-    if (deleteMany) {
-        const existingObjects = await queryHelper(deleteMany);
-        await validateHelper(existingObjects, true);
-    }
-}
-
-interface ValidateMaxObjects extends ValidateMutationsInput<{
-    id: string,
-    createdByUserId?: string | null | undefined,
-    createdByOrganizationId?: string | null | undefined,
-}, {
-    id: string,
-    userId?: string | null | undefined,
-    organizationId?: string | null | undefined,
-}> {
-    maxCount: number,
-    objectType: GraphQLModelType,
-    prisma: PrismaType,
-}
-
-type ValidateMaxObjectsData = {
-    id: string,
-    createdByUserId?: string | null | undefined,
-    createdByOrganizationId?: string | null | undefined,
-    userId?: string | null | undefined,
-    organizationId?: string | null | undefined,
-}
-
-/**
- * Validates that creating a new project, routine, or standard will not exceed the user's limit
- */
-export async function validateMaxObjects({
-    createMany,
-    deleteMany,
-    maxCount,
-    objectType,
-    prisma,
-    updateMany,
-    userId,
-}: ValidateMaxObjects) {
-    let totalUserIdCount = 0;
-    let totalOrganizationIds: { [id: string]: number } = {};
-    /**
-     * Helper for converting an array of strings to a map of occurence counts
-     */
-    const countHelper = (arr: (string | null | undefined)[]): { [id: string]: number } => {
-        const result: { [id: string]: number } = {};
-        arr.forEach(x => {
-            if (!x) return;
-            if (result[x]) {
-                result[x] += 1;
-            }
-            else {
-                result[x] = 1;
-            }
-        });
-        return result;
-    }
-    /**
-     * Helper for adding counts to the total counts
-     */
-    const addToCounts = (data: ValidateMaxObjectsData[]) => {
-        totalUserIdCount += data.filter(x => x.createdByUserId === userId || x.userId === userId).length;
-        const organizationIds = countHelper(data.map(x => x.createdByOrganizationId || x.organizationId));
-        Object.keys(organizationIds).forEach(id => {
-            if (totalOrganizationIds[id]) {
-                totalOrganizationIds[id] += organizationIds[id];
-            }
-            else {
-                totalOrganizationIds[id] = organizationIds[id];
-            }
-        });
-    }
-    /**
-     * Helper for removing queried counts from the total counts
-     */
-    const removeFromCounts = (userCounts: number, organizationCounts: { [id: string]: number }) => {
-        totalUserIdCount -= userCounts;
-        Object.keys(organizationCounts).forEach(id => {
-            if (totalOrganizationIds[id]) {
-                totalOrganizationIds[id] -= organizationCounts[id];
-            }
-        });
-    }
-    /**
-     * Helper for querying existing data
-     * @returns Count of userId, and count of organizationId by ID
-     */
-    const queryExisting = async (ids: string[]): Promise<[number, { [id: string]: number }]> => {
-        let userIdCount: number;
-        let organizationIds: { [id: string]: number };
-        if (objectType === 'Project') {
-            const objects = await prisma.project.findMany({
-                where: { id: { in: ids } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            userIdCount = objects.filter(x => x.userId === userId).length;
-            organizationIds = countHelper(objects.map(x => x.organizationId));
-        }
-        else if (objectType === 'Routine') {
-            const objects = await prisma.routine.findMany({
-                where: { id: { in: ids } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            userIdCount = objects.filter(x => x.userId === userId).length;
-            organizationIds = countHelper(objects.map(x => x.organizationId));
-        }
-        else {
-            const objects = await prisma.standard.findMany({
-                where: { id: { in: ids } },
-                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
-            });
-            userIdCount = objects.filter(x => x.createdByUserId === userId).length;
-            organizationIds = countHelper(objects.map(x => x.createdByOrganizationId));
-        }
-        return [userIdCount, organizationIds];
-    }
-    // Add IDs in createMany to total counts
-    if (createMany) {
-        addToCounts(createMany);
-    }
-    // Add new IDs in updateMany to total counts, and remove existing IDs from total counts
-    if (updateMany) {
-        const newObjects = updateMany.map(u => u.data);
-        addToCounts(newObjects);
-        const [userIdCount, organizationIds] = await queryExisting(updateMany.map(u => u.where.id));
-        removeFromCounts(userIdCount, organizationIds);
-    }
-    // Remove IDs in deleteMany from total counts
-    if (deleteMany) {
-        const [userIdCount, organizationIds] = await queryExisting(deleteMany);
-        removeFromCounts(userIdCount, organizationIds);
-    }
-    // If the total counts exceed the max, throw an error
-    if (totalUserIdCount > maxCount) {
-        throw new CustomError(CODE.Unauthorized, `You have reached the maximum number of ${objectType}s you can create on this account.`, { code: genErrorCode('0260') });
-    }
-    if (Object.keys(totalOrganizationIds).some(id => totalOrganizationIds[id] > maxCount)) {
-        throw new CustomError(CODE.Unauthorized, `You have reached the maximum number of ${objectType}s you can create on this organization.`, { code: genErrorCode('0261') });
-    }
-}
-
-
-interface GetLatestVersionProps {
-    includeIncomplete?: boolean,
-    objectType: 'Api' | 'Note' | 'Routine' | 'SmartContract' | 'Standard',
-    prisma: PrismaType,
-    versionGroupId: string,
-}
-
-/**
- * Finds the latest version of a versioned object. This includes apis, notes, routines, smart contracts, and standards
- * @returns The id of the latest version
- */
-export async function getLatestVersion({
-    includeIncomplete = true,
-    objectType,
-    prisma,
-    versionGroupId,
-}: GetLatestVersionProps): Promise<string | undefined> {
-    // Handle apis and notes, which don't have an "isComplete" field
-    if (objectType === 'Api') {
-        const query = {
-            where: {
-                rootId: versionGroupId,
-            },
-            orderBy: { versionIndex: 'desc' as const },
-            select: { id: true },
-        }
-        const latestVersion = objectType === 'Api' ? await prisma.api_version.findFirst(query) : await prisma.note_version.findFirst(query);
-        return latestVersion?.id;
-    }
-    // Handle other objects, which have an "isComplete" field
-    if (objectType === 'Routine') {
-        const query = {
-            where: {
-                rootId: versionGroupId,
-                isComplete: includeIncomplete ? undefined : true,
-            },
-            orderBy: { versionIndex: 'desc' as const },
-            select: { id: true },
-        }
-        const latestVersion = objectType === 'Routine' ?
-            await prisma.routine_version.findFirst(query) : objectType === 'SmartContract' ?
-                await prisma.smart_contract_version.findFirst(query) :
-                await prisma.standard_version.findFirst(query);
-        return latestVersion?.id;
     }
 }

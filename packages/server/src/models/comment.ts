@@ -3,7 +3,7 @@ import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTransl
 import { omit } from '@shared/utils';
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput } from "../schema/types";
 import { PrismaType, RecursivePartial, ReqForUserAuth } from "../types";
-import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, getSearchStringQueryHelper, onlyValidIds, combineQueries, getUserId, validateMaxObjects, validateObjectOwnership } from "./builder";
+import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, getSearchStringQueryHelper, onlyValidIds, combineQueries, getUserId } from "./builder";
 import { TranslationModel } from "./translation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -383,7 +383,6 @@ export const commentMutater = (prisma: PrismaType): Mutater<Comment> => ({
             ...params,
             objectType: 'Comment',
             prisma,
-            prismaObject: (p) => p.comment,
             yup: { yupCreate: commentsCreate, yupUpdate: commentsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {

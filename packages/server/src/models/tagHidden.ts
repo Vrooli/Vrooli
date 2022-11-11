@@ -56,8 +56,7 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             data,
             relationshipName,
             isAdd,
-            // connect/disconnect not supported by run steps (since they can only be applied to one user)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
             userId,
         });
@@ -67,7 +66,6 @@ export const tagHiddenMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'TagHidden',
             prisma,
-            prismaObject: (p) => p.user_tag_hidden,
             yup: { yupCreate: tagHiddensCreate, yupUpdate: tagHiddensUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

@@ -1,7 +1,10 @@
+import { CODE } from "@shared/consts";
+import { CustomError, genErrorCode } from "../../events";
 import { Count } from "../../schema/types";
-import { modelToGraphQL, selectHelper, validateMaxObjects, validateObjectOwnership } from "../builder";
-import { TranslationModel } from "../translation";
-import { CUDHelperInput, CUDResult } from "../types";
+import { PrismaDelegate } from "../../types";
+import { modelToGraphQL, ObjectMap, selectHelper } from "../builder";
+import { CUDHelperInput, CUDResult, Validator } from "../types";
+import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 
 /**
  * Performs create, update, and delete operations. 
@@ -19,7 +22,7 @@ import { CUDHelperInput, CUDResult } from "../types";
  * 
  * Finally, it performs the operations in the database, and returns the results in shape of GraphQL objects
  */
-export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdate extends { [x: string]: any }, GQLObject, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }>({
+export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdate extends { [x: string]: any }, GQLObject extends { [x: string]: any }, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }>({
     createMany,
     deleteMany,
     objectType,
@@ -28,7 +31,6 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
     onDeleted,
     partialInfo,
     prisma,
-    prismaObject,
     shape,
     updateMany,
     userId,
@@ -36,23 +38,29 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
 }: CUDHelperInput<GQLCreate, GQLUpdate, GQLObject, DBCreate, DBUpdate>): Promise<CUDResult<GQLObject>> {
     // Perform mutations
     let created: GQLObject[] = [], updated: GQLObject[] = [], deleted: Count = { count: 0 };
+    // Perform validations
+    const validator: Validator<GQLObject, any> | undefined = ObjectMap[objectType].validator;
     // Validate yup
     createMany && yup.yupCreate.validateSync(createMany, { abortEarly: false });
     updateMany && yup.yupUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
     // Profanity check
-    createMany && TranslationModel.profanityCheck(createMany);
-    updateMany && TranslationModel.profanityCheck(updateMany.map(u => u.data));
-    // Permissions check
-    await validateObjectOwnership({ userId, createMany: createMany as any, updateMany: updateMany as any, deleteMany, prisma, objectType });
+    createMany && profanityCheck(createMany, partialInfo);
+    updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo);
     // Max objects check
-    await validateMaxObjects({ userId, createMany: createMany as any, updateMany: updateMany as any, deleteMany, prisma, objectType, maxCount: 1000000 });
+    await maxObjectsCheck({ userId, createMany: createMany as any, updateMany: updateMany as any, deleteMany, prisma, objectType, maxCount: 1000000 });
     // Shape and perform cud
+    const prismaDelegate: PrismaDelegate = ObjectMap[objectType].prismaObject(prisma);
     if (createMany) {
+        // Permissions check
+        const isPermitted = await permissionsCheck({ actions: ['Create'], objectIds: createMany.map(c => c.id), objectType, prisma, userId });
+        if (!isPermitted) throw new CustomError(CODE.Unauthorized, `Not allowed to create object`, { code: genErrorCode('0276') });
+        // Perform custom validation
+        validator?.validations?.create && await validator.validations.create(createMany, userId);
         for (const create of createMany) {
             // Shape 
             const data = await shape.shapeCreate(userId, create);
             // Create
-            const select = await prismaObject(prisma).create({
+            const select = await prismaDelegate.create({
                 data: data as any,
                 ...selectHelper(partialInfo)
             });
@@ -64,11 +72,16 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
         onCreated && await onCreated(created);
     }
     if (updateMany) {
+        // Permissions check
+        const isPermitted = await permissionsCheck({ actions: ['Update'], objectIds: updateMany.map(u => u.data.id), objectType, prisma, userId });
+        if (!isPermitted) throw new CustomError(CODE.Unauthorized, `Not allowed to update object`, { code: genErrorCode('0277') });
+        // Perform custom validation
+        validator?.validations?.update && await validator.validations.update(updateMany, userId);
         for (const update of updateMany) {
             // Shape
             const data = await shape.shapeUpdate(userId, update.data);
             // Update
-            const select = await prismaObject(prisma).update({
+            const select = await prismaDelegate.update({
                 where: update.where,
                 data: data as any,
                 ...selectHelper(partialInfo)
@@ -81,7 +94,12 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
         onUpdated && await onUpdated(updated, updateMany.map(u => u.data));
     }
     if (deleteMany) {
-        deleted = await prismaObject(prisma).deleteMany({
+        // Permissions check
+        const isPermitted = await permissionsCheck({ actions: ['Delete'], objectIds: deleteMany, objectType, prisma, userId });
+        if (!isPermitted) throw new CustomError(CODE.Unauthorized, `Not allowed to delete object`, { code: genErrorCode('0278') });
+        // Perform custom validation
+        validator?.validations?.delete && await validator.validations.delete(deleteMany, userId);
+        deleted = await prismaDelegate.deleteMany({
             where: { id: { in: deleteMany } }
         })
         // Call onDeleted

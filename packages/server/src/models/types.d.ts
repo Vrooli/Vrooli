@@ -48,13 +48,13 @@ export type GraphQLModelType =
  * Every business layer object has at least a PrismaType object and a format converter. 
  * Everything else is optional
  */
-export type ModelLogic<GraphQLModel, SearchInput, PermissionObject> = {
+export type ModelLogic<GraphQLModel, SearchInput, PermissionObject, PermissionsQuery> = {
     format: FormatConverter<GraphQLModel, PermissionObject>;
-    prismaObject: (prisma: PrismaType) => PrismaType[keyof PrismaType];
+    prismaObject: (prisma: PrismaType) => PrismaDelegate;
     search?: Searcher<SearchInput>;
     mutate?: (prisma: PrismaType) => Mutater<GraphQLModel>;
     permissions?: () => Permissioner<PermissionObject, SearchInput>;
-    verify?: { [x: string]: any };
+    validate?: Validator<GraphQLModel, PermissionsQuery>
     query?: (prisma: PrismaType) => Querier;
     type: GraphQLModelType;
 }
@@ -158,6 +158,50 @@ export type Searcher<SearchInput> = {
 export type Querier = { [x: string]: any };
 
 /**
+ * Describes shape of component that has validation rules 
+ */
+export type Validator<GraphQLModel extends { [x: string]: any }, PermissionsQuery extends { [x: string]: any }> = {
+    /**
+     * Relationships in the GraphQL object which have separate/additional 
+     * validation rules
+     */
+    validatedRelationshipMap?: { [key in keyof GraphQLModel]?: GraphQLModelType };
+    /**
+     * Query to get the object's permissions. This will be used - possibly in 
+     * conjunction with the parent object's permissions - to determine if you 
+     * are allowed to perform the mutation
+     */
+    permissionsQuery?: (userId: string) => PermissionsQuery;
+    /**
+     * String fields which must be checked for profanity. You don't need to 
+     * include fields in a translate object, as those will be checked
+     * automatically
+     */
+    profanityFields?: string[];
+    /**
+     * Any custom validations you want to perform before a create mutation. You must throw 
+     * an error if a validation fails, since that'll return a customized error message to the
+     * user
+     */
+    validations?: {
+        connect?: (connectMany: string[], userId: string) => Promise<void> | void;
+        create?: (createMany: GraphQLCreate[], userId: string) => Promise<void> | void;
+        delete?: (deleteMany: string[], userId: string) => Promise<void> | void;
+        disconnect?: (disconnectMany: string[], userId: string) => Promise<void> | void;
+        update?: (updateMany: GraphQLUpdate[], userId: string) => Promise<void> | void;
+    };
+    /**
+     * Any custom transformations you want to perform before a create/update mutation, 
+     * besides the ones specified in cudHelper. This includes converting creates to 
+     * connects, which means this function has to be pretty flexible in what it allows
+     */
+    transformations: {
+        create: (createMany: GraphQLCreate[], userId: string) => Promise<GraphQLCreate[]> | GraphQLCreate[];
+        update: (updateMany: GraphQLUpdate[], userId: string) => Promise<GraphQLUpdate[]> | GraphQLUpdate[];
+    };
+} & { [x: string]: any };
+
+/**
  * Describes shape of component that can be mutated
  */
 export type Mutater<GraphQLModel> = {
@@ -232,13 +276,6 @@ export type CountInputBase = {
     updatedTimeFrame?: Partial<TimeFrame> | null;
 }
 
-export interface ValidateMutationsInput<Create, Update> {
-    userId: string,
-    createMany?: Create[] | null | undefined,
-    updateMany?: { where: { [x: string]: any }, data: Update }[] | null | undefined,
-    deleteMany?: string[] | null | undefined,
-}
-
 export interface CUDInput<Create, Update> {
     userId: string,
     createMany?: Create[] | null | undefined,
@@ -257,7 +294,6 @@ export interface CUDHelperInput<GraphQLCreate extends { [x: string]: any }, Grap
     objectType: GraphQLModelType,
     userId: string,
     prisma: PrismaType,
-    prismaObject: (prisma: PrismaType) => PrismaDelegate;
     createMany?: GraphQLCreate[] | null | undefined,
     updateMany?: { where: { [x: string]: any }, data: GraphQLUpdate }[] | null | undefined,
     deleteMany?: string[] | null | undefined,

@@ -45,8 +45,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             data,
             relationshipName: 'routine',
             isAdd,
-            // connect/disconnect not supported by routine list node items (since they can only be applied to one routine list)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: {
                 shapeCreate: async (userId, cuData) => ({
                     id: cuData.id,
@@ -78,8 +77,7 @@ export const nodeRoutineListMutater = (prisma: PrismaType) => ({
             data,
             relationshipName: 'nodeRoutineList',
             isAdd,
-            // connect/disconnect not supported by node routine lists (since they can only be applied to one node)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             userId,
         });

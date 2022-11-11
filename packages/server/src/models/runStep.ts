@@ -72,8 +72,7 @@ export const runStepMutater = (prisma: PrismaType) => ({
             data,
             relationshipName,
             isAdd,
-            // connect/disconnect not supported by run steps (since they can only be applied to one run)
-            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            isTransferable: false,
             shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
             userId,
         });
@@ -86,7 +85,6 @@ export const runStepMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'RunStep',
             prisma,
-            prismaObject: (p) => p.run_step,
             yup: { yupCreate: stepsCreate, yupUpdate: stepsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })
