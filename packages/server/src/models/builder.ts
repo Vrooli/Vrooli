@@ -549,28 +549,50 @@ const filterFields = (data: { [x: string]: any }, excludes: string[]): { [x: str
 
 /**
  * Helper method to shape Prisma connect, disconnect, create, update, and delete data
- * Examples:
+ * 
+ * Examples when "isOneToOne" is false (the default):
  *  - '123' => [{ id: '123' }]
  *  - { id: '123' } => [{ id: '123' }]
  *  - { name: 'John' } => [{ name: 'John' }]
  *  - ['123', '456'] => [{ id: '123' }, { id: '456' }]
+ * 
+ * Examples when "isOneToOne" is true:
+ * - '123' => { id: '123' }
+ * - { id: '123' } => { id: '123' }
+ * - { name: 'John' } => { name: 'John' }
+ * - ['123', '456'] => { id: '123' }
+ * 
  * @param data The data to shape
  * @param excludes The fields to exclude from the shape
+ * @param isOneToOne Whether the data is one-to-one (i.e. a single object)
  */
-const shapeRelationshipData = (data: any, excludes: string[] = []): any => {
-    if (Array.isArray(data)) {
-        return data.map(e => {
-            if (isObject(e)) {
-                return filterFields(e, excludes);
-            } else {
-                return { id: e };
-            }
-        });
-    } else if (isObject(data)) {
-        return [filterFields(data, excludes)];
-    } else {
-        return [{ id: data }];
+const shapeRelationshipData = (data: any, excludes: string[] = [], isOneToOne: boolean = false): any => {
+    const shapeAsMany = (data: any): any => {
+        if (Array.isArray(data)) {
+            return data.map(e => {
+                if (isObject(e)) {
+                    return filterFields(e, excludes);
+                } else {
+                    return { id: e };
+                }
+            });
+        } else if (isObject(data)) {
+            return [filterFields(data, excludes)];
+        } else {
+            return [{ id: data }];
+        }
     }
+    // Shape as if "isOneToOne" is fasel
+    let result = shapeAsMany(data);
+    // Then if "isOneToOne" is true, return the first element
+    if (isOneToOne) {
+        if (result.length > 0) {
+            result = result[0];
+        } else {
+            result = {};
+        }
+    }
+    return result;
 }
 
 export enum RelationshipTypes {
@@ -581,48 +603,102 @@ export enum RelationshipTypes {
     delete = 'delete',
 }
 
-export interface RelationshipToPrismaArgs<N extends string> {
+export interface RelationshipBuilderHelperArgs<IDField extends string, GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }> {
+    /**
+     * The data to convert
+     */
     data: { [x: string]: any },
+    /**
+     * The name of the relationship to convert. This is required because we're grabbing the 
+     * relationship from its parent object
+     */
     relationshipName: string,
+    /**
+     * True if we're creating the parent object, instead of updating it. Adding limits 
+     * the types of Prisma operations we can perform
+     */
     isAdd: boolean,
+    /**
+     * True if relationship is one-to-one
+     */
+    isOneToOne?: boolean,
+    /**
+     * Fields to exclude from the relationship data. This can be handled in the shape fields as well,
+     * but this is more convenient
+     */
     fieldExcludes?: string[],
+    /**
+     * Prisma operations to exclude from the relationship data. "isAdd" is often sufficient 
+     * to determine which operations to exclude, sometimes it's also nice to exluce "connect" and 
+     * "disconnect" when we know that a relationship can only be applied to the parent object
+     */
     relExcludes?: RelationshipTypes[],
+    /**
+     * True if object should be soft-deleted instead of hard-deleted. TODO THIS DOES NOT WORK YET
+     */
     softDelete?: boolean,
-    idField?: N,
+    /**
+     * The name of the ID field. Defaults to "id"
+     */
+    idField?: IDField,
+    /**
+     * Functions that perform additional formatting on create and update data. This is often 
+     * used to shape grandchildren, great-grandchildren, etc.
+     */
+    shape?: {
+        shapeCreate: (userId: string, create: GraphQLCreate) => (Promise<DBCreate> | DBCreate),
+        shapeUpdate: (userId: string, update: GraphQLUpdate) => (Promise<DBUpdate> | DBUpdate),
+    } | ((userId: string, data: GraphQLCreate | GraphQLUpdate, isAdd: boolean) => (Promise<DBCreate | DBUpdate> | DBCreate | DBUpdate)) | undefined,
+    /**
+     * The id of the user performing the operation. Relationship building is only used when performing 
+     * create, update, and delete operations, so id is always required
+     */
+    userId: string,
+    /**
+     * If relationship is a join table, data required to create the join table record
+     * 
+     * NOTE: Does not differentiate between a disconnect and a delete. How these are handled is 
+     * determined by the database cascading.
+     */
+    joinData?: {
+        fieldName: string, // e.g. organization.tags.tag => 'tag'
+        uniqueFieldName: string, // e.g. organization.tags.tag => 'organization_tags_taggedid_tagTag_unique'
+        childIdFieldName: string, // e.g. organization.tags.tag => 'tagTag'
+        parentIdFieldName: string, // e.g. organization.tags.tag => 'taggedId'
+        parentId: string | null, // Only needed if not a create
+    }
 }
+
+type OneOrArray<T> = T | T[];
 
 /**
  * Converts an add or update's data to proper Prisma format. 
+ * 
  * NOTE1: Must authenticate before calling this function!
+ * 
  * NOTE2: Only goes one layer deep. You must handle grandchildren, great-grandchildren, etc. yourself
- * ex: { childConnect: [...], childCreate: [...], childDelete: [...] } => 
- *     { child: { connect: [...], create: [...], deleteMany: [...] } }
- * @param data The data to convert
- * @param relationshipName The name of the relationship to convert (since data may contain irrelevant fields)
- * @param isAdd True if data is being converted for an add operation. This limits the prisma operations to only "connect" and "create"
- * @param fieldExcludes Fields to exclude from the conversion
- * @param relExcludes Relationship types to exclude from the conversion
- * @param softDelete True if deletes should be converted to soft deletes
- * @param idField The name of the id field. Defaults to "id"
  */
-export const relationshipToPrisma = <N extends string>({
+export const relationshipBuilderHelper = async<IDField extends string, GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }>({
     data,
     relationshipName,
     isAdd,
+    isOneToOne = false,
     fieldExcludes = [],
     relExcludes = [],
     softDelete = false,
-    idField = 'id' as N,
-}: RelationshipToPrismaArgs<N>): {
-    connect?: { [key in N]: string }[],
-    disconnect?: { [key in N]: string }[],
-    delete?: { [key in N]: string }[],
-    create?: { [x: string]: any }[],
-    update?: { where: { [key in N]: string }, data: { [x: string]: any } }[],
-} => {
+    idField = 'id' as IDField,
+    shape,
+    userId,
+    joinData,
+}: RelationshipBuilderHelperArgs<IDField, GraphQLCreate, GraphQLUpdate, DBCreate, DBUpdate>): Promise<{
+    connect?: OneOrArray<{ [key in IDField]: string }>,
+    disconnect?: OneOrArray<{ [key in IDField]: string }>,
+    delete?: OneOrArray<{ [key in IDField]: string }>,
+    create?: OneOrArray<{ [x: string]: any }>,
+    update?: OneOrArray<{ where: { [key in IDField]: string }, data: { [x: string]: any } }>,
+} | undefined> => {
     // Determine valid operations, and remove operations that should be excluded
-    let ops = isAdd ? [RelationshipTypes.connect, RelationshipTypes.create] : Object.values(RelationshipTypes);
-    ops = difference(ops, relExcludes)
+    const ops = difference(isAdd ? [RelationshipTypes.connect, RelationshipTypes.create] : Object.values(RelationshipTypes), relExcludes)
     // Create result object
     let converted: { [x: string]: any } = {};
     // Loop through object's keys
@@ -634,8 +710,13 @@ export const relationshipToPrisma = <N extends string>({
         const currOp = key.replace(relationshipName, '').toLowerCase();
         // TODO handle soft delete
         // Add operation to result object
-        const shapedData = shapeRelationshipData(value, fieldExcludes);
-        converted[currOp] = Array.isArray(converted[currOp]) ? [...converted[currOp], ...shapedData] : shapedData;
+        const shapedData = shapeRelationshipData(value, fieldExcludes, isOneToOne);
+        // Should be an array if not one-to-one
+        if (!isOneToOne) {
+            converted[currOp] = Array.isArray(converted[currOp]) ? [...converted[currOp], ...shapedData] : shapedData;
+        } else {
+            converted[currOp] = shapedData;
+        }
     };
     // Connects, diconnects, and deletes must be shaped in the form of { id: '123' } (i.e. no other fields)
     if (Array.isArray(converted.connect) && converted.connect.length > 0) converted.connect = converted.connect.map((e: { [x: string]: any }) => ({ [idField]: e[idField] }));
@@ -645,95 +726,74 @@ export const relationshipToPrisma = <N extends string>({
     if (Array.isArray(converted.update) && converted.update.length > 0) {
         converted.update = converted.update.map((e: any) => ({ where: { id: e.id }, data: e }));
     }
-    return converted;
-}
-
-export interface JoinRelationshipToPrismaArgs<N extends string> extends RelationshipToPrismaArgs<N> {
-    joinFieldName: string, // e.g. organization.tags.tag => 'tag'
-    uniqueFieldName: string, // e.g. organization.tags.tag => 'organization_tags_taggedid_tagTag_unique'
-    childIdFieldName: string, // e.g. organization.tags.tag => 'tagTag'
-    parentIdFieldName: string, // e.g. organization.tags.tag => 'taggedId'
-    parentId: string | null, // Only needed if not a create
-}
-
-/**
- * Converts the result of relationshipToPrisma to apply to a many-to-many relationship 
- * (i.e. uses a join table).
- * NOTE: Does not differentiate between a disconnect and a delete. How these are handled is determined by 
- * the database cascading.
- * NOTE: Can only update, disconnect, or delete if isAdd is false.
- * @param data The data to convert
- * @param joinFieldName The name of the field in the join table associated with the child object
- * @param uniqueFieldName The name of the unique field in the join table
- * @param childIdFieldName The name of the field in the join table associated with the child object
- * @param parentIdFieldName The name of the field in the join table associated with the parent object
- * @param relationshipName The name of the relationship to convert (since data may contain irrelevant fields)
- * @param isAdd True if data is being converted for an add operation. This limits the prisma operations to only "connect" and "create"
- * @param fieldExcludes Fields to exclude from the conversion
- * @param relExcludes Relationship types to exclude from the conversion
- * @param softDelete True if deletes should be converted to soft deletes
- * @param idField The name of the id field. Defaults to "id"
- */
-export const joinRelationshipToPrisma = <N extends string>({
-    data,
-    joinFieldName,
-    uniqueFieldName,
-    childIdFieldName,
-    parentIdFieldName,
-    parentId,
-    relationshipName,
-    isAdd,
-    fieldExcludes = [],
-    relExcludes = [],
-    softDelete = false,
-    idField = 'id' as N,
-}: JoinRelationshipToPrismaArgs<N>): { [x: string]: any } => {
-    let converted: { [x: string]: any } = {};
-    // Call relationshipToPrisma to get join data used for one-to-many relationships
-    const normalJoinData = relationshipToPrisma({ data, relationshipName, isAdd, fieldExcludes, relExcludes, softDelete, idField })
-    // Convert this to support a join table
-    if (normalJoinData.hasOwnProperty('connect')) {
-        // ex: create: [ { tag: { connect: { id: 'asdf' } } } ] <-- A join table always creates on connects
-        for (const id of (normalJoinData?.connect ?? [])) {
-            const curr = { [joinFieldName]: { connect: id } };
-            converted.create = Array.isArray(converted.create) ? [...converted.create, curr] : [curr];
+    // Shape creates and updates
+    const shapeCreate = shape !== undefined ? typeof shape === 'function' ? shape : shape.shapeCreate : undefined;
+    if (shapeCreate) {
+        if (Array.isArray(converted.create)) {
+            const shaped: { [x: string]: any }[] = [];
+            for (const create of converted.create) {
+                const shapedCreate = await shapeCreate(userId, create, true);
+                shaped.push(shapedCreate);
+            }
+            converted.create = shaped;
         }
     }
-    if (normalJoinData.hasOwnProperty('disconnect')) {
-        // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
-        for (const id of (normalJoinData?.disconnect ?? [])) {
-            const curr = { [uniqueFieldName]: { [childIdFieldName]: id[idField], [parentIdFieldName]: parentId } };
-            converted.delete = Array.isArray(converted.delete) ? [...converted.delete, curr] : [curr];
+    const shapeUpdate = shape !== undefined ? typeof shape === 'function' ? shape : shape.shapeUpdate : undefined;
+    if (shapeUpdate) {
+        if (Array.isArray(converted.update)) {
+            const shaped: { where: { [key in IDField]: string }, data: { [x: string]: any } }[] = [];
+            for (const update of converted.update) {
+                const shapedUpdate = await shapeUpdate(userId, update.data, false);
+                shaped.push({ where: update.where, data: shapedUpdate });
+            }
+            converted.update = shaped;
         }
     }
-    if (normalJoinData.hasOwnProperty('delete')) {
-        // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ]
-        for (const id of (normalJoinData?.delete ?? [])) {
-            const curr = { [uniqueFieldName]: { [childIdFieldName]: id[idField], [parentIdFieldName]: parentId } };
-            converted.delete = Array.isArray(converted.delete) ? [...converted.delete, curr] : [curr];
+    // Handle join table, if applicable
+    if (joinData) {
+        if (converted.connect) {
+            // ex: create: [ { tag: { connect: { id: 'asdf' } } } ] <-- A join table always creates on connects
+            for (const id of (converted?.connect ?? [])) {
+                const curr = { [joinData.fieldName]: { connect: id } };
+                converted.create = Array.isArray(converted.create) ? [...converted.create, curr] : [curr];
+            }
+        }
+        if (converted.disconnect) {
+            // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ] <-- A join table always deletes on disconnects
+            for (const id of (converted?.disconnect ?? [])) {
+                const curr = { [joinData.uniqueFieldName]: { [joinData.childIdFieldName]: id[idField], [joinData.parentIdFieldName]: joinData.parentId } };
+                converted.delete = Array.isArray(converted.delete) ? [...converted.delete, curr] : [curr];
+            }
+        }
+        if (converted.delete) {
+            // delete: [ { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } } ]
+            for (const id of (converted?.delete ?? [])) {
+                const curr = { [joinData.uniqueFieldName]: { [joinData.childIdFieldName]: id[idField], [joinData.parentIdFieldName]: joinData.parentId } };
+                converted.delete = Array.isArray(converted.delete) ? [...converted.delete, curr] : [curr];
+            }
+        }
+        if (converted.create) {
+            // ex: create: [ { tag: { create: { id: 'asdf' } } } ]
+            for (const id of (converted?.create ?? [])) {
+                const curr = { [joinData.fieldName]: { create: id } };
+                converted.create = Array.isArray(converted.create) ? [...converted.create, curr] : [curr];
+            }
+        }
+        if (converted.update) {
+            // ex: update: [{ 
+            //         where: { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } },
+            //         data: { tag: { update: { tag: 'fdas', } } }
+            //     }]
+            for (const data of (converted?.update ?? [])) {
+                const curr = {
+                    where: { [joinData.uniqueFieldName]: { [joinData.childIdFieldName]: data.where[idField], [joinData.parentIdFieldName]: joinData.parentId } },
+                    data: { [joinData.fieldName]: { update: data.data } }
+                };
+                converted.update = Array.isArray(converted.update) ? [...converted.update, curr] : [curr];
+            }
         }
     }
-    if (normalJoinData.hasOwnProperty('create')) {
-        // ex: create: [ { tag: { create: { id: 'asdf' } } } ]
-        for (const id of (normalJoinData?.create ?? [])) {
-            const curr = { [joinFieldName]: { create: id } };
-            converted.create = Array.isArray(converted.create) ? [...converted.create, curr] : [curr];
-        }
-    }
-    if (normalJoinData.hasOwnProperty('update')) {
-        // ex: update: [{ 
-        //         where: { organization_tags_taggedid_tagTag_unique: { tagTag: 'asdf', taggedId: 'fdas' } },
-        //         data: { tag: { update: { tag: 'fdas', } } }
-        //     }]
-        for (const data of (normalJoinData?.update ?? [])) {
-            const curr = {
-                where: { [uniqueFieldName]: { [childIdFieldName]: data.where[idField], [parentIdFieldName]: parentId } },
-                data: { [joinFieldName]: { update: data.data } }
-            };
-            converted.update = Array.isArray(converted.update) ? [...converted.update, curr] : [curr];
-        }
-    }
-    return converted;
+    return Object.keys(converted).length > 0 ? converted : undefined;
 }
 
 /**

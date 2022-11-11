@@ -10,7 +10,8 @@ import { CustomError, genErrorCode, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
-import { FormatConverter, Searcher, Permissioner, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo } from "./types";
+import { FormatConverter, Searcher, Permissioner, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo } from "./types";
+import { cudHelper } from "./actions";
 
 export const runFormatter = (): FormatConverter<Run, any> => ({
     relationshipMap: {
@@ -154,7 +155,7 @@ export const runPermissioner = (): Permissioner<RunPermission, RunSearchInput> =
  * Handles run instances of routines
  */
 export const runMutater = (prisma: PrismaType) => ({
-    async toDBCreate(userId: string, data: RunCreateInput): Promise<Prisma.runUpsertArgs['create']> {
+    async shapeCreate(userId: string, data: RunCreateInput): Promise<Prisma.runUpsertArgs['create']> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
             id: data.id,
@@ -166,90 +167,44 @@ export const runMutater = (prisma: PrismaType) => ({
             userId,
         }
     },
-    async toDBUpdate(userId: string, updateData: RunUpdateInput, existingData: Run): Promise<Prisma.runUpsertArgs['update']> {
+    async shapeUpdate(userId: string, data: RunUpdateInput): Promise<Prisma.runUpsertArgs['update']> {
         return {
-            timeElapsed: (existingData.timeElapsed ?? 0) + (updateData.timeElapsed ?? 0),
-            completedComplexity: (existingData.completedComplexity ?? 0) + (updateData.completedComplexity ?? 0),
-            contextSwitches: (existingData.contextSwitches ?? 0) + (updateData.contextSwitches ?? 0),
-            steps: await RunStepModel.mutate(prisma).relationshipBuilder(userId, updateData, false),
-            inputs: await RunInputModel.mutate(prisma).relationshipBuilder(userId, updateData, false),
-        }
-    },
-    async validateMutations({
-        userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<RunCreateInput, RunUpdateInput>): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        if (createMany) {
-            runsCreate.validateSync(createMany, { abortEarly: false });
-            runVerifier().profanityCheck(createMany);
-        }
-        if (updateMany) {
-            runsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            runVerifier().profanityCheck(updateMany.map(u => u.data));
-            // Check that user owns each run
-            //TODO
-        }
-        if (deleteMany) {
-            // Check that user owns each run
-            //TODO
+            timeElapsed: data.timeElapsed ? { increment: data.timeElapsed } : undefined,
+            completedComplexity: data.completedComplexity ? { increment: data.completedComplexity } : undefined,
+            contextSwitches: data.contextSwitches ? { increment: data.contextSwitches } : undefined,
+            steps: await RunStepModel.mutate(prisma).relationshipBuilder(userId, data, false),
+            inputs: await RunInputModel.mutate(prisma).relationshipBuilder(userId, data, false),
         }
     },
     /**
      * Performs adds, updates, and deletes of runs. First validates that every action is allowed.
      */
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
-        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        // Perform mutations
-        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
-        if (createMany) {
-            // Loop through each create input
-            for (const input of createMany) {
-                // Call createData helper function
-                const data = await this.toDBCreate(userId, input);
-                // Create object
-                const currCreated = await prisma.run.create({ data, ...selectHelper(partialInfo) });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partialInfo);
-                // Add to created array
-                created = created ? [...created, converted] : [converted];
+    async cud(params: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
+        return cudHelper({
+            ...params,
+            objectType: 'Run',
+            prisma,
+            prismaObject: (p) => p.run,
+            yup: { yupCreate: runsCreate, yupUpdate: runsUpdate },
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            onCreate: () => {
+                // Handle run start trigger for every run with status InProgress
+                // for (const c of created) {
+                //     await Trigger(prisma).runStart(c.id, userId);
+                // }
+            },
+            onUpdate: () => {
+                // Handle run start trigger for every run with status InProgress, 
+                // that previously had a status of Scheduled
+                // for (const c of created) {
+                //     await Trigger(prisma).runStart(c.id, userId);
+                // }
+                // Handle run complete trigger for every run with status Completed
+                // TODO
+                // Handle run fail trigger for every run with status Failed
+                // TODO
             }
-            // Handle trigger
-            for (const c of created) {
-                await Trigger(prisma).runStart(c.id, userId);
-            }
-        }
-        if (updateMany) {
-            // Loop through each update input
-            for (const input of updateMany) {
-                // Find in database
-                let object = await prisma.run.findFirst({
-                    where: { ...input.where, userId }
-                })
-                if (!object) throw new CustomError(CODE.ErrorUnknown, 'Run not found.', { code: genErrorCode('0176') });
-                // Update object
-                const data = await this.toDBUpdate(userId, input.data, object as any)
-                const currUpdated = await prisma.run.update({
-                    where: input.where,
-                    data,
-                    ...selectHelper(partialInfo)
-                });
-                // if (data.hasOwnProperty('wasSuccessful')) {
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partialInfo);
-                // Add to updated array
-                updated = updated ? [...updated, converted] : [converted];
-            }
-        }
-        if (deleteMany) {
-            deleted = await prisma.run.deleteMany({
-                where: { id: { in: deleteMany } }
-            })
-        }
-        return {
-            created: createMany ? created : undefined,
-            updated: updateMany ? updated : undefined,
-            deleted: deleteMany ? deleted : undefined,
-        };
+        })
     },
     /**
      * Deletes all runs for a user, except if they are in progress

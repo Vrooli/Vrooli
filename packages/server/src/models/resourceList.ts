@@ -1,6 +1,6 @@
 import { resourceListsCreate, resourceListsUpdate, resourceListTranslationsCreate, resourceListTranslationsUpdate } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
-import { combineQueries, getSearchStringQueryHelper, relationshipToPrisma, RelationshipTypes } from "./builder";
+import { combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper, RelationshipTypes } from "./builder";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput } from "../schema/types";
@@ -76,48 +76,40 @@ export const resourceListMutater = (prisma: PrismaType) => ({
     shapeBase(userId: string, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) {
         return {
             id: data.id,
-            organizationId: data.organizationId ?? undefined,
-            projectId: data.projectId ?? undefined,
-            routineId: data.routineId ?? undefined,
-            userId: data.userId ?? undefined,
+            organization: data.organizationId ? { connect: { id: data.organizationId } } : undefined,
+            project: data.projectId ? { connect: { id: data.projectId } } : undefined,
+            routine: data.routineId ? { connect: { id: data.routineId } } : undefined,
+            user: data.userId ? { connect: { id: data.userId } } : undefined,
             resources: ResourceModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
             translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceListTranslationsCreate, update: resourceListTranslationsUpdate }, isAdd),
         };
     },
-    shapeCreate(userId: string, data: ResourceListCreateInput, isAdd: boolean): Prisma.resource_listUpsertArgs['create'] {
+    shapeCreate(userId: string, data: ResourceListCreateInput): Prisma.resource_listUpsertArgs['create'] {
         return {
-            ...this.shapeBase(userId, data, isAdd),
+            ...this.shapeBase(userId, data, true),
         };
     },
-    shapeUpdate(userId: string, data: ResourceListUpdateInput, isAdd: boolean): Prisma.resource_listUpsertArgs['update'] {
+    shapeUpdate(userId: string, data: ResourceListUpdateInput): Prisma.resource_listUpsertArgs['update'] {
         return {
-            ...this.shapeBase(userId, data, isAdd),
+            ...this.shapeBase(userId, data, false),
         };
     },
     relationshipBuilder(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'resourceList',
     ): Promise<{ [x: string]: any } | undefined> {
-        const fieldExcludes = ['createdFor', 'createdForId'];
-        // Convert input to Prisma shape. Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by resource lists (since they can only be applied to one object)
-        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Shape
-        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
-            const create = formattedInput.create[0];
-            // If title or description is not provided, try querying for the link's og tags TODO
-            formattedInput.create = this.shapeCreate(userId, create, true);
-        }
-        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
-            const update = formattedInput.update[0].data;
-            formattedInput.update = {
-                where: update.where,
-                data: this.shapeUpdate(userId, update.data, false),
-            }
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return relationshipBuilderHelper({
+            data,
+            relationshipName,
+            isAdd,
+            isOneToOne: true,
+            // connect/disconnect not supported by resource lists (since they can only be applied to one object)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            userId,
+        });
     },
     async cud(params: CUDInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<CUDResult<ResourceList>> {
         return cudHelper({

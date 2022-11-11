@@ -1,8 +1,7 @@
-import { isRelationshipArray, isRelationshipObject, relationshipToPrisma, RelationshipTypes } from "./builder";
+import { isRelationshipArray, isRelationshipObject, relationshipBuilderHelper, RelationshipTypes } from "./builder";
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode } from "../events";
 import { hasProfanity } from "../utils/censor";
-import { ValidateMutationsInput } from "./types";
 
 export const translationMutater = () => ({
     /**
@@ -88,31 +87,19 @@ export const translationMutater = () => ({
     */
     relationshipBuilder(
         userId: string | null,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         validators: { create: any, update: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'translations', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate
-        this.validateMutations({ userId: '', ...formattedInput }, validators);
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
-    },
-    /**
-     * Validate adds, updates, and deletes
-     */
-    async validateMutations<CreateInput, UpdateInput>(
-        { createMany, updateMany, deleteMany }: ValidateMutationsInput<CreateInput, UpdateInput>,
-        validators: { create: any, update: any }
-    ): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        if (createMany) {
-            createMany.forEach(input => validators.create.validateSync(input, { abortEarly: false }));
-        }
-        if (updateMany) {
-            updateMany.forEach(input => validators.update.validateSync(input.data, { abortEarly: false }));
-        }
-        this.profanityCheck([...(createMany ?? []), ...(updateMany?.map(u => u.data) ?? [])] as any)
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'translations',
+            isAdd,
+            // connect/disconnect not supported by translations (since they can only be applied to one object)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: (_, cuData) => cuData,
+            userId: '',
+        });
     },
 })
 

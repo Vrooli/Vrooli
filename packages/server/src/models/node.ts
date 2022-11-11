@@ -1,5 +1,5 @@
 import { Node, NodeCreateInput, NodeUpdateInput } from "../schema/types";
-import { relationshipToPrisma, RelationshipTypes } from "./builder";
+import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
 import { nodeTranslationCreate, nodeTranslationUpdate, nodesCreate, nodesUpdate } from "@shared/validation";
 import { PrismaType } from "../types";
 import { TranslationModel } from "./translation";
@@ -64,8 +64,8 @@ export const nodeMutater = (prisma: PrismaType) => ({
         };
     },
     async shapeCreate(userId: string, data: NodeCreateInput): Promise<Prisma.nodeUpsertArgs['create']> {
-        return { 
-            ...(await this.toDBBase(userId, data)), 
+        return {
+            ...(await this.toDBBase(userId, data)),
             routineVersionId: data.routineVersionId,
             type: data.type,
         };
@@ -78,93 +78,62 @@ export const nodeMutater = (prisma: PrismaType) => ({
      */
     async relationshipBuilder(
         userId: string,
-        routineId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'nodes',
     ): Promise<{ [x: string]: any } | undefined> {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by nodes (since they can only be applied to one routine)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        // Further shape the input
-        if (createMany) {
-            let result: { [x: string]: any }[] = [];
-            for (const data of createMany) {
-                result.push(await this.shapeCreate(userId, data as any));
-            }
-            createMany = result;
-        }
-        if (updateMany) {
-            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
-            for (const data of updateMany) {
-                result.push({
-                    where: data.where,
-                    data: await this.shapeUpdate(userId, data.data as any),
-                })
-            }
-            updateMany = result;
-        }
-        return Object.keys(formattedInput).length > 0 ? {
-            create: createMany,
-            update: updateMany,
-            delete: deleteMany
-        } : undefined;
+        return relationshipBuilderHelper({
+            data,
+            relationshipName,
+            isAdd,
+            // connect/disconnect not supported by nodes (since they can only be applied to one routine)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            userId,
+        });
     },
     /**
-     * Add, update, or remove node link whens from a routine
+     * Add, update, or remove whens from a node link
      */
     relationshipBuilderNodeLinkWhens(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node links (since they can only be applied to one node orchestration)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'whens', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'whens',
+            isAdd,
+            // connect/disconnect not supported by node links whens (since they can only be applied to one node link)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            userId,
+        })
     },
     /**
      * Add, update, or remove node link from a node orchestration
      */
     relationshipBuilderNodeLink(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'nodeLinks', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            for (let data of formattedInput.create) {
-                // Convert nested relationships
-                data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
-                let { fromId, toId, ...rest } = data;
-                data = {
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'nodeLinks',
+            isAdd,
+            // connect/disconnect not supported by node data (since they can only be applied to one node)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: (userId: string, cuData: { [x: string]: any }, isAdd: boolean) => {
+                let { fromId, toId, ...rest } = cuData;
+                return {
                     ...rest,
-                    from: { connect: { id: data.fromId } },
-                    to: { connect: { id: data.toId } },
-                };
-            }
-        }
-        // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (let data of formattedInput.update) {
-                // Convert nested relationships
-                data.data.whens = this.relationshipBuilderNodeLinkWhens(userId, data, isAdd);
-                let { fromId, toId, ...rest } = data.data;
-                data.data = {
-                    ...rest,
-                    from: fromId ? { connect: { id: data.data.fromId } } : undefined,
-                    to: toId ? { connect: { id: data.data.toId } } : undefined,
+                    whens: this.relationshipBuilderNodeLinkWhens(userId, cuData, isAdd),
+                    from: { connect: { id: cuData.fromId } },
+                    to: { connect: { id: cuData.toId } },
                 }
-            }
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+            },
+            userId,
+        })
     },
     /**
      * Add, update, or remove combine node data from a node.
@@ -172,64 +141,56 @@ export const nodeMutater = (prisma: PrismaType) => ({
      */
     relationshipBuilderEndNode(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
-        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'nodeEnd', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate create
-        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
-            formattedInput.create = formattedInput.create[0];
-        }
-        // Validate update
-        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
-            formattedInput.update = formattedInput.update[0].data;
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'nodeEnd',
+            isAdd,
+            isOneToOne: true,
+            // connect/disconnect not supported by node data (since they can only be applied to one node)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            userId,
+        })
     },
     /**
      * Add, update, or remove loop while data from a node
      */
     relationshipBuilderLoopWhiles(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'whiles', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'whiles',
+            isAdd,
+            // connect/disconnect not supported by node data (since they can only be applied to one node)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            userId,
+        })
     },
     /**
      * Add, update, or remove loop data from a node
      */
     relationshipBuilderLoop(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
     ): { [x: string]: any } | undefined {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by node data (since they can only be applied to one node)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'loop', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Validate create
-        if (Array.isArray(formattedInput.create)) {
-            for (const data of formattedInput.create) {
-                // Convert nested relationships
-                data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
-            }
-        }
-        // Validate update
-        if (Array.isArray(formattedInput.update)) {
-            for (const data of formattedInput.update) {
-                // Convert nested relationships
-                data.data.whiles = this.relationshipBuilderLoopWhiles(userId, data, isAdd);
-            }
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'loop',
+            isAdd,
+            // connect/disconnect not supported by node data (since they can only be applied to one node)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: (userId: string, cuData: { [x: string]: any }, isAdd: boolean) => ({
+                ...cuData,
+                whiles: this.relationshipBuilderLoopWhiles(userId, cuData, isAdd)
+            }),
+            userId,
+        })
     },
     /**
      * Performs adds, updates, and deletes of nodes. First validates that every action is allowed.
@@ -239,7 +200,7 @@ export const nodeMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Node',
             prisma,
-            prismaObject: (p) => p.node as any,
+            prismaObject: (p) => p.node,
             yup: { yupCreate: nodesCreate, yupUpdate: nodesUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

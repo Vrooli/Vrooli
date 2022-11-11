@@ -1,7 +1,7 @@
-import { addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, joinRelationshipToPrisma, modelToGraphQL, RelationshipTypes, removeJoinTablesHelper, selectHelper } from "./builder";
+import { addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, relationshipBuilderHelper, RelationshipTypes, removeJoinTablesHelper, selectHelper } from "./builder";
 import { tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@shared/validation";
 import { CODE, TagSortBy } from "@shared/consts";
-import { omit } from '@shared/utils'; 
+import { omit } from '@shared/utils';
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
 import { CustomError, genErrorCode } from "../events";
@@ -10,6 +10,7 @@ import { RecursivePartial, PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
 import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
+import { cudHelper } from "./actions";
 
 const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' };
 const supplementalFields = ['isStarred', 'isOwn'];
@@ -50,8 +51,9 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
                     { tag: { ...insensitive } },
@@ -76,21 +78,21 @@ export const tagVerifier = () => ({
 })
 
 export const tagMutater = (prisma: PrismaType) => ({
-    toDBBase(userId: string | null, data: TagCreateInput | TagUpdateInput) {
+    shapeBase(userId: string | null, data: TagCreateInput | TagUpdateInput) {
         return {
             tag: data.tag,
             createdByUserId: userId,
             translations: TranslationModel.relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
         }
     },
-    async toDBCreate(userId: string | null, data: TagCreateInput): Promise<Prisma.tagUpsertArgs['create']> {
+    async shapeCreate(userId: string | null, data: TagCreateInput): Promise<Prisma.tagUpsertArgs['create']> {
         return {
-            ...this.toDBBase(userId, data),
+            ...this.shapeBase(userId, data),
         }
     },
-    async toDBUpdate(userId: string | null, data: TagUpdateInput): Promise<Prisma.tagUpsertArgs['update']> {
+    async shapeUpdate(userId: string | null, data: TagUpdateInput): Promise<Prisma.tagUpsertArgs['update']> {
         return {
-            ...this.toDBBase(userId, data),
+            ...this.shapeBase(userId, data),
         }
     },
     /**
@@ -105,18 +107,20 @@ export const tagMutater = (prisma: PrismaType) => ({
     },
     async relationshipBuilder(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         parentType: keyof typeof this.parentMapper,
         relationshipName: string = 'tags',
     ): Promise<{ [x: string]: any } | undefined> {
+        // Tags get special logic because they are treated as strings in GraphQL, 
+        // instead of a normal relationship object
         // If any tag creates/connects, make sure they exist/not exist
-        const initialCreateTags = Array.isArray(input[`${relationshipName}Create`]) ?
-            input[`${relationshipName}Create`].map((c: any) => c.tag) :
-            typeof input[`${relationshipName}Create`] === 'object' ? [input[`${relationshipName}Create`].tag] :
+        const initialCreateTags = Array.isArray(data[`${relationshipName}Create`]) ?
+            data[`${relationshipName}Create`].map((c: any) => c.tag) :
+            typeof data[`${relationshipName}Create`] === 'object' ? [data[`${relationshipName}Create`].tag] :
                 [];
-        const initialConnectTags = Array.isArray(input[`${relationshipName}Connect`]) ?
-            input[`${relationshipName}Connect`] :
-            typeof input[`${relationshipName}Connect`] === 'object' ? [input[`${relationshipName}Connect`]] :
+        const initialConnectTags = Array.isArray(data[`${relationshipName}Connect`]) ?
+            data[`${relationshipName}Connect`] :
+            typeof data[`${relationshipName}Connect`] === 'object' ? [data[`${relationshipName}Connect`]] :
                 [];
         const bothInitialTags = [...initialCreateTags, ...initialConnectTags];
         if (bothInitialTags.length > 0) {
@@ -126,110 +130,41 @@ export const tagMutater = (prisma: PrismaType) => ({
                 select: { tag: true }
             });
             // All existing tags are the new connects
-            input[`${relationshipName}Connect`] = existingTags.map((t) => ({ tag: t.tag }));
+            data[`${relationshipName}Connect`] = existingTags.map((t) => ({ tag: t.tag }));
             // All new tags are the new creates
-            input[`${relationshipName}Create`] = bothInitialTags.filter((t) => !existingTags.some((et) => et.tag === t)).map((t) => typeof t === 'string' ? ({ tag: t }) : t);
-        }
-        // Validate create
-        if (Array.isArray(input[`${relationshipName}Create`])) {
-            const createMany = input[`${relationshipName}Create`];
-            tagsCreate.validateSync(createMany, { abortEarly: false });
-            tagVerifier().profanityCheck(createMany);
+            data[`${relationshipName}Create`] = bothInitialTags.filter((t) => !existingTags.some((et) => et.tag === t)).map((t) => typeof t === 'string' ? ({ tag: t }) : t);
         }
         // Shape disconnects and deletes
-        if (Array.isArray(input[`${relationshipName}Disconnect`])) {
-            input[`${relationshipName}Disconnect`] = input[`${relationshipName}Disconnect`].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
+        if (Array.isArray(data[`${relationshipName}Disconnect`])) {
+            data[`${relationshipName}Disconnect`] = data[`${relationshipName}Disconnect`].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
         }
-        if (Array.isArray(input[`${relationshipName}Delete`])) {
-            input[`${relationshipName}Delete`] = input[`${relationshipName}Delete`].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
+        if (Array.isArray(data[`${relationshipName}Delete`])) {
+            data[`${relationshipName}Delete`] = data[`${relationshipName}Delete`].map((t: any) => typeof t === 'string' ? ({ tag: t }) : t);
         }
-        // Convert input to Prisma shape
-        // Updating/deleting tags is not supported. This must be done in its own query.
-        let formattedInput = joinRelationshipToPrisma({
-            data: input,
-            joinFieldName: 'tag',
-            uniqueFieldName: this.parentMapper[parentType],
-            childIdFieldName: 'tagTag',
-            parentIdFieldName: 'taggedId',
-            parentId: input.id ?? null,
+        return relationshipBuilderHelper({
+            data,
             relationshipName,
-            isAdd: !Boolean(input.id),
-            relExcludes: [RelationshipTypes.update, RelationshipTypes.delete],
+            isAdd: false,
+            userId,
             idField: 'tag',
+            joinData: {
+                fieldName: 'tag',
+                uniqueFieldName: this.parentMapper[parentType],
+                childIdFieldName: 'tagTag',
+                parentIdFieldName: 'taggedId',
+                parentId: data.id ?? null,
+            }
+        });
+    },
+    async cud(params: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
+        return cudHelper({
+            ...params,
+            objectType: 'Tag',
+            prisma,
+            prismaObject: (p) => p.tag,
+            yup: { yupCreate: tagsCreate, yupUpdate: tagsUpdate },
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
-    },
-    async validateMutations({
-        userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<TagCreateInput, TagUpdateInput>): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        if (createMany) {
-            tagsCreate.validateSync(createMany, { abortEarly: false });
-            tagVerifier().profanityCheck(createMany);
-            // Check for max tags on object TODO
-        }
-        if (updateMany) {
-            tagsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            tagVerifier().profanityCheck(updateMany.map(u => u.data));
-        }
-        if (deleteMany) {
-            const objects = await prisma.tag.findMany({
-                where: { id: { in: deleteMany } },
-                select: { id: true, createdByUserId: true },
-            });
-            if (objects.some((o) => o.createdByUserId !== userId)) {
-                throw new CustomError(CODE.Unauthorized, "You can't delete tags you didn't create", { code: genErrorCode('0114') });
-            }
-        }
-    },
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
-        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        // Perform mutations
-        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
-        if (createMany) {
-            // Loop through each create input
-            for (const input of createMany) {
-                // Call createData helper function
-                const data = await this.toDBCreate(input.anonymous ? null : userId, input);
-                // Create object
-                const currCreated = await prisma.tag.create({ data, ...selectHelper(partialInfo) });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partialInfo);
-                // Add to created array
-                created = created ? [...created, converted] : [converted];
-            }
-        }
-        if (updateMany) {
-            // Loop through each update input
-            for (const input of updateMany) {
-                // Find in database
-                let object = await prisma.tag.findFirst({
-                    where: { ...input.where, createdByUserId: userId },
-                })
-                if (!object)
-                    throw new CustomError(CODE.ErrorUnknown, 'Tag not found', { code: genErrorCode('0113') });
-                // Update object
-                const currUpdated = await prisma.tag.update({
-                    where: input.where,
-                    data: await this.toDBUpdate(input.data.anonymous ? null : userId, input.data),
-                    ...selectHelper(partialInfo)
-                });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partialInfo);
-                // Add to updated array
-                updated = updated ? [...updated, converted] : [converted];
-            }
-        }
-        if (deleteMany) {
-            deleted = await prisma.tag.deleteMany({
-                where: { id: { in: deleteMany } },
-            });
-        }
-        return {
-            created: createMany ? created : undefined,
-            updated: updateMany ? updated : undefined,
-            deleted: deleteMany ? deleted : undefined,
-        };
     },
 })
 

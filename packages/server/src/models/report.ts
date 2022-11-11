@@ -1,18 +1,12 @@
 import { reportsCreate, reportsUpdate } from "@shared/validation";
 import { ReportFor, ReportSortBy } from '@shared/consts';
-import { CODE } from "@shared/consts";
 import { omit } from '@shared/utils';
-import { addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, selectHelper } from "./builder";
-import { CustomError, genErrorCode } from "../events";
-import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput, Count } from "../schema/types";
+import { addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper } from "./builder";
+import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
-import { validateProfanity } from "../utils/censor";
-import { FormatConverter, Searcher, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
-
-//==============================================================
-/* #region Custom Components */
-//==============================================================
+import { cudHelper } from "./actions";
 
 const supplementalFields = ['isOwn'];
 export const reportFormatter = (): FormatConverter<Report, any> => ({
@@ -72,15 +66,17 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
     },
 })
 
-export const reportVerifier = () => ({
-    // TODO not sure if report should have profanity check, since someone might 
-    // just be trying to submit a report for a profane word
-    profanityCheck(data: (ReportCreateInput | ReportUpdateInput)[]): void {
-        validateProfanity(data.map((d: any) => ({
-            reason: d.reason,
-            details: d.details,
-        })));
-    },
+export const reportValidator = () => ({
+    // // TODO not sure if report should have profanity check, since someone might 
+    // // just be trying to submit a report for a profane word
+    // profanityCheck(data: (ReportCreateInput | ReportUpdateInput)[]): void {
+    //     validateProfanity(data.map((d: any) => ({
+    //         reason: d.reason,
+    //         details: d.details,
+    //     })));
+    // },
+
+    // Make sure user has only one report on object
 })
 
 const forMapper = {
@@ -94,7 +90,7 @@ const forMapper = {
 }
 
 export const reportMutater = (prisma: PrismaType) => ({
-    async toDBAdd(userId: string, data: ReportCreateInput): Promise<Prisma.reportUpsertArgs['create']> {
+    async shapeCreate(userId: string, data: ReportCreateInput): Promise<Prisma.reportUpsertArgs['create']> {
         return {
             id: data.id,
             language: data.language,
@@ -105,99 +101,23 @@ export const reportMutater = (prisma: PrismaType) => ({
             [forMapper[data.createdFor]]: { connect: { id: data.createdForId } },
         }
     },
-    async toDBUpdate(userId: string, data: ReportUpdateInput): Promise<Prisma.reportUpsertArgs['update']> {
+    async shapeUpdate(userId: string, data: ReportUpdateInput): Promise<Prisma.reportUpsertArgs['update']> {
         return {
             reason: data.reason ?? undefined,
             details: data.details,
         }
     },
-    async validateMutations({
-        userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<ReportCreateInput, ReportUpdateInput>): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        if (createMany) {
-            reportsCreate.validateSync(createMany, { abortEarly: false });
-            reportVerifier().profanityCheck(createMany);
-            // Check if report already exists by user on object
-            for (const input of createMany) {
-                const existingReport = await prisma.report.count({
-                    where: {
-                        fromId: userId as string,
-                        [`${forMapper[input.createdFor]}Id`]: input.createdForId,
-                    }
-                })
-                if (existingReport > 0) {
-                    throw new CustomError(CODE.ReportExists, 'You have already submitted a report for this object.', { code: genErrorCode('0084') });
-                }
-            }
-        }
-        if (updateMany) {
-            reportsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            reportVerifier().profanityCheck(updateMany.map(u => u.data));
-        }
-    },
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {
-        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        // Perform mutations
-        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
-        if (createMany) {
-            // Loop through each create input
-            for (const input of createMany) {
-                // Call createData helper function
-                const data = await this.toDBAdd(userId, input);
-                // Create object
-                const currCreated = await prisma.report.create({ data, ...selectHelper(partialInfo) });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partialInfo);
-                // Add to created array
-                created = created ? [...created, converted] : [converted];
-            }
-        }
-        if (updateMany) {
-            // Loop through each update input
-            for (const input of updateMany) {
-                // Find in database
-                let object = await prisma.report.findFirst({
-                    where: { ...input.where, userId }
-                })
-                if (!object) throw new CustomError(CODE.ErrorUnknown, 'Report not found.', { code: genErrorCode('0085') });
-                // Update object
-                const currUpdated = await prisma.report.update({
-                    where: input.where,
-                    data: await this.toDBUpdate(userId, input.data),
-                    ...selectHelper(partialInfo)
-                });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partialInfo);
-                // Add to updated array
-                updated = updated ? [...updated, converted] : [converted];
-            }
-        }
-        if (deleteMany) {
-            deleted = await prisma.report.deleteMany({
-                where: {
-                    AND: [
-                        { id: { in: deleteMany } },
-                        { userId },
-                    ]
-                }
-            })
-        }
-        return {
-            created: createMany ? created : undefined,
-            updated: updateMany ? updated : undefined,
-            deleted: deleteMany ? deleted : undefined,
-        };
+    async cud(params: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {
+        return cudHelper({
+            ...params,
+            objectType: 'Report',
+            prisma,
+            prismaObject: (p) => p.report,
+            yup: { yupCreate: reportsCreate, yupUpdate: reportsUpdate },
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+        })
     },
 })
-
-//==============================================================
-/* #endregion Custom Components */
-//==============================================================
-
-//==============================================================
-/* #region Model */
-//==============================================================
 
 export const ReportModel = ({
     prismaObject: (prisma: PrismaType) => prisma.report,
@@ -205,9 +125,5 @@ export const ReportModel = ({
     mutate: reportMutater,
     search: reportSearcher(),
     type: 'Report' as GraphQLModelType,
-    verify: reportVerifier(),
+    validate: reportValidator(),
 })
-
-//==============================================================
-/* #endregion Model */
-//==============================================================

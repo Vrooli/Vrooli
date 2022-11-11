@@ -2,7 +2,7 @@ import { CODE } from "@shared/consts";
 import { emailsCreate, emailsUpdate } from "@shared/validation";
 import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { relationshipToPrisma, RelationshipTypes } from "./builder";
+import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
 import { CustomError, genErrorCode } from "../events";
 import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Permissioner } from "./types";
 import { cudHelper } from "./actions";
@@ -64,24 +64,19 @@ export const emailMutater = (prisma: PrismaType) => ({
     },
     async relationshipBuilder(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'emails',
     ): Promise<{ [x: string]: any } | undefined> {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by emails (since they can only be applied to one object)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] });
-        if (Array.isArray(formattedInput.create)) {
-            formattedInput.create = formattedInput.create.map(d => this.shapeCreate(userId, d as any));
-        }
-        if (Array.isArray(formattedInput.update)) {
-            formattedInput.update = formattedInput.update.map(d => ({
-                where: d.where,
-                data: this.shapeUpdate(userId, d.data as any),
-            }));
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return relationshipBuilderHelper({ 
+            data, 
+            relationshipName, 
+            isAdd, 
+            // connect/disconnect not supported by emails (since they can only be applied to one object)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            userId,
+        });
     },
     cud(params: CUDInput<EmailCreateInput, EmailUpdateInput>): Promise<CUDResult<Email>> {
         return cudHelper({

@@ -8,10 +8,10 @@ export enum NotificationCategory {
     IssueActivity = 'IssueActivity',
     NewQuestionOrIssue = 'NewQuestionOrIssue',
     ObjectStarVoteFork = 'ObjectStarVoteFork',
-    ObjectDelete = 'ObjectDelete',
     Promotion = 'Promotion',
     PullRequestClose = 'PullRequestClose',
     QuestionActivty = 'QuestionActivity',
+    ReportClose = 'ReportClose',
     Run = 'Run',
     Schedule = 'Schedule',
     Security = 'Security',
@@ -94,15 +94,11 @@ const getEventStartLabel = (date: Date) => {
     updateSettings: async (settings: any, emails: any, phoneNumbers: any) => {
         //TODO
     },
-    /**
-     * Sends an AccountCreditsOrApi notification
-     */
-    pushAccountCreditsOrApi: async () => {
-        //TODO
+    pushApiOutOfCredits: async () => {
+        const title = 'API out of credits';
+        const body = 'Your API ran out of credits. Please add more credits to your account if you want to continue using it, or wait until tomorrow to receive new credits.';
+        await push({ body, category: NotificationCategory.AccountCreditsOrApi, prisma, title, userId });
     },
-    /**
-     * Sends an Award notification
-     */
     pushAward: async (awardName: string, awardDescription: string) => {
         const title = 'New Award Earned';
         const body = `You earned the "${awardName}" award! ${awardDescription}`;
@@ -115,13 +111,79 @@ const getEventStartLabel = (date: Date) => {
         const link = `/issues/${issueId}`;
         push({ body, category: NotificationCategory.IssueActivity, link, prisma, title, userId });
     },
-    pushNewQuestionOrIssue: async () => { },
-    pushObjectStarVoteFork: async () => { },
-    pushObjectDelete: async () => { },
-    pushPromotion: async () => { },
-    pushPullRequestClose: async () => { },
-    pushQuestionActivity: async () => { },
-    pushRun: async () => { },
+    pushNewQuestionOnObject: async (objectName: string, objectType: string, objectId: string) => {
+        const title = 'New Question';
+        const body = `There's a new Question on ${objectName}. Do you know the answer?`;
+        const link = `/${objectType}/${objectId}`;
+        push({ body, category: NotificationCategory.NewQuestionOrIssue, link, prisma, title, userId });
+    },
+    pushNewIssueOnObject: async (objectName: string, objectType: string, objectId: string) => {
+        const title = 'New Issue';
+        const body = `There's a new Issue on ${objectName}. Can you help?`;
+        const link = `/${objectType}/${objectId}`;
+        push({ body, category: NotificationCategory.NewQuestionOrIssue, link, prisma, title, userId });
+    },
+    pushObjectReceivedStar: async (objectName: string, objectType: string, objectId: string, totalStars: number) => {
+        const title = 'New Stars';
+        const body = `${objectName} now has ${totalStars} ${totalStars === 1 ? 'star' : 'stars'}!`;
+        const link = `/${objectType}/${objectId}`;
+        push({ body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title, userId });
+    },
+    pushObjectReceivedUpvote: async (objectName: string, objectType: string, objectId: string, totalScore: number) => {
+        const title = 'New Votes';
+        const body = `${objectName} now has a score of ${totalScore}!`;
+        const link = `/${objectType}/${objectId}`;
+        push({ body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title, userId });
+    },
+    pushObjectReceivedFork: async (objectName: string, objectType: string, objectId: string) => {
+        const title = 'New Fork';
+        const body = `${objectName} was forked!`;
+        const link = `/${objectType}/${objectId}`;
+        push({ body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title, userId });
+    },
+    pushReportClosedObjectDeleted: async (objectName: string) => {
+        const title = 'Object Deleted';
+        const body = `Sorry, the community decided to delete ${objectName}. Your reputation score has been reduced.`;
+        push({ body, category: NotificationCategory.ReportClose, prisma, title, userId });
+    },
+    pushReportClosedObjectHidden: async (objectName: string, objectType: string, objectId: string) => {
+        const title = 'Object Hidden';
+        const body = `${objectName} has been hidden from the community. Please fix the issues mentioned in its reports and publish an updated version if you'd like it to be visible again.`;
+        const link = `/${objectType}/${objectId}`;
+        push({ body, category: NotificationCategory.ReportClose, link, prisma, title, userId });
+    },
+    pushReportClosedAccountSuspended: async (objectName: string) => {
+        const title = 'Account Suspended';
+        const body = `Your account has been suspended due to the reports on ${objectName}. Please contact us if you think this was a mistake.`;
+        push({ body, category: NotificationCategory.ReportClose, prisma, title, userId });
+    },
+    pushPromotion: async (title: string, body: string, link: string) => {
+        push({ body, category: NotificationCategory.Promotion, link, prisma, title, userId });
+    },
+    pushPullRequestAccepted: async (objectName: string, objectType: string, objectId: string) => {
+        const title = 'Pull Request Accepted';
+        const body = `Your improvements for ${objectName} have been accepted! Thank you for your contribution.`;
+        const link = `/${objectType}/${objectId}`;
+        push({ body, category: NotificationCategory.PullRequestClose, link, prisma, title, userId });
+    },
+    pushPullRequestRejected: async (objectName: string, objectType: string, objectId: string) => {
+        const title = 'Pull Request Rejected';
+        const body = `Sorry, your improvements for ${objectName} have been rejected.`;
+        const link = `/${objectType}/${objectId}`;
+        push({ body, category: NotificationCategory.PullRequestClose, link, prisma, title, userId });
+    },
+    pushQuestionActivity: async (questionName: string, questionId: string) => {
+        const title = 'Question Activity';
+        const body = `New activity on question "${questionName}"`;
+        const link = `/questions/${questionId}`;
+        push({ body, category: NotificationCategory.QuestionActivty, link, prisma, title, userId });
+    },
+    pushRunStartedAutomatically: async (runName: string, runId: string) => {
+        const title = 'Run Started';
+        const body = `Your run "${runName}" has started! We'll let you know when it's finished.`;
+        const link = `/runs/${runId}`;
+        push({ body, category: NotificationCategory.Run, link, prisma, title, userId });
+    },
     pushRunComplete: async (runTitle: string) => {
         const title = `Run completed!`;
         const body = `Your run "${runTitle}" is complete! Press here to view the results.`;

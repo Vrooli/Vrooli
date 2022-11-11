@@ -280,7 +280,7 @@ export const projectMutater = (prisma: PrismaType) => ({
             ...params,
             objectType: 'Project',
             prisma,
-            prismaObject: (p) => p.project as any,
+            prismaObject: (p) => p.project,
             yup: { yupCreate: projectsCreate, yupUpdate: projectsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

@@ -1,5 +1,5 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, relationshipToPrisma, RelationshipTypes, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, validateMaxObjects, validateObjectOwnership, visibilityBuilder } from "./builder";
-import { inputsCreate, inputsUpdate, inputTranslationCreate, inputTranslationUpdate, outputsCreate, outputsUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routineUpdate } from "@shared/validation";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, relationshipBuilderHelper, RelationshipTypes, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, validateMaxObjects, validateObjectOwnership, visibilityBuilder } from "./builder";
+import { inputTranslationCreate, inputTranslationUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routinesUpdate } from "@shared/validation";
 import { CODE, DeleteOneType, ResourceListUsedFor } from "@shared/consts";
 import { omit } from '@shared/utils';
 import { organizationQuerier } from "./organization";
@@ -15,9 +15,8 @@ import { runFormatter } from "./run";
 import { CustomError, genErrorCode } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, Count, RoutineSortBy } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
-import { hasProfanity } from "../utils/censor";
-import { deleteOneHelper } from "./actions";
-import { FormatConverter, PartialGraphQLInfo, Permissioner, Searcher, ValidateMutationsInput, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType } from "./types";
+import { cudHelper, deleteOneHelper } from "./actions";
+import { FormatConverter, PartialGraphQLInfo, Permissioner, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 
 type NodeWeightData = {
@@ -289,6 +288,20 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     },
 })
 
+export const routineValidator = () => ({
+    // if (createMany) {
+    //     createMany.forEach(input => this.validateNodePositions(input));
+    // }
+    // if (updateMany) {
+    //     // Query version numbers and isCompletes of existing routines. 
+    //     // Can only update if version number is greater, or if version number is the same and isComplete is false
+    //     //TODO
+    //     updateMany.forEach(input => this.validateNodePositions(input.data));
+    // }
+
+    // Also check profanity on input/output's name
+})
+
 /**
  * Calculates the shortest AND longest weighted path on a directed cyclic graph. (loops are actually not the cyclic part, but redirects)
  * A routine with no nodes has a complexity equal to the number of its inputs.
@@ -503,7 +516,7 @@ export const routineMutater = (prisma: PrismaType) => ({
         // if (uniqueNodes.length < combinedNodes.length) throw new CustomError(CODE.NodeDuplicatePosition);
         return;
     },
-    async toDBBase(userId: string, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean) {
+    async shapeBase(userId: string, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean) {
         return {
             root: {
                 isPrivate: data.isPrivate ?? undefined,
@@ -525,9 +538,9 @@ export const routineMutater = (prisma: PrismaType) => ({
             translations: TranslationModel.relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, isAdd),
         }
     },
-    async toDBCreate(userId: string, data: RoutineCreateInput): Promise<Prisma.routine_versionUpsertArgs['create']> {
+    async shapeCreate(userId: string, data: RoutineCreateInput): Promise<Prisma.routine_versionUpsertArgs['create']> {
         const [simplicity, complexity] = await this.calculateComplexity(data);
-        const base = await this.toDBBase(userId, data, true);
+        const base = await this.shapeBase(userId, data, true);
         return {
             ...base,
             root: {
@@ -545,9 +558,9 @@ export const routineMutater = (prisma: PrismaType) => ({
             simplicity,
         }
     },
-    async toDBUpdate(userId: string, data: RoutineUpdateInput): Promise<Prisma.routine_versionUpsertArgs['update']> {
+    async shapeUpdate(userId: string, data: RoutineUpdateInput): Promise<Prisma.routine_versionUpsertArgs['update']> {
         const [simplicity, complexity] = await this.calculateComplexity(data, data.versionId);
-        const base = await this.toDBBase(userId, data, false);
+        const base = await this.shapeBase(userId, data, false);
         return {
             ...base,
             root: {
@@ -562,135 +575,73 @@ export const routineMutater = (prisma: PrismaType) => ({
             simplicity: simplicity,
         }
     },
-    /**
-    * Add, update, or remove routine inputs from a routine.
-    * NOTE: Input is whole routine data, not just the inputs. 
-    * This is because we may need the node data to calculate inputs
-    */
     async relationshipBuilderInput(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported in this case (since they can only be applied to one routine)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'inputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        const mutate = StandardModel.mutate(prisma);
-        // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs 
+        // If nodes relationship provided, calculate inputs from nodes. Otherwise, use given inputs
         //TODO
-        // Validate create
-        if (Array.isArray(createMany)) {
-            inputsCreate.validateSync(createMany, { abortEarly: false });
-            let result: { [x: string]: any }[] = [];
-            for (let data of createMany) {
-                // Check for censored words
-                if (hasProfanity(data.name, data.description))
-                    throw new CustomError(CODE.BannedWord, 'Name or description includes bad word', { code: genErrorCode('0091') });
-                // Convert nested relationships
-                result.push({
-                    id: data.id,
-                    name: data.name,
-                    standardId: await mutate.relationshipBuilder(userId, {
-                        ...data,
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'inputs',
+            isAdd,
+            // connect/disconnect not supported by inputs (since they can only be applied to one routine)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: {
+                shapeCreate: async (userId, cuData) => ({
+                    id: cuData.id,
+                    name: cuData.name,
+                    standard: await StandardModel.mutate(prisma).relationshipBuilder(userId, {
+                        ...cuData,
                         // If standard was not internal, then it would have been created 
                         // in its own mutation
                         isInternal: true,
-                    }, isAdd),
-                    translations: TranslationModel.relationshipBuilder(userId, data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
+                    }, true),
+                    translations: TranslationModel.relationshipBuilder(userId, cuData, { create: inputTranslationCreate, update: inputTranslationUpdate }, true),
+                }),
+                shapeUpdate: async (userId, cuData) => ({
+                    name: cuData.name,
+                    standardId: await StandardModel.mutate(prisma).relationshipBuilder(userId, cuData, false),
+                    translations: TranslationModel.relationshipBuilder(userId, cuData, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                 })
-            }
-            createMany = result;
-        }
-        // Validate update
-        if (Array.isArray(updateMany)) {
-            inputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
-            for (let update of updateMany) {
-                // Check for censored words
-                if (hasProfanity(update.data.name, update.data.description))
-                    throw new CustomError(CODE.BannedWord, 'Name or description contains banned word', { code: genErrorCode('0092') });
-                // Convert nested relationships
-                result.push({
-                    where: update.where,
-                    data: {
-                        name: update.data.name,
-                        standardId: await mutate.relationshipBuilder(userId, update.data, isAdd),
-                        translations: TranslationModel.relationshipBuilder(userId, update.data, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
-                    }
-                })
-            }
-            updateMany = result;
-        }
-        return Object.keys(formattedInput).length > 0 ? {
-            create: createMany,
-            update: updateMany,
-            delete: deleteMany
-        } : undefined;
+            },
+            userId,
+        });
     },
-    /**
-     * Add, update, or remove routine outputs from a routine
-     * NOTE: Input is whole routine data, not just the outputs. 
-     * This is because we may need the node data to calculate outputs
-     */
     async relationshipBuilderOutput(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<{ [x: string]: any } | undefined> {
-        // Convert input to Prisma shape
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported in this case (since they can only be applied to one routine)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName: 'outputs', isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        const mutate = StandardModel.mutate(prisma);
-        // If nodes relationship provided, calculate inputs and outputs from nodes. Otherwise, use given inputs
+        // If nodes relationship provided, calculate outputs from nodes. Otherwise, use given outputs
         //TODO
-        // Validate create
-        if (Array.isArray(createMany)) {
-            outputsCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel.profanityCheck(createMany);
-            let result: { [x: string]: any }[] = [];
-            for (let data of createMany) {
-                // Convert nested relationships
-                result.push({
-                    id: data.id,
-                    name: data.name,
-                    standardId: await mutate.relationshipBuilder(userId, {
-                        ...data,
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'outputs',
+            isAdd,
+            // connect/disconnect not supported by inputs (since they can only be applied to one routine)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: {
+                shapeCreate: async (userId, cuData) => ({
+                    id: cuData.id,
+                    name: cuData.name,
+                    standard: await StandardModel.mutate(prisma).relationshipBuilder(userId, {
+                        ...cuData,
                         // If standard was not internal, then it would have been created 
                         // in its own mutation
                         isInternal: true,
-                    }, isAdd),
-                    translations: TranslationModel.relationshipBuilder(userId, data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
+                    }, true),
+                    translations: TranslationModel.relationshipBuilder(userId, cuData, { create: outputTranslationCreate, update: outputTranslationUpdate }, true),
+                }),
+                shapeUpdate: async (userId, cuData) => ({
+                    name: cuData.name,
+                    standard: await StandardModel.mutate(prisma).relationshipBuilder(userId, cuData, false),
+                    translations: TranslationModel.relationshipBuilder(userId, cuData, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
                 })
-            }
-            createMany = result;
-        }
-        // Validate update
-        if (Array.isArray(updateMany)) {
-            outputsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            TranslationModel.profanityCheck(updateMany.map(u => u.data));
-            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
-            for (let update of updateMany) {
-                // Convert nested relationships
-                result.push({
-                    where: update.where,
-                    data: {
-                        name: update.data.name,
-                        standard: await mutate.relationshipBuilder(userId, update.data, isAdd),
-                        translations: TranslationModel.relationshipBuilder(userId, update.data, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
-                    }
-                })
-            }
-            updateMany = result;
-        }
-        return Object.keys(formattedInput).length > 0 ? {
-            create: createMany,
-            update: updateMany,
-            delete: deleteMany
-        } : undefined;
+            },
+            userId,
+        });
     },
     /**
      * Add, update, or remove a one-to-one routine relationship. 
@@ -700,128 +651,28 @@ export const routineMutater = (prisma: PrismaType) => ({
      */
     async relationshipBuilder(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
-    ): Promise<string | undefined> {
-        // Convert input to Prisma shape
-        const fieldExcludes = ['node', 'user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'];
-        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'routine', isAdd, fieldExcludes })
-        // Shape
-        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
-            const create = await this.toDBCreate(userId, formattedInput.create[0]);
-            // Create routine
-            const routine = await prisma.routine_version.create({
-                data: create,
-            })
-            return routine?.id ?? null;
-        }
-        if (Array.isArray(formattedInput.connect) && formattedInput.connect.length > 0) {
-            return formattedInput.connect[0].id;
-        }
-        if (Array.isArray(formattedInput.disconnect) && formattedInput.disconnect.length > 0) {
-            return undefined;
-        }
-        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
-            const update = await this.toDBUpdate(userId, formattedInput.update[0].data);
-            // Update routine
-            const routine = await prisma.routine.update({
-                where: { id: update.id },
-                data: update
-            })
-            return routine?.id ?? null;
-        }
-        if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
-            const deleteId = formattedInput.delete[0].id;
-            // Delete routine
-            await deleteOneHelper({
-                input: { id: deleteId, objectType: DeleteOneType.Routine },
-                model: RoutineModel,
-                prisma,
-                req: { users: [{ id: userId }] }
-            })
-            return deleteId;
-        }
-        return undefined;
+    ): Promise<{ [x: string]: any } | undefined> {
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'routine',
+            fieldExcludes: ['user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'],
+            isAdd,
+            isOneToOne: true,
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            userId,
+        });
     },
-    /**
-     * Validate adds, updates, and deletes
-     */
-    async validateMutations({
-        userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<RoutineCreateInput, RoutineUpdateInput>): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        // Validate userIds, organizationIds, and projectIds
-        await validateObjectOwnership({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Routine' });
-        // Validate max objects
-        await validateMaxObjects({ userId, createMany, updateMany, deleteMany, prisma, objectType: 'Routine', maxCount: 2500 });
-        if (createMany) {
-            routinesCreate.validateSync(createMany, { abortEarly: false });
-            TranslationModel.profanityCheck(createMany);
-            createMany.forEach(input => this.validateNodePositions(input));
-        }
-        if (updateMany) {
-            // Query version numbers and isCompletes of existing routines. 
-            // Can only update if version number is greater, or if version number is the same and isComplete is false
-            //TODO
-            for (let update of updateMany) {
-                routineUpdate({}).validateSync(update.data, { abortEarly: false });
-                TranslationModel.profanityCheck([update.data]);
-            }
-            TranslationModel.profanityCheck(updateMany.map(u => u.data));
-            updateMany.forEach(input => this.validateNodePositions(input.data));
-        }
-    },
-    /**
-     * Performs adds, updates, and deletes of routines. First validates that every action is allowed.
-     */
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
-        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        // Perform mutations
-        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
-        if (createMany) {
-            // Loop through each create input
-            for (const input of createMany) {
-                // Call createData helper function
-                let data = await this.toDBCreate(userId, input);
-                // Create object
-                const currCreated = await prisma.routine_version.create({ data, ...selectHelper(partialInfo) });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partialInfo);
-                // Add to created array
-                created = created ? [...created, converted] : [converted];
-            }
-        }
-        if (updateMany) {
-            // Loop through each update input
-            for (const input of updateMany) {
-                // Call createData helper function
-                let data = await this.toDBUpdate(userId, input.data);
-                // Find object
-                let object = await prisma.routine.findFirst({ where: input.where })
-                if (!object)
-                    throw new CustomError(CODE.NotFound, 'Routine not found', { code: genErrorCode('0098') });
-                // Update object
-                const currUpdated = await prisma.routine_version.update({
-                    where: input.where,
-                    data,
-                    ...selectHelper(partialInfo)
-                });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partialInfo);
-                // Add to updated array
-                updated = updated ? [...updated, converted] : [converted];
-            }
-        }
-        if (deleteMany) {
-            deleted = await prisma.routine.deleteMany({
-                where: { id: { in: deleteMany } }
-            })
-        }
-        return {
-            created: createMany ? created : undefined,
-            updated: updateMany ? updated : undefined,
-            deleted: deleteMany ? deleted : undefined,
-        };
+    async cud(params: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
+        return cudHelper({
+            ...params,
+            objectType: 'Routine',
+            prisma,
+            prismaObject: (p) => p.routine,
+            yup: { yupCreate: routinesCreate, yupUpdate: routinesUpdate },
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+        })
     },
     /**
      * Duplicates a routine, along with its nodes and edges. 
@@ -1238,4 +1089,5 @@ export const RoutineModel = ({
     permissions: routinePermissioner,
     search: routineSearcher(),
     type: 'Routine' as GraphQLModelType,
+    validator: routineValidator()
 })

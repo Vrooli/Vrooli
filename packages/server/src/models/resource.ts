@@ -1,6 +1,6 @@
 import { resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@shared/validation";
 import { ResourceSortBy } from "@shared/consts";
-import { combineQueries, getSearchStringQueryHelper, relationshipToPrisma, RelationshipTypes } from "./builder";
+import { combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper, RelationshipTypes } from "./builder";
 import { TranslationModel } from "./translation";
 import { organizationQuerier } from "./organization";
 import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput } from "../schema/types";
@@ -90,42 +90,26 @@ export const resourceMutater = (prisma: PrismaType) => ({
     },
     relationshipBuilder(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'resources',
     ): Promise<{ [x: string]: any } | undefined> {
-        const fieldExcludes = ['createdFor', 'createdForId'];
-        // Convert input to Prisma shape, excluding "createdFor" and "createdForId" fields
-        // Also remove anything that's not an create, update, or delete, as connect/disconnect
-        // are not supported by resources (since they can only be applied to one object)
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, fieldExcludes, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        // Shape
-        if (Array.isArray(formattedInput.create)) {
-            // If title or description is not provided, try querying for the link's og tags TODO
-            const creates: { [x: string]: any }[] = [];
-            for (const create of formattedInput.create) {
-                creates.push(this.shapeRelationshipCreate(userId, create as any));
-            }
-            formattedInput.create = creates;
-        }
-        if (Array.isArray(formattedInput.update)) {
-            const updates: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
-            for (const update of formattedInput.update) {
-                updates.push({
-                    where: update.where,
-                    data: this.shapeRelationshipUpdate(userId, update.data as any),
-                })
-            }
-            formattedInput.update = updates;
-        }
-        return Object.keys(formattedInput).length > 0 ? formattedInput : undefined;
+        return relationshipBuilderHelper({
+            data,
+            relationshipName,
+            isAdd,
+            // connect/disconnect not supported by node resources (since they can only be applied to one object)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
+            userId,
+        });
     },
     async cud(params: CUDInput<ResourceCreateInput & { listId: string }, ResourceUpdateInput>): Promise<CUDResult<Resource>> {
         return cudHelper({
             ...params,
             objectType: 'Resource',
             prisma,
-            prismaObject: (p) => p.resource as any,
+            prismaObject: (p) => p.resource,
             yup: { yupCreate: resourcesCreate, yupUpdate: resourcesUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
         })

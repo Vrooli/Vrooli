@@ -43,7 +43,7 @@ export const Trigger = (prisma: PrismaType) => ({
         // Send a welcome/verification email (if not created with wallet)
         if (emailAddress) await ProfileModel.verify.setupVerificationCode(emailAddress, prisma);
         // Give the user an award
-        Award(prisma, userId).update(AwardCategory.AccountNew, 1);
+        Award(prisma, userId).update('AccountNew', 1);
     },
     objectComplete: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
         // Track award progress, if object is a pull request, quiz, or routine

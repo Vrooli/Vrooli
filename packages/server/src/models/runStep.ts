@@ -1,6 +1,6 @@
 import { stepsCreate, stepsUpdate } from "@shared/validation";
 import { RunStepStatus } from "@shared/consts";
-import { relationshipToPrisma, RelationshipTypes } from "./builder";
+import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
 import { RunStep, RunStepCreateInput, RunStepUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
@@ -64,36 +64,19 @@ export const runStepMutater = (prisma: PrismaType) => ({
     },
     async relationshipBuilder(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'steps',
     ): Promise<{ [x: string]: any } | undefined> {
-        // Convert input to Prisma shape
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        // Further shape the input
-        if (createMany) {
-            let result: { [x: string]: any }[] = [];
-            for (const data of createMany) {
-                result.push(await this.shapeRelationshipCreate(userId, data as any));
-            }
-            createMany = result;
-        }
-        if (updateMany) {
-            let result: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
-            for (const data of updateMany) {
-                result.push({
-                    where: data.where,
-                    data: await this.shapeRelationshipUpdate(userId, data.data as any),
-                })
-            }
-            updateMany = result;
-        }
-        return Object.keys(formattedInput).length > 0 ? {
-            create: createMany,
-            update: updateMany,
-            delete: deleteMany
-        } : undefined;
+        return relationshipBuilderHelper({
+            data,
+            relationshipName,
+            isAdd,
+            // connect/disconnect not supported by run steps (since they can only be applied to one run)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
+            userId,
+        });
     },
     /**
      * Performs adds, updates, and deletes of steps. First validates that every action is allowed.

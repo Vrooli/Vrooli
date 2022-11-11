@@ -1,12 +1,11 @@
 import { runInputsCreate, runInputsUpdate } from "@shared/validation";
-import { CODE } from "@shared/consts";
-import { modelToGraphQL, relationshipToPrisma, RelationshipTypes, selectHelper } from "./builder";
-import { CustomError, genErrorCode } from "../events";
-import { RunInput, RunInputCreateInput, RunInputUpdateInput, Count } from "../schema/types";
+import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
+import { RunInput, RunInputCreateInput, RunInputUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
-import { FormatConverter, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
+import { cudHelper } from "./actions";
 
 export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
     relationshipMap: {
@@ -67,131 +66,57 @@ export const runInputVerifier = () => ({
  * Handles mutations of run inputs
  */
 export const runInputMutater = (prisma: PrismaType) => ({
-    toDBRelationshipCreate(userId: string, data: RunInputCreateInput): Prisma.run_inputUncheckedCreateWithoutRunInput {
+    shapeRelationshipCreate(userId: string, data: RunInputCreateInput): Prisma.run_inputUncheckedCreateWithoutRunInput {
         return {
             id: data.id,
             data: data.data,
             inputId: data.inputId,
         }
     },
-    toDBRelationshipUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_inputUncheckedUpdateWithoutRunInput {
+    shapeRelationshipUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_inputUncheckedUpdateWithoutRunInput {
         return {
             data: data.data
         }
     },
-    toDBCreate(userId: string, data: RunInputCreateInput & { runId: string }): Prisma.run_inputUpsertArgs['create'] {
+    shapeCreate(userId: string, data: RunInputCreateInput & { runId: string }): Prisma.run_inputUpsertArgs['create'] {
         return {
-            ...this.toDBRelationshipCreate(userId, data),
+            ...this.shapeRelationshipCreate(userId, data),
             runId: data.runId,
         }
     },
-    toDBUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_inputUpsertArgs['update'] {
+    shapeUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_inputUpsertArgs['update'] {
         return {
-            ...this.toDBRelationshipUpdate(userId, data),
+            ...this.shapeRelationshipUpdate(userId, data),
         }
     },
     async relationshipBuilder(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
         relationshipName: string = 'inputs',
     ): Promise<{ [x: string]: any } | undefined> {
-        // Convert input to Prisma shape
-        let formattedInput = relationshipToPrisma({ data: input, relationshipName, isAdd, relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect] })
-        let { create: createMany, update: updateMany, delete: deleteMany } = formattedInput;
-        // Further shape the input
-        if (createMany) {
-            let result: { [x: string]: any }[] = [];
-            for (const data of createMany) {
-                result.push(await this.toDBRelationshipCreate(userId, data as any));
-            }
-            createMany = result;
-        }
-        if (updateMany) {
-            let result: { where: { [x: string]: string }, data: { [x: string]: any } }[] = [];
-            for (const data of updateMany) {
-                result.push({
-                    where: data.where,
-                    data: await this.toDBRelationshipUpdate(userId, data.data as any),
-                })
-            }
-            updateMany = result;
-        }
-        return Object.keys(formattedInput).length > 0 ? {
-            create: createMany,
-            update: updateMany,
-            delete: deleteMany
-        } : undefined;
-    },
-    async validateMutations({
-        userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<RunInputCreateInput, RunInputUpdateInput>): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        if (createMany) {
-            runInputsCreate.validateSync(createMany, { abortEarly: false });
-            runInputVerifier().profanityCheck(createMany);
-        }
-        if (updateMany) {
-            runInputsUpdate.validateSync(updateMany.map(u => ({ ...u.data, id: u.where.id })), { abortEarly: false });
-            runInputVerifier().profanityCheck(updateMany.map(u => u.data));
-            // Check that user owns each input
-            //TODO
-        }
-        if (deleteMany) {
-            // Check that user owns each input
-            //TODO
-        }
+        return relationshipBuilderHelper({
+            data,
+            relationshipName,
+            isAdd,
+            // connect/disconnect not supported by run inputs (since they can only be applied to one run)
+            relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
+            shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
+            userId,
+        });
     },
     /**
      * Performs adds, updates, and deletes of inputs. First validates that every action is allowed.
      */
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<RunInputCreateInput & { runId: string }, RunInputUpdateInput>): Promise<CUDResult<RunInput>> {
-        await this.validateMutations({ userId, createMany, updateMany, deleteMany });
-        // Perform mutations
-        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
-        if (createMany) {
-            // Loop through each create input
-            for (const input of createMany) {
-                // Call createData helper function
-                const data = await this.toDBCreate(userId, input);
-                // Create object
-                const currCreated = await prisma.run_input.create({ data, ...selectHelper(partialInfo) });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partialInfo);
-                // Add to created array
-                created = created ? [...created, converted] : [converted];
-            }
-        }
-        if (updateMany) {
-            // Loop through each update input
-            for (const input of updateMany) {
-                // Find in database
-                let object = await prisma.run_input.findFirst({
-                    where: { ...input.where, run: { user: { id: userId } } },
-                })
-                if (!object) throw new CustomError(CODE.ErrorUnknown, 'Input not found.', { code: genErrorCode('0250') });
-                // Update object
-                const currUpdated = await prisma.run_input.update({
-                    where: input.where,
-                    data: await this.toDBUpdate(userId, input.data),
-                    ...selectHelper(partialInfo)
-                });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partialInfo);
-                // Add to updated array
-                updated = updated ? [...updated, converted] : [converted];
-            }
-        }
-        if (deleteMany) {
-            deleted = await prisma.run_input.deleteMany({
-                where: { id: { in: deleteMany } }
-            })
-        }
-        return {
-            created: createMany ? created : undefined,
-            updated: updateMany ? updated : undefined,
-            deleted: deleteMany ? deleted : undefined,
-        };
+    async cud(params: CUDInput<RunInputCreateInput & { runId: string }, RunInputUpdateInput>): Promise<CUDResult<RunInput>> {
+        return cudHelper({
+            ...params,
+            objectType: 'RunInput',
+            prisma,
+            prismaObject: (p) => p.run_input,
+            yup: { yupCreate: runInputsCreate, yupUpdate: runInputsUpdate },
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+        })
     },
 })
 

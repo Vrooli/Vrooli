@@ -1,6 +1,6 @@
 import { GraphQLResolveInfo } from "graphql";
 import { Count, PageInfo, TimeFrame } from "../schema/types";
-import { PrismaType, RecursivePartial } from "../types";
+import { PrismaDelegate, PrismaType, RecursivePartial } from "../types";
 import { ObjectSchema } from 'yup';
 import { Prisma } from "@prisma/client";
 
@@ -257,7 +257,7 @@ export interface CUDHelperInput<GraphQLCreate extends { [x: string]: any }, Grap
     objectType: GraphQLModelType,
     userId: string,
     prisma: PrismaType,
-    prismaObject: (prisma: PrismaType) => Prisma.commentDelegate<Prisma.RejectOnNotFound | Prisma.RejectPerOperation | undefined>,
+    prismaObject: (prisma: PrismaType) => PrismaDelegate;
     createMany?: GraphQLCreate[] | null | undefined,
     updateMany?: { where: { [x: string]: any }, data: GraphQLUpdate }[] | null | undefined,
     deleteMany?: string[] | null | undefined,

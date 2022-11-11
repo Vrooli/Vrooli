@@ -424,7 +424,6 @@ const profileQuerier = (prisma: PrismaType) => ({
 })
 
 const profileMutater = (prisma: PrismaType) => ({
-    async validateMutations() { },
     async updateProfile(
         userId: string,
         input: ProfileUpdateInput,
