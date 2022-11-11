@@ -11,6 +11,7 @@ import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
 import { FormatConverter, Permissioner, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { cudHelper } from "./actions";
+import { Trigger } from "../events";
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
 const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
@@ -267,7 +268,12 @@ export const organizationMutater = (prisma: PrismaType) => ({
             prisma,
             prismaObject: (p) => p.organization,
             yup: { yupCreate: organizationsCreate, yupUpdate: organizationsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            onCreated: (created) => {
+                for (const c of created) {
+                    Trigger(prisma).objectCreate('Organization', c.id as string, params.userId);
+                }
+            },
         })
     },
 })

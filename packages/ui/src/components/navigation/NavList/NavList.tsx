@@ -30,7 +30,7 @@ export const NavList = ({
 
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn, ACTION_TAGS.Profile] }), [session]);
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
     // Handle account menu
     const [accountMenuAnchor, setAccountMenuAnchor] = useState<any>(null);

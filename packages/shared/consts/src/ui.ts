@@ -2,6 +2,7 @@ import { ValueOf } from '.';
 
 export const APP_LINKS = {
     Comment: '/comment',
+    Create: '/create', // Portal for creating new content
     Develop: '/develop', // Develop dashboard
     DevelopSearch: '/develop-search', // Search page for develop objects
     Example: '/routine/5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9', // Links to example routine that is designed to showcase the UI. See ID of routine set in init seed file
@@ -12,6 +13,7 @@ export const APP_LINKS = {
     Home: '/', // Main dashboard for logged in users
     Learn: '/learn', // Learn dashboard
     Organization: '/organization', // View or update specific organization
+    Notifications: '/notifications', // Your notifications
     Profile: '/profile', // View profile
     Project: '/project', // View or update specific project
     Report: '/report', // Reports view

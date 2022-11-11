@@ -14,6 +14,7 @@ import { RecursivePartial, PrismaType } from "../types";
 import { FormatConverter, Permissioner, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
+import { Trigger } from "../events";
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -282,7 +283,12 @@ export const projectMutater = (prisma: PrismaType) => ({
             prisma,
             prismaObject: (p) => p.project,
             yup: { yupCreate: projectsCreate, yupUpdate: projectsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            onCreated: (created) => {
+                for (const c of created) {
+                    Trigger(prisma).objectCreate('Project', c.id as string, params.userId);
+                }
+            },
         })
     },
 });

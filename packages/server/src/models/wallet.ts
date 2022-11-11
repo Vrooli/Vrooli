@@ -6,7 +6,7 @@ import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { cudHelper } from "./actions";
 import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
-import { FormatConverter, ValidateMutationsInput, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType } from "./types";
 
 export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
@@ -88,29 +88,6 @@ export const walletMutater = (prisma: PrismaType) => ({
             relExcludes: [RelationshipTypes.connect, RelationshipTypes.disconnect],
             userId,
         });
-    },
-    async validateMutations({
-        userId, createMany, updateMany, deleteMany
-    }: ValidateMutationsInput<unknown, WalletUpdateInput>): Promise<void> {
-        if (!createMany && !updateMany && !deleteMany) return;
-        if (createMany) {
-            // Not allowed to create wallets this way
-            throw new CustomError(CODE.InternalError, 'Not allowed to create wallets with this method', { code: genErrorCode('0122') });
-        }
-        if (updateMany) {
-            walletsUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
-            // Make sure wallets are owned by user or user is an admin/owner of organization
-            const wallets = await prisma.wallet.findMany({
-                where: {
-                    AND: [
-                        { id: { in: updateMany.map(wallet => wallet.where.id) } },
-                        { userId }, //TODO
-                    ],
-                },
-            });
-            if (wallets.length !== updateMany.length)
-                throw new CustomError(CODE.NotYourWallet, 'At least one of these wallets is not yours', { code: genErrorCode('0123') });
-        }
     },
     async cud(params: CUDInput<any, WalletUpdateInput>): Promise<CUDResult<Wallet>> {
         return cudHelper({

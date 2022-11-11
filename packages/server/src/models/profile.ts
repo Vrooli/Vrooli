@@ -430,7 +430,7 @@ const profileMutater = (prisma: PrismaType) => ({
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         profileUpdateSchema.validateSync(input, { abortEarly: false });
-        await WalletModel.verify(prisma).verifyHandle('User', userId, input.handle);
+        await WalletModel.validate.verifyHandle(prisma, 'User', userId, input.handle);
         if (hasProfanity(input.name))
             throw new CustomError(CODE.BannedWord, 'User name contains banned word', { code: genErrorCode('0066') });
         TranslationModel.profanityCheck([input]);
@@ -447,7 +447,7 @@ const profileMutater = (prisma: PrismaType) => ({
             }))),
         ];
         // Create new tags
-        const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel.mutate(prisma).toDBCreate(userId, tag)));
+        const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel.mutate(prisma).shapeCreate(userId, tag)));
         const createdTags = await prisma.$transaction(
             createTagsData.map((data) =>
                 prisma.tag.upsert({

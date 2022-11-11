@@ -267,6 +267,9 @@ export interface CUDHelperInput<GraphQLCreate extends { [x: string]: any }, Grap
         shapeCreate: (userId: string, create: GraphQLCreate) => (Promise<DBCreate> | DBCreate),
         shapeUpdate: (userId: string, update: GraphQLUpdate) => (Promise<DBUpdate> | DBUpdate),
     },
+    onCreated?: (created: RecursivePartial<GraphQLObject>[]) => Promise<void> | void,
+    onUpdated?: (updated: RecursivePartial<GraphQLObject>[], updateData: GraphQLUpdate[]) => Promise<void> | void,
+    onDeleted?: (deleted: Count) => Promise<void> | void,
 }
 
 export interface DuplicateInput {

@@ -8,16 +8,15 @@ import {
 } from '@mui/material';
 import { openLink } from 'utils';
 import { Session, SetLocation } from 'types';
-import { CreateAccountIcon, DevelopIcon, HomeIcon, LearnIcon, ProfileIcon, ResearchIcon, SearchIcon, SvgComponent } from '@shared/icons';
+import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
 import { getCurrentUser, guestSession } from 'utils/authentication';
 
 export enum ACTION_TAGS {
     Home = 'Home',
     Search = 'Search',
-    Learn = 'Learn',
-    Research = 'Research',
-    Develop = 'Develop',
-    Profile = 'Profile',
+    Create = 'Create',
+    Notifications = 'Notifications',
+    Settings = 'Settings',
     LogIn = 'LogIn',
 }
 
@@ -42,15 +41,13 @@ export function getUserActions({ session = guestSession, exclude = [] }: GetUser
         ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
         ['Search', ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
     ];
-    // Available for all users
-    actions.push(
-        ['Learn', ACTION_TAGS.Learn, LINKS.Learn, LearnIcon, 0],
-        ['Research', ACTION_TAGS.Research, LINKS.Research, ResearchIcon, 0],
-        ['Develop', ACTION_TAGS.Develop, LINKS.Develop, DevelopIcon, 0],
-    );
-    // Log in/out
+    // Actions for logged in users
     if (userId) {
-        actions.push(['Profile', ACTION_TAGS.Profile, LINKS.Profile, ProfileIcon, 0])
+        actions.push(
+            ['Create', ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
+            ['Notifications', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
+            ['Settings', ACTION_TAGS.Settings, LINKS.Settings, SettingsIcon, 0],
+        )
     } else {
         actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
     }

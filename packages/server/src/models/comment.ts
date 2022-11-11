@@ -11,7 +11,7 @@ import { organizationQuerier } from "./organization";
 import { projectPermissioner } from "./project";
 import { routinePermissioner } from "./routine";
 import { standardPermissioner } from "./standard";
-import { CustomError, genErrorCode } from "../events";
+import { CustomError, genErrorCode, Trigger } from "../events";
 import { FormatConverter, Searcher, Permissioner, Querier, GraphQLInfo, PartialGraphQLInfo, CUDInput, CUDResult, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
@@ -385,7 +385,12 @@ export const commentMutater = (prisma: PrismaType): Mutater<Comment> => ({
             prisma,
             prismaObject: (p) => p.comment,
             yup: { yupCreate: commentsCreate, yupUpdate: commentsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            onCreated: (created) => {
+                for (const c of created) {
+                    Trigger(prisma).objectCreate('Comment', c.id as string, params.userId);
+                }
+            },
         })
     },
 })

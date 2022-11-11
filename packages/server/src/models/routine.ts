@@ -12,7 +12,7 @@ import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
-import { CustomError, genErrorCode } from "../events";
+import { CustomError, genErrorCode, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, Count, RoutineSortBy } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { cudHelper, deleteOneHelper } from "./actions";
@@ -671,7 +671,12 @@ export const routineMutater = (prisma: PrismaType) => ({
             prisma,
             prismaObject: (p) => p.routine,
             yup: { yupCreate: routinesCreate, yupUpdate: routinesUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            onCreated: (created) => {
+                for (const c of created) {
+                    Trigger(prisma).objectCreate('Routine', c.id as string, params.userId);
+                }
+            },
         })
     },
     /**

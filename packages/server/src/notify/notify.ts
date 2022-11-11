@@ -184,16 +184,16 @@ const getEventStartLabel = (date: Date) => {
         const link = `/runs/${runId}`;
         push({ body, category: NotificationCategory.Run, link, prisma, title, userId });
     },
-    pushRunComplete: async (runTitle: string) => {
+    pushRunComplete: async (runTitle: string, runId: string) => {
         const title = `Run completed!`;
         const body = `Your run "${runTitle}" is complete! Press here to view the results.`;
-        const link = `/runs/${runTitle}`; //TODO
+        const link = `/runs/${runId}`;
         push({ body, category: NotificationCategory.Run, link, prisma, title, userId });
     },
-    pushRunFail: async (runTitle: string) => {
+    pushRunFail: async (runTitle: string, runId: string) => {
         const title = `Run failed!`;
         const body = `Your run "${runTitle}" failed. Press here to see more details.`;
-        const link = `/runs/${runTitle}`; //TODO
+        const link = `/runs/${runId}`;
         push({ body, category: NotificationCategory.Run, link, prisma, title, userId });
     },
     pushScheduleOrganization: async (meetingName: string, startTime: Date) => {

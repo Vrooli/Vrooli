@@ -2046,8 +2046,8 @@ enum AwardCategory {
     ReportEnd 
     ReportContribute 
     Reputation 
-    RoutineComplete 
-    RoutineCompleteLearning 
+    RunComplete 
+    RunCompleteLearning 
     RoutineCreate 
     SmartContractCreate 
     StandardCreate 

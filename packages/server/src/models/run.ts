@@ -21,6 +21,10 @@ export const runFormatter = (): FormatConverter<Run, any> => ({
         'inputs': 'RunInput',
         'user': 'User',
     },
+    removeSupplementalFields: (partial) => {
+        // Add fields needed for notifications when a run is started/completed
+        return { ...partial, title: true }
+    },
 })
 
 export const runSearcher = (): Searcher<RunSearchInput> => ({
@@ -67,10 +71,13 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
     },
 })
 
-export const runVerifier = () => ({
-    profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
-        validateProfanity(data.map((d: any) => d.title));
-    },
+export const runValidator = () => ({
+    // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
+    //     validateProfanity(data.map((d: any) => d.title));
+    // },
+
+    // TODO if status passed in for update, make sure it's not the same 
+    // as the current status, or an invalid transition (e.g. failed -> in progress)
 })
 
 export const runPermissioner = (): Permissioner<RunPermission, RunSearchInput> => ({
@@ -187,22 +194,32 @@ export const runMutater = (prisma: PrismaType) => ({
             prismaObject: (p) => p.run,
             yup: { yupCreate: runsCreate, yupUpdate: runsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            onCreate: () => {
+            onCreated: (created) => {
                 // Handle run start trigger for every run with status InProgress
-                // for (const c of created) {
-                //     await Trigger(prisma).runStart(c.id, userId);
-                // }
+                for (const c of created) {
+                    if (c.status === RunStatus.InProgress) {
+                        Trigger(prisma).runStart(c.title as string, c.id as string, params.userId, false);
+                    }
+                }
             },
-            onUpdate: () => {
-                // Handle run start trigger for every run with status InProgress, 
-                // that previously had a status of Scheduled
-                // for (const c of created) {
-                //     await Trigger(prisma).runStart(c.id, userId);
-                // }
-                // Handle run complete trigger for every run with status Completed
-                // TODO
-                // Handle run fail trigger for every run with status Failed
-                // TODO
+            onUpdated: (updated, updateData) => {
+                for (let i = 0; i < updated.length; i++) {
+                    // Handle run start trigger for every run with status InProgress, 
+                    // that previously had a status of Scheduled
+                    if (updated[i].status === RunStatus.InProgress && updateData[i].hasOwnProperty('status')) {
+                        Trigger(prisma).runStart(updated[i].title as string, updated[i].id as string, params.userId, false);
+                    }
+                    // Handle run complete trigger for every run with status Completed,
+                    // that previously had a status of InProgress
+                    if (updated[i].status === RunStatus.Completed && updateData[i].hasOwnProperty('status')) {
+                        Trigger(prisma).runComplete(updated[i].title as string, updated[i].id as string, params.userId, false);
+                    }
+                    // Handle run fail trigger for every run with status Failed,
+                    // that previously had a status of InProgress
+                    if (updated[i].status === RunStatus.Failed && updateData[i].hasOwnProperty('status')) {
+                        Trigger(prisma).runFail(updated[i].title as string, updated[i].id as string, params.userId, false);
+                    }
+                }
             }
         })
     },
@@ -311,7 +328,8 @@ export const runMutater = (prisma: PrismaType) => ({
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
         // Handle trigger
-        await Trigger(prisma).runComplete(input.id, userId, false, input.wasSuccessful ?? false);
+        if (input.wasSuccessful) await Trigger(prisma).runComplete(input.title, input.id, userId, false);
+        else await Trigger(prisma).runFail(input.title, input.id, userId, false);
         // Return converted object
         return converted as Run;
     },
@@ -356,5 +374,5 @@ export const RunModel = ({
     permissions: runPermissioner,
     search: runSearcher(),
     type: 'Run' as GraphQLModelType,
-    verify: runVerifier(),
+    validate: runValidator(),
 })

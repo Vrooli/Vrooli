@@ -20,19 +20,22 @@ import { CUDHelperInput, CUDResult } from "../types";
  * Finally, it performs the operations in the database, and returns the results in shape of GraphQL objects
  */
 export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdate extends { [x: string]: any }, GQLObject, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }>({
+    createMany,
+    deleteMany,
     objectType,
+    onCreated,
+    onUpdated,
+    onDeleted,
     partialInfo,
     prisma,
     prismaObject,
-    userId,
-    createMany,
-    updateMany,
-    deleteMany,
-    yup,
     shape,
+    updateMany,
+    userId,
+    yup,
 }: CUDHelperInput<GQLCreate, GQLUpdate, GQLObject, DBCreate, DBUpdate>): Promise<CUDResult<GQLObject>> {
     // Perform mutations
-    let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
+    let created: GQLObject[] = [], updated: GQLObject[] = [], deleted: Count = { count: 0 };
     // Validate yup
     createMany && yup.yupCreate.validateSync(createMany, { abortEarly: false });
     updateMany && yup.yupUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
@@ -54,9 +57,11 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
                 ...selectHelper(partialInfo)
             });
             // Convert
-            const converted = modelToGraphQL(select, partialInfo);
+            const converted = modelToGraphQL<GQLObject>(select, partialInfo);
             created = created ? [...created, converted] : [converted];
         }
+        // Call onCreated
+        onCreated && await onCreated(created);
     }
     if (updateMany) {
         for (const update of updateMany) {
@@ -69,14 +74,18 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
                 ...selectHelper(partialInfo)
             });
             // Convert
-            const converted = modelToGraphQL(select, partialInfo);
+            const converted = modelToGraphQL<GQLObject>(select, partialInfo);
             updated = updated ? [...updated, converted] : [converted];
         }
+        // Call onUpdated
+        onUpdated && await onUpdated(updated, updateMany.map(u => u.data));
     }
     if (deleteMany) {
         deleted = await prismaObject(prisma).deleteMany({
             where: { id: { in: deleteMany } }
         })
+        // Call onDeleted
+        onDeleted && await onDeleted(deleted);
     }
     return {
         created: createMany ? created : undefined,

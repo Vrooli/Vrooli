@@ -7,6 +7,7 @@ import { RecursivePartial, PrismaType } from "../types";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { cudHelper } from "./actions";
+import { Trigger } from "../events";
 
 const supplementalFields = ['isOwn'];
 export const reportFormatter = (): FormatConverter<Report, any> => ({
@@ -114,7 +115,12 @@ export const reportMutater = (prisma: PrismaType) => ({
             prisma,
             prismaObject: (p) => p.report,
             yup: { yupCreate: reportsCreate, yupUpdate: reportsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            onCreated: (created) => {
+                for (const c of created) {
+                    Trigger(prisma).objectCreate('Report', c.id as string, params.userId);
+                }
+            },
         })
     },
 })

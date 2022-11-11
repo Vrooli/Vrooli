@@ -30,8 +30,8 @@ export type AwardCategory = 'AccountAnniversary' |
     'ReportEnd' |
     'ReportContribute' |
     'Reputation' |
-    'RoutineComplete' |
-    'RoutineCompleteLearning' |
+    'RunComplete' |
+    'RunCompleteLearning' |
     'RoutineCreate' |
     'SmartContractCreate' |
     'StandardCreate' |
@@ -77,8 +77,8 @@ export const awardVariants: { [key in AwardCategory]?: (count: number) => number
     'QuestionCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
     'ReportEnd': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
     'ReportContribute': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    'RoutineComplete': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]),
-    'RoutineCompleteLearning': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    'RunComplete': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]),
+    'RunCompleteLearning': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
     'RoutineCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
     'SmartContractCreate': (count: number) => closestLower(count, [1, 5, 10, 25]),
     'StandardCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50]),
@@ -269,7 +269,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Report legend', 'Contribute to 500 reports');
         return nad('Report god', 'Contribute to 1000 reports');
     },
-    'RoutineComplete': (count: number) => {
+    'RunComplete': (count: number) => {
         if (count < 5) return nad('Hello, world!', 'Complete a routine');
         if (count < 10) return nad('Productive', 'Complete 5 routines');
         if (count < 25) return nad('Motivated', 'Complete 10 routines');
@@ -283,7 +283,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 10000) return nad('Routine legend', 'Complete 5000 routines');
         return nad('Routine god', 'Complete 10000 routines');
     },
-    'RoutineCompleteLearning': (count: number) => {
+    'RunCompleteLearning': (count: number) => {
         if (count < 5) return nad('I did a learn', 'Complete a learning routine');
         if (count < 10) return nad('Elementary', 'Complete 5 learning routines');
         if (count < 25) return nad('Good noodle', 'Complete 10 learning routines');

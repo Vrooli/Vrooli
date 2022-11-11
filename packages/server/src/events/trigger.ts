@@ -68,12 +68,19 @@ export const Trigger = (prisma: PrismaType) => ({
     questionAnswer: async (questionId: string, userId: string) => { },
     reportClose: async (reportId: string, userId: string) => { },
     reportContribute: async (reportId: string, userId: string) => { },
-    runComplete: async (runId: string, userId: string, wasAutomatic: boolean, wasSuccessful: boolean) => {
+    runComplete: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, userId).pushRunComplete(runId);
+        if (wasAutomatic) Notify(prisma, userId).pushRunComplete(runTitle, runId);
+        // Track award progress
+        Award(prisma, userId).update('RunComplete', 1);
     },
-    runStart: async (runId: string, userId: string) => {
+    runFail: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => { 
+        // If completed automatically, send notification to user
+        if (wasAutomatic) Notify(prisma, userId).pushRunFail(runTitle, runId);
+    },
+    runStart: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
         // If started automatically, send notification to user
+        if (wasAutomatic) Notify(prisma, userId).pushRunStartedAutomatically(runTitle, runId);
     },
     sessionValidate: async (userId: string) => { },
     userInvite: async (userId: string) => { },

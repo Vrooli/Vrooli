@@ -18,6 +18,7 @@ import { validateProfanity } from "../utils/censor";
 import { sortify } from "../utils/objectTools";
 import { deleteOneHelper } from "./actions";
 import { Prisma } from "@prisma/client";
+import { AnyAaaaRecord } from "dns";
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -323,61 +324,83 @@ export const standardQuerier = (prisma: PrismaType) => ({
 })
 
 export const standardMutater = (prisma: PrismaType) => ({
-    async toDBBase(userId: string, data: StandardCreateInput | StandardUpdateInput) {
+    async shapeBase(userId: string, data: StandardCreateInput | StandardUpdateInput) {
         return {
-            id: data.id,
+            root: {
+                isPrivate: data.isPrivate ?? undefined,
+                tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Standard'),
+            },
             isPrivate: data.isPrivate ?? undefined,
             resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, true),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Standard'),
         }
     },
-    async toDBRelationshipCreate(userId: string, data: StandardCreateInput): Promise<Prisma.standard_versionCreateWithoutRootInput> {
+    async shapeRelationshipCreate(userId: string, data: StandardCreateInput): Promise<Prisma.standard_versionUpsertArgs['create']> {
         let translations = TranslationModel.relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, true)
         if (translations?.jsonVariable) {
             translations.jsonVariable = sortify(translations.jsonVariable);
         }
+        const base = await this.shapeBase(userId, data,);
         return {
-            ...(await this.toDBBase(userId, data)),
-            isInternal: data.isInternal ?? false,
-            name: await standardQuerier(prisma).generateName(userId, data),
-            permissions: JSON.stringify({}),
-            versions: {
+            ...base,
+            root: {
                 create: {
-                    default: data.default ?? undefined,
-                    versionLabel: data.versionLabel ?? '1.0.0',
-                    type: data.type,
-                    props: sortify(data.props),
-                    yup: data.yup ? sortify(data.yup) : undefined,
-                    translations,
-                }
-            }
+                    ...base.root,
+                    isInternal: data.isInternal ?? false,
+                    name: await standardQuerier(prisma).generateName(userId, data),
+                    permissions: JSON.stringify({}),
+                },
+            },
+            default: data.default ?? undefined,
+            versionLabel: data.versionLabel ?? '1.0.0',
+            type: data.type,
+            props: sortify(data.props),
+            yup: data.yup ? sortify(data.yup) : undefined,
+            translations,
         }
     },
-    async toDBRelationshipUpdate(userId: string, data: StandardUpdateInput): Promise<Prisma.standard_versionUpdateWithoutRootInput> {
+    async shapeRelationshipUpdate(userId: string, data: StandardUpdateInput): Promise<Prisma.standard_versionUpsertArgs['update']> {
         let translations = TranslationModel.relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false)
         if (translations?.jsonVariable) {
             translations.jsonVariable = sortify(translations.jsonVariable);
         }
+        const base = await this.shapeBase(userId, data);
         return {
-            ...(await this.toDBBase(userId, data)),
+            ...base,
+            root: {
+                update: {
+                    ...base.root,
+                },
+            },
             translations,
         }
     },
-    async toDBCreate(userId: string, data: StandardCreateInput): Promise<Prisma.standardUpsertArgs['create']> {
+    async shapeCreate(userId: string, data: StandardCreateInput): Promise<Prisma.standard_versionUpsertArgs['create']> {
+        const base: any = await this.shapeRelationshipCreate(userId, data);
         return {
-            ...(await this.toDBRelationshipCreate(userId, data)),
-            createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-            organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-            createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-            user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-        }
+            ...base,
+            root: {
+                create: {
+                    ...base.root.create,
+                    createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                    organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                    createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                    user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                },
+            },
+        } as any
     },
-    async toDBUpdate(userId: string, data: StandardUpdateInput): Promise<Prisma.standardUpsertArgs['update']> {
+    async shapeUpdate(userId: string, data: StandardUpdateInput): Promise<Prisma.standard_versionUpsertArgs['update']> {
+        const base: any = await this.shapeRelationshipUpdate(userId, data);
         return {
-            ...(await this.toDBRelationshipUpdate(userId, data)),
-            organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-            user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-        }
+            ...base,
+            root: {
+                update: {
+                    ...base.root.update,
+                    organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+                    user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+                },
+            },
+        } as AnyAaaaRecord
     },
     /**
      * Add, update, or remove a one-to-one standard relationship. 
@@ -411,7 +434,7 @@ export const standardMutater = (prisma: PrismaType) => ({
             // If the second check returns a standard, then connect the existing standard.
             else {
                 // First call createData helper function, so we can use the generated name
-                create = await this.toDBCreate(userId, formattedInput.create[0]);
+                create = await this.shapeCreate(userId, formattedInput.create[0]);
                 const check1 = await standardQuerier(prisma).findMatchingStandardName(create.name, userId);
                 if (check1) {
                     throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0240') });
@@ -422,7 +445,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                 }
             }
             // Shape create data
-            if (!create) create = await this.toDBCreate(userId, formattedInput.create[0]);
+            if (!create) create = await this.shapeCreate(userId, formattedInput.create[0]);
             // Create standard
             const standard = await prisma.standard.create({
                 data: create,
@@ -436,7 +459,7 @@ export const standardMutater = (prisma: PrismaType) => ({
             return null;
         }
         if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
-            const update = await this.toDBUpdate(userId, formattedInput.update[0]);
+            const update = await this.shapeUpdate(userId, formattedInput.update[0]);
             // Update standard
             const standard = await prisma.standard.update({
                 where: { id: update.id },
@@ -487,7 +510,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                 // If any checks return an existing standard, throw error
                 else {
                     // First call createData helper function, so we can use the generated name
-                    data = await this.toDBCreate(userId, input);
+                    data = await this.shapeCreate(userId, input);
                     const check1 = await standardQuerier(prisma).findMatchingStandardName(data.name, userId);
                     if (check1) {
                         throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0238') });
@@ -498,7 +521,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                     }
                 }
                 // If not called, create data
-                if (!data) data = await this.toDBCreate(userId, input);
+                if (!data) data = await this.shapeCreate(userId, input);
                 // If not internal, associate with either organization or user
                 if (!input.isInternal) {
                     if (input.createdByOrganizationId) {
@@ -543,7 +566,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                 // Update standard
                 const currUpdated = await prisma.standard.update({
                     where: input.where,
-                    data: await this.toDBUpdate(userId, input.data),
+                    data: await this.shapeUpdate(userId, input.data),
                     ...select
                 });
                 // TODO handle version update
