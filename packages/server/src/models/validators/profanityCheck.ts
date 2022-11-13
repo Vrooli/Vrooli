@@ -18,11 +18,13 @@ const collectProfanities = (input: { [x: string]: any }, partialInfo: PartialGra
     // Handle base case
     // Get current object's validator
     if (!partialInfo.__typename) return result;
-    const validator: Validator<any, any> | undefined = ObjectMap[partialInfo.__typename].validator;
+    const validator: Validator<any, any, any, any, any, any> | undefined = ObjectMap[partialInfo.__typename]?.validate;
     // If validator specifies profanityFields, add them to the result
     if (validator?.profanityFields) {
         for (const field of validator.profanityFields) {
             if (input[field]) result[field] = result[field] ? [...result[field], input[field]] : [input[field]];
+            // Also check "root" object, so we can support versioned objects without implementing dot notation
+            else if (input.root?.[field]) result[field] = result[field] ? [...result[field], input.root[field]] : [input.root[field]];
         }
     }
     // Add translationsCreate and translationsUpdate to the result

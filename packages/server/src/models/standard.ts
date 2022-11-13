@@ -9,16 +9,16 @@ import { VoteModel } from "./vote";
 import { TranslationModel } from "./translation";
 import { ViewModel } from "./view";
 import { ResourceListModel } from "./resourceList";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, Permissioner, Searcher } from "./types";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, Searcher, Validator } from "./types";
 import { randomString } from "../auth/walletAuth";
 import { CustomError, genErrorCode } from "../events";
 import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, Count } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
-import { validateProfanity } from "../utils/censor";
 import { sortify } from "../utils/objectTools";
 import { deleteOneHelper } from "./actions";
 import { Prisma } from "@prisma/client";
 import { AnyAaaaRecord } from "dns";
+import { getPermissions } from "./utils";
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -46,7 +46,7 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
     removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Standard>[]> {
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Standard>[]> {
         return addSupplementalFieldsHelper({
             objects,
             partial,
@@ -54,7 +54,7 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Standard')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Standard')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Standard')],
-                ['permissionsStandard', async () => await StandardModel.permissions().get({ objects, permissions, prisma, userId })],
+                ['permissionsStandard', async (ids) => await getPermissions({ objectType: 'Standard', ids, prisma, userId })],
                 ['versions', async (ids) => {
                     const groupData = await prisma.standard.findMany({
                         where: {
@@ -71,88 +71,6 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
             ]
         });
     }
-})
-
-export const standardPermissioner = (): Permissioner<StandardPermission, StandardSearchInput> => ({
-    async get({
-        objects,
-        permissions,
-        prisma,
-        userId,
-    }) {
-        // Initialize result with default permissions
-        const result: (StandardPermission & { id?: string })[] = objects.map((o) => ({
-            id: o.id,
-            canComment: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-            canDelete: false, // own && !isDeleted
-            canEdit: false, // own && !isDeleted
-            canReport: true, // !own && !isDeleted && !isInternal && !isPrivate
-            canStar: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-            canView: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-            canVote: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-        }));
-        // Check ownership
-        if (userId) {
-            // Query for objects owned by user, or an organization they have an admin role in
-            const owned = await prisma.standard.findMany({
-                where: {
-                    id: { in: onlyValidIds(objects.map(o => o.id)) },
-                    ...this.ownershipQuery(userId),
-                },
-                select: { id: true, isDeleted: true },
-            })
-            // Set permissions for owned objects
-            owned.forEach((o) => {
-                const index = objects.findIndex((r) => r.id === o.id);
-                result[index] = {
-                    ...result[index],
-                    canComment: !o.isDeleted,
-                    canDelete: !o.isDeleted,
-                    canEdit: !o.isDeleted,
-                    canReport: false,
-                    canStar: !o.isDeleted,
-                    canView: !o.isDeleted,
-                    canVote: !o.isDeleted,
-                }
-            });
-        }
-        // Query all objects
-        const all = await prisma.standard.findMany({
-            where: {
-                id: { in: onlyValidIds(objects.map(o => o.id)) },
-            },
-            select: { id: true, isDeleted: true, isInternal: true, isPrivate: true },
-        })
-        // Set permissions for all objects
-        all.forEach((o) => {
-            const index = objects.findIndex((r) => r.id === o.id);
-            result[index] = {
-                ...result[index],
-                canComment: result[index].canComment || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canReport: result[index].canReport === false ? false : (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canStar: result[index].canStar || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canView: result[index].canView || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canVote: result[index].canVote || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-            }
-        });
-        // Return result with IDs removed
-        result.forEach((r) => delete r.id);
-        return result as StandardPermission[];
-    },
-    async canSearch({
-        input,
-        prisma,
-        userId
-    }) {
-        //TODO
-        return 'full';
-    },
-    ownershipQuery: (userId) => ({
-        OR: [
-            { createdByOrganization: organizationQuerier().hasRoleInOrganizationQuery(userId).organization },
-            { createdByUser: { id: userId } }
-        ]
-    }),
 })
 
 export const standardSearcher = (): Searcher<StandardSearchInput> => ({
@@ -216,11 +134,13 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
     },
 })
 
-export const standardVerifier = () => ({
-    profanityCheck(data: (StandardCreateInput | StandardUpdateInput)[]): void {
-        validateProfanity(data.map((d: any) => d.name));
-        TranslationModel.profanityCheck(data);
+export const standardValidator = (): Validator<StandardCreateInput, StandardUpdateInput, Standard, Prisma.standard_versionSelect, Prisma.standard_versionWhereInput> => ({
+    permissionsSelect: { id: true, root: { select: { 
+        permissions: true, 
+        user: { select: { id: true } }, 
+        organization: { select: { id: true, permissions: true } } } } 
     },
+    profanityFields: ['name'],
 })
 
 export const standardQuerier = (prisma: PrismaType) => ({
@@ -631,12 +551,11 @@ export const standardMutater = (prisma: PrismaType) => ({
 })
 
 export const StandardModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.standard,
+    prismaObject: (prisma: PrismaType) => prisma.standard_version,
     format: standardFormatter(),
     mutate: standardMutater,
-    permissions: standardPermissioner,
     query: standardQuerier,
     search: standardSearcher(),
     type: 'Standard' as GraphQLModelType,
-    verify: standardVerifier(),
+    validate: standardValidator(),
 })

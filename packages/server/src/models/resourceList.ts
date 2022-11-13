@@ -1,17 +1,17 @@
 import { resourceListsCreate, resourceListsUpdate, resourceListTranslationsCreate, resourceListTranslationsUpdate } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
-import { combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper, RelationshipTypes } from "./builder";
+import { combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper } from "./builder";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Permissioner } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
 import { Prisma } from "@prisma/client";
-import { routinePermissioner } from "./routine";
-import { organizationPermissioner } from "./organization";
-import { projectPermissioner } from "./project";
-import { standardPermissioner } from "./standard";
 import { cudHelper } from "./actions";
+import { organizationValidator } from "./organization";
+import { projectValidator } from "./project";
+import { routineValidator } from "./routine";
+import { standardValidator } from "./standard";
 
 export const resourceListFormatter = (): FormatConverter<ResourceList, any> => ({
     relationshipMap: {
@@ -20,26 +20,40 @@ export const resourceListFormatter = (): FormatConverter<ResourceList, any> => (
     },
 })
 
-export const resourceListPermissioner = (): Permissioner<any, ResourceListSearchInput> => ({
-    async get() {
-        return [] as any;
+export const resourceListValidator = (): Validator<ResourceListCreateInput, ResourceListUpdateInput, ResourceList, Prisma.resource_listSelect, Prisma.resource_listWhereInput> => ({
+    validatedRelationshipMap: {
+        // 'api': 'Api',
+        'organization': 'Organization',
+        // 'post': 'Post',
+        'project': 'Project',
+        'routine': 'Routine',
+        // 'smartContract': 'SmartContract',
+        // 'standard': 'Standard',
+        // 'userSchedule': 'UserSchedule',
     },
-    async canSearch() {
-        //TODO
-        return 'full';
+    permissionsSelect: {
+        id: true,
+        // apiVersion: { select: apiValidator().permissionsSelect },
+        organization: { select: organizationValidator().permissionsSelect },
+        // post: { select: postValidator().permissionsSelect },
+        project: { select: projectValidator().permissionsSelect },
+        routineVersion: { select: routineValidator().permissionsSelect },
+        // smartContractVersion: { select: smartContractValidator().permissionsSelect },
+        standardVersion: { select: standardValidator().permissionsSelect },
+        // userScheduledRoutine: { select: routineValidator().permissionsSelect },
     },
-    ownershipQuery: (userId) => ({
+    ownerOrMemberWhere: (userId) => ({
         OR: [
-            // { apiVersion: apiPermissioner().ownershipQuery(userId) },
-            { organization: organizationPermissioner().ownershipQuery(userId) },
-            // { post: postPermissioner().ownershipQuery(userId) },
-            { project: projectPermissioner().ownershipQuery(userId) },
-            { routineVersion: routinePermissioner().ownershipQuery(userId) },
-            // { smartContractVersion: smartContractPermissioner().ownershipQuery(userId) },
-            { standardVersion: standardPermissioner().ownershipQuery(userId) },
+            // { apiVersion: apiValidator().ownerOrMemberWhere(userId) },
+            { organization: organizationValidator().ownerOrMemberWhere(userId) },
+            // { post: postValidator().ownerOrMemberWhere(userId) },
+            { project: projectValidator().ownerOrMemberWhere(userId) },
+            { routineVersion: routineValidator().ownerOrMemberWhere(userId) },
+            // { smartContractVersion: smartContractValidator().ownerOrMemberWhere(userId) },
+            { standardVersion: standardValidator().ownerOrMemberWhere(userId) },
             { userSchedule: { userId } },
         ]
-    })
+    }),
 })
 
 export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
@@ -125,7 +139,7 @@ export const ResourceListModel = ({
     prismaObject: (prisma: PrismaType) => prisma.resource_list,
     format: resourceListFormatter(),
     mutate: resourceListMutater,
-    permissions: resourceListPermissioner,
     search: resourceListSearcher(),
     type: 'ResourceList' as GraphQLModelType,
+    validate: resourceListValidator(),
 })

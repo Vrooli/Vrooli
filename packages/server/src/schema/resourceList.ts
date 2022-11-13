@@ -55,10 +55,14 @@ export const typeDef = gql`
         updated_at: Date!
         index: Int
         usedFor: ResourceListUsedFor
+        # api: Api
         organization: Organization
+        # post: Post
         project: Project
         routine: Routine
-        user: User
+        # smartContract: SmartContract
+        standard: Standard
+        # userSchedule: UserSchedule
         translations: [ResourceListTranslation!]!
         resources: [Resource!]!
     }

@@ -1,7 +1,7 @@
 import { projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
 import { omit } from '@shared/utils';
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, onlyValidHandles, onlyValidIds, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
 import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -11,11 +11,11 @@ import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
 import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
-import { FormatConverter, Permissioner, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
-import { permissionsCheck } from "./validators";
+import { getPermissions } from "./utils";
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -46,7 +46,7 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
     removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Project>[]> {
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Project>[]> {
         return addSupplementalFieldsHelper({
             objects,
             partial,
@@ -54,131 +54,10 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
                 ['isStarred', async (ids) => StarModel.query(prisma).getIsStarreds(userId, ids, 'Project')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Project')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Project')],
-                ['permissionsProject', async () => await ProjectModel.permissions().get({ objects, permissions, prisma, userId })],
+                ['permissionsProject', async (ids) => await getPermissions({ objectType: 'Project', ids, prisma, userId })],
             ]
         });
     }
-})
-
-export const projectPermissioner = (): Permissioner<ProjectPermission, ProjectSearchInput> => ({
-    async get({
-        objects,
-        permissions,
-        prisma,
-        userId,
-    }) {
-        // Initialize result with default permissions
-        const result: (ProjectPermission & { id?: string, handle?: string })[] = objects.map((o) => ({
-            handle: o.handle,
-            id: o.id,
-            canComment: false, // own || !isPrivate
-            canDelete: false, // own 
-            canEdit: false, // own
-            canReport: true, // !own && !isPrivate
-            canStar: false, // own || !isPrivate
-            canView: false, // own || !isPrivate
-            canVote: false, // own || !isPrivate
-        }));
-        // Check ownership
-        if (userId) {
-            // Query for objects owned by user, or an organization they have an admin role in
-            const owned = await prisma.project.findMany({
-                where: {
-                    OR: [
-                        { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
-                        { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
-                    ],
-                    ...this.ownershipQuery(userId),
-                },
-                select: { id: true },
-            })
-            // Set permissions for owned objects
-            owned.forEach((o) => {
-                const index = objects.findIndex((r) => r.id === o.id);
-                result[index] = {
-                    ...result[index],
-                    canComment: true,
-                    canDelete: true,
-                    canEdit: true,
-                    canReport: false,
-                    canStar: true,
-                    canView: true,
-                    canVote: true,
-                }
-            });
-        }
-        // Query all objects
-        const all = await prisma.project.findMany({
-            where: {
-                OR: [
-                    { id: { in: onlyValidIds(objects.map((o) => o.id)) } },
-                    { handle: { in: onlyValidHandles(objects.map((o) => o.handle)) } },
-                ]
-            },
-            select: { id: true, isPrivate: true },
-        })
-        // Set permissions for all objects
-        all.forEach((o) => {
-            const index = objects.findIndex((r) => r.id === o.id);
-            result[index] = {
-                ...result[index],
-                canComment: result[index].canComment || !o.isPrivate,
-                canReport: result[index].canReport === false ? false : !o.isPrivate,
-                canStar: result[index].canStar || !o.isPrivate,
-                canView: result[index].canView || !o.isPrivate,
-                canVote: result[index].canVote || !o.isPrivate,
-            }
-        });
-        // Return result with IDs and handles removed
-        result.forEach((r) => delete r.id && delete r.handle);
-        return result as ProjectPermission[];
-    },
-    async canSearch({
-        input,
-        prisma,
-        userId
-    }) {
-        // Check permissions of specified objects TODO need better approach, but this will do for now
-        if (input.ids) {
-            const permissions = await this.get({ objects: input.ids.map(id => ({ id })), permissions: [], prisma, userId });
-            // Check if trying to view hidden objects
-            if (!permissions.every(x => x.canView)) return 'none';
-            // If you own all data, you have full search permissions
-            if (permissions.every(x => x.canEdit)) return 'full';
-        }
-        // Now check every specified relationship with permissions
-        if (input.organizationId) {
-            const isMember = await permissionsCheck({
-                actions: ['isMember'],
-                objectType: 'Organization',
-                objectIds: [input.organizationId],
-                prisma,
-                userId,
-            })
-            if (isMember) return 'full';
-        }
-        if (input.parentId) {
-            const canEdit = await permissionsCheck({
-                actions: ['canEdit'],
-                objectType: 'Project',
-                objectIds: [input.parentId],
-                prisma,
-                userId,
-            })
-            if (canEdit) return 'full';
-        }
-        if (input.userId) {
-            if (input.userId === userId) return 'full';
-        }
-        if (input.organizationId || input.userId || input.parentId) return 'public';
-        return 'public';
-    },
-    ownershipQuery: (userId) => ({
-        OR: [
-            organizationQuerier().hasRoleInOrganizationQuery(userId),
-            { user: { id: userId } }
-        ]
-    }),
 })
 
 export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
@@ -238,7 +117,22 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
     },
 })
 
-export const projectValidator = (): Validator<Project, Prisma.projectWhereInput> => ({
+export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateInput, Project, Prisma.projectSelect, Prisma.projectWhereInput> => ({
+    validatedRelationshipMap: {
+        asdfasdf
+    },
+    permissionsSelect: { 
+        id: true, 
+        isComplete: true,
+        isPrivate: true,
+        permissions: true,
+        user: { select: { id: true } },
+        organization: { select: { id: true, isPrivate: true, permissions: true } },
+    },
+    ownerOrMemberWhere: (userId) => ({ OR: [
+        organizationQuerier().hasRoleInOrganizationQuery(userId),
+        { user: { id: userId } }
+    ] }),
     // createMany.forEach(input => lineBreaksCheck(input, ['description'], CODE.LineBreaksDescription));
     // for (const input of updateMany) {
 })
@@ -297,7 +191,6 @@ export const ProjectModel = ({
     prismaObject: (prisma: PrismaType) => prisma.project,
     format: projectFormatter(),
     mutate: projectMutater,
-    permissions: projectPermissioner,
     search: projectSearcher(),
     type: 'Project' as GraphQLModelType,
     validate: projectValidator(),

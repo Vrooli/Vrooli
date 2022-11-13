@@ -40,7 +40,7 @@
 // 29. Awards. Stores progress instead of isComplete. For rewards with only one tier, progress is 0 or 1. For rewards with multiple tiers,
 // progress is the number of times you've completed that action. The closest lower tier is the one you're currently on. ✅
 // 30. Streaks ✅
-// 31. Project maps ❌ Saving for another time
+// 31. Project maps ✅
 // 32. Improved role permissions ✅
 // 33. Multi-role routines ✅
 // 34. Fundraising/funding ⚠️

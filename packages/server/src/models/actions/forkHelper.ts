@@ -1,6 +1,7 @@
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode, Trigger } from "../../events";
 import { getUserId, toPartialGraphQLInfo, lowercaseFirstLetter } from "../builder";
+import { permissionsCheck } from "../validators";
 import { readOneHelper } from "./readOneHelper";
 import { ForkHelperProps } from "./types";
 
@@ -21,8 +22,8 @@ export async function forkHelper({
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
     // Check permissions
-    const permissions: { [x: string]: any }[] = model.permissions ? await model.permissions().get({ objects: [{ id: input.id }], prisma, userId }) : [{}];
-    if (!permissions[0].canFork && !permissions[0].canFork) {
+    const isPermitted = await permissionsCheck({ actions: ['Fork'], objectType: model.type, objectIds: [input.id], prisma, userId });
+    if (!isPermitted) {
         throw new CustomError(CODE.Unauthorized, 'Not allowed to fork object', { code: genErrorCode('0262') });
     }
     // Partially convert info

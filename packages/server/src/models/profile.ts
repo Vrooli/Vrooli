@@ -491,6 +491,7 @@ const profileMutater = (prisma: PrismaType) => ({
             data: userData,
             ...selectHelper(partial)
         });
+        const 
         const { starredTags, hiddenTags } = await profileQuerier(prisma).myTags(userId, partial);
         // Format for GraphQL
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;

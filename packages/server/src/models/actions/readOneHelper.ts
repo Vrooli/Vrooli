@@ -2,7 +2,8 @@ import { CODE, ViewFor } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
 import { FindByIdOrHandleInput, FindByVersionInput } from "../../schema/types";
 import { RecursivePartial } from "../../types";
-import { addSupplementalFields, getLatestVersion, getUserId, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builder";
+import { addSupplementalFields, getUserId, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builder";
+import { getIdFromHandle, getLatestVersion } from "../utils";
 import { permissionsCheck } from "../validators";
 import { ViewModel } from "../view";
 import { ReadOneHelperProps } from "./types";
@@ -30,12 +31,12 @@ export async function readOneHelper<GraphQLModel>({
     // If using versionGroupId, find the latest completed version in that group and use that id from now on
     let id: string | null | undefined;
     if ((input as FindByVersionInput).versionGroupId) {
-        const versionId = await getLatestVersion({ objectType: model.type as 'Api' | 'Note' | 'Routine' | 'SmartContract' | 'Standard', prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
+        const versionId = await getLatestVersion({ objectType: objectType as any, prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
         id = versionId;
     } 
     // If using handle, find the id of the object with that handle
     else if ((input as FindByIdOrHandleInput).handle) {
-        asdfasdf
+        id = await getIdFromHandle({ handle: (input as FindByIdOrHandleInput).handle as string, objectType: objectType as 'Organization' | 'Project' | 'User', prisma });
     } else {
         id = input.id;
     }

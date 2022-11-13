@@ -55,34 +55,34 @@ function closestLower(num: number, list: number[]): number | null {
 // Determines variant for awards. Example: 7-day streak, 100th routine completed, etc.
 // If an award has a variant, returns the closest lower variant (i.e. the highest variant that's applicable)
 export const awardVariants: { [key in AwardCategory]?: (count: number) => number | null } = {
-    'AccountAnniversary': (years: number) => years,
+    AccountAnniversary: (years: number) => years,
     // No variants for AccountNew
-    'AccountNew': () => null,
-    'Streak': (days: number) => closestLower(days, [7, 30, 100, 200, 365, 500, 750, 1000]),
-    'QuizPass': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    'Reputation': (count: number) => closestLower(count, [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]),
-    'ObjectStar': (count: number) => closestLower(count, [1, 100, 500]),
-    'ObjectVote': (count: number) => closestLower(count, [1, 100, 1000, 10000]),
-    'PullRequestCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500]),
-    'PullRequestComplete': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500]),
-    'ApiCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50]),
-    'CommentCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    'IssueCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250]),
-    'NoteCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
-    'OrganizationCreate': (count: number) => closestLower(count, [1, 2, 5, 10]),
-    'OrganizationJoin': (count: number) => closestLower(count, [1, 5, 10, 25]),
-    'PostCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    'ProjectCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
-    'QuestionAnswer': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    'QuestionCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    'ReportEnd': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
-    'ReportContribute': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    'RunComplete': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]),
-    'RunCompleteLearning': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    'RoutineCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    'SmartContractCreate': (count: number) => closestLower(count, [1, 5, 10, 25]),
-    'StandardCreate': (count: number) => closestLower(count, [1, 5, 10, 25, 50]),
-    'UserInvite': (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
+    AccountNew: () => null,
+    Streak: (days: number) => closestLower(days, [7, 30, 100, 200, 365, 500, 750, 1000]),
+    QuizPass: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    Reputation: (count: number) => closestLower(count, [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]),
+    ObjectStar: (count: number) => closestLower(count, [1, 100, 500]),
+    ObjectVote: (count: number) => closestLower(count, [1, 100, 1000, 10000]),
+    PullRequestCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500]),
+    PullRequestComplete: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500]),
+    ApiCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50]),
+    CommentCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    IssueCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250]),
+    NoteCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
+    OrganizationCreate: (count: number) => closestLower(count, [1, 2, 5, 10]),
+    OrganizationJoin: (count: number) => closestLower(count, [1, 5, 10, 25]),
+    PostCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    ProjectCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
+    QuestionAnswer: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    QuestionCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    ReportEnd: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
+    ReportContribute: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    RunComplete: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]),
+    RunCompleteLearning: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    RoutineCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    SmartContractCreate: (count: number) => closestLower(count, [1, 5, 10, 25]),
+    StandardCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50]),
+    UserInvite: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
 };
 
 /**
@@ -94,9 +94,9 @@ const nad = (name: string | null, description: string | null) => ({ name, descri
  * Maps award category/level to the award's name and description. Names should be interesting and unique.
  */
 const awardNames: { [key in AwardCategory]: (count: number) => { name: string | null, description: string | null } } = {
-    'AccountAnniversary': (years: number) => nad(`${years}-${years === 1 ? 'year' : 'years'} anniversary`, `Be a member of the community for ${years} ${years === 1 ? 'year' : 'years'}`),
-    'AccountNew': () => nad('Baby steps', 'Create your account'),
-    'Streak': (days: number) => {
+    AccountAnniversary: (years: number) => nad(`${years}-${years === 1 ? 'year' : 'years'} anniversary`, `Be a member of the community for ${years} ${years === 1 ? 'year' : 'years'}`),
+    AccountNew: () => nad('Baby steps', 'Create your account'),
+    Streak: (days: number) => {
         if (days < 7) return nad(null, null);
         if (days < 30) return nad('Keep it up', `Complete a routine for 7 days in a row`);
         if (days < 100) return nad('Consistency is key', 'Complete a routine for 30 days in a row');
@@ -107,7 +107,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (days < 1000) return nad('Routine legend', 'Complete a routine for 750 days in a row');
         return nad('Routine god', 'Complete a routine for 1000 days in a row');
     },
-    'QuizPass': (count: number) => {
+    QuizPass: (count: number) => {
         if (count < 5) return nad('Quiz taker', 'Complete a quiz');
         if (count < 10) return nad('Rising star', 'Complete 5 quizzes');
         if (count < 25) return nad('Smart cookie', 'Complete 10 quizzes');
@@ -118,7 +118,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Quiz legend', 'Complete 500 quizzes');
         return nad('Quiz god', 'Complete 1000 quizzes');
     },
-    'Reputation': (count: number) => {
+    Reputation: (count: number) => {
         if (count < 10) return nad(null, null);
         if (count < 25) return nad('Nice', 'Get 10 reputation points');
         if (count < 50) return nad('Pointy', 'Earn 25 reputation points');
@@ -131,18 +131,18 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 10000) return nad('Reputation legend', 'Earn 5000 reputation');
         return nad('Reputation god', 'Earn 10000 reputation');
     },
-    'ObjectStar': (count: number) => {
+    ObjectStar: (count: number) => {
         if (count < 100) return nad('Star gazer', 'Star an object');
         if (count < 500) return nad('For research purposes', 'Star 100 objects');
         return nad('Superstar', 'Star 500 objects');
     },
-    'ObjectVote': (count: number) => {
+    ObjectVote: (count: number) => {
         if (count < 100) return nad('I voted', 'Vote on an object');
         if (count < 1000) return nad('Active voter', 'Vote on 100 objects');
         if (count < 10000) return nad('Opinionated', 'Vote on 1000 objects');
         return nad('Civic duty', 'Vote on 10000 objects');
     },
-    'PullRequestCreate': (count: number) => {
+    PullRequestCreate: (count: number) => {
         if (count < 5) return nad('Making a difference', 'Create a pull request');
         if (count < 10) return nad('Good idea', 'Create 5 pull requests');
         if (count < 25) return nad('Contributor', 'Create 10 pull requests');
@@ -152,7 +152,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 500) return nad('Pull request legend', 'Create 250 pull requests');
         return nad('Pull request god', 'Create 500 pull requests');
     },
-    'PullRequestComplete': (count: number) => {
+    PullRequestComplete: (count: number) => {
         if (count < 5) return nad('Problem solver', 'Complete a pull request');
         if (count < 10) return nad('Good job', 'Complete 5 pull requests');
         if (count < 25) return nad('Great job', 'Complete 10 pull requests');
@@ -162,14 +162,14 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 500) return nad('Pull it together', 'Complete 250 pull requests');
         return nad('How do you do it?', 'Complete 500 pull requests');
     },
-    'ApiCreate': (count: number) => {
+    ApiCreate: (count: number) => {
         if (count < 5) return nad('/api/v1', 'Create an API');
         if (count < 10) return nad('/api/v2', 'Create 5 APIs');
         if (count < 25) return nad('/api/v3', 'Create 10 APIs');
         if (count < 50) return nad('/api/v4', 'Create 25 APIs');
         return nad('/api/v69', 'Create 50 APIs');
     },
-    'CommentCreate': (count: number) => {
+    CommentCreate: (count: number) => {
         if (count < 5) return nad('Breaking the ice', 'Create a comment');
         if (count < 10) return nad('Small talk', 'Create 5 comments');
         if (count < 25) return nad('Chatty', 'Create 10 comments');
@@ -180,7 +180,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Comment god', 'Create 500 comments');
         return nad('Justin Y.', 'Create 1000 comments');
     },
-    'IssueCreate': (count: number) => {
+    IssueCreate: (count: number) => {
         if (count < 5) return nad('Small problem', 'Create an issue');
         if (count < 10) return nad('I sense a flaw', 'Create 5 issues');
         if (count < 25) return nad('I spy', 'Create 10 issues');
@@ -189,7 +189,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 250) return nad('Issue legend', 'Create 100 issues');
         return nad('Issue god', 'Create 250 issues');
     },
-    'NoteCreate': (count: number) => {
+    NoteCreate: (count: number) => {
         if (count < 5) return nad('Note to self', 'Create a note');
         if (count < 10) return nad('Write that down', 'Create 5 notes');
         if (count < 25) return nad('Noted', 'Create 10 notes');
@@ -197,19 +197,19 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 100) return nad('Scribe', 'Create 50 notes');
         return nad('Noteworthy', 'Create 100 notes');
     },
-    'OrganizationCreate': (count: number) => {
+    OrganizationCreate: (count: number) => {
         if (count < 2) return nad('Organized', 'Create an organization');
         if (count < 5) return nad('Anotha one', 'Create 2 organizations');
         if (count < 10) return nad('Entrepreneur', 'Create 5 organizations');
         return nad('Elon Musk', 'Create 10 organizations');
     },
-    'OrganizationJoin': (count: number) => {
+    OrganizationJoin: (count: number) => {
         if (count < 5) return nad('Participant', 'Join an organization');
         if (count < 10) return nad('Team player', 'Join 5 organizations');
         if (count < 25) return nad('Assemble!', 'Join 10 organizations');
         return nad('Teamwork makes the dream work', 'Join 25 organizations');
     },
-    'PostCreate': (count: number) => {
+    PostCreate: (count: number) => {
         if (count < 5) return nad('I have something to say', 'Create a post');
         if (count < 10) return nad('Hear ye', 'Create 5 posts');
         if (count < 25) return nad('Posty', 'Create 10 posts');
@@ -220,7 +220,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Major influencer', 'Create 500 posts');
         return nad('Mr. Beast', 'Create 1000 posts');
     },
-    'ProjectCreate': (count: number) => {
+    ProjectCreate: (count: number) => {
         if (count < 5) return nad('Big plans', 'Create a project');
         if (count < 10) return nad('Project manager', 'Create 5 projects');
         if (count < 25) return nad('Project pro', 'Create 10 projects');
@@ -228,7 +228,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 100) return nad('Project legend', 'Create 50 projects');
         return nad('Project god', 'Create 100 projects');
     },
-    'QuestionAnswer': (count: number) => {
+    QuestionAnswer: (count: number) => {
         if (count < 5) return nad('I can answer that', 'Answer a question');
         if (count < 10) return nad('Knowledgeable', 'Answer 5 questions');
         if (count < 25) return nad('Smartypants', 'Answer 10 questions');
@@ -239,7 +239,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Answer legend', 'Answer 500 questions');
         return nad('Answer god', 'Answer 1000 questions');
     },
-    'QuestionCreate': (count: number) => {
+    QuestionCreate: (count: number) => {
         if (count < 5) return nad('I have a question', 'Create a question');
         if (count < 10) return nad('Questionable', 'Create 5 questions');
         if (count < 25) return nad('Help pls', 'Create 10 questions');
@@ -250,7 +250,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Question legend', 'Create 500 questions');
         return nad('Question god', 'Create 1000 questions');
     },
-    'ReportEnd': (count: number) => {
+    ReportEnd: (count: number) => {
         if (count < 5) return nad('Hall monitor', 'Create a report that passes');
         if (count < 10) return nad('Quality control', 'Create 5 reports that pass');
         if (count < 25) return nad('Report pro', 'Create 10 reports that pass');
@@ -258,7 +258,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 100) return nad('Report legend', 'Create 50 reports that pass');
         return nad('Report god', 'Create 100 reports that pass');
     },
-    'ReportContribute': (count: number) => {
+    ReportContribute: (count: number) => {
         if (count < 5) return nad('Doing my part', 'Contribute to a report');
         if (count < 10) return nad('Helping out', 'Contribute to 5 reports');
         if (count < 25) return nad('Fixer upper', 'Contribute to 10 reports');
@@ -269,7 +269,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Report legend', 'Contribute to 500 reports');
         return nad('Report god', 'Contribute to 1000 reports');
     },
-    'RunComplete': (count: number) => {
+    RunComplete: (count: number) => {
         if (count < 5) return nad('Hello, world!', 'Complete a routine');
         if (count < 10) return nad('Productive', 'Complete 5 routines');
         if (count < 25) return nad('Motivated', 'Complete 10 routines');
@@ -283,7 +283,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 10000) return nad('Routine legend', 'Complete 5000 routines');
         return nad('Routine god', 'Complete 10000 routines');
     },
-    'RunCompleteLearning': (count: number) => {
+    RunCompleteLearning: (count: number) => {
         if (count < 5) return nad('I did a learn', 'Complete a learning routine');
         if (count < 10) return nad('Elementary', 'Complete 5 learning routines');
         if (count < 25) return nad('Good noodle', 'Complete 10 learning routines');
@@ -294,7 +294,7 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Learning legend', 'Complete 500 learning routines');
         return nad('Learning god', 'Complete 1000 learning routines');
     },
-    'RoutineCreate': (count: number) => {
+    RoutineCreate: (count: number) => {
         if (count < 5) return nad('Getting started', 'Create a routine');
         if (count < 10) return nad('Routine rookie', 'Create 5 routines');
         if (count < 25) return nad('Routine enthusiast', 'Create 10 routines');
@@ -305,20 +305,20 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Routine legend', 'Create 500 routines');
         return nad('Routine god', 'Create 1000 routines');
     },
-    'SmartContractCreate': (count: number) => {
+    SmartContractCreate: (count: number) => {
         if (count < 5) return nad('Contractor', 'Create a smart contract');
         if (count < 10) return nad('dApp developer', 'Create 5 smart contracts');
         if (count < 25) return nad('Love to see it', 'Create 10 smart contracts');
         return nad('The hero we need', 'Create 25 smart contracts');
     },
-    'StandardCreate': (count: number) => {
+    StandardCreate: (count: number) => {
         if (count < 5) return nad('You get a standard', 'Create a standard');
         if (count < 10) return nad('Standards pro', 'Create 5 standards');
         if (count < 25) return nad('Standards champion', 'Create 10 standards');
         if (count < 50) return nad('Standards legend', 'Create 25 standards');
         return nad('Standards god', 'Create 50 standards');
     },
-    'UserInvite': (count: number) => {
+    UserInvite: (count: number) => {
         //[1, 5, 10, 25, 50, 100]
         if (count < 5) return nad('Spread the word', 'Invited user joined the platform');
         if (count < 10) return nad('Word of mouth', '5 invited users joined the platform');

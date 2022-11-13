@@ -4,10 +4,13 @@ import { nodeTranslationCreate, nodeTranslationUpdate, nodesCreate, nodesUpdate 
 import { PrismaType } from "../types";
 import { TranslationModel } from "./translation";
 import { NodeRoutineListModel } from "./nodeRoutineList";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Permissioner, Validator } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
 import { Prisma } from "@prisma/client";
-import { routinePermissioner } from "./routine";
+import { routineValidator } from "./routine";
 import { cudHelper } from "./actions";
+import { CustomError, genErrorCode } from "../events";
+import { CODE } from "@shared/consts";
+import { organizationQuerier } from "./organization";
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -23,25 +26,35 @@ export const nodeFormatter = (): FormatConverter<Node, any> => ({
     },
 })
 
-export const nodePermissioner = (): Permissioner<any, any> => ({
-    async get() {
-        return [] as any;
+export const nodeValidator = (): Validator<NodeCreateInput, NodeUpdateInput, Node, Prisma.nodeSelect, Prisma.nodeWhereInput> => ({
+    validatedRelationshipMap: {
+        'routine': 'Routine',
     },
-    ownershipQuery: (userId) => ({
-        routineVersion: { root: routinePermissioner().ownershipQuery(userId) }
+    permissionsSelect: { routineVersion: { select: routineValidator().permissionsSelect } },
+    ownerOrMemberWhere: (userId) => ({
+        routineVersion: {
+            root: {
+                OR: [
+                    { user: { id: userId } },
+                    organizationQuerier().hasRoleInOrganizationQuery(userId)
+                ]
+            }
+        }
     }),
-})
-
-export const nodeValidator = (): Validator<Node, Prisma.nodeWhereInput> => ({
-    // Don't allow more than 100 nodes in a routine
-    // if (numAdding < 0) return;
-    //     const existingCount = await prisma.routine_version.findUnique({
-    //         where: { id: routineVersionId },
-    //         include: { _count: { select: { nodes: true } } }
-    //     });
-    //     if ((existingCount?._count.nodes ?? 0) + numAdding > MAX_NODES_IN_ROUTINE) {
-    //         throw new CustomError(CODE.ErrorUnknown, `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`, { code: genErrorCode('0052') });
-    //     }
+    validations: {
+        create: async (createMany, prisma, userId, deltaAdding) => {
+            if (createMany.length === 0) return;
+            // Don't allow more than 100 nodes in a routine
+            if (deltaAdding < 0) return;
+            const existingCount = await prisma.routine_version.findUnique({
+                where: { id: createMany[0].routineVersionId },
+                include: { _count: { select: { nodes: true } } }
+            });
+            if ((existingCount?._count.nodes ?? 0) + deltaAdding > MAX_NODES_IN_ROUTINE) {
+                throw new CustomError(CODE.ErrorUnknown, `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`, { code: genErrorCode('0052') });
+            }
+        }
+    }
 })
 
 export const nodeMutater = (prisma: PrismaType) => ({
@@ -204,7 +217,6 @@ export const NodeModel = ({
     prismaObject: (prisma: PrismaType) => prisma.node,
     format: nodeFormatter(),
     mutate: nodeMutater,
-    permissions: nodePermissioner,
     type: 'Node' as GraphQLModelType,
     validate: nodeValidator(),
 })

@@ -71,7 +71,15 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
     },
 })
 
-export const runValidator = (): Validator<Run, Prisma.runWhereInput> => ({
+export const runValidator = (): Validator<RunCreateInput, RunUpdateInput, Run, Prisma.runSelect> => ({
+    validatedRelationshipMap: {
+        asdffasdf
+    },
+    permissionsSelect: { 
+        id: true,
+        user: { select: { id: true } },
+        organization: { select: { id: true, isPrivate: true, permissions: true } },
+    },
     // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
     //     validateProfanity(data.map((d: any) => d.title));
     // },
@@ -139,14 +147,6 @@ export const runPermissioner = (): Permissioner<RunPermission, RunSearchInput> =
         // Return result with IDs removed
         result.forEach((r) => delete r.id);
         return result as RunPermission[];
-    },
-    async canSearch({
-        input,
-        prisma,
-        userId
-    }) {
-        //TODO
-        return 'full';
     },
     ownershipQuery: (userId) => ({
         routine: {

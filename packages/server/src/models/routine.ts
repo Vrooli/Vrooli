@@ -1,8 +1,8 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, relationshipBuilderHelper, RelationshipTypes, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, validateMaxObjects, validateObjectOwnership, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
 import { inputTranslationCreate, inputTranslationUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routinesUpdate } from "@shared/validation";
-import { CODE, DeleteOneType, ResourceListUsedFor } from "@shared/consts";
+import { CODE, ResourceListUsedFor } from "@shared/consts";
 import { omit } from '@shared/utils';
-import { organizationQuerier } from "./organization";
+import { organizationQuerier, organizationValidator } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -15,9 +15,10 @@ import { runFormatter } from "./run";
 import { CustomError, genErrorCode, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, Count, RoutineSortBy } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
-import { cudHelper, deleteOneHelper } from "./actions";
-import { FormatConverter, PartialGraphQLInfo, Permissioner, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator } from "./types";
+import { cudHelper } from "./actions";
+import { FormatConverter, PartialGraphQLInfo, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator } from "./types";
 import { Prisma } from "@prisma/client";
+import { getPermissions } from "./utils";
 
 type NodeWeightData = {
     simplicity: number,
@@ -62,7 +63,7 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
     removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Routine>[]> {
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Routine>[]> {
         return addSupplementalFieldsHelper({
             objects,
             partial,
@@ -70,7 +71,7 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Routine')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
                 ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Routine')],
-                ['permissionsRoutine', async () => await RoutineModel.permissions().get({ objects, permissions, prisma, userId })],
+                ['permissionsRoutine', async (ids) => await getPermissions({ objectType: 'Routine', ids, prisma, userId })],
                 ['runs', async (ids) => {
                     if (userId) {
                         // Find requested fields of runs. Also add routineId, so we 
@@ -120,98 +121,6 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
             ]
         });
     }
-})
-
-export const routinePermissioner = (): Permissioner<RoutinePermission, RoutineSearchInput> => ({
-    async get({
-        objects,
-        permissions,
-        prisma,
-        userId,
-    }) {
-        console.log('routine permissioner startttttt', userId, JSON.stringify(objects), '\n\n')
-        // Initialize result with default permissions
-        const result: (RoutinePermission & { id?: string })[] = objects.map((o) => ({
-            id: o.id,
-            canComment: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-            canDelete: false, // own && !isDeleted
-            canEdit: false, // own && !isDeleted
-            canFork: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-            canReport: true, // !own && !isDeleted && !isInternal && !isPrivate
-            canRun: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-            canStar: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-            canView: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-            canVote: false, // (own && !isDeleted) || (!isDeleted && !isInternal && !isPrivate)
-        }));
-        // Check ownership
-        if (userId) {
-            // Query for objects owned by user, or an organization they have an admin role in
-            const owned = await prisma.routine.findMany({
-                where: {
-                    id: { in: onlyValidIds(objects.map(o => o.id)) },
-                    ...this.ownershipQuery(userId),
-                },
-                select: { id: true, isDeleted: true },
-            })
-            console.log('routine permissioner owned', owned)
-            // Set permissions for owned objects
-            owned.forEach((o) => {
-                const index = objects.findIndex((r) => r.id === o.id);
-                result[index] = {
-                    ...result[index],
-                    canComment: !o.isDeleted,
-                    canDelete: !o.isDeleted,
-                    canEdit: !o.isDeleted,
-                    canFork: !o.isDeleted,
-                    canReport: false,
-                    canRun: !o.isDeleted,
-                    canStar: !o.isDeleted,
-                    canView: !o.isDeleted,
-                    canVote: !o.isDeleted,
-                }
-            });
-        }
-        // Query all objects
-        const all = await prisma.routine.findMany({
-            where: {
-                id: { in: onlyValidIds(objects.map(o => o.id)) },
-            },
-            select: { id: true, isDeleted: true, isInternal: true, isPrivate: true },
-        })
-        console.log('routine permissioner alllllll', JSON.stringify(all), '\n\n')
-        // Set permissions for all objects
-        all.forEach((o) => {
-            const index = objects.findIndex((r) => r.id === o.id);
-            result[index] = {
-                ...result[index],
-                canComment: result[index].canComment || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canFork: result[index].canFork || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canReport: result[index].canReport === false ? false : (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canRun: result[index].canRun || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canStar: result[index].canStar || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canView: result[index].canView || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-                canVote: result[index].canVote || (!o.isDeleted && !o.isInternal && !o.isPrivate),
-            }
-        });
-        // Return result with IDs removed
-        result.forEach((r) => delete r.id);
-        console.log('routine permissioner endddddd', JSON.stringify(result), '\n\n')
-        return result as RoutinePermission[];
-    },
-    async canSearch({
-        input,
-        prisma,
-        userId
-    }) {
-        //TODO
-        return 'full';
-    },
-    ownershipQuery: (userId) => ({
-        OR: [
-            organizationQuerier().hasRoleInOrganizationQuery(userId),
-            { user: { id: userId } }
-        ]
-    })
 })
 
 export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
@@ -288,7 +197,26 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     },
 })
 
-export const routineValidator = (): Validator<Routine, Prisma.routineWhereInput> => ({
+export const routineValidator = (): Validator<RoutineCreateInput, RoutineUpdateInput, Routine, Prisma.routine_versionSelect, Prisma.routine_versionWhereInput> => ({
+    validatedRelationshipMap: {
+        fasdfasd
+    },
+    permissionsSelect: {
+        id: true,
+        isComplete: true,
+        isPrivate: true,
+        isDeleted: true,
+        root: {
+            select: {
+                isDeleted: true,
+                isPrivate: true,
+                isInternal: true,
+                permissions: true,
+                user: { select: { id: true } },
+                organization: { select: organizationValidator().permissionsSelect },
+            }
+        }
+    },
     // if (createMany) {
     //     createMany.forEach(input => this.validateNodePositions(input));
     // }
@@ -1085,10 +1013,9 @@ export const routineMutater = (prisma: PrismaType) => ({
 })
 
 export const RoutineModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.routine,
+    prismaObject: (prisma: PrismaType) => prisma.routine_version,
     format: routineFormatter(),
     mutate: routineMutater,
-    permissions: routinePermissioner,
     search: routineSearcher(),
     type: 'Routine' as GraphQLModelType,
     validate: routineValidator()

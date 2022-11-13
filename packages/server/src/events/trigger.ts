@@ -3,26 +3,24 @@ import { ProfileModel } from "../models";
 import { GraphQLModelType } from "../models/types";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
-import { Award, AwardCategory } from "./awards";
+import { Award } from "./awards";
 
-export enum ActionTrigger {
-    AccountNew = 'AccountNew',
-    ObjectComplete = 'ObjectComplete', // except runs
-    ObjectCreate = 'ObjectCreate',
-    ObjectDelete = 'ObjectDelete',
-    ObjectFork = 'Fork', //objectType, objectId, req.userId
-    ObjectStar = 'ObjectStar',
-    ObjectVote = 'ObjectVote',
-    OrganizationJoin = 'OrganizationJoin',
-    PullRequestClose = 'PullRequestClose',
-    QuestionAnswer = 'QuestionAnswer',
-    ReportClose = 'ReportClose',
-    ReportContribute = 'ReportContribute',
-    RunComplete = 'RunComplete',
-    RunStart = 'RunStart',
-    SessionValidate = 'SessionValidate', //req.userId (for checking anniversary)
-    UserInvite = 'UserInvite',
-}
+export type ActionTrigger = 'AccountNew' |
+    'ObjectComplete' | // except runs
+    'ObjectCreate' |
+    'ObjectDelete' |
+    'Fork' |
+    'ObjectStar' |
+    'ObjectVote' |
+    'OrganizationJoin' |
+    'PullRequestClose' |
+    'QuestionAnswer' |
+    'ReportClose' |
+    'ReportContribute' |
+    'RunComplete' |
+    'RunStart' |
+    'SessionValidate' | // for checking anniversary
+    'UserInvite'
 
 /**
  * Handles logging, notifications, achievements, and more when some action is performed.

@@ -1,5 +1,5 @@
 import { PrismaType } from "../../types";
-import { GraphQLModelType, ModelLogic } from "../types";
+import { BasePermissions, GraphQLModelType, ModelLogic } from "../types";
 
 export interface MaxObjectsCheckProps<GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }> {
     createMany?: GraphQLCreate[] | null | undefined,
@@ -10,13 +10,9 @@ export interface MaxObjectsCheckProps<GraphQLCreate extends { [x: string]: any }
     userId: string,
 }
 
-export interface PermissionsCheckProps<Create extends { [x: string]: any }, Update extends { [x: string]: any}, PermissionObject> {
-    /**
-     * Array of actions to check for
-     */
-    actions: string[];
-    objectType: GraphQLModelType,
-    objectIds: string[],
-    prisma: PrismaType;
-    userId: string | null;
+export interface PermissionsCheckProps<PermissionObject extends BasePermissions> {
+    actions: PermissionType[];
+    permissions: PermissionObject[];
 }
+
+export type PermissionType = 'Create' | 'Read' | 'Update' | 'Delete' | 'Fork' | 'Report' | 'Run';

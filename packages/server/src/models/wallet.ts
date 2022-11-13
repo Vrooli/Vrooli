@@ -18,14 +18,15 @@ export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     },
 })
 
-export const walletValidator = (): Validator<Wallet, Prisma.walletWhereInput> => ({
-    /**
-     * Maps GraphQLModelType to wallet relationship field
-     */
-    walletOwnerMap: {
-        'User': 'userId',
-        'Organization': 'organizationId',
-        'Project': 'projectId',
+export const walletValidator = (): Validator<any, WalletUpdateInput, Wallet, Prisma.walletSelect> => ({
+    permissionsSelect: { 
+        id: true,
+        user: { select: { id: true } },
+        organization: { select: { id: true, isPrivate: true, permissions: true } },
+    },
+    validatedRelationshipMap: {
+        'user': 'User',
+        'organization': 'Organization',
     },
     /**
      * Verify that a handle is owned by a wallet, that is owned by an object. 

@@ -67,7 +67,14 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
     },
 })
 
-export const reportValidator = (): Validator<Report, Prisma.reportWhereInput> => ({
+export const reportValidator = (): Validator<ReportCreateInput, ReportUpdateInput, Report, Prisma.reportSelect, Prisma.reportWhereInput> => ({
+    validatedRelationshipMap: {
+        asdfasdf
+    },
+    permissionsSelect: { 
+        id: true, 
+        user: { select: { id: true } },
+    },
     // // TODO not sure if report should have profanity check, since someone might 
     // // just be trying to submit a report for a profane word
     // profanityCheck(data: (ReportCreateInput | ReportUpdateInput)[]): void {

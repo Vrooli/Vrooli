@@ -1,4 +1,82 @@
+/**
+ * This file handles checking if a cud action violates any max object limits. 
+ * Limits are defined both on the user and organizational level, and can be raised 
+ * by the standard premium subscription, or a custom subscription.
+ * 
+ * The general idea is that users can have a limited number of private objects, and
+ * a larger number of public objects. Organizations can have even more private objects, and 
+ * even more public objects. The limits should be just low enough to encourage people to make public 
+ * objects and transfer them to organizations, but not so low that it's impossible to use the platform.
+ * 
+ * We want objects to be owned by organizations rather than users, as this means the objects are tied to 
+ * the organization's governance structure.
+ */
+import { CODE } from "@shared/consts";
+import { CustomError, genErrorCode } from "../../events";
+import { PrismaDelegate, PrismaType } from "../../types";
+import { ObjectMap } from "../builder";
+import { GraphQLModelType, Validator } from "../types";
+import { getValidatorAndDelegate } from "../utils";
 import { MaxObjectsCheckProps } from "./types";
+
+/**
+ * Map which defines the maximum number of private objects a user can have. Other maximum checks 
+ * (e.g. maximum nodes in a routine, projects in an organization) must be checked elsewhere.
+ */
+const maxPrivateObjectsUserMap: { [key in GraphQLModelType]?: (hasPremium: boolean) => number } = {
+    // Api: (hp) => hp ? 5 : 1,
+    Comment: () => 0, // No private comments
+    Email: () => 5, // Can only be applied to user, and is always private. So it doesn't show up in the other maps
+    // Note: (hp) => hp ? 1000 : 25,
+    Organization: () => 1,
+    Project: (hp) => hp ? 100 : 3,
+    Routine: (hp) => hp ? 250 : 25,
+    // SmartContract: (hp) => hp ? 25 : 1,
+    // ScheduleFilter: (hp) => hp ? 100 : 10, // *Per user schedule. Doesn't show up in the other maps
+    Standard: (hp) => hp ? 25 : 3,
+    Wallet: (hp) => hp ? 5 : 1, // Is always private. So it doesn't show up in public maps
+}
+
+/**
+ * Map which defines the maximum number of public objects a user can have. Other maximum checks must be checked elsewhere.
+ */
+const maxPublicObjectsUserMap: { [key in GraphQLModelType]?: (hasPremium: boolean) => number } = {
+    // Api: (hp) => hp ? 50 : 10,
+    Comment: () => 10000,
+    Handle: () => 1, // Is always public. So it doesn't show up in private maps
+    // Note: (hp) => hp ? 1000 : 25,
+    Organization: (hp) => hp ? 25 : 3,
+    Project: (hp) => hp ? 250 : 25,
+    Routine: (hp) => hp ? 1000 : 100,
+    // SmartContract: (hp) => hp ? 250 : 25,
+    Standard: (hp) => hp ? 1000 : 100,
+}
+
+/**
+ * Map which defines the maximum number of private objects an organization can have. Other maximum checks must be checked elsewhere.
+ */
+const maxPrivateObjectsOrganizationMap: { [key in GraphQLModelType]?: (hasPremium: boolean) => number } = {
+    // Api: (hp) => hp ? 50 : 10,
+    // Note: (hp) => hp ? 1000 : 25,
+    Project: (hp) => hp ? 100 : 3,
+    Routine: (hp) => hp ? 250 : 25,
+    // SmartContract: (hp) => hp ? 25 : 1,
+    Standard: (hp) => hp ? 25 : 3,
+    Wallet: (hp) => hp ? 5 : 1, // Is always private. So it doesn't show up in public maps
+}
+
+/**
+ * Map which defines the maximum number of public objects an organization can have. Other maximum checks must be checked elsewhere.
+ */
+const maxPublicObjectsOrganizationMap: { [key in GraphQLModelType]?: (hasPremium: boolean) => number } = {
+    // Api: (hp) => hp ? 50 : 10,
+    Handle: () => 1, // Is always public. So it doesn't show up in private maps
+    // Note: (hp) => hp ? 1000 : 25,
+    Project: (hp) => hp ? 250 : 25,
+    Routine: (hp) => hp ? 1000 : 100,
+    // SmartContract: (hp) => hp ? 250 : 25,
+    Standard: (hp) => hp ? 1000 : 100,
+}
 
 type MaxObjectsCheckData = {
     id: string,
@@ -9,7 +87,8 @@ type MaxObjectsCheckData = {
 }
 
 /**
- * Validates that creating a new project, routine, or standard will not exceed the user's limit
+ * Validates that creating a new project, routine, or standard will not exceed the user's limit. Checks both 
+ * for personal limits and organizational limits, factoring in the user or organization's premium status.
  */
 export async function maxObjectsCheck<GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }>({
     createMany,
@@ -19,8 +98,43 @@ export async function maxObjectsCheck<GraphQLCreate extends { [x: string]: any }
     updateMany,
     userId,
 }: MaxObjectsCheckProps<GraphQLCreate, GraphQLUpdate>) {
-    let totalUserIdCount = 0;
-    let totalOrganizationIds: { [id: string]: number } = {};
+    // Initialize counts for user and organization
+    let totalUserIdCount = 0; // Queries will only return objects which belong to this user, or belong to an organization (though not necessarily one this user is a member of)
+    let totalOrganizationIds: { [id: string]: number } = {}; // All returned organizations will be counted, even if the user is not a member of them. Just makes the logic easier
+    // Find validator and prisma delegate for this object type
+    const { validator, prismaDelegate } = getValidatorAndDelegate(objectType, prisma, 'maxObjectsCheck');
+    // Add createMany to counts. Every createMany that doesn't contain a createdByOrganizationId or organizationId is assumed to belong to the user instead
+    //TODO
+    // Use prisma and validator to query for all updateMany and deleteMany objects, returning the owner of each object
+    //TODO
+    // Separate updateMany and deleteMany results. Add updateMany owner ids to the counts, and remove deleteMany owner ids from the counts
+    //TODO
+    // If counts of userId or any organizationId are greater than the maximum allowed, throw an error
+    //TODO
+
+    let temp = await prisma.routine_version.findUnique({
+        where: { id: 'asdfa'},
+        select: {
+            root: { 
+                select: {
+                    user: {
+                        select: {
+                            id: true,
+                        }
+                    },
+                    organization: {
+                        select: {
+                            id: true,
+                            permissions: true,
+                        }
+                    },
+                    permissions: true,
+
+                }
+            }
+        }
+    })
+
     /**
      * Helper for converting an array of strings to a map of occurence counts
      */
@@ -28,12 +142,7 @@ export async function maxObjectsCheck<GraphQLCreate extends { [x: string]: any }
         const result: { [id: string]: number } = {};
         arr.forEach(x => {
             if (!x) return;
-            if (result[x]) {
-                result[x] += 1;
-            }
-            else {
-                result[x] = 1;
-            }
+            result[x] = (result[x] ?? 0) + 1;
         });
         return result;
     }

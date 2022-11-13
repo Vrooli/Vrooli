@@ -73,6 +73,7 @@ model api_version {
     intendToPullRequest Boolean         @default(false)
     resourceList     resource_list?    @relation("resource_list_api_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     translations      api_version_translation[]
+    directoryListings      project_directory[]
 
     @@unique([rootId, versionIndex], name: "api_version_rootId_versionIndex_unique")
 }
@@ -555,10 +556,8 @@ model note {
     isPrivate               Boolean            @default(false)
     createdByUserId         String?            @db.Uuid
     createdByOrganizationId String?            @db.Uuid
-    projectId               String?            @db.Uuid
     createdByUser           user?              @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
     createdByOrganization   organization?      @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-    project                 project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
     versions                note_version[]
     pullRequests      pull_request[]
     labels                note_labels[]
@@ -588,6 +587,7 @@ id         String        @id @default(uuid()) @db.Uuid
     versionNotes        String?                       @db.VarChar(4096)
     root      note          @relation(fields: [rootId], references: [id], onDelete: Cascade)
     translations      note_version_translation[]
+    directoryListings      project_directory[]
 
     @@unique([rootId, versionIndex], name: "note_version_rootId_versionIndex_unique")
 }
@@ -634,6 +634,7 @@ model organization {
     stars                 Int                        @default(0)
     views                 Int                        @default(0)
     permissions         String             @db.VarChar(4096)
+    premiumId                      String?              @db.Uuid @unique
     resourceListId        String?                    @db.Uuid @unique
     issues               issue[]
     labels                label[]
@@ -643,6 +644,7 @@ model organization {
     schedules             organization_schedule[]
     paymentHistory               payment[]
     posts                 post[]
+    premium               premium?                  @relation(fields: [premiumId], references: [id], onDelete: SetNull)
     smartContractsCreated smart_contract[]           @relation("smart_contract_organization_creator")
     smartContracts        smart_contract[]           @relation("smart_contract_organization_owner")
     tags                  organization_tags[]
@@ -654,6 +656,7 @@ model organization {
     resourceList          resource_list?             @relation("resource_list_organization", fields: [resourceListId], references: [id], onDelete: SetNull)
     routinesCreated       routine[]                  @relation("routine_organization_creator")
     routines              routine[]                  @relation("routine_organization_owner")
+    runs                           run[]                @relation("run_organization")
     standardsCreated      standard[]                 @relation("standard_organization_creator")
     standards             standard[]                @relation("standard_organization_owner")
     starredBy             star[]                     @relation("star_organization")
@@ -665,6 +668,7 @@ model organization {
     pullRequests      pull_request[]
     stats             data_organization[]
     questions              question[]
+    directoryListings      project_directory[]
 }
 
 model organization_schedule {
@@ -836,6 +840,16 @@ model payment {
     cardLast4     String?       @db.VarChar(255)
 }
 
+model premium {
+    id             String       @id @default(uuid()) @db.Uuid
+    customPlan     String?      @db.VarChar(2048)
+    enabledAt      DateTime?    @db.Timestamptz(6)
+    expiresAt      DateTime?     @db.Timestamptz(6)
+    isActive      Boolean      @default(false)
+    organization   organization?
+    user           user?
+}
+
 model project {
     id                      String                @id @default(uuid()) @db.Uuid
     created_at              DateTime              @default(now()) @db.Timestamptz(6)
@@ -860,16 +874,15 @@ model project {
     parent                  project?              @relation("project_fork", fields: [parentId], references: [id])
     user                    user?                 @relation("project_user_owner", fields: [userId], references: [id], onDelete: SetNull)
     comments                comment[]
+    directories            project_directory[] @relation("project_directory_project")
+    directoryListings      project_directory[] @relation("project_directory_listing")
     forks                   project[]             @relation("project_fork")
     issues                  issue[]
     labels                  project_labels[]
-    notes                   note[]
-    smartContracts          smart_contract[]
     tags                    project_tags[]
     translations            project_translation[]
     reports                 report[]
     resourceList           resource_list?        @relation("resource_list_project", fields: [resourceListId], references: [id], onDelete: SetNull)
-    routines                routine[]
     starredBy               star[]                @relation("star_project")
     viewedBy                view[]                @relation("view_project")
     votedBy                   vote[]                @relation("vote_project")
@@ -877,6 +890,26 @@ model project {
     stats             data_project[]
     questions         question[]
     transfers         transfer[] @relation("transfer_project")
+}
+
+model project_directory {
+    id        String  @id @default(uuid()) @db.Uuid
+    created_at DateTime @default(now()) @db.Timestamptz(6)
+    updated_at DateTime @default(now()) @db.Timestamptz(6)
+    isRoot    Boolean @default(false)
+    parentDirectoryId String? @db.Uuid
+    childOrder String? @db.VarChar(4096)
+    projectId String? @db.Uuid
+    parentDirectory project_directory? @relation("project_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
+    project project? @relation("project_directory_project", fields: [projectId], references: [id], onDelete: SetNull)
+    children project_directory[] @relation("project_directory_parent")
+    childApis api_version[]
+    childNotes note_version[]
+    childOrganizations organization[]
+    childProjects project[] @relation("project_directory_listing")
+    childRoutines routine_version[]
+    childSmartContracts smart_contract_version[]
+    childStandards standard_version[]
 }
 
 model project_translation {
@@ -980,6 +1013,7 @@ model question_answer {
     updated_at  DateTime     @default(now()) @db.Timestamptz(6)
     score       Int          @default(0)
     stars       Int          @default(0)
+    isAccepted  Boolean      @default(false)
     questionId  String       @db.Uuid
     userId      String?      @db.Uuid
     question    question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -1156,6 +1190,15 @@ model report_response {
     @@unique([reportId, userId], name: "report_response_reportid_userid_unique")
 }
 
+model reputation_history {
+    id          String  @id @default(uuid()) @db.Uuid
+    created_at  DateTime     @default(now()) @db.Timestamptz(6)
+    updated_at  DateTime     @default(now()) @db.Timestamptz(6)
+    amount  Int
+    userId      String  @db.Uuid
+    user        user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model resource {
     id           String                 @id @default(uuid()) @db.Uuid
     created_at   DateTime               @default(now()) @db.Timestamptz(6)
@@ -1250,14 +1293,12 @@ model routine {
     createdByOrganizationId String?           @db.Uuid
     organizationId          String?           @db.Uuid
     parentId                String?           @db.Uuid
-    projectId               String?           @db.Uuid
     userId                  String?           @db.Uuid
     createdByOrganization   organization?     @relation("routine_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: SetNull)
     createdByUser           user?             @relation("routine_user_creator", fields: [createdByUserId], references: [id], onDelete: SetNull)
     issues                 issue[]
     organization            organization?     @relation("routine_organization_owner", fields: [organizationId], references: [id], onDelete: SetNull)
     parent                  routine_version?  @relation("routine_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    project                 project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
     quizzes                 quiz[]
     user                    user?             @relation("routine_user_owner", fields: [userId], references: [id], onDelete: SetNull)
     comments                comment[]
@@ -1313,6 +1354,7 @@ model routine_version {
     suggestedNextByNode     node_end_next[]  @relation("node_end_next_to")
     suggestedNextByRoutine  routine_version_end_next[] @relation("routine_version_end_next_to")
     suggestedNextByRoutineFrom  routine_version_end_next[] @relation("routine_version_end_next_from")
+    directoryListings      project_directory[]
 
     @@unique([rootId, versionIndex], name: "routine_version_rootId_versionIndex_unique")
 }
@@ -1421,10 +1463,12 @@ model run {
     title               String           @db.VarChar(128)
     status              RunStatus        @default(Scheduled)
     routineVersionId    String?          @db.Uuid
-    userId              String           @db.Uuid
+    userId              String?           @db.Uuid
+    organizationId      String?          @db.Uuid
     routineVersion      routine_version? @relation("run_routine_version", fields: [routineVersionId], references: [id])
     runSchedule            run_schedule?
-    user                user             @relation("run_user", fields: [userId], references: [id])
+    user                user?             @relation("run_user", fields: [userId], references: [id], onDelete: Cascade)
+    organization        organization?    @relation("run_organization", fields: [organizationId], references: [id], onDelete: SetNull)
     steps               run_step[]       @relation("run_step_run")
     inputs              run_input[]      @relation("run_input_run")
 }
@@ -1508,7 +1552,6 @@ model smart_contract {
     createdByOrganizationId String?                  @db.Uuid
     organizationId          String?                  @db.Uuid
     parentId                String?                  @db.Uuid
-    projectId               String?                  @db.Uuid
     userId                  String?                  @db.Uuid
     createdByOrganization   organization?            @relation("smart_contract_organization_creator", fields: [createdByOrganizationId], references: [id], onDelete: SetNull)
     createdByUser           user?                    @relation("smart_contract_user_creator", fields: [createdByUserId], references: [id], onDelete: SetNull)
@@ -1516,7 +1559,6 @@ model smart_contract {
     issues                  issue[]
     organization            organization?            @relation("smart_contract_organization_owner", fields: [organizationId], references: [id], onDelete: SetNull)
     parent                  smart_contract_version?  @relation("smart_contract_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    project                 project?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
     user                    user?                    @relation("smart_contract_user_owner", fields: [userId], references: [id], onDelete: SetNull)
     comments                comment[]
     labels                  smart_contract_labels[]
@@ -1553,6 +1595,7 @@ model smart_contract_version {
     root   smart_contract                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
     resourceList   resource_list?                       @relation("resource_list_smart_contract_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     translations    smart_contract_version_translation[]
+    directoryListings      project_directory[]
 
     @@unique([rootId, versionIndex], name: "smart_contract_version_rootId_versionIndex_unique")
 }
@@ -1655,6 +1698,7 @@ model standard_version {
     routineInputs  routine_version_input[]
     routineOutputs routine_version_output[]
     translations   standard_version_translation[]
+    directoryListings      project_directory[]
 
     @@unique([rootId, versionIndex], name: "standard_version_rootId_versionIndex_unique")
 }
@@ -1740,7 +1784,7 @@ model tag {
     standards       standard_tags[]
     starredBy       star[]                @relation("star_tag")
     translations    tag_translation[]
-    hiddenBy        user_tag_hidden[]
+    scheduleFilters        user_schedule_filter[]
 }
 
 model tag_translation {
@@ -1786,7 +1830,6 @@ model user {
     updated_at                     DateTime             @default(now()) @db.Timestamptz(6)
     confirmationCode               String?              @unique @db.VarChar(256)
     confirmationCodeDate           DateTime?            @db.Timestamptz(6)
-    premiumExpiresAt               DateTime?            @db.Timestamptz(6)
     invitedByUserId                String?              @db.Uuid
     lastExport                     DateTime?            @db.Timestamptz(6)
     lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6)
@@ -1806,8 +1849,7 @@ model user {
     stars                          Int                  @default(0)
     views                          Int                  @default(0)
     notificationSettings           String?              @db.VarChar(2048)
-    reminderListId                 String?              @db.Uuid @unique
-    resourceListId                 String?              @db.Uuid @unique
+    premiumId                      String?              @db.Uuid @unique
     status                         AccountStatus        @default(Unlocked)
     answers                        question_answer[]
     apis                           api[]
@@ -1817,6 +1859,7 @@ model user {
     emails                         email[]
     phones                         phone[]
     posts                          post[]
+    premium                       premium?            @relation(fields: [premiumId], references: [id], onDelete: SetNull)
     invitedByUser                  user?                @relation("user_invited_by_user", fields: [invitedByUserId], references: [id], onDelete: SetNull)
     invitedUsers                   user[]               @relation("user_invited_by_user")
     issuesCreated                 issue[] @relation("issue_creator_user")
@@ -1834,6 +1877,7 @@ model user {
     sentReports                    report[]             @relation("report_from")
     reports                        report[]
     reportResponses                report_response[]
+    reputationHistory             reputation_history[]
     routinesCreated                routine[]            @relation("routine_user_creator")
     routines                       routine[]            @relation("routine_user_owner")
     runs                           run[]                @relation("run_user")
@@ -1851,7 +1895,6 @@ model user {
     notes                          note[]
     languages                      user_language[]
     roles                          user_roles[]
-    hiddenTags                     user_tag_hidden[]
     translations                   user_translation[]
     viewed                         view[]               @relation("view_by")
     viewedBy                       view[]               @relation("view_user")
@@ -1909,6 +1952,7 @@ model user_schedule {
     resourceList resource_list? @relation("resource_list_user_schedule", fields: [resourceListId], references: [id], onDelete: SetNull)
     user   user @relation(fields: [userId], references: [id], onDelete: Cascade)
     labels user_schedule_labels[]
+    filters user_schedule_filter[]
     translations user_schedule_translation[]
 }
 
@@ -1933,15 +1977,15 @@ model user_schedule_translation {
     @@unique([userScheduleId, language])
 }
 
-model user_tag_hidden {
+model user_schedule_filter {
     id     String  @id @default(uuid()) @db.Uuid
-    isBlur Boolean @default(true)
-    userId String  @db.Uuid
+    filterType UserScheduleFilterType
+    userScheduleId String @db.Uuid
     tagId  String  @db.Uuid
-    tag    tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
-    user   user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userSchedule user_schedule @relation(fields: [userScheduleId], references: [id], onDelete: Cascade)
+    tag     tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-    @@unique([userId, tagId], name: "user_tags_hidden_userid_tagid_unique")
+    @@unique([userScheduleId, tagId], name: "user_schedule_filter_userScheduleId_tagid_unique")
 }
 
 model view {
@@ -2155,4 +2199,10 @@ enum TransferStatus {
     Accepted
     Denied
     Pending
+}
+
+enum UserScheduleFilterType {
+    Blur
+    Hide
+    ShowMore
 }

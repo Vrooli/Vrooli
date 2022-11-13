@@ -3,18 +3,15 @@ import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTransl
 import { omit } from '@shared/utils';
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput } from "../schema/types";
 import { PrismaType, RecursivePartial, ReqForUserAuth } from "../types";
-import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, getSearchStringQueryHelper, onlyValidIds, combineQueries, getUserId } from "./builder";
+import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, getSearchStringQueryHelper, combineQueries, getUserId } from "./builder";
 import { TranslationModel } from "./translation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { organizationQuerier } from "./organization";
-import { projectPermissioner } from "./project";
-import { routinePermissioner } from "./routine";
-import { standardPermissioner } from "./standard";
 import { CustomError, genErrorCode, Trigger } from "../events";
-import { FormatConverter, Searcher, Permissioner, Querier, GraphQLInfo, PartialGraphQLInfo, CUDInput, CUDResult, GraphQLModelType, Mutater } from "./types";
+import { FormatConverter, Searcher, Querier, GraphQLInfo, PartialGraphQLInfo, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
+import { getPermissions } from "./utils";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
@@ -39,14 +36,14 @@ export const commentFormatter = (): FormatConverter<Comment, CommentPermission> 
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
     removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, permissions, prisma, userId }): Promise<RecursivePartial<Comment>[]> {
+    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Comment>[]> {
         return addSupplementalFieldsHelper({
             objects,
             partial,
             resolvers: [
                 ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Comment')],
                 ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
-                ['permissionsComment', async () => await CommentModel.permissions().get({ objects, permissions, prisma, userId })],
+                ['permissionsComment', async (ids) => await getPermissions({ objectType: 'Comment', ids, prisma, userId })],
             ]
         });
     },
@@ -88,104 +85,13 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
     },
 })
 
-export const commentPermissioner = (): Permissioner<CommentPermission, CommentSearchInput> => ({
-    async get({
-        objects,
-        permissions,
-        prisma,
-        userId,
-    }) {
-        // Initialize result with default permissions
-        const result: (CommentPermission & { id?: string })[] = objects.map((o) => ({
-            id: o.id,
-            canDelete: false, // own
-            canEdit: false, // own 
-            canReply: true, // own or associated project, routine, or standard is public
-            canReport: true, // !own and associated project, routine, or standard is public
-            canStar: false, // own or associated project, routine, or standard is public
-            canView: false, // own or associated project, routine, or standard is public
-            canVote: false, // own or associated project, routine, or standard is public
-        }));
-        // Check ownership
-        if (userId) {
-            // Query for objects owned by user, or an organization they have an admin role in
-            const owned = await prisma.comment.findMany({
-                where: {
-                    id: { in: onlyValidIds(objects.map(o => o.id)) },
-                    ...this.ownershipQuery(userId),
-                },
-                select: { id: true },
-            })
-            // Set permissions for owned objects
-            owned.forEach((o) => {
-                const index = objects.findIndex((r) => r.id === o.id);
-                result[index] = {
-                    ...result[index],
-                    canDelete: true,
-                    canEdit: true,
-                    canReply: true,
-                    canReport: false,
-                    canStar: true,
-                    canView: true,
-                    canVote: true,
-                }
-            });
-        }
-        // Query all public comments, or comments where user owns associated project, routine, or standard
-        const all = await prisma.comment.findMany({
-            where: {
-                id: { in: onlyValidIds(objects.map(o => o.id)) },
-                AND: [
-                    // projectId is null, project is public, or user owns project
-                    {
-                        OR: [
-                            { projectId: null },
-                            { project: { isPrivate: false } },
-                            { project: projectPermissioner().ownershipQuery(userId ?? '') },
-                        ]
-                    },
-                    // routineId is null, routine is public, or user owns routine
-                    {
-                        OR: [
-                            { routineId: null },
-                            { routine: { isPrivate: false } },
-                            { routine: routinePermissioner().ownershipQuery(userId ?? '') },
-                        ]
-                    },
-                    // standardId is null, standard is public, or user owns standard
-                    {
-                        OR: [
-                            { standardId: null },
-                            { standard: { isPrivate: false } },
-                            { standard: standardPermissioner().ownershipQuery(userId ?? '') },
-                        ]
-                    },
-                ]
-            },
-            select: { id: true },
-        })
-        // Set permissions for all objects
-        all.forEach((o) => {
-            const index = objects.findIndex((r) => r.id === o.id);
-            result[index] = {
-                ...result[index],
-                canReply: true,
-                canReport: result[index].canReport === false ? false : true,
-                canStar: true,
-                canView: true,
-                canVote: true,
-            }
-        });
-        // Return result with IDs removed
-        result.forEach((r) => delete r.id);
-        return result as CommentPermission[];
+export const commentValidator = (): Validator<CommentCreateInput, CommentUpdateInput, Comment, CommentPermission, Prisma.commentSelect, Prisma.commentWhereInput> => ({
+    validatedRelationshipMap: {
+        'user': 'User',
+        'organization': 'Organization',
     },
-    ownershipQuery: (userId) => ({
-        OR: [
-            organizationQuerier().hasRoleInOrganizationQuery(userId),
-            { user: { id: userId } },
-        ]
-    }),
+    permissionsSelect: { user: { select: { id: true } } },
+    ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
 })
 
 export const commentQuerier = (prisma: PrismaType): Querier => ({
@@ -398,8 +304,8 @@ export const CommentModel = ({
     prismaObject: (prisma: PrismaType) => prisma.comment,
     format: commentFormatter(),
     mutate: commentMutater,
-    permissions: commentPermissioner,
     query: commentQuerier,
     search: commentSearcher(),
     type: 'Comment' as GraphQLModelType,
+    validate: commentValidator(),
 })

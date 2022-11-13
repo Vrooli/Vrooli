@@ -80,7 +80,7 @@ export interface PartialGraphQLInfo {
  * data transformations from the GraphqL shape are removed. This is useful when checking 
  * which fields are requested from a Prisma query.
  */
-export type PartialPrismaSelect = { [x: string]: any };
+export type PartialPrismaSelect = { [x: string]: boolean | PartialPrismaSelect } & { __typename?: GraphQLModelType };
 
 /**
  * Shape 4 of 4 for GraphQL to Prisma conversion. This is the final shape of the requested data 
@@ -132,10 +132,9 @@ export type FormatConverter<GraphQLModel, PermissionObject> = {
      * Adds fields which are calculated after the main query
      * @returns objects ready to be sent through GraphQL
      */
-    addSupplementalFields?: ({ objects, partial, permissions, prisma, userId }: {
+    addSupplementalFields?: ({ objects, partial, prisma, userId }: {
         objects: ({ id: string } & { [x: string]: any })[];
         partial: PartialGraphQLInfo,
-        permissions?: PermissionObject[] | null,
         prisma: PrismaType,
         userId: string | null,
     }) => Promise<RecursivePartial<GraphQLModel>[]>;
@@ -158,20 +157,58 @@ export type Searcher<SearchInput> = {
 export type Querier = { [x: string]: any };
 
 /**
+ * Base permissions that any object can have
+ */
+export type BasePermissions = {
+    canDelete: boolean;
+    canReport: boolean;
+    canUpdate: boolean;
+    canView: boolean;
+}
+
+/**
  * Describes shape of component that has validation rules 
  */
-export type Validator<GraphQLModel extends { [x: string]: any }, PermissionsQuery extends { [x: string]: any }> = {
+export type Validator<
+    GQLCreate extends { [x: string]: any },
+    GQLUpdate extends { [x: string]: any },
+    GQLModel extends { [x: string]: any },
+    PermissionObject extends BasePermissions,
+    PermissionsSelect extends { [x: string]: any },
+    OwnerOrMemberWhere extends { [x: string]: any }
+> = {
     /**
-     * Relationships in the GraphQL object which have separate/additional 
-     * validation rules
+     * Relationships in the GQLCreate, GQLUpdate, or GQLModel object which have separate/additional 
+     * validation rules. Typically any selectable relationship which can lead to a different owner. 
+     * 
+     * Examples include: 
+     * routine -> organization
+     * node -> routine -> organization
+     * createdByOrganizationId
+     * 
+     * Examples when this is not needed:
+     * project -> resourceList
+     * 
+     * NOTE: Will automatically handle checking fields with the "Id", "Create", "Update", or "Delete" suffix, 
+     * as well as deconstructing unions (e.g. 'creator': { 'user': 'User', 'organization': 'Organization' } will check 'creator', 'user', 'userId', etc.)
      */
-    validatedRelationshipMap?: { [key in keyof GraphQLModel]?: GraphQLModelType };
+    validatedRelationshipMap: { [key in keyof (GQLCreate & GQLUpdate & PartialPrismaSelect)]?: GraphQLModelType | { [x: string]: GraphQLModelType } } & { __typename: GraphQLModelType };
     /**
-     * Query to get the object's permissions. This will be used - possibly in 
-     * conjunction with the parent object's permissions - to determine if you 
+     * Select query to calculate the object's permissions. This will be used - possibly in 
+     * conjunction with the parent object's permissions (also queried in this field) - to determine if you 
      * are allowed to perform the mutation
      */
-    permissionsQuery?: (userId: string) => PermissionsQuery;
+    permissionsSelect: PermissionsSelect;
+    /**
+     * Converts the permissionsSelect query into a PermissionObject. This is used to determine if you
+     * are allowed to perform some action.
+     */
+    permissionsFromSelect: (select: PermissionsSelect, userId: string | null) => PermissionObject;
+    /**
+     * Partial where query added to the object's search query. Useful when querying things like an organization's routines, 
+     * where you should only see private routines if you are a member of the organization
+     */
+    ownerOrMemberWhere: (userId: string) => OwnerOrMemberWhere;
     /**
      * String fields which must be checked for profanity. You don't need to 
      * include fields in a translate object, as those will be checked
@@ -184,63 +221,30 @@ export type Validator<GraphQLModel extends { [x: string]: any }, PermissionsQuer
      * user
      */
     validations?: {
-        connect?: (connectMany: string[], userId: string) => Promise<void> | void;
-        create?: (createMany: GraphQLCreate[], userId: string) => Promise<void> | void;
-        delete?: (deleteMany: string[], userId: string) => Promise<void> | void;
-        disconnect?: (disconnectMany: string[], userId: string) => Promise<void> | void;
-        update?: (updateMany: GraphQLUpdate[], userId: string) => Promise<void> | void;
+        connect?: (connectMany: string[], prisma: PrismaType, userId: string) => Promise<void> | void;
+        create?: (createMany: GQLCreate[], prisma: PrismaType, userId: string, deltaAdding: number) => Promise<void> | void;
+        delete?: (deleteMany: string[], prisma: PrismaType, userId: string) => Promise<void> | void;
+        disconnect?: (disconnectMany: string[], prisma: PrismaType, userId: string) => Promise<void> | void;
+        update?: (updateMany: GQLUpdate[], prisma: PrismaType, userId: string) => Promise<void> | void;
     };
     /**
      * Any custom transformations you want to perform before a create/update mutation, 
      * besides the ones specified in cudHelper. This includes converting creates to 
      * connects, which means this function has to be pretty flexible in what it allows
      */
-    transformations: {
-        create: (createMany: GraphQLCreate[], userId: string) => Promise<GraphQLCreate[]> | GraphQLCreate[];
-        update: (updateMany: GraphQLUpdate[], userId: string) => Promise<GraphQLUpdate[]> | GraphQLUpdate[];
+    transformations?: {
+        create?: (createMany: GQLCreate[], userId: string) => Promise<GQLCreate[]> | GQLCreate[];
+        update?: (updateMany: GQLUpdate[], userId: string) => Promise<GQLUpdate[]> | GQLUpdate[];
     };
-} & { [x: string]: any };
+};
 
 /**
  * Describes shape of component that can be mutated
  */
-export type Mutater<GraphQLModel> = {
-    cud?({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GraphQLModel>>;
-    duplicate?({ userId, objectId, isFork, createCount }: DuplicateInput): Promise<DuplicateResult<GraphQLModel>>;
+export type Mutater<GQLModel> = {
+    cud?({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GQLModel>>;
+    duplicate?({ userId, objectId, isFork, createCount }: DuplicateInput): Promise<DuplicateResult<GQLModel>>;
 } & { [x: string]: any };
-
-/**
- * Describes shape of component with permissioned access
- */
-export type Permissioner<PermissionObject, SearchInput> = {
-    /**
-     * Permissions for the object
-     */
-    get({ objects, permissions, prisma, userId }: {
-        objects: ({ id: string } & { [x: string]: any })[],
-        permissions?: PermissionObject[] | null,
-        prisma: PrismaType,
-        userId: string | null,
-    }): Promise<PermissionObject[]>
-    /**
-     * Checks if user has permissions to complete search input, and if search can include 
-     * private objects
-     * @returns 'full' if user has permissions and search can include private objects, 
-     * 'public' if user has permissions and search cannot include private objects, 
-     * 'none' if user does not have permission to search 
-     */
-    canSearch?({ input, userId }: {
-        input: SearchInput,
-        prisma: PrismaType,
-        userId: string | null,
-    }): Promise<'full' | 'public' | 'none'>
-    /**
-     * Query format for checking ownership of an object
-     * @param userId - ID to check ownership against
-     * @returns Prisma where clause for checking ownership
-     */
-    ownershipQuery(userId: string): { [x: string]: any }
-}
 
 /**
  * Mapper for associating a model's many-to-many relationship names with
@@ -299,7 +303,7 @@ export interface CUDHelperInput<GraphQLCreate extends { [x: string]: any }, Grap
     deleteMany?: string[] | null | undefined,
     partialInfo: PartialGraphQLInfo,
     yup: { yupCreate: ObjectSchema, yupUpdate: ObjectSchema },
-    shape: { 
+    shape: {
         shapeCreate: (userId: string, create: GraphQLCreate) => (Promise<DBCreate> | DBCreate),
         shapeUpdate: (userId: string, update: GraphQLUpdate) => (Promise<DBUpdate> | DBUpdate),
     },

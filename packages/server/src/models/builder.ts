@@ -37,7 +37,7 @@ const { difference, flatten, merge } = pkg;
 /**
  * Maps model types to various helper functions
  */
-export const ObjectMap = {
+export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any, any> } = {
     // 'Api': ApiModel,
     'Comment': CommentModel,
     'Email': EmailModel,
@@ -420,7 +420,7 @@ export const toPartialGraphQLInfo = <GraphQLModel>(info: GraphQLInfo | PartialGr
  * but not actually query the database.
  * @param partial GraphQL info object, partially converted to Prisma select
  * @returns Prisma select object with calculated fields, unions and join tables removed, 
- * and count fields and __typenames added,
+ * and count fields and __typenames added
  */
 export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrismaSelect): PartialPrismaSelect => {
     // Create result object
@@ -1129,10 +1129,10 @@ export const addSupplementalFieldsMultiTypes = async (
     return formatted;
 }
 
-type AddSupplementalFieldsHelper = {
+type AddSupplementalFieldsHelper<GraphQLModel> = {
     objects: ({ id: string } & { [x: string]: any })[],
     partial: PartialGraphQLInfo,
-    resolvers: [string, (ids: string[]) => Promise<any>][],
+    resolvers: [keyof GraphQLModel, (ids: string[]) => Promise<any>][],
 }
 
 /**
@@ -1142,14 +1142,14 @@ export async function addSupplementalFieldsHelper<GraphQLModel>({
     objects,
     partial,
     resolvers,
-}: AddSupplementalFieldsHelper): Promise<RecursivePartial<GraphQLModel>[]> {
+}: AddSupplementalFieldsHelper<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>[]> {
     if (!objects || objects.length === 0) return [];
     // Get IDs from objects
     const ids = objects.map(({ id }) => id);
     // Get supplemental fields, and inject into objects
     for (const [field, resolver] of resolvers) {
         // If not in partial, skip
-        if (!partial[field]) continue;
+        if (!partial[field as string]) continue;
         const supplemental = await resolver(ids);
         objects = objects.map((x, i) => ({ ...x, [field]: supplemental[i] }));
     }
@@ -1398,4 +1398,22 @@ export function visibilityBuilder<GraphQLModelType>({
         }
         return query;
     }
+}
+
+type PermissionsBuilderProps<GraphQLModelType> = {
+    model: ModelLogic<GraphQLModelType, any, any, any>,
+    userId: string | null | undefined,
+    visibility?: VisibilityType | null | undefined,
+}
+
+/**
+ * Assembles permissions query, which is used to find all data required to determine if a user has 
+ * the correct permissions to perform an action on a model (e.g. create, update, view, fork)
+ */
+export function permissionsBuilder<GraphQLModelType>({
+    model,
+    userId,
+    visibility,
+}: PermissionsBuilderProps<GraphQLModelType>): { [x: string]: any } {
+    fdsafds
 }
