@@ -32,30 +32,30 @@ const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCou
 const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs', 'versions'];
 export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> => ({
     relationshipMap: {
-        '__typename': 'Routine',
-        'comments': 'Comment',
-        'creator': {
-            'root': {
-                'User': 'User',
-                'Organization': 'Organization',
+        __typename: 'Routine',
+        comments: 'Comment',
+        creator: {
+            root: {
+                User: 'User',
+                Organization: 'Organization',
             }
         },
-        'forks': 'Routine',
-        'inputs': 'InputItem',
-        'nodes': 'Node',
-        'outputs': 'OutputItem',
-        'owner': {
-            'root': {
-                'User': 'User',
-                'Organization': 'Organization',
+        forks: 'Routine',
+        inputs: 'InputItem',
+        nodes: 'Node',
+        outputs: 'OutputItem',
+        owner: {
+            root: {
+                User: 'User',
+                Organization: 'Organization',
             }
         },
-        'parent': 'Routine',
-        'project': 'Project',
-        'reports': 'Report',
-        'resourceLists': 'ResourceList',
-        'starredBy': 'User',
-        'tags': 'Tag',
+        parent: 'Routine',
+        project: 'Project',
+        reports: 'Report',
+        resourceLists: 'ResourceList',
+        starredBy: 'User',
+        tags: 'Tag',
     },
     rootFields: ['hasCompleteVersion', 'isDeleted', 'isInternal', 'isPrivate', 'votes', 'stars', 'views', 'permissions'],
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
@@ -197,8 +197,9 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     },
 })
 
-export const routineValidator = (): Validator<RoutineCreateInput, RoutineUpdateInput, Routine, Prisma.routine_versionSelect, Prisma.routine_versionWhereInput> => ({
+export const routineValidator = (): Validator<RoutineCreateInput, RoutineUpdateInput, Routine, RoutinePermission, Prisma.routine_versionSelect, Prisma.routine_versionWhereInput> => ({
     validatedRelationshipMap: {
+        __typename: 'Routine',
         fasdfasd
     },
     permissionsSelect: {
@@ -217,6 +218,7 @@ export const routineValidator = (): Validator<RoutineCreateInput, RoutineUpdateI
             }
         }
     },
+    permissionsFromSelect: (select, userId) => asdf as any,
     // if (createMany) {
     //     createMany.forEach(input => this.validateNodePositions(input));
     // }

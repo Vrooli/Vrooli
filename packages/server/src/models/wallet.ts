@@ -11,22 +11,23 @@ import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator } fro
 
 export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
-        '__typename': 'Wallet',
-        'handles': 'Handle',
-        'user': 'User',
-        'organization': 'Organization',
+        __typename: 'Wallet',
+        handles: 'Handle',
+        user: 'User',
+        organization: 'Organization',
     },
 })
 
-export const walletValidator = (): Validator<any, WalletUpdateInput, Wallet, Prisma.walletSelect> => ({
+export const walletValidator = (): Validator<any, WalletUpdateInput, Wallet, any, Prisma.walletSelect, Prisma.walletWhereInput> => ({
     permissionsSelect: { 
         id: true,
         user: { select: { id: true } },
         organization: { select: { id: true, isPrivate: true, permissions: true } },
     },
+    permissionsFromSelect: (select, userId) => asdf as any,
     validatedRelationshipMap: {
-        'user': 'User',
-        'organization': 'Organization',
+        user: 'User',
+        organization: 'Organization',
     },
     /**
      * Verify that a handle is owned by a wallet, that is owned by an object. 

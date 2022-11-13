@@ -11,7 +11,7 @@ import { Trigger } from "../events";
 
 const supplementalFields = ['isOwn'];
 export const reportFormatter = (): FormatConverter<Report, any> => ({
-    relationshipMap: { '__typename': 'Report' },
+    relationshipMap: { __typename: 'Report' },
     removeJoinTables: (data) => {
         // Remove userId to hide who submitted the report
         let { userId, ...rest } = data;
@@ -67,14 +67,16 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
     },
 })
 
-export const reportValidator = (): Validator<ReportCreateInput, ReportUpdateInput, Report, Prisma.reportSelect, Prisma.reportWhereInput> => ({
+export const reportValidator = (): Validator<ReportCreateInput, ReportUpdateInput, Report, any, Prisma.reportSelect, Prisma.reportWhereInput> => ({
     validatedRelationshipMap: {
+        __typename: 'Report',
         asdfasdf
     },
     permissionsSelect: { 
         id: true, 
         user: { select: { id: true } },
     },
+    permissionsFromSelect: (select, userId) => asdf as any,
     // // TODO not sure if report should have profanity check, since someone might 
     // // just be trying to submit a report for a profane word
     // profanityCheck(data: (ReportCreateInput | ReportUpdateInput)[]): void {

@@ -4,8 +4,8 @@ import { FormatConverter, GraphQLModelType } from "./types";
 
 export const inputItemFormatter = (): FormatConverter<InputItem, any> => ({
     relationshipMap: {
-        '__typename': 'InputItem',
-        'standard': 'Standard',
+        __typename: 'InputItem',
+        standard: 'Standard',
     },
 })
 

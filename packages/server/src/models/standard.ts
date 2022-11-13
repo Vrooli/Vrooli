@@ -1,8 +1,7 @@
 import { standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
 import { CODE, DeleteOneType, StandardSortBy } from "@shared/consts";
 import { omit } from '@shared/utils';
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, visibilityBuilder } from "./builder";
-import { organizationQuerier } from "./organization";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, visibilityBuilder } from "./builder";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -25,20 +24,20 @@ const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'];
 export const standardFormatter = (): FormatConverter<Standard, StandardPermission> => ({
     relationshipMap: {
-        '__typename': 'Standard',
-        'comments': 'Comment',
-        'creator': {
-            'root': {
-                'User': 'User',
-                'Organization': 'Organization',
+        __typename: 'Standard',
+        comments: 'Comment',
+        creator: {
+            root: {
+                User: 'User',
+                Organization: 'Organization',
             }
         },
-        'reports': 'Report',
-        'resourceLists': 'ResourceList',
-        'routineInputs': 'Routine',
-        'routineOutputs': 'Routine',
-        'starredBy': 'User',
-        'tags': 'Tag',
+        reports: 'Report',
+        resourceLists: 'ResourceList',
+        routineInputs: 'Routine',
+        routineOutputs: 'Routine',
+        starredBy: 'User',
+        tags: 'Tag',
     },
     rootFields: ['hasCompleteVersion', 'isDeleted', 'isInternal', 'isPrivate', 'name', 'votes', 'stars', 'views', 'permissions'],
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
@@ -134,12 +133,13 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
     },
 })
 
-export const standardValidator = (): Validator<StandardCreateInput, StandardUpdateInput, Standard, Prisma.standard_versionSelect, Prisma.standard_versionWhereInput> => ({
+export const standardValidator = (): Validator<StandardCreateInput, StandardUpdateInput, Standard, StandardPermission, Prisma.standard_versionSelect, Prisma.standard_versionWhereInput> => ({
     permissionsSelect: { id: true, root: { select: { 
         permissions: true, 
         user: { select: { id: true } }, 
         organization: { select: { id: true, permissions: true } } } } 
     },
+    permissionsFromSelect: (select, userId) => asdf as any,
     profanityFields: ['name'],
 })
 

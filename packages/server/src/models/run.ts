@@ -9,17 +9,16 @@ import { routinePermissioner } from "./routine";
 import { CustomError, genErrorCode, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { validateProfanity } from "../utils/censor";
 import { FormatConverter, Searcher, Permissioner, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator } from "./types";
 import { cudHelper } from "./actions";
 
 export const runFormatter = (): FormatConverter<Run, any> => ({
     relationshipMap: {
-        '__typename': 'Run',
-        'routine': 'Routine',
-        'steps': 'RunStep',
-        'inputs': 'RunInput',
-        'user': 'User',
+        __typename: 'Run',
+        routine: 'Routine',
+        steps: 'RunStep',
+        inputs: 'RunInput',
+        user: 'User',
     },
     removeSupplementalFields: (partial) => {
         // Add fields needed for notifications when a run is started/completed
@@ -71,8 +70,9 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
     },
 })
 
-export const runValidator = (): Validator<RunCreateInput, RunUpdateInput, Run, Prisma.runSelect> => ({
+export const runValidator = (): Validator<RunCreateInput, RunUpdateInput, Run, RunPermission, Prisma.runSelect, Prisma.runWhereInput> => ({
     validatedRelationshipMap: {
+        __typename: 'Run',
         asdffasdf
     },
     permissionsSelect: { 
@@ -80,6 +80,7 @@ export const runValidator = (): Validator<RunCreateInput, RunUpdateInput, Run, P
         user: { select: { id: true } },
         organization: { select: { id: true, isPrivate: true, permissions: true } },
     },
+    permissionsFromSelect: (select, userId) => asdf as any,
     // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
     //     validateProfanity(data.map((d: any) => d.title));
     // },

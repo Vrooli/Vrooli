@@ -12,13 +12,13 @@ const countMapper = { reportsCount: 'reports' };
 const supplementalFields = ['isStarred', 'isViewed'];
 export const userFormatter = (): FormatConverter<User, any> => ({
     relationshipMap: {
-        '__typename': 'User',
-        'comments': 'Comment',
-        'resourceLists': 'ResourceList',
-        'projects': 'Project',
-        'starredBy': 'User',
-        'reports': 'Report',
-        'routines': 'Routine',
+        __typename: 'User',
+        comments: 'Comment',
+        resourceLists: 'ResourceList',
+        projects: 'Project',
+        starredBy: 'User',
+        reports: 'Report',
+        routines: 'Routine',
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),

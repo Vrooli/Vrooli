@@ -12,7 +12,7 @@ import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../schema
 import { User, ViewSearchInput, Count } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "./actions";
-import { FormatConverter, GraphQLModelType, ModelLogic, Searcher } from "./types";
+import { FormatConverter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, Searcher } from "./types";
 
 export interface View {
     __typename?: 'View';
@@ -22,14 +22,14 @@ export interface View {
 
 export const viewFormatter = (): FormatConverter<View, any> => ({
     relationshipMap: {
-        '__typename': 'View',
-        'from': 'User',
-        'to': {
-            'Organization': 'Organization',
-            'Project': 'Project',
-            'Routine': 'Routine',
-            'Standard': 'Standard',
-            'User': 'User',
+        __typename: 'View',
+        from: 'User',
+        to: {
+            Organization: 'Organization',
+            Project: 'Project',
+            Routine: 'Routine',
+            Standard: 'Standard',
+            User: 'User',
         }
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<View>[]> {
@@ -58,7 +58,7 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
                 }
                 const model = ObjectMap[type as GraphQLModelType] as ModelLogic<any, any, any, any>;
                 const paginated = await readManyHelper({
-                    info: partial.to[type],
+                    info: partial.to[type] as PartialGraphQLInfo,
                     input: { ids: toIdsByType[type] },
                     model,
                     prisma,

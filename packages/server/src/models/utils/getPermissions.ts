@@ -1,5 +1,6 @@
 import { BasePermissions } from "../types";
-import { getValidatorAndDelegate } from "./getValidator";
+import { getDelegate } from "./getDelegate";
+import { getValidator } from "./getValidator";
 import { GetPermissionsProps } from "./types";
 
 /**
@@ -12,7 +13,8 @@ export async function getPermissions<PermissionObject extends BasePermissions>({
     userId,
 }: GetPermissionsProps): Promise<PermissionObject[]> {
     // Find validator and prisma delegate for this object type
-    const { validator, prismaDelegate } = getValidatorAndDelegate(objectType, prisma, 'getPermissions');
+    const validator = getValidator(objectType, 'getPermissions');
+    const prismaDelegate = getDelegate(objectType, prisma, 'getPermissions');
     // Get data required to calculate permissions
     const permissionsData = await prismaDelegate.findMany({
         where: { id: { in: ids } },

@@ -4,9 +4,9 @@ import { FormatConverter, GraphQLModelType } from "./types";
 
 export const memberFormatter = (): FormatConverter<Member, any> => ({
     relationshipMap: {
-        '__typename': 'Member',
-        'organization': 'Organization',
-        'user': 'User',
+        __typename: 'Member',
+        organization: 'Organization',
+        user: 'User',
     }
 })
 

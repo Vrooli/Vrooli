@@ -9,8 +9,8 @@ import { cudHelper } from "./actions";
 
 export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
     relationshipMap: {
-        '__typename': 'RunInput',
-        'input': 'InputItem',
+        __typename: 'RunInput',
+        input: 'InputItem',
     },
 })
 

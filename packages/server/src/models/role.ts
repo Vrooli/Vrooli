@@ -6,9 +6,9 @@ import { FormatConverter, GraphQLModelType } from "./types";
 const joinMapper = { assignees: 'user' };
 export const roleFormatter = (): FormatConverter<Role, any> => ({
     relationshipMap: {
-        '__typename': 'Role',
-        'assignees': 'User',
-        'organization': 'Organization',
+        __typename: 'Role',
+        assignees: 'User',
+        organization: 'Organization',
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),

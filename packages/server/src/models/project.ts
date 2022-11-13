@@ -22,24 +22,24 @@ const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsProject'];
 export const projectFormatter = (): FormatConverter<Project, ProjectPermission> => ({
     relationshipMap: {
-        '__typename': 'Project',
-        'comments': 'Comment',
-        'creator': {
-            'User': 'User',
-            'Organization': 'Organization',
+        __typename: 'Project',
+        comments: 'Comment',
+        creator: {
+            User: 'User',
+            Organization: 'Organization',
         },
-        'forks': 'Project',
-        'owner': {
-            'User': 'User',
-            'Organization': 'Organization',
+        forks: 'Project',
+        owner: {
+            User: 'User',
+            Organization: 'Organization',
         },
-        'parent': 'Project',
-        'reports': 'Report',
-        'resourceLists': 'ResourceList',
-        'routines': 'Routine',
-        'starredBy': 'User',
-        'tags': 'Tag',
-        'wallets': 'Wallet',
+        parent: 'Project',
+        reports: 'Report',
+        resourceLists: 'ResourceList',
+        routines: 'Routine',
+        starredBy: 'User',
+        tags: 'Tag',
+        wallets: 'Wallet',
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -117,8 +117,9 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
     },
 })
 
-export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateInput, Project, Prisma.projectSelect, Prisma.projectWhereInput> => ({
+export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateInput, Project, ProjectPermission, Prisma.projectSelect, Prisma.projectWhereInput> => ({
     validatedRelationshipMap: {
+        __typename: 'Project',
         asdfasdf
     },
     permissionsSelect: { 
@@ -129,6 +130,7 @@ export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateI
         user: { select: { id: true } },
         organization: { select: { id: true, isPrivate: true, permissions: true } },
     },
+    permissionsFromSelect: (select, userId) => asdf as any,
     ownerOrMemberWhere: (userId) => ({ OR: [
         organizationQuerier().hasRoleInOrganizationQuery(userId),
         { user: { id: userId } }

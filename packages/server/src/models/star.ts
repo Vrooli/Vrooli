@@ -12,20 +12,20 @@ import { resolveStarTo } from "../schema/resolvers";
 import { Star, StarSearchInput, StarInput } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "./actions";
-import { FormatConverter, GraphQLModelType, ModelLogic, Searcher } from "./types";
+import { FormatConverter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, Searcher } from "./types";
 
 export const starFormatter = (): FormatConverter<Star, any> => ({
     relationshipMap: {
-        '__typename': 'Star',
-        'from': 'User',
-        'to': {
-            'Comment': 'Comment',
-            'Organization': 'Organization',
-            'Project': 'Project',
-            'Routine': 'Routine',
-            'Standard': 'Standard',
-            'Tag': 'Tag',
-            'User': 'User',
+        __typename: 'Star',
+        from: 'User',
+        to: {
+            Comment: 'Comment',
+            Organization: 'Organization',
+            Project: 'Project',
+            Routine: 'Routine',
+            Standard: 'Standard',
+            Tag: 'Tag',
+            User: 'User',
         }
     },
     async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Star>[]> {
@@ -56,7 +56,7 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
                 }
                 const model: ModelLogic<any, any, any, any> = ObjectMap[type as GraphQLModelType] as ModelLogic<any, any, any, any>;
                 const paginated = await readManyHelper({
-                    info: partial.to[type],
+                    info: partial.to[type] as PartialGraphQLInfo,
                     input: { ids: toIdsByType[type] },
                     model,
                     prisma,

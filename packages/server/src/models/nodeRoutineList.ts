@@ -9,10 +9,10 @@ import { Prisma } from "@prisma/client";
 
 export const nodeRoutineListFormatter = (): FormatConverter<NodeRoutineList, any> => ({
     relationshipMap: {
-        '__typename': 'NodeRoutineList',
-        'routines': {
-            '__typename': 'NodeRoutineListItem',
-            'routine': 'Routine',
+        __typename: 'NodeRoutineList',
+        routines: {
+            __typename: 'NodeRoutineListItem',
+            routine: 'Routine',
         },
     },
 })

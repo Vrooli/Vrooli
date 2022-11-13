@@ -70,7 +70,7 @@ export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
  * This type of data is also easier to hard-code in a pinch.
  */
 export interface PartialGraphQLInfo {
-    [x: string]: GraphQLModelType | undefined | boolean | { [x: string]: PartialGraphQLInfo };
+    [x: string]: GraphQLModelType | undefined | boolean | PartialGraphQLInfo;
     __typename?: GraphQLModelType;
 }
 
@@ -80,7 +80,7 @@ export interface PartialGraphQLInfo {
  * data transformations from the GraphqL shape are removed. This is useful when checking 
  * which fields are requested from a Prisma query.
  */
-export type PartialPrismaSelect = { [x: string]: boolean | PartialPrismaSelect } & { __typename?: GraphQLModelType };
+export type PartialPrismaSelect = { __typename?: GraphQLModelType, [x: string]: boolean | PartialPrismaSelect };
 
 /**
  * Shape 4 of 4 for GraphQL to Prisma conversion. This is the final shape of the requested data 
@@ -162,7 +162,7 @@ export type Querier = { [x: string]: any };
 export type BasePermissions = {
     canDelete: boolean;
     canReport: boolean;
-    canUpdate: boolean;
+    canEdit: boolean;
     canView: boolean;
 }
 

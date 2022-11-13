@@ -38,33 +38,33 @@ const { difference, flatten, merge } = pkg;
  * Maps model types to various helper functions
  */
 export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any, any> } = {
-    // 'Api': ApiModel,
-    'Comment': CommentModel,
-    'Email': EmailModel,
-    'InputItem': InputItemModel,
-    'Member': MemberModel, // TODO create searcher for members
-    'Node': NodeModel,
-    'NodeRoutineList': NodeRoutineListModel,
-    'Organization': OrganizationModel,
-    'OutputItem': OutputItemModel,
-    'Profile': ProfileModel,
-    'Project': ProjectModel,
-    'Report': ReportModel,
-    'Resource': ResourceModel,
-    'ResourceList': ResourceListModel,
-    'Role': RoleModel,
-    'Routine': RoutineModel,
-    'Run': RunModel,
-    'RunInput': RunInputModel,
-    'Standard': StandardModel,
-    'RunStep': RunStepModel,
-    'Star': StarModel,
-    'Tag': TagModel,
-    'TagHidden': TagHiddenModel,
-    'User': UserModel,
-    'Vote': VoteModel,
-    'View': ViewModel,
-    'Wallet': WalletModel,
+    // Api: ApiModel,
+    Comment: CommentModel,
+    Email: EmailModel,
+    InputItem: InputItemModel,
+    Member: MemberModel, // TODO create searcher for members
+    Node: NodeModel,
+    NodeRoutineList: NodeRoutineListModel,
+    Organization: OrganizationModel,
+    OutputItem: OutputItemModel,
+    Profile: ProfileModel,
+    Project: ProjectModel,
+    Report: ReportModel,
+    Resource: ResourceModel,
+    ResourceList: ResourceListModel,
+    Role: RoleModel,
+    Routine: RoutineModel,
+    Run: RunModel,
+    RunInput: RunInputModel,
+    Standard: StandardModel,
+    RunStep: RunStepModel,
+    Star: StarModel,
+    Tag: TagModel,
+    TagHidden: TagHiddenModel,
+    User: UserModel,
+    Vote: VoteModel,
+    View: ViewModel,
+    Wallet: WalletModel,
 }
 
 /**
@@ -1398,22 +1398,4 @@ export function visibilityBuilder<GraphQLModelType>({
         }
         return query;
     }
-}
-
-type PermissionsBuilderProps<GraphQLModelType> = {
-    model: ModelLogic<GraphQLModelType, any, any, any>,
-    userId: string | null | undefined,
-    visibility?: VisibilityType | null | undefined,
-}
-
-/**
- * Assembles permissions query, which is used to find all data required to determine if a user has 
- * the correct permissions to perform an action on a model (e.g. create, update, view, fork)
- */
-export function permissionsBuilder<GraphQLModelType>({
-    model,
-    userId,
-    visibility,
-}: PermissionsBuilderProps<GraphQLModelType>): { [x: string]: any } {
-    fdsafds
 }

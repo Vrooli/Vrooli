@@ -16,21 +16,23 @@ const MAX_NODES_IN_ROUTINE = 100;
 
 export const nodeFormatter = (): FormatConverter<Node, any> => ({
     relationshipMap: {
-        '__typename': 'Node',
-        'data': {
-            'NodeEnd': 'NodeEnd',
-            'NodeRoutineList': 'NodeRoutineList',
+        __typename: 'Node',
+        data: {
+            NodeEnd: 'NodeEnd',
+            NodeRoutineList: 'NodeRoutineList',
         },
-        'loop': 'NodeLoop',
-        'routine': 'Routine',
+        loop: 'NodeLoop',
+        routine: 'Routine',
     },
 })
 
-export const nodeValidator = (): Validator<NodeCreateInput, NodeUpdateInput, Node, Prisma.nodeSelect, Prisma.nodeWhereInput> => ({
+export const nodeValidator = (): Validator<NodeCreateInput, NodeUpdateInput, Node, any, Prisma.nodeSelect, Prisma.nodeWhereInput> => ({
     validatedRelationshipMap: {
-        'routine': 'Routine',
+        __typename: 'Node',
+        routine: 'Routine',
     },
     permissionsSelect: { routineVersion: { select: routineValidator().permissionsSelect } },
+    permissionsFromSelect: (select, userId) => asdf as any,
     ownerOrMemberWhere: (userId) => ({
         routineVersion: {
             root: {

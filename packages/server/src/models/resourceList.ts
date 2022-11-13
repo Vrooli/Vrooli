@@ -15,21 +15,22 @@ import { standardValidator } from "./standard";
 
 export const resourceListFormatter = (): FormatConverter<ResourceList, any> => ({
     relationshipMap: {
-        '__typename': 'ResourceList',
-        'resources': 'Resource',
+        __typename: 'ResourceList',
+        resources: 'Resource',
     },
 })
 
-export const resourceListValidator = (): Validator<ResourceListCreateInput, ResourceListUpdateInput, ResourceList, Prisma.resource_listSelect, Prisma.resource_listWhereInput> => ({
+export const resourceListValidator = (): Validator<ResourceListCreateInput, ResourceListUpdateInput, ResourceList, any, Prisma.resource_listSelect, Prisma.resource_listWhereInput> => ({
     validatedRelationshipMap: {
-        // 'api': 'Api',
-        'organization': 'Organization',
-        // 'post': 'Post',
-        'project': 'Project',
-        'routine': 'Routine',
-        // 'smartContract': 'SmartContract',
-        // 'standard': 'Standard',
-        // 'userSchedule': 'UserSchedule',
+        __typename: 'ResourceList',
+        // api: 'Api',
+        organization: 'Organization',
+        // post: 'Post',
+        project: 'Project',
+        routine: 'Routine',
+        // smartContract: 'SmartContract',
+        // standard: 'Standard',
+        // userSchedule: 'UserSchedule',
     },
     permissionsSelect: {
         id: true,
@@ -42,6 +43,7 @@ export const resourceListValidator = (): Validator<ResourceListCreateInput, Reso
         standardVersion: { select: standardValidator().permissionsSelect },
         // userScheduledRoutine: { select: routineValidator().permissionsSelect },
     },
+    permissionsFromSelect: (select, userId) => asdf as any,
     ownerOrMemberWhere: (userId) => ({
         OR: [
             // { apiVersion: apiValidator().ownerOrMemberWhere(userId) },

@@ -9,7 +9,7 @@ import { cudHelper } from "./actions";
 
 export const tagHiddenFormatter = (): FormatConverter<TagHidden, any> => ({
     relationshipMap: {
-        '__typename': 'TagHidden',
+        __typename: 'TagHidden',
     },
 })
 

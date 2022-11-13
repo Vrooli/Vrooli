@@ -19,16 +19,16 @@ const countMapper = { commentsCount: 'comments', membersCount: 'members', report
 const supplementalFields = ['isStarred', 'isViewed', 'permissionsOrganization'];
 export const organizationFormatter = (): FormatConverter<Organization, OrganizationPermission> => ({
     relationshipMap: {
-        '__typename': 'Organization',
-        'comments': 'Comment',
-        'members': 'Member',
-        'projects': 'Project',
-        'reports': 'Report',
-        'resourceLists': 'ResourceList',
-        'routines': 'Routine',
-        'routinesCreated': 'Routine',
-        'starredBy': 'User',
-        'tags': 'Tag',
+        __typename: 'Organization',
+        comments: 'Comment',
+        members: 'Member',
+        projects: 'Project',
+        reports: 'Report',
+        resourceLists: 'ResourceList',
+        routines: 'Routine',
+        routinesCreated: 'Routine',
+        starredBy: 'User',
+        tags: 'Tag',
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -91,14 +91,16 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
     },
 })
 
-export const organizationValidator = (): Validator<OrganizationCreateInput, OrganizationUpdateInput, Organization, Prisma.organizationSelect, Prisma.organizationWhereInput> => ({
+export const organizationValidator = (): Validator<OrganizationCreateInput, OrganizationUpdateInput, Organization, OrganizationPermission, Prisma.organizationSelect, Prisma.organizationWhereInput> => ({
     validatedRelationshipMap: {
-        'members': 'Member',
-        'projects': 'Project',
-        'routines': 'Routine',
-        'wallets': 'Wallet',
+        __typename: 'Organization',
+        members: 'Member',
+        projects: 'Project',
+        routines: 'Routine',
+        wallets: 'Wallet',
     },
     permissionsSelect: { id: true, isOpenToNewMembers: true, isPrivate: true, permissions: true },
+    permissionsFromSelect: (select, userId) => asdf as any,
     ownerOrMemberWhere: (userId) => organizationQuerier().hasRoleInOrganizationQuery(userId).organization,
     // if (!createMany && !updateMany && !deleteMany) return;
     // if (createMany) {

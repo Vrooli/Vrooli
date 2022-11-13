@@ -10,10 +10,10 @@ import { cudHelper } from "./actions";
 
 export const runStepFormatter = (): FormatConverter<RunStep, any> => ({
     relationshipMap: {
-        '__typename': 'RunStep',
-        'run': 'Run',
-        'node': 'Node',
-        'subroutine': 'Routine',
+        __typename: 'RunStep',
+        run: 'Run',
+        node: 'Node',
+        subroutine: 'Routine',
     },
 })
 

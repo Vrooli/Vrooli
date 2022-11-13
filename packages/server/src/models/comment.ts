@@ -18,18 +18,18 @@ const countMapper = { reportsCount: 'reports' };
 const supplementalFields = ['isStarred', 'isUpvoted', 'permissionsComment'];
 export const commentFormatter = (): FormatConverter<Comment, CommentPermission> => ({
     relationshipMap: {
-        '__typename': 'Comment',
-        'creator': {
-            'User': 'User',
-            'Organization': 'Organization',
+        __typename: 'Comment',
+        creator: {
+            User: 'User',
+            Organization: 'Organization',
         },
-        'commentedOn': {
-            'Project': 'Project',
-            'Routine': 'Routine',
-            'Standard': 'Standard',
+        commentedOn: {
+            Project: 'Project',
+            Routine: 'Routine',
+            Standard: 'Standard',
         },
-        'reports': 'Report',
-        'starredBy': 'User',
+        reports: 'Report',
+        starredBy: 'User',
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
@@ -87,10 +87,12 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
 
 export const commentValidator = (): Validator<CommentCreateInput, CommentUpdateInput, Comment, CommentPermission, Prisma.commentSelect, Prisma.commentWhereInput> => ({
     validatedRelationshipMap: {
-        'user': 'User',
-        'organization': 'Organization',
+        __typename: 'Comment',
+        user: 'User',
+        organization: 'Organization',
     },
     permissionsSelect: { user: { select: { id: true } } },
+    permissionsFromSelect: (select, userId) => asdf as any,
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
 })
 

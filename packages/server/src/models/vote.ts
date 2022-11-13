@@ -7,14 +7,14 @@ import { FormatConverter, GraphQLModelType } from "./types";
 
 export const voteFormatter = (): FormatConverter<Vote, any> => ({
     relationshipMap: {
-        '__typename': 'Vote',
-        'from': 'User',
-        'to': {
-            'Comment': 'Comment',
-            'Project': 'Project',
-            'Routine': 'Routine',
-            'Standard': 'Standard',
-            'Tag': 'Tag',
+        __typename: 'Vote',
+        from: 'User',
+        to: {
+            Comment: 'Comment',
+            Project: 'Project',
+            Routine: 'Routine',
+            Standard: 'Standard',
+            Tag: 'Tag',
         }
     },
 })

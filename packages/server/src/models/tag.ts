@@ -15,8 +15,8 @@ const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tag
 const supplementalFields = ['isStarred', 'isOwn'];
 export const tagFormatter = (): FormatConverter<Tag, any> => ({
     relationshipMap: {
-        '__typename': 'Tag',
-        'starredBy': 'User',
+        __typename: 'Tag',
+        starredBy: 'User',
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),

@@ -1,97 +1,10 @@
 import { CODE } from "@shared/consts";
-import { CustomError } from "../../events";
+import { CustomError, genErrorCode } from "../../events";
 import { PrismaType } from "../../types";
 import { isRelationshipArray, isRelationshipObject } from "../builder";
 import { GraphQLModelType, PartialPrismaSelect } from "../types";
+import { getDelegate } from "./getDelegate";
 import { getValidator } from "./getValidator";
-
-/**
- * Helper function to grab ids from an object, and map them to their object type
- * 
- * Examples:
- * (relMap, {
- *     ...
- *     id: 'abc123',
- *     parent: {
- *         ...
- *         id: 'def456',
- *      }
- * }) => { [objectType]: ['abc123'], [relMap.parent]: ['def456'] }
- * 
- * (relMap, {
- *     ...
- *     id: 'abc123',
- *     parent: {
- *         ...
- *         id: 'def456',
- *         organizationId: 'ghi789',
- *     }
- *     children: [
- *          {
- *              ...  
- *              id: 'jkl012',
- *              grandChild: {
- *                  ... 
- *                  id: 'mno345',
- *                  greatGrandchildId: 'pqr678',
- *              }
- *          }
- *    ]
- * }) => { 
- *  [objectType]: ['abc123'], 
- *  [relMap.parent]: ['def456'], 
- *  [relMap.parent.organization]: ['ghi789'], 
- *  [relMap.children]: ['jkl012'], 
- *  [relMap.children.grandChild]: ['mno345'], 
- *  [relMap.chilren.grandChild.greatGrandchild]: ['pqr678'] 
- * }
- */
-// const objectToIds = <GQLCreate extends { [x: string]: any }, GQLUpdate extends { id?: string }>(
-//     relMap: { [x: string]: GraphQLModelType } & { __typename: GraphQLModelType },
-//     object: GQLCreate | GQLUpdate,
-// ): { [x: string]: string[] } => {
-//     // Initialize return object
-//     const ids: { [x: string]: string[] } = {};
-//     // Add id of this object to return object
-//     if (object.id) { ids[relMap.__typename] = [object.id]; }
-//     // Loop through all keys in object
-//     Object.keys(object).forEach(key => {
-//         // Skip __typename
-//         if (key === '__typename') return;
-//         // If key is a relationship
-//         const keyOptions = [key, `${key}Id`, `${key}Ids`, `${key}Connect`, `${key}Create`, `${key}Update`, `${key}Upsert`, `${key}Delete`, `${key}Disconnect`];
-//         if (keyOptions.some(keyOption => keyOption in relMap)) {
-//             // Get relMap of this relationship
-//             const childRelMap = getValidator(relMap[key], 'objectToIds').validatedRelationshipMap;
-//             // If relationship object is an array of objects
-//             if (isRelationshipArray(object[key])) {
-//                 // Loop through all objects in array
-//                 object[key].forEach((item: any) => {
-//                     // Add id of relationship to return object
-//                     if (item.id) { ids[relMap[key]] = [item.id]; }
-//                     // Add nested ids to return object
-//                     const nestedIds = objectToIds(childRelMap, item);
-//                     Object.keys(nestedIds).forEach(nestedKey => {
-//                         if (ids[nestedKey]) { ids[nestedKey] = [...ids[nestedKey], ...nestedIds[nestedKey]]; }
-//                         else { ids[nestedKey] = nestedIds[nestedKey]; }
-//                     });
-//                 });
-//             }
-//             // If relationship object is a single object
-//             else if (isRelationshipObject(object[key])) {
-//                 // Add id of relationship to return object
-//                 if (object[key].id) { ids[relMap[key]] = [object[key].id]; }
-//                 // Add nested ids to return object
-//                 const nestedIds = objectToIds(childRelMap, object[key]);
-//                 Object.keys(nestedIds).forEach(nestedKey => {
-//                     if (ids[nestedKey]) { ids[nestedKey] = [...ids[nestedKey], ...nestedIds[nestedKey]]; }
-//                     else { ids[nestedKey] = nestedIds[nestedKey]; }
-//                 });
-//             }
-//         }
-//     });
-//     return ids;
-// };
 
 /**
  * Helper function to grab ids from an object, and map them to their action and object type. For ids which need 
@@ -185,11 +98,11 @@ const objectToIds = <GQLCreate extends { [x: string]: any }, GQLUpdate extends {
                 if (isRelationshipArray(value)) {
                     // 'Connect', 'Delete', and 'Disconnect' are invalid for object arrays
                     if (['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-                        throw new CustomError(CODE.InvalidArgs, 'TODO');
+                        throw new CustomError(CODE.InvalidArgs, `Action type does not match relationship data`, { code: genErrorCode('0282') })
                     }
                     // Recursively call objectToIds on each object in array
                     value.forEach((item: any) => {
-                        const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap, item);
+                        const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap as any, item);
                         Object.keys(nestedIds).forEach(nestedKey => {
                             if (ids[nestedKey]) { ids[nestedKey] = [...ids[nestedKey], ...nestedIds[nestedKey]]; }
                             else { ids[nestedKey] = nestedIds[nestedKey]; }
@@ -200,24 +113,19 @@ const objectToIds = <GQLCreate extends { [x: string]: any }, GQLUpdate extends {
                 else if (Array.isArray(value)) {
                     // Only 'Connect', 'Delete', and 'Disconnect' are valid for id arrays
                     if (!['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-                        throw new CustomError(CODE.InvalidArgs, 'TODO');
+                        throw new CustomError(CODE.InvalidArgs, `Action type does not match relationship data`, { code: genErrorCode('0283') })
                     }
                     // Add ids to return object
                     if (ids[relMap[key]]) { ids[relMap[key]] = [...(ids[relMap[key]] ?? []), ...value.map(id => `${childActionType}-${id}`)]; }
-                    // If child action is a 'Connect' and parent action is 'Update', add 'Disconnect' placeholders. 
-                    // These ids will have to be queried for later
-                    if (childActionType === 'Connect' && actionType === 'Update') {
-                        ids[relMap[key]] = [...(ids[relMap[key]] ?? []), ...value.map(id => `${childActionType}-${id}.${key}${variation}`)];
-                    }
                 }
                 // If value is a single object
                 else if (isRelationshipObject(value)) {
                     // 'Connect', 'Delete', and 'Disconnect' are invalid for objects
                     if (['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-                        throw new CustomError(CODE.InvalidArgs, 'TODO');
+                        throw new CustomError(CODE.InvalidArgs, `Action type does not match relationship data`, { code: genErrorCode('0284') })
                     }
                     // Recursively call objectToIds on object
-                    const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap, value);
+                    const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap as any, value);
                     Object.keys(nestedIds).forEach(nestedKey => {
                         if (ids[nestedKey]) { ids[nestedKey] = [...ids[nestedKey], ...nestedIds[nestedKey]]; }
                         else { ids[nestedKey] = nestedIds[nestedKey]; }
@@ -227,14 +135,16 @@ const objectToIds = <GQLCreate extends { [x: string]: any }, GQLUpdate extends {
                 else if (typeof value === 'string') {
                     // Only 'Connect', 'Delete', and 'Disconnect' are valid for ids
                     if (!['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-                        throw new CustomError(CODE.InvalidArgs, 'TODO');
+                        throw new CustomError(CODE.InvalidArgs, `Action type does not match relationship data`, { code: genErrorCode('0285') })
                     }
                     // Add id to return object
                     if (ids[relMap[key]]) { ids[relMap[key]] = [...(ids[relMap[key]] ?? []), `${childActionType}-${value}`]; }
                     // If child action is a 'Connect' and parent action is 'Update', add 'Disconnect' placeholder. 
-                    // This id will have to be queried for later
+                    // This id will have to be queried for later. 
+                    // NOTE: This is the only place where this check must be done. This is because one-to-one relationships 
+                    // automatically disconnect the old object when a new one is connected.
                     else if (childActionType === 'Connect' && actionType === 'Update') {
-                        ids[relMap[key]] = [`${childActionType}-${value}.${key}${variation}`];
+                        ids[relMap[key]] = [`Disconnect-${value}.${key}${variation}`];
                     }
                 }
             }
@@ -244,23 +154,88 @@ const objectToIds = <GQLCreate extends { [x: string]: any }, GQLUpdate extends {
 };
 
 /**
- * Helper function to convert disconnect placeholders to disconnect ids
+ * Helper function to convert disconnect placeholders to disconnect ids. 
+ * Example: { 'Routine': ['Create-asd123', 'Disconnect-def456.organizationId', 'Disconnect-mno345.greatGrandchildId'] } => { 'Routine': ['Create-asd123', 'Disconnect-someid', 'Disconnect-someotherid'] }
+ * @param idActions Map of GraphQLModelType to ${actionType}-${id}?.${key}${variation}. Anything with a '.' is a placeholder
+ * @param prisma
+ * @returns Map with placeholders replaced with ids
  */
-const disconnectPlaceholdersToIds = (...params: any) => {} //TODO this itself is a placeholder
-
+const disconnectPlaceholdersToIds = async (idActions: { [key in GraphQLModelType]?: string[] }, prisma: PrismaType): Promise<{ [key in GraphQLModelType]?: string[] }> => {
+    // Initialize object to hold prisma queries
+    const queries: { [key in GraphQLModelType]?: { ids: string[], select: { [x: string]: any } } } = {};
+    // Loop through all keys in ids
+    Object.keys(idActions).forEach(key => {
+        // Loop through all ids in key
+        idActions[key as any].forEach((idAction: string) => {
+            // If id is a placeholder, add to placeholderIds
+            if (idAction.includes('.')) {
+                queries[key as any] = queries[key as any] ?? { ids: [], select: {} };
+                // Get id, which is everything after the first '-' and before '.'
+                const id = idAction.split('-')[1].split('.')[0];
+                queries[key as any].ids.push(id);
+                // Get placeholder, which is everything after '.'
+                const placeholder = idAction.split('.')[1];
+                // Add placeholder to select object
+                queries[key as any].select[id] = { [placeholder]: true };
+            }
+        });
+    });
+    // If there are no placeholders, return ids to save time
+    if (Object.keys(queries).length === 0) return idActions;
+    // Initialize object to hold query results
+    const queryData: { [key in GraphQLModelType]?: { [x: string]: any } } = {};
+    // Loop through all keys in queries
+    for (const key in Object.keys(queries)) {
+        // If there are any no ids, skip
+        if (queries[key as any].ids.length === 0) continue;
+        // Query for ids
+        const delegate = getDelegate(key as GraphQLModelType, prisma, 'disconnectPlaceholdersToIds');
+        queryData[key as any] = await delegate.findMany({
+            where: { id: { in: queries[key as any].ids } },
+            select: queries[key as any].select,
+        });
+    }
+    // Initialize return object
+    const result: { [key in GraphQLModelType]?: string[] } = {};
+    // Loop through all keys in idActions
+    Object.keys(idActions).forEach(key => {
+        // Get queryData for this key
+        const data: { [x: string]: any }[] | undefined = queryData[key as any];
+        // Loop through all ids in key
+        idActions[key as any].forEach((idAction: string) => {
+            // If id is a placeholder, replace with id from results
+            if (data && idAction.includes('.')) {
+                // Get id, which is everything after the first '-' and before '.'
+                const id = idAction.split('-')[1].split('.')[0];
+                // Get placeholder, which is everything after '.'
+                const placeholder = idAction.split('.')[1];
+                // Find data object with matching id, and use placeholder to get disconnect id
+                const parent = data.find(d => d.id === id) as { [x: string]: any };
+                const disconnectId = parent[placeholder];
+                // Add disconnect id to result
+                result[key as any] = result[key as any] ?? [];
+                result[key as any].push(`Disconnect-${disconnectId}`);
+            }
+            // Otherwise, add to result
+            else { result[key as any] = result[key as any] ?? []; result[key as any].push(idAction); }
+        });
+    });
+    return result;
+};
 
 /**
- * Finds all ids of objects in a crud request that need to be checked for permissions
+ * Finds all ids of objects in a crud request that need to be checked for permissions. In certain cases, 
+ * ids are not included in the request, and must be queried for.
  */
-export const getAuthenticatedIds = <GQLCreate extends { [x: string]: any }, GQLUpdate extends { id?: string }>(
+export const getAuthenticatedIds = async <GQLCreate extends { [x: string]: any }, GQLUpdate extends { id?: string }>(
     actionType: 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Read' | 'Update',
     objects: (GQLCreate | GQLUpdate | string | PartialPrismaSelect)[],
     objectType: GraphQLModelType,
     prisma: PrismaType,
     userId: string | null,
-): { [key in GraphQLModelType]?: string[] } => {
+): Promise<{ [key in GraphQLModelType]?: string[] }> => {
     // Initialize return object
-    const result: { [key in GraphQLModelType]?: string[] } = {};
+    let result: { [key in GraphQLModelType]?: string[] } = {};
     // Find validator and prisma delegate for this object type
     const validator = getValidator(objectType, 'getAuthenticatedIds');
     // Filter out objects that are strings
@@ -274,45 +249,17 @@ export const getAuthenticatedIds = <GQLCreate extends { [x: string]: any }, GQLU
     // For each object
     filteredObjects.forEach(object => {
         // Call objectToIds to get ids of all objects requiring authentication
-        const ids = objectToIds('Read', validator.validatedRelationshipMap, object);
+        const ids = objectToIds('Read', validator.validatedRelationshipMap as any, object as GQLCreate | GQLUpdate | PartialPrismaSelect);
         // Add ids to return object
         Object.keys(ids).forEach(key => {
             if (result[key]) { result[key] = [...result[key], ...ids[key]]; }
             else { result[key] = ids[key]; }
         });
-    }
+    });
     // Now we should have ALMOST all ids of objects requiring authentication. What's missing are the ids of 
     // objects that are being implicitly disconnected (i.e. being replaced by a new connect). We need to find
     // these ids by querying for them
-    fdsafdsafdsafd
-    // Replace placeholders in result with actual ids we just found
-    fdsafdsafds
+    result = await disconnectPlaceholdersToIds(result, prisma);
     // Return result
     return result;
-    // // Collect all top-level ids from the request. These always have to be checked for permissions. 
-    // // NOTE: objects can include create inputs, which don't have an id. We still authenticate these because they 
-    // // may have an authenticated relationship (e.g. parent, owner, etc.)
-    // result[objectType] = objects.map(x => {
-    //     if (typeof x === 'string') return x;
-    //     return x.id;
-    // }).filter(Boolean) as string[];
-    // // Now the tricky part: if the request contains a nested object, we need to check if the user has permission to create/update that object.
-    // // Nested objects are grouped by type, to reduce the number of database queries
-    // const validatedRelationshipMap = validator.validatedRelationshipMap;
-    // // Check all objects for validated relationship fields. 
-    // for (const object of objects.filter(x => typeof x !== 'string') as (GQLCreate | GQLUpdate | PartialPrismaSelect)[]) {
-    //     for (const [relField, relType] of Object.entries(validatedRelationshipMap)) {
-    //         // Use helper function to get all ids of objects that need to be authenticated
-    //         const authMap = getAuthenticatedIdsHelper(object, objectType, relField, relType);
-    //         // Add ids to result
-    //         for (const [type, ids] of Object.entries(authMap)) {
-    //             result[type] = [...(result[type] || []), ...ids];
-    //         }
-    //     }
-    // }
-    // // Remove duplicates
-    // for (const [type, ids] of Object.entries(result)) {
-    //     result[type] = [...new Set(ids)];
-    // }
-    // return result;
 }

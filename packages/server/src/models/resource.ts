@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 
 export const resourceFormatter = (): FormatConverter<Resource, any> => ({
-    relationshipMap: { '__typename': 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
+    relationshipMap: { __typename: 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
 })
 
 export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
