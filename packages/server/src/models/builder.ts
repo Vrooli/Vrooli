@@ -32,6 +32,7 @@ import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
 import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, SupplementalConverter } from './types';
 import { TimeFrame, VisibilityType } from '../schema/types';
+import { getValidator } from './utils';
 const { difference, flatten, merge } = pkg;
 
 /**
@@ -1416,4 +1417,22 @@ export function visibilityBuilder<GraphQLModelType>({
         }
         return query;
     }
+}
+
+/**
+ * Given a list of fields and GraphQLModels which have validators, creates a Prisma 
+ * select object that combines all of the select objects from the validators
+ */
+ export const permissionsSelectHelper = <PrismaSelect extends { [x: string]: any }>(
+    list: [keyof PrismaSelect, GraphQLModelType][],
+): PrismaSelect => {
+    // Initialize result
+    const result: Partial<PrismaSelect> = {};
+    // Iterate through list
+    for (const [field, model] of list) {
+        // Get validator
+        const validator = getValidator(model, 'permissionsSelectHelper');
+        result[field] = { select: validator.permissionsSelect } as any;
+    }
+    return result as PrismaSelect;
 }

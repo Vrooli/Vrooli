@@ -218,10 +218,9 @@ export type Validator<
      */
     permissionsSelect: PermissionsSelect;
     /**
-     * Converts the permissionsSelect query into a PermissionObject. This is used to determine if you
-     * are allowed to perform some action.
+     * Array of resolvers to calculate the object's permissions
      */
-    permissionsFromSelect: (select: PermissionsSelect, userId: string | null) => PermissionObject;
+    permissionResolvers: (data: { [x: string]: any }, userId: string | null) => [keyof Exclude<PermissionObject, '__typename'>, () => any][];
     /**
      * Partial where query added to the object's search query. Useful when querying things like an organization's routines, 
      * where you should only see private routines if you are a member of the organization

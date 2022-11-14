@@ -1,5 +1,5 @@
 import { CODE, StarFor, StarSortBy } from "@shared/consts";
-import { isObject } from '@shared/utils'; 
+import { isObject } from '@shared/utils';
 import { combineQueries, getSearchStringQueryHelper, ObjectMap, onlyValidIds } from "./builder";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
@@ -10,11 +10,11 @@ import { CommentModel } from "./comment";
 import { CustomError, genErrorCode, Trigger } from "../events";
 import { resolveStarTo } from "../schema/resolvers";
 import { Star, StarSearchInput, StarInput } from "../schema/types";
-import { RecursivePartial, PrismaType } from "../types";
+import { PrismaType } from "../types";
 import { readManyHelper } from "./actions";
 import { FormatConverter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, Searcher } from "./types";
 
-export const starFormatter = (): FormatConverter<Star, any> => ({
+export const starFormatter = (): FormatConverter<Star, 'to'> => ({
     relationshipMap: {
         __typename: 'Star',
         from: 'User',
@@ -28,50 +28,55 @@ export const starFormatter = (): FormatConverter<Star, any> => ({
             User: 'User',
         }
     },
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Star>[]> {
-        // Query for data that star is applied to
-        if (isObject(partial.to)) {
-            const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to)).filter(t => t);
-            const toIds = objects.map(x => x.to?.id ?? '') as string[];
-            // Group ids by types
-            const toIdsByType: { [x: string]: string[] } = {};
-            toTypes.forEach((type, i) => {
-                if (!toIdsByType[type]) toIdsByType[type] = [];
-                toIdsByType[type].push(toIds[i]);
-            })
-            // Query for each type
-            const tos: any[] = [];
-            for (const type of Object.keys(toIdsByType)) {
-                const validTypes: GraphQLModelType[] = [
-                    'Comment',
-                    'Organization',
-                    'Project',
-                    'Routine',
-                    'Standard',
-                    'Tag',
-                    'User',
-                ];
-                if (!validTypes.includes(type as GraphQLModelType)) {
-                    throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
+    supplemental: {
+        graphqlFields: ['to'],
+        toGraphQL: ({ objects, partial, prisma, userId }) => [
+            ['to', async () => {
+                // Query for data that star is applied to
+                if (isObject(partial.to)) {
+                    const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to)).filter(t => t);
+                    const toIds = objects.map(x => x.to?.id ?? '') as string[];
+                    // Group ids by types
+                    const toIdsByType: { [x: string]: string[] } = {};
+                    toTypes.forEach((type, i) => {
+                        if (!toIdsByType[type]) toIdsByType[type] = [];
+                        toIdsByType[type].push(toIds[i]);
+                    })
+                    // Query for each type
+                    const tos: any[] = [];
+                    for (const type of Object.keys(toIdsByType)) {
+                        const validTypes: GraphQLModelType[] = [
+                            'Comment',
+                            'Organization',
+                            'Project',
+                            'Routine',
+                            'Standard',
+                            'Tag',
+                            'User',
+                        ];
+                        if (!validTypes.includes(type as GraphQLModelType)) {
+                            throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
+                        }
+                        const model: ModelLogic<any, any, any, any> = ObjectMap[type] as ModelLogic<any, any, any, any>;
+                        const paginated = await readManyHelper({
+                            info: partial.to[type] as PartialGraphQLInfo,
+                            input: { ids: toIdsByType[type] },
+                            model,
+                            prisma,
+                            req: { users: [{ id: userId }] }
+                        })
+                        tos.push(...paginated.edges.map(x => x.node));
+                    }
+                    // Apply each "to" to the "to" property of each object
+                    for (const object of objects) {
+                        // Find the correct "to", using object.to.id
+                        const to = tos.find(x => x.id === object.to.id);
+                        object.to = to;
+                    }
                 }
-                const model: ModelLogic<any, any, any, any> = ObjectMap[type as GraphQLModelType] as ModelLogic<any, any, any, any>;
-                const paginated = await readManyHelper({
-                    info: partial.to[type] as PartialGraphQLInfo,
-                    input: { ids: toIdsByType[type] },
-                    model,
-                    prisma,
-                    req: { users: [{ id: userId }] }
-                })
-                tos.push(...paginated.edges.map(x => x.node));
-            }
-            // Apply each "to" to the "to" property of each object
-            for (const object of objects) {
-                // Find the correct "to", using object.to.id
-                const to = tos.find(x => x.id === object.to.id);
-                object.to = to;
-            }
-        }
-        return objects;
+                return objects;
+            }],
+        ],
     },
 })
 
@@ -84,8 +89,9 @@ export const starSearcher = (): Searcher<StarSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: () => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: () => ({
                 OR: [
                     { organization: OrganizationModel.search.getSearchStringQuery(searchString, languages) },
                     { project: ProjectModel.search.getSearchStringQuery(searchString, languages) },

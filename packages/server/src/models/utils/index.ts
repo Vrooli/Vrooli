@@ -4,3 +4,4 @@ export * from './getIdFromHandle';
 export * from './getLatestVersion';
 export * from './getPermissions';
 export * from './getValidator';
+export * from './oneIsPublic';

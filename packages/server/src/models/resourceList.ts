@@ -1,6 +1,6 @@
 import { resourceListsCreate, resourceListsUpdate, resourceListTranslationsCreate, resourceListTranslationsUpdate } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
-import { combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper } from "./builder";
+import { combineQueries, getSearchStringQueryHelper, permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput } from "../schema/types";
@@ -34,14 +34,16 @@ export const resourceListValidator = (): Validator<ResourceListCreateInput, Reso
     },
     permissionsSelect: {
         id: true,
-        // apiVersion: { select: apiValidator().permissionsSelect },
-        organization: { select: organizationValidator().permissionsSelect },
-        // post: { select: postValidator().permissionsSelect },
-        project: { select: projectValidator().permissionsSelect },
-        routineVersion: { select: routineValidator().permissionsSelect },
-        // smartContractVersion: { select: smartContractValidator().permissionsSelect },
-        standardVersion: { select: standardValidator().permissionsSelect },
-        // userScheduledRoutine: { select: routineValidator().permissionsSelect },
+        ...permissionsSelectHelper([
+            // ['apiVersion', 'Api'],
+            ['organization', 'Organization'],
+            // ['post', 'Post'],
+            ['project', 'Project'],
+            ['routineVersion', 'Routine'],
+            // ['smartContractVersion', 'SmartContract'],
+            ['standardVersion', 'Standard'],
+            // ['userSchedule', 'UserSchedule'],
+        ])
     },
     permissionsFromSelect: (select, userId) => asdf as any,
     ownerOrMemberWhere: (userId) => ({

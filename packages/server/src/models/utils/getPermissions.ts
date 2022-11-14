@@ -21,6 +21,17 @@ export async function getPermissions<PermissionObject extends BasePermissions>({
         select: validator.permissionsSelect,
     })
     // Calculate permissions for each object
-    const permissions = permissionsData.map(x => validator.permissionsFromSelect(x, userId));
-    return permissions;
+    const result = permissionsData.map((d: any) => {
+        // Each validator has a list of resolvers to calculate each field of permissions
+        const resolvers = validator.permissionResolvers(d, userId);
+        // Initialize permissions object
+        const permissions: { [x: string]: any } = {};
+        for (let i = 0; i < resolvers.length; i++) {
+            const resolver = resolvers[i];
+            // Resolve each permission field
+            permissions[resolver[0]] = resolver[1]();
+        }
+        return permissions;
+    });
+    return result;
 }

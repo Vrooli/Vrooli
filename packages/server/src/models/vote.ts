@@ -1,11 +1,14 @@
 import { CODE, VoteFor } from "@shared/consts";
+import { isObject } from "@shared/utils";
 import { CustomError, genErrorCode, Trigger } from "../events";
+import { resolveVoteTo } from "../schema/resolvers";
 import { Vote, VoteInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { onlyValidIds } from "./builder";
-import { FormatConverter, GraphQLModelType } from "./types";
+import { readManyHelper } from "./actions";
+import { ObjectMap, onlyValidIds } from "./builder";
+import { FormatConverter, GraphQLModelType, ModelLogic, PartialGraphQLInfo } from "./types";
 
-export const voteFormatter = (): FormatConverter<Vote, any> => ({
+export const voteFormatter = (): FormatConverter<Vote, 'to'> => ({
     relationshipMap: {
         __typename: 'Vote',
         from: 'User',
@@ -16,6 +19,56 @@ export const voteFormatter = (): FormatConverter<Vote, any> => ({
             Standard: 'Standard',
             Tag: 'Tag',
         }
+    },
+    supplemental: {
+        graphqlFields: ['to'],
+        toGraphQL: ({ objects, partial, prisma, userId }) => [
+            ['to', async () => {
+                // Query for data that star is applied to
+                if (isObject(partial.to)) {
+                    const toTypes: GraphQLModelType[] = objects.map(o => resolveVoteTo(o.to)).filter(t => t);
+                    const toIds = objects.map(x => x.to?.id ?? '') as string[];
+                    // Group ids by types
+                    const toIdsByType: { [x: string]: string[] } = {};
+                    toTypes.forEach((type, i) => {
+                        if (!toIdsByType[type]) toIdsByType[type] = [];
+                        toIdsByType[type].push(toIds[i]);
+                    })
+                    // Query for each type
+                    const tos: any[] = [];
+                    for (const type of Object.keys(toIdsByType)) {
+                        const validTypes: GraphQLModelType[] = [
+                            'Comment',
+                            'Organization',
+                            'Project',
+                            'Routine',
+                            'Standard',
+                            'Tag',
+                            'User',
+                        ];
+                        if (!validTypes.includes(type as GraphQLModelType)) {
+                            throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
+                        }
+                        const model: ModelLogic<any, any, any, any> = ObjectMap[type] as ModelLogic<any, any, any, any>;
+                        const paginated = await readManyHelper({
+                            info: partial.to[type] as PartialGraphQLInfo,
+                            input: { ids: toIdsByType[type] },
+                            model,
+                            prisma,
+                            req: { users: [{ id: userId }] }
+                        })
+                        tos.push(...paginated.edges.map(x => x.node));
+                    }
+                    // Apply each "to" to the "to" property of each object
+                    for (const object of objects) {
+                        // Find the correct "to", using object.to.id
+                        const to = tos.find(x => x.id === object.to.id);
+                        object.to = to;
+                    }
+                }
+                return objects;
+            }],
+        ],
     },
 })
 

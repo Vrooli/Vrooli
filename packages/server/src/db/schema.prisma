@@ -33,7 +33,6 @@ model api {
     organization      organization?     @relation(fields: [organizationId], references: [id])
     tags              api_tags[]
     calledByRoutines routine_version[]
-    comments          comment[]
     issues            issue[]
     starredBy         star[]            @relation("star_api")
     votedBy           vote[]            @relation("vote_api")
@@ -68,6 +67,7 @@ model api_version {
     versionIndex            Int               @default(0)
     versionLabel        String                        @default("1.0.0") @db.VarChar(16)
     versionNotes        String?                       @db.VarChar(4096)
+    comments          comment[]
     reports           report[]
     root               api              @relation(fields: [rootId], references: [id])
     intendToPullRequest Boolean         @default(false)
@@ -115,7 +115,7 @@ model comment {
     updated_at      DateTime              @default(now()) @db.Timestamptz(6)
     userId          String?               @db.Uuid
     organizationId  String?               @db.Uuid
-    apiId           String?               @db.Uuid
+    apiVersionId           String?               @db.Uuid
     issueId         String?               @db.Uuid
     parentId        String?               @db.Uuid
     postId          String?               @db.Uuid
@@ -123,12 +123,12 @@ model comment {
     pullRequestId   String?               @db.Uuid
     questionId      String?               @db.Uuid
     questionAnswerId String?               @db.Uuid
-    routineId       String?               @db.Uuid
-    smartContractId String?               @db.Uuid
-    standardId      String?               @db.Uuid
+    routineVersionId       String?               @db.Uuid
+    smartContractVersionId String?               @db.Uuid
+    standardVersionId      String?               @db.Uuid
     stars           Int                   @default(0)
     votes           Int                   @default(0)
-    api             api?                  @relation(fields: [apiId], references: [id], onDelete: Cascade)
+    apiVersion             api_version?                  @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
     issue           issue?                @relation(fields: [issueId], references: [id], onDelete: Cascade)
     organization    organization?         @relation(fields: [organizationId], references: [id], onDelete: SetNull)
     parent          comment?              @relation("comment_parent", fields: [parentId], references: [id], onDelete: Cascade)
@@ -137,9 +137,9 @@ model comment {
     pullRequest     pull_request?         @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
     question       question?             @relation(fields: [questionId], references: [id], onDelete: Cascade)
     questionAnswer  question_answer?      @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade)
-    routine         routine?              @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    smartContract   smart_contract?       @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
-    standard        standard?             @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    routineVersion         routine_version?              @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
+    smartContractVersion   smart_contract_version?       @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
+    standardVersion        standard_version?             @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
     user            user?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
     translations    comment_translation[]
     reports         report[]
@@ -1301,7 +1301,6 @@ model routine {
     parent                  routine_version?  @relation("routine_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     quizzes                 quiz[]
     user                    user?             @relation("routine_user_owner", fields: [userId], references: [id], onDelete: SetNull)
-    comments                comment[]
     labels                  routine_labels[]
     tags                    routine_tags[]
     starredBy               star[]            @relation("star_routine")
@@ -1338,6 +1337,7 @@ model routine_version {
     versionLabel        String                        @default("1.0.0") @db.VarChar(16)
     versionNotes        String?                       @db.VarChar(4096)
     api                     api?              @relation(fields: [apiId], references: [id], onDelete: SetNull)
+    comments                comment[]
     reports                 report[]
     smartContract           smart_contract?   @relation(fields: [smartContractId], references: [id], onDelete: SetNull)
     nodes          node[]
@@ -1560,7 +1560,6 @@ model smart_contract {
     organization            organization?            @relation("smart_contract_organization_owner", fields: [organizationId], references: [id], onDelete: SetNull)
     parent                  smart_contract_version?  @relation("smart_contract_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     user                    user?                    @relation("smart_contract_user_owner", fields: [userId], references: [id], onDelete: SetNull)
-    comments                comment[]
     labels                  smart_contract_labels[]
     tags                    smart_contract_tags[]
     starredBy               star[]                   @relation("star_smart_contract")
@@ -1590,6 +1589,7 @@ model smart_contract_version {
     isComplete      Boolean                              @default(false)
     isDeleted       Boolean                              @default(false)
     isPrivate       Boolean                              @default(false)
+    comments                comment[]
     forks           smart_contract[]                     @relation("smart_contract_version_fork")
     reports                 report[]
     root   smart_contract                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
@@ -1654,7 +1654,6 @@ model standard {
     createdByUser           user?              @relation("standard_user_creator", fields: [createdByUserId], references: [id], onDelete: SetNull)
     organization            organization?      @relation("standard_organization_owner", fields: [organizationId], references: [id], onDelete: SetNull)
     user                    user?              @relation("standard_user_owner", fields: [userId], references: [id], onDelete: SetNull)
-    comments                comment[]
     issues                 issue[]
     labels                  standard_labels[]
     parent                  standard_version?  @relation("standard_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
@@ -1691,6 +1690,7 @@ model standard_version {
     isDeleted      Boolean                        @default(false)
     isPrivate      Boolean                        @default(false)
     isFile         Boolean                        @default(false)
+    comments                comment[]
     forks          standard[]                     @relation("standard_version_fork")
     reports                 report[]
     root       standard                       @relation(fields: [rootId], references: [id], onDelete: Cascade)

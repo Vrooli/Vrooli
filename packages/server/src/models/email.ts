@@ -21,7 +21,13 @@ export const emailValidator = (): Validator<EmailCreateInput, EmailUpdateInput, 
         user: 'User',
     },
     permissionsSelect: { user: { select: { id: true } } },
-    permissionsFromSelect: (data) => dafdsafdasfdta as any,
+    permissionResolvers: (data, userId) => {
+        const isOwner = userId && data.user.id === userId;
+        return [
+            ['canDelete', async () => isOwner],
+            ['canEdit', async () => isOwner],
+        ]
+    },
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
     profanityFields: ['emailAddress'],
     validations: {

@@ -2,7 +2,7 @@ import { CODE, CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput } from "../schema/types";
 import { PrismaType, ReqForUserAuth } from "../types";
-import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, getSearchStringQueryHelper, combineQueries, getUserId } from "./builder";
+import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, getSearchStringQueryHelper, combineQueries, getUserId, permissionsSelectHelper } from "./builder";
 import { TranslationModel } from "./translation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -10,7 +10,7 @@ import { CustomError, genErrorCode, Trigger } from "../events";
 import { FormatConverter, Searcher, Querier, GraphQLInfo, PartialGraphQLInfo, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
-import { getPermissions } from "./utils";
+import { getPermissions, oneIsPublic } from "./utils";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
@@ -86,8 +86,47 @@ export const commentValidator = (): Validator<CommentCreateInput, CommentUpdateI
         user: 'User',
         organization: 'Organization',
     },
-    permissionsSelect: { user: { select: { id: true } } },
-    permissionsFromSelect: (select, userId) => asdf as any,
+    permissionsSelect: {
+        id: true,
+        user: { select: { id: true } },
+        ...permissionsSelectHelper([
+            // ['apiVersion', 'Api'],
+            // ['issue', 'Issue'],
+            ['organization', 'Organization'],
+            // ['post', 'Post'],
+            ['project', 'Project'],
+            // ['pullRequest', 'PullRequest'],
+            // ['question', 'Question'],
+            // ['questionAnswer', 'QuestionAnswer'],
+            ['routineVersion', 'Routine'],
+            // ['smartContractVersion', 'SmartContract'],
+            ['standardVersion', 'Standard'],
+        ])
+    },
+    permissionResolvers: (data, userId) => {
+        const isOwner = userId && (data.user.id === userId || checkorgownership);
+        const isPublic = oneIsPublic<Prisma.commentSelect>(data, [
+            // ['apiVersion', 'Api'],
+            // ['issue', 'Issue'],
+            // ['post', 'Post'],
+            ['project', 'Project'],
+            // ['pullRequest', 'PullRequest'],
+            // ['question', 'Question'],
+            // ['questionAnswer', 'QuestionAnswer'],
+            ['routineVersion', 'Routine'],
+            // ['smartContractVersion', 'SmartContract'],
+            ['standardVersion', 'Standard'],
+        ])
+        return [
+            ['canDelete', async () => isOwner],
+            ['canEdit', async () => isOwner],
+            ['canReply', async () => isOwner || isPublic],
+            ['canReport', async () => !isOwner || isPublic],
+            ['canStar', async () => isOwner || isPublic],
+            ['canView', async () => isOwner || isPublic],
+            ['canVote', async () => isOwner || isPublic],
+        ]
+    },
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
 })
 

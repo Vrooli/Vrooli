@@ -32,7 +32,13 @@ export const nodeValidator = (): Validator<NodeCreateInput, NodeUpdateInput, Nod
         routine: 'Routine',
     },
     permissionsSelect: { routineVersion: { select: routineValidator().permissionsSelect } },
-    permissionsFromSelect: (select, userId) => asdf as any,
+    permissionResolvers: (data, userId) => {
+        const isOwner = fdsfdsafdsaf;
+        return [
+            ['canDelete', async () => isOwner],
+            ['canEdit', async () => isOwner],
+        ]
+    },
     ownerOrMemberWhere: (userId) => ({
         routineVersion: {
             root: {

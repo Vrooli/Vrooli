@@ -1,6 +1,6 @@
 import { projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
-import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, permissionsSelectHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
 import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -123,7 +123,9 @@ export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateI
         isPrivate: true,
         permissions: true,
         user: { select: { id: true } },
-        organization: { select: { id: true, isPrivate: true, permissions: true } },
+        ...permissionsSelectHelper([
+            ['organization', 'Organization']
+        ])
     },
     permissionsFromSelect: (select, userId) => asdf as any,
     ownerOrMemberWhere: (userId) => ({

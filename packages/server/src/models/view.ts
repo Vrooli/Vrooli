@@ -20,7 +20,7 @@ export interface View {
     to: ViewFor;
 }
 
-export const viewFormatter = (): FormatConverter<View, any> => ({
+export const viewFormatter = (): FormatConverter<View, 'to'> => ({
     relationshipMap: {
         __typename: 'View',
         from: 'User',
@@ -32,48 +32,53 @@ export const viewFormatter = (): FormatConverter<View, any> => ({
             User: 'User',
         }
     },
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<View>[]> {
-        // Query for data that view is applied to
-        if (isObject(partial.to)) {
-            const toTypes: GraphQLModelType[] = objects.map(o => resolveProjectOrOrganizationOrRoutineOrStandardOrUser(o.to))
-            const toIds = objects.map(x => x.to?.id ?? '') as string[];
-            // Group ids by types
-            const toIdsByType: { [x: string]: string[] } = {};
-            toTypes.forEach((type, i) => {
-                if (!toIdsByType[type]) toIdsByType[type] = [];
-                toIdsByType[type].push(toIds[i]);
-            })
-            // Query for each type
-            const tos: any[] = [];
-            for (const type of Object.keys(toIdsByType)) {
-                const validTypes: Array<GraphQLModelType> = [
-                    'Organization',
-                    'Project',
-                    'Routine',
-                    'Standard',
-                    'User',
-                ];
-                if (!validTypes.includes(type as GraphQLModelType)) {
-                    throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
+    supplemental: {
+        graphqlFields: ['to'],
+        toGraphQL: ({ objects, partial, prisma, userId }) => [
+            ['to', async () => {
+                // Query for data that view is applied to
+                if (isObject(partial.to)) {
+                    const toTypes: GraphQLModelType[] = objects.map(o => resolveProjectOrOrganizationOrRoutineOrStandardOrUser(o.to))
+                    const toIds = objects.map(x => x.to?.id ?? '') as string[];
+                    // Group ids by types
+                    const toIdsByType: { [x: string]: string[] } = {};
+                    toTypes.forEach((type, i) => {
+                        if (!toIdsByType[type]) toIdsByType[type] = [];
+                        toIdsByType[type].push(toIds[i]);
+                    })
+                    // Query for each type
+                    const tos: any[] = [];
+                    for (const type of Object.keys(toIdsByType)) {
+                        const validTypes: Array<GraphQLModelType> = [
+                            'Organization',
+                            'Project',
+                            'Routine',
+                            'Standard',
+                            'User',
+                        ];
+                        if (!validTypes.includes(type as GraphQLModelType)) {
+                            throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
+                        }
+                        const model = ObjectMap[type] as ModelLogic<any, any, any, any>;
+                        const paginated = await readManyHelper({
+                            info: partial.to[type] as PartialGraphQLInfo,
+                            input: { ids: toIdsByType[type] },
+                            model,
+                            prisma,
+                            req: { users: [{ id: userId }] }
+                        })
+                        tos.push(...paginated.edges.map(x => x.node));
+                    }
+                    // Apply each "to" to the "to" property of each object
+                    for (const object of objects) {
+                        // Find the correct "to", using object.to.id
+                        const to = tos.find(x => x.id === object.to.id);
+                        object.to = to;
+                    }
                 }
-                const model = ObjectMap[type as GraphQLModelType] as ModelLogic<any, any, any, any>;
-                const paginated = await readManyHelper({
-                    info: partial.to[type] as PartialGraphQLInfo,
-                    input: { ids: toIdsByType[type] },
-                    model,
-                    prisma,
-                    req: { users: [{ id: userId }] }
-                })
-                tos.push(...paginated.edges.map(x => x.node));
-            }
-            // Apply each "to" to the "to" property of each object
-            for (const object of objects) {
-                // Find the correct "to", using object.to.id
-                const to = tos.find(x => x.id === object.to.id);
-                object.to = to;
-            }
-        }
-        return objects as RecursivePartial<View>[];
+                return objects as RecursivePartial<View>[];
+            }],
+        ],
     },
 })
 
