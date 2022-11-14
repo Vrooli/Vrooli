@@ -1,16 +1,15 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, removeCountFieldsHelper, removeJoinTablesHelper } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, getSearchStringQueryHelper, removeCountFieldsHelper, removeJoinTablesHelper } from "./builder";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { omit } from "@shared/utils";
 import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
 import { User, UserSearchInput } from "../schema/types";
-import { RecursivePartial, PrismaType } from "../types";
+import { PrismaType } from "../types";
 import { FormatConverter, Searcher, GraphQLModelType } from "./types";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
-const supplementalFields = ['isStarred', 'isViewed'];
-export const userFormatter = (): FormatConverter<User, any> => ({
+type SupplementalFields = 'isStarred' | 'isViewed';
+export const userFormatter = (): FormatConverter<User, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'User',
         comments: 'Comment',
@@ -24,16 +23,12 @@ export const userFormatter = (): FormatConverter<User, any> => ({
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
-    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<User>[]> {
-        return addSupplementalFieldsHelper({
-            objects,
-            partial,
-            resolvers: [
-                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'User')],
-                ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'User')],
-            ]
-        });
+    supplemental: {
+        graphqlFields: ['isStarred', 'isViewed'],
+        toGraphQL: ({ ids, prisma, userId }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'User')],
+            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'User')],
+        ],
     },
 })
 
@@ -50,8 +45,9 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
         }[sortBy]
     },
     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({ searchString,
-            resolver: ({ insensitive }) => ({ 
+        return getSearchStringQueryHelper({
+            searchString,
+            resolver: ({ insensitive }) => ({
                 OR: [
                     { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
                     { name: { ...insensitive } },

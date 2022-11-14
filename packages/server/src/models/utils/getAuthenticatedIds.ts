@@ -66,7 +66,7 @@ const objectToIds = <GQLCreate extends { [x: string]: any }, GQLUpdate extends {
             // If key is in object
             if (`${key}${variation}` in object) {
                 // Get child relationship map
-                const childRelMap = getValidator(relMap[key], 'objectToIds').validatedRelationshipMap;
+                const childRelMap = getValidator(relMap[key], 'objectToIds').validateMap;
                 // Get child action type
                 let childActionType: 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Read' | 'Update' = 'Read';
                 if (actionType !== 'Read') {
@@ -249,7 +249,7 @@ export const getAuthenticatedIds = async <GQLCreate extends { [x: string]: any }
     // For each object
     filteredObjects.forEach(object => {
         // Call objectToIds to get ids of all objects requiring authentication
-        const ids = objectToIds('Read', validator.validatedRelationshipMap as any, object as GQLCreate | GQLUpdate | PartialPrismaSelect);
+        const ids = objectToIds('Read', validator.validateMap as any, object as GQLCreate | GQLUpdate | PartialPrismaSelect);
         // Add ids to return object
         Object.keys(ids).forEach(key => {
             if (result[key]) { result[key] = [...result[key], ...ids[key]]; }

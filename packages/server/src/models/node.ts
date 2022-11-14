@@ -27,7 +27,7 @@ export const nodeFormatter = (): FormatConverter<Node, any> => ({
 })
 
 export const nodeValidator = (): Validator<NodeCreateInput, NodeUpdateInput, Node, any, Prisma.nodeSelect, Prisma.nodeWhereInput> => ({
-    validatedRelationshipMap: {
+    validateMap: {
         __typename: 'Node',
         routine: 'Routine',
     },

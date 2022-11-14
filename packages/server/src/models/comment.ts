@@ -1,9 +1,8 @@
 import { CODE, CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@shared/validation";
-import { omit } from '@shared/utils';
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput } from "../schema/types";
-import { PrismaType, RecursivePartial, ReqForUserAuth } from "../types";
-import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, getSearchStringQueryHelper, combineQueries, getUserId } from "./builder";
+import { PrismaType, ReqForUserAuth } from "../types";
+import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, getSearchStringQueryHelper, combineQueries, getUserId } from "./builder";
 import { TranslationModel } from "./translation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -15,8 +14,8 @@ import { getPermissions } from "./utils";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
-const supplementalFields = ['isStarred', 'isUpvoted', 'permissionsComment'];
-export const commentFormatter = (): FormatConverter<Comment, CommentPermission> => ({
+type SupplementalFields = 'isStarred' | 'isUpvoted' | 'permissionsComment';
+export const commentFormatter = (): FormatConverter<Comment, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Comment',
         creator: {
@@ -35,17 +34,13 @@ export const commentFormatter = (): FormatConverter<Comment, CommentPermission> 
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
-    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Comment>[]> {
-        return addSupplementalFieldsHelper({
-            objects,
-            partial,
-            resolvers: [
-                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Comment')],
-                ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
-                ['permissionsComment', async (ids) => await getPermissions({ objectType: 'Comment', ids, prisma, userId })],
-            ]
-        });
+    supplemental: {
+        graphqlFields: ['isStarred', 'isUpvoted', 'permissionsComment'],
+        toGraphQL: ({ ids, prisma, userId }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Comment')],
+            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
+            ['permissionsComment', async () => await getPermissions({ objectType: 'Comment', ids, prisma, userId })],
+        ],
     },
 })
 
@@ -86,7 +81,7 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
 })
 
 export const commentValidator = (): Validator<CommentCreateInput, CommentUpdateInput, Comment, CommentPermission, Prisma.commentSelect, Prisma.commentWhereInput> => ({
-    validatedRelationshipMap: {
+    validateMap: {
         __typename: 'Comment',
         user: 'User',
         organization: 'Organization',

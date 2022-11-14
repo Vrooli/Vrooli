@@ -1,8 +1,7 @@
-import { PrismaType, RecursivePartial } from "../types";
+import { PrismaType } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission } from "../schema/types";
-import { addJoinTablesHelper, removeJoinTablesHelper, addCountFieldsHelper, removeCountFieldsHelper, addSupplementalFieldsHelper, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries, onlyValidHandles } from "./builder";
+import { addJoinTablesHelper, removeJoinTablesHelper, addCountFieldsHelper, removeCountFieldsHelper, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries } from "./builder";
 import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
-import { omit } from '@shared/utils';
 import { Prisma, role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -16,8 +15,8 @@ import { getPermissions } from "./utils";
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
 const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
-const supplementalFields = ['isStarred', 'isViewed', 'permissionsOrganization'];
-export const organizationFormatter = (): FormatConverter<Organization, OrganizationPermission> => ({
+type SupplementalFields = 'isStarred' | 'isViewed' | 'permissionsOrganization';
+export const organizationFormatter = (): FormatConverter<Organization, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Organization',
         comments: 'Comment',
@@ -34,18 +33,14 @@ export const organizationFormatter = (): FormatConverter<Organization, Organizat
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
-    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Organization>[]> {
-        return addSupplementalFieldsHelper({
-            objects,
-            partial,
-            resolvers: [
-                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Organization')],
-                ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Organization')],
-                ['permissionsOrganization', async (ids) => await getPermissions({ objectType: 'Organization', ids, prisma, userId })],
-            ]
-        });
-    }
+    supplemental: {
+        graphqlFields: ['isStarred', 'isViewed', 'permissionsOrganization'],
+        toGraphQL: ({ ids, prisma, userId }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Organization')],
+            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Organization')],
+            ['permissionsOrganization', async () => await getPermissions({ objectType: 'Organization', ids, prisma, userId })],
+        ],
+    },
 })
 
 export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
@@ -92,7 +87,7 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
 })
 
 export const organizationValidator = (): Validator<OrganizationCreateInput, OrganizationUpdateInput, Organization, OrganizationPermission, Prisma.organizationSelect, Prisma.organizationWhereInput> => ({
-    validatedRelationshipMap: {
+    validateMap: {
         __typename: 'Organization',
         members: 'Member',
         projects: 'Project',

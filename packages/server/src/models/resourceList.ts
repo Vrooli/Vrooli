@@ -21,7 +21,7 @@ export const resourceListFormatter = (): FormatConverter<ResourceList, any> => (
 })
 
 export const resourceListValidator = (): Validator<ResourceListCreateInput, ResourceListUpdateInput, ResourceList, any, Prisma.resource_listSelect, Prisma.resource_listWhereInput> => ({
-    validatedRelationshipMap: {
+    validateMap: {
         __typename: 'ResourceList',
         // api: 'Api',
         organization: 'Organization',

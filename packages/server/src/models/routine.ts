@@ -1,8 +1,7 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, onlyValidIds, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
 import { inputTranslationCreate, inputTranslationUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routinesUpdate } from "@shared/validation";
 import { CODE, ResourceListUsedFor } from "@shared/consts";
-import { omit } from '@shared/utils';
-import { organizationQuerier, organizationValidator } from "./organization";
+import { organizationValidator } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -13,8 +12,8 @@ import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
 import { CustomError, genErrorCode, Trigger } from "../events";
-import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, Count, RoutineSortBy } from "../schema/types";
-import { RecursivePartial, PrismaType } from "../types";
+import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy } from "../schema/types";
+import { PrismaType } from "../types";
 import { cudHelper } from "./actions";
 import { FormatConverter, PartialGraphQLInfo, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator } from "./types";
 import { Prisma } from "@prisma/client";
@@ -29,8 +28,8 @@ type NodeWeightData = {
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' };
-const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs', 'versions'];
-export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> => ({
+type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsRoutine' | 'runs' | 'versions';
+export const routineFormatter = (): FormatConverter<Routine, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Routine',
         comments: 'Comment',
@@ -62,65 +61,55 @@ export const routineFormatter = (): FormatConverter<Routine, RoutinePermission> 
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
-    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Routine>[]> {
-        return addSupplementalFieldsHelper({
-            objects,
-            partial,
-            resolvers: [
-                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Routine')],
-                ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
-                ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Routine')],
-                ['permissionsRoutine', async (ids) => await getPermissions({ objectType: 'Routine', ids, prisma, userId })],
-                ['runs', async (ids) => {
-                    if (userId) {
-                        // Find requested fields of runs. Also add routineId, so we 
-                        // can associate runs with their routine
-                        const runPartial = {
-                            ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, runFormatter().relationshipMap),
-                            routineId: true
-                        }
-                        if (runPartial === undefined) {
-                            throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
-                        }
-                        // Query runs made by user
-                        let runs: any[] = await prisma.run.findMany({
-                            where: {
-                                AND: [
-                                    { routineVersion: { root: { id: { in: ids } } } },
-                                    { user: { id: userId } }
-                                ]
-                            },
-                            ...selectHelper(runPartial)
-                        });
-                        // Format runs to GraphQL
-                        runs = runs.map(r => modelToGraphQL(r, runPartial));
-                        // Add supplemental fields
-                        runs = await addSupplementalFields(prisma, userId, runs, runPartial);
-                        // Split runs by id
-                        const routineRuns = objects.map((o) => runs.filter(r => r.routineId === o.id));
-                        return routineRuns;
-                    } else {
-                        // Set all runs to empty array
-                        return new Array(objects.length).fill([]);
+    supplemental: {
+        graphqlFields: ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs', 'versions'],
+        toGraphQL: ({ ids, objects, partial, prisma, userId }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Routine')],
+            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
+            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Routine')],
+            ['permissionsRoutine', async () => await getPermissions({ objectType: 'Routine', ids, prisma, userId })],
+            ['runs', async () => {
+                if (userId) {
+                    // Find requested fields of runs. Also add routineId, so we 
+                    // can associate runs with their routine
+                    const runPartial = {
+                        ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, runFormatter().relationshipMap),
+                        routineId: true
                     }
-                }],
-                ['versions', async (ids) => {
-                    const groupData = await prisma.routine.findMany({
+                    if (runPartial === undefined) {
+                        throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
+                    }
+                    // Query runs made by user
+                    let runs: any[] = await prisma.run.findMany({
                         where: {
-                            id: { in: ids },
+                            AND: [
+                                { routineVersion: { root: { id: { in: ids } } } },
+                                { user: { id: userId } }
+                            ]
                         },
-                        select: {
-                            versions: {
-                                select: { id: true, versionLabel: true }
-                            }
-                        }
+                        ...selectHelper(runPartial)
                     });
-                    return groupData.map(g => g.versions);
-                }],
-            ]
-        });
-    }
+                    // Format runs to GraphQL
+                    runs = runs.map(r => modelToGraphQL(r, runPartial));
+                    // Add supplemental fields
+                    runs = await addSupplementalFields(prisma, userId, runs, runPartial);
+                    // Split runs by id
+                    const routineRuns = ids.map((id) => runs.filter(r => r.routineId === id));
+                    return routineRuns;
+                } else {
+                    // Set all runs to empty array
+                    return new Array(objects.length).fill([]);
+                }
+            }],
+            ['versions', async () => {
+                const groupData = await prisma.routine.findMany({
+                    where: { id: { in: ids } },
+                    select: { versions: { select: { id: true, versionLabel: true } } }
+                });
+                return groupData.map(g => g.versions);
+            }],
+        ],
+    },
 })
 
 export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
@@ -198,7 +187,7 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
 })
 
 export const routineValidator = (): Validator<RoutineCreateInput, RoutineUpdateInput, Routine, RoutinePermission, Prisma.routine_versionSelect, Prisma.routine_versionWhereInput> => ({
-    validatedRelationshipMap: {
+    validateMap: {
         __typename: 'Routine',
         fasdfasd
     },

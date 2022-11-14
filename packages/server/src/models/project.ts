@@ -1,7 +1,6 @@
 import { projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
-import { omit } from '@shared/utils';
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
 import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -10,7 +9,7 @@ import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
 import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy } from "../schema/types";
-import { RecursivePartial, PrismaType } from "../types";
+import { PrismaType } from "../types";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
@@ -19,8 +18,8 @@ import { getPermissions } from "./utils";
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
-const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsProject'];
-export const projectFormatter = (): FormatConverter<Project, ProjectPermission> => ({
+type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsProject';
+export const projectFormatter = (): FormatConverter<Project, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Project',
         comments: 'Comment',
@@ -45,19 +44,15 @@ export const projectFormatter = (): FormatConverter<Project, ProjectPermission> 
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
-    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Project>[]> {
-        return addSupplementalFieldsHelper({
-            objects,
-            partial,
-            resolvers: [
-                ['isStarred', async (ids) => StarModel.query(prisma).getIsStarreds(userId, ids, 'Project')],
-                ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Project')],
-                ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Project')],
-                ['permissionsProject', async (ids) => await getPermissions({ objectType: 'Project', ids, prisma, userId })],
-            ]
-        });
-    }
+    supplemental: {
+        graphqlFields: ['isStarred', 'isUpvoted', 'isViewed', 'permissionsProject'],
+        toGraphQL: ({ ids, prisma, userId }) => [
+            ['isStarred', async () => StarModel.query(prisma).getIsStarreds(userId, ids, 'Project')],
+            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Project')],
+            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Project')],
+            ['permissionsProject', async () => await getPermissions({ objectType: 'Project', ids, prisma, userId })],
+        ],
+    },
 })
 
 export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
@@ -118,12 +113,12 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
 })
 
 export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateInput, Project, ProjectPermission, Prisma.projectSelect, Prisma.projectWhereInput> => ({
-    validatedRelationshipMap: {
+    validateMap: {
         __typename: 'Project',
         asdfasdf
     },
-    permissionsSelect: { 
-        id: true, 
+    permissionsSelect: {
+        id: true,
         isComplete: true,
         isPrivate: true,
         permissions: true,
@@ -131,10 +126,12 @@ export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateI
         organization: { select: { id: true, isPrivate: true, permissions: true } },
     },
     permissionsFromSelect: (select, userId) => asdf as any,
-    ownerOrMemberWhere: (userId) => ({ OR: [
-        organizationQuerier().hasRoleInOrganizationQuery(userId),
-        { user: { id: userId } }
-    ] }),
+    ownerOrMemberWhere: (userId) => ({
+        OR: [
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
+            { user: { id: userId } }
+        ]
+    }),
     // createMany.forEach(input => lineBreaksCheck(input, ['description'], CODE.LineBreaksDescription));
     // for (const input of updateMany) {
 })

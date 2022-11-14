@@ -1,16 +1,15 @@
 import { runsCreate, runsUpdate } from "@shared/validation";
 import { CODE, RunSortBy } from "@shared/consts";
-import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, getSearchStringQueryHelper, combineQueries, onlyValidIds } from "./builder";
+import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, getSearchStringQueryHelper, combineQueries } from "./builder";
 import { RunStepModel } from "./runStep";
 import { Prisma, run, RunStatus } from "@prisma/client";
 import { RunInputModel } from "./runInput";
-import { organizationQuerier } from "./organization";
-import { routinePermissioner } from "./routine";
 import { CustomError, genErrorCode, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, Permissioner, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator } from "./types";
 import { cudHelper } from "./actions";
+import { routineValidator } from "./routine";
 
 export const runFormatter = (): FormatConverter<Run, any> => ({
     relationshipMap: {
@@ -71,15 +70,11 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
 })
 
 export const runValidator = (): Validator<RunCreateInput, RunUpdateInput, Run, RunPermission, Prisma.runSelect, Prisma.runWhereInput> => ({
-    validatedRelationshipMap: {
+    validateMap: {
         __typename: 'Run',
         asdffasdf
     },
-    permissionsSelect: { 
-        id: true,
-        user: { select: { id: true } },
-        organization: { select: { id: true, isPrivate: true, permissions: true } },
-    },
+    permissionsSelect: { id: true, routineVersion: { select: routineValidator().permissionsSelect } },
     permissionsFromSelect: (select, userId) => asdf as any,
     // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
     //     validateProfanity(data.map((d: any) => d.title));
@@ -87,76 +82,6 @@ export const runValidator = (): Validator<RunCreateInput, RunUpdateInput, Run, R
 
     // TODO if status passed in for update, make sure it's not the same 
     // as the current status, or an invalid transition (e.g. failed -> in progress)
-})
-
-export const runPermissioner = (): Permissioner<RunPermission, RunSearchInput> => ({
-    async get({
-        objects,
-        permissions,
-        prisma,
-        userId,
-    }) {
-        // Initialize result with default permissions
-        const result: (RunPermission & { id?: string })[] = objects.map((o) => ({
-            id: o.id,
-            canDelete: false, // own || (own associated routine && !isPrivate)
-            canEdit: false, // own
-            canView: false, // own || (own associated routine && !isPrivate)
-        }));
-        // Check ownership
-        if (userId) {
-            // Query for objects with matching userId
-            const owned = await prisma.run.findMany({
-                where: {
-                    id: { in: onlyValidIds(objects.map(o => o.id)) },
-                    userId,
-                },
-                select: { id: true },
-            })
-            // Set permissions for owned objects
-            owned.forEach((o) => {
-                const index = objects.findIndex((r) => r.id === o.id);
-                result[index] = {
-                    ...result[index],
-                    canDelete: true,
-                    canEdit: true,
-                    canView: true,
-                }
-            });
-        }
-        // Query all runs marked as public, where you own the associated routine
-        const all = await prisma.run.findMany({
-            where: {
-                id: { in: onlyValidIds(objects.map(o => o.id)) },
-                isPrivate: false,
-                AND: [
-                    { routineId: null },
-                    routinePermissioner().ownershipQuery(userId ?? ''),
-                ]
-            },
-            select: { id: true },
-        })
-        // Set permissions for found objects
-        all.forEach((o) => {
-            const index = objects.findIndex((r) => r.id === o.id);
-            result[index] = {
-                ...result[index],
-                canDelete: true,
-                canView: true,
-            }
-        });
-        // Return result with IDs removed
-        result.forEach((r) => delete r.id);
-        return result as RunPermission[];
-    },
-    ownershipQuery: (userId) => ({
-        routine: {
-            OR: [
-                organizationQuerier().hasRoleInOrganizationQuery(userId),
-                { user: { id: userId } }
-            ]
-        }
-    })
 })
 
 /**
@@ -371,7 +296,6 @@ export const RunModel = ({
     prismaObject: (prisma: PrismaType) => prisma.run,
     format: runFormatter(),
     mutate: runMutater,
-    permissions: runPermissioner,
     search: runSearcher(),
     type: 'Run' as GraphQLModelType,
     validate: runValidator(),

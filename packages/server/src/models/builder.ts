@@ -14,7 +14,7 @@ import { UserModel } from './user';
 import { StarModel } from './star';
 import { VoteModel } from './vote';
 import { EmailModel } from './email';
-import { isObject } from '@shared/utils';
+import { isObject, omit } from '@shared/utils';
 import { ProfileModel } from './profile';
 import { MemberModel } from './member';
 import { resolveGraphQLInfo } from '../utils';
@@ -30,7 +30,7 @@ import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
-import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap } from './types';
+import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, SupplementalConverter } from './types';
 import { TimeFrame, VisibilityType } from '../schema/types';
 const { difference, flatten, merge } = pkg;
 
@@ -437,10 +437,10 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
         }
     }
     // Handle base case
-    const type: string | undefined = partial?.__typename;
+    const type: GraphQLModelType | undefined = partial?.__typename;
     const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
-        if (formatter.removeSupplementalFields) result = formatter.removeSupplementalFields(result);
+        result = removeSupplementalFieldsHelper(type as GraphQLModelType, result);
         result = deconstructRelationshipsHelper(result, formatter.relationshipMap);
         if (formatter.addJoinTables) result = formatter.addJoinTables(result);
         if (formatter.addCountFields) result = formatter.addCountFields(result);
@@ -815,10 +815,9 @@ const subsetsMatch = (obj: any, query: any): boolean => {
     // This should hopefully always be the case for the main subsetsMatch call, 
     // but not necessarily for the recursive calls.
     let formattedQuery = query;
-    const formatter: FormatConverter<any, any> | undefined = typeof query?.__typename === 'string' ? ObjectMap[query.__typename as keyof typeof ObjectMap]?.format : undefined;
-    if (formatter) {
+    if (query?.__typename === 'string') {
         // Remove calculated fields from query, since these will not be in obj
-        formattedQuery = formatter?.removeSupplementalFields ? formatter.removeSupplementalFields(query) : query;
+        formattedQuery = removeSupplementalFieldsHelper(query.__typename as GraphQLModelType, query);
     }
     // First, check if obj is a join table. If this is the case, what we want to check 
     // is actually one layer down
@@ -1032,6 +1031,52 @@ export const getUserId = (req: ReqForUserAuth): string | null => {
 }
 
 /**
+ * Removes supplemental fields (i.e. fields that cannot be calculated in the main query), and also may 
+ * add additional fields to calculate the supplemental fields
+ * @param objectType Type of object to get supplemental fields for
+ * @param partial Select fields object
+ * @returns partial with supplemental fields removed, and maybe additional fields added
+ */
+export const removeSupplementalFieldsHelper = (objectType: GraphQLModelType, partial: PartialGraphQLInfo | PartialPrismaSelect) => {
+    // Get supplemental info for object
+    const supplementer: SupplementalConverter<any, any> | undefined = ObjectMap[objectType]?.format?.supplemental;
+    if (!supplementer) return partial;
+    // Remove graphQL supplemental fields
+    const withoutGqlSupp = omit(partial, supplementer.graphqlFields);
+    // Add db supplemental fields
+    const withDbSupp = merge(withoutGqlSupp, supplementer.dbFields);
+    // Return result
+    return withDbSupp;
+}
+
+/**
+ * Adds supplemental fields data to the given objects
+ */
+export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ objects, objectType, partial, prisma, userId }: {
+    objects: ({ id: string } & { [x: string]: any })[],
+    objectType: GraphQLModelType,
+    partial: PartialGraphQLInfo,
+    prisma: PrismaType,
+    userId: string | null,
+}): Promise<RecursivePartial<GraphQLModel>[]> => {
+    if (!objects || objects.length === 0) return [];
+    // Get supplemental info for object
+    const supplementer: SupplementalConverter<GraphQLModel, any> | undefined = ObjectMap[objectType]?.format?.supplemental;
+    if (!supplementer) return objects;
+    // Get IDs from objects
+    const ids = objects.map(({ id }) => id);
+    // Call each resolver to get supplemental data
+    const resolvers = supplementer.toGraphQL({ ids, objects, partial, prisma, userId });
+    for (const [field, resolver] of resolvers) {
+        // If not in partial, skip
+        if (!partial[field]) continue;
+        const supplemental = await resolver();
+        objects = objects.map((x, i) => ({ ...x, [field]: supplemental[i] }));
+    }
+    return objects;
+}
+
+/**
  * Adds supplemental fields to the select object, and all of its relationships (and their relationships, etc.)
  * Groups objects types together, so database is called only once for each type.
  * @param prisma Prisma client
@@ -1075,8 +1120,8 @@ export const addSupplementalFields = async (
         const objectData = ids.map((id: string) => pickObjectById(data, id));
         // Now that we have the data for each object, we can add the supplemental fields
         const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
-        const valuesWithSupplements = formatter?.addSupplementalFields ?
-            await formatter.addSupplementalFields({ objects: objectData, partial: selectFieldsDict[type], prisma, userId }) :
+        const valuesWithSupplements = formatter?.supplemental ?
+            await addSupplementalFieldsHelper({ objects: objectData, objectType: type as GraphQLModelType, partial: selectFieldsDict[type], prisma, userId }) :
             objectData;
         // Add each value to objectsById
         for (const v of valuesWithSupplements) {
@@ -1127,33 +1172,6 @@ export const addSupplementalFieldsMultiTypes = async (
         start = end;
     }
     return formatted;
-}
-
-type AddSupplementalFieldsHelper<GraphQLModel> = {
-    objects: ({ id: string } & { [x: string]: any })[],
-    partial: PartialGraphQLInfo,
-    resolvers: [keyof GraphQLModel, (ids: string[]) => Promise<any>][],
-}
-
-/**
- * Helper function for simplifying addSupplementalFields
- */
-export async function addSupplementalFieldsHelper<GraphQLModel>({
-    objects,
-    partial,
-    resolvers,
-}: AddSupplementalFieldsHelper<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>[]> {
-    if (!objects || objects.length === 0) return [];
-    // Get IDs from objects
-    const ids = objects.map(({ id }) => id);
-    // Get supplemental fields, and inject into objects
-    for (const [field, resolver] of resolvers) {
-        // If not in partial, skip
-        if (!partial[field as string]) continue;
-        const supplemental = await resolver(ids);
-        objects = objects.map((x, i) => ({ ...x, [field]: supplemental[i] }));
-    }
-    return objects;
 }
 
 type GetSearchStringHelperProps = {

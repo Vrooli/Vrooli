@@ -1,39 +1,31 @@
-import { addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper, removeJoinTablesHelper } from "./builder";
+import { addJoinTablesHelper, combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper, removeJoinTablesHelper } from "./builder";
 import { tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@shared/validation";
 import { TagSortBy } from "@shared/consts";
-import { omit } from '@shared/utils';
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
-import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, Count } from "../schema/types";
-import { RecursivePartial, PrismaType } from "../types";
+import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from "../schema/types";
+import {  PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 
 const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' };
-const supplementalFields = ['isStarred', 'isOwn'];
-export const tagFormatter = (): FormatConverter<Tag, any> => ({
+type SupplementalFields = 'isStarred' | 'isOwn';
+export const tagFormatter = (): FormatConverter<Tag, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Tag',
         starredBy: 'User',
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
-    removeSupplementalFields: (partial) => {
-        const omitted = omit(partial, supplementalFields);
-        // Add createdByUserId field so we can calculate isOwn, and id field for add supplemental groupbyid
-        return { ...omitted, createdByUserId: true, id: true }
-    },
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Tag>[]> {
-        return addSupplementalFieldsHelper({
-            objects,
-            partial,
-            resolvers: [
-                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Tag')],
-                ['isOwn', async () => objects.map((x) => Boolean(userId) && x.createdByUserId === userId)],
-            ]
-        });
+    supplemental: {
+        graphqlFields: ['isStarred', 'isOwn'],
+        dbFields: ['createdByUserId', 'id'],
+        toGraphQL: ({ ids, objects, prisma, userId }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Tag')],
+            ['isOwn', async () => objects.map((x) => Boolean(userId) && x.createdByUserId === userId)],
+        ],
     },
 })
 

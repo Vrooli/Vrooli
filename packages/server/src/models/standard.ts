@@ -1,7 +1,6 @@
 import { standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
 import { CODE, DeleteOneType, StandardSortBy } from "@shared/consts";
-import { omit } from '@shared/utils';
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, visibilityBuilder } from "./builder";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -12,7 +11,7 @@ import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, Searcher, Valid
 import { randomString } from "../auth/walletAuth";
 import { CustomError, genErrorCode } from "../events";
 import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, Count } from "../schema/types";
-import { RecursivePartial, PrismaType } from "../types";
+import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { deleteOneHelper } from "./actions";
 import { Prisma } from "@prisma/client";
@@ -21,8 +20,8 @@ import { getPermissions } from "./utils";
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
-const supplementalFields = ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'];
-export const standardFormatter = (): FormatConverter<Standard, StandardPermission> => ({
+type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsStandard' | 'versions';
+export const standardFormatter = (): FormatConverter<Standard, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Standard',
         comments: 'Comment',
@@ -44,32 +43,22 @@ export const standardFormatter = (): FormatConverter<Standard, StandardPermissio
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
-    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Standard>[]> {
-        return addSupplementalFieldsHelper({
-            objects,
-            partial,
-            resolvers: [
-                ['isStarred', async (ids) => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Standard')],
-                ['isUpvoted', async (ids) => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Standard')],
-                ['isViewed', async (ids) => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Standard')],
-                ['permissionsStandard', async (ids) => await getPermissions({ objectType: 'Standard', ids, prisma, userId })],
-                ['versions', async (ids) => {
-                    const groupData = await prisma.standard.findMany({
-                        where: {
-                            id: { in: ids },
-                        },
-                        select: {
-                            versions: {
-                                select: { id: true, versionLabel: true }
-                            }
-                        }
-                    });
-                    return groupData.map(g => g.versions);
-                }],
-            ]
-        });
-    }
+    supplemental: {
+        graphqlFields: ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'],
+        toGraphQL: ({ ids, prisma, userId }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Standard')],
+            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Standard')],
+            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Standard')],
+            ['permissionsStandard', async () => await getPermissions({ objectType: 'Standard', ids, prisma, userId })],
+            ['versions', async () => {
+                const groupData = await prisma.standard.findMany({
+                    where: { id: { in: ids } },
+                    select: { versions: { select: { id: true, versionLabel: true } } }
+                });
+                return groupData.map(g => g.versions);
+            }],
+        ],
+    },
 })
 
 export const standardSearcher = (): Searcher<StandardSearchInput> => ({
@@ -134,10 +123,14 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
 })
 
 export const standardValidator = (): Validator<StandardCreateInput, StandardUpdateInput, Standard, StandardPermission, Prisma.standard_versionSelect, Prisma.standard_versionWhereInput> => ({
-    permissionsSelect: { id: true, root: { select: { 
-        permissions: true, 
-        user: { select: { id: true } }, 
-        organization: { select: { id: true, permissions: true } } } } 
+    permissionsSelect: {
+        id: true, root: {
+            select: {
+                permissions: true,
+                user: { select: { id: true } },
+                organization: { select: { id: true, permissions: true } }
+            }
+        }
     },
     permissionsFromSelect: (select, userId) => asdf as any,
     profanityFields: ['name'],

@@ -2,7 +2,7 @@ import { GraphQLResolveInfo } from "graphql";
 import { Count, PageInfo, TimeFrame } from "../schema/types";
 import { PrismaDelegate, PrismaType, RecursivePartial } from "../types";
 import { ObjectSchema } from 'yup';
-import { Prisma } from "@prisma/client";
+import { prisma, Prisma } from "@prisma/client";
 
 export type GraphQLModelType =
     'Comment' |
@@ -93,9 +93,37 @@ export type NestedGraphQLModelType = GraphQLModelType | { [fieldName: string]: N
 export type RelationshipMap<GraphQLModel> = { [key in keyof GraphQLModel]?: NestedGraphQLModelType } & { __typename: GraphQLModelType };
 
 /**
+ * Helper functions for adding and removing supplemental fields. These are fields 
+ * are requested in the select query, but are either not in the main database or 
+ * cannot be requested in the same query (e.g. isStarred, permissions) 
+ */
+export interface SupplementalConverter<GQLModel, GQLFields extends string> {
+    /**
+     * List of all supplemental fields added to the GraphQL model after the main query 
+     * (i.e. all fields to be excluded)
+     */
+    graphqlFields: GQLFields[];
+    /**
+     * List of all fields to add to the Prisma select query, in order to calculate 
+     * supplemental fields
+     */
+    dbFields?: string[]; // TODO make type safer
+    /**
+     * An array of resolver functions, one for each calculated field
+     */
+    toGraphQL: ({ ids, objects, partial, prisma, userId }: {
+        ids: string[],
+        objects: ({ id: string } & { [x: string]: any })[], // TODO: fix this type
+        partial: PartialGraphQLInfo,
+        prisma: PrismaType,
+        userId: string | null,
+    }) => [GQLFields, () => any][];
+}
+
+/**
  * Helper functions for converting between Prisma types and GraphQL types
  */
-export type FormatConverter<GraphQLModel, PermissionObject> = {
+export interface FormatConverter<GraphQLModel, GQLFields extends string> {
     /**
      * Maps relationship names to their GraphQL type. 
      * If the relationship is a union (i.e. has mutliple possible types), 
@@ -125,19 +153,9 @@ export type FormatConverter<GraphQLModel, PermissionObject> = {
      */
     removeCountFields?: (data: { [x: string]: any }) => any;
     /**
-     * Removes fields which are not in the database (i.e. calculated/supplemental fields)
+     * Data for adding supplemental fields to the GraphQL object
      */
-    removeSupplementalFields?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
-    /**
-     * Adds fields which are calculated after the main query
-     * @returns objects ready to be sent through GraphQL
-     */
-    addSupplementalFields?: ({ objects, partial, prisma, userId }: {
-        objects: ({ id: string } & { [x: string]: any })[];
-        partial: PartialGraphQLInfo,
-        prisma: PrismaType,
-        userId: string | null,
-    }) => Promise<RecursivePartial<GraphQLModel>[]>;
+    supplemental?: SupplementalConverter<GraphQLModel, GQLFields>;
 }
 
 
@@ -192,7 +210,7 @@ export type Validator<
      * NOTE: Will automatically handle checking fields with the "Id", "Create", "Update", or "Delete" suffix, 
      * as well as deconstructing unions (e.g. 'creator': { 'user': 'User', 'organization': 'Organization' } will check 'creator', 'user', 'userId', etc.)
      */
-    validatedRelationshipMap: { [key in keyof (GQLCreate & GQLUpdate & PartialPrismaSelect)]?: GraphQLModelType | { [x: string]: GraphQLModelType } } & { __typename: GraphQLModelType };
+    validateMap: { [key in keyof (GQLCreate & GQLUpdate & PartialPrismaSelect)]?: GraphQLModelType | { [x: string]: GraphQLModelType } } & { __typename: GraphQLModelType };
     /**
      * Select query to calculate the object's permissions. This will be used - possibly in 
      * conjunction with the parent object's permissions (also queried in this field) - to determine if you 

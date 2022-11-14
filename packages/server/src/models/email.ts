@@ -16,7 +16,7 @@ export const emailFormatter = (): FormatConverter<Email, any> => ({
 })
 
 export const emailValidator = (): Validator<EmailCreateInput, EmailUpdateInput, Email, any, Prisma.emailSelect, Prisma.emailWhereInput> => ({
-    validatedRelationshipMap: {
+    validateMap: {
         __typename: 'Email',
         user: 'User',
     },

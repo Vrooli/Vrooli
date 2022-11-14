@@ -25,7 +25,8 @@ export const walletValidator = (): Validator<any, WalletUpdateInput, Wallet, any
         organization: { select: { id: true, isPrivate: true, permissions: true } },
     },
     permissionsFromSelect: (select, userId) => asdf as any,
-    validatedRelationshipMap: {
+    validateMap: {
+        __typename: 'Wallet',
         user: 'User',
         organization: 'Organization',
     },

@@ -1,35 +1,27 @@
 import { reportsCreate, reportsUpdate } from "@shared/validation";
 import { ReportFor, ReportSortBy } from '@shared/consts';
-import { omit } from '@shared/utils';
-import { addSupplementalFieldsHelper, combineQueries, getSearchStringQueryHelper } from "./builder";
+import { combineQueries, getSearchStringQueryHelper } from "./builder";
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
-import { RecursivePartial, PrismaType } from "../types";
+import { PrismaType } from "../types";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
 
-const supplementalFields = ['isOwn'];
-export const reportFormatter = (): FormatConverter<Report, any> => ({
+type SupplementalFields = 'isOwn';
+export const reportFormatter = (): FormatConverter<Report, SupplementalFields> => ({
     relationshipMap: { __typename: 'Report' },
     removeJoinTables: (data) => {
         // Remove userId to hide who submitted the report
         let { userId, ...rest } = data;
         return rest;
     },
-    removeSupplementalFields: (partial) => {
-        const omitted = omit(partial, supplementalFields)
-        // Add userId field so we can calculate isOwn
-        return { ...omitted, userId: true }
-    },
-    async addSupplementalFields({ objects, partial, prisma, userId }): Promise<RecursivePartial<Report>[]> {
-        return addSupplementalFieldsHelper({
-            objects,
-            partial,
-            resolvers: [
-                ['isOwn', async () => objects.map((x) => Boolean(userId) && x.fromId === userId)],
-            ]
-        });
+    supplemental: {
+        graphqlFields: ['isOwn'],
+        dbFields: ['userId'],
+        toGraphQL: ({ objects, userId }) => [
+            ['isOwn', async () => objects.map((x) => Boolean(userId) && x.fromId === userId)],
+        ],
     },
 })
 
@@ -68,7 +60,7 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
 })
 
 export const reportValidator = (): Validator<ReportCreateInput, ReportUpdateInput, Report, any, Prisma.reportSelect, Prisma.reportWhereInput> => ({
-    validatedRelationshipMap: {
+    validateMap: {
         __typename: 'Report',
         asdfasdf
     },
