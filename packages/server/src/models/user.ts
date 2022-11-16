@@ -4,7 +4,8 @@ import { ViewModel } from "./view";
 import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
 import { User, UserSearchInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, GraphQLModelType } from "./types";
+import { FormatConverter, Searcher, GraphQLModelType, Validator } from "./types";
+import { Prisma } from "@prisma/client";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
@@ -72,9 +73,30 @@ export const userSearcher = (): Searcher<UserSearchInput> => ({
     },
 })
 
+export const userValidator = (): Validator<
+    any,
+    any,
+    User,
+    Prisma.userGetPayload<{ select: { [K in keyof Required<Prisma.userSelect>]: true } }>,
+    any,
+    Prisma.userSelect,
+    Prisma.userWhereInput
+> => ({
+    validateMap: {
+        __typename: 'User',
+        fdsafdsafd
+    },
+    permissionsSelect: { id: true, isPrivate: true },
+    permissionResolvers: (data, userId) => fdasfds as any,
+    ownerOrMemberWhere: (userId) => ({ id: userId }),
+    isPublic: (data) => data.isPrivate === false,
+    profanityFields: ['name', 'handle'],
+})
+
 export const UserModel = ({
     prismaObject: (prisma: PrismaType) => prisma.user,
     format: userFormatter(),
     search: userSearcher(),
     type: 'User' as GraphQLModelType,
+    validate: userValidator(),
 })

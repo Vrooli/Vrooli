@@ -12,7 +12,7 @@ import { resolveStarTo } from "../schema/resolvers";
 import { Star, StarSearchInput, StarInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { readManyHelper } from "./actions";
-import { FormatConverter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, Searcher } from "./types";
+import { FormatConverter, GraphQLModelType, ModelLogic, Mutater, PartialGraphQLInfo, Searcher } from "./types";
 
 export const starFormatter = (): FormatConverter<Star, 'to'> => ({
     relationshipMap: {
@@ -110,17 +110,17 @@ export const starSearcher = (): Searcher<StarSearchInput> => ({
     },
 })
 
-const forMapper = {
-    [StarFor.Comment]: 'comment',
-    [StarFor.Organization]: 'organization',
-    [StarFor.Project]: 'project',
-    [StarFor.Routine]: 'routine',
-    [StarFor.Standard]: 'standard',
-    [StarFor.Tag]: 'tag',
-    [StarFor.User]: 'user',
+const forMapper: { [key in StarFor]: string } = {
+    Comment: 'comment',
+    Organization: 'organization',
+    Project: 'project',
+    Routine: 'routine',
+    Standard: 'standard',
+    Tag: 'tag',
+    User: 'user',
 }
 
-const starMutater = (prisma: PrismaType) => ({
+const starMutater = (prisma: PrismaType): Mutater<Star> => ({
     async star(userId: string, input: StarInput): Promise<boolean> {
         prisma.star.findMany({
             where: {

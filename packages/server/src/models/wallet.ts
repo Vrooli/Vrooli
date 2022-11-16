@@ -7,7 +7,8 @@ import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { cudHelper } from "./actions";
 import { relationshipBuilderHelper } from "./builder";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
+import { oneIsPublic } from "./utils";
 
 export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
@@ -18,46 +19,68 @@ export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     },
 })
 
-export const walletValidator = (): Validator<any, WalletUpdateInput, Wallet, any, Prisma.walletSelect, Prisma.walletWhereInput> => ({
-    permissionsSelect: { 
+/**
+* Maps GraphQLModelType to wallet relationship field
+*/
+const walletOwnerMap: { [key in GraphQLModelType]?: string } = {
+    'User': 'userId',
+    'Organization': 'organizationId',
+    'Project': 'projectId',
+},
+
+/**
+ * Verify that a handle is owned by a wallet, that is owned by an object. 
+ * Throws error on failure. 
+ * Allows checks for profanity, cause why not
+ * @params for The type of object that the wallet is owned by (i.e. Project, Organization, User)
+ * @params forId The ID of the object that the wallet is owned by
+ * @params handle The handle to verify
+ */
+export const verifyHandle = async (prisma: PrismaType, forType: 'User' | 'Organization' | 'Project', forId: string, handle: string | null | undefined): Promise<void> => {
+    if (!handle) return;
+    // Check that handle belongs to one of user's wallets
+    const wallets = await prisma.wallet.findMany({
+        where: { [walletOwnerMap[forType]]: forId },
+        select: {
+            handles: {
+                select: {
+                    handle: true,
+                }
+            }
+        }
+    });
+    const found = Boolean(wallets.find(w => w.handles.find(h => h.handle === handle)));
+    if (!found)
+        throw new CustomError(CODE.InvalidArgs, 'Selected handle cannot be verified.', { code: genErrorCode('0119') });
+    // Check for censored words
+    if (hasProfanity(handle))
+        throw new CustomError(CODE.BannedWord, 'Handle contains banned word', { code: genErrorCode('0120') });
+}
+
+export const walletValidator = (): Validator<
+    any,
+    WalletUpdateInput,
+    Wallet,
+    Prisma.walletGetPayload<{ select: { [K in keyof Required<Prisma.walletSelect>]: true } }>,
+    any,
+    Prisma.walletSelect,
+    Prisma.walletWhereInput
+> => ({
+    permissionsSelect: {
         id: true,
         user: { select: { id: true } },
         organization: { select: { id: true, isPrivate: true, permissions: true } },
     },
     permissionsFromSelect: (select, userId) => asdf as any,
+    isPublic: (data) => oneIsPublic<Prisma.walletSelect>(data, [
+        ['organization', 'Organization'],
+        ['user', 'User'],
+    ]),
     validateMap: {
         __typename: 'Wallet',
         user: 'User',
         organization: 'Organization',
     },
-    /**
-     * Verify that a handle is owned by a wallet, that is owned by an object. 
-     * Throws error on failure. 
-     * Allows checks for profanity, cause why not
-     * @params for The type of object that the wallet is owned by (i.e. Project, Organization, User)
-     * @params forId The ID of the object that the wallet is owned by
-     * @params handle The handle to verify
-     */
-    async verifyHandle(prisma: PrismaType, forType: 'User' | 'Organization' | 'Project', forId: string, handle: string | null | undefined): Promise<void> {
-        if (!handle) return;
-        // Check that handle belongs to one of user's wallets
-        const wallets = await prisma.wallet.findMany({
-            where: { [this.walletOwnerMap[forType]]: forId },
-            select: {
-                handles: {
-                    select: {
-                        handle: true,
-                    }
-                }
-            }
-        });
-        const found = Boolean(wallets.find(w => w.handles.find(h => h.handle === handle)));
-        if (!found)
-            throw new CustomError(CODE.InvalidArgs, 'Selected handle cannot be verified.', { code: genErrorCode('0119') });
-        // Check for censored words
-        if (hasProfanity(handle))
-            throw new CustomError(CODE.BannedWord, 'Handle contains banned word', { code: genErrorCode('0120') });
-    }
 
 
     // TODO verify handle for create/update
@@ -77,7 +100,7 @@ export const walletValidator = (): Validator<any, WalletUpdateInput, Wallet, any
     //     throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods", { code: genErrorCode('0049') });
 })
 
-export const walletMutater = (prisma: PrismaType) => ({
+export const walletMutater = (prisma: PrismaType): Mutater<Wallet> => ({
     async relationshipBuilder(
         userId: string,
         data: { [x: string]: any },

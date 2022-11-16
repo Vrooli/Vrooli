@@ -5,13 +5,14 @@ import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { organizationValidator } from "./organization";
 import { projectValidator } from "./project";
 import { routineValidator } from "./routine";
 import { standardValidator } from "./standard";
+import { oneIsPublic } from "./utils";
 
 export const resourceListFormatter = (): FormatConverter<ResourceList, any> => ({
     relationshipMap: {
@@ -20,7 +21,15 @@ export const resourceListFormatter = (): FormatConverter<ResourceList, any> => (
     },
 })
 
-export const resourceListValidator = (): Validator<ResourceListCreateInput, ResourceListUpdateInput, ResourceList, any, Prisma.resource_listSelect, Prisma.resource_listWhereInput> => ({
+export const resourceListValidator = (): Validator<
+    ResourceListCreateInput,
+    ResourceListUpdateInput,
+    ResourceList,
+    Prisma.resource_listGetPayload<{ select: { [K in keyof Required<Prisma.resource_listSelect>]: true } }>,
+    any,
+    Prisma.resource_listSelect,
+    Prisma.resource_listWhereInput
+> => ({
     validateMap: {
         __typename: 'ResourceList',
         // api: 'Api',
@@ -45,7 +54,23 @@ export const resourceListValidator = (): Validator<ResourceListCreateInput, Reso
             // ['userSchedule', 'UserSchedule'],
         ])
     },
-    permissionsFromSelect: (select, userId) => asdf as any,
+    permissionResolvers: (data, userId) => {
+        const isOwner = userId && (data.userSchedule?.user?.id === userId || checkorgownership);
+        return [
+            ['canDelete', async () => isOwner],
+            ['canEdit', async () => isOwner],
+        ]
+    },
+    isPublic: (data) => oneIsPublic<Prisma.resource_listSelect>(data, [
+        // ['apiVersion', 'Api'],
+        ['organization', 'Organization'],
+        // ['post', 'Post'],
+        ['project', 'Project'],
+        ['routineVersion', 'Routine'],
+        // ['smartContractVersion', 'SmartContract'],
+        ['standardVersion', 'Standard'],
+        // ['userSchedule', 'UserSchedule'],
+    ]),
     ownerOrMemberWhere: (userId) => ({
         OR: [
             // { apiVersion: apiValidator().ownerOrMemberWhere(userId) },
@@ -90,7 +115,7 @@ export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
     },
 })
 
-export const resourceListMutater = (prisma: PrismaType) => ({
+export const resourceListMutater = (prisma: PrismaType): Mutater<ResourceList> => ({
     shapeBase(userId: string, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) {
         return {
             id: data.id,

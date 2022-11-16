@@ -12,7 +12,7 @@ import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../schema
 import { User, ViewSearchInput, Count } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "./actions";
-import { FormatConverter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, Searcher } from "./types";
+import { FormatConverter, GraphQLModelType, ModelLogic, Mutater, PartialGraphQLInfo, Searcher } from "./types";
 
 export interface View {
     __typename?: 'View';
@@ -154,7 +154,7 @@ const viewQuerier = (prisma: PrismaType) => ({
  * A user may view their own objects, but it does not count towards its view count.
  * @returns True if view updated correctly
  */
-const viewMutater = (prisma: PrismaType) => ({
+const viewMutater = (prisma: PrismaType): Mutater<View> => ({
     async view(userId: string, input: ViewInput): Promise<boolean> {
         // Define prisma type for viewed object
         const prismaFor = (prisma[forMapper[input.viewFor] as keyof PrismaType] as any);

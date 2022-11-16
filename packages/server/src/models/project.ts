@@ -10,11 +10,11 @@ import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
 import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
-import { getPermissions } from "./utils";
+import { getPermissions, oneIsPublic } from "./utils";
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -112,7 +112,15 @@ export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
     },
 })
 
-export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateInput, Project, ProjectPermission, Prisma.projectSelect, Prisma.projectWhereInput> => ({
+export const projectValidator = (): Validator<
+    ProjectCreateInput,
+    ProjectUpdateInput,
+    Project,
+    Prisma.projectGetPayload<{ select: { [K in keyof Required<Prisma.projectSelect>]: true } }>,
+    ProjectPermission,
+    Prisma.projectSelect,
+    Prisma.projectWhereInput
+> => ({
     validateMap: {
         __typename: 'Project',
         asdfasdf
@@ -127,7 +135,23 @@ export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateI
             ['organization', 'Organization']
         ])
     },
-    permissionsFromSelect: (select, userId) => asdf as any,
+    permissionResolvers: (data, userId) => {
+        const isOwner = userId && (data.user?.id === userId || checkorgownership);
+        const isPublic = projectValidator().isPublic(data);
+        return [
+            ['canComment', async () => isOwner || isPublic],
+            ['canDelete', async () => isOwner],
+            ['canEdit', async () => isOwner],
+            ['canReport', async () => !isOwner && isPublic],
+            ['canStar', async () => isOwner || isPublic],
+            ['canView', async () => isOwner || isPublic],
+            ['canVote', async () => isOwner || isPublic],
+        ]
+    },
+    isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
+        ['organization', 'Organization'],
+        ['user', 'User'],
+    ]),
     ownerOrMemberWhere: (userId) => ({
         OR: [
             organizationQuerier().hasRoleInOrganizationQuery(userId),
@@ -139,7 +163,7 @@ export const projectValidator = (): Validator<ProjectCreateInput, ProjectUpdateI
 })
 
 
-export const projectMutater = (prisma: PrismaType) => ({
+export const projectMutater = (prisma: PrismaType): Mutater<Project> => ({
     async shapeBase(userId: string, data: ProjectCreateInput | ProjectUpdateInput) {
         return {
             id: data.id,
@@ -169,9 +193,6 @@ export const projectMutater = (prisma: PrismaType) => ({
             user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
         }
     },
-    /**
-     * Performs adds, updates, and deletes of projects. First validates that every action is allowed.
-     */
     async cud(params: CUDInput<ProjectCreateInput, ProjectUpdateInput>): Promise<CUDResult<Project>> {
         return cudHelper({
             ...params,

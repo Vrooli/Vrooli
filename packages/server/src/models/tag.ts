@@ -6,7 +6,7 @@ import { TranslationModel } from "./translation";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from "../schema/types";
 import {  PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 
@@ -68,7 +68,7 @@ export const tagVerifier = () => ({
     },
 })
 
-export const tagMutater = (prisma: PrismaType) => ({
+export const tagMutater = (prisma: PrismaType): Mutater<Tag> => ({
     shapeBase(userId: string | null, data: TagCreateInput | TagUpdateInput) {
         return {
             tag: data.tag,

@@ -1,13 +1,13 @@
 import { resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@shared/validation";
 import { ResourceSortBy } from "@shared/consts";
-import { combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper, RelationshipTypes } from "./builder";
+import { combineQueries, getSearchStringQueryHelper, permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
 import { TranslationModel } from "./translation";
-import { organizationQuerier } from "./organization";
 import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
+import { resourceListValidator } from "./resourceList";
 
 export const resourceFormatter = (): FormatConverter<Resource, any> => ({
     relationshipMap: { __typename: 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
@@ -45,17 +45,33 @@ export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
     },
 })
 
-// TODO create proper permissioner
-export const resourcePermissioner = () => ({
-    ownershipQuery: (userId: string) => ({
-        OR: [
-            organizationQuerier().hasRoleInOrganizationQuery(userId),
-            { user: { id: userId } }
-        ]
-    })
+export const resourceValidator = (): Validator<
+    ResourceCreateInput,
+    ResourceUpdateInput,
+    Resource,
+    Prisma.resourceGetPayload<{ select: { [K in keyof Required<Prisma.resourceSelect>]: true } }>,
+    any,
+    Prisma.resourceSelect,
+    Prisma.resourceWhereInput
+> => ({
+    validateMap: {
+        __typename: 'Resource',
+        list: 'ResourceList',
+    },
+    permissionsSelect: {
+        id: true,
+        ...permissionsSelectHelper([
+            ['list', 'ResourceList'],
+        ])
+    },
+    permissionResolvers: (data, userId) => resourceListValidator().permissionResolvers(data.list as any, userId),
+    isPublic: (data) => resourceListValidator().isPublic(data.list as any),
+    ownerOrMemberWhere: (userId) => ({
+        list: resourceListValidator().ownerOrMemberWhere(userId),
+    }),
 })
 
-export const resourceMutater = (prisma: PrismaType) => ({
+export const resourceMutater = (prisma: PrismaType): Mutater<Resource> => ({
     shapeBase(userId: string, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) {
         return {
             id: data.id,
@@ -120,4 +136,5 @@ export const ResourceModel = ({
     mutate: resourceMutater,
     search: resourceSearcher(),
     type: 'Resource' as GraphQLModelType,
+    validate: resourceValidator();
 })

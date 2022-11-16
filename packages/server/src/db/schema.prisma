@@ -1831,6 +1831,7 @@ model user {
     confirmationCode               String?              @unique @db.VarChar(256)
     confirmationCodeDate           DateTime?            @db.Timestamptz(6)
     invitedByUserId                String?              @db.Uuid
+    isPrivate                      Boolean              @default(false)
     lastExport                     DateTime?            @db.Timestamptz(6)
     lastLoginAttempt               DateTime             @default(now()) @db.Timestamptz(6)
     lastResetPasswordReqestAttempt DateTime?            @db.Timestamptz(6)

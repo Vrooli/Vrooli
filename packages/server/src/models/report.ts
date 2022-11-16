@@ -3,7 +3,7 @@ import { ReportFor, ReportSortBy } from '@shared/consts';
 import { combineQueries, getSearchStringQueryHelper } from "./builder";
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
@@ -59,16 +59,25 @@ export const reportSearcher = (): Searcher<ReportSearchInput> => ({
     },
 })
 
-export const reportValidator = (): Validator<ReportCreateInput, ReportUpdateInput, Report, any, Prisma.reportSelect, Prisma.reportWhereInput> => ({
+export const reportValidator = (): Validator<
+    ReportCreateInput,
+    ReportUpdateInput,
+    Report,
+    Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>,
+    any,
+    Prisma.reportSelect,
+    Prisma.reportWhereInput
+> => ({
     validateMap: {
         __typename: 'Report',
         asdfasdf
     },
-    permissionsSelect: { 
-        id: true, 
+    permissionsSelect: {
+        id: true,
         user: { select: { id: true } },
     },
     permissionsFromSelect: (select, userId) => asdf as any,
+    isPublic: () => true,
     // // TODO not sure if report should have profanity check, since someone might 
     // // just be trying to submit a report for a profane word
     // profanityCheck(data: (ReportCreateInput | ReportUpdateInput)[]): void {
@@ -81,17 +90,17 @@ export const reportValidator = (): Validator<ReportCreateInput, ReportUpdateInpu
     // Make sure user has only one report on object
 })
 
-const forMapper = {
-    [ReportFor.Comment]: 'comment',
-    [ReportFor.Organization]: 'organization',
-    [ReportFor.Project]: 'project',
-    [ReportFor.Routine]: 'routine',
-    [ReportFor.Standard]: 'standard',
-    [ReportFor.Tag]: 'tag',
-    [ReportFor.User]: 'user',
+const forMapper: { [key in ReportFor]: string } = {
+    Comment: 'comment',
+    Organization: 'organization',
+    Project: 'project',
+    Routine: 'routine',
+    Standard: 'standard',
+    Tag: 'tag',
+    User: 'user',
 }
 
-export const reportMutater = (prisma: PrismaType) => ({
+export const reportMutater = (prisma: PrismaType): Mutater<Report> => ({
     async shapeCreate(userId: string, data: ReportCreateInput): Promise<Prisma.reportUpsertArgs['create']> {
         return {
             id: data.id,

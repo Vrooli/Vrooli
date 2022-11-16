@@ -4,7 +4,7 @@ import { nodeRoutineListItemTranslationCreate, nodeRoutineListItemTranslationUpd
 import { PrismaType } from "../types";
 import { RoutineModel } from "./routine";
 import { TranslationModel } from "./translation";
-import { FormatConverter, GraphQLModelType } from "./types";
+import { FormatConverter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 
 export const nodeRoutineListFormatter = (): FormatConverter<NodeRoutineList, any> => ({
@@ -17,7 +17,7 @@ export const nodeRoutineListFormatter = (): FormatConverter<NodeRoutineList, any
     },
 })
 
-export const nodeRoutineListMutater = (prisma: PrismaType) => ({
+export const nodeRoutineListMutater = (prisma: PrismaType): Mutater<NodeRoutineList> => ({
     async shapeCreate(userId: string, data: NodeRoutineListCreateInput): Promise<Prisma.node_routine_listCreateNestedOneWithoutNodeInput['create']> {
         return {
             id: data.id,

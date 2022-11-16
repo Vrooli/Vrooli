@@ -1,9 +1,9 @@
 import { runInputsCreate, runInputsUpdate } from "@shared/validation";
-import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
+import { relationshipBuilderHelper } from "./builder";
 import { RunInput, RunInputCreateInput, RunInputUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 
@@ -65,7 +65,7 @@ export const runInputVerifier = () => ({
 /**
  * Handles mutations of run inputs
  */
-export const runInputMutater = (prisma: PrismaType) => ({
+export const runInputMutater = (prisma: PrismaType): Mutater<RunInput> => ({
     shapeRelationshipCreate(userId: string, data: RunInputCreateInput): Prisma.run_inputUncheckedCreateWithoutRunInput {
         return {
             id: data.id,
@@ -104,9 +104,6 @@ export const runInputMutater = (prisma: PrismaType) => ({
             userId,
         });
     },
-    /**
-     * Performs adds, updates, and deletes of inputs. First validates that every action is allowed.
-     */
     async cud(params: CUDInput<RunInputCreateInput & { runId: string }, RunInputUpdateInput>): Promise<CUDResult<RunInput>> {
         return cudHelper({
             ...params,

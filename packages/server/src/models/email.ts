@@ -4,7 +4,7 @@ import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { relationshipBuilderHelper } from "./builder";
 import { CustomError, genErrorCode } from "../events";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, ModelLogic } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, ModelLogic, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { Prisma } from "@prisma/client";
 
@@ -15,20 +15,29 @@ export const emailFormatter = (): FormatConverter<Email, any> => ({
     }
 })
 
-export const emailValidator = (): Validator<EmailCreateInput, EmailUpdateInput, Email, any, Prisma.emailSelect, Prisma.emailWhereInput> => ({
+export const emailValidator = (): Validator<
+    EmailCreateInput,
+    EmailUpdateInput,
+    Email,
+    Prisma.emailGetPayload<{ select: { [K in keyof Required<Prisma.emailSelect>]: true } }>,
+    any,
+    Prisma.emailSelect,
+    Prisma.emailWhereInput
+> => ({
     validateMap: {
         __typename: 'Email',
         user: 'User',
     },
     permissionsSelect: { user: { select: { id: true } } },
     permissionResolvers: (data, userId) => {
-        const isOwner = userId && data.user.id === userId;
+        const isOwner = userId && data.user?.id === userId;
         return [
             ['canDelete', async () => isOwner],
             ['canEdit', async () => isOwner],
         ]
     },
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
+    isPublic: () => false,
     profanityFields: ['emailAddress'],
     validations: {
         create: async (createMany, prisma) => {
@@ -54,7 +63,7 @@ export const emailValidator = (): Validator<EmailCreateInput, EmailUpdateInput, 
     }
 })
 
-export const emailMutater = (prisma: PrismaType) => ({
+export const emailMutater = (prisma: PrismaType): Mutater<Email> => ({
     shapeCreate(userId: string, data: EmailCreateInput): Prisma.emailUpsertArgs['create'] {
         return {
             userId,

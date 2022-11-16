@@ -15,9 +15,9 @@ import { CustomError, genErrorCode, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy } from "../schema/types";
 import { PrismaType } from "../types";
 import { cudHelper } from "./actions";
-import { FormatConverter, PartialGraphQLInfo, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator } from "./types";
+import { FormatConverter, PartialGraphQLInfo, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { getPermissions } from "./utils";
+import { getPermissions, oneIsPublic } from "./utils";
 
 type NodeWeightData = {
     simplicity: number,
@@ -186,7 +186,15 @@ export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
     },
 })
 
-export const routineValidator = (): Validator<RoutineCreateInput, RoutineUpdateInput, Routine, RoutinePermission, Prisma.routine_versionSelect, Prisma.routine_versionWhereInput> => ({
+export const routineValidator = (): Validator<
+    RoutineCreateInput,
+    RoutineUpdateInput,
+    Routine,
+    Prisma.routine_versionGetPayload<{ select: { [K in keyof Required<Prisma.routine_versionSelect>]: true } }>,
+    RoutinePermission,
+    Prisma.routine_versionSelect,
+    Prisma.routine_versionWhereInput
+> => ({
     validateMap: {
         __typename: 'Routine',
         fasdfasd
@@ -208,6 +216,14 @@ export const routineValidator = (): Validator<RoutineCreateInput, RoutineUpdateI
         }
     },
     permissionsFromSelect: (select, userId) => asdf as any,
+    isPublic: (data) => data.isPrivate === false &&
+        data.isDeleted === false &&
+        data.root?.isDeleted === false &&
+        data.root?.isInternal === false &&
+        data.root?.isPrivate === false && oneIsPublic<Prisma.routineSelect>(data.root, [
+            ['organization', 'Organization'],
+            ['user', 'User'],
+        ]),
     // if (createMany) {
     //     createMany.forEach(input => this.validateNodePositions(input));
     // }
@@ -300,7 +316,7 @@ export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: Node
 /**
  * Handles authorized creates, updates, and deletes
  */
-export const routineMutater = (prisma: PrismaType) => ({
+export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
     /**
      * Calculates the maximum and minimum complexity of a routine based on the number of steps. 
      * Simplicity is a the minimum number of inputs and decisions required to complete the routine, while 

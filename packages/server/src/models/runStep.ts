@@ -4,7 +4,7 @@ import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
 import { RunStep, RunStepCreateInput, RunStepUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType } from "./types";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 
@@ -26,7 +26,7 @@ export const runStepVerifier = () => ({
 /**
  * Handles mutations of run steps
  */
-export const runStepMutater = (prisma: PrismaType) => ({
+export const runStepMutater = (prisma: PrismaType): Mutater<RunStep> => ({
     shapeBase(userId: string, data: RunStepCreateInput | RunStepUpdateInput) {
         return {
             id: data.id,
@@ -77,9 +77,6 @@ export const runStepMutater = (prisma: PrismaType) => ({
             userId,
         });
     },
-    /**
-     * Performs adds, updates, and deletes of steps. First validates that every action is allowed.
-     */
     async cud(params: CUDInput<RunStepCreateInput & { runId: string }, RunStepUpdateInput>): Promise<CUDResult<RunStep>> {
         return cudHelper({
             ...params,

@@ -7,7 +7,7 @@ import { VoteModel } from "./vote";
 import { TranslationModel } from "./translation";
 import { ViewModel } from "./view";
 import { ResourceListModel } from "./resourceList";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, Searcher, Validator } from "./types";
+import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/walletAuth";
 import { CustomError, genErrorCode } from "../events";
 import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, Count } from "../schema/types";
@@ -15,7 +15,6 @@ import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { deleteOneHelper } from "./actions";
 import { Prisma } from "@prisma/client";
-import { AnyAaaaRecord } from "dns";
 import { getPermissions } from "./utils";
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
@@ -122,18 +121,59 @@ export const standardSearcher = (): Searcher<StandardSearchInput> => ({
     },
 })
 
-export const standardValidator = (): Validator<StandardCreateInput, StandardUpdateInput, Standard, StandardPermission, Prisma.standard_versionSelect, Prisma.standard_versionWhereInput> => ({
+export const standardValidator = (): Validator<
+    StandardCreateInput,
+    StandardUpdateInput,
+    Standard,
+    Prisma.standard_versionGetPayload<{ select: { [K in keyof Required<Prisma.standard_versionSelect>]: true } }>,
+    StandardPermission,
+    Prisma.standard_versionSelect,
+    Prisma.standard_versionWhereInput
+> => ({
+    validateMap: {
+        __typename: 'Standard',
+        asdfasdf
+    },
     permissionsSelect: {
-        id: true, root: {
+        id: true,
+        isComplete: true,
+        isPrivate: true,
+        isDeleted: true,
+        root: {
             select: {
+                isInternal: true,
+                isPrivate: true,
+                isDeleted: true,
                 permissions: true,
                 user: { select: { id: true } },
                 organization: { select: { id: true, permissions: true } }
             }
         }
     },
-    permissionsFromSelect: (select, userId) => asdf as any,
+    permissionResolvers: (data, userId) => {
+        const isOwner = userId && (data.user?.id === userId || checkorgownership);
+        const isPublic = standardValidator().isPublic(data);
+        const isDeleted = asdfas;
+        return [
+            ['canComment', async () => !isDeleted && (isOwner || isPublic)],
+            ['canDelete', async () => isOwner && !isDeleted],
+            ['canEdit', async () => isOwner && !isDeleted],
+            ['canReport', async () => !isOwner && !isDeleted && isPublic],
+            ['canStar', async () => !isDeleted && (isOwner || isPublic)],
+            ['canView', async () => !isDeleted && (isOwner || isPublic)],
+            ['canVote', async () => !isDeleted && (isOwner || isPublic)],
+        ]
+    },
+    isPublic: (data) => data.isPrivate === false &&
+        data.isDeleted === false &&
+        data.root?.isDeleted === false &&
+        data.root?.isInternal === false &&
+        data.root?.isPrivate === false && oneIsPublic<Prisma.routineSelect>(data.root, [
+            ['organization', 'Organization'],
+            ['user', 'User'],
+        ]),
     profanityFields: ['name'],
+    ownerOrMemberWhere: (userId) => asdf as any,
 })
 
 export const standardQuerier = (prisma: PrismaType) => ({
@@ -236,7 +276,7 @@ export const standardQuerier = (prisma: PrismaType) => ({
     }
 })
 
-export const standardMutater = (prisma: PrismaType) => ({
+export const standardMutater = (prisma: PrismaType): Mutater<Standard> => ({
     async shapeBase(userId: string, data: StandardCreateInput | StandardUpdateInput) {
         return {
             root: {
@@ -313,7 +353,7 @@ export const standardMutater = (prisma: PrismaType) => ({
                     user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
                 },
             },
-        } as AnyAaaaRecord
+        }
     },
     /**
      * Add, update, or remove a one-to-one standard relationship. 

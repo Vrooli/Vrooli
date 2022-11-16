@@ -1,9 +1,9 @@
 import { tagHiddensCreate, tagHiddensUpdate } from "@shared/validation";
-import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
+import { relationshipBuilderHelper } from "./builder";
 import { TagModel } from "./tag";
 import { TagHidden, TagHiddenCreateInput, TagHiddenUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 
@@ -13,7 +13,7 @@ export const tagHiddenFormatter = (): FormatConverter<TagHidden, any> => ({
     },
 })
 
-export const tagHiddenMutater = (prisma: PrismaType) => ({
+export const tagHiddenMutater = (prisma: PrismaType): Mutater<TagHidden> => ({
     async shapeBase(userId: string, data: TagHiddenCreateInput | TagHiddenUpdateInput) {
         // Tags are built as many-to-many, but in this case we want a one-to-one relationship. 
         // So we must modify the data a bit.

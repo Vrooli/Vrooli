@@ -319,7 +319,6 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         return nad('Standards god', 'Create 50 standards');
     },
     UserInvite: (count: number) => {
-        //[1, 5, 10, 25, 50, 100]
         if (count < 5) return nad('Spread the word', 'Invited user joined the platform');
         if (count < 10) return nad('Word of mouth', '5 invited users joined the platform');
         if (count < 25) return nad('Popular', '10 invited users joined the platform');

@@ -1,13 +1,13 @@
 import { runsCreate, runsUpdate } from "@shared/validation";
 import { CODE, RunSortBy } from "@shared/consts";
-import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, getSearchStringQueryHelper, combineQueries } from "./builder";
+import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, getSearchStringQueryHelper, combineQueries, permissionsSelectHelper } from "./builder";
 import { RunStepModel } from "./runStep";
 import { Prisma, run, RunStatus } from "@prisma/client";
 import { RunInputModel } from "./runInput";
 import { CustomError, genErrorCode, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { routineValidator } from "./routine";
 
@@ -69,13 +69,32 @@ export const runSearcher = (): Searcher<RunSearchInput> => ({
     },
 })
 
-export const runValidator = (): Validator<RunCreateInput, RunUpdateInput, Run, RunPermission, Prisma.runSelect, Prisma.runWhereInput> => ({
+export const runValidator = (): Validator<
+    RunCreateInput,
+    RunUpdateInput,
+    Run,
+    Prisma.runGetPayload<{ select: { [K in keyof Required<Prisma.runSelect>]: true } }>,
+    RunPermission,
+    Prisma.runSelect,
+    Prisma.runWhereInput
+> => ({
     validateMap: {
         __typename: 'Run',
         asdffasdf
     },
-    permissionsSelect: { id: true, routineVersion: { select: routineValidator().permissionsSelect } },
+    permissionsSelect: { 
+        id: true, 
+        ...permissionsSelectHelper([
+            ['organization', 'Organization'],
+            ['routineVersion', 'Routine'],
+            ['user', 'User'],
+        ])
+    },
     permissionsFromSelect: (select, userId) => asdf as any,
+    isPublic: (data) => data.isPrivate === false && ownOne<Prisma.runSelect>(data, [
+        ['organization', 'Organization'],
+        ['user', 'User'],
+    ]),
     // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
     //     validateProfanity(data.map((d: any) => d.title));
     // },
@@ -87,7 +106,7 @@ export const runValidator = (): Validator<RunCreateInput, RunUpdateInput, Run, R
 /**
  * Handles run instances of routines
  */
-export const runMutater = (prisma: PrismaType) => ({
+export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
     async shapeCreate(userId: string, data: RunCreateInput): Promise<Prisma.runUpsertArgs['create']> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
@@ -109,9 +128,6 @@ export const runMutater = (prisma: PrismaType) => ({
             inputs: await RunInputModel.mutate(prisma).relationshipBuilder(userId, data, false),
         }
     },
-    /**
-     * Performs adds, updates, and deletes of runs. First validates that every action is allowed.
-     */
     async cud(params: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
         return cudHelper({
             ...params,

@@ -191,6 +191,7 @@ export type Validator<
     GQLCreate extends { [x: string]: any },
     GQLUpdate extends { [x: string]: any },
     GQLModel extends { [x: string]: any },
+    PrismaObject extends { [x: string]: any },
     PermissionObject extends BasePermissions,
     PermissionsSelect extends { [x: string]: any },
     OwnerOrMemberWhere extends { [x: string]: any }
@@ -220,12 +221,16 @@ export type Validator<
     /**
      * Array of resolvers to calculate the object's permissions
      */
-    permissionResolvers: (data: { [x: string]: any }, userId: string | null) => [keyof Exclude<PermissionObject, '__typename'>, () => any][];
+    permissionResolvers: (data: PrismaObject, userId: string | null) => [keyof Exclude<PermissionObject, '__typename'>, () => any][];
     /**
      * Partial where query added to the object's search query. Useful when querying things like an organization's routines, 
      * where you should only see private routines if you are a member of the organization
      */
     ownerOrMemberWhere: (userId: string) => OwnerOrMemberWhere;
+    /**
+     * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false
+     */
+    isPublic: (data: PrismaObject) => boolean;
     /**
      * String fields which must be checked for profanity. You don't need to 
      * include fields in a translate object, as those will be checked

@@ -80,7 +80,15 @@ export const commentSearcher = (): Searcher<CommentSearchInput> => ({
     },
 })
 
-export const commentValidator = (): Validator<CommentCreateInput, CommentUpdateInput, Comment, CommentPermission, Prisma.commentSelect, Prisma.commentWhereInput> => ({
+export const commentValidator = (): Validator<
+    CommentCreateInput,
+    CommentUpdateInput,
+    Comment,
+    Prisma.commentGetPayload<{ select: { [K in keyof Required<Prisma.commentSelect>]: true } }>,
+    CommentPermission,
+    Prisma.commentSelect,
+    Prisma.commentWhereInput
+> => ({
     validateMap: {
         __typename: 'Comment',
         user: 'User',
@@ -104,29 +112,30 @@ export const commentValidator = (): Validator<CommentCreateInput, CommentUpdateI
         ])
     },
     permissionResolvers: (data, userId) => {
-        const isOwner = userId && (data.user.id === userId || checkorgownership);
-        const isPublic = oneIsPublic<Prisma.commentSelect>(data, [
-            // ['apiVersion', 'Api'],
-            // ['issue', 'Issue'],
-            // ['post', 'Post'],
-            ['project', 'Project'],
-            // ['pullRequest', 'PullRequest'],
-            // ['question', 'Question'],
-            // ['questionAnswer', 'QuestionAnswer'],
-            ['routineVersion', 'Routine'],
-            // ['smartContractVersion', 'SmartContract'],
-            ['standardVersion', 'Standard'],
-        ])
+        const isOwner = userId && (data.user?.id === userId || checkorgownership);
+        const isPublic = commentValidator().isPublic(data);
         return [
             ['canDelete', async () => isOwner],
             ['canEdit', async () => isOwner],
             ['canReply', async () => isOwner || isPublic],
-            ['canReport', async () => !isOwner || isPublic],
+            ['canReport', async () => !isOwner && isPublic],
             ['canStar', async () => isOwner || isPublic],
             ['canView', async () => isOwner || isPublic],
             ['canVote', async () => isOwner || isPublic],
         ]
     },
+    isPublic: (data) => oneIsPublic<Prisma.commentSelect>(data, [
+        // ['apiVersion', 'Api'],
+        // ['issue', 'Issue'],
+        // ['post', 'Post'],
+        ['project', 'Project'],
+        // ['pullRequest', 'PullRequest'],
+        // ['question', 'Question'],
+        // ['questionAnswer', 'QuestionAnswer'],
+        ['routineVersion', 'Routine'],
+        // ['smartContractVersion', 'SmartContract'],
+        ['standardVersion', 'Standard'],
+    ]),
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
 })
 

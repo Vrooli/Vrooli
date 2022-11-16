@@ -6,7 +6,7 @@ import { getValidator } from "./getValidator";
  * This typically means that one of the fields has a non-null value with "isPrivate" and "isDeleted" set to false.
  */
 export const oneIsPublic = <PrismaSelect extends { [x: string]: any }>(
-    permissionsData: { [x: string]: any },
+    permissionsData: { [key in keyof PrismaSelect]: any },
     list: [keyof PrismaSelect, GraphQLModelType][],
 ): boolean => {
     // Loop through each field in the list

@@ -6,7 +6,7 @@ import { Vote, VoteInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { readManyHelper } from "./actions";
 import { ObjectMap, onlyValidIds } from "./builder";
-import { FormatConverter, GraphQLModelType, ModelLogic, PartialGraphQLInfo } from "./types";
+import { FormatConverter, GraphQLModelType, ModelLogic, Mutater, PartialGraphQLInfo } from "./types";
 
 export const voteFormatter = (): FormatConverter<Vote, 'to'> => ({
     relationshipMap: {
@@ -72,12 +72,12 @@ export const voteFormatter = (): FormatConverter<Vote, 'to'> => ({
     },
 })
 
-const forMapper = {
-    [VoteFor.Comment]: 'comment',
-    [VoteFor.Project]: 'project',
-    [VoteFor.Routine]: 'routine',
-    [VoteFor.Standard]: 'standard',
-    [VoteFor.Tag]: 'tag',
+const forMapper: { [key in VoteFor]: string } = {
+    Comment: 'comment',
+    Project: 'project',
+    Routine: 'routine',
+    Standard: 'standard',
+    Tag: 'tag',
 }
 
 /**
@@ -85,7 +85,7 @@ const forMapper = {
  * A user may vote on their own project/routine/etc.
  * @returns True if cast correctly (even if skipped because of duplicate)
  */
-const voteMutater = (prisma: PrismaType) => ({
+const voteMutater = (prisma: PrismaType): Mutater<Vote> => ({
     async vote(userId: string, input: VoteInput): Promise<boolean> {
         // Define prisma type for voted-on object
         const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);

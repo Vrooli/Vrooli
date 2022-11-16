@@ -8,7 +8,7 @@ import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
 import { getPermissions } from "./utils";
@@ -86,7 +86,15 @@ export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
     },
 })
 
-export const organizationValidator = (): Validator<OrganizationCreateInput, OrganizationUpdateInput, Organization, OrganizationPermission, Prisma.organizationSelect, Prisma.organizationWhereInput> => ({
+export const organizationValidator = (): Validator<
+    OrganizationCreateInput,
+    OrganizationUpdateInput,
+    Organization,
+    Prisma.organizationGetPayload<{ select: { [K in keyof Required<Prisma.organizationSelect>]: true } }>,
+    OrganizationPermission,
+    Prisma.organizationSelect,
+    Prisma.organizationWhereInput
+> => ({
     validateMap: {
         __typename: 'Organization',
         members: 'Member',
@@ -95,7 +103,20 @@ export const organizationValidator = (): Validator<OrganizationCreateInput, Orga
         wallets: 'Wallet',
     },
     permissionsSelect: { id: true, isOpenToNewMembers: true, isPrivate: true, permissions: true },
-    permissionsFromSelect: (select, userId) => asdf as any,
+    permissionResolvers: (data, userId) => {
+        const isOwner = fdsfdsafdsaf;
+        const isPublic = organizationValidator().isPublic(data);
+        return [
+            ['canAddMembers', async () => isOwner],
+            ['canDelete', async () => isOwner],
+            ['canEdit', async () => isOwner],
+            ['canReport', async () => !isOwner && isPublic],
+            ['canStar', async () => isOwner || isPublic],
+            ['canView', async () => isOwner || isPublic],
+            ['isMember', async () => asdf],
+        ]
+    },
+    isPublic: (data) => data.isPrivate === false,
     ownerOrMemberWhere: (userId) => organizationQuerier().hasRoleInOrganizationQuery(userId).organization,
     // if (!createMany && !updateMany && !deleteMany) return;
     // if (createMany) {
@@ -149,7 +170,7 @@ export const organizationQuerier = () => ({
     },
 })
 
-export const organizationMutater = (prisma: PrismaType) => ({
+export const organizationMutater = (prisma: PrismaType): Mutater<Organization> => ({
     async shapeBase(userId: string, data: OrganizationCreateInput | OrganizationUpdateInput) {
         return {
             id: data.id,
@@ -179,9 +200,6 @@ export const organizationMutater = (prisma: PrismaType) => ({
             ...this.shapeBase(userId, data),
         }
     },
-    /**
-     * Performs adds, updates, and deletes of organizations. First validates that every action is allowed.
-     */
     async cud(params: CUDInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<CUDResult<Organization>> {
         return cudHelper({
             ...params,

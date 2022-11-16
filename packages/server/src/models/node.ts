@@ -4,7 +4,7 @@ import { nodeTranslationCreate, nodeTranslationUpdate, nodesCreate, nodesUpdate 
 import { PrismaType } from "../types";
 import { TranslationModel } from "./translation";
 import { NodeRoutineListModel } from "./nodeRoutineList";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { routineValidator } from "./routine";
 import { cudHelper } from "./actions";
@@ -26,7 +26,15 @@ export const nodeFormatter = (): FormatConverter<Node, any> => ({
     },
 })
 
-export const nodeValidator = (): Validator<NodeCreateInput, NodeUpdateInput, Node, any, Prisma.nodeSelect, Prisma.nodeWhereInput> => ({
+export const nodeValidator = (): Validator<
+    NodeCreateInput,
+    NodeUpdateInput,
+    Node,
+    Prisma.nodeGetPayload<{ select: { [K in keyof Required<Prisma.nodeSelect>]: true } }>,
+    any,
+    Prisma.nodeSelect,
+    Prisma.nodeWhereInput
+> => ({
     validateMap: {
         __typename: 'Node',
         routine: 'Routine',
@@ -49,6 +57,7 @@ export const nodeValidator = (): Validator<NodeCreateInput, NodeUpdateInput, Nod
             }
         }
     }),
+    isPublic: (data) => routineValidator().isPublic(data.routineVersion as any),
     validations: {
         create: async (createMany, prisma, userId, deltaAdding) => {
             if (createMany.length === 0) return;
@@ -65,7 +74,7 @@ export const nodeValidator = (): Validator<NodeCreateInput, NodeUpdateInput, Nod
     }
 })
 
-export const nodeMutater = (prisma: PrismaType) => ({
+export const nodeMutater = (prisma: PrismaType): Mutater<Node> => ({
     async toDBBase(userId: string, data: NodeCreateInput | NodeUpdateInput) {
         return {
             id: data.id,
@@ -207,9 +216,6 @@ export const nodeMutater = (prisma: PrismaType) => ({
             userId,
         })
     },
-    /**
-     * Performs adds, updates, and deletes of nodes. First validates that every action is allowed.
-     */
     async cud(params: CUDInput<NodeCreateInput, NodeUpdateInput>): Promise<CUDResult<Node>> {
         return cudHelper({
             ...params,
