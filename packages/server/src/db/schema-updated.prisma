@@ -51,3 +51,4 @@
 // 39. Node voting/waiting. Multi-role routines should allow members of certain roles to vote if a node is passed or failed. This will allow
 // for things like creating work proposals, where members can determine if the proposal is worth pursuing ✅
 // 40. Notifications for specific objects ✅
+// 41. Bounty system ⚠️

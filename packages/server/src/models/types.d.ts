@@ -1,6 +1,6 @@
 import { GraphQLResolveInfo } from "graphql";
 import { Count, PageInfo, SessionUser, TimeFrame } from "../schema/types";
-import { PrismaDelegate, PrismaType, RecursivePartial, SingleOrArray } from "../types";
+import { PrismaDelegate, PrismaType, RecursivePartial, ReplaceTypes, SingleOrArray } from "../types";
 import { ObjectSchema } from 'yup';
 import { prisma, Prisma } from "@prisma/client";
 
@@ -42,6 +42,21 @@ export type GraphQLModelType =
     'View' |
     'Vote' |
     'Wallet';
+
+/**
+ * Allows Prisma select fields to map to GraphQLModelTypes. Any field which can be 
+ * an object (e.g. a relation) should be able to specify either a GraphQLModelType or
+ * a nested ValidateMap
+ */
+export type ValidateMap<T> = {
+    // TODO allows too many fields. Should only allow relationships
+    [K in keyof T]?: GraphQLModelType | ValidateMap<T[K]>
+};
+
+/**
+ * Recursively pads object with "select" fields
+ */
+export type WithSelect<T> = { select: { [K in keyof T]: T[K] extends object ? WithSelect<T[K]> : true } };
 
 /**
  * Basic structure of an object's business layer.
@@ -105,7 +120,7 @@ export type PrismaSearch = {
 }
 
 type PrismaCreateInside = {
-    create?: SingleOrArray<{ 
+    create?: SingleOrArray<{
         [x: string]: boolean | string | number | PrismaCreateInside
     }>;
     connect?: SingleOrArray<{
@@ -155,7 +170,7 @@ export interface PrismaDelegate {
         select?: any;
     }) => Promise<{ [x: string]: any }>;
     delete: (args: { where: any }) => Promise<{ [x: string]: any }>;
-    deleteMany: (args: { where: any}) => Promise<{ count: number }>;
+    deleteMany: (args: { where: any }) => Promise<{ count: number }>;
     count: (args: {
         where: any;
         cursor?: any;
@@ -277,8 +292,8 @@ export type Validator<
     OwnerOrMemberWhere extends { [x: string]: any }
 > = {
     /**
-     * Relationships in the GQLCreate, GQLUpdate, or GQLModel object which have separate/additional 
-     * validation rules. Typically any selectable relationship which can lead to a different owner. 
+     * Maps relationsips on the object's database schema to the corresponding GraphQL type,
+     * if they require validation
      * 
      * Examples include: 
      * routine -> organization
@@ -287,11 +302,8 @@ export type Validator<
      * 
      * Examples when this is not needed:
      * project -> resourceList
-     * 
-     * NOTE: Will automatically handle checking fields with the "Id", "Create", "Update", or "Delete" suffix, 
-     * as well as deconstructing unions (e.g. 'creator': { 'user': 'User', 'organization': 'Organization' } will check 'creator', 'user', 'userId', etc.)
      */
-    validateMap: { [key in keyof (GQLCreate & GQLUpdate & PartialPrismaSelect)]?: GraphQLModelType | { [x: string]: GraphQLModelType } } & { __typename: GraphQLModelType };
+    validateMap: { __typename: GraphQLModelType } & ValidateMap<PermissionsSelect>;
     /**
      * Select query to calculate the object's permissions. This will be used - possibly in 
      * conjunction with the parent object's permissions (also queried in this field) - to determine if you 
@@ -311,6 +323,10 @@ export type Validator<
      * Uses query result to determine if the user has admin/owner privileges for the object
      */
     isAdmin: (data: PrismaObject, userId: string) => boolean;
+    /**
+     * Uses query result to determine if the object is soft-deleted
+     */
+    isDeleted: (data: PrismaObject) => boolean;
     /**
      * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false
      */

@@ -80,6 +80,7 @@ export const reportValidator = (): Validator<
         ]
     },
     isAdmin: (data, userId) => userValidator().isAdmin(data.user as any, userId),
+    isDeleted: () => false,
     isPublic: () => true,
     ownerOrMemberWhere: (userId) => ({ userId }),
     profanityFields: ['reason', 'details'],
@@ -123,7 +124,7 @@ export const reportMutater = (prisma: PrismaType): Mutater<Report> => ({
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {
                 for (const c of created) {
-                    Trigger(prisma).objectCreate('Report', c.id as string, params.userId);
+                    Trigger(prisma).objectCreate('Report', c.id as string, params.userData.id);
                 }
             },
         })

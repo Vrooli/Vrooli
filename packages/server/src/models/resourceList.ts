@@ -37,7 +37,7 @@ export const resourceListValidator = (): Validator<
         organization: 'Organization',
         // post: 'Post',
         project: 'Project',
-        routine: 'Routine',
+        routineVersion: 'Routine',
         // smartContract: 'SmartContract',
         // standard: 'Standard',
         // userSchedule: 'UserSchedule',
@@ -63,6 +63,7 @@ export const resourceListValidator = (): Validator<
         ]
     },
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => (d.userSchedule as any).user, userId),
+    isDeleted: () => false,
     isPublic: (data) => oneIsPublic<Prisma.resource_listSelect>(data, [
         // ['apiVersion', 'Api'],
         ['organization', 'Organization'],

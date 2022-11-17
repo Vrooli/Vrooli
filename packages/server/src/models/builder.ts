@@ -30,7 +30,7 @@ import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
-import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, SupplementalConverter } from './types';
+import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, SupplementalConverter, WithSelect } from './types';
 import { SessionUser, TimeFrame, VisibilityType } from '../schema/types';
 import { getValidator } from './utils';
 const { difference, flatten, merge } = pkg;
@@ -317,13 +317,13 @@ export const constructRelationshipsHelper = <GraphQLModel>(partialInfo: { [x: st
 /**
  * Adds "select" to the correct parts of an object to make it a Prisma select
  */
-export const padSelect = (fields: { [x: string]: any }): { [x: string]: any } => {
+export const padSelect = <T extends { [x: string]: any }>(fields: T): WithSelect<T> => {
     let converted: { [x: string]: any } = {};
     Object.keys(fields).forEach((key) => {
         if (Object.keys(fields[key]).length > 0) converted[key] = padSelect(fields[key]);
         else converted[key] = true;
     });
-    return { select: converted };
+    return { select: converted } as any;
 }
 
 /**

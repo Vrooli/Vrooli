@@ -73,6 +73,7 @@ export const tagValidator = (): Validator<
     permissionsSelect: () => ({ id: true }),
     permissionResolvers: () => [],
     isAdmin: () => false,
+    isDeleted: () => false,
     isPublic: () => true,
     profanityFields: ['tag'],
     ownerOrMemberWhere: () => ({}),

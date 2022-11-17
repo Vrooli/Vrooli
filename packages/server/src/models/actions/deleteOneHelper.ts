@@ -1,7 +1,7 @@
 import { CODE } from "@shared/consts";
+import { assertRequestFrom } from "../../auth/auth";
 import { CustomError, genErrorCode, Trigger } from "../../events";
 import { Success } from "../../schema/types";
-import { getUser } from "../builder";
 import { DeleteOneHelperProps } from "./types";
 
 /**
@@ -14,9 +14,7 @@ export async function deleteOneHelper({
     prisma,
     req,
 }: DeleteOneHelperProps): Promise<Success> {
-    const userData = getUser(req);
-    if (!userData)
-        throw new CustomError(CODE.Unauthorized, 'Must be logged in to delete object', { code: genErrorCode('0033') });
+    const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0034') });
     // Delete object. cud will check permissions

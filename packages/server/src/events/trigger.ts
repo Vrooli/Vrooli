@@ -3,11 +3,12 @@ import { ProfileModel } from "../models";
 import { GraphQLModelType } from "../models/types";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
-import { Award } from "./awards";
+import { Award, AwardCategory } from "./awards";
 
 export type ActionTrigger = 'AccountNew' |
     'ObjectComplete' | // except runs
     'ObjectCreate' |
+    'ObjectNewVersion' |
     'ObjectDelete' |
     'Fork' |
     'ObjectStar' |
@@ -21,6 +22,24 @@ export type ActionTrigger = 'AccountNew' |
     'RunStart' |
     'SessionValidate' | // for checking anniversary
     'UserInvite'
+
+/**
+ * Maps GraphQLModelTypes to "Create" award types
+ */
+const CreateAwardTypeMap: { [key in GraphQLModelType]?: AwardCategory } = {
+    // Api: 'ApiCreate',
+    Comment: 'CommentCreate',
+    // Issue: 'IssueCreate',
+    // Note: 'NoteCreate',
+    Organization: 'OrganizationCreate',
+    // Post: 'PostCreate',
+    Project: 'ProjectCreate',
+    // PullRequest: 'PullRequestCreate',
+    // Question: 'QuestionCreate',
+    Routine: 'RoutineCreate',
+    // SmartContract: 'SmartContractCreate',
+    Standard: 'StandardCreate',
+}
 
 /**
  * Handles logging, notifications, achievements, and more when some action is performed.
@@ -53,8 +72,22 @@ export const Trigger = (prisma: PrismaType) => ({
         }
     },
     objectCreate: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
-        // Don't forget to handle new emails
-     },
+        // If object was an email or a wallet, send notification to user warning them that a new sign in method was added
+        if (['Email', 'Wallet'].includes(objectType)) {
+            asdf
+        }
+        // If object was added to a project, send notification to anyone subscribed to the project
+        asdfasfd
+        // If object was created by an organization, send notification to anyone subscribed to the organization (except for who created it)
+        fdsafdsaf
+        // If object was an auto-created quiz, send notification to user
+        fdsafds
+        // Track award progress
+        const awardType = CreateAwardTypeMap[objectType];
+        if (awardType) Award(prisma, userId).update(awardType, 1);
+    },
+    objectNewVersion: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
+    },
     objectDelete: async (objectType: DeleteOneType, objectId: string, userId: string) => { },
     objectFork: async (objectType: ForkType, parentId: string, userId: string) => {
 
@@ -72,7 +105,7 @@ export const Trigger = (prisma: PrismaType) => ({
         // Track award progress
         Award(prisma, userId).update('RunComplete', 1);
     },
-    runFail: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => { 
+    runFail: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
         if (wasAutomatic) Notify(prisma, userId).pushRunFail(runTitle, runId);
     },

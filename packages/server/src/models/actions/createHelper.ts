@@ -1,4 +1,5 @@
 import { CODE } from "@shared/consts";
+import { assertRequestFrom } from "../../auth/auth";
 import { CustomError, genErrorCode, Trigger } from "../../events";
 import { RecursivePartial } from "../../types";
 import { addSupplementalFields, getUser, toPartialGraphQLInfo } from "../builder";
@@ -17,9 +18,7 @@ export async function createHelper<GraphQLModel>({
     prisma,
     req,
 }: CreateHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
-    const userData = getUser(req);
-    if (!userData)
-        throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0025') });
+    const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support create', { code: genErrorCode('0026') });
     // Partially convert info type

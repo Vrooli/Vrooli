@@ -1,4 +1,4 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, padSelect, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
 import { inputTranslationCreate, inputTranslationUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routinesUpdate } from "@shared/validation";
 import { CODE, ResourceListUsedFor } from "@shared/consts";
 import { organizationValidator } from "./organization";
@@ -194,9 +194,13 @@ export const routineValidator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'Routine',
-        root.parent: 'Routine',
-        root.organization: 'Organization',
-        root.user: 'User',
+        root: {
+            select: {
+                parent: 'Routine',
+                organization: 'Organization',
+                user: 'User',
+            }
+        }
         // TODO complete,
     },
     permissionsSelect: (userId) => ({
@@ -220,7 +224,7 @@ export const routineValidator = (): Validator<
     permissionResolvers: (data, userId) => {
         const isAdmin = userId && routineValidator().isAdmin(data, userId);
         const isPublic = routineValidator().isPublic(data);
-        const isDeleted = asdfas;
+        const isDeleted = routineValidator().isDeleted(data);
         return [
             ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
             ['canDelete', async () => isAdmin && !isDeleted],
@@ -233,6 +237,7 @@ export const routineValidator = (): Validator<
         ]
     },
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => (d.root as any).organization, (d) => (d.root as any).user, userId),
+    isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data) => data.isPrivate === false &&
         data.isDeleted === false &&
         data.root?.isDeleted === false &&
@@ -624,9 +629,19 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {
                 for (const c of created) {
-                    Trigger(prisma).objectCreate('Routine', c.id as string, params.userId);
+                    Trigger(prisma).objectCreate('Routine', c.id as string, params.userData.id);
                 }
             },
+            onUpdated: (updatedData, updateInput) => {
+                for (let i = 0; i < updatedData.length; i++) {
+                    const u = updatedData[i];
+                    const input = updateInput[i];
+                    // Check if version changed
+                    if (input.versionLabel && u.isComplete) {
+                        Trigger(prisma).objectNewVersion('Routine', u.id as string, params.userData.id);
+                    }
+                }
+            }
         })
     },
     /**

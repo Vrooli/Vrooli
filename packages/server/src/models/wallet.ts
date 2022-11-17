@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { CODE } from "@shared/consts";
 import { walletsUpdate } from '@shared/validation';
-import { CustomError, genErrorCode } from "../events";
+import { CustomError, genErrorCode, Trigger } from "../events";
 import { Wallet, WalletUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
@@ -76,6 +76,7 @@ export const walletValidator = (): Validator<
     }),
     permissionResolvers: () => [],
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
+    isDeleted: () => false,
     isPublic: (data) => oneIsPublic<Prisma.walletSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],
@@ -132,7 +133,12 @@ export const walletMutater = (prisma: PrismaType): Mutater<Wallet> => ({
                     throw new CustomError(CODE.InternalError, 'Not allowed to create wallets this way', { code: genErrorCode('0124') });
                 },
                 shapeUpdate: (_, cuData) => cuData,
-            }
+            },
+            onCreated: (created) => {
+                for (const c of created) {
+                    Trigger(prisma).objectCreate('Wallet', c.id as string, params.userData.id);
+                }
+            },
         })
     },
 })

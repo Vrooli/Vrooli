@@ -71,7 +71,7 @@ const objectToIds = ( // TODO doesn't support versioned objects
             // If key is in object
             if (`${key}${variation}` in object) {
                 // Get child relationship map
-                const childRelMap = getValidator(relMap[key], 'objectToIds').validateMap;
+                const childRelMap = getValidator(relMap[key], 'objectToIds').validateMap; //TODO must account for dot notation
                 // Get child action type
                 let childActionType: QueryAction = 'Read';
                 if (actionType !== 'Read') {
@@ -261,7 +261,7 @@ export const getAuthenticatedIds = async (
     // For each object
     filteredObjects.forEach(object => {
         // Call objectToIds to get ids of all objects requiring authentication
-        const ids = objectToIds(object.actionType, validator.validateMap as any, object.data as PrismaUpdate);
+        const ids = objectToIds(object.actionType, validator.validateMap as any, object.data as PrismaUpdate); //TODO validateMap must account  for dot notation
         // Add ids to return object
         Object.keys(ids).forEach(key => {
             if (result[key]) { result[key] = [...result[key], ...ids[key]]; }

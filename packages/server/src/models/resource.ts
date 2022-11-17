@@ -66,6 +66,7 @@ export const resourceValidator = (): Validator<
     }),
     permissionResolvers: (data, userId) => resourceListValidator().permissionResolvers(data.list as any, userId),
     isAdmin: (data, userId) => resourceListValidator().isAdmin(data.list as any, userId),
+    isDeleted: () => false,
     isPublic: (data) => resourceListValidator().isPublic(data.list as any),
     ownerOrMemberWhere: (userId) => ({
         list: resourceListValidator().ownerOrMemberWhere(userId),

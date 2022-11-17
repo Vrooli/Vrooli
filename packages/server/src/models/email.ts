@@ -3,7 +3,7 @@ import { emailsCreate, emailsUpdate } from "@shared/validation";
 import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { relationshipBuilderHelper } from "./builder";
-import { CustomError, genErrorCode } from "../events";
+import { CustomError, genErrorCode, Trigger } from "../events";
 import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, ModelLogic, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { Prisma } from "@prisma/client";
@@ -39,6 +39,7 @@ export const emailValidator = (): Validator<
     },
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
     isAdmin: (data, userId) => userValidator().isAdmin(data.user as any, userId),
+    isDeleted: () => false,
     isPublic: () => false,
     profanityFields: ['emailAddress'],
     validations: {
@@ -98,7 +99,12 @@ export const emailMutater = (prisma: PrismaType): Mutater<Email> => ({
             objectType: 'Email',
             prisma,
             yup: { yupCreate: emailsCreate, yupUpdate: emailsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            onCreated: (created) => {
+                for (const c of created) {
+                    Trigger(prisma).objectCreate('Email', c.id as string, params.userData.id);
+                }
+            },
         })
     },
 })

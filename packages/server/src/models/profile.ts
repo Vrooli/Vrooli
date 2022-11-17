@@ -8,7 +8,7 @@ import { hasProfanity } from "../utils/censor";
 import { TagModel } from "./tag";
 import { EmailModel } from "./email";
 import { TranslationModel } from "./translation";
-import { verifyHandle, WalletModel } from "./wallet";
+import { verifyHandle } from "./wallet";
 import { TagHiddenModel } from "./tagHidden";
 import { Request } from "express";
 import { CustomError, genErrorCode } from "../events";

@@ -126,6 +126,7 @@ export const commentValidator = (): Validator<
         ]
     },
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
+    isDeleted: () => false,
     isPublic: (data) => oneIsPublic<Prisma.commentSelect>(data, [
         // ['apiVersion', 'Api'],
         // ['issue', 'Issue'],

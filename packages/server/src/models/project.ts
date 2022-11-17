@@ -152,6 +152,7 @@ export const projectValidator = (): Validator<
         ]
     },
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
+    isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],
@@ -206,7 +207,7 @@ export const projectMutater = (prisma: PrismaType): Mutater<Project> => ({
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {
                 for (const c of created) {
-                    Trigger(prisma).objectCreate('Project', c.id as string, params.userId);
+                    Trigger(prisma).objectCreate('Project', c.id as string, params.userData.id);
                 }
             },
         })

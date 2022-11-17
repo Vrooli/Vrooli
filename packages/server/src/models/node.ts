@@ -58,6 +58,7 @@ export const nodeValidator = (): Validator<
         }
     }),
     isAdmin: (data, userId) => routineValidator().isAdmin(data.routineVersion as any, userId),
+    isDeleted: () => false,
     isPublic: (data) => routineValidator().isPublic(data.routineVersion as any),
     validations: {
         create: async (createMany, prisma, userId, deltaAdding) => {
@@ -223,7 +224,7 @@ export const nodeMutater = (prisma: PrismaType): Mutater<Node> => ({
             objectType: 'Node',
             prisma,
             yup: { yupCreate: nodesCreate, yupUpdate: nodesUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
         })
     },
 })

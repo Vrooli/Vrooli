@@ -55,3 +55,14 @@ export type RecursivePartial<T> = {
 };
 
 export type SingleOrArray<T> = T | T[];
+
+/**
+ * Type for replacing one type with another in a nested object
+ */
+export type ReplaceTypes<ObjType extends object, FromType, ToType> = {
+    [KeyType in keyof ObjType]: ObjType[KeyType] extends object
+    ? ReplaceTypes<ObjType[KeyType], FromType, ToType>
+    : ObjType[KeyType] extends FromType
+    ? ToType
+    : ObjType[KeyType];
+}

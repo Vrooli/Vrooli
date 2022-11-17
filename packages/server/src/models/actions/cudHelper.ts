@@ -46,11 +46,11 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
     const shapedCreate: DBCreate[] = [];
     const shapedUpdate: { where: { [x: string]: any }, data: DBUpdate }[] = [];
     if (createMany) {
-        for (const create of createMany) { shapedCreate.push(await shape.shapeCreate(userId, create)) }
+        for (const create of createMany) { shapedCreate.push(await shape.shapeCreate(userData.id, create)) }
     }
     if (updateMany) {
         for (const update of updateMany) {
-            const shaped = await shape.shapeUpdate(userId, update.data);
+            const shaped = await shape.shapeUpdate(userData.id, update.data);
             shapedUpdate.push({ where: update.where, data: shaped });
         }
     }
@@ -64,15 +64,15 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
         ...((deleteMany || [] as any).map(id => ({ actionType: 'Delete', id }))),
     ], objectType, prisma)
     // Query for all authentication data
-    const authDataById = await getAuthenticatedData(idsByType, prisma, userId);
+    const authDataById = await getAuthenticatedData(idsByType, prisma, userData.id);
     // Validate permissions
-    permissionsCheck(authDataById, idsByAction, userId);
+    permissionsCheck(authDataById, idsByAction, userData.id);
     // Max objects check
-    maxObjectsCheck(authDataById, idsByAction, prisma, userId);
+    maxObjectsCheck(authDataById, idsByAction, prisma, userData);
     if (shapedCreate.length > 0) {
         // Perform custom validation
         const deltaAdding = shapedCreate.length - (deleteMany ? deleteMany.length : 0);
-        validator?.validations?.create && await validator.validations.create(shapedCreate, prisma, userId, deltaAdding);
+        validator?.validations?.create && await validator.validations.create(shapedCreate, prisma, userData.id, deltaAdding);
         for (const data of shapedCreate) {
             // Create
             const select = await prismaDelegate.create({
@@ -88,7 +88,7 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
     }
     if (shapedUpdate.length > 0) {
         // Perform custom validation
-        validator?.validations?.update && await validator.validations.update(shapedUpdate.map(u => u.data), prisma, userId);
+        validator?.validations?.update && await validator.validations.update(shapedUpdate.map(u => u.data), prisma, userData.id);
         for (const update of shapedUpdate) {
             // Update
             const select = await prismaDelegate.update({
@@ -105,7 +105,7 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
     }
     if (deleteMany) {
         // Perform custom validation
-        validator?.validations?.delete && await validator.validations.delete(deleteMany, prisma, userId);
+        validator?.validations?.delete && await validator.validations.delete(deleteMany, prisma, userData.id);
         deleted = await prismaDelegate.deleteMany({
             where: { id: { in: deleteMany } }
         })

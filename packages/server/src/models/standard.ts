@@ -156,7 +156,7 @@ export const standardValidator = (): Validator<
     permissionResolvers: (data, userId) => {
         const isAdmin = userId && standardValidator().isAdmin(data, userId);
         const isPublic = standardValidator().isPublic(data);
-        const isDeleted = asdfas;
+        const isDeleted = standardValidator().isDeleted(data);
         return [
             ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
             ['canDelete', async () => isAdmin && !isDeleted],
@@ -168,6 +168,7 @@ export const standardValidator = (): Validator<
         ]
     },
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => (d.root as any).organization, (d) => (d.root as any).user, userId),
+    isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data) => data.isPrivate === false &&
         data.isDeleted === false &&
         data.root?.isDeleted === false &&
@@ -370,7 +371,7 @@ export const standardMutater = (prisma: PrismaType): Mutater<Standard> => ({
         userId: string,
         data: { [x: string]: any },
         isAdd: boolean = true,
-    ): Promise<string | null> {
+    ): Promise<{ [x: string]: any } | undefined> {
         // Check if standard of same shape already exists with the same creator. 
         // If so, connect instead of creating a new standard
         const initialCreate = Array.isArray(data[`standardCreate`]) ?
@@ -407,7 +408,7 @@ export const standardMutater = (prisma: PrismaType): Mutater<Standard> => ({
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
         });
     },
-    async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
+    async cud(params: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
         const select = selectHelper(partialInfo);
         // Perform mutations
         let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };

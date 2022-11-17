@@ -153,6 +153,7 @@ export const organizationValidator = (): Validator<
         const memberPermissions: MemberPolicy | null = fdasfsd;
         return true;// TODO
     },
+    isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false,
     ownerOrMemberWhere: (userId) => organizationQuerier().hasRoleInOrganizationQuery(userId).organization,
     // if (!createMany && !updateMany && !deleteMany) return;
@@ -257,7 +258,7 @@ export const organizationMutater = (prisma: PrismaType): Mutater<Organization> =
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {
                 for (const c of created) {
-                    Trigger(prisma).objectCreate('Organization', c.id as string, params.userId);
+                    Trigger(prisma).objectCreate('Organization', c.id as string, params.userData.id);
                 }
             },
         })

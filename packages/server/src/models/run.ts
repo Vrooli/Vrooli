@@ -139,7 +139,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
                 // Handle run start trigger for every run with status InProgress
                 for (const c of created) {
                     if (c.status === RunStatus.InProgress) {
-                        Trigger(prisma).runStart(c.title as string, c.id as string, params.userId, false);
+                        Trigger(prisma).runStart(c.title as string, c.id as string, params.userData.id, false);
                     }
                 }
             },
@@ -148,17 +148,17 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
                     // Handle run start trigger for every run with status InProgress, 
                     // that previously had a status of Scheduled
                     if (updated[i].status === RunStatus.InProgress && updateData[i].hasOwnProperty('status')) {
-                        Trigger(prisma).runStart(updated[i].title as string, updated[i].id as string, params.userId, false);
+                        Trigger(prisma).runStart(updated[i].title as string, updated[i].id as string, params.userData.id, false);
                     }
                     // Handle run complete trigger for every run with status Completed,
                     // that previously had a status of InProgress
                     if (updated[i].status === RunStatus.Completed && updateData[i].hasOwnProperty('status')) {
-                        Trigger(prisma).runComplete(updated[i].title as string, updated[i].id as string, params.userId, false);
+                        Trigger(prisma).runComplete(updated[i].title as string, updated[i].id as string, params.userData.id, false);
                     }
                     // Handle run fail trigger for every run with status Failed,
                     // that previously had a status of InProgress
                     if (updated[i].status === RunStatus.Failed && updateData[i].hasOwnProperty('status')) {
-                        Trigger(prisma).runFail(updated[i].title as string, updated[i].id as string, params.userId, false);
+                        Trigger(prisma).runFail(updated[i].title as string, updated[i].id as string, params.userData.id, false);
                     }
                 }
             }

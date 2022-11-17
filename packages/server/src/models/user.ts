@@ -93,6 +93,7 @@ export const userValidator = (): Validator<
     permissionResolvers: (data, userId) => fdasfds as any,
     ownerOrMemberWhere: (userId) => ({ id: userId }),
     isAdmin: (data, userId) => data.id === userId,
+    isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false,
     profanityFields: ['name', 'handle'],
 })

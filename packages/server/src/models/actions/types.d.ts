@@ -1,5 +1,6 @@
+import { Request } from "express";
 import { CopyInput, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, VisibilityType } from "../../schema/types";
-import { PrismaType, ReqForUserAuth } from "../../types";
+import { PrismaType } from "../../types";
 import { CountInputBase, GraphQLInfo, ModelLogic, PartialGraphQLInfo, SearchInputBase } from "../types";
 
 export type CopyHelperProps<GraphQLModel> = {
@@ -7,14 +8,14 @@ export type CopyHelperProps<GraphQLModel> = {
     input: CopyInput;
     model: ModelLogic<GraphQLModel, any, any, any>;
     prisma: PrismaType;
-    req: ReqForUserAuth;
+    req: Request;
 }
 
 export type CountHelperProps<GraphQLModel, CountInput extends CountInputBase> = {
     input: CountInput;
     model: ModelLogic<GraphQLModel, any, any, any>;
     prisma: PrismaType;
-    req: ReqForUserAuth;
+    req: Request;
     where?: { [x: string]: any };
     visibility?: VisibilityType;
 }
@@ -24,21 +25,21 @@ export type CreateHelperProps<GraphQLModel> = {
     input: any;
     model: ModelLogic<GraphQLModel, any, any, any>;
     prisma: PrismaType;
-    req: ReqForUserAuth;
+    req: Request;
 }
 
 export type DeleteManyHelperProps = {
     input: DeleteManyInput;
     model: ModelLogic<any, any, any, any>;
     prisma: PrismaType;
-    req: ReqForUserAuth;
+    req: Request;
 }
 
 export type DeleteOneHelperProps = {
     input: DeleteOneInput;
     model: ModelLogic<any, any, any, any>;
     prisma: PrismaType;
-    req: ReqForUserAuth;
+    req: Request;
 }
 
 export type ForkHelperProps<GraphQLModelType> = {
@@ -46,7 +47,7 @@ export type ForkHelperProps<GraphQLModelType> = {
     input: ForkInput,
     model: ModelLogic<GraphQLModelType, any, any, any>,
     prisma: PrismaType,
-    req: ReqForUserAuth;
+    req: Request;
 }
 
 export type ReadManyHelperProps<GraphQLModel, SearchInput extends SearchInputBase<any>> = {
@@ -61,7 +62,7 @@ export type ReadManyHelperProps<GraphQLModel, SearchInput extends SearchInputBas
     input: any;
     model: ModelLogic<GraphQLModel, SearchInput, any, any>;
     prisma: PrismaType;
-    req: ReqForUserAuth;
+    req: Request;
 }
 
 export type ReadOneHelperProps<GraphQLModel> = {
@@ -69,7 +70,7 @@ export type ReadOneHelperProps<GraphQLModel> = {
     input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
     model: ModelLogic<GraphQLModel, any, any, any>;
     prisma: PrismaType;
-    req: ReqForUserAuth;
+    req: Request;
 }
 
 export type UpdateHelperProps<GraphQLModel> = {
@@ -77,6 +78,6 @@ export type UpdateHelperProps<GraphQLModel> = {
     input: any;
     model: ModelLogic<GraphQLModel, any, any, any>;
     prisma: PrismaType;
-    req: ReqForUserAuth;
+    req: Request;
     where?: (obj: any) => { [x: string]: any };
 }

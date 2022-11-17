@@ -1,6 +1,7 @@
 import { CODE } from "@shared/consts";
+import { assertRequestFrom } from "../../auth/auth";
 import { CustomError, genErrorCode, Trigger } from "../../events";
-import { getUser, toPartialGraphQLInfo, lowercaseFirstLetter } from "../builder";
+import { toPartialGraphQLInfo, lowercaseFirstLetter } from "../builder";
 import { permissionsCheck } from "../validators";
 import { readOneHelper } from "./readOneHelper";
 import { ForkHelperProps } from "./types";
@@ -16,9 +17,7 @@ export async function forkHelper({
     prisma,
     req,
 }: ForkHelperProps<any>): Promise<any> {
-    const userData = getUser(req);
-    if (!userData)
-        throw new CustomError(CODE.Unauthorized, 'Must be logged in to fork object', { code: genErrorCode('0233') });
+    const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
     // Check permissions
