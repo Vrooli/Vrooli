@@ -624,6 +624,17 @@ model notification_device {
     user     user?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model notification_subscription {
+    id         String  @id @default(uuid()) @db.Uuid
+    objectType String  @db.VarChar(64)
+    objectId   String  @db.Uuid
+    userId     String  @db.Uuid
+    silent     Boolean @default(false)
+    user       user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([objectType, objectId, userId], name: "notification_subscription_objecttype_objectid_userid_unique")
+}
+
 model organization {
     id                    String                     @id @default(uuid()) @db.Uuid
     created_at            DateTime                   @default(now()) @db.Timestamptz(6)
@@ -1870,6 +1881,7 @@ model user {
     paymentHistory               payment[]
     notificationDevices        notification_device[]
     notifications              notification[]
+    notificationSubscriptions  notification_subscription[]
     memberships                  member[]
     projectsCreated                project[]            @relation("project_user_creator")
     projects                       project[]            @relation("project_user_owner")

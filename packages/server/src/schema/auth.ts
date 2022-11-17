@@ -15,7 +15,7 @@ import { Context, rateLimit } from '../middleware';
 import { hasProfanity } from '../utils/censor';
 import pkg from '@prisma/client';
 import { genErrorCode } from '../events/logger';
-import { getUserId, ProfileModel } from '../models';
+import { getUser, ProfileModel } from '../models';
 import { Trigger } from '../events';
 const { AccountStatus } = pkg;
 
@@ -84,6 +84,7 @@ export const typeDef = gql`
 
     type SessionUser {
         handle: String
+        hasPremium: Boolean!
         id: String!
         languages: [String]
         name: String
@@ -153,7 +154,7 @@ export const resolvers = {
             // If email not supplied, check if session is valid. 
             // This is needed when this is called to verify an email address
             if (!input.email) {
-                const userId = getUserId(req);
+                const userId = getUser(req)?.id;
                 if (!userId)
                     throw new CustomError(CODE.BadCredentials, 'Must supply email if not logged in', { code: genErrorCode('0128') });
                 // Find user by id
@@ -331,7 +332,7 @@ export const resolvers = {
         },
         validateSession: async (_parent: undefined, { input }: IWrap<any>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             await rateLimit({ info, maxUser: 5000, req });
-            const userId = getUserId(req);
+            const userId = getUser(req)?.id;
             // If session is expired
             if (!userId || !req.validToken) {
                 res.clearCookie(COOKIE.Jwt);

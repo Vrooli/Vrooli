@@ -2,7 +2,7 @@ import { CODE, ViewFor } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
 import { FindByIdOrHandleInput, FindByVersionInput } from "../../schema/types";
 import { RecursivePartial } from "../../types";
-import { addSupplementalFields, getUserId, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builder";
+import { addSupplementalFields, getUser, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builder";
 import { getIdFromHandle, getLatestVersion } from "../utils";
 import { permissionsCheck } from "../validators";
 import { ViewModel } from "../view";
@@ -20,7 +20,7 @@ export async function readOneHelper<GraphQLModel>({
     req,
 }: ReadOneHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     const objectType = model.format.relationshipMap.__typename;
-    const userId = getUserId(req);
+    const userId = getUser(req)?.id;
     // Validate input. Can read by id, handle, or versionGroupId
     if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
         throw new CustomError(CODE.InvalidArgs, 'id or handle is required', { code: genErrorCode('0019') });

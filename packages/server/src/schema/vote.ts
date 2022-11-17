@@ -3,7 +3,7 @@ import { VoteInput, Success, VoteFor } from './types';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { getUserId, VoteModel } from '../models';
+import { getUser, VoteModel } from '../models';
 import { resolveVoteTo } from './resolvers';
 import { assertRequestFrom } from '../auth/auth';
 
@@ -48,7 +48,7 @@ export const resolvers = {
         vote: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
-            const success = await VoteModel.mutate(prisma).vote(getUserId(req) as string, input);
+            const success = await VoteModel.mutate(prisma).vote(getUser(req)?.id as string, input);
             return { success };
         },
     }

@@ -7,6 +7,7 @@ import { CustomError, genErrorCode } from "../events";
 import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, ModelLogic, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { Prisma } from "@prisma/client";
+import { userValidator } from "./user";
 
 export const emailFormatter = (): FormatConverter<Email, any> => ({
     relationshipMap: {
@@ -28,7 +29,7 @@ export const emailValidator = (): Validator<
         __typename: 'Email',
         user: 'User',
     },
-    permissionsSelect: { user: { select: { id: true } } },
+    permissionsSelect: (userId) => ({ id: true, user: { select: userValidator().permissionsSelect(userId) } }),
     permissionResolvers: (data, userId) => {
         const isOwner = userId && data.user?.id === userId;
         return [
@@ -37,6 +38,7 @@ export const emailValidator = (): Validator<
         ]
     },
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
+    isAdmin: (data, userId) => userValidator().isAdmin(data.user as any, userId),
     isPublic: () => false,
     profanityFields: ['emailAddress'],
     validations: {

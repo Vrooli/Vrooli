@@ -13,6 +13,7 @@ import { projectValidator } from "./project";
 import { routineValidator } from "./routine";
 import { standardValidator } from "./standard";
 import { oneIsPublic } from "./utils";
+import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 
 export const resourceListFormatter = (): FormatConverter<ResourceList, any> => ({
     relationshipMap: {
@@ -41,7 +42,7 @@ export const resourceListValidator = (): Validator<
         // standard: 'Standard',
         // userSchedule: 'UserSchedule',
     },
-    permissionsSelect: {
+    permissionsSelect: (userId) => ({
         id: true,
         ...permissionsSelectHelper([
             // ['apiVersion', 'Api'],
@@ -52,15 +53,16 @@ export const resourceListValidator = (): Validator<
             // ['smartContractVersion', 'SmartContract'],
             ['standardVersion', 'Standard'],
             // ['userSchedule', 'UserSchedule'],
-        ])
-    },
+        ], userId)
+    }),
     permissionResolvers: (data, userId) => {
-        const isOwner = userId && (data.userSchedule?.user?.id === userId || checkorgownership);
+        const isAdmin = userId && resourceListValidator().isAdmin(data, userId);
         return [
-            ['canDelete', async () => isOwner],
-            ['canEdit', async () => isOwner],
+            ['canDelete', async () => isAdmin],
+            ['canEdit', async () => isAdmin],
         ]
     },
+    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => (d.userSchedule as any).user, userId),
     isPublic: (data) => oneIsPublic<Prisma.resource_listSelect>(data, [
         // ['apiVersion', 'Api'],
         ['organization', 'Organization'],

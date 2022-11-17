@@ -84,11 +84,15 @@ export const userValidator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'User',
-        fdsafdsafd
+        projects: 'Project',
+        resourceLists: 'ResourceList',
+        reports: 'Report',
+        routines: 'Routine',
     },
-    permissionsSelect: { id: true, isPrivate: true },
+    permissionsSelect: () => ({ id: true, isPrivate: true }),
     permissionResolvers: (data, userId) => fdasfds as any,
     ownerOrMemberWhere: (userId) => ({ id: userId }),
+    isAdmin: (data, userId) => data.id === userId,
     isPublic: (data) => data.isPrivate === false,
     profanityFields: ['name', 'handle'],
 })

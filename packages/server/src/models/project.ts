@@ -15,6 +15,7 @@ import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
 import { getPermissions, oneIsPublic } from "./utils";
+import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -123,31 +124,34 @@ export const projectValidator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'Project',
-        asdfasdf
+        user: 'User',
+        organization: 'Organization',
+        parent: 'Project',
     },
-    permissionsSelect: {
+    permissionsSelect: (userId) => ({
         id: true,
         isComplete: true,
         isPrivate: true,
         permissions: true,
-        user: { select: { id: true } },
         ...permissionsSelectHelper([
-            ['organization', 'Organization']
-        ])
-    },
+            ['organization', 'Organization'],
+            ['user', 'User'],
+        ], userId)
+    }),
     permissionResolvers: (data, userId) => {
-        const isOwner = userId && (data.user?.id === userId || checkorgownership);
+        const isAdmin = userId && projectValidator().isAdmin(data, userId);
         const isPublic = projectValidator().isPublic(data);
         return [
-            ['canComment', async () => isOwner || isPublic],
-            ['canDelete', async () => isOwner],
-            ['canEdit', async () => isOwner],
-            ['canReport', async () => !isOwner && isPublic],
-            ['canStar', async () => isOwner || isPublic],
-            ['canView', async () => isOwner || isPublic],
-            ['canVote', async () => isOwner || isPublic],
+            ['canComment', async () => isAdmin || isPublic],
+            ['canDelete', async () => isAdmin],
+            ['canEdit', async () => isAdmin],
+            ['canReport', async () => !isAdmin && isPublic],
+            ['canStar', async () => isAdmin || isPublic],
+            ['canView', async () => isAdmin || isPublic],
+            ['canVote', async () => isAdmin || isPublic],
         ]
     },
+    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
     isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],

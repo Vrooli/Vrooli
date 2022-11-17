@@ -5,8 +5,7 @@ import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from "../schema/types";
 import {  PrismaType } from "../types";
-import { validateProfanity } from "../utils/censor";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Mutater } from "./types";
+import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 
@@ -61,11 +60,22 @@ export const tagSearcher = (): Searcher<TagSearchInput> => ({
     },
 })
 
-export const tagVerifier = () => ({
-    profanityCheck(data: (TagCreateInput | TagUpdateInput)[]): void {
-        validateProfanity(data.map((d: any) => d.tag));
-        TranslationModel.profanityCheck(data);
-    },
+export const tagValidator = (): Validator<
+    TagCreateInput,
+    TagUpdateInput,
+    Tag,
+    Prisma.tagGetPayload<{ select: { [K in keyof Required<Prisma.tagSelect>]: true } }>,
+    any,
+    Prisma.tagSelect,
+    Prisma.tagWhereInput
+> => ({
+    validateMap: {  __typename: 'Tag' },
+    permissionsSelect: () => ({ id: true }),
+    permissionResolvers: () => [],
+    isAdmin: () => false,
+    isPublic: () => true,
+    profanityFields: ['tag'],
+    ownerOrMemberWhere: () => ({}),
 })
 
 export const tagMutater = (prisma: PrismaType): Mutater<Tag> => ({
@@ -105,25 +115,25 @@ export const tagMutater = (prisma: PrismaType): Mutater<Tag> => ({
         // Tags get special logic because they are treated as strings in GraphQL, 
         // instead of a normal relationship object
         // If any tag creates/connects, make sure they exist/not exist
-        const initialCreateTags = Array.isArray(data[`${relationshipName}Create`]) ?
+        const initialCreate = Array.isArray(data[`${relationshipName}Create`]) ?
             data[`${relationshipName}Create`].map((c: any) => c.tag) :
             typeof data[`${relationshipName}Create`] === 'object' ? [data[`${relationshipName}Create`].tag] :
                 [];
-        const initialConnectTags = Array.isArray(data[`${relationshipName}Connect`]) ?
+        const initialConnect = Array.isArray(data[`${relationshipName}Connect`]) ?
             data[`${relationshipName}Connect`] :
             typeof data[`${relationshipName}Connect`] === 'object' ? [data[`${relationshipName}Connect`]] :
                 [];
-        const bothInitialTags = [...initialCreateTags, ...initialConnectTags];
-        if (bothInitialTags.length > 0) {
+        const initialCombined = [...initialCreate, ...initialConnect];
+        if (initialCombined.length > 0) {
             // Query for all of the tags, to determine which ones exist
-            const existingTags = await prisma.tag.findMany({
-                where: { tag: { in: bothInitialTags } },
+            const existing = await prisma.tag.findMany({
+                where: { tag: { in: initialCombined } },
                 select: { tag: true }
             });
             // All existing tags are the new connects
-            data[`${relationshipName}Connect`] = existingTags.map((t) => ({ tag: t.tag }));
+            data[`${relationshipName}Connect`] = existing.map((t) => ({ tag: t.tag }));
             // All new tags are the new creates
-            data[`${relationshipName}Create`] = bothInitialTags.filter((t) => !existingTags.some((et) => et.tag === t)).map((t) => typeof t === 'string' ? ({ tag: t }) : t);
+            data[`${relationshipName}Create`] = initialCombined.filter((t) => !existing.some((et) => et.tag === t)).map((t) => typeof t === 'string' ? ({ tag: t }) : t);
         }
         // Shape disconnects and deletes
         if (Array.isArray(data[`${relationshipName}Disconnect`])) {
@@ -164,5 +174,5 @@ export const TagModel = ({
     mutate: tagMutater,
     search: tagSearcher(),
     type: 'Tag' as GraphQLModelType,
-    verify: tagVerifier(),
+    validate: tagValidator(),
 })

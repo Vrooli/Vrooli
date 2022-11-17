@@ -1,7 +1,7 @@
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
 import { RecursivePartial } from "../../types";
-import { addSupplementalFields, getUserId, toPartialGraphQLInfo } from "../builder";
+import { addSupplementalFields, getUser, toPartialGraphQLInfo } from "../builder";
 import { UpdateHelperProps } from "./types";
 
 /**
@@ -16,8 +16,8 @@ export async function updateHelper<GraphQLModel>({
     req,
     where = (obj) => ({ id: obj.id }),
 }: UpdateHelperProps<any>): Promise<RecursivePartial<GraphQLModel>> {
-    const userId = getUserId(req);
-    if (!userId)
+    const userData = getUser(req);
+    if (!userData)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0029') });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support update', { code: genErrorCode('0030') });
@@ -28,11 +28,11 @@ export async function updateHelper<GraphQLModel>({
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: where(input), data: input };
     // Update objects. cud will check permissions
-    const { updated } = await model.mutate!(prisma).cud!({ partialInfo, userId, updateMany: [shapedInput] });
+    const { updated } = await model.mutate!(prisma).cud!({ partialInfo, userData, updateMany: [shapedInput] });
     if (updated && updated.length > 0) {
         // Handle new version trigger, if applicable
         //TODO
-        return (await addSupplementalFields(prisma, userId, updated, partialInfo))[0] as any;
+        return (await addSupplementalFields(prisma, userData.id, updated, partialInfo))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in updateHelper', { code: genErrorCode('0032') });
 }

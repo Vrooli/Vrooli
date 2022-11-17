@@ -2,9 +2,11 @@ import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
 import { PrismaType } from "../../types";
 import { isRelationshipArray, isRelationshipObject } from "../builder";
-import { GraphQLModelType, PartialPrismaSelect } from "../types";
+import { GraphQLModelType, PrismaSelect, PrismaUpdate } from "../types";
 import { getDelegate } from "./getDelegate";
 import { getValidator } from "./getValidator";
+import { QueryAction } from "./types";
+// TODO was originally created for partialselect format. Now must parse data as full Prisma select
 
 /**
  * Helper function to grab ids from an object, and map them to their action and object type. For ids which need 
@@ -47,28 +49,31 @@ import { getValidator } from "./getValidator";
  *    ]
  * }) => { 'Routine': ['Update-abc123', 'Update-def456', 'Update-jkl012', 'Connect-ghi789', 'Connect-pqr678', 'Disconnect-def456.organizationId', 'Disconnect-mno345.greatGrandchildId'] }
  */
-const objectToIds = <GQLCreate extends { [x: string]: any }, GQLUpdate extends { id?: string }>(
-    actionType: 'Connect' | 'Create' | 'Disconnect' | 'Read' | 'Update', // Don't pass Delete
+const objectToIds = ( // TODO doesn't support versioned objects
+    actionType: QueryAction,
     relMap: { [x: string]: GraphQLModelType } & { __typename: GraphQLModelType },
-    object: GQLCreate | GQLUpdate,
+    object: PrismaUpdate | string,
 ): { [key in GraphQLModelType]?: string[] } => {
     // Initialize return object
     const ids: { [key in GraphQLModelType]?: string[] } = {};
+    // If object is a string, this must be a 'Delete' action, and the string is the id
+    if (typeof object === 'string') {
+        ids[relMap.__typename] = [`Delete-${object}`];
+        return ids;
+    }
     // If not a 'Create', add id of this object to return object
     if (actionType !== 'Create' && object.id) { ids[relMap.__typename] = [`${actionType}-${object.id}`]; }
     // Loop through all keys in relationship map
     Object.keys(relMap).forEach(key => {
-        // Skip __typename
-        if (key === '__typename') return;
         // Loop through all key variations. Multiple variations can be set at once (e.g. resourcesCreate, resourcesUpdate)
-        const variations = ['', 'Id', 'Ids', 'Connect', 'Create', 'Delete', 'Disconnect', 'Update'];
+        const variations = ['', 'Id', 'Ids', 'Connect', 'Create', 'Delete', 'Disconnect', 'Update']; // TODO this part won't work now that we're using PrismaUpdate type
         variations.forEach(variation => {
             // If key is in object
             if (`${key}${variation}` in object) {
                 // Get child relationship map
                 const childRelMap = getValidator(relMap[key], 'objectToIds').validateMap;
                 // Get child action type
-                let childActionType: 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Read' | 'Update' = 'Read';
+                let childActionType: QueryAction = 'Read';
                 if (actionType !== 'Read') {
                     switch (variation) {
                         case 'Id':
@@ -160,7 +165,7 @@ const objectToIds = <GQLCreate extends { [x: string]: any }, GQLUpdate extends {
  * @param prisma
  * @returns Map with placeholders replaced with ids
  */
-const disconnectPlaceholdersToIds = async (idActions: { [key in GraphQLModelType]?: string[] }, prisma: PrismaType): Promise<{ [key in GraphQLModelType]?: string[] }> => {
+const placeholdersToIds = async (idActions: { [key in GraphQLModelType]?: string[] }, prisma: PrismaType): Promise<{ [key in GraphQLModelType]?: string[] }> => {
     // Initialize object to hold prisma queries
     const queries: { [key in GraphQLModelType]?: { ids: string[], select: { [x: string]: any } } } = {};
     // Loop through all keys in ids
@@ -226,30 +231,37 @@ const disconnectPlaceholdersToIds = async (idActions: { [key in GraphQLModelType
 /**
  * Finds all ids of objects in a crud request that need to be checked for permissions. In certain cases, 
  * ids are not included in the request, and must be queried for.
+ * @returns IDs organized both by action type and GraphQLModelType
  */
-export const getAuthenticatedIds = async <GQLCreate extends { [x: string]: any }, GQLUpdate extends { id?: string }>(
-    actionType: 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Read' | 'Update',
-    objects: (GQLCreate | GQLUpdate | string | PartialPrismaSelect)[],
+export const getAuthenticatedIds = async (
+    objects: { 
+        actionType: QueryAction, 
+        data: string | PrismaUpdate
+    }[],
     objectType: GraphQLModelType,
     prisma: PrismaType,
-    userId: string | null,
-): Promise<{ [key in GraphQLModelType]?: string[] }> => {
-    // Initialize return object
-    let result: { [key in GraphQLModelType]?: string[] } = {};
+): Promise<{
+    idsByType: { [key in GraphQLModelType]?: string[] }
+    idsByAction: { [key in QueryAction]?: string[] }
+}> => {
+    // Initialize return objects
+    let idsByType: { [key in GraphQLModelType]?: string[] } = {};
+    let idsByAction: { [key in QueryAction]?: string[] } = {};
     // Find validator and prisma delegate for this object type
     const validator = getValidator(objectType, 'getAuthenticatedIds');
     // Filter out objects that are strings
     const filteredObjects = objects.filter(object => {
-        const isString = typeof object === 'string';
+        const isString = typeof object.data === 'string';
         if (isString) {
-            result[objectType] = [...(result[objectType] ?? []), `${actionType}-${object}`];
+            idsByType[objectType] = [...(idsByType[objectType] ?? []), object.data as string];
+            idsByAction['Delete'] = [...(idsByAction['Delete'] ?? []), object.data as string];
         }
         return !isString;
     });
     // For each object
     filteredObjects.forEach(object => {
         // Call objectToIds to get ids of all objects requiring authentication
-        const ids = objectToIds('Read', validator.validateMap as any, object as GQLCreate | GQLUpdate | PartialPrismaSelect);
+        const ids = objectToIds(object.actionType, validator.validateMap as any, object.data as PrismaUpdate);
         // Add ids to return object
         Object.keys(ids).forEach(key => {
             if (result[key]) { result[key] = [...result[key], ...ids[key]]; }
@@ -259,7 +271,7 @@ export const getAuthenticatedIds = async <GQLCreate extends { [x: string]: any }
     // Now we should have ALMOST all ids of objects requiring authentication. What's missing are the ids of 
     // objects that are being implicitly disconnected (i.e. being replaced by a new connect). We need to find
     // these ids by querying for them
-    result = await disconnectPlaceholdersToIds(result, prisma);
+    result = await placeholdersToIds(result, prisma);
     // Return result
     return result;
 }

@@ -82,14 +82,14 @@ export const runValidator = (): Validator<
         __typename: 'Run',
         asdffasdf
     },
-    permissionsSelect: { 
+    permissionsSelect: (userId) => ({ 
         id: true, 
         ...permissionsSelectHelper([
             ['organization', 'Organization'],
             ['routineVersion', 'Routine'],
             ['user', 'User'],
-        ])
-    },
+        ], userId)
+    }),
     permissionsFromSelect: (select, userId) => asdf as any,
     isPublic: (data) => data.isPrivate === false && ownOne<Prisma.runSelect>(data, [
         ['organization', 'Organization'],

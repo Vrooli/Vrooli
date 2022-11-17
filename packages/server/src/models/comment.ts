@@ -2,7 +2,7 @@ import { CODE, CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput } from "../schema/types";
 import { PrismaType, ReqForUserAuth } from "../types";
-import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, getSearchStringQueryHelper, combineQueries, getUserId, permissionsSelectHelper } from "./builder";
+import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, getSearchStringQueryHelper, combineQueries, permissionsSelectHelper, getUser } from "./builder";
 import { TranslationModel } from "./translation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -11,6 +11,7 @@ import { FormatConverter, Searcher, Querier, GraphQLInfo, PartialGraphQLInfo, CU
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { getPermissions, oneIsPublic } from "./utils";
+import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
@@ -94,9 +95,8 @@ export const commentValidator = (): Validator<
         user: 'User',
         organization: 'Organization',
     },
-    permissionsSelect: {
+    permissionsSelect: (userId) => ({
         id: true,
-        user: { select: { id: true } },
         ...permissionsSelectHelper([
             // ['apiVersion', 'Api'],
             // ['issue', 'Issue'],
@@ -109,21 +109,23 @@ export const commentValidator = (): Validator<
             ['routineVersion', 'Routine'],
             // ['smartContractVersion', 'SmartContract'],
             ['standardVersion', 'Standard'],
-        ])
-    },
+            ['user', 'User'],
+        ], userId)
+    }),
     permissionResolvers: (data, userId) => {
-        const isOwner = userId && (data.user?.id === userId || checkorgownership);
+        const isAdmin = userId && commentValidator().isAdmin(data, userId);
         const isPublic = commentValidator().isPublic(data);
         return [
-            ['canDelete', async () => isOwner],
-            ['canEdit', async () => isOwner],
-            ['canReply', async () => isOwner || isPublic],
-            ['canReport', async () => !isOwner && isPublic],
-            ['canStar', async () => isOwner || isPublic],
-            ['canView', async () => isOwner || isPublic],
-            ['canVote', async () => isOwner || isPublic],
+            ['canDelete', async () => isAdmin],
+            ['canEdit', async () => isAdmin],
+            ['canReply', async () => isAdmin || isPublic],
+            ['canReport', async () => !isAdmin && isPublic],
+            ['canStar', async () => isAdmin || isPublic],
+            ['canView', async () => isAdmin || isPublic],
+            ['canVote', async () => isAdmin || isPublic],
         ]
     },
+    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
     isPublic: (data) => oneIsPublic<Prisma.commentSelect>(data, [
         // ['apiVersion', 'Api'],
         // ['issue', 'Issue'],
@@ -258,7 +260,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Calculate end cursor
         const endCursor = searchResults[searchResults.length - 1].id;
         // If not as nestLimit, recurse with all result IDs
-        const childThreads = nestLimit > 0 ? await this.searchThreads(getUserId(req), {
+        const childThreads = nestLimit > 0 ? await this.searchThreads(getUser(req)?.id, {
             ids: searchResults.map(r => r.id),
             take: input.take ?? 10,
             sortBy: input.sortBy ?? commentSearcher().defaultSort,
@@ -275,7 +277,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         let comments: any = flattenThreads(childThreads);
         // Shape comments and add supplemental fields
         comments = comments.map((c: any) => modelToGraphQL(c, partialInfo as PartialGraphQLInfo));
-        comments = await addSupplementalFields(prisma, getUserId(req), comments, partialInfo);
+        comments = await addSupplementalFields(prisma, getUser(req)?.id ?? null, comments, partialInfo);
         // Put comments back into "threads" object, using another helper function. 
         // Comments can be matched by their ID
         const shapeThreads = (threads: CommentThread[]) => {
@@ -338,7 +340,7 @@ export const commentMutater = (prisma: PrismaType): Mutater<Comment> => ({
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
             onCreated: (created) => {
                 for (const c of created) {
-                    Trigger(prisma).objectCreate('Comment', c.id as string, params.userId);
+                    Trigger(prisma).objectCreate('Comment', c.id as string, params.userData.id);
                 }
             },
         })

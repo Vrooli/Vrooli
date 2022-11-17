@@ -31,7 +31,7 @@ import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
 import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, SupplementalConverter } from './types';
-import { TimeFrame, VisibilityType } from '../schema/types';
+import { SessionUser, TimeFrame, VisibilityType } from '../schema/types';
 import { getValidator } from './utils';
 const { difference, flatten, merge } = pkg;
 
@@ -1021,14 +1021,14 @@ const pickObjectById = (data: any, id: string): ({ id: string } & { [x: string]:
 }
 
 /**
- * Finds current userId in Request object
+ * Finds current user in Request object. Also validates that the user data is valid
  * @param req Request object
  * @returns First userId in Session object, or null if not found/invalid
  */
-export const getUserId = (req: ReqForUserAuth): string | null => {
+ export const getUser = (req: ReqForUserAuth): SessionUser | null => {
     if (!req || !Array.isArray(req?.users) || req.users.length === 0) return null;
-    const userId = req.users[0].id;
-    return typeof userId === 'string' && uuidValidate(userId) ? userId : null;
+    const user = req.users[0];
+    return typeof user.id === 'string' && uuidValidate(user.id) ? (user as any) : null;
 }
 
 /**
@@ -1425,6 +1425,7 @@ export function visibilityBuilder<GraphQLModelType>({
  */
  export const permissionsSelectHelper = <PrismaSelect extends { [x: string]: any }>(
     list: [keyof PrismaSelect, GraphQLModelType][],
+    userId: string | null,
 ): PrismaSelect => {
     // Initialize result
     const result: Partial<PrismaSelect> = {};
@@ -1432,7 +1433,7 @@ export function visibilityBuilder<GraphQLModelType>({
     for (const [field, model] of list) {
         // Get validator
         const validator = getValidator(model, 'permissionsSelectHelper');
-        result[field] = { select: validator.permissionsSelect } as any;
+        result[field] = { select: validator.permissionsSelect(userId) } as any;
     }
     return result as PrismaSelect;
 }

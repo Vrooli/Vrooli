@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Wallet, WalletUpdateInput } from './types';
 import { Context, rateLimit } from '../middleware';
-import { getUserId, onlyValidIds, updateHelper, WalletModel } from '../models';
+import { getUser, onlyValidIds, updateHelper, WalletModel } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../events/error';
 import { CODE } from '@shared/consts';
@@ -75,7 +75,7 @@ export const resolvers = {
                 })
             }
             else {
-                const userId = getUserId(req);
+                const userId = getUser(req)?.id;
                 if (!userId) 
                     throw new CustomError(CODE.Unauthorized, 'Must be logged in to query your wallets', { code: genErrorCode('0166') })
                 wallets = await prisma.wallet.findMany({

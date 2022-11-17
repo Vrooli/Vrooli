@@ -39,12 +39,12 @@ export const nodeValidator = (): Validator<
         __typename: 'Node',
         routine: 'Routine',
     },
-    permissionsSelect: { routineVersion: { select: routineValidator().permissionsSelect } },
+    permissionsSelect: (userId) => ({ routineVersion: { select: routineValidator().permissionsSelect(userId) } }),
     permissionResolvers: (data, userId) => {
-        const isOwner = fdsfdsafdsaf;
+        const isAdmin = userId && nodeValidator().isAdmin(data, userId);
         return [
-            ['canDelete', async () => isOwner],
-            ['canEdit', async () => isOwner],
+            ['canDelete', async () => isAdmin],
+            ['canEdit', async () => isAdmin],
         ]
     },
     ownerOrMemberWhere: (userId) => ({
@@ -57,6 +57,7 @@ export const nodeValidator = (): Validator<
             }
         }
     }),
+    isAdmin: (data, userId) => routineValidator().isAdmin(data.routineVersion as any, userId),
     isPublic: (data) => routineValidator().isPublic(data.routineVersion as any),
     validations: {
         create: async (createMany, prisma, userId, deltaAdding) => {

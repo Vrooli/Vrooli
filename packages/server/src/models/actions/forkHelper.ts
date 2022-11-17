@@ -1,6 +1,6 @@
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode, Trigger } from "../../events";
-import { getUserId, toPartialGraphQLInfo, lowercaseFirstLetter } from "../builder";
+import { getUser, toPartialGraphQLInfo, lowercaseFirstLetter } from "../builder";
 import { permissionsCheck } from "../validators";
 import { readOneHelper } from "./readOneHelper";
 import { ForkHelperProps } from "./types";
@@ -16,8 +16,8 @@ export async function forkHelper({
     prisma,
     req,
 }: ForkHelperProps<any>): Promise<any> {
-    const userId = getUserId(req);
-    if (!userId)
+    const userData = getUser(req);
+    if (!userData)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to fork object', { code: genErrorCode('0233') });
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
@@ -36,9 +36,9 @@ export async function forkHelper({
     }));
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0235') });
-    const { object } = await model.mutate(prisma).duplicate!({ userId, objectId: input.id, isFork: false, createCount: 0 });
+    const { object } = await model.mutate(prisma).duplicate!({ userId: userData.id, objectId: input.id, isFork: false, createCount: 0 });
     // Handle trigger
-    await Trigger(prisma).objectFork(input.objectType, input.id, userId);
+    await Trigger(prisma).objectFork(input.objectType, input.id, userData.id);
     // Query for object
     const fullObject = await readOneHelper({
         info: (partialInfo as any)[lowercaseFirstLetter(input.objectType)],

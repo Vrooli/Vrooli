@@ -7,7 +7,7 @@ import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, Orga
 import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
-import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, ProjectModel, readManyAsFeedHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
+import { addSupplementalFieldsMultiTypes, getUser, OrganizationModel, ProjectModel, readManyAsFeedHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
 import { CustomError } from '../events/error';
 import { assertRequestFrom } from '../auth/auth';
 import { PartialGraphQLInfo } from '../models/types';
@@ -150,7 +150,7 @@ export const resolvers = {
                 [organizations, projects, routines, standards, users],
                 [partial.organizations, partial.projects, partial.routines, partial.standards, partial.users] as PartialGraphQLInfo[],
                 ['o', 'p', 'r', 's', 'u'],
-                getUserId(req),
+                getUser(req)?.id ?? null,
                 prisma,
             )
             // Return results
@@ -197,7 +197,7 @@ export const resolvers = {
                 [courses, tutorials],
                 [partial.courses, partial.tutorials] as PartialGraphQLInfo[],
                 ['c', 't'],
-                getUserId(req),
+                getUser(req)?.id ?? null,
                 prisma,
             )
             // Return data
@@ -277,7 +277,7 @@ export const resolvers = {
                 [processes, newlyCompletedProjects, newlyCompletedRoutines, needVotes, needInvestments, needMembers],
                 [partial.processes, (partial.newlyCompleted as PartialGraphQLInfo)?.Project, (partial.newlyCompleted as PartialGraphQLInfo)?.Routine, partial.needVotes, partial.needInvestments, partial.needMembers] as PartialGraphQLInfo[],
                 ['p', 'ncp', 'ncr', 'nv', 'ni', 'nm'],
-                getUserId(req),
+                getUser(req)?.id ?? null,
                 prisma,
             )
             // Return data
@@ -320,7 +320,7 @@ export const resolvers = {
                 },
             }) as PartialGraphQLInfo;
             // If not signed in, return empty data
-            const userId = getUserId(req);
+            const userId = getUser(req)?.id ?? null;
             if (!userId) return {
                 completed: [],
                 inProgress: [],
@@ -409,7 +409,7 @@ export const resolvers = {
          * Queries data shown on History page 
          */
         historyPage: async (_parent: undefined, { input }: IWrap<HistoryPageInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<HistoryPageResult> => {
-            assertRequestFrom(req, { isUser: true });
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'HistoryPageResult',
@@ -418,7 +418,7 @@ export const resolvers = {
                 'recentlyViewed': 'View',
                 'recentlyStarred': 'Star',
             }) as PartialGraphQLInfo;
-            const userId = getUserId(req) as string;
+            const userId = userData.id;
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query for incomplete runs

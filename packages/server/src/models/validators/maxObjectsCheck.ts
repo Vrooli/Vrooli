@@ -11,13 +11,10 @@
  * We want objects to be owned by organizations rather than users, as this means the objects are tied to 
  * the organization's governance structure.
  */
-import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode } from "../../events";
-import { PrismaDelegate, PrismaType } from "../../types";
-import { ObjectMap } from "../builder";
-import { GraphQLModelType, Validator } from "../types";
-import { getValidatorAndDelegate } from "../utils";
-import { MaxObjectsCheckProps } from "./types";
+import { SessionUser } from "../../schema/types";
+import { PrismaType } from "../../types";
+import { GraphQLModelType } from "../types";
+import { QueryAction } from "../utils/types";
 
 /**
  * Map which defines the maximum number of private objects a user can have. Other maximum checks 
@@ -78,154 +75,50 @@ const maxPublicObjectsOrganizationMap: { [key in GraphQLModelType]?: (hasPremium
     Standard: (hp) => hp ? 1000 : 100,
 }
 
-type MaxObjectsCheckData = {
-    id: string,
-    createdByUserId?: string | null | undefined,
-    createdByOrganizationId?: string | null | undefined,
-    userId?: string | null | undefined,
-    organizationId?: string | null | undefined,
-}
-
 /**
- * Validates that creating a new project, routine, or standard will not exceed the user's limit. Checks both 
- * for personal limits and organizational limits, factoring in the user or organization's premium status.
+ * Validates that the user will not exceed any maximum object limits after the given action. Checks both 
+ * for personal limits and organizational limits, factoring in the user or organization's premium status. 
+ * Throws an error if a limit will be exceeded.
+ * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
+ * @param idsByAction Map of object IDs to validate permissions for, keyed by action. We store actions this way (instead of keyed by ID) 
+ * in case one ID is used for multiple actions.
+ * @parma userId ID of user requesting permissions
  */
-export async function maxObjectsCheck<GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }>({
-    createMany,
-    deleteMany,
-    objectType,
-    prisma,
-    updateMany,
-    userId,
-}: MaxObjectsCheckProps<GraphQLCreate, GraphQLUpdate>) {
-    // Initialize counts for user and organization
-    let totalUserIdCount = 0; // Queries will only return objects which belong to this user, or belong to an organization (though not necessarily one this user is a member of)
-    let totalOrganizationIds: { [id: string]: number } = {}; // All returned organizations will be counted, even if the user is not a member of them. Just makes the logic easier
-    // Find validator and prisma delegate for this object type
-    const { validator, prismaDelegate } = getValidatorAndDelegate(objectType, prisma, 'maxObjectsCheck');
-    // Add createMany to counts. Every createMany that doesn't contain a createdByOrganizationId or organizationId is assumed to belong to the user instead
-    //TODO
-    // Use prisma and validator to query for all updateMany and deleteMany objects, returning the owner of each object
-    //TODO
-    // Separate updateMany and deleteMany results. Add updateMany owner ids to the counts, and remove deleteMany owner ids from the counts
-    //TODO
-    // If counts of userId or any organizationId are greater than the maximum allowed, throw an error
-    //TODO
-
-    let temp = await prisma.routine_version.findUnique({
-        where: { id: 'asdfa'},
-        select: {
-            root: { 
-                select: {
-                    user: {
-                        select: {
-                            id: true,
-                        }
-                    },
-                    organization: {
-                        select: {
-                            id: true,
-                            permissions: true,
-                        }
-                    },
-                    permissions: true,
-
-                }
-            }
+ export async function maxObjectsCheck(
+    authDataById: { [id: string]: { __typename: GraphQLModelType, [x: string]: any } }, 
+    idsByAction: { [key in QueryAction]?: string[] },
+    prisma: PrismaType,
+    userData: SessionUser,
+) {
+    // Initialize counts. This is used to count how many objects a user or organization will have after every action is applied.
+    const counts: { [key in GraphQLModelType]?: { [ownerId: string]: number } } = {}
+    // Loop through every "Create" action, and increment the count for the object type
+    if (idsByAction.Create) {
+        for (const id of idsByAction.Create) {
+            // Find owner and object type
+            adsfasdf
+            asdf
+            // Increment count for owner
+            fdasfdsafd
         }
-    })
-
-    /**
-     * Helper for converting an array of strings to a map of occurence counts
-     */
-    const countHelper = (arr: (string | null | undefined)[]): { [id: string]: number } => {
-        const result: { [id: string]: number } = {};
-        arr.forEach(x => {
-            if (!x) return;
-            result[x] = (result[x] ?? 0) + 1;
-        });
-        return result;
     }
-    /**
-     * Helper for adding counts to the total counts
-     */
-    const addToCounts = (data: MaxObjectsCheckData[]) => {
-        totalUserIdCount += data.filter(x => x.createdByUserId === userId || x.userId === userId).length;
-        const organizationIds = countHelper(data.map(x => x.createdByOrganizationId || x.organizationId));
-        Object.keys(organizationIds).forEach(id => {
-            if (totalOrganizationIds[id]) {
-                totalOrganizationIds[id] += organizationIds[id];
-            }
-            else {
-                totalOrganizationIds[id] = organizationIds[id];
-            }
-        });
-    }
-    /**
-     * Helper for removing queried counts from the total counts
-     */
-    const removeFromCounts = (userCounts: number, organizationCounts: { [id: string]: number }) => {
-        totalUserIdCount -= userCounts;
-        Object.keys(organizationCounts).forEach(id => {
-            if (totalOrganizationIds[id]) {
-                totalOrganizationIds[id] -= organizationCounts[id];
-            }
-        });
-    }
-    /**
-     * Helper for querying existing data
-     * @returns Count of userId, and count of organizationId by ID
-     */
-    const queryExisting = async (ids: string[]): Promise<[number, { [id: string]: number }]> => {
-        let userIdCount: number;
-        let organizationIds: { [id: string]: number };
-        if (objectType === 'Project') {
-            const objects = await prisma.project.findMany({
-                where: { id: { in: ids } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            userIdCount = objects.filter(x => x.userId === userId).length;
-            organizationIds = countHelper(objects.map(x => x.organizationId));
+    // Loop through every "Delete" action, and decrement the count for the object type
+    if (idsByAction.Delete) {
+        for (const id of idsByAction.Delete) {
+            // Find owner and object type
+            adsfasdf
+            asdf
+            // Decrement count for owner
+            fdasfdsafd
         }
-        else if (objectType === 'Routine') {
-            const objects = await prisma.routine.findMany({
-                where: { id: { in: ids } },
-                select: { id: true, userId: true, organizationId: true },
-            });
-            userIdCount = objects.filter(x => x.userId === userId).length;
-            organizationIds = countHelper(objects.map(x => x.organizationId));
+    }
+    // Query the database for the current counts of all objects owned by the user or organization, 
+    // and add them to the counts object
+    fdsafdsafds
+    // Check if any counts exceed the maximum
+    for (const objectType of Object.keys(counts)) {
+        for (const ownerId of Object.keys(counts[objectType])) {
+            fdsafdsafd
         }
-        else {
-            const objects = await prisma.standard.findMany({
-                where: { id: { in: ids } },
-                select: { id: true, createdByUserId: true, createdByOrganizationId: true },
-            });
-            userIdCount = objects.filter(x => x.createdByUserId === userId).length;
-            organizationIds = countHelper(objects.map(x => x.createdByOrganizationId));
-        }
-        return [userIdCount, organizationIds];
-    }
-    // Add IDs in createMany to total counts
-    if (createMany) {
-        addToCounts(createMany);
-    }
-    // Add new IDs in updateMany to total counts, and remove existing IDs from total counts
-    if (updateMany) {
-        const newObjects = updateMany.map(u => u.data);
-        addToCounts(newObjects);
-        const [userIdCount, organizationIds] = await queryExisting(updateMany.map(u => u.where.id));
-        removeFromCounts(userIdCount, organizationIds);
-    }
-    // Remove IDs in deleteMany from total counts
-    if (deleteMany) {
-        const [userIdCount, organizationIds] = await queryExisting(deleteMany);
-        removeFromCounts(userIdCount, organizationIds);
-    }
-    // If the total counts exceed the max, throw an error
-    if (totalUserIdCount > maxCount) {
-        throw new CustomError(CODE.Unauthorized, `You have reached the maximum number of ${objectType}s you can create on this account.`, { code: genErrorCode('0260') });
-    }
-    if (Object.keys(totalOrganizationIds).some(id => totalOrganizationIds[id] > maxCount)) {
-        throw new CustomError(CODE.Unauthorized, `You have reached the maximum number of ${objectType}s you can create on this organization.`, { code: genErrorCode('0261') });
     }
 }

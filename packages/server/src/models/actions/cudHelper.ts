@@ -1,10 +1,7 @@
-import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode } from "../../events";
 import { Count } from "../../schema/types";
-import { PrismaDelegate } from "../../types";
-import { modelToGraphQL, ObjectMap, selectHelper } from "../builder";
-import { CUDHelperInput, CUDResult, Validator } from "../types";
-import { getValidatorAndDelegate } from "../utils";
+import { modelToGraphQL, selectHelper } from "../builder";
+import { CUDHelperInput, CUDResult } from "../types";
+import { getAuthenticatedData, getAuthenticatedIds, getDelegate, getValidator } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 
 /**
@@ -34,77 +31,79 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
     prisma,
     shape,
     updateMany,
-    userId,
+    userData,
     yup,
 }: CUDHelperInput<GQLCreate, GQLUpdate, GQLObject, DBCreate, DBUpdate>): Promise<CUDResult<GQLObject>> {
-    // Perform mutations
+    // Initialize results
     let created: GQLObject[] = [], updated: GQLObject[] = [], deleted: Count = { count: 0 };
-    // Perform validations
-    // Find validator and prisma delegate for this object type
-    const { validator, prismaDelegate } = getValidatorAndDelegate(objectType, prisma, 'getPermissions');
-    // Group updateMany and deleteMany ids into a single array
-    const existingIds: string[] = [...(updateMany?.map(x => x.where.id) ?? []), ...(deleteMany ?? [])];
-    // Get data required to calculate permissions and max objects
-    const existingPermissionsData = await prismaDelegate.findMany({
-        where: { id: { in: existingIds } },
-        select: validator.permissionsSelect,
-    })
     // Validate yup
     createMany && yup.yupCreate.validateSync(createMany, { abortEarly: false });
     updateMany && yup.yupUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
     // Profanity check
     createMany && profanityCheck(createMany, partialInfo);
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo);
-    // Max objects check
-    await maxObjectsCheck({ userId, createMany: createMany as any, updateMany: updateMany as any, deleteMany, prisma, objectType });
+    // Shape create and update data. This must be done before other validations, as shaping may convert creates to connects
+    const shapedCreate: DBCreate[] = [];
+    const shapedUpdate: { where: { [x: string]: any }, data: DBUpdate }[] = [];
     if (createMany) {
-        // Permissions check
-        const isPermitted = await permissionsCheck({ actions: ['Create'], objectIds: createMany.map(c => c.id), objectType, prisma, userId });
-        if (!isPermitted) throw new CustomError(CODE.Unauthorized, `Not allowed to create object`, { code: genErrorCode('0276') });
+        for (const create of createMany) { shapedCreate.push(await shape.shapeCreate(userId, create)) }
+    }
+    if (updateMany) {
+        for (const update of updateMany) {
+            const shaped = await shape.shapeUpdate(userId, update.data);
+            shapedUpdate.push({ where: update.where, data: shaped });
+        }
+    }
+    // Find validator and prisma delegate for this object type
+    const validator = getValidator(objectType, 'cudHelper');
+    const prismaDelegate = getDelegate(objectType, prisma, 'cudHelper');
+    // Get IDs of all objects which need to be authenticated
+    const { idsByType, idsByAction } = await getAuthenticatedIds([
+        ...(shapedCreate.map(data => ({ actionType: 'Create', data }))),
+        ...(shapedUpdate.map(data => ({ actionType: 'Update', data: data.data }))),
+        ...((deleteMany || [] as any).map(id => ({ actionType: 'Delete', id }))),
+    ], objectType, prisma)
+    // Query for all authentication data
+    const authDataById = await getAuthenticatedData(idsByType, prisma, userId);
+    // Validate permissions
+    permissionsCheck(authDataById, idsByAction, userId);
+    // Max objects check
+    maxObjectsCheck(authDataById, idsByAction, prisma, userId);
+    if (shapedCreate.length > 0) {
         // Perform custom validation
-        const deltaAdding = createMany.length - (deleteMany ? deleteMany.length : 0);
-        validator?.validations?.create && await validator.validations.create(createMany, prisma, userId, deltaAdding);
-        for (const create of createMany) {
-            // Shape 
-            const data = await shape.shapeCreate(userId, create);
+        const deltaAdding = shapedCreate.length - (deleteMany ? deleteMany.length : 0);
+        validator?.validations?.create && await validator.validations.create(shapedCreate, prisma, userId, deltaAdding);
+        for (const data of shapedCreate) {
             // Create
             const select = await prismaDelegate.create({
-                data: data as any,
+                data,
                 ...selectHelper(partialInfo)
             });
             // Convert
             const converted = modelToGraphQL<GQLObject>(select, partialInfo);
-            created = created ? [...created, converted] : [converted];
+            created.push(converted);
         }
         // Call onCreated
         onCreated && await onCreated(created);
     }
-    if (updateMany) {
-        // Permissions check
-        const isPermitted = await permissionsCheck({ actions: ['Update'], objectIds: updateMany.map(u => u.data.id), objectType, prisma, userId });
-        if (!isPermitted) throw new CustomError(CODE.Unauthorized, `Not allowed to update object`, { code: genErrorCode('0277') });
+    if (shapedUpdate.length > 0) {
         // Perform custom validation
-        validator?.validations?.update && await validator.validations.update(updateMany.map(u => u.data), prisma, userId);
-        for (const update of updateMany) {
-            // Shape
-            const data = await shape.shapeUpdate(userId, update.data);
+        validator?.validations?.update && await validator.validations.update(shapedUpdate.map(u => u.data), prisma, userId);
+        for (const update of shapedUpdate) {
             // Update
             const select = await prismaDelegate.update({
                 where: update.where,
-                data: data as any,
+                data: update.data,
                 ...selectHelper(partialInfo)
             });
             // Convert
             const converted = modelToGraphQL<GQLObject>(select, partialInfo);
-            updated = updated ? [...updated, converted] : [converted];
+            updated.push(converted);
         }
         // Call onUpdated
-        onUpdated && await onUpdated(updated, updateMany.map(u => u.data));
+        onUpdated && await onUpdated(updated, updateMany!.map(u => u.data));
     }
     if (deleteMany) {
-        // Permissions check
-        const isPermitted = await permissionsCheck({ actions: ['Delete'], objectIds: deleteMany, objectType, prisma, userId });
-        if (!isPermitted) throw new CustomError(CODE.Unauthorized, `Not allowed to delete object`, { code: genErrorCode('0278') });
         // Perform custom validation
         validator?.validations?.delete && await validator.validations.delete(deleteMany, prisma, userId);
         deleted = await prismaDelegate.deleteMany({

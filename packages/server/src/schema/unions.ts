@@ -6,7 +6,7 @@ import { GraphQLResolveInfo } from "graphql";
 import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutinePageInfo, ProjectOrRoutineEdge, ProjectOrOrganizationEdge, ProjectOrOrganizationPageInfo, ProjectOrRoutine, ProjectOrOrganization } from './types';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
-import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, ProjectModel, readManyAsFeedHelper, RoutineModel, toPartialGraphQLInfo } from '../models';
+import { addSupplementalFieldsMultiTypes, getUser, OrganizationModel, ProjectModel, readManyAsFeedHelper, RoutineModel, toPartialGraphQLInfo } from '../models';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
 import { PartialGraphQLInfo } from '../models/types';
 
@@ -193,7 +193,7 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUserId(req) ?? undefined,
+                        userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
                     model: ProjectModel,
@@ -234,7 +234,7 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUserId(req) ?? undefined,
+                        userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
                     model: RoutineModel,
@@ -245,7 +245,7 @@ export const resolvers = {
                 [projects?.nodes ?? [], routines?.nodes ?? []],
                 [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Routine', ...(partial as any).Routine }] as PartialGraphQLInfo[],
                 ['p', 'r'],
-                getUserId(req),
+                getUser(req)?.id ?? null,
                 prisma,
             )
             // Combine nodes, alternating between projects and routines
@@ -305,7 +305,7 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUserId(req) ?? undefined,
+                        userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
                     model: ProjectModel,
@@ -336,7 +336,7 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUserId(req) ?? undefined,
+                        userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
                     model: OrganizationModel,
@@ -347,7 +347,7 @@ export const resolvers = {
                 [projects?.nodes ?? [], organizations?.nodes ?? []],
                 [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
                 ['p', 'o'],
-                getUserId(req),
+                getUser(req)?.id ?? null,
                 prisma,
             )
             // Combine nodes, alternating between projects and organizations

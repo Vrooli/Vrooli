@@ -12,6 +12,7 @@ import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Valid
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
 import { getPermissions } from "./utils";
+import { MemberPolicy, OrganizationPolicy, RolePolicy } from "./validators";
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
 const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
@@ -102,19 +103,55 @@ export const organizationValidator = (): Validator<
         routines: 'Routine',
         wallets: 'Wallet',
     },
-    permissionsSelect: { id: true, isOpenToNewMembers: true, isPrivate: true, permissions: true },
+    permissionsSelect: (userId) => ({
+        id: true,
+        isOpenToNewMembers: true,
+        isPrivate: true,
+        permissions: true,
+        ...(userId ? {
+            roles: {
+                where: {
+                    assignees: {
+                        some: {
+                            userId
+                        },
+                    }
+                },
+                select: {
+                    permissions: true,
+                },
+            },
+            members: {
+                where: {
+                    userId,
+                },
+                select: {
+                    permissions: true,
+                },
+            }
+        } : {}),
+    }),
     permissionResolvers: (data, userId) => {
-        const isOwner = fdsfdsafdsaf;
+        const isAdmin = userId && organizationValidator().isAdmin(data, userId);
         const isPublic = organizationValidator().isPublic(data);
         return [
-            ['canAddMembers', async () => isOwner],
-            ['canDelete', async () => isOwner],
-            ['canEdit', async () => isOwner],
-            ['canReport', async () => !isOwner && isPublic],
-            ['canStar', async () => isOwner || isPublic],
-            ['canView', async () => isOwner || isPublic],
+            ['canAddMembers', async () => isAdmin],
+            ['canDelete', async () => isAdmin],
+            ['canEdit', async () => isAdmin],
+            ['canReport', async () => !isAdmin && isPublic],
+            ['canStar', async () => isAdmin || isPublic],
+            ['canView', async () => isAdmin || isPublic],
             ['isMember', async () => asdf],
         ]
+    },
+    isAdmin: (data, userId) => {
+        // If no userId, can't be admin
+        if (!userId) return false;
+        // Convert stringified permissions to object
+        const orgPermissions: OrganizationPolicy = asdfasfd;
+        const rolePermissions: RolePolicy[] = fdsafdas;
+        const memberPermissions: MemberPolicy | null = fdasfsd;
+        return true;// TODO
     },
     isPublic: (data) => data.isPrivate === false,
     ownerOrMemberWhere: (userId) => organizationQuerier().hasRoleInOrganizationQuery(userId).organization,
@@ -172,6 +209,17 @@ export const organizationQuerier = () => ({
 
 export const organizationMutater = (prisma: PrismaType): Mutater<Organization> => ({
     async shapeBase(userId: string, data: OrganizationCreateInput | OrganizationUpdateInput) {
+        prisma.organization.update({
+            where: { id: data.id },
+            data: {
+                posts: {
+                    connect: ['asdf', 'fdsa']
+                }
+                // posts: {
+                //     delete: 'asdf',
+                // }
+            }
+        })
         return {
             id: data.id,
             handle: data.handle ?? undefined,

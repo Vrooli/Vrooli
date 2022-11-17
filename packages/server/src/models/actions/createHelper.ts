@@ -1,7 +1,7 @@
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode, Trigger } from "../../events";
 import { RecursivePartial } from "../../types";
-import { addSupplementalFields, getUserId, toPartialGraphQLInfo } from "../builder";
+import { addSupplementalFields, getUser, toPartialGraphQLInfo } from "../builder";
 import { GraphQLModelType } from "../types";
 import { CreateHelperProps } from "./types";
 
@@ -17,8 +17,8 @@ export async function createHelper<GraphQLModel>({
     prisma,
     req,
 }: CreateHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
-    const userId = getUserId(req);
-    if (!userId)
+    const userData = getUser(req);
+    if (!userData)
         throw new CustomError(CODE.Unauthorized, 'Must be logged in to create object', { code: genErrorCode('0025') });
     if (!model.mutate || !model.mutate(prisma).cud)
         throw new CustomError(CODE.InternalError, 'Model does not support create', { code: genErrorCode('0026') });
@@ -27,15 +27,15 @@ export async function createHelper<GraphQLModel>({
     if (!partialInfo)
         throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
     // Create objects. cud will check permissions
-    const cudResult = await model.mutate!(prisma).cud!({ partialInfo, userId, createMany: [input] });
+    const cudResult = await model.mutate!(prisma).cud!({ partialInfo, userData, createMany: [input] });
     const { created } = cudResult;
     if (created && created.length > 0) {
         const objectType = partialInfo.__typename as GraphQLModelType;
         // Handle trigger
         for (const id of input.ids) {
-            await Trigger(prisma).objectCreate(objectType, id, userId);
+            await Trigger(prisma).objectCreate(objectType, id, userData.id);
         }
-        return (await addSupplementalFields(prisma, userId, created, partialInfo))[0] as any;
+        return (await addSupplementalFields(prisma, userData.id, created, partialInfo))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in createHelper', { code: genErrorCode('0028') });
 }

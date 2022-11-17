@@ -1,3 +1,4 @@
+export * from './getAuthenticatedData';
 export * from './getAuthenticatedIds';
 export * from './getDelegate';
 export * from './getIdFromHandle';

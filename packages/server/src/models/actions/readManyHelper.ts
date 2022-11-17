@@ -1,6 +1,6 @@
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
-import { getUserId, toPartialGraphQLInfo, onlyValidIds, timeFrameToPrisma, combineQueries, selectHelper, modelToGraphQL, addSupplementalFields } from "../builder";
+import { getUser, toPartialGraphQLInfo, onlyValidIds, timeFrameToPrisma, combineQueries, selectHelper, modelToGraphQL, addSupplementalFields } from "../builder";
 import { PaginatedSearchResult, PartialGraphQLInfo, SearchInputBase } from "../types";
 import { ReadManyHelperProps } from "./types";
 
@@ -19,7 +19,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     prisma,
     req,
 }: ReadManyHelperProps<GraphQLModel, SearchInput>): Promise<PaginatedSearchResult> {
-    const userId = getUserId(req);
+    const userId = getUser(req)?.id;
     // Partially convert info type
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
@@ -89,6 +89,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
-    formattedNodes = await addSupplementalFields(prisma, userId, formattedNodes, partialInfo);
+    formattedNodes = await addSupplementalFields(prisma, userId ?? null, formattedNodes, partialInfo);
     return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
 }

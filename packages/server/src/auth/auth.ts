@@ -6,8 +6,8 @@ import { Session, SessionUser } from '../schema/types';
 import { RecursivePartial } from '../types';
 import { genErrorCode, logger, LogLevel } from '../events/logger';
 import { isSafeOrigin } from '../utils';
-import { getUserId } from '../models';
 import { uuidValidate } from '@shared/uuid';
+import { getUser } from '../models';
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 
@@ -191,15 +191,18 @@ export type RequestConditions = {
     isOfficialUser?: boolean;
 }
 
+type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } ? SessionUser : undefined;
+
 /**
  * Asserts that a request meets the specifiec requirements TODO need better api token validation, like uuidValidate
  * @param req The request object
  * @param conditions The conditions to check
+ * @returns user data, if isUser or isOfficialUser is true
  */
-export const assertRequestFrom = (req: Request, conditions: RequestConditions) => {
+export const assertRequestFrom = <Conditions extends RequestConditions>(req: Request, conditions: Conditions): AssertRequestFromResult<Conditions> => {
     // Determine if user data is found in the request
-    const userId = getUserId(req);
-    const hasUserData = req.isLoggedIn === true && uuidValidate(userId);
+    const userData = getUser(req);
+    const hasUserData = req.isLoggedIn === true && Boolean(userData);
     // Determine if api token is supplied
     const hasApiToken = req.apiToken === true;
     // Check isApiRoot condition
@@ -220,4 +223,5 @@ export const assertRequestFrom = (req: Request, conditions: RequestConditions) =
         if (conditions.isOfficialUser === true && !isOfficialUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in via the official Vrooli app/website.', { code: genErrorCode('0269') });
         if (conditions.isOfficialUser === false && isOfficialUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in via the official Vrooli app/website.', { code: genErrorCode('0270') });
     }
+    return conditions.isUser === true || conditions.isOfficialUser === true ? userData as any : undefined;
 }

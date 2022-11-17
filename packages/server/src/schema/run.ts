@@ -3,7 +3,7 @@ import { IWrap, RecursivePartial } from '../types';
 import { Count, DeleteManyInput, FindByIdInput, Run, RunCancelInput, RunCompleteInput, RunCountInput, RunCreateInput, RunSearchInput, RunSearchResult, RunSortBy, RunStatus, RunStepStatus, RunUpdateInput } from './types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, deleteManyHelper, getUserId, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
+import { countHelper, createHelper, deleteManyHelper, getUser, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
 import { CustomError } from '../events/error';
 import { genErrorCode } from '../events/logger';
 import { CODE } from '@shared/consts';
@@ -193,7 +193,7 @@ export const resolvers = {
         },
         runs: async (_parent: undefined, { input }: IWrap<RunSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RunSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
-            const userId = getUserId(req);
+            const userId = getUser(req)?.id;
             if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to view runs.', { code: genErrorCode('0273') });
             return readManyHelper({ info, input, model: RunModel, prisma, req, additionalQueries: { userId } });
         },
@@ -213,7 +213,7 @@ export const resolvers = {
         },
         runDeleteAll: async (_parent: undefined, _input: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Count> => {
             await rateLimit({ info, maxUser: 25, req });
-            return RunModel.mutate(prisma).deleteAll(getUserId(req) ?? '');
+            return RunModel.mutate(prisma).deleteAll(getUser(req)?.id ?? '');
         },
         runDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Count> => {
             await rateLimit({ info, maxUser: 100, req });
@@ -221,11 +221,11 @@ export const resolvers = {
         },
         runComplete: async (_parent: undefined, { input }: IWrap<RunCompleteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return RunModel.mutate(prisma).complete(getUserId(req) ?? '', input, info);
+            return RunModel.mutate(prisma).complete(getUser(req)?.id ?? '', input, info);
         },
         runCancel: async (_parent: undefined, { input }: IWrap<RunCancelInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Run>> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return RunModel.mutate(prisma).cancel(getUserId(req) ?? '', input, info);
+            return RunModel.mutate(prisma).cancel(getUser(req)?.id ?? '', input, info);
         },
     }
 }

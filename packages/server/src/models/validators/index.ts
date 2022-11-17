@@ -1,4 +1,4 @@
 export * from './lineBreaksCheck';
 export * from './maxObjectsCheck';
-export * from './permissionsCheck';
+export * from './permissions';
 export * from './profanityCheck';

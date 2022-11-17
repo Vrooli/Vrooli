@@ -1,4 +1,3 @@
-import { BasePermissions } from "../types";
 import { getDelegate } from "./getDelegate";
 import { getValidator } from "./getValidator";
 import { GetPermissionsProps } from "./types";
@@ -6,7 +5,7 @@ import { GetPermissionsProps } from "./types";
 /**
  * Finds all permissions for the given object ids
  */
-export async function getPermissions<PermissionObject extends BasePermissions>({
+export async function getPermissions<PermissionObject extends { [x: string]: any }>({
     objectType,
     ids,
     prisma,

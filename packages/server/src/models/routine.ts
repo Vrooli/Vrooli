@@ -1,4 +1,4 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
 import { inputTranslationCreate, inputTranslationUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routinesUpdate } from "@shared/validation";
 import { CODE, ResourceListUsedFor } from "@shared/consts";
 import { organizationValidator } from "./organization";
@@ -18,6 +18,7 @@ import { cudHelper } from "./actions";
 import { FormatConverter, PartialGraphQLInfo, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { getPermissions, oneIsPublic } from "./utils";
+import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 
 type NodeWeightData = {
     simplicity: number,
@@ -69,37 +70,33 @@ export const routineFormatter = (): FormatConverter<Routine, SupplementalFields>
             ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Routine')],
             ['permissionsRoutine', async () => await getPermissions({ objectType: 'Routine', ids, prisma, userId })],
             ['runs', async () => {
-                if (userId) {
-                    // Find requested fields of runs. Also add routineId, so we 
-                    // can associate runs with their routine
-                    const runPartial = {
-                        ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, runFormatter().relationshipMap),
-                        routineId: true
-                    }
-                    if (runPartial === undefined) {
-                        throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
-                    }
-                    // Query runs made by user
-                    let runs: any[] = await prisma.run.findMany({
-                        where: {
-                            AND: [
-                                { routineVersion: { root: { id: { in: ids } } } },
-                                { user: { id: userId } }
-                            ]
-                        },
-                        ...selectHelper(runPartial)
-                    });
-                    // Format runs to GraphQL
-                    runs = runs.map(r => modelToGraphQL(r, runPartial));
-                    // Add supplemental fields
-                    runs = await addSupplementalFields(prisma, userId, runs, runPartial);
-                    // Split runs by id
-                    const routineRuns = ids.map((id) => runs.filter(r => r.routineId === id));
-                    return routineRuns;
-                } else {
-                    // Set all runs to empty array
-                    return new Array(objects.length).fill([]);
+                if (!userId) return new Array(objects.length).fill([]);
+                // Find requested fields of runs. Also add routineId, so we 
+                // can associate runs with their routine
+                const runPartial: PartialGraphQLInfo = {
+                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, runFormatter().relationshipMap),
+                    routineVersionId: true
                 }
+                if (runPartial === undefined) {
+                    throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
+                }
+                // Query runs made by user
+                let runs: any[] = await prisma.run.findMany({
+                    where: {
+                        AND: [
+                            { routineVersion: { root: { id: { in: ids } } } },
+                            { user: { id: userId } }
+                        ]
+                    },
+                    ...selectHelper(runPartial)
+                });
+                // Format runs to GraphQL
+                runs = runs.map(r => modelToGraphQL(r, runPartial));
+                // Add supplemental fields
+                runs = await addSupplementalFields(prisma, userId, runs, runPartial);
+                // Split runs by id
+                const routineRuns = ids.map((id) => runs.filter(r => r.routineId === id));
+                return routineRuns;
             }],
             ['versions', async () => {
                 const groupData = await prisma.routine.findMany({
@@ -197,9 +194,12 @@ export const routineValidator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'Routine',
-        fasdfasd
+        root.parent: 'Routine',
+        root.organization: 'Organization',
+        root.user: 'User',
+        // TODO complete,
     },
-    permissionsSelect: {
+    permissionsSelect: (userId) => ({
         id: true,
         isComplete: true,
         isPrivate: true,
@@ -210,12 +210,29 @@ export const routineValidator = (): Validator<
                 isPrivate: true,
                 isInternal: true,
                 permissions: true,
-                user: { select: { id: true } },
-                organization: { select: organizationValidator().permissionsSelect },
+                ...permissionsSelectHelper([
+                    ['organization', 'Organization'],
+                    ['user', 'User'],
+                ], userId)
             }
         }
+    }),
+    permissionResolvers: (data, userId) => {
+        const isAdmin = userId && routineValidator().isAdmin(data, userId);
+        const isPublic = routineValidator().isPublic(data);
+        const isDeleted = asdfas;
+        return [
+            ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canDelete', async () => isAdmin && !isDeleted],
+            ['canEdit', async () => isAdmin && !isDeleted],
+            ['canReport', async () => !isAdmin && !isDeleted && isPublic],
+            ['canRun', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canView', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
+        ]
     },
-    permissionsFromSelect: (select, userId) => asdf as any,
+    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => (d.root as any).organization, (d) => (d.root as any).user, userId),
     isPublic: (data) => data.isPrivate === false &&
         data.isDeleted === false &&
         data.root?.isDeleted === false &&
@@ -224,6 +241,7 @@ export const routineValidator = (): Validator<
             ['organization', 'Organization'],
             ['user', 'User'],
         ]),
+    ownerOrMemberWhere: (userId) => asdf as any,
     // if (createMany) {
     //     createMany.forEach(input => this.validateNodePositions(input));
     // }

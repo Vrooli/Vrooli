@@ -20,3 +20,5 @@ export interface GetPermissionsProps {
     prisma: PrismaType;
     userId: string | null;
 }
+
+export type QueryAction = 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Read' | 'Update';

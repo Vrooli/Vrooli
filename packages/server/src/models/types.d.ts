@@ -1,6 +1,6 @@
 import { GraphQLResolveInfo } from "graphql";
-import { Count, PageInfo, TimeFrame } from "../schema/types";
-import { PrismaDelegate, PrismaType, RecursivePartial } from "../types";
+import { Count, PageInfo, SessionUser, TimeFrame } from "../schema/types";
+import { PrismaDelegate, PrismaType, RecursivePartial, SingleOrArray } from "../types";
 import { ObjectSchema } from 'yup';
 import { prisma, Prisma } from "@prisma/client";
 
@@ -86,7 +86,97 @@ export type PartialPrismaSelect = { __typename?: GraphQLModelType, [x: string]: 
  * Shape 4 of 4 for GraphQL to Prisma conversion. This is the final shape of the requested data 
  * as it will be sent to the database. It is has __typename fields removed, and objects padded with "select"
  */
-export type PrismaSelect = { [x: string]: any };
+export type PrismaSelect = {
+    select: { [key: string]: boolean | PrismaSelectInside }
+}
+
+type PrismaSelectInside = Exclude<PrismaSearch, 'select'> & {
+    select: { [x: string]: boolean | PrismaSelectInside }
+}
+
+export type PrismaSearch = {
+    where: any;
+    select?: any;
+    orderBy?: any;
+    cursor?: any;
+    take?: any;
+    skip?: any;
+    distinct?: any;
+}
+
+type PrismaCreateInside = {
+    create?: SingleOrArray<{ 
+        [x: string]: boolean | string | number | PrismaCreateInside
+    }>;
+    connect?: SingleOrArray<{
+        [x: string]: boolean | string | number | PrismaCreateInside
+    }>;
+}
+
+export type PrismaCreate = {
+    [x: string]: boolean | string | number | PrismaCreateInside
+}
+
+type PrismaUpdateInside = {
+    create?: SingleOrArray<{
+        [x: string]: boolean | string | number | PrismaUpdateInside
+    }>;
+    connect?: {
+        where: any;
+    };
+    update?: SingleOrArray<{
+        [x: string]: boolean | string | number | PrismaUpdateInside
+    }>;
+    delete?: SingleOrArray<{
+        where: any;
+    }>;
+    disconnect?: SingleOrArray<{
+        where: any;
+    }>;
+}
+
+export type PrismaUpdate = {
+    [x: string]: boolean | string | number | PrismaUpdateInside
+}
+
+/**
+ * Generic Prisma model type. Useful for helper functions that work with any model
+ */
+export interface PrismaDelegate {
+    findUnique: (args: { where: any, select?: any }) => Promise<{ [x: string]: any } | null>;
+    findFirst: (args: PrismaSearch) => Promise<{ [x: string]: any } | null>;
+    findMany: (args: PrismaSearch) => Promise<{ [x: string]: any }[]>;
+    create: (args: { data: any, select?: any }) => Promise<{ [x: string]: any }>;
+    update: (args: { data: any, where: any, select?: any }) => Promise<{ [x: string]: any }>;
+    upsert: (args: {
+        create: any;
+        update: any;
+        where: any;
+        select?: any;
+    }) => Promise<{ [x: string]: any }>;
+    delete: (args: { where: any }) => Promise<{ [x: string]: any }>;
+    deleteMany: (args: { where: any}) => Promise<{ count: number }>;
+    count: (args: {
+        where: any;
+        cursor?: any;
+        take?: any;
+        skip?: any;
+        orderBy?: any;
+        select?: any;
+    }) => Promise<number>;
+    aggregate: (args: {
+        where: any;
+        orderBy?: any;
+        cursor?: any;
+        skip?: any;
+        take?: any;
+        _count?: any;
+        _avg?: any;
+        _sum?: any;
+        _min?: any;
+        _max?: any;
+    }) => Promise<{ count: number }>;
+}
 
 export type NestedGraphQLModelType = GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType } | { root: GraphQLModelType } | { root: NestedGraphQLModelType };
 
@@ -175,16 +265,6 @@ export type Searcher<SearchInput> = {
 export type Querier = { [x: string]: any };
 
 /**
- * Base permissions that any object can have
- */
-export type BasePermissions = {
-    canDelete: boolean;
-    canReport: boolean;
-    canEdit: boolean;
-    canView: boolean;
-}
-
-/**
  * Describes shape of component that has validation rules 
  */
 export type Validator<
@@ -192,7 +272,7 @@ export type Validator<
     GQLUpdate extends { [x: string]: any },
     GQLModel extends { [x: string]: any },
     PrismaObject extends { [x: string]: any },
-    PermissionObject extends BasePermissions,
+    PermissionObject extends { [x: string]: any },
     PermissionsSelect extends { [x: string]: any },
     OwnerOrMemberWhere extends { [x: string]: any }
 > = {
@@ -217,7 +297,7 @@ export type Validator<
      * conjunction with the parent object's permissions (also queried in this field) - to determine if you 
      * are allowed to perform the mutation
      */
-    permissionsSelect: PermissionsSelect;
+    permissionsSelect: (userId: string | null) => PermissionsSelect;
     /**
      * Array of resolvers to calculate the object's permissions
      */
@@ -227,6 +307,10 @@ export type Validator<
      * where you should only see private routines if you are a member of the organization
      */
     ownerOrMemberWhere: (userId: string) => OwnerOrMemberWhere;
+    /**
+     * Uses query result to determine if the user has admin/owner privileges for the object
+     */
+    isAdmin: (data: PrismaObject, userId: string) => boolean;
     /**
      * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false
      */
@@ -303,7 +387,7 @@ export type CountInputBase = {
 }
 
 export interface CUDInput<Create, Update> {
-    userId: string,
+    userData: SessionUser,
     createMany?: Create[] | null | undefined,
     updateMany?: { where: { [x: string]: any }, data: Update }[] | null | undefined,
     deleteMany?: string[] | null | undefined,
@@ -318,7 +402,7 @@ export interface CUDResult<GraphQLObject> {
 
 export interface CUDHelperInput<GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }, GraphQLObject, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }> {
     objectType: GraphQLModelType,
-    userId: string,
+    userData: SessionUser,
     prisma: PrismaType,
     createMany?: GraphQLCreate[] | null | undefined,
     updateMany?: { where: { [x: string]: any }, data: GraphQLUpdate }[] | null | undefined,

@@ -1,15 +1,14 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, SessionUser, Success, Tag, TagCreateInput, TagHidden, UserDeleteInput } from "../schema/types";
+import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, SessionUser, Success, TagCreateInput, UserDeleteInput } from "../schema/types";
 import { addJoinTablesHelper, addSupplementalFields, modelToGraphQL, padSelect, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./builder";
 import { CODE } from "@shared/consts";
 import { profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@shared/validation";
-import { omit } from '@shared/utils';
 import bcrypt from 'bcrypt';
 import { hasProfanity } from "../utils/censor";
 import { TagModel } from "./tag";
 import { EmailModel } from "./email";
 import { TranslationModel } from "./translation";
-import { WalletModel } from "./wallet";
+import { verifyHandle, WalletModel } from "./wallet";
 import { TagHiddenModel } from "./tagHidden";
 import { Request } from "express";
 import { CustomError, genErrorCode } from "../events";
@@ -39,8 +38,8 @@ const tagSelect = {
 }
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
-const supplementalFields = ['starredTags', 'hiddenTags'];
-export const profileFormatter = (): FormatConverter<Profile, any> => ({
+type SupplementalFields = 'starredTags' | 'hiddenTags';
+export const profileFormatter = (): FormatConverter<Profile, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Profile',
         comments: 'Comment',
@@ -62,7 +61,52 @@ export const profileFormatter = (): FormatConverter<Profile, any> => ({
     },
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
-    removeSupplementalFields: (partial) => omit(partial, supplementalFields),
+    supplemental: {
+        graphqlFields: ['starredTags', 'hiddenTags'],
+        toGraphQL: ({ ids, objects, partial, prisma, userId }) => [
+            ['starredTags', async () => {
+                if (!userId) return new Array(objects.length).fill([]);
+                // Query starred tags
+                let data = (await prisma.star.findMany({
+                    where: {
+                        AND: [
+                            { byId: userId },
+                            { NOT: { tagId: null } }
+                        ]
+                    },
+                    select: { tag: padSelect(tagSelect) }
+                })).map((star: any) => star.tag)
+                // Format to GraphQL
+                data = data.map(r => modelToGraphQL(r, partial.starredTags as PartialGraphQLInfo));
+                // Add supplemental fields
+                data = await addSupplementalFields(prisma, userId, data, partial.starredTags as PartialGraphQLInfo);
+                // Split by id
+                const result = ids.map((id) => data.filter(r => r.routineId === id));
+                return result;
+            }],
+            ['hiddenTags', async () => {
+                if (!userId) return new Array(objects.length).fill([]);
+                // Query hidden tags
+                let data = (await prisma.user_tag_hidden.findMany({
+                    where: { userId },
+                    select: {
+                        id: true,
+                        isBlur: true,
+                        tag: padSelect(tagSelect)
+                    }
+                }));
+                // Format to GraphQL
+                data = data.map(r => modelToGraphQL(r, partial.starredTags as PartialGraphQLInfo));
+                // Add supplemental fields
+                data = await addSupplementalFields(prisma, userId, data, partial.starredTags as PartialGraphQLInfo);
+                return ids.map((d: any) => ({
+                    id: d.id,
+                    isBlur: d.isBlur,
+                    tag: tags.find(t => t.id === d.tag.id)
+                }))
+            }],
+        ],
+    },
 })
 
 /**
@@ -151,7 +195,7 @@ export const profileVerifier = () => ({
                     id: true,
                     name: true,
                     theme: true,
-                    roles: { select: { role: { select: { title: true } } } }
+                    roles: { select: { role: { select: { title: true } } } },
                 }
             });
             return await this.toSession(userData, prisma, req);
@@ -282,11 +326,13 @@ export const profileVerifier = () => ({
                 languages: { select: { language: true } },
                 name: true,
                 theme: true,
+                premium: { select: { id: true, expiresAt: true } },
             }
         })
         // Return shaped SessionUser object
         return {
             handle: userData.handle ?? undefined,
+            hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
             id: user.id,
             languages: userData.languages.map((l) => l.language).filter(Boolean) as string[],
             name: userData.name,
@@ -354,73 +400,11 @@ const profileQuerier = (prisma: PrismaType) => ({
             prisma,
             req: { users: [{ id: userId }] },
         })
-        const { starredTags, hiddenTags } = await this.myTags(userId, partial);
         // Format for GraphQL
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
         // Return with supplementalfields added
         const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
-        return {
-            ...data,
-            starredTags,
-            hiddenTags
-        }
-    },
-    /**
-     * Custom search for finding tags you have starred/hidden
-     */
-    async myTags(
-        userId: string,
-        partial: PartialGraphQLInfo,
-    ): Promise<{ starredTags: Tag[], hiddenTags: TagHidden[] }> {
-        let starredTags: Tag[] = [];
-        let hiddenTags: any[] = [];
-        if (partial.starredTags) {
-            // Query starred tags
-            const data = (await prisma.star.findMany({
-                where: {
-                    AND: [
-                        { byId: userId },
-                        { NOT: { tagId: null } }
-                    ]
-                },
-                select: { tag: padSelect(tagSelect) }
-            })).map((star: any) => star.tag)
-            // Format for GraphQL
-            const formatted: any[] = data.map(d => modelToGraphQL(d, partial.starredTags as PartialGraphQLInfo));
-            // Return with supplementalfields added
-            starredTags = await TagModel.format.addSupplementalFields!({
-                objects: formatted,
-                partial: partial.starredTags as PartialGraphQLInfo,
-                prisma,
-                userId,
-            }) as Tag[];
-        }
-        if (partial.hiddenTags) {
-            // Query hidden tags
-            const data = (await prisma.user_tag_hidden.findMany({
-                where: { userId },
-                select: {
-                    id: true,
-                    isBlur: true,
-                    tag: padSelect(tagSelect)
-                }
-            }));
-            // Format for GraphQL
-            const formatted: any[] = data.map(d => modelToGraphQL(d, partial.hiddenTags as PartialGraphQLInfo));
-            // Call addsupplementalFields on tags of hidden data
-            const tags = await TagModel.format.addSupplementalFields!({
-                objects: formatted.map(f => f.tag),
-                partial: (partial as any).hiddenTags.tag as PartialGraphQLInfo,
-                prisma,
-                userId,
-            }) as Tag[];
-            hiddenTags = data.map((d: any) => ({
-                id: d.id,
-                isBlur: d.isBlur,
-                tag: tags.find(t => t.id === d.tag.id)
-            }))
-        }
-        return { starredTags, hiddenTags };
+        return data;
     },
 })
 
@@ -431,7 +415,7 @@ const profileMutater = (prisma: PrismaType) => ({
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         profileUpdateSchema.validateSync(input, { abortEarly: false });
-        await WalletModel.validate.verifyHandle(prisma, 'User', userId, input.handle);
+        await verifyHandle(prisma, 'User', userId, input.handle);
         if (hasProfanity(input.name))
             throw new CustomError(CODE.BannedWord, 'User name contains banned word', { code: genErrorCode('0066') });
         profanityCheck([input], { __typename: 'User' });
@@ -491,17 +475,12 @@ const profileMutater = (prisma: PrismaType) => ({
             data: userData,
             ...selectHelper(partial)
         });
-        const 
-        const { starredTags, hiddenTags } = await profileQuerier(prisma).myTags(userId, partial);
+        const
         // Format for GraphQL
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
         // Return with supplementalfields added
         const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
-        return {
-            ...data,
-            starredTags,
-            hiddenTags
-        }
+        return data
     },
     async updateEmails(
         userId: string,

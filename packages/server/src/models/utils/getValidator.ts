@@ -1,7 +1,7 @@
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
 import { ObjectMap } from "../builder";
-import { BasePermissions, GraphQLModelType, Validator } from "../types";
+import { GraphQLModelType, Validator } from "../types";
 
 /**
  * Finds all permissions for the given object ids
@@ -11,7 +11,7 @@ export function getValidator<
     GQLUpdate extends { [x: string]: any },
     GQLModel extends { [x: string]: any },
     PrismaObject extends { [x: string]: any },
-    PermissionObject extends BasePermissions,
+    PermissionObject extends { [x: string]: any },
     PermissionsSelect extends { [x: string]: any },
     OwnerOrMemberWhere extends { [x: string]: any },
 >(

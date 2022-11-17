@@ -1,5 +1,5 @@
 import { VisibilityType } from "../../schema/types";
-import { combineQueries, getUserId, timeFrameToPrisma, visibilityBuilder } from "../builder";
+import { combineQueries, getUser, timeFrameToPrisma, visibilityBuilder } from "../builder";
 import { CountInputBase } from "../types";
 import { CountHelperProps } from "./types";
 
@@ -15,7 +15,7 @@ export async function countHelper<GraphQLModel, CountInput extends CountInputBas
     where,
     visibility = VisibilityType.Public,
 }: CountHelperProps<GraphQLModel, CountInput>): Promise<number> {
-    const userId = getUserId(req);
+    const userId = getUser(req)?.id;
     // Create query for created metric
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Create query for created metric

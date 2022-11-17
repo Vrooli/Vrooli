@@ -1,8 +1,8 @@
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
-import { PrismaDelegate, PrismaType } from "../../types";
+import { PrismaType } from "../../types";
 import { ObjectMap } from "../builder";
-import { GraphQLModelType } from "../types";
+import { GraphQLModelType, PrismaDelegate } from "../types";
 
 /**
  * Finds all permissions for the given object ids

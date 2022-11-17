@@ -1,6 +1,6 @@
 import { standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
 import { CODE, DeleteOneType, StandardSortBy } from "@shared/consts";
-import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, visibilityBuilder } from "./builder";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -15,7 +15,8 @@ import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { deleteOneHelper } from "./actions";
 import { Prisma } from "@prisma/client";
-import { getPermissions } from "./utils";
+import { getPermissions, oneIsPublic } from "./utils";
+import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -134,7 +135,7 @@ export const standardValidator = (): Validator<
         __typename: 'Standard',
         asdfasdf
     },
-    permissionsSelect: {
+    permissionsSelect: (userId) => ({
         id: true,
         isComplete: true,
         isPrivate: true,
@@ -145,35 +146,39 @@ export const standardValidator = (): Validator<
                 isPrivate: true,
                 isDeleted: true,
                 permissions: true,
-                user: { select: { id: true } },
-                organization: { select: { id: true, permissions: true } }
+                ...permissionsSelectHelper([
+                    ['organization', 'Organization'],
+                    ['user', 'User'],
+                ], userId)
             }
         }
-    },
+    }),
     permissionResolvers: (data, userId) => {
-        const isOwner = userId && (data.user?.id === userId || checkorgownership);
+        const isAdmin = userId && standardValidator().isAdmin(data, userId);
         const isPublic = standardValidator().isPublic(data);
         const isDeleted = asdfas;
         return [
-            ['canComment', async () => !isDeleted && (isOwner || isPublic)],
-            ['canDelete', async () => isOwner && !isDeleted],
-            ['canEdit', async () => isOwner && !isDeleted],
-            ['canReport', async () => !isOwner && !isDeleted && isPublic],
-            ['canStar', async () => !isDeleted && (isOwner || isPublic)],
-            ['canView', async () => !isDeleted && (isOwner || isPublic)],
-            ['canVote', async () => !isDeleted && (isOwner || isPublic)],
+            ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canDelete', async () => isAdmin && !isDeleted],
+            ['canEdit', async () => isAdmin && !isDeleted],
+            ['canReport', async () => !isAdmin && !isDeleted && isPublic],
+            ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canView', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
         ]
     },
+    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => (d.root as any).organization, (d) => (d.root as any).user, userId),
     isPublic: (data) => data.isPrivate === false &&
         data.isDeleted === false &&
         data.root?.isDeleted === false &&
         data.root?.isInternal === false &&
-        data.root?.isPrivate === false && oneIsPublic<Prisma.routineSelect>(data.root, [
+        data.root?.isPrivate === false && oneIsPublic<Prisma.standardSelect>(data.root, [
             ['organization', 'Organization'],
             ['user', 'User'],
         ]),
     profanityFields: ['name'],
     ownerOrMemberWhere: (userId) => asdf as any,
+    // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
 })
 
 export const standardQuerier = (prisma: PrismaType) => ({
@@ -363,77 +368,44 @@ export const standardMutater = (prisma: PrismaType): Mutater<Standard> => ({
      */
     async relationshipBuilder(
         userId: string,
-        input: { [x: string]: any },
+        data: { [x: string]: any },
         isAdd: boolean = true,
     ): Promise<string | null> {
-        // Convert input to Prisma shape
-        const fieldExcludes: string[] = [];
-        let formattedInput: any = relationshipToPrisma({ data: input, relationshipName: 'standard', isAdd, fieldExcludes })
-        // Shape
-        if (Array.isArray(formattedInput.create) && formattedInput.create.length > 0) {
-            let create: any;
-            // If standard is internal, check if the shape exists in the database
-            if (formattedInput.create[0].isInternal) {
-                const existingStandard = await standardQuerier(prisma).findMatchingStandardVersion(formattedInput.create[0], userId, false, true);
-                // If standard found, connect instead of create
-                if (existingStandard) {
-                    return existingStandard.id;
-                }
+        // Check if standard of same shape already exists with the same creator. 
+        // If so, connect instead of creating a new standard
+        const initialCreate = Array.isArray(data[`standardCreate`]) ?
+            data[`standardCreate`].map((c: any) => c.id) :
+            typeof data[`standardCreate`] === 'object' ? [data[`standardCreate`].id] :
+                [];
+        const initialConnect = Array.isArray(data[`standardConnect`]) ?
+            data[`standardConnect`] :
+            typeof data[`standardConnect`] === 'object' ? [data[`standardConnect`]] :
+                [];
+        const initialUpdate = Array.isArray(data[`standardUpdate`]) ?
+            data[`standardUpdate`].map((c: any) => c.id) :
+            typeof data[`standardUpdate`] === 'object' ? [data[`standardUpdate`].id] :
+                [];
+        const initialCombined = [...initialCreate, ...initialConnect, ...initialUpdate];
+        // TODO this will have bugs
+        if (initialCombined.length > 0) {
+            const existingIds: string[] = [];
+            // Find shapes of all initial standards
+            for (const standard of initialCombined) {
+                const initialShape = await this.shapeCreate(userId, standard);
+                const exists = await standardQuerier(prisma).findMatchingStandardVersion(standard, userId, true, false)
+                if (exists) existingIds.push(exists.id);
             }
-            // Otherwise, perform two unique checks
-            // 1. Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
-            // 2. Check if standard of same shape already exists with the same creator
-            // If the first check returns a standard, throw error
-            // If the second check returns a standard, then connect the existing standard.
-            else {
-                // First call createData helper function, so we can use the generated name
-                create = await this.shapeCreate(userId, formattedInput.create[0]);
-                const check1 = await standardQuerier(prisma).findMatchingStandardName(create.name, userId);
-                if (check1) {
-                    throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0240') });
-                }
-                const check2 = await standardQuerier(prisma).findMatchingStandardVersion(create, userId, true, false)
-                if (check2) {
-                    return check2.id;
-                }
-            }
-            // Shape create data
-            if (!create) create = await this.shapeCreate(userId, formattedInput.create[0]);
-            // Create standard
-            const standard = await prisma.standard.create({
-                data: create,
-            })
-            return standard?.id ?? null;
+            // All existing shapes are the new connects
+            data[`standardConnect`] = existingIds;
+            data[`standardCreate`] = initialCombined.filter((s: any) => !existingIds.includes(s.id));
         }
-        if (Array.isArray(formattedInput.connect) && formattedInput.connect.length > 0) {
-            return formattedInput.connect[0].id;
-        }
-        if (Array.isArray(formattedInput.disconnect) && formattedInput.disconnect.length > 0) {
-            return null;
-        }
-        if (Array.isArray(formattedInput.update) && formattedInput.update.length > 0) {
-            const update = await this.shapeUpdate(userId, formattedInput.update[0]);
-            // Update standard
-            const standard = await prisma.standard.update({
-                where: { id: update.id },
-                data: update,
-            })
-            return standard.id;
-        }
-        if (Array.isArray(formattedInput.delete) && formattedInput.delete.length > 0) {
-            const deleteId = formattedInput.delete[0].id;
-            // If standard is internal, disconnect instead
-            if (input.isInternal) return null;
-            // Delete standard
-            await deleteOneHelper({
-                input: { id: deleteId, objectType: DeleteOneType.Standard },
-                model: StandardModel,
-                prisma,
-                req: { users: [{ id: userId }] },
-            })
-            return deleteId;
-        }
-        return null;
+        return relationshipBuilderHelper({
+            data,
+            relationshipName: 'standard',
+            isAdd,
+            userId,
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+        });
     },
     async cud({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
         const select = selectHelper(partialInfo);

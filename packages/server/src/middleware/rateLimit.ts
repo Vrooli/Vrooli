@@ -4,8 +4,7 @@ import { initializeRedis } from "../redisConn";
 import { CustomError } from "../events/error";
 import { CODE } from "@shared/consts";
 import { genErrorCode, logger, LogLevel } from "../events/logger";
-import { uuidValidate } from "@shared/uuid";
-import { getUserId } from "../models";
+import { getUser } from "../models";
 
 /**
  * Applies a rate limit check to a key in redis. 
@@ -67,8 +66,8 @@ export async function rateLimit({
     maxIp = maxIp ?? maxUser;
     // Parse request
     const hasApiToken = req.apiToken === true;
-    const userId = getUserId(req);
-    const hasUserData = req.isLoggedIn === true && uuidValidate(userId);
+    const userData = getUser(req);
+    const hasUserData = req.isLoggedIn === true && userData !== null;
     // Try connecting to redis
     try {
         const client = await initializeRedis();
@@ -86,7 +85,7 @@ export async function rateLimit({
         await checkRateLimit(client, key, maxIp, window);
         // Apply rate limit to user
         if (hasUserData) {
-            const key = `${keyBase}:user:${userId}`;
+            const key = `${keyBase}:user:${userData.id}`;
             await checkRateLimit(client, key, maxUser, window);
         }
     }

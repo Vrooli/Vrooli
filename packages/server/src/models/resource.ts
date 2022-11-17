@@ -58,13 +58,14 @@ export const resourceValidator = (): Validator<
         __typename: 'Resource',
         list: 'ResourceList',
     },
-    permissionsSelect: {
+    permissionsSelect: (userId) => ({
         id: true,
         ...permissionsSelectHelper([
             ['list', 'ResourceList'],
-        ])
-    },
+        ], userId)
+    }),
     permissionResolvers: (data, userId) => resourceListValidator().permissionResolvers(data.list as any, userId),
+    isAdmin: (data, userId) => resourceListValidator().isAdmin(data.list as any, userId),
     isPublic: (data) => resourceListValidator().isPublic(data.list as any),
     ownerOrMemberWhere: (userId) => ({
         list: resourceListValidator().ownerOrMemberWhere(userId),
@@ -136,5 +137,5 @@ export const ResourceModel = ({
     mutate: resourceMutater,
     search: resourceSearcher(),
     type: 'Resource' as GraphQLModelType,
-    validate: resourceValidator();
+    validate: resourceValidator(),
 })

@@ -6,9 +6,10 @@ import { Wallet, WalletUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { cudHelper } from "./actions";
-import { relationshipBuilderHelper } from "./builder";
+import { permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
 import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { oneIsPublic } from "./utils";
+import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 
 export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
@@ -22,11 +23,11 @@ export const walletFormatter = (): FormatConverter<Wallet, any> => ({
 /**
 * Maps GraphQLModelType to wallet relationship field
 */
-const walletOwnerMap: { [key in GraphQLModelType]?: string } = {
-    'User': 'userId',
-    'Organization': 'organizationId',
-    'Project': 'projectId',
-},
+const walletOwnerMap = {
+    User: 'userId',
+    Organization: 'organizationId',
+    Project: 'projectId',
+}
 
 /**
  * Verify that a handle is owned by a wallet, that is owned by an object. 
@@ -66,16 +67,20 @@ export const walletValidator = (): Validator<
     Prisma.walletSelect,
     Prisma.walletWhereInput
 > => ({
-    permissionsSelect: {
+    permissionsSelect: (userId) => ({
         id: true,
-        user: { select: { id: true } },
-        organization: { select: { id: true, isPrivate: true, permissions: true } },
-    },
-    permissionsFromSelect: (select, userId) => asdf as any,
+        ...permissionsSelectHelper([
+            ['organization', 'Organization'],
+            ['user', 'User'],
+        ], userId)
+    }),
+    permissionResolvers: () => [],
+    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
     isPublic: (data) => oneIsPublic<Prisma.walletSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],
     ]),
+    ownerOrMemberWhere: () => asdfa,
     validateMap: {
         __typename: 'Wallet',
         user: 'User',

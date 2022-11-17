@@ -5,7 +5,7 @@ import { StarFor, StarInput, StarSearchInput, StarSearchResult, Success } from '
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { getUserId, readManyHelper, StarModel } from '../models';
+import { getUser, readManyHelper, StarModel } from '../models';
 import { genErrorCode } from '../events/logger';
 import { resolveStarTo } from './resolvers';
 import { assertRequestFrom } from '../auth/auth';
@@ -74,11 +74,9 @@ export const resolvers = {
     },
     Query: {
         stars: async (_parent: undefined, { input }: IWrap<StarSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StarSearchResult> => {
-            assertRequestFrom(req, { isUser: true });
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            const userId = getUserId(req);
-            if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to view stars.', { code: genErrorCode('0274') });
-            return readManyHelper({ info, input, model: StarModel, prisma, req, additionalQueries: { userId } });
+            return readManyHelper({ info, input, model: StarModel, prisma, req, additionalQueries: { userId: userData.id } });
         },
     },
     Mutation: {
@@ -87,9 +85,9 @@ export const resolvers = {
          * @returns 
          */
         star: async (_parent: undefined, { input }: IWrap<StarInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            assertRequestFrom(req, { isUser: true });
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
-            const success = await StarModel.mutate(prisma).star(getUserId(req) as string, input);
+            const success = await StarModel.mutate(prisma).star(userData.id, input);
             return { success };
         },
     }

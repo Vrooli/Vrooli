@@ -7,6 +7,7 @@ import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Valid
 import { Prisma, ReportStatus } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
+import { userValidator } from "./user";
 
 type SupplementalFields = 'isOwn';
 export const reportFormatter = (): FormatConverter<Report, SupplementalFields> => ({
@@ -70,24 +71,19 @@ export const reportValidator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'Report',
-        asdfasdf
     },
-    permissionsSelect: {
-        id: true,
-        user: { select: { id: true } },
+    permissionsSelect: (userId) => ({ id: true, user: { select: userValidator().permissionsSelect(userId) } }),
+    permissionResolvers: (data, userId) => {
+        const isAdmin = userId && reportValidator().isAdmin(data, userId);
+        return [
+            ['isOwn', async () => isAdmin],
+        ]
     },
-    permissionsFromSelect: (select, userId) => asdf as any,
+    isAdmin: (data, userId) => userValidator().isAdmin(data.user as any, userId),
     isPublic: () => true,
-    // // TODO not sure if report should have profanity check, since someone might 
-    // // just be trying to submit a report for a profane word
-    // profanityCheck(data: (ReportCreateInput | ReportUpdateInput)[]): void {
-    //     validateProfanity(data.map((d: any) => ({
-    //         reason: d.reason,
-    //         details: d.details,
-    //     })));
-    // },
-
-    // Make sure user has only one report on object
+    ownerOrMemberWhere: (userId) => ({ userId }),
+    profanityFields: ['reason', 'details'],
+    // TODO validation Make sure user has only one report on object
 })
 
 const forMapper: { [key in ReportFor]: string } = {

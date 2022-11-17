@@ -2623,6 +2623,7 @@ export type Session = {
 export type SessionUser = {
   __typename?: 'SessionUser';
   handle?: Maybe<Scalars['String']>;
+  hasPremium: Scalars['Boolean'];
   id: Scalars['String'];
   languages?: Maybe<Array<Maybe<Scalars['String']>>>;
   name?: Maybe<Scalars['String']>;
