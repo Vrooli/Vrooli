@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { CopyInput, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, VisibilityType } from "../../schema/types";
+import { CopyInput, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, SessionUser, VisibilityType } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { CountInputBase, GraphQLInfo, ModelLogic, PartialGraphQLInfo, SearchInputBase } from "../types";
 
@@ -62,7 +62,7 @@ export type ReadManyHelperProps<GraphQLModel, SearchInput extends SearchInputBas
     input: any;
     model: ModelLogic<GraphQLModel, SearchInput, any, any>;
     prisma: PrismaType;
-    req: Request;
+    req: { users?: SessionUser[] };
 }
 
 export type ReadOneHelperProps<GraphQLModel> = {
@@ -70,7 +70,7 @@ export type ReadOneHelperProps<GraphQLModel> = {
     input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
     model: ModelLogic<GraphQLModel, any, any, any>;
     prisma: PrismaType;
-    req: Request;
+    req: { users?: SessionUser[] };
 }
 
 export type UpdateHelperProps<GraphQLModel> = {

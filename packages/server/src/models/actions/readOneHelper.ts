@@ -3,7 +3,7 @@ import { CustomError, genErrorCode } from "../../events";
 import { FindByIdOrHandleInput, FindByVersionInput } from "../../schema/types";
 import { RecursivePartial } from "../../types";
 import { addSupplementalFields, getUser, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builder";
-import { getIdFromHandle, getLatestVersion } from "../utils";
+import { getAuthenticatedData, getIdFromHandle, getLatestVersion } from "../utils";
 import { permissionsCheck } from "../validators";
 import { ViewModel } from "../view";
 import { ReadOneHelperProps } from "./types";
@@ -20,7 +20,7 @@ export async function readOneHelper<GraphQLModel>({
     req,
 }: ReadOneHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     const objectType = model.format.relationshipMap.__typename;
-    const userId = getUser(req)?.id;
+    const userData = getUser(req);
     // Validate input. Can read by id, handle, or versionGroupId
     if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
         throw new CustomError(CODE.InvalidArgs, 'id or handle is required', { code: genErrorCode('0019') });
@@ -33,22 +33,17 @@ export async function readOneHelper<GraphQLModel>({
     if ((input as FindByVersionInput).versionGroupId) {
         const versionId = await getLatestVersion({ objectType: objectType as any, prisma, versionGroupId: (input as FindByVersionInput).versionGroupId as string });
         id = versionId;
-    } 
+    }
     // If using handle, find the id of the object with that handle
     else if ((input as FindByIdOrHandleInput).handle) {
         id = await getIdFromHandle({ handle: (input as FindByIdOrHandleInput).handle as string, objectType: objectType as 'Organization' | 'Project' | 'User', prisma });
     } else {
         id = input.id;
     }
+    // Query for all authentication data
+    const authDataById = await getAuthenticatedData({ [model.type]: [id] }, prisma, userData?.id ?? null);
     // Check permissions
-    const authorized = await permissionsCheck({
-        actions: ['canView'],
-        objectType,
-        objectIds: [id as string],
-        prisma,
-        userId,
-    });
-    if (!authorized) throw new CustomError(CODE.Unauthorized, `Not allowed to read object`, { code: genErrorCode('0249') });
+    permissionsCheck(authDataById, { ['Read']: [id as string] }, userData);
     // Get the Prisma object
     let object = id ?
         await (model.prismaObject(prisma) as any).findUnique({ where: { id: id }, ...selectHelper(partialInfo) }) :
@@ -58,8 +53,8 @@ export async function readOneHelper<GraphQLModel>({
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object has view count, handle it
-    if (userId && objectType in ViewFor) {
-        ViewModel.mutate(prisma).view(userId, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
+    if (userData?.id && objectType in ViewFor) {
+        ViewModel.mutate(prisma).view(userData.id, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
     }
-    return (await addSupplementalFields(prisma, userId, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
+    return (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
 }

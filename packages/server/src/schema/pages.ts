@@ -150,7 +150,7 @@ export const resolvers = {
                 [organizations, projects, routines, standards, users],
                 [partial.organizations, partial.projects, partial.routines, partial.standards, partial.users] as PartialGraphQLInfo[],
                 ['o', 'p', 'r', 's', 'u'],
-                getUser(req)?.id ?? null,
+                getUser(req),
                 prisma,
             )
             // Return results
@@ -197,7 +197,7 @@ export const resolvers = {
                 [courses, tutorials],
                 [partial.courses, partial.tutorials] as PartialGraphQLInfo[],
                 ['c', 't'],
-                getUser(req)?.id ?? null,
+                getUser(req),
                 prisma,
             )
             // Return data
@@ -277,7 +277,7 @@ export const resolvers = {
                 [processes, newlyCompletedProjects, newlyCompletedRoutines, needVotes, needInvestments, needMembers],
                 [partial.processes, (partial.newlyCompleted as PartialGraphQLInfo)?.Project, (partial.newlyCompleted as PartialGraphQLInfo)?.Routine, partial.needVotes, partial.needInvestments, partial.needMembers] as PartialGraphQLInfo[],
                 ['p', 'ncp', 'ncr', 'nv', 'ni', 'nm'],
-                getUser(req)?.id ?? null,
+                getUser(req),
                 prisma,
             )
             // Return data
@@ -375,7 +375,7 @@ export const resolvers = {
                 [completedRoutines, completedProjects, inProgressRoutines, inProgressProjects, recentRoutines, recentProjects],
                 [(partial.completed as PartialGraphQLInfo)?.Routine, (partial.completed as PartialGraphQLInfo)?.Project, (partial.inProgress as PartialGraphQLInfo)?.Routine, (partial.inProgress as PartialGraphQLInfo)?.Project, (partial.recent as PartialGraphQLInfo)?.Routine, (partial.recent as PartialGraphQLInfo)?.Project] as PartialGraphQLInfo[],
                 ['cr', 'cp', 'ipr', 'ipp', 'rr', 'rp'],
-                userId,
+                getUser(req),
                 prisma,
             )
             // Combine arrays
@@ -413,8 +413,8 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'HistoryPageResult',
-                'activeRuns': 'Run',
-                'completedRuns': 'Run',
+                'activeRuns': 'RunRoutine',
+                'completedRuns': 'RunRoutine',
                 'recentlyViewed': 'View',
                 'recentlyStarred': 'Star',
             }) as PartialGraphQLInfo;
@@ -458,7 +458,7 @@ export const resolvers = {
                 [activeRuns, completedRuns, recentlyViewed, recentlyStarred],
                 [partial.activeRuns, partial.completedRuns, partial.recentlyViewed, partial.recentlyStarred] as PartialGraphQLInfo[],
                 ['ar', 'cr', 'rv', 'rs'],
-                userId,
+                getUser(req),
                 prisma,
             )
             // Return results

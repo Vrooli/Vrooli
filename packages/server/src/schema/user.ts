@@ -173,9 +173,9 @@ export const resolvers = {
     UserSortBy: UserSortBy,
     Query: {
         profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            const userData = assertRequestFrom(req, { isUser: true });
+            assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            return ProfileModel.query(prisma).findProfile(userData.id, info);
+            return ProfileModel.query(prisma).findProfile(req, info);
         },
         user: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
             await rateLimit({ info, maxUser: 1000, req });
@@ -195,7 +195,7 @@ export const resolvers = {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 250, req });
             // Update object
-            const updated = await ProfileModel.mutate(prisma).updateProfile(userData.id, input, info);
+            const updated = await ProfileModel.mutate(prisma).updateProfile(userData, input, info);
             if (!updated)
                 throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0160') });
             // Update session

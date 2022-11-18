@@ -1,4 +1,4 @@
-import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, getSearchStringQueryHelper, removeCountFieldsHelper, removeJoinTablesHelper } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, removeCountFieldsHelper, removeJoinTablesHelper } from "./builder";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
@@ -88,7 +88,7 @@ export const userValidator = (): Validator<
         routines: 'Routine',
     },
     permissionsSelect: () => ({ id: true, isPrivate: true }),
-    permissionResolvers: (data, userId) => fdasfds as any,
+    permissionResolvers: () => [],
     ownerOrMemberWhere: (userId) => ({ id: userId }),
     isAdmin: (data, userId) => data.id === userId,
     isDeleted: () => false,

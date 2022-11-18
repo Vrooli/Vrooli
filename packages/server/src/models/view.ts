@@ -1,6 +1,6 @@
 import { CODE, ViewFor, ViewSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils'
-import { combineQueries, getSearchStringQueryHelper, lowercaseFirstLetter, ObjectMap, onlyValidIds, timeFrameToPrisma } from "./builder";
+import { combineQueries, lowercaseFirstLetter, ObjectMap, onlyValidIds, timeFrameToPrisma } from "./builder";
 import { OrganizationModel, organizationQuerier } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -35,8 +35,9 @@ export const viewFormatter = (): FormatConverter<View, 'to'> => ({
     },
     supplemental: {
         graphqlFields: ['to'],
-        toGraphQL: ({ objects, partial, prisma, userId }) => [
+        toGraphQL: ({ objects, partial, prisma, userData }) => [
             ['to', async () => {
+                if (!userData) return new Array(objects.length).fill([]);
                 // Query for data that view is applied to
                 if (isObject(partial.to)) {
                     const toTypes: GraphQLModelType[] = objects.map(o => resolveProjectOrOrganizationOrRoutineOrStandardOrUser(o.to))
@@ -66,7 +67,7 @@ export const viewFormatter = (): FormatConverter<View, 'to'> => ({
                             input: { ids: toIdsByType[type] },
                             model,
                             prisma,
-                            req: { users: [{ id: userId }] }
+                            req: { users: [userData] }
                         })
                         tos.push(...paginated.edges.map(x => x.node));
                     }
@@ -83,12 +84,12 @@ export const viewFormatter = (): FormatConverter<View, 'to'> => ({
     },
 })
 
-const forMapper = {
-    [ViewFor.Organization]: 'organization',
-    [ViewFor.Project]: 'project',
-    [ViewFor.Routine]: 'routine',
-    [ViewFor.Standard]: 'standard',
-    [ViewFor.User]: 'user',
+const forMapper: { [key in ViewFor]: string } = {
+    Organization: 'organization',
+    Project: 'project',
+    Routine: 'routine',
+    Standard: 'standard',
+    User: 'user',
 }
 
 export interface ViewInput {
@@ -127,7 +128,7 @@ export const viewSearcher = (): Searcher<
 
 const viewQuerier = (prisma: PrismaType) => ({
     async getIsVieweds(
-        userId: string | null,
+        userId: string | null | undefined,
         ids: string[],
         viewFor: keyof typeof ViewFor
     ): Promise<Array<boolean | null>> {

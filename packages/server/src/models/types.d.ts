@@ -32,12 +32,13 @@ export type GraphQLModelType =
     'Resource' |
     'ResourceList' |
     'Role' |
-    'Routine' | 
+    'Routine' |
     'RunRoutine' |
     'RunInput' |
     'RunStep' |
     'Standard' |
-    'Star' | 'Tag' |
+    'Star' |
+    'Tag' |
     'TagHidden' |
     'User' |
     'View' |
@@ -222,7 +223,7 @@ export interface SupplementalConverter<GQLModel, GQLFields extends string> {
         objects: ({ id: string } & { [x: string]: any })[], // TODO: fix this type
         partial: PartialGraphQLInfo,
         prisma: PrismaType,
-        userId: string | null,
+        userData: SessionUser | null,
     }) => [GQLFields, () => any][];
 }
 
@@ -318,7 +319,11 @@ export type Validator<
     /**
      * Array of resolvers to calculate the object's permissions
      */
-    permissionResolvers: (data: PrismaObject, userId: string | null) => [keyof Exclude<PermissionObject, '__typename'>, () => any][];
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }: {
+        isAdmin: boolean,
+        isDeleted: boolean,
+        isPublic: boolean,
+    }) => [keyof Exclude<PermissionObject, '__typename'>, () => any][];
     /**
      * Partial where query added to the object's search query. Useful when querying things like an organization's routines, 
      * where you should only see private routines if you are a member of the organization
@@ -369,6 +374,7 @@ export type Validator<
  * Describes shape of component that can be mutated
  */
 export type Mutater<GQLModel> = {
+    relationshipBuilder?(userId: string, data: { [x: string]: any }, isAdd: boolean = true, relationshipName?: string | undefined): Promise<{ [x: string]: any } | undefined>;
     cud?({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GQLModel>>;
     duplicate?({ userId, objectId, isFork, createCount }: DuplicateInput): Promise<DuplicateResult<GQLModel>>;
 } & { [x: string]: any };

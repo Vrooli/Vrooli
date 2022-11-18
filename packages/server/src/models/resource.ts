@@ -1,6 +1,6 @@
 import { resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@shared/validation";
 import { ResourceSortBy } from "@shared/consts";
-import { combineQueries, getSearchStringQueryHelper, permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
+import { combineQueries, permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
 import { TranslationModel } from "./translation";
 import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
@@ -62,7 +62,7 @@ export const resourceValidator = (): Validator<
             ['list', 'ResourceList'],
         ], userId)
     }),
-    permissionResolvers: (data, userId) => resourceListValidator().permissionResolvers(data.list as any, userId),
+    permissionResolvers: (params) => resourceListValidator().permissionResolvers(params),
     isAdmin: (data, userId) => resourceListValidator().isAdmin(data.list as any, userId),
     isDeleted: () => false,
     isPublic: (data) => resourceListValidator().isPublic(data.list as any),

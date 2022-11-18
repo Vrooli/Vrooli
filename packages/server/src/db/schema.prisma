@@ -2243,8 +2243,8 @@ enum AwardCategory {
     ReportEnd
     ReportContribute
     Reputation
-    RunRoutineComplete
-    RunProjectComplete
+    RunRoutine
+    RunProject
     RoutineCreate
     SmartContractCreate
     StandardCreate

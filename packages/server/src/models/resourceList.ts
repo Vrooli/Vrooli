@@ -1,6 +1,6 @@
 import { resourceListsCreate, resourceListsUpdate, resourceListTranslationsCreate, resourceListTranslationsUpdate } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
-import { combineQueries, getSearchStringQueryHelper, permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
+import { combineQueries, permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
 import { TranslationModel } from "./translation";
 import { ResourceModel } from "./resource";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput } from "../schema/types";
@@ -55,13 +55,10 @@ export const resourceListValidator = (): Validator<
             // ['userSchedule', 'UserSchedule'],
         ], userId)
     }),
-    permissionResolvers: (data, userId) => {
-        const isAdmin = userId && resourceListValidator().isAdmin(data, userId);
-        return [
-            ['canDelete', async () => isAdmin],
-            ['canEdit', async () => isAdmin],
-        ]
-    },
+    permissionResolvers: ({ isAdmin }) => ([
+        ['canDelete', async () => isAdmin],
+        ['canEdit', async () => isAdmin],
+    ]),
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => (d.userSchedule as any).user, userId),
     isDeleted: () => false,
     isPublic: (data) => oneIsPublic<Prisma.resource_listSelect>(data, [
@@ -124,7 +121,7 @@ export const resourceListMutater = (prisma: PrismaType): Mutater<ResourceList> =
             project: data.projectId ? { connect: { id: data.projectId } } : undefined,
             routine: data.routineId ? { connect: { id: data.routineId } } : undefined,
             user: data.userId ? { connect: { id: data.userId } } : undefined,
-            resources: ResourceModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
+            resources: ResourceModel.mutate(prisma).relationshipBuilder!(userId, data, isAdd),
             translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceListTranslationsCreate, update: resourceListTranslationsUpdate }, isAdd),
         };
     },

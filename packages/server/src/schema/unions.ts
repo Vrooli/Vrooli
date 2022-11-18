@@ -245,7 +245,7 @@ export const resolvers = {
                 [projects?.nodes ?? [], routines?.nodes ?? []],
                 [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Routine', ...(partial as any).Routine }] as PartialGraphQLInfo[],
                 ['p', 'r'],
-                getUser(req)?.id ?? null,
+                getUser(req),
                 prisma,
             )
             // Combine nodes, alternating between projects and routines
@@ -347,7 +347,7 @@ export const resolvers = {
                 [projects?.nodes ?? [], organizations?.nodes ?? []],
                 [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
                 ['p', 'o'],
-                getUser(req)?.id ?? null,
+                getUser(req),
                 prisma,
             )
             // Combine nodes, alternating between projects and organizations

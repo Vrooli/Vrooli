@@ -1,7 +1,7 @@
 import { CODE, CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput } from "../schema/types";
-import { PrismaType, ReqForUserAuth } from "../types";
+import { PrismaType } from "../types";
 import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, combineQueries, permissionsSelectHelper, getUser, getSearchString } from "./builder";
 import { TranslationModel } from "./translation";
 import { StarModel } from "./star";
@@ -10,8 +10,10 @@ import { CustomError, genErrorCode, Trigger } from "../events";
 import { FormatConverter, Searcher, Querier, GraphQLInfo, PartialGraphQLInfo, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
-import { getPermissions, oneIsPublic } from "./utils";
+import { oneIsPublic } from "./utils";
 import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
+import { Request } from "express";
+import { getSingleTypePermissions } from "./validators";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
@@ -37,10 +39,10 @@ export const commentFormatter = (): FormatConverter<Comment, SupplementalFields>
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
     supplemental: {
         graphqlFields: ['isStarred', 'isUpvoted', 'permissionsComment'],
-        toGraphQL: ({ ids, prisma, userId }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Comment')],
-            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
-            ['permissionsComment', async () => await getPermissions({ objectType: 'Comment', ids, prisma, userId })],
+        toGraphQL: ({ ids, prisma, userData }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Comment')],
+            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userData?.id, ids, 'Routine')],
+            ['permissionsComment', async () => await getSingleTypePermissions('Comment', ids, prisma, userData)],
         ],
     },
 })
@@ -110,19 +112,15 @@ export const commentValidator = (): Validator<
             ['user', 'User'],
         ], userId)
     }),
-    permissionResolvers: (data, userId) => {
-        const isAdmin = userId && commentValidator().isAdmin(data, userId);
-        const isPublic = commentValidator().isPublic(data);
-        return [
-            ['canDelete', async () => isAdmin],
-            ['canEdit', async () => isAdmin],
-            ['canReply', async () => isAdmin || isPublic],
-            ['canReport', async () => !isAdmin && isPublic],
-            ['canStar', async () => isAdmin || isPublic],
-            ['canView', async () => isAdmin || isPublic],
-            ['canVote', async () => isAdmin || isPublic],
-        ]
-    },
+    permissionResolvers: ({ isAdmin, isPublic }) => ([
+        ['canDelete', async () => isAdmin],
+        ['canEdit', async () => isAdmin],
+        ['canReply', async () => isAdmin || isPublic],
+        ['canReport', async () => !isAdmin && isPublic],
+        ['canStar', async () => isAdmin || isPublic],
+        ['canView', async () => isAdmin || isPublic],
+        ['canVote', async () => isAdmin || isPublic],
+    ]),
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
     isDeleted: () => false,
     isPublic: (data) => oneIsPublic<Prisma.commentSelect>(data, [
@@ -215,7 +213,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
      * parentId equal to one of the second-level comments).
      */
     async searchNested(
-        req: ReqForUserAuth,
+        req: Request,
         input: CommentSearchInput,
         info: GraphQLInfo | PartialGraphQLInfo,
         nestLimit: number = 2,
@@ -276,7 +274,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         let comments: any = flattenThreads(childThreads);
         // Shape comments and add supplemental fields
         comments = comments.map((c: any) => modelToGraphQL(c, partialInfo as PartialGraphQLInfo));
-        comments = await addSupplementalFields(prisma, getUser(req)?.id ?? null, comments, partialInfo);
+        comments = await addSupplementalFields(prisma, getUser(req), comments, partialInfo);
         // Put comments back into "threads" object, using another helper function. 
         // Comments can be matched by their ID
         const shapeThreads = (threads: CommentThread[]) => {
@@ -306,10 +304,10 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
     }
 })
 
-const forMapper = {
-    [CommentFor.Project]: 'projectId',
-    [CommentFor.Routine]: 'routineId',
-    [CommentFor.Standard]: 'standardId',
+const forMapper: { [key in CommentFor]: string } = {
+    Project: 'projectId',
+    Routine: 'routineId',
+    Standard: 'standardId',
 }
 
 /**

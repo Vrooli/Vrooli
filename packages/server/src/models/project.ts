@@ -1,6 +1,6 @@
 import { projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
-import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, permissionsSelectHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, exceptionsBuilder, permissionsSelectHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
 import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -14,8 +14,9 @@ import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Valid
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
-import { getPermissions, oneIsPublic } from "./utils";
+import { oneIsPublic } from "./utils";
 import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
+import { getSingleTypePermissions } from "./validators";
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -50,11 +51,11 @@ export const projectFormatter = (): FormatConverter<Project, SupplementalFields>
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
     supplemental: {
         graphqlFields: ['isStarred', 'isUpvoted', 'isViewed', 'permissionsProject'],
-        toGraphQL: ({ ids, prisma, userId }) => [
-            ['isStarred', async () => StarModel.query(prisma).getIsStarreds(userId, ids, 'Project')],
-            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Project')],
-            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Project')],
-            ['permissionsProject', async () => await getPermissions({ objectType: 'Project', ids, prisma, userId })],
+        toGraphQL: ({ ids, prisma, userData }) => [
+            ['isStarred', async () => StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Project')],
+            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userData?.id, ids, 'Project')],
+            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userData?.id, ids, 'Project')],
+            ['permissionsProject', async () => await getSingleTypePermissions('Project', ids, prisma, userData)],
         ],
     },
 })
@@ -118,16 +119,21 @@ export const projectValidator = (): Validator<
     ProjectCreateInput,
     ProjectUpdateInput,
     Project,
-    Prisma.projectGetPayload<{ select: { [K in keyof Required<Prisma.projectSelect>]: true } }>,
+    Prisma.project_versionGetPayload<{ select: { [K in keyof Required<Prisma.project_versionSelect>]: true } }>,
     ProjectPermission,
-    Prisma.projectSelect,
-    Prisma.projectWhereInput
+    Prisma.project_versionSelect,
+    Prisma.project_versionWhereInput
 > => ({
     validateMap: {
         __typename: 'Project',
-        user: 'User',
-        organization: 'Organization',
-        parent: 'Project',
+        root: {
+            select: {
+                parent: 'Project',
+                organization: 'Organization',
+                user: 'User',
+            }
+        },
+        forks: 'Project',
     },
     permissionsSelect: (userId) => ({
         id: true,
@@ -147,32 +153,29 @@ export const projectValidator = (): Validator<
             }
         },
     }),
-    permissionResolvers: (data, userId) => {
-        const isAdmin = userId && projectValidator().isAdmin(data, userId);
-        const isDeleted = projectValidator().isDeleted(data);
-        const isPublic = projectValidator().isPublic(data);
-        return [
-            ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canDelete', async () => isAdmin && !isDeleted],
-            ['canEdit', async () => isAdmin && !isDeleted],
-            ['canReport', async () => !isAdmin && !isDeleted && isPublic],
-            // ['canRun', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canView', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
-        ]
-    },
-    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
+        ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canDelete', async () => isAdmin && !isDeleted],
+        ['canEdit', async () => isAdmin && !isDeleted],
+        ['canReport', async () => !isAdmin && !isDeleted && isPublic],
+        // ['canRun', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canView', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
+    ]),
+    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => (d.root as any).organization, (d) => (d.root as any).user, userId),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],
     ]),
     ownerOrMemberWhere: (userId) => ({
-        OR: [
-            organizationQuerier().hasRoleInOrganizationQuery(userId),
-            { user: { id: userId } }
-        ]
+        root: {
+            OR: [
+                organizationQuerier().hasRoleInOrganizationQuery(userId),
+                { user: { id: userId } }
+            ]
+        }
     }),
     // createMany.forEach(input => lineBreaksCheck(input, ['description'], CODE.LineBreaksDescription));
     // for (const input of updateMany) {
@@ -187,8 +190,8 @@ export const projectMutater = (prisma: PrismaType): Mutater<Project> => ({
             isPrivate: data.isPrivate ?? undefined,
             completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
             permissions: JSON.stringify({}),
-            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, true),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Project'),
+            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder!(userId, data, true),
+            tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userId, data, 'Project'),
             translations: TranslationModel.relationshipBuilder(userId, data, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
         }
     },

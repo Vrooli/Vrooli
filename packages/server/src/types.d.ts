@@ -30,8 +30,6 @@ declare global {
     }
 }
 
-export type ReqForUserAuth = { users?: { id?: string | null }[] }
-
 /**
  * Prisma type shorthand
  */

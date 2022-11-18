@@ -1,5 +1,9 @@
+import { CODE } from "@shared/consts";
+import { CustomError, genErrorCode } from "../../events";
+import { SessionUser } from "../../schema/types";
+import { PrismaType } from "../../types";
 import { GraphQLModelType } from "../types";
-import { getValidator } from "../utils";
+import { getDelegate, getValidator } from "../utils";
 import { QueryAction } from "../utils/types";
 
 /**
@@ -213,6 +217,74 @@ export type StandardPolicy = {
 }
 
 /**
+ * Using queried permissions data, calculates permissions for multiple objects. These are used to let a user know ahead of time if they're allowed to 
+ * perform an action, and indicate that in the UX
+ * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
+ * @parma userData Data about the user performing the action
+ * @returns Map of permissions objects, keyed by ID
+ */
+export function getMultiTypePermissions(
+    authDataById: { [id: string]: { __typename: GraphQLModelType, [x: string]: any } },
+    userData: SessionUser | null,
+): { [id: string]: { [x: string]: any } } {
+    // Initialize result
+    const permissionsById: { [id: string]: { [key in QueryAction]?: boolean } } = {};
+    // Loop through each ID and calculate permissions
+    for (const id of Object.keys(authDataById)) {
+        // Get permissions object for this ID
+        const validator = getValidator(authDataById[id].__typename, 'getMultiplePermissions');
+        const isAdmin = userData?.id ? validator.isAdmin(authDataById[id], userData?.id) : false;
+        const isDeleted = validator.isDeleted(authDataById[id]);
+        const isPublic = validator.isPublic(authDataById[id]);
+        const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });
+        // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
+        // as the permissions object, but with the values being the result of the resolver.
+        const permissions = Object.fromEntries(permissionResolvers.map(([key, resolver]) => [key, resolver()]));
+        // Add permissions object to result
+        permissionsById[id] = permissions;
+    }
+    return permissionsById;
+}
+
+/**
+ * Using object type and ids, calculate permissions for one object type
+ * @param type Object type
+ * @param ids IDs of objects to calculate permissions for
+ * @param prisma Prisma client
+ * @param userData Data about the user performing the action
+ */
+export async function getSingleTypePermissions<PermissionObject extends { [x: string]: any }>(
+    type: GraphQLModelType,
+    ids: string[],
+    prisma: PrismaType,
+    userData: SessionUser | null,
+): Promise<PermissionObject[]> {
+    // Initialize result
+    const permissions: PermissionObject[] = [];
+    // Get validator and prismaDelegate
+    const validator = getValidator(type, 'getSingleTypePermissions');
+    const prismaDelegate = getDelegate(type, prisma, 'getSingleTypePermissions');
+    // Get auth data for all objects
+    const authData = await prismaDelegate.findMany({
+        where: { id: { in: ids } },
+        select: validator.permissionsSelect(userData?.id ?? null),
+    })
+    // Loop through each object and calculate permissions
+    for (const authDataItem of authData) {
+        const isAdmin = userData?.id ? validator.isAdmin(authDataItem, userData?.id) : false;
+        const isDeleted = validator.isDeleted(authDataItem);
+        const isPublic = validator.isPublic(authDataItem);
+        const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });
+        // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
+        // as the permissions object, but with the values being the result of the resolver.
+        const permissionsObject = Object.fromEntries(permissionResolvers.map(([key, resolver]) => [key, resolver()]));
+        // Add permissions object to result
+        permissions.push(permissionsObject as PermissionObject);
+    }
+    return permissions;
+}
+
+/**
  * Validates that the user has permission to perform one or more actions on the given objects. Throws 
  * an error if the user does not have permission.
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
@@ -220,19 +292,25 @@ export type StandardPolicy = {
  * in case one ID is used for multiple actions.
  * @parma userId ID of user requesting permissions
  */
-export async function permissionsCheck(
-    authDataById: { [id: string]: { __typename: GraphQLModelType, [x: string]: any } }, 
+export function permissionsCheck(
+    authDataById: { [id: string]: { __typename: GraphQLModelType, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
-    userId: string | null,
+    userData: SessionUser | null,
 ) {
-    // Loop through each action and validate permissions for each ID
+    // Get permissions
+    const permissionsById = getMultiTypePermissions(authDataById, userData);
+    // Loop through each action and validate permissions
     for (const action of Object.keys(idsByAction)) {
-        const ids: string[] = idsByAction[action];
+        // Get IDs for this action
+        const ids = idsByAction[action];
+        // Loop through each ID and validate permissions
         for (const id of ids) {
-            // Get permissions object for this ID
-            const validator = getValidator(authDataById[id].__typename, 'permissionsCheck');
-            const permissionResolvers = validator.permissionResolvers(authDataById[id], userId);
-            fdsafdsafdsa
+            // Get permissions for this ID
+            const permissions = permissionsById[id];
+            // Check if permissions contains the current action. If so, make sure it's not false.
+            if (`can${action}` in permissions && !permissions[`can${action}`]) {
+                throw new CustomError(CODE.Unauthorized, `User does not have permission to ${action} ${authDataById[id].__typename} ${id}`, { code: genErrorCode('0297') })
+            }
         }
     }
 }

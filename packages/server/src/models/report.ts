@@ -1,6 +1,6 @@
 import { reportsCreate, reportsUpdate } from "@shared/validation";
 import { ReportFor, ReportSortBy } from '@shared/consts';
-import { combineQueries, getSearchStringQueryHelper } from "./builder";
+import { combineQueries } from "./builder";
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
@@ -20,8 +20,8 @@ export const reportFormatter = (): FormatConverter<Report, SupplementalFields> =
     supplemental: {
         graphqlFields: ['isOwn'],
         dbFields: ['userId'],
-        toGraphQL: ({ objects, userId }) => [
-            ['isOwn', async () => objects.map((x) => Boolean(userId) && x.fromId === userId)],
+        toGraphQL: ({ objects, userData }) => [
+            ['isOwn', async () => objects.map((x) => Boolean(userData) && x.fromId === userData?.id)],
         ],
     },
 })
@@ -69,12 +69,9 @@ export const reportValidator = (): Validator<
         __typename: 'Report',
     },
     permissionsSelect: (userId) => ({ id: true, user: { select: userValidator().permissionsSelect(userId) } }),
-    permissionResolvers: (data, userId) => {
-        const isAdmin = userId && reportValidator().isAdmin(data, userId);
-        return [
-            ['isOwn', async () => isAdmin],
-        ]
-    },
+    permissionResolvers: ({ isAdmin }) => ([
+        ['isOwn', async () => isAdmin],
+    ]),
     isAdmin: (data, userId) => userValidator().isAdmin(data.user as any, userId),
     isDeleted: () => false,
     isPublic: () => true,

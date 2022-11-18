@@ -1,6 +1,6 @@
 import { PrismaType } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission } from "../schema/types";
-import { addJoinTablesHelper, removeJoinTablesHelper, addCountFieldsHelper, removeCountFieldsHelper, getSearchStringQueryHelper, onlyValidIds, visibilityBuilder, combineQueries } from "./builder";
+import { addJoinTablesHelper, removeJoinTablesHelper, addCountFieldsHelper, removeCountFieldsHelper, onlyValidIds, visibilityBuilder, combineQueries } from "./builder";
 import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { TagModel } from "./tag";
@@ -11,8 +11,7 @@ import { ViewModel } from "./view";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
-import { getPermissions } from "./utils";
-import { MemberPolicy, OrganizationPolicy, RolePolicy } from "./validators";
+import { getSingleTypePermissions, MemberPolicy, OrganizationPolicy, RolePolicy } from "./validators";
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
 const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
@@ -36,10 +35,10 @@ export const organizationFormatter = (): FormatConverter<Organization, Supplemen
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
     supplemental: {
         graphqlFields: ['isStarred', 'isViewed', 'permissionsOrganization'],
-        toGraphQL: ({ ids, prisma, userId }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Organization')],
-            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Organization')],
-            ['permissionsOrganization', async () => await getPermissions({ objectType: 'Organization', ids, prisma, userId })],
+        toGraphQL: ({ ids, prisma, userData }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Organization')],
+            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userData?.id, ids, 'Organization')],
+            ['permissionsOrganization', async () => await getSingleTypePermissions('Organization', ids, prisma, userData)],
         ],
     },
 })
@@ -129,18 +128,14 @@ export const organizationValidator = (): Validator<
             }
         } : {}),
     }),
-    permissionResolvers: (data, userId) => {
-        const isAdmin = userId && organizationValidator().isAdmin(data, userId);
-        const isPublic = organizationValidator().isPublic(data);
-        return [
-            ['canAddMembers', async () => isAdmin],
-            ['canDelete', async () => isAdmin],
-            ['canEdit', async () => isAdmin],
-            ['canReport', async () => !isAdmin && isPublic],
-            ['canStar', async () => isAdmin || isPublic],
-            ['canView', async () => isAdmin || isPublic],
-        ]
-    },
+    permissionResolvers: ({ isAdmin, isPublic }) => ([
+        ['canAddMembers', async () => isAdmin],
+        ['canDelete', async () => isAdmin],
+        ['canEdit', async () => isAdmin],
+        ['canReport', async () => !isAdmin && isPublic],
+        ['canStar', async () => isAdmin || isPublic],
+        ['canView', async () => isAdmin || isPublic],
+    ]),
     isAdmin: (data, userId) => {
         // If no userId, can't be admin
         if (!userId) return false;
@@ -213,8 +208,8 @@ export const organizationMutater = (prisma: PrismaType): Mutater<Organization> =
             isOpenToNewMembers: data.isOpenToNewMembers ?? undefined,
             isPrivate: data.isPrivate ?? undefined,
             permissions: JSON.stringify({}),
-            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, false),
-            tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Organization'),
+            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder!(userId, data, false),
+            tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userId, data, 'Organization'),
             translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
         }
     },

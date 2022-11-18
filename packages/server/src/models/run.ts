@@ -1,15 +1,17 @@
 import { runsCreate, runsUpdate } from "@shared/validation";
 import { CODE, RunSortBy } from "@shared/consts";
-import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, getSearchStringQueryHelper, combineQueries, permissionsSelectHelper } from "./builder";
+import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, combineQueries, permissionsSelectHelper } from "./builder";
 import { RunStepModel } from "./runStep";
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { RunInputModel } from "./runInput";
 import { CustomError, genErrorCode, Trigger } from "../events";
-import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput } from "../schema/types";
+import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { oneIsPublic } from "./utils";
+import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
+import { organizationQuerier } from "./organization";
 
 export const runFormatter = (): FormatConverter<Run, ''> => ({
     relationshipMap: {
@@ -80,7 +82,9 @@ export const runValidator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'RunRoutine',
-        asdffasdf
+        routineVersion: 'Routine',
+        organization: 'Organization',
+        user: 'User',
     },
     permissionsSelect: (userId) => ({
         id: true,
@@ -91,11 +95,23 @@ export const runValidator = (): Validator<
             ['user', 'User'],
         ], userId)
     }),
-    permissionsFromSelect: (select, userId) => asdf as any,
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
+        ['canDelete', async () => isAdmin && !isDeleted],
+        ['canEdit', async () => isAdmin && !isDeleted],
+        ['canView', async () => !isDeleted && (isAdmin || isPublic)],
+    ]),
+    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
+    isDeleted: (data) => false,
     isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],
     ]),
+    ownerOrMemberWhere: (userId) => ({
+        OR: [
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
+            { user: { id: userId } }
+        ]
+    }),
     // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
     //     validateProfanity(data.map((d: any) => d.title));
     // },
@@ -115,7 +131,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
             timeStarted: new Date(),
             routineVersionId: data.routineVersionId,
             status: RunStatus.InProgress,
-            steps: await RunStepModel.mutate(prisma).relationshipBuilder(userId, data, true, 'step'),
+            steps: await RunStepModel.mutate(prisma).relationshipBuilder!(userId, data, true, 'step'),
             title: data.title,
             userId,
         }
@@ -125,8 +141,8 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
             timeElapsed: data.timeElapsed ? { increment: data.timeElapsed } : undefined,
             completedComplexity: data.completedComplexity ? { increment: data.completedComplexity } : undefined,
             contextSwitches: data.contextSwitches ? { increment: data.contextSwitches } : undefined,
-            steps: await RunStepModel.mutate(prisma).relationshipBuilder(userId, data, false),
-            inputs: await RunInputModel.mutate(prisma).relationshipBuilder(userId, data, false),
+            steps: await RunStepModel.mutate(prisma).relationshipBuilder!(userId, data, false),
+            inputs: await RunInputModel.mutate(prisma).relationshipBuilder!(userId, data, false),
         }
     },
     async cud(params: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
@@ -184,7 +200,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
      * to get around this, but I'm not sure if that would be a good idea. Most of the time, I imagine users
      * will just be looking at the routine instead of using it.
      */
-    async complete(userId: string, input: RunCompleteInput, info: GraphQLInfo): Promise<Run> {
+    async complete(userData: SessionUser, input: RunCompleteInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
         const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0179') });
@@ -195,7 +211,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
             run = await prisma.run_routine.findFirst({
                 where: {
                     AND: [
-                        { userId },
+                        { userId: userData.id },
                         { id: input.id },
                     ]
                 }
@@ -245,7 +261,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
                     routineVersionId: input.id,
                     status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
                     title: input.title,
-                    userId,
+                    userId: userData.id,
                     steps: {
                         create: input.finalStepCreate ? {
                             order: input.finalStepCreate.order ?? 1,
@@ -268,17 +284,17 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
         // Convert to GraphQL
         let converted: any = modelToGraphQL(run, partial);
         // Add supplemental fields
-        converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
+        converted = (await addSupplementalFields(prisma, userData, [converted], partial))[0];
         // Handle trigger
-        if (input.wasSuccessful) await Trigger(prisma).runComplete(input.title, input.id, userId, false);
-        else await Trigger(prisma).runFail(input.title, input.id, userId, false);
+        if (input.wasSuccessful) await Trigger(prisma).runComplete(input.title, input.id, userData.id, false);
+        else await Trigger(prisma).runFail(input.title, input.id, userData.id, false);
         // Return converted object
         return converted as Run;
     },
     /**
      * Cancels a run
      */
-    async cancel(userId: string, input: RunCancelInput, info: GraphQLInfo): Promise<Run> {
+    async cancel(userData: SessionUser, input: RunCancelInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
         const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0181') });
@@ -286,7 +302,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
         let object = await prisma.run_routine.findFirst({
             where: {
                 AND: [
-                    { userId },
+                    { userId: userData.id },
                     { id: input.id },
                 ]
             }
@@ -303,7 +319,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
         // Convert to GraphQL
         let converted: any = modelToGraphQL(updated, partial);
         // Add supplemental fields
-        converted = (await addSupplementalFields(prisma, userId, [converted], partial))[0];
+        converted = (await addSupplementalFields(prisma, userData, [converted], partial))[0];
         // Return converted object
         return converted as Run;
     },

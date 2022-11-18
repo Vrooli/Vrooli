@@ -1,7 +1,7 @@
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
 import { getUser, toPartialGraphQLInfo, onlyValidIds, timeFrameToPrisma, combineQueries, selectHelper, modelToGraphQL, addSupplementalFields, getSearchString } from "../builder";
-import { PaginatedSearchResult, PartialGraphQLInfo, SearchInputBase } from "../types";
+import { PaginatedSearchResult, PartialGraphQLInfo, Searcher, SearchInputBase } from "../types";
 import { ReadManyHelperProps } from "./types";
 
 /**
@@ -19,7 +19,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     prisma,
     req,
 }: ReadManyHelperProps<GraphQLModel, SearchInput>): Promise<PaginatedSearchResult> {
-    const userId = getUser(req)?.id;
+    const userData = getUser(req);
     // Partially convert info type
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
@@ -28,18 +28,19 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     partialInfo.id = true;
     // Create query for specified ids
     const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: onlyValidIds(input.ids) } }) : undefined;
+    const searcher: Searcher<any, any, any, any> | undefined = model.search;
     // Determine text search query
-    const searchQuery = (input.searchString && model.search?.searchStringQuery) ? getSearchString({ objectType: model.type, searchString: input.searchString }) : undefined;
+    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchString({ objectType: model.type, searchString: input.searchString }) : undefined;
     // Determine createdTimeFrame query
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Determine updatedTimeFrame query
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Create type-specific queries
-    let typeQuery = model.search?.customQueries ? model.search.customQueries(input, userId) : undefined;
+    let typeQuery = searcher?.customQueries ? searcher.customQueries(input, userData?.id) : undefined;
     // Combine queries
     const where = combineQueries([additionalQueries, idQuery, searchQuery, createdQuery, updatedQuery, typeQuery]);
     // Determine sort order
-    const orderBy = model.search?.sortMap ? model.search.sortMap[input.sortBy ?? model.search.defaultSort] : undefined;
+    const orderBy = searcher?.sortMap ? searcher.sortMap[input.sortBy ?? searcher.defaultSort] : undefined;
     // Find requested search array
     const searchResults = await (model.prismaObject(prisma) as any).findMany({
         where,
@@ -89,6 +90,6 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
-    formattedNodes = await addSupplementalFields(prisma, userId ?? null, formattedNodes, partialInfo);
+    formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
     return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
 }

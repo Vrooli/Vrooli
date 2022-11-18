@@ -7,6 +7,7 @@ import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { cudHelper } from "./actions";
 import { permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
+import { organizationQuerier } from "./organization";
 import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { oneIsPublic } from "./utils";
 import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
@@ -81,7 +82,12 @@ export const walletValidator = (): Validator<
         ['organization', 'Organization'],
         ['user', 'User'],
     ]),
-    ownerOrMemberWhere: () => asdfa,
+    ownerOrMemberWhere: (userId) => ({
+        OR: [
+            organizationQuerier().hasRoleInOrganizationQuery(userId),
+            { user: { id: userId } }
+        ]
+    }),
     validateMap: {
         __typename: 'Wallet',
         user: 'User',

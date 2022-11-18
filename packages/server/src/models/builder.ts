@@ -1,5 +1,5 @@
 // Components for providing basic functionality to model objects
-import { PrismaType, RecursivePartial, ReqForUserAuth } from '../types';
+import { PrismaType, RecursivePartial } from '../types';
 import { CommentModel } from './comment';
 import { NodeModel } from './node';
 import { OrganizationModel } from './organization';
@@ -21,7 +21,6 @@ import { resolveGraphQLInfo } from '../utils';
 import { InputItemModel } from './inputItem';
 import { OutputItemModel } from './outputItem';
 import { ResourceListModel } from './resourceList';
-import { TagHiddenModel } from './tagHidden';
 import { ViewModel } from './view';
 import { RunModel } from './run';
 import pkg from 'lodash';
@@ -33,6 +32,7 @@ import { uuidValidate } from '@shared/uuid';
 import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, SupplementalConverter, WithSelect } from './types';
 import { SessionUser, TimeFrame, VisibilityType } from '../schema/types';
 import { getSearcher, getValidator } from './utils';
+import { Request } from 'express';
 const { difference, flatten, merge } = pkg;
 
 /**
@@ -55,13 +55,12 @@ export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any, 
     ResourceList: ResourceListModel,
     Role: RoleModel,
     Routine: RoutineModel,
-    Run: RunModel,
+    RunRoutine: RunModel,
     RunInput: RunInputModel,
     Standard: StandardModel,
     RunStep: RunStepModel,
     Star: StarModel,
     Tag: TagModel,
-    TagHidden: TagHiddenModel,
     User: UserModel,
     Vote: VoteModel,
     View: ViewModel,
@@ -455,13 +454,13 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
  */
 export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect): PrismaSelect | undefined => {
     // Convert partial's special cases (virtual/calculated fields, unions, etc.)
-    let modified: PartialPrismaSelect = toPartialPrismaSelect(partial);
+    let modified: { [x: string]: any } = toPartialPrismaSelect(partial);
     if (!isObject(modified)) return undefined;
     // Delete __typename fields
     modified = removeTypenames(modified);
     // Pad every relationship with "select"
     modified = padSelect(modified);
-    return modified;
+    return modified as PrismaSelect;
 }
 
 /**
@@ -1025,10 +1024,10 @@ const pickObjectById = (data: any, id: string): ({ id: string } & { [x: string]:
  * @param req Request object
  * @returns First userId in Session object, or null if not found/invalid
  */
- export const getUser = (req: ReqForUserAuth): SessionUser | null => {
+ export const getUser = (req: { users?: Request['users'] }): SessionUser | null => {
     if (!req || !Array.isArray(req?.users) || req.users.length === 0) return null;
     const user = req.users[0];
-    return typeof user.id === 'string' && uuidValidate(user.id) ? (user as any) : null;
+    return typeof user.id === 'string' && uuidValidate(user.id) ? user : null;
 }
 
 /**
@@ -1053,12 +1052,12 @@ export const removeSupplementalFieldsHelper = (objectType: GraphQLModelType, par
 /**
  * Adds supplemental fields data to the given objects
  */
-export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ objects, objectType, partial, prisma, userId }: {
+export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ objects, objectType, partial, prisma, userData }: {
     objects: ({ id: string } & { [x: string]: any })[],
     objectType: GraphQLModelType,
     partial: PartialGraphQLInfo,
     prisma: PrismaType,
-    userId: string | null,
+    userData: SessionUser | null,
 }): Promise<RecursivePartial<GraphQLModel>[]> => {
     if (!objects || objects.length === 0) return [];
     // Get supplemental info for object
@@ -1067,7 +1066,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     // Get IDs from objects
     const ids = objects.map(({ id }) => id);
     // Call each resolver to get supplemental data
-    const resolvers = supplementer.toGraphQL({ ids, objects, partial, prisma, userId });
+    const resolvers = supplementer.toGraphQL({ ids, objects, partial, prisma, userData });
     for (const [field, resolver] of resolvers) {
         // If not in partial, skip
         if (!partial[field]) continue;
@@ -1081,14 +1080,14 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
  * Adds supplemental fields to the select object, and all of its relationships (and their relationships, etc.)
  * Groups objects types together, so database is called only once for each type.
  * @param prisma Prisma client
- * @param userId Requesting user's ID
+ * @param userData Requesting user's data
  * @param data Array of GraphQL-shaped data, where each object contains at least an ID
  * @param partialInfo PartialGraphQLInfo object
  * @returns data array with supplemental fields added to each object
  */
 export const addSupplementalFields = async (
     prisma: PrismaType,
-    userId: string | null,
+    userData: SessionUser | null,
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: PartialGraphQLInfo | PartialGraphQLInfo[],
 ): Promise<{ [x: string]: any }[]> => {
@@ -1122,7 +1121,7 @@ export const addSupplementalFields = async (
         // Now that we have the data for each object, we can add the supplemental fields
         const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
         const valuesWithSupplements = formatter?.supplemental ?
-            await addSupplementalFieldsHelper({ objects: objectData, objectType: type as GraphQLModelType, partial: selectFieldsDict[type], prisma, userId }) :
+            await addSupplementalFieldsHelper({ objects: objectData, objectType: type as GraphQLModelType, partial: selectFieldsDict[type], prisma, userData }) :
             objectData;
         // Add each value to objectsById
         for (const v of valuesWithSupplements) {
@@ -1139,7 +1138,7 @@ export const addSupplementalFields = async (
  * @param data Array of arrays, where each array is a list of the same object type queried from the database
  * @param partialInfos Array of PartialGraphQLInfo objects, in the same order as data arrays
  * @param keys Keys to associate with each data array
- * @param userId Requesting user's ID
+ * @param userData Requesting user's data
  * @param prisma Prisma client
  * @returns Object with keys equal to objectTypes, and values equal to arrays of objects with supplemental fields added
  */
@@ -1147,7 +1146,7 @@ export const addSupplementalFieldsMultiTypes = async (
     data: { [x: string]: any }[][],
     partialInfos: PartialGraphQLInfo[],
     keys: string[],
-    userId: string | null,
+    userData: SessionUser | null,
     prisma: PrismaType,
 ): Promise<{ [x: string]: any[] }> => {
     // Flatten data array
@@ -1162,7 +1161,7 @@ export const addSupplementalFieldsMultiTypes = async (
         }
     }
     // Call addSupplementalFields
-    const combinedResult = await addSupplementalFields(prisma, userId, combinedData, combinedPartialInfo);
+    const combinedResult = await addSupplementalFields(prisma, userData, combinedData, combinedPartialInfo);
     // Convert combinedResult into object with keys equal to objectTypes, and values equal to arrays of those types
     const formatted: { [y: string]: any[] } = {};
     let start = 0;

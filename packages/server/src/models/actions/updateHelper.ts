@@ -31,7 +31,7 @@ export async function updateHelper<GraphQLModel>({
     if (updated && updated.length > 0) {
         // Handle new version trigger, if applicable
         //TODO
-        return (await addSupplementalFields(prisma, userData.id, updated, partialInfo))[0] as any;
+        return (await addSupplementalFields(prisma, userData, updated, partialInfo))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in updateHelper', { code: genErrorCode('0032') });
 }

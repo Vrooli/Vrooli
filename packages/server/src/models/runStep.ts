@@ -11,7 +11,7 @@ import { cudHelper } from "./actions";
 export const runStepFormatter = (): FormatConverter<RunStep, any> => ({
     relationshipMap: {
         __typename: 'RunStep',
-        run: 'Run',
+        run: 'RunRoutine',
         node: 'Node',
         subroutine: 'Routine',
     },
@@ -34,7 +34,7 @@ export const runStepMutater = (prisma: PrismaType): Mutater<RunStep> => ({
             timeElapsed: data.timeElapsed,
         }
     },
-    shapeRelationshipCreate(userId: string, data: RunStepCreateInput): Prisma.run_stepUncheckedCreateWithoutRunInput {
+    shapeRelationshipCreate(userId: string, data: RunStepCreateInput): Prisma.run_routine_stepUncheckedCreateWithoutRunRoutineInput {
         return {
             ...this.shapeBase(userId, data),
             nodeId: data.nodeId,
@@ -45,19 +45,19 @@ export const runStepMutater = (prisma: PrismaType): Mutater<RunStep> => ({
             title: data.title,
         }
     },
-    shapeRelationshipUpdate(userId: string, data: RunStepUpdateInput): Prisma.run_stepUncheckedUpdateWithoutRunInput {
+    shapeRelationshipUpdate(userId: string, data: RunStepUpdateInput): Prisma.run_routine_stepUncheckedUpdateWithoutRunRoutineInput {
         return {
             ...this.shapeBase(userId, data),
             status: data.status ?? undefined,
         }
     },
-    shapeCreate(userId: string, data: RunStepCreateInput & { runId: string }): Prisma.run_stepUpsertArgs['create'] {
+    shapeCreate(userId: string, data: RunStepCreateInput & { runId: string }): Prisma.run_routine_stepUpsertArgs['create'] {
         return {
             ...this.shapeRelationshipCreate(userId, data),
             runId: data.runId,
         }
     },
-    shapeUpdate(userId: string, data: RunStepUpdateInput): Prisma.run_stepUpsertArgs['update'] {
+    shapeUpdate(userId: string, data: RunStepUpdateInput): Prisma.run_routine_stepUpsertArgs['update'] {
         return {
             ...this.shapeRelationshipUpdate(userId, data),
         }
@@ -89,7 +89,7 @@ export const runStepMutater = (prisma: PrismaType): Mutater<RunStep> => ({
 })
 
 export const RunStepModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.run_step,
+    prismaObject: (prisma: PrismaType) => prisma.run_routine_step,
     format: runStepFormatter(),
     mutate: runStepMutater,
     type: 'RunStep' as GraphQLModelType,

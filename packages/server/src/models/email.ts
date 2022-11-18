@@ -30,13 +30,10 @@ export const emailValidator = (): Validator<
         user: 'User',
     },
     permissionsSelect: (userId) => ({ id: true, user: { select: userValidator().permissionsSelect(userId) } }),
-    permissionResolvers: (data, userId) => {
-        const isOwner = userId && data.user?.id === userId;
-        return [
-            ['canDelete', async () => isOwner],
-            ['canEdit', async () => isOwner],
-        ]
-    },
+    permissionResolvers: ({ isAdmin }) => ([
+        ['canDelete', async () => isAdmin],
+        ['canEdit', async () => isAdmin],
+    ]),
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
     isAdmin: (data, userId) => userValidator().isAdmin(data.user as any, userId),
     isDeleted: () => false,

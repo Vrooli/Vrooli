@@ -18,7 +18,7 @@ const collectProfanities = (input: { [x: string]: any }, partialInfo: PartialGra
     // Handle base case
     // Get current object's validator
     if (!partialInfo.__typename) return result;
-    const validator: Validator<any, any, any, any, any, any> | undefined = ObjectMap[partialInfo.__typename]?.validate;
+    const validator: Validator<any, any, any, any, any, any, any> | undefined = ObjectMap[partialInfo.__typename]?.validate;
     // If validator specifies profanityFields, add them to the result
     if (validator?.profanityFields) {
         for (const field of validator.profanityFields) {

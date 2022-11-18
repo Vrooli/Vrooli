@@ -22,8 +22,9 @@ export const voteFormatter = (): FormatConverter<Vote, 'to'> => ({
     },
     supplemental: {
         graphqlFields: ['to'],
-        toGraphQL: ({ objects, partial, prisma, userId }) => [
+        toGraphQL: ({ objects, partial, prisma, userData }) => [
             ['to', async () => {
+                if (!userData) return new Array(objects.length).fill([]);
                 // Query for data that star is applied to
                 if (isObject(partial.to)) {
                     const toTypes: GraphQLModelType[] = objects.map(o => resolveVoteTo(o.to)).filter(t => t);
@@ -55,7 +56,7 @@ export const voteFormatter = (): FormatConverter<Vote, 'to'> => ({
                             input: { ids: toIdsByType[type] },
                             model,
                             prisma,
-                            req: { users: [{ id: userId }] }
+                            req: { users: [userData] }
                         })
                         tos.push(...paginated.edges.map(x => x.node));
                     }
@@ -157,7 +158,7 @@ const voteMutater = (prisma: PrismaType): Mutater<Vote> => ({
 
 const voteQuerier = (prisma: PrismaType) => ({
     async getIsUpvoteds(
-        userId: string | null,
+        userId: string | null | undefined,
         ids: string[],
         voteFor: keyof typeof VoteFor
     ): Promise<Array<boolean | null>> {

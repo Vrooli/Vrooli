@@ -134,9 +134,9 @@ export async function init(prisma: PrismaType) {
                 permissions: JSON.stringify({}),
                 members: {
                     create: [
-                        { 
+                        {
                             permissions: JSON.stringify({}),
-                            userId: admin.id 
+                            userId: admin.id
                         },
                     ]
                 },
@@ -214,17 +214,17 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Projects */
     //==============================================================
-    let projectEntrepreneur = await prisma.project.findFirst({
+    let projectEntrepreneur = await prisma.project_version.findFirst({
         where: {
             AND: [
-                { organizationId: vrooli.id },
+                { root: { organizationId: vrooli.id } },
                 { translations: { some: { language: EN, name: 'Project Catalyst Entrepreneur Guide' } } },
             ]
         }
     })
     if (!projectEntrepreneur) {
         logger.log(LogLevel.info, '📚 Creating Project Catalyst Guide project');
-        projectEntrepreneur = await prisma.project.create({
+        projectEntrepreneur = await prisma.project_version.create({
             data: {
                 translations: {
                     create: [
@@ -235,9 +235,13 @@ export async function init(prisma: PrismaType) {
                         }
                     ]
                 },
-                permissions: JSON.stringify({}),
-                createdByOrganizationId: vrooli.id,
-                organizationId: vrooli.id,
+                root: {
+                    create: {
+                        permissions: JSON.stringify({}),
+                        createdByOrganizationId: vrooli.id,
+                        organizationId: vrooli.id,
+                    }
+                }
             }
         })
     }

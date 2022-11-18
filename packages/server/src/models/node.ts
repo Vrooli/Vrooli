@@ -40,13 +40,10 @@ export const nodeValidator = (): Validator<
         routineVersion: 'Routine',
     },
     permissionsSelect: (userId) => ({ routineVersion: { select: routineValidator().permissionsSelect(userId) } }),
-    permissionResolvers: (data, userId) => {
-        const isAdmin = userId && nodeValidator().isAdmin(data, userId);
-        return [
-            ['canDelete', async () => isAdmin],
-            ['canEdit', async () => isAdmin],
-        ]
-    },
+    permissionResolvers: ({ isAdmin }) => ([
+        ['canDelete', async () => isAdmin],
+        ['canEdit', async () => isAdmin],
+    ]),
     ownerOrMemberWhere: (userId) => ({
         routineVersion: {
             root: {
@@ -89,9 +86,9 @@ export const nodeMutater = (prisma: PrismaType): Mutater<Node> => ({
                     this.relationshipBuilderEndNode(userId, data, false) :
                     undefined,
             nodeRoutineList: (data as NodeCreateInput)?.nodeRoutineListCreate ?
-                await NodeRoutineListModel.mutate(prisma).relationshipBuilder(userId, data, true) :
+                await NodeRoutineListModel.mutate(prisma).relationshipBuilder!(userId, data, true) :
                 (data as NodeUpdateInput)?.nodeRoutineListUpdate ?
-                    await NodeRoutineListModel.mutate(prisma).relationshipBuilder(userId, data, false) :
+                    await NodeRoutineListModel.mutate(prisma).relationshipBuilder!(userId, data, false) :
                     undefined,
         };
     },

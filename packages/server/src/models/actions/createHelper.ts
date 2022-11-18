@@ -34,7 +34,7 @@ export async function createHelper<GraphQLModel>({
         for (const id of input.ids) {
             await Trigger(prisma).objectCreate(objectType, id, userData.id);
         }
-        return (await addSupplementalFields(prisma, userData.id, created, partialInfo))[0] as any;
+        return (await addSupplementalFields(prisma, userData, created, partialInfo))[0] as any;
     }
     throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in createHelper', { code: genErrorCode('0028') });
 }

@@ -66,7 +66,7 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
     // Query for all authentication data
     const authDataById = await getAuthenticatedData(idsByType, prisma, userData.id);
     // Validate permissions
-    permissionsCheck(authDataById, idsByAction, userData.id);
+    permissionsCheck(authDataById, idsByAction, userData);
     // Max objects check
     maxObjectsCheck(authDataById, idsByAction, prisma, userData);
     if (shapedCreate.length > 0) {

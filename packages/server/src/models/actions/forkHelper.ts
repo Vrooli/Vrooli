@@ -2,7 +2,8 @@ import { CODE } from "@shared/consts";
 import { assertRequestFrom } from "../../auth/auth";
 import { CustomError, genErrorCode, Trigger } from "../../events";
 import { toPartialGraphQLInfo, lowercaseFirstLetter } from "../builder";
-import { permissionsCheck } from "../validators";
+import { getAuthenticatedData } from "../utils";
+import { maxObjectsCheck, permissionsCheck } from "../validators";
 import { readOneHelper } from "./readOneHelper";
 import { ForkHelperProps } from "./types";
 
@@ -20,11 +21,14 @@ export async function forkHelper({
     const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).duplicate)
         throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
+    // Query for all authentication data
+    const authDataById = await getAuthenticatedData({ [model.type]: [input.id] }, prisma, userData.id);
     // Check permissions
-    const isPermitted = await permissionsCheck({ actions: ['Fork'], objectType: model.type, objectIds: [input.id], prisma, userId });
-    if (!isPermitted) {
-        throw new CustomError(CODE.Unauthorized, 'Not allowed to fork object', { code: genErrorCode('0262') });
-    }
+    await permissionsCheck(authDataById, { ['Create']: [input.id] }, userData);
+    // Additional check for paywall
+    //TODO
+    // Check max objects
+    await maxObjectsCheck(authDataById, { ['Create']: [input.id] }, prisma, userData);
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, ({
         '__typename': 'Fork',

@@ -1,6 +1,6 @@
-import { standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
-import { CODE, DeleteOneType, StandardSortBy } from "@shared/consts";
-import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, getSearchStringQueryHelper, modelToGraphQL, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, visibilityBuilder } from "./builder";
+import { standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
+import { CODE, StandardSortBy } from "@shared/consts";
+import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -9,14 +9,16 @@ import { ViewModel } from "./view";
 import { ResourceListModel } from "./resourceList";
 import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/walletAuth";
-import { CustomError, genErrorCode } from "../events";
-import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, Count } from "../schema/types";
+import { Trigger } from "../events";
+import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
-import { deleteOneHelper } from "./actions";
 import { Prisma } from "@prisma/client";
-import { getPermissions, oneIsPublic } from "./utils";
+import { oneIsPublic } from "./utils";
 import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
+import { organizationQuerier } from "./organization";
+import { cudHelper } from "./actions";
+import { getSingleTypePermissions } from "./validators";
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
@@ -45,11 +47,11 @@ export const standardFormatter = (): FormatConverter<Standard, SupplementalField
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
     supplemental: {
         graphqlFields: ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'],
-        toGraphQL: ({ ids, prisma, userId }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Standard')],
-            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Standard')],
-            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Standard')],
-            ['permissionsStandard', async () => await getPermissions({ objectType: 'Standard', ids, prisma, userId })],
+        toGraphQL: ({ ids, prisma, userData }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Standard')],
+            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userData?.id, ids, 'Standard')],
+            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userData?.id, ids, 'Standard')],
+            ['permissionsStandard', async () => await getSingleTypePermissions('Standard', ids, prisma, userData)],
             ['versions', async () => {
                 const groupData = await prisma.standard.findMany({
                     where: { id: { in: ids } },
@@ -131,7 +133,15 @@ export const standardValidator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'Standard',
-        asdfasdf
+        root: {
+            select: {
+                parent: 'Standard',
+                organization: 'Organization',
+                user: 'User',
+            }
+        },
+        forks: 'Standard',
+        // directoryListings: 'ProjectDirectory',
     },
     permissionsSelect: (userId) => ({
         id: true,
@@ -151,20 +161,15 @@ export const standardValidator = (): Validator<
             }
         }
     }),
-    permissionResolvers: (data, userId) => {
-        const isAdmin = userId && standardValidator().isAdmin(data, userId);
-        const isPublic = standardValidator().isPublic(data);
-        const isDeleted = standardValidator().isDeleted(data);
-        return [
-            ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canDelete', async () => isAdmin && !isDeleted],
-            ['canEdit', async () => isAdmin && !isDeleted],
-            ['canReport', async () => !isAdmin && !isDeleted && isPublic],
-            ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canView', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
-        ]
-    },
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
+        ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canDelete', async () => isAdmin && !isDeleted],
+        ['canEdit', async () => isAdmin && !isDeleted],
+        ['canReport', async () => !isAdmin && !isDeleted && isPublic],
+        ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canView', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
+    ]),
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => (d.root as any).organization, (d) => (d.root as any).user, userId),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data) => data.isPrivate === false &&
@@ -176,8 +181,27 @@ export const standardValidator = (): Validator<
             ['user', 'User'],
         ]),
     profanityFields: ['name'],
-    ownerOrMemberWhere: (userId) => asdf as any,
+    ownerOrMemberWhere: (userId) => ({
+        root: {
+            OR: [
+                organizationQuerier().hasRoleInOrganizationQuery(userId),
+                { user: { id: userId } }
+            ]
+        }
+    }),
     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
+    // TODO when deleting, anonymize standards which are being used by inputs/outputs
+    // const standard = await prisma.standard_version.findUnique({
+    //     where: { id },
+    //     select: {
+    //                 _count: {
+    //                     select: {
+    //                         routineInputs: true,
+    //                         routineOutputs: true,
+    //                     }
+    //                 }
+    //     }
+    // })
 })
 
 export const standardQuerier = (prisma: PrismaType) => ({
@@ -285,10 +309,10 @@ export const standardMutater = (prisma: PrismaType): Mutater<Standard> => ({
         return {
             root: {
                 isPrivate: data.isPrivate ?? undefined,
-                tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Standard'),
+                tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userId, data, 'Standard'),
             },
             isPrivate: data.isPrivate ?? undefined,
-            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, true),
+            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder!(userId, data, true),
         }
     },
     async shapeRelationshipCreate(userId: string, data: StandardCreateInput): Promise<Prisma.standard_versionUpsertArgs['create']> {
@@ -407,150 +431,28 @@ export const standardMutater = (prisma: PrismaType): Mutater<Standard> => ({
         });
     },
     async cud(params: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
-        const select = selectHelper(partialInfo);
-        // Perform mutations
-        let created: any[] = [], updated: any[] = [], deleted: Count = { count: 0 };
-        if (createMany) {
-            let data: any;
-            // Loop through each create input
-            for (const input of createMany) {
-                // If standard is internal, check if the shape exists in the database
-                if (input.isInternal) {
-                    const existingStandard = await standardQuerier(prisma).findMatchingStandardVersion(input, userId, false, true);
-                    // If standard found, pretend it was created
-                    if (existingStandard) {
-                        // Find full data
-                        const existingData = await prisma.standard.findUnique({ where: { id: existingStandard.id }, ...selectHelper(partialInfo) });
-                        // Convert to GraphQL
-                        const converted = modelToGraphQL(existingData as any, partialInfo);
-                        // Add to created array
-                        created = created ? [...created, converted] : [converted];
-                        continue;
-                    }
+        return cudHelper({
+            ...params,
+            objectType: 'Standard',
+            prisma,
+            yup: { yupCreate: standardsCreate, yupUpdate: standardsUpdate },
+            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+            onCreated: (created) => {
+                for (const c of created) {
+                    Trigger(prisma).objectCreate('Standard', c.id as string, params.userData.id);
                 }
-                // Otherwise, perform two unique checks
-                // 1. Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
-                // 2. Check if standard of same shape already exists with the same creator
-                // If any checks return an existing standard, throw error
-                else {
-                    // First call createData helper function, so we can use the generated name
-                    data = await this.shapeCreate(userId, input);
-                    const check1 = await standardQuerier(prisma).findMatchingStandardName(data.name, userId);
-                    if (check1) {
-                        throw new CustomError(CODE.StandardDuplicateName, 'Standard with this name/version pair already exists.', { code: genErrorCode('0238') });
+            },
+            onUpdated: (updatedData, updateInput) => {
+                for (let i = 0; i < updatedData.length; i++) {
+                    const u = updatedData[i];
+                    const input = updateInput[i];
+                    // Check if version changed
+                    if (input.versionLabel && u.isComplete) {
+                        Trigger(prisma).objectNewVersion('Standard', u.id as string, params.userData.id);
                     }
-                    const check2 = await standardQuerier(prisma).findMatchingStandardVersion(data, userId, true, false)
-                    if (check2) {
-                        throw new CustomError(CODE.StandardDuplicateShape, 'Standard with this shape already exists.', { code: genErrorCode('0239') });
-                    }
-                }
-                // If not called, create data
-                if (!data) data = await this.shapeCreate(userId, input);
-                // If not internal, associate with either organization or user
-                if (!input.isInternal) {
-                    if (input.createdByOrganizationId) {
-                        data = {
-                            ...data,
-                            createdByOrganization: { connect: { id: input.createdByOrganizationId } },
-                        };
-                    } else {
-                        data = {
-                            ...data,
-                            createdByUser: { connect: { id: userId } },
-                        };
-                    }
-                }
-                // Create object
-                const currCreated = await prisma.standard.create({ data, ...selectHelper(partialInfo) });
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currCreated, partialInfo);
-                // Add to created array
-                created = created ? [...created, converted] : [converted];
-            }
-        }
-        if (updateMany) {
-            // Loop through each update input
-            for (const input of updateMany) {
-                // Find in database
-                let object = await prisma.standard.findUnique({
-                    where: input.where,
-                    select: {
-                        id: true,
-                        createdByUserId: true,
-                        createdByOrganizationId: true,
-                    }
-                })
-                if (!object)
-                    throw new CustomError(CODE.ErrorUnknown, 'Standard not found', { code: genErrorCode('0105') });
-                // Check if authorized to update
-                if (!object)
-                    throw new CustomError(CODE.NotFound, 'Standard not found', { code: genErrorCode('0106') });
-                if (object.createdByUserId && object.createdByUserId !== userId)
-                    throw new CustomError(CODE.Unauthorized, 'Not authorized to update standard', { code: genErrorCode('0107') });
-                // Update standard
-                const currUpdated = await prisma.standard.update({
-                    where: input.where,
-                    data: await this.shapeUpdate(userId, input.data),
-                    ...select
-                });
-                // TODO handle version update
-                // Convert to GraphQL
-                const converted = modelToGraphQL(currUpdated, partialInfo);
-                // Add to updated array
-                updated = updated ? [...updated, converted] : [converted];
-            }
-        }
-        if (deleteMany) {
-            // While standards can be deleted, we must be careful not to delete standards that are referenced by other objects
-            // For example, a standard used by routines will be anonimized instead of deleted.
-            for (const id of deleteMany) {
-                // Check if standard is used by any inputs/outputs
-                const standard = await prisma.standard.findUnique({
-                    where: { id },
-                    select: {
-                        versions: {
-                            select: {
-                                _count: {
-                                    select: {
-                                        routineInputs: true,
-                                        routineOutputs: true,
-                                    }
-                                }
-                            }
-                        }
-                    }
-                })
-                // If standard not found, throw error
-                if (!standard) {
-                    throw new CustomError(CODE.NotFound, 'Standard not found', { code: genErrorCode('0241') });
-                }
-                // If standard is being used, anonymize
-                if (standard.versions.some(v => v._count.routineInputs > 0 || v._count.routineOutputs > 0)) {
-                    await prisma.standard.update({
-                        where: { id },
-                        data: {
-                            createdByOrganizationId: null,
-                            createdByUserId: null,
-                        }
-                    })
-                }
-                // Otherwise, delete (unless it is internal)
-                else {
-                    await prisma.standard.deleteMany({
-                        where: {
-                            id,
-                            isInternal: false
-                        }
-                    });
-                    deleted.count++;
                 }
             }
-        }
-        return {
-            created: createMany ? created : undefined,
-            updated: updateMany ? updated : undefined,
-            deleted: deleteMany ? deleted : undefined,
-        };
+        })
     },
 })
 

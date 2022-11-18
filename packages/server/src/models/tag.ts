@@ -1,4 +1,4 @@
-import { addJoinTablesHelper, combineQueries, getSearchStringQueryHelper, relationshipBuilderHelper, removeJoinTablesHelper } from "./builder";
+import { addJoinTablesHelper, combineQueries, relationshipBuilderHelper, removeJoinTablesHelper } from "./builder";
 import { tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@shared/validation";
 import { TagSortBy } from "@shared/consts";
 import { StarModel } from "./star";
@@ -21,9 +21,9 @@ export const tagFormatter = (): FormatConverter<Tag, SupplementalFields> => ({
     supplemental: {
         graphqlFields: ['isStarred', 'isOwn'],
         dbFields: ['createdByUserId', 'id'],
-        toGraphQL: ({ ids, objects, prisma, userId }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Tag')],
-            ['isOwn', async () => objects.map((x) => Boolean(userId) && x.createdByUserId === userId)],
+        toGraphQL: ({ ids, objects, prisma, userData }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Tag')],
+            ['isOwn', async () => objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id)],
         ],
     },
 })
@@ -105,7 +105,11 @@ export const tagMutater = (prisma: PrismaType): Mutater<Tag> => ({
         'Standard': 'standard_tags_taggedid_tagTag_unique',
         'TagHidden': 'user_tags_hidden_userid_tagTag_unique',
     },
-    async relationshipBuilder(
+    /**
+     * Tags are a special case, so they require a custom relationship builder. 
+     * This function supports the joint table and connecting when a create already exists, 
+     */
+    async tagRelationshipBuilder(
         userId: string,
         data: { [x: string]: any },
         parentType: keyof typeof this.parentMapper,

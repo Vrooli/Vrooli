@@ -1,6 +1,6 @@
 import { CODE, StarFor, StarSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils';
-import { combineQueries, getSearchStringQueryHelper, ObjectMap, onlyValidIds } from "./builder";
+import { combineQueries, ObjectMap, onlyValidIds } from "./builder";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -31,8 +31,9 @@ export const starFormatter = (): FormatConverter<Star, 'to'> => ({
     },
     supplemental: {
         graphqlFields: ['to'],
-        toGraphQL: ({ objects, partial, prisma, userId }) => [
+        toGraphQL: ({ objects, partial, prisma, userData }) => [
             ['to', async () => {
+                if (!userData) return new Array(objects.length).fill([]);
                 // Query for data that star is applied to
                 if (isObject(partial.to)) {
                     const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to)).filter(t => t);
@@ -64,7 +65,7 @@ export const starFormatter = (): FormatConverter<Star, 'to'> => ({
                             input: { ids: toIdsByType[type] },
                             model,
                             prisma,
-                            req: { users: [{ id: userId }] }
+                            req: { users: [userData] }
                         })
                         tos.push(...paginated.edges.map(x => x.node));
                     }
@@ -177,7 +178,7 @@ const starMutater = (prisma: PrismaType): Mutater<Star> => ({
 
 const starQuerier = (prisma: PrismaType) => ({
     async getIsStarreds(
-        userId: string | null,
+        userId: string | null | undefined,
         ids: string[],
         starFor: keyof typeof StarFor
     ): Promise<boolean[]> {

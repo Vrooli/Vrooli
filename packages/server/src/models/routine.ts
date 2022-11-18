@@ -1,4 +1,4 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
 import { inputTranslationCreate, inputTranslationUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routinesUpdate } from "@shared/validation";
 import { CODE, ResourceListUsedFor } from "@shared/consts";
 import { TagModel } from "./tag";
@@ -16,8 +16,10 @@ import { PrismaType } from "../types";
 import { cudHelper } from "./actions";
 import { FormatConverter, PartialGraphQLInfo, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { getPermissions, oneIsPublic } from "./utils";
+import { oneIsPublic } from "./utils";
 import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
+import { organizationQuerier } from "./organization";
+import { getSingleTypePermissions } from "./validators";
 
 type NodeWeightData = {
     simplicity: number,
@@ -63,13 +65,13 @@ export const routineFormatter = (): FormatConverter<Routine, SupplementalFields>
     removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
     supplemental: {
         graphqlFields: ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs', 'versions'],
-        toGraphQL: ({ ids, objects, partial, prisma, userId }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userId, ids, 'Routine')],
-            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userId, ids, 'Routine')],
-            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userId, ids, 'Routine')],
-            ['permissionsRoutine', async () => await getPermissions({ objectType: 'Routine', ids, prisma, userId })],
+        toGraphQL: ({ ids, objects, partial, prisma, userData }) => [
+            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Routine')],
+            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userData?.id, ids, 'Routine')],
+            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userData?.id, ids, 'Routine')],
+            ['permissionsRoutine', async () => await getSingleTypePermissions('Routine', ids, prisma, userData)],
             ['runs', async () => {
-                if (!userId) return new Array(objects.length).fill([]);
+                if (!userData) return new Array(objects.length).fill([]);
                 // Find requested fields of runs. Also add routineId, so we 
                 // can associate runs with their routine
                 const runPartial: PartialGraphQLInfo = {
@@ -84,7 +86,7 @@ export const routineFormatter = (): FormatConverter<Routine, SupplementalFields>
                     where: {
                         AND: [
                             { routineVersion: { root: { id: { in: ids } } } },
-                            { user: { id: userId } }
+                            { user: { id: userData.id } }
                         ]
                     },
                     ...selectHelper(runPartial)
@@ -92,7 +94,7 @@ export const routineFormatter = (): FormatConverter<Routine, SupplementalFields>
                 // Format runs to GraphQL
                 runs = runs.map(r => modelToGraphQL(r, runPartial));
                 // Add supplemental fields
-                runs = await addSupplementalFields(prisma, userId, runs, runPartial);
+                runs = await addSupplementalFields(prisma, userData, runs, runPartial);
                 // Split runs by id
                 const routineRuns = ids.map((id) => runs.filter(r => r.routineId === id));
                 return routineRuns;
@@ -197,8 +199,11 @@ export const routineValidator = (): Validator<
                 organization: 'Organization',
                 user: 'User',
             }
-        }
-        // TODO complete,
+        },
+        forks: 'Routine',
+        // api: 'Api',
+        // smartContract: 'SmartContract',
+        // directoryListings: 'ProjectDirectory',
     },
     permissionsSelect: (userId) => ({
         id: true,
@@ -218,21 +223,16 @@ export const routineValidator = (): Validator<
             }
         }
     }),
-    permissionResolvers: (data, userId) => {
-        const isAdmin = userId && routineValidator().isAdmin(data, userId);
-        const isPublic = routineValidator().isPublic(data);
-        const isDeleted = routineValidator().isDeleted(data);
-        return [
-            ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canDelete', async () => isAdmin && !isDeleted],
-            ['canEdit', async () => isAdmin && !isDeleted],
-            ['canReport', async () => !isAdmin && !isDeleted && isPublic],
-            ['canRun', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canView', async () => !isDeleted && (isAdmin || isPublic)],
-            ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
-        ]
-    },
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
+        ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canDelete', async () => isAdmin && !isDeleted],
+        ['canEdit', async () => isAdmin && !isDeleted],
+        ['canReport', async () => !isAdmin && !isDeleted && isPublic],
+        ['canRun', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canView', async () => !isDeleted && (isAdmin || isPublic)],
+        ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
+    ]),
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => (d.root as any).organization, (d) => (d.root as any).user, userId),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data) => data.isPrivate === false &&
@@ -243,7 +243,14 @@ export const routineValidator = (): Validator<
             ['organization', 'Organization'],
             ['user', 'User'],
         ]),
-    ownerOrMemberWhere: (userId) => asdf as any,
+    ownerOrMemberWhere: (userId) => ({
+        root: {
+            OR: [
+                organizationQuerier().hasRoleInOrganizationQuery(userId),
+                { user: { id: userId } }
+            ]
+        }
+    }),
     // if (createMany) {
     //     createMany.forEach(input => this.validateNodePositions(input));
     // }
@@ -478,17 +485,17 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
                 hasCompleteVersion: (data.isComplete === true) ? true : (data.isComplete === false) ? false : undefined,
                 completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
                 project: data.projectId ? { connect: { id: data.projectId } } : undefined,
-                tags: await TagModel.mutate(prisma).relationshipBuilder(userId, data, 'Routine'),
+                tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userId, data, 'Routine'),
                 permissions: JSON.stringify({}),
             },
             isAutomatable: data.isAutomatable ?? undefined,
             isComplete: data.isComplete ?? undefined,
             isInternal: data.isInternal ?? undefined,
             versionLabel: data.versionLabel ?? undefined,
-            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder(userId, data, isAdd),
+            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder!(userId, data, isAdd),
             inputs: await this.relationshipBuilderInput(userId, data, isAdd),
             outputs: await this.relationshipBuilderOutput(userId, data, isAdd),
-            nodes: await NodeModel.mutate(prisma).relationshipBuilder(userId, (data as RoutineUpdateInput)?.id ?? null, data, isAdd),
+            nodes: await NodeModel.mutate(prisma).relationshipBuilder!(userId, data, isAdd),
             nodeLinks: NodeModel.mutate(prisma).relationshipBuilderNodeLink(userId, data, isAdd),
             translations: TranslationModel.relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, isAdd),
         }
@@ -546,7 +553,7 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
                 shapeCreate: async (userId, cuData) => ({
                     id: cuData.id,
                     name: cuData.name,
-                    standard: await StandardModel.mutate(prisma).relationshipBuilder(userId, {
+                    standard: await StandardModel.mutate(prisma).relationshipBuilder!(userId, {
                         ...cuData,
                         // If standard was not internal, then it would have been created 
                         // in its own mutation
@@ -556,7 +563,7 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
                 }),
                 shapeUpdate: async (userId, cuData) => ({
                     name: cuData.name,
-                    standardId: await StandardModel.mutate(prisma).relationshipBuilder(userId, cuData, false),
+                    standardId: await StandardModel.mutate(prisma).relationshipBuilder!(userId, cuData, false),
                     translations: TranslationModel.relationshipBuilder(userId, cuData, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
                 })
             },
@@ -579,7 +586,7 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
                 shapeCreate: async (userId, cuData) => ({
                     id: cuData.id,
                     name: cuData.name,
-                    standard: await StandardModel.mutate(prisma).relationshipBuilder(userId, {
+                    standard: await StandardModel.mutate(prisma).relationshipBuilder!(userId, {
                         ...cuData,
                         // If standard was not internal, then it would have been created 
                         // in its own mutation
@@ -589,7 +596,7 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
                 }),
                 shapeUpdate: async (userId, cuData) => ({
                     name: cuData.name,
-                    standard: await StandardModel.mutate(prisma).relationshipBuilder(userId, cuData, false),
+                    standard: await StandardModel.mutate(prisma).relationshipBuilder!(userId, cuData, false),
                     translations: TranslationModel.relationshipBuilder(userId, cuData, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
                 })
             },

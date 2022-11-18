@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, SessionUser, Success, TagCreateInput, UserDeleteInput } from "../schema/types";
-import { addJoinTablesHelper, addSupplementalFields, modelToGraphQL, padSelect, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./builder";
+import { addJoinTablesHelper, addSupplementalFields, getUser, modelToGraphQL, padSelect, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./builder";
 import { CODE } from "@shared/consts";
 import { profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@shared/validation";
 import bcrypt from 'bcrypt';
@@ -9,7 +9,6 @@ import { TagModel } from "./tag";
 import { EmailModel } from "./email";
 import { TranslationModel } from "./translation";
 import { verifyHandle } from "./wallet";
-import { TagHiddenModel } from "./tagHidden";
 import { Request } from "express";
 import { CustomError, genErrorCode } from "../events";
 import { readOneHelper } from "./actions";
@@ -17,6 +16,7 @@ import { FormatConverter, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType } fr
 import pkg, { Prisma } from '@prisma/client';
 import { sendResetPasswordLink, sendVerificationLink } from "../notify";
 import { lineBreaksCheck, profanityCheck } from "./validators";
+import { assertRequestFrom } from "../auth/auth";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -63,14 +63,14 @@ export const profileFormatter = (): FormatConverter<Profile, SupplementalFields>
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     supplemental: {
         graphqlFields: ['starredTags', 'hiddenTags'],
-        toGraphQL: ({ ids, objects, partial, prisma, userId }) => [
+        toGraphQL: ({ ids, objects, partial, prisma, userData }) => [
             ['starredTags', async () => {
-                if (!userId) return new Array(objects.length).fill([]);
+                if (!userData) return new Array(objects.length).fill([]);
                 // Query starred tags
                 let data = (await prisma.star.findMany({
                     where: {
                         AND: [
-                            { byId: userId },
+                            { byId: userData.id },
                             { NOT: { tagId: null } }
                         ]
                     },
@@ -79,31 +79,32 @@ export const profileFormatter = (): FormatConverter<Profile, SupplementalFields>
                 // Format to GraphQL
                 data = data.map(r => modelToGraphQL(r, partial.starredTags as PartialGraphQLInfo));
                 // Add supplemental fields
-                data = await addSupplementalFields(prisma, userId, data, partial.starredTags as PartialGraphQLInfo);
+                data = await addSupplementalFields(prisma, userData, data, partial.starredTags as PartialGraphQLInfo);
                 // Split by id
                 const result = ids.map((id) => data.filter(r => r.routineId === id));
                 return result;
             }],
             ['hiddenTags', async () => {
-                if (!userId) return new Array(objects.length).fill([]);
-                // Query hidden tags
-                let data = (await prisma.user_tag_hidden.findMany({
-                    where: { userId },
-                    select: {
-                        id: true,
-                        isBlur: true,
-                        tag: padSelect(tagSelect)
-                    }
-                }));
-                // Format to GraphQL
-                data = data.map(r => modelToGraphQL(r, partial.starredTags as PartialGraphQLInfo));
-                // Add supplemental fields
-                data = await addSupplementalFields(prisma, userId, data, partial.starredTags as PartialGraphQLInfo);
-                return ids.map((d: any) => ({
-                    id: d.id,
-                    isBlur: d.isBlur,
-                    tag: tags.find(t => t.id === d.tag.id)
-                }))
+                if (!userData) return new Array(objects.length).fill([]);
+                // // Query hidden tags
+                // let data = (await prisma.user_tag_hidden.findMany({
+                //     where: { userId: userData.id },
+                //     select: {
+                //         id: true,
+                //         isBlur: true,
+                //         tag: padSelect(tagSelect)
+                //     }
+                // }));
+                // // Format to GraphQL
+                // data = data.map(r => modelToGraphQL(r, partial.starredTags as PartialGraphQLInfo));
+                // // Add supplemental fields
+                // data = await addSupplementalFields(prisma, userData, data, partial.starredTags as PartialGraphQLInfo);
+                // return ids.map((d: any) => ({
+                //     id: d.id,
+                //     isBlur: d.isBlur,
+                //     tag: data.find(t => t.id === d.tag.id)
+                // }))
+                return new Array(objects.length).fill([]);
             }],
         ],
     },
@@ -386,36 +387,37 @@ const porter = (prisma: PrismaType) => ({
 
 const profileQuerier = (prisma: PrismaType) => ({
     async findProfile(
-        userId: string,
+        req: Request,
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile> | null> {
+        const userData = assertRequestFrom(req, { isUser: true });
         const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select.', { code: genErrorCode('0190') });
         // Query profile data and tags
         const profileData = await readOneHelper<any>({
             info,
-            input: { id: userId },
+            input: { id: userData.id },
             model: ProfileModel,
             prisma,
-            req: { users: [{ id: userId }] },
+            req,
         })
         // Format for GraphQL
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
         // Return with supplementalfields added
-        const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
+        const data = (await addSupplementalFields(prisma, userData, [formatted], partial))[0] as RecursivePartial<Profile>;
         return data;
     },
 })
 
 const profileMutater = (prisma: PrismaType) => ({
     async updateProfile(
-        userId: string,
+        userData: SessionUser,
         input: ProfileUpdateInput,
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         profileUpdateSchema.validateSync(input, { abortEarly: false });
-        await verifyHandle(prisma, 'User', userId, input.handle);
+        await verifyHandle(prisma, 'User', userData.id, input.handle);
         if (hasProfanity(input.name))
             throw new CustomError(CODE.BannedWord, 'User name contains banned word', { code: genErrorCode('0066') });
         profanityCheck([input], { __typename: 'User' });
@@ -432,7 +434,7 @@ const profileMutater = (prisma: PrismaType) => ({
             }))),
         ];
         // Create new tags
-        const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel.mutate(prisma).shapeCreate(userId, tag)));
+        const createTagsData = await Promise.all(tagsToCreate.map(async (tag: TagCreateInput) => await TagModel.mutate(prisma).shapeCreate(userData.id, tag)));
         const createdTags = await prisma.$transaction(
             createTagsData.map((data) =>
                 prisma.tag.upsert({
@@ -450,36 +452,35 @@ const profileMutater = (prisma: PrismaType) => ({
         const starredDelete = input.starredTagsDisconnect ? await prisma.star.findMany({
             where: {
                 AND: [
-                    { by: { id: userId } },
+                    { by: { id: userData.id } },
                     { tag: { tag: { in: input.starredTagsDisconnect } } },
                     { NOT: { tagId: null } },
                 ]
             },
             select: { id: true }
         }) : [];
-        //Create user data
-        let userData: Prisma.userUpsertArgs['update'] = {
+        // Create user data
+        let uData: Prisma.userUpsertArgs['update'] = {
             handle: input.handle,
             name: input.name ?? undefined,
             theme: input.theme ?? undefined,
-            hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder(userId, input, false),
+            // hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder!(userData.id, input, false),
             starred: {
                 create: starredCreate,
                 delete: starredDelete,
             },
-            translations: TranslationModel.relationshipBuilder(userId, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
+            translations: TranslationModel.relationshipBuilder(userData.id, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
         };
         // Update user
         const profileData = await prisma.user.update({
-            where: { id: userId },
-            data: userData,
+            where: { id: userData.id },
+            data: uData,
             ...selectHelper(partial)
         });
-        const
         // Format for GraphQL
         let formatted = modelToGraphQL(profileData, partial) as RecursivePartial<Profile>;
         // Return with supplementalfields added
-        const data = (await addSupplementalFields(prisma, userId, [formatted], partial))[0] as RecursivePartial<Profile>;
+        const data = (await addSupplementalFields(prisma, userData, [formatted], partial))[0] as RecursivePartial<Profile>;
         return data
     },
     async updateEmails(
@@ -500,7 +501,7 @@ const profileMutater = (prisma: PrismaType) => ({
         // Create user data
         let userData: { [x: string]: any } = {
             password: input.newPassword ? profileVerifier().hashPassword(input.newPassword) : undefined,
-            emails: await EmailModel.mutate(prisma).relationshipBuilder(userId, input, true),
+            emails: await EmailModel.mutate(prisma).relationshipBuilder!(userId, input, true),
         };
         // Send verification emails
         if (Array.isArray(input.emailsCreate)) {
