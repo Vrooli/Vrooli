@@ -4,5 +4,6 @@ export * from './getDelegate';
 export * from './getIdFromHandle';
 export * from './getLatestVersion';
 export * from './getPermissions';
+export * from './getSearcher';
 export * from './getValidator';
 export * from './oneIsPublic';

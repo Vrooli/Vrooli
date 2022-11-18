@@ -2,64 +2,64 @@ import { runsCreate, runsUpdate } from "@shared/validation";
 import { CODE, RunSortBy } from "@shared/consts";
 import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, getSearchStringQueryHelper, combineQueries, permissionsSelectHelper } from "./builder";
 import { RunStepModel } from "./runStep";
-import { Prisma, run, RunStatus } from "@prisma/client";
+import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { RunInputModel } from "./runInput";
 import { CustomError, genErrorCode, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator, Mutater } from "./types";
 import { cudHelper } from "./actions";
-import { routineValidator } from "./routine";
+import { oneIsPublic } from "./utils";
 
-export const runFormatter = (): FormatConverter<Run, any> => ({
+export const runFormatter = (): FormatConverter<Run, ''> => ({
     relationshipMap: {
-        __typename: 'Run',
+        __typename: 'RunRoutine',
         routine: 'Routine',
         steps: 'RunStep',
         inputs: 'RunInput',
         user: 'User',
     },
-    removeSupplementalFields: (partial) => {
+    supplemental: {
         // Add fields needed for notifications when a run is started/completed
-        return { ...partial, title: true }
+        dbFields: ['title'],
+        graphqlFields: [],
+        toGraphQL: () => [],
     },
 })
 
-export const runSearcher = (): Searcher<RunSearchInput> => ({
+export const runSearcher = (): Searcher<
+    RunSearchInput,
+    RunSortBy,
+    Prisma.run_routineOrderByWithRelationInput,
+    Prisma.run_routineWhereInput
+> => ({
     defaultSort: RunSortBy.DateUpdatedDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [RunSortBy.DateStartedAsc]: { timeStarted: 'asc' },
-            [RunSortBy.DateStartedDesc]: { timeStarted: 'desc' },
-            [RunSortBy.DateCompletedAsc]: { timeCompleted: 'asc' },
-            [RunSortBy.DateCompletedDesc]: { timeCompleted: 'desc' },
-            [RunSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [RunSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [RunSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [RunSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-        }[sortBy]
+    sortMap: {
+        DateStartedAsc: { timeStarted: 'asc' },
+        DateStartedDesc: { timeStarted: 'desc' },
+        DateCompletedAsc: { timeCompleted: 'asc' },
+        DateCompletedDesc: { timeCompleted: 'desc' },
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    {
-                        routine: {
-                            translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } },
-                        }
-                    },
-                    {
-                        routine: {
-                            translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } },
-                        }
-                    },
-                    { title: { ...insensitive } }
-                ]
-            })
-        })
-    },
-    customQueries(input: RunSearchInput): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        OR: [
+            {
+                routine: {
+                    translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } },
+                }
+            },
+            {
+                routine: {
+                    translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } },
+                }
+            },
+            { title: { ...insensitive } }
+        ]
+    }),
+    customQueries(input) {
         return combineQueries([
             (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
             (input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
@@ -73,17 +73,18 @@ export const runValidator = (): Validator<
     RunCreateInput,
     RunUpdateInput,
     Run,
-    Prisma.runGetPayload<{ select: { [K in keyof Required<Prisma.runSelect>]: true } }>,
+    Prisma.run_routineGetPayload<{ select: { [K in keyof Required<Prisma.run_routineSelect>]: true } }>,
     RunPermission,
-    Prisma.runSelect,
-    Prisma.runWhereInput
+    Prisma.run_routineSelect,
+    Prisma.run_routineWhereInput
 > => ({
     validateMap: {
-        __typename: 'Run',
+        __typename: 'RunRoutine',
         asdffasdf
     },
-    permissionsSelect: (userId) => ({ 
-        id: true, 
+    permissionsSelect: (userId) => ({
+        id: true,
+        isPrivate: true,
         ...permissionsSelectHelper([
             ['organization', 'Organization'],
             ['routineVersion', 'Routine'],
@@ -91,7 +92,7 @@ export const runValidator = (): Validator<
         ], userId)
     }),
     permissionsFromSelect: (select, userId) => asdf as any,
-    isPublic: (data) => data.isPrivate === false && ownOne<Prisma.runSelect>(data, [
+    isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],
     ]),
@@ -107,7 +108,7 @@ export const runValidator = (): Validator<
  * Handles run instances of routines
  */
 export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
-    async shapeCreate(userId: string, data: RunCreateInput): Promise<Prisma.runUpsertArgs['create']> {
+    async shapeCreate(userId: string, data: RunCreateInput): Promise<Prisma.run_routineUpsertArgs['create']> {
         // TODO - when scheduling added, don't assume that it is being started right away
         return {
             id: data.id,
@@ -119,7 +120,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
             userId,
         }
     },
-    async shapeUpdate(userId: string, data: RunUpdateInput): Promise<Prisma.runUpsertArgs['update']> {
+    async shapeUpdate(userId: string, data: RunUpdateInput): Promise<Prisma.run_routineUpsertArgs['update']> {
         return {
             timeElapsed: data.timeElapsed ? { increment: data.timeElapsed } : undefined,
             completedComplexity: data.completedComplexity ? { increment: data.completedComplexity } : undefined,
@@ -131,7 +132,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
     async cud(params: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
         return cudHelper({
             ...params,
-            objectType: 'Run',
+            objectType: 'RunRoutine',
             prisma,
             yup: { yupCreate: runsCreate, yupUpdate: runsUpdate },
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
@@ -168,7 +169,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
      * Deletes all runs for a user, except if they are in progress
      */
     async deleteAll(userId: string): Promise<Count> {
-        return prisma.run.deleteMany({
+        return prisma.run_routine.deleteMany({
             where: {
                 AND: [
                     { userId },
@@ -187,11 +188,11 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
         // Convert info to partial
         const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0179') });
-        let run: run | null;
+        let run: run_routine | null;
         // Check if run is being created or updated
         if (input.exists) {
             // Find in database
-            run = await prisma.run.findFirst({
+            run = await prisma.run_routine.findFirst({
                 where: {
                     AND: [
                         { userId },
@@ -202,7 +203,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
             if (!run) throw new CustomError(CODE.NotFound, 'Run not found.', { code: genErrorCode('0180') });
             const { timeElapsed, contextSwitches, completedComplexity } = run;
             // Update object
-            run = await prisma.run.update({
+            run = await prisma.run_routine.update({
                 where: { id: input.id },
                 data: {
                     completedComplexity: completedComplexity + (input.completedComplexity ?? 0),
@@ -234,7 +235,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
             });
         } else {
             // Create new run
-            run = await prisma.run.create({
+            run = await prisma.run_routine.create({
                 data: {
                     completedComplexity: input.completedComplexity ?? 0,
                     timeStarted: new Date(),
@@ -282,7 +283,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
         const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
         if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0181') });
         // Find in database
-        let object = await prisma.run.findFirst({
+        let object = await prisma.run_routine.findFirst({
             where: {
                 AND: [
                     { userId },
@@ -292,7 +293,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
         })
         if (!object) throw new CustomError(CODE.NotFound, 'Run not found.', { code: genErrorCode('0182') });
         // Update object
-        const updated = await prisma.run.update({
+        const updated = await prisma.run_routine.update({
             where: { id: input.id },
             data: {
                 status: RunStatus.Cancelled,
@@ -309,7 +310,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
 })
 
 export const RunModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.run,
+    prismaObject: (prisma: PrismaType) => prisma.run_routine,
     format: runFormatter(),
     mutate: runMutater,
     search: runSearcher(),

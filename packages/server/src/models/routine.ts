@@ -1,7 +1,6 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, padSelect, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, getSearchStringQueryHelper, modelToGraphQL, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
 import { inputTranslationCreate, inputTranslationUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routinesUpdate } from "@shared/validation";
 import { CODE, ResourceListUsedFor } from "@shared/consts";
-import { organizationValidator } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -81,7 +80,7 @@ export const routineFormatter = (): FormatConverter<Routine, SupplementalFields>
                     throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
                 }
                 // Query runs made by user
-                let runs: any[] = await prisma.run.findMany({
+                let runs: any[] = await prisma.run_routine.findMany({
                     where: {
                         AND: [
                             { routineVersion: { root: { id: { in: ids } } } },
@@ -109,39 +108,37 @@ export const routineFormatter = (): FormatConverter<Routine, SupplementalFields>
     },
 })
 
-export const routineSearcher = (): Searcher<RoutineSearchInput> => ({
+export const routineSearcher = (): Searcher<
+    RoutineSearchInput,
+    RoutineSortBy,
+    Prisma.routine_versionOrderByWithRelationInput,
+    Prisma.routine_versionWhereInput
+> => ({
     defaultSort: RoutineSortBy.VotesDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [RoutineSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
-            [RoutineSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
-            [RoutineSortBy.ForksAsc]: { forks: { _count: 'asc' } },
-            [RoutineSortBy.ForksDesc]: { forks: { _count: 'desc' } },
-            [RoutineSortBy.DateCompletedAsc]: { completedAt: 'asc' },
-            [RoutineSortBy.DateCompletedDesc]: { completedAt: 'desc' },
-            [RoutineSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [RoutineSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [RoutineSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [RoutineSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [RoutineSortBy.StarsAsc]: { stars: 'asc' },
-            [RoutineSortBy.StarsDesc]: { stars: 'desc' },
-            [RoutineSortBy.VotesAsc]: { score: 'asc' },
-            [RoutineSortBy.VotesDesc]: { score: 'desc' },
-        }[sortBy]
+    sortMap: {
+        CommentsAsc: { comments: { _count: 'asc' } },
+        CommentsDesc: { comments: { _count: 'desc' } },
+        ForksAsc: { forks: { _count: 'asc' } },
+        ForksDesc: { forks: { _count: 'desc' } },
+        DateCompletedAsc: { completedAt: 'asc' },
+        DateCompletedDesc: { completedAt: 'desc' },
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
+        StarsAsc: { root: { stars: 'asc' } },
+        StarsDesc: { root: { stars: 'desc' } },
+        VotesAsc: { root: { votes: 'asc' } },
+        VotesDesc: { root: { votes: 'desc' } },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                    { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
-                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
-                ]
-            })
-        })
-    },
-    customQueries(input: RoutineSearchInput, userId: string | null | undefined): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        OR: [
+            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+            { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+            { tags: { some: { tag: { tag: { ...insensitive } } } } },
+        ]
+    }),
+    customQueries(input, userId) {
         const isComplete = exceptionsBuilder({
             canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
             exceptionField: 'isCompleteExceptions',

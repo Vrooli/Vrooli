@@ -2,7 +2,7 @@ import { CODE, CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput } from "../schema/types";
 import { PrismaType, ReqForUserAuth } from "../types";
-import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, getSearchStringQueryHelper, combineQueries, permissionsSelectHelper, getUser } from "./builder";
+import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, combineQueries, permissionsSelectHelper, getUser, getSearchString } from "./builder";
 import { TranslationModel } from "./translation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -45,29 +45,27 @@ export const commentFormatter = (): FormatConverter<Comment, SupplementalFields>
     },
 })
 
-export const commentSearcher = (): Searcher<CommentSearchInput> => ({
+export const commentSearcher = (): Searcher<
+    CommentSearchInput,
+    CommentSortBy,
+    Prisma.commentOrderByWithRelationInput,
+    Prisma.commentWhereInput
+> => ({
     defaultSort: CommentSortBy.VotesDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [CommentSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [CommentSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [CommentSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [CommentSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [CommentSortBy.StarsAsc]: { stars: 'asc' },
-            [CommentSortBy.StarsDesc]: { stars: 'desc' },
-            [CommentSortBy.VotesAsc]: { score: 'asc' },
-            [CommentSortBy.VotesDesc]: { score: 'desc' },
-        }[sortBy]
+    sortMap: {
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
+        StarsAsc: { stars: 'asc' },
+        StarsDesc: { stars: 'desc' },
+        VotesAsc: { votes: 'asc' },
+        VotesDesc: { votes: 'desc' },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                translations: { some: { language: languages ? { in: languages } : undefined, text: { ...insensitive } } }
-            })
-        })
-    },
-    customQueries(input: CommentSearchInput): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        translations: { some: { language: languages ? { in: languages } : undefined, text: insensitive } }
+    }),
+    customQueries(input) {
         return combineQueries([
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
@@ -102,7 +100,7 @@ export const commentValidator = (): Validator<
             // ['issue', 'Issue'],
             ['organization', 'Organization'],
             // ['post', 'Post'],
-            ['project', 'Project'],
+            ['projectVersion', 'Project'],
             // ['pullRequest', 'PullRequest'],
             // ['question', 'Question'],
             // ['questionAnswer', 'QuestionAnswer'],
@@ -131,7 +129,7 @@ export const commentValidator = (): Validator<
         // ['apiVersion', 'Api'],
         // ['issue', 'Issue'],
         // ['post', 'Post'],
-        ['project', 'Project'],
+        ['projectVersion', 'Project'],
         // ['pullRequest', 'PullRequest'],
         // ['question', 'Question'],
         // ['questionAnswer', 'QuestionAnswer'],
@@ -161,7 +159,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Combine queries
         const where = { ...idQuery };
         // Determine sort order
-        const orderBy = (commentSearcher() as any).getSortQuery(input.sortBy ?? commentSearcher().defaultSort);
+        const orderBy = commentSearcher().sortMap[input.sortBy ?? commentSearcher().defaultSort];
         // Find requested search array
         const searchResults = await prisma.comment.findMany({
             where,
@@ -227,7 +225,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         if (!partialInfo)
             throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
         // Determine text search query
-        const searchQuery = input.searchString ? (commentSearcher() as any).getSearchStringQuery(input.searchString) : undefined;
+        const searchQuery = input.searchString ? getSearchString({ objectType: 'Comment', searchString: input.searchString }) : undefined;
         // Determine createdTimeFrame query
         const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
         // Determine updatedTimeFrame query
@@ -237,7 +235,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Combine queries
         const where = { ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
         // Determine sort order
-        const orderBy = (commentSearcher() as any).getSortQuery(input.sortBy ?? commentSearcher().defaultSort);
+        const orderBy = commentSearcher().sortMap[input.sortBy ?? commentSearcher().defaultSort];
         // Find requested search array
         const searchResults = await prisma.comment.findMany({
             where,

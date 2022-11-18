@@ -19,8 +19,6 @@ export const typeDef = gql`
     enum ReportSortBy {
         DateCreatedAsc
         DateCreatedDesc
-        DateUpdatedAsc
-        DateUpdatedDesc
     }
 
     input ReportCreateInput {

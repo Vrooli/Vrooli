@@ -36,7 +36,7 @@ export const resourceListValidator = (): Validator<
         // api: 'Api',
         organization: 'Organization',
         // post: 'Post',
-        project: 'Project',
+        projectVersion: 'Project',
         routineVersion: 'Routine',
         // smartContract: 'SmartContract',
         // standard: 'Standard',
@@ -48,7 +48,7 @@ export const resourceListValidator = (): Validator<
             // ['apiVersion', 'Api'],
             ['organization', 'Organization'],
             // ['post', 'Post'],
-            ['project', 'Project'],
+            ['projectVersion', 'Project'],
             ['routineVersion', 'Routine'],
             // ['smartContractVersion', 'SmartContract'],
             ['standardVersion', 'Standard'],
@@ -68,7 +68,7 @@ export const resourceListValidator = (): Validator<
         // ['apiVersion', 'Api'],
         ['organization', 'Organization'],
         // ['post', 'Post'],
-        ['project', 'Project'],
+        ['projectVersion', 'Project'],
         ['routineVersion', 'Routine'],
         // ['smartContractVersion', 'SmartContract'],
         ['standardVersion', 'Standard'],
@@ -88,30 +88,28 @@ export const resourceListValidator = (): Validator<
     }),
 })
 
-export const resourceListSearcher = (): Searcher<ResourceListSearchInput> => ({
+export const resourceListSearcher = (): Searcher<
+    ResourceListSearchInput,
+    ResourceListSortBy,
+    Prisma.resource_listOrderByWithRelationInput,
+    Prisma.resource_listWhereInput
+> => ({
     defaultSort: ResourceListSortBy.IndexAsc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [ResourceListSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [ResourceListSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [ResourceListSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [ResourceListSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [ResourceListSortBy.IndexAsc]: { index: 'asc' },
-            [ResourceListSortBy.IndexDesc]: { index: 'desc' },
-        }[sortBy]
+    sortMap: {
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
+        IndexAsc: { index: 'asc' },
+        IndexDesc: { index: 'desc' },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                    { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
-                ]
-            })
-        })
-    },
-    customQueries(input: ResourceListSearchInput): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        OR: [
+            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+            { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+        ]
+    }),
+    customQueries(input) {
         return combineQueries([
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
         ])

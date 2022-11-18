@@ -14,21 +14,19 @@ export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
     },
 })
 
-// export const runInputSearcher = (): Searcher<RunSearchInput> => ({
+// export const runInputSearcher = (): Searcher<RunSearchInput, RunSortBy, Prisma.run_routineOrderByWithRelationInput, Prisma.run_routineWhereInput> => ({
 //     defaultSort: RunSortBy.DateUpdatedDesc,
-//     getSortQuery: (sortBy: string): any => {
-//         return {
-//             [RunSortBy.DateStartedAsc]: { timeStarted: 'asc' },
-//             [RunSortBy.DateStartedDesc]: { timeStarted: 'desc' },
-//             [RunSortBy.DateCompletedAsc]: { timeCompleted: 'asc' },
-//             [RunSortBy.DateCompletedDesc]: { timeCompleted: 'desc' },
-//             [RunSortBy.DateCreatedAsc]: { created_at: 'asc' },
-//             [RunSortBy.DateCreatedDesc]: { created_at: 'desc' },
-//             [RunSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-//             [RunSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-//         }[sortBy]
+//     sortMap:  {
+//             DateStartedAsc: { timeStarted: 'asc' },
+//             DateStartedDesc: { timeStarted: 'desc' },
+//             DateCompletedAsc: { timeCompleted: 'asc' },
+//             DateCompletedDesc: { timeCompleted: 'desc' },
+//             DateCreatedAsc: { created_at: 'asc' },
+//             DateCreatedDesc: { created_at: 'desc' },
+//             DateUpdatedAsc: { updated_at: 'asc' },
+//             DateUpdatedDesc: { updated_at: 'desc' },
 //     },
-//     getSearchStringQuery: (searchString: string, languages?: string[]): any => {
+//     getSearchStringQuery: (searchString, languages) => {
 //         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
 //         return ({
 //             OR: [
@@ -46,7 +44,7 @@ export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
 //             ]
 //         })
 //     },
-//     customQueries(input: RunSearchInput): { [x: string]: any } {
+//     customQueries(input) {
 //         return combineQueries([
 //             (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
 //             (input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
@@ -66,25 +64,25 @@ export const runInputVerifier = () => ({
  * Handles mutations of run inputs
  */
 export const runInputMutater = (prisma: PrismaType): Mutater<RunInput> => ({
-    shapeRelationshipCreate(userId: string, data: RunInputCreateInput): Prisma.run_inputUncheckedCreateWithoutRunInput {
+    shapeRelationshipCreate(userId: string, data: RunInputCreateInput): Prisma.run_routine_inputUncheckedCreateWithoutRunRoutineInput {
         return {
             id: data.id,
             data: data.data,
             inputId: data.inputId,
         }
     },
-    shapeRelationshipUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_inputUncheckedUpdateWithoutRunInput {
+    shapeRelationshipUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_routine_inputUncheckedUpdateWithoutRunRoutineInput {
         return {
             data: data.data
         }
     },
-    shapeCreate(userId: string, data: RunInputCreateInput & { runId: string }): Prisma.run_inputUpsertArgs['create'] {
+    shapeCreate(userId: string, data: RunInputCreateInput & { runId: string }): Prisma.run_routine_inputUpsertArgs['create'] {
         return {
             ...this.shapeRelationshipCreate(userId, data),
             runId: data.runId,
         }
     },
-    shapeUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_inputUpsertArgs['update'] {
+    shapeUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_routine_inputUpsertArgs['update'] {
         return {
             ...this.shapeRelationshipUpdate(userId, data),
         }
@@ -116,7 +114,7 @@ export const runInputMutater = (prisma: PrismaType): Mutater<RunInput> => ({
 })
 
 export const RunInputModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.run_input,
+    prismaObject: (prisma: PrismaType) => prisma.run_routine_input,
     format: runInputFormatter(),
     mutate: runInputMutater,
     // search: runInputSearcher(),

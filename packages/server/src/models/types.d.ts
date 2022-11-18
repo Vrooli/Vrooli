@@ -32,7 +32,8 @@ export type GraphQLModelType =
     'Resource' |
     'ResourceList' |
     'Role' |
-    'Routine' | 'Run' |
+    'Routine' | 
+    'RunRoutine' |
     'RunInput' |
     'RunStep' |
     'Standard' |
@@ -267,11 +268,15 @@ export interface FormatConverter<GraphQLModel, GQLFields extends string> {
 /**
  * Describes shape of component that can be sorted in a specific order
  */
-export type Searcher<SearchInput> = {
-    defaultSort: any;
-    getSortQuery: (sortBy: string) => any;
-    getSearchStringQuery: (searchString: string, languages?: string[]) => any;
-    customQueries?: (input: SearchInput, userId: string | null | undefined) => { [x: string]: any };
+export type Searcher<SearchInput, SortBy extends string, OrderBy extends { [x: string]: any }, Where extends { [x: string]: any }> = {
+    defaultSort: SortBy;
+    sortMap: { [key in SortBy]: OrderBy };
+    searchStringQuery: ({ insensitive, languages, searchString }: {
+        insensitive: { contains: string; mode: 'default' | 'insensitive'; },
+        languages?: string[],
+        searchString: string,
+    }) => Where;
+    customQueries?: (input: SearchInput, userId: string | null | undefined) => Where;
 }
 
 /**

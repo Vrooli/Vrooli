@@ -44,31 +44,29 @@ export const organizationFormatter = (): FormatConverter<Organization, Supplemen
     },
 })
 
-export const organizationSearcher = (): Searcher<OrganizationSearchInput> => ({
+export const organizationSearcher = (): Searcher<
+    OrganizationSearchInput,
+    OrganizationSortBy,
+    Prisma.organizationOrderByWithRelationInput,
+    Prisma.organizationWhereInput
+> => ({
     defaultSort: OrganizationSortBy.StarsDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [OrganizationSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [OrganizationSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [OrganizationSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [OrganizationSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [OrganizationSortBy.StarsAsc]: { stars: 'asc' },
-            [OrganizationSortBy.StarsDesc]: { stars: 'desc' },
-        }[sortBy]
+    sortMap: {
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
+        StarsAsc: { stars: 'asc' },
+        StarsDesc: { stars: 'desc' },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
-                    { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
-                ]
-            })
-        })
-    },
-    customQueries(input: OrganizationSearchInput, userId: string | null | undefined): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        OR: [
+            { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
+            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
+            { tags: { some: { tag: { tag: { ...insensitive } } } } },
+        ]
+    }),
+    customQueries(input, userId) {
         return combineQueries([
             visibilityBuilder({ model: OrganizationModel, userId, visibility: input.visibility }),
             (input.isOpenToNewMembers !== undefined ? { isOpenToNewMembers: true } : {}),
@@ -141,7 +139,6 @@ export const organizationValidator = (): Validator<
             ['canReport', async () => !isAdmin && isPublic],
             ['canStar', async () => isAdmin || isPublic],
             ['canView', async () => isAdmin || isPublic],
-            ['isMember', async () => asdf],
         ]
     },
     isAdmin: (data, userId) => {
@@ -210,17 +207,6 @@ export const organizationQuerier = () => ({
 
 export const organizationMutater = (prisma: PrismaType): Mutater<Organization> => ({
     async shapeBase(userId: string, data: OrganizationCreateInput | OrganizationUpdateInput) {
-        prisma.organization.update({
-            where: { id: data.id },
-            data: {
-                posts: {
-                    connect: ['asdf', 'fdsa']
-                }
-                // posts: {
-                //     delete: 'asdf',
-                // }
-            }
-        })
         return {
             id: data.id,
             handle: data.handle ?? undefined,

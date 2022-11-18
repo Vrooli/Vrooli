@@ -13,6 +13,7 @@ import { User, ViewSearchInput, Count } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "./actions";
 import { FormatConverter, GraphQLModelType, ModelLogic, Mutater, PartialGraphQLInfo, Searcher } from "./types";
+import { Prisma } from "@prisma/client";
 
 export interface View {
     __typename?: 'View';
@@ -96,30 +97,28 @@ export interface ViewInput {
     viewFor: ViewFor;
 }
 
-export const viewSearcher = (): Searcher<ViewSearchInput> => ({
+export const viewSearcher = (): Searcher<
+    ViewSearchInput,
+    ViewSortBy,
+    Prisma.viewOrderByWithRelationInput,
+    Prisma.viewWhereInput
+> => ({
     defaultSort: ViewSortBy.LastViewedDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [ViewSortBy.LastViewedAsc]: { lastViewed: 'asc' },
-            [ViewSortBy.LastViewedDesc]: { lastViewed: 'desc' },
-        }[sortBy]
+    sortMap: {
+        LastViewedAsc: { lastViewed: 'asc' },
+        LastViewedDesc: { lastViewed: 'desc' },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { title: { ...insensitive } },
-                    { organization: OrganizationModel.search.getSearchStringQuery(searchString, languages) },
-                    { project: ProjectModel.search.getSearchStringQuery(searchString, languages) },
-                    { routine: RoutineModel.search.getSearchStringQuery(searchString, languages) },
-                    { standard: StandardModel.search.getSearchStringQuery(searchString, languages) },
-                    { user: UserModel.search.getSearchStringQuery(searchString, languages) },
-                ]
-            })
-        })
-    },
-    customQueries(input: ViewSearchInput): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages, searchString }) => ({
+        OR: [
+            { title: { ...insensitive } },
+            { organization: OrganizationModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { project: ProjectModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { routine: RoutineModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { standard: StandardModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { user: UserModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+        ]
+    }),
+    customQueries(input) {
         return combineQueries([
             (input.lastViewedTimeFrame !== undefined ? timeFrameToPrisma('lastViewed', input.lastViewedTimeFrame) : {}),
         ])

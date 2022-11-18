@@ -42,6 +42,16 @@ const CreateAwardTypeMap: { [key in GraphQLModelType]?: AwardCategory } = {
 }
 
 /**
+ * Maps GraphQLModelTypes to "Complete" award types
+ */
+const CompleteAwardTypeMap: { [key in GraphQLModelType]?: AwardCategory } = {
+    PullRequest: 'PullRequestComplete',
+    Quiz: 'QuizPass',
+    RunRoutine: 'RunRoutine',
+    RunProject: 'RunProject',
+}
+
+/**
  * Handles logging, notifications, achievements, and more when some action is performed.
  * Some examples include:
  * - Sending a push notification when someone stars your comment
@@ -63,13 +73,9 @@ export const Trigger = (prisma: PrismaType) => ({
         Award(prisma, userId).update('AccountNew', 1);
     },
     objectComplete: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
-        // Track award progress, if object is a pull request, quiz, or routine
-        const completeTrackableTypes = ['PullRequest', 'Quiz', 'Routine'];
-        if (completeTrackableTypes.includes(objectType)) {
-            // // If routine, check if routine is a learning routine
-            // asdfasd
-            // Award(prisma).update(userId, AwardCategory.Com, 1);
-        }
+        // Track award progress
+        const awardType = CompleteAwardTypeMap[objectType];
+        if (awardType) Award(prisma, userId).update(awardType, 1);
     },
     objectCreate: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
         // If object was an email or a wallet, send notification to user warning them that a new sign in method was added
@@ -87,6 +93,8 @@ export const Trigger = (prisma: PrismaType) => ({
         if (awardType) Award(prisma, userId).update(awardType, 1);
     },
     objectNewVersion: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
+        // Send notification to anyone subscribed to the object
+        asdfasdfas
     },
     objectDelete: async (objectType: DeleteOneType, objectId: string, userId: string) => { },
     objectFork: async (objectType: ForkType, parentId: string, userId: string) => {

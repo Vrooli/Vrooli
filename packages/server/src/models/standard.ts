@@ -61,35 +61,33 @@ export const standardFormatter = (): FormatConverter<Standard, SupplementalField
     },
 })
 
-export const standardSearcher = (): Searcher<StandardSearchInput> => ({
+export const standardSearcher = (): Searcher<
+    StandardSearchInput,
+    StandardSortBy,
+    Prisma.standard_versionOrderByWithRelationInput,
+    Prisma.standard_versionWhereInput
+> => ({
     defaultSort: StandardSortBy.VotesDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [StandardSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
-            [StandardSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
-            [StandardSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [StandardSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [StandardSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [StandardSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [StandardSortBy.StarsAsc]: { stars: 'asc' },
-            [StandardSortBy.StarsDesc]: { stars: 'desc' },
-            [StandardSortBy.VotesAsc]: { score: 'asc' },
-            [StandardSortBy.VotesDesc]: { score: 'desc' },
-        }[sortBy]
+    sortMap: {
+        CommentsAsc: { comments: { _count: 'asc' } },
+        CommentsDesc: { comments: { _count: 'desc' } },
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
+        StarsAsc: { root: { stars: 'asc' } },
+        StarsDesc: { root: { stars: 'desc' } },
+        VotesAsc: { root: { votes: 'asc' } },
+        VotesDesc: { root: { votes: 'desc' } },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                    { name: { ...insensitive } },
-                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
-                ]
-            })
-        })
-    },
-    customQueries(input: StandardSearchInput, userId: string | null | undefined): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        OR: [
+            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+            { name: { ...insensitive } },
+            { tags: { some: { tag: { tag: { ...insensitive } } } } },
+        ]
+    }),
+    customQueries(input, userId) {
         return combineQueries([
             /**
              * isInternal routines should never appear in the query, since they are 

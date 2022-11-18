@@ -1,6 +1,6 @@
 import { CODE } from "@shared/consts";
 import { CustomError, genErrorCode } from "../../events";
-import { getUser, toPartialGraphQLInfo, onlyValidIds, timeFrameToPrisma, combineQueries, selectHelper, modelToGraphQL, addSupplementalFields } from "../builder";
+import { getUser, toPartialGraphQLInfo, onlyValidIds, timeFrameToPrisma, combineQueries, selectHelper, modelToGraphQL, addSupplementalFields, getSearchString } from "../builder";
 import { PaginatedSearchResult, PartialGraphQLInfo, SearchInputBase } from "../types";
 import { ReadManyHelperProps } from "./types";
 
@@ -29,7 +29,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Create query for specified ids
     const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: onlyValidIds(input.ids) } }) : undefined;
     // Determine text search query
-    const searchQuery = (input.searchString && model.search?.getSearchStringQuery) ? model.search.getSearchStringQuery(input.searchString) : undefined;
+    const searchQuery = (input.searchString && model.search?.searchStringQuery) ? getSearchString({ objectType: model.type, searchString: input.searchString }) : undefined;
     // Determine createdTimeFrame query
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Determine updatedTimeFrame query
@@ -39,7 +39,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Combine queries
     const where = combineQueries([additionalQueries, idQuery, searchQuery, createdQuery, updatedQuery, typeQuery]);
     // Determine sort order
-    const orderBy = model.search?.getSortQuery ? model.search.getSortQuery(input.sortBy ?? model.search.defaultSort) : undefined;
+    const orderBy = model.search?.sortMap ? model.search.sortMap[input.sortBy ?? model.search.defaultSort] : undefined;
     // Find requested search array
     const searchResults = await (model.prismaObject(prisma) as any).findMany({
         where,

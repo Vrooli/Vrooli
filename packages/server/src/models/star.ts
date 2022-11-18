@@ -13,6 +13,7 @@ import { Star, StarSearchInput, StarInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { readManyHelper } from "./actions";
 import { FormatConverter, GraphQLModelType, ModelLogic, Mutater, PartialGraphQLInfo, Searcher } from "./types";
+import { Prisma } from "@prisma/client";
 
 export const starFormatter = (): FormatConverter<Star, 'to'> => ({
     relationshipMap: {
@@ -80,30 +81,28 @@ export const starFormatter = (): FormatConverter<Star, 'to'> => ({
     },
 })
 
-export const starSearcher = (): Searcher<StarSearchInput> => ({
+export const starSearcher = (): Searcher<
+    StarSearchInput,
+    StarSortBy,
+    Prisma.starOrderByWithRelationInput,
+    Prisma.starWhereInput
+> => ({
     defaultSort: StarSortBy.DateUpdatedDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [StarSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [StarSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-        }[sortBy]
+    sortMap: {
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: () => ({
-                OR: [
-                    { organization: OrganizationModel.search.getSearchStringQuery(searchString, languages) },
-                    { project: ProjectModel.search.getSearchStringQuery(searchString, languages) },
-                    { routine: RoutineModel.search.getSearchStringQuery(searchString, languages) },
-                    { standard: StandardModel.search.getSearchStringQuery(searchString, languages) },
-                    { tag: TagModel.search.getSearchStringQuery(searchString, languages) },
-                    { comment: CommentModel.search.getSearchStringQuery(searchString, languages) },
-                ]
-            })
-        })
-    },
-    customQueries(input: StarSearchInput): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages, searchString }) => ({
+        OR: [
+            { organization: OrganizationModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { project: ProjectModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { routine: RoutineModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { standard: StandardModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { tag: TagModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { comment: CommentModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+        ]
+    }),
+    customQueries(input) {
         return combineQueries([
             (input.excludeTags === true ? { tagId: null } : {}),
         ])

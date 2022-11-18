@@ -121,8 +121,6 @@ export enum ProjectOrRoutineSortBy {
 export enum ReportSortBy {
     DateCreatedDesc = "DateCreatedDesc",
     DateCreatedAsc = "DateCreatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
 }
 
 export enum ResourceSortBy {

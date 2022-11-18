@@ -33,31 +33,29 @@ export const userFormatter = (): FormatConverter<User, SupplementalFields> => ({
     },
 })
 
-export const userSearcher = (): Searcher<UserSearchInput> => ({
+export const userSearcher = (): Searcher<
+    UserSearchInput,
+    UserSortBy,
+    Prisma.userOrderByWithRelationInput,
+    Prisma.userWhereInput
+> => ({
     defaultSort: UserSortBy.StarsDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [UserSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [UserSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [UserSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [UserSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [UserSortBy.StarsAsc]: { stars: 'asc' },
-            [UserSortBy.StarsDesc]: { stars: 'desc' },
-        }[sortBy]
+    sortMap: {
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
+        StarsAsc: { stars: 'asc' },
+        StarsDesc: { stars: 'desc' },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
-                    { name: { ...insensitive } },
-                    { handle: { ...insensitive } },
-                ]
-            })
-        })
-    },
-    customQueries(input: UserSearchInput): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        OR: [
+            { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
+            { name: { ...insensitive } },
+            { handle: { ...insensitive } },
+        ]
+    }),
+    customQueries(input) {
         return combineQueries([
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),

@@ -26,28 +26,24 @@ export const reportFormatter = (): FormatConverter<Report, SupplementalFields> =
     },
 })
 
-export const reportSearcher = (): Searcher<ReportSearchInput> => ({
+export const reportSearcher = (): Searcher<
+    ReportSearchInput,
+    ReportSortBy,
+    Prisma.reportOrderByWithRelationInput,
+    Prisma.reportWhereInput
+> => ({
     defaultSort: ReportSortBy.DateCreatedDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [ReportSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [ReportSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [ReportSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [ReportSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-        }[sortBy]
+    sortMap: {
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
     },
-    getSearchStringQuery: (searchString: string): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { reason: { ...insensitive } },
-                    { details: { ...insensitive } },
-                ]
-            })
-        })
-    },
-    customQueries(input: ReportSearchInput): { [x: string]: any } {
+    searchStringQuery: ({ insensitive }) => ({
+        OR: [
+            { reason: { ...insensitive } },
+            { details: { ...insensitive } },
+        ]
+    }),
+    customQueries(input) {
         return combineQueries([
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             (input.userId !== undefined ? { userId: input.userId } : {}),

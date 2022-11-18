@@ -37,7 +37,7 @@ export const nodeValidator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'Node',
-        routine: 'Routine',
+        routineVersion: 'Routine',
     },
     permissionsSelect: (userId) => ({ routineVersion: { select: routineValidator().permissionsSelect(userId) } }),
     permissionResolvers: (data, userId) => {

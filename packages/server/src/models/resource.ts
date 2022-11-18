@@ -13,31 +13,29 @@ export const resourceFormatter = (): FormatConverter<Resource, any> => ({
     relationshipMap: { __typename: 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
 })
 
-export const resourceSearcher = (): Searcher<ResourceSearchInput> => ({
+export const resourceSearcher = (): Searcher<
+    ResourceSearchInput,
+    ResourceSortBy,
+    Prisma.resourceOrderByWithRelationInput,
+    Prisma.resourceWhereInput
+> => ({
     defaultSort: ResourceSortBy.IndexAsc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [ResourceSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [ResourceSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [ResourceSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [ResourceSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [ResourceSortBy.IndexAsc]: { index: 'asc' },
-            [ResourceSortBy.IndexDesc]: { index: 'desc' },
-        }[sortBy]
+    sortMap: {
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
+        IndexAsc: { index: 'asc' },
+        IndexDesc: { index: 'desc' },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                    { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
-                    { link: { ...insensitive } },
-                ]
-            })
-        })
-    },
-    customQueries(input: ResourceSearchInput): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        OR: [
+            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+            { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+            { link: { ...insensitive } },
+        ]
+    }),
+    customQueries(input) {
         // const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
         return combineQueries([
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),

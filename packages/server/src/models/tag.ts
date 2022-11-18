@@ -4,7 +4,7 @@ import { TagSortBy } from "@shared/consts";
 import { StarModel } from "./star";
 import { TranslationModel } from "./translation";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from "../schema/types";
-import {  PrismaType } from "../types";
+import { PrismaType } from "../types";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
@@ -28,30 +28,28 @@ export const tagFormatter = (): FormatConverter<Tag, SupplementalFields> => ({
     },
 })
 
-export const tagSearcher = (): Searcher<TagSearchInput> => ({
+export const tagSearcher = (): Searcher<
+    TagSearchInput,
+    TagSortBy,
+    Prisma.tagOrderByWithRelationInput,
+    Prisma.tagWhereInput
+> => ({
     defaultSort: TagSortBy.StarsDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [TagSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [TagSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [TagSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [TagSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [TagSortBy.StarsAsc]: { stars: 'asc' },
-            [TagSortBy.StarsDesc]: { stars: 'desc' },
-        }[sortBy]
+    sortMap: {
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
+        StarsAsc: { stars: 'asc' },
+        StarsDesc: { stars: 'desc' },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                    { tag: { ...insensitive } },
-                ]
-            })
-        })
-    },
-    customQueries(input: TagSearchInput): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        OR: [
+            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+            { tag: { ...insensitive } },
+        ]
+    }),
+    customQueries(input) {
         return combineQueries([
             (input.excludeIds !== undefined ? { id: { not: { in: input.excludeIds } } } : {}),
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
@@ -69,7 +67,7 @@ export const tagValidator = (): Validator<
     Prisma.tagSelect,
     Prisma.tagWhereInput
 > => ({
-    validateMap: {  __typename: 'Tag' },
+    validateMap: { __typename: 'Tag' },
     permissionsSelect: () => ({ id: true }),
     permissionResolvers: () => [],
     isAdmin: () => false,

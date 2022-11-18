@@ -32,7 +32,7 @@ import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
 import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, SupplementalConverter, WithSelect } from './types';
 import { SessionUser, TimeFrame, VisibilityType } from '../schema/types';
-import { getValidator } from './utils';
+import { getSearcher, getValidator } from './utils';
 const { difference, flatten, merge } = pkg;
 
 /**
@@ -1175,22 +1175,25 @@ export const addSupplementalFieldsMultiTypes = async (
     return formatted;
 }
 
-type GetSearchStringHelperProps = {
-    resolver: ({ insensitive }: { insensitive: { [x: string]: any } }) => { [x: string]: any },
+type GetSearchStringProps = {
+    objectType: GraphQLModelType;
     searchString: string;
+    languages?: string[] | undefined;
 }
 
 /**
- * Helper function for getSearchStringQuery
+ * Helper function for searchStringQuery
  * @returns GraphQL search query object
  */
-export function getSearchStringQueryHelper({
-    resolver,
+ export function getSearchString<Where extends { [x: string]: any }>({
+    languages,
+    objectType,
     searchString,
-}: GetSearchStringHelperProps): { [x: string]: any } {
-    if (searchString.length === 0) return {};
-    const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-    return resolver({ insensitive });
+}: GetSearchStringProps): Where {
+    if (searchString.length === 0) return {} as Where;
+    const searcher = getSearcher<any, any, any, Where>(objectType, 'getSearchString');
+    const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' as const });
+    return searcher.searchStringQuery({ insensitive, languages, searchString })
 }
 
 type ExistsArray = {

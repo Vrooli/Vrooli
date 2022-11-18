@@ -25,22 +25,25 @@ export const projectFormatter = (): FormatConverter<Project, SupplementalFields>
         __typename: 'Project',
         comments: 'Comment',
         creator: {
-            User: 'User',
-            Organization: 'Organization',
+            root: {
+                User: 'User',
+                Organization: 'Organization',
+            }
         },
         forks: 'Project',
         owner: {
-            User: 'User',
-            Organization: 'Organization',
+            root: {
+                User: 'User',
+                Organization: 'Organization',
+            }
         },
         parent: 'Project',
         reports: 'Report',
         resourceLists: 'ResourceList',
-        routines: 'Routine',
         starredBy: 'User',
         tags: 'Tag',
-        wallets: 'Wallet',
     },
+    rootFields: ['hasCompleteVersion', 'isDeleted', 'isInternal', 'isPrivate', 'votes', 'stars', 'views', 'permissions'],
     addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
     removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
     addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
@@ -56,39 +59,37 @@ export const projectFormatter = (): FormatConverter<Project, SupplementalFields>
     },
 })
 
-export const projectSearcher = (): Searcher<ProjectSearchInput> => ({
+export const projectSearcher = (): Searcher<
+    ProjectSearchInput,
+    ProjectSortBy,
+    Prisma.project_versionOrderByWithRelationInput,
+    Prisma.project_versionWhereInput
+> => ({
     defaultSort: ProjectSortBy.VotesDesc,
-    getSortQuery: (sortBy: string): any => {
-        return {
-            [ProjectSortBy.CommentsAsc]: { comments: { _count: 'asc' } },
-            [ProjectSortBy.CommentsDesc]: { comments: { _count: 'desc' } },
-            [ProjectSortBy.ForksAsc]: { forks: { _count: 'asc' } },
-            [ProjectSortBy.ForksDesc]: { forks: { _count: 'desc' } },
-            [ProjectSortBy.DateCompletedAsc]: { completedAt: 'asc' },
-            [ProjectSortBy.DateCompletedDesc]: { completedAt: 'desc' },
-            [ProjectSortBy.DateCreatedAsc]: { created_at: 'asc' },
-            [ProjectSortBy.DateCreatedDesc]: { created_at: 'desc' },
-            [ProjectSortBy.DateUpdatedAsc]: { updated_at: 'asc' },
-            [ProjectSortBy.DateUpdatedDesc]: { updated_at: 'desc' },
-            [ProjectSortBy.StarsAsc]: { stars: 'asc' },
-            [ProjectSortBy.StarsDesc]: { stars: 'desc' },
-            [ProjectSortBy.VotesAsc]: { score: 'asc' },
-            [ProjectSortBy.VotesDesc]: { score: 'desc' },
-        }[sortBy]
+    sortMap: {
+        CommentsAsc: { comments: { _count: 'asc' } },
+        CommentsDesc: { comments: { _count: 'desc' } },
+        ForksAsc: { forks: { _count: 'asc' } },
+        ForksDesc: { forks: { _count: 'desc' } },
+        DateCompletedAsc: { completedAt: 'asc' },
+        DateCompletedDesc: { completedAt: 'desc' },
+        DateCreatedAsc: { created_at: 'asc' },
+        DateCreatedDesc: { created_at: 'desc' },
+        DateUpdatedAsc: { updated_at: 'asc' },
+        DateUpdatedDesc: { updated_at: 'desc' },
+        StarsAsc: { root: { stars: 'asc' } },
+        StarsDesc: { root: { stars: 'desc' } },
+        VotesAsc: { root: { votes: 'asc' } },
+        VotesDesc: { root: { votes: 'desc' } },
     },
-    getSearchStringQuery: (searchString: string, languages?: string[]): any => {
-        return getSearchStringQueryHelper({
-            searchString,
-            resolver: ({ insensitive }) => ({
-                OR: [
-                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                    { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
-                ]
-            })
-        })
-    },
-    customQueries(input: ProjectSearchInput, userId: string | null | undefined): { [x: string]: any } {
+    searchStringQuery: ({ insensitive, languages }) => ({
+        OR: [
+            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
+            { tags: { some: { tag: { tag: { ...insensitive } } } } },
+        ]
+    }),
+    customQueries(input, userId) {
         const isComplete = exceptionsBuilder({
             canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
             exceptionField: 'isCompleteExceptions',
@@ -131,28 +132,38 @@ export const projectValidator = (): Validator<
     permissionsSelect: (userId) => ({
         id: true,
         isComplete: true,
+        isDeleted: true,
         isPrivate: true,
-        permissions: true,
-        ...permissionsSelectHelper([
-            ['organization', 'Organization'],
-            ['user', 'User'],
-        ], userId)
+        root: {
+            select: {
+                isDeleted: true,
+                isPrivate: true,
+                isInternal: true,
+                permissions: true,
+                ...permissionsSelectHelper([
+                    ['organization', 'Organization'],
+                    ['user', 'User'],
+                ], userId)
+            }
+        },
     }),
     permissionResolvers: (data, userId) => {
         const isAdmin = userId && projectValidator().isAdmin(data, userId);
+        const isDeleted = projectValidator().isDeleted(data);
         const isPublic = projectValidator().isPublic(data);
         return [
-            ['canComment', async () => isAdmin || isPublic],
-            ['canDelete', async () => isAdmin],
-            ['canEdit', async () => isAdmin],
-            ['canReport', async () => !isAdmin && isPublic],
-            ['canStar', async () => isAdmin || isPublic],
-            ['canView', async () => isAdmin || isPublic],
-            ['canVote', async () => isAdmin || isPublic],
+            ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canDelete', async () => isAdmin && !isDeleted],
+            ['canEdit', async () => isAdmin && !isDeleted],
+            ['canReport', async () => !isAdmin && !isDeleted && isPublic],
+            // ['canRun', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canView', async () => !isDeleted && (isAdmin || isPublic)],
+            ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
         ]
     },
     isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
-    isDeleted: () => false,
+    isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],

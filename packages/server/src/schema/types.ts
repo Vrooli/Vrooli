@@ -1891,8 +1891,6 @@ export type ReportSearchResult = {
 export enum ReportSortBy {
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
-  DateUpdatedAsc = 'DateUpdatedAsc',
-  DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
 export type ReportUpdateInput = {

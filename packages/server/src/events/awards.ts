@@ -30,8 +30,8 @@ export type AwardCategory = 'AccountAnniversary' |
     'ReportEnd' |
     'ReportContribute' |
     'Reputation' |
-    'RunComplete' |
-    'RunCompleteLearning' |
+    'RunRoutine' |
+    'RunProject' |
     'RoutineCreate' |
     'SmartContractCreate' |
     'StandardCreate' |
@@ -77,8 +77,8 @@ export const awardVariants: { [key in AwardCategory]?: (count: number) => number
     QuestionCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
     ReportEnd: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100]),
     ReportContribute: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
-    RunComplete: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]),
-    RunCompleteLearning: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
+    RunRoutine: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]),
+    RunProject: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
     RoutineCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50, 100, 250, 500, 1000]),
     SmartContractCreate: (count: number) => closestLower(count, [1, 5, 10, 25]),
     StandardCreate: (count: number) => closestLower(count, [1, 5, 10, 25, 50]),
@@ -269,30 +269,30 @@ const awardNames: { [key in AwardCategory]: (count: number) => { name: string | 
         if (count < 1000) return nad('Report legend', 'Contribute to 500 reports');
         return nad('Report god', 'Contribute to 1000 reports');
     },
-    RunComplete: (count: number) => {
-        if (count < 5) return nad('Hello, world!', 'Complete a routine');
-        if (count < 10) return nad('Productive', 'Complete 5 routines');
-        if (count < 25) return nad('Motivated', 'Complete 10 routines');
-        if (count < 50) return nad('Diligent', 'Complete 25 routines');
-        if (count < 100) return nad('Hard worker', 'Complete 50 routines');
-        if (count < 250) return nad('Routinely routining', 'Complete 100 routines');
-        if (count < 500) return nad('Sheeesh', 'Complete 250 routines');
-        if (count < 1000) return nad('Busy bee', 'Complete 500 routines');
-        if (count < 2500) return nad('Routine pro', 'Complete 1000 routines');
-        if (count < 5000) return nad('Routine champion', 'Complete 2500 routines');
-        if (count < 10000) return nad('Routine legend', 'Complete 5000 routines');
-        return nad('Routine god', 'Complete 10000 routines');
+    RunRoutine: (count: number) => {
+        if (count < 5) return nad('Hello, world!', 'Run a routine');
+        if (count < 10) return nad('Productive', 'Run 5 routines');
+        if (count < 25) return nad('Motivated', 'Run 10 routines');
+        if (count < 50) return nad('Diligent', 'Run 25 routines');
+        if (count < 100) return nad('Hard worker', 'Run 50 routines');
+        if (count < 250) return nad('Routinely routining', 'Run 100 routines');
+        if (count < 500) return nad('Sheeesh', 'Run 250 routines');
+        if (count < 1000) return nad('Busy bee', 'Run 500 routines');
+        if (count < 2500) return nad('Routine pro', 'Run 1000 routines');
+        if (count < 5000) return nad('Routine champion', 'Run 2500 routines');
+        if (count < 10000) return nad('Routine legend', 'Run 5000 routines');
+        return nad('Routine god', 'Run 10000 routines');
     },
-    RunCompleteLearning: (count: number) => {
-        if (count < 5) return nad('I did a learn', 'Complete a learning routine');
-        if (count < 10) return nad('Elementary', 'Complete 5 learning routines');
-        if (count < 25) return nad('Good noodle', 'Complete 10 learning routines');
-        if (count < 50) return nad('Smarticle particle', 'Complete 25 learning routines');
-        if (count < 100) return nad('Scholar', 'Complete 50 learning routines');
-        if (count < 250) return nad('Learning pro', 'Complete 100 learning routines');
-        if (count < 500) return nad('Learning champion', 'Complete 250 learning routines');
-        if (count < 1000) return nad('Learning legend', 'Complete 500 learning routines');
-        return nad('Learning god', 'Complete 1000 learning routines');
+    RunProject: (count: number) => {
+        if (count < 5) return nad('I did a learn', 'Run a project');
+        if (count < 10) return nad('Elementary', 'Run 5 projects');
+        if (count < 25) return nad('Good noodle', 'Run 10 projects');
+        if (count < 50) return nad('Smarticle particle', 'Run 25 projects');
+        if (count < 100) return nad('Scholar', 'Run 50 projects');
+        if (count < 250) return nad('Learning pro', 'Run 100 projects');
+        if (count < 500) return nad('Learning champion', 'Run 250 projects');
+        if (count < 1000) return nad('Learning legend', 'Run 500 projects');
+        return nad('Learning god', 'Run 1000 projects');
     },
     RoutineCreate: (count: number) => {
         if (count < 5) return nad('Getting started', 'Create a routine');
