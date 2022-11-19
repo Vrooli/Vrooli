@@ -11,7 +11,7 @@ import { ViewModel } from "./view";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { Trigger } from "../events";
-import { getSingleTypePermissions, MemberPolicy, OrganizationPolicy, RolePolicy } from "./validators";
+import { getSingleTypePermissions } from "./validators";
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
 const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
@@ -137,15 +137,18 @@ export const organizationValidator = (): Validator<
         ['canStar', async () => isAdmin || isPublic],
         ['canView', async () => isAdmin || isPublic],
     ]),
-    isAdmin: (data, userId) => {
-        // If no userId, can't be admin
-        if (!userId) return false;
-        // Convert stringified permissions to object
-        const orgPermissions: OrganizationPolicy = asdfasfd;
-        const rolePermissions: RolePolicy[] = fdsafdas;
-        const memberPermissions: MemberPolicy | null = fdasfsd;
-        return true;// TODO
-    },
+    owner: (data) => ({
+        Organization: data,
+    }),
+    // isAdmin: (data, userId) => {
+    //     // If no userId, can't be admin
+    //     if (!userId) return false;
+    //     // Convert stringified permissions to object
+    //     const orgPermissions: OrganizationPolicy = asdfasfd;
+    //     const rolePermissions: RolePolicy[] = fdsafdas;
+    //     const memberPermissions: MemberPolicy | null = fdasfsd;
+    //     return true;// TODO
+    // },
     isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false,
     ownerOrMemberWhere: (userId) => organizationQuerier().hasRoleInOrganizationQuery(userId).organization,

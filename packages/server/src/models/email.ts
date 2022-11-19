@@ -4,7 +4,7 @@ import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { relationshipBuilderHelper } from "./builder";
 import { CustomError, genErrorCode, Trigger } from "../events";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, ModelLogic, Mutater } from "./types";
+import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { Prisma } from "@prisma/client";
 import { userValidator } from "./user";
@@ -35,7 +35,9 @@ export const emailValidator = (): Validator<
         ['canEdit', async () => isAdmin],
     ]),
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
-    isAdmin: (data, userId) => userValidator().isAdmin(data.user as any, userId),
+    owner: (data) => ({
+        User: data.user,
+    }),
     isDeleted: () => false,
     isPublic: () => false,
     profanityFields: ['emailAddress'],

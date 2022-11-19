@@ -11,9 +11,12 @@
  * We want objects to be owned by organizations rather than users, as this means the objects are tied to 
  * the organization's governance structure.
  */
+import { CODE } from "@shared/consts";
+import { CustomError, genErrorCode } from "../../events";
 import { SessionUser } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { GraphQLModelType } from "../types";
+import { getValidator } from "../utils";
 import { QueryAction } from "../utils/types";
 
 /**
@@ -84,8 +87,8 @@ const maxPublicObjectsOrganizationMap: { [key in GraphQLModelType]?: (hasPremium
  * in case one ID is used for multiple actions.
  * @parma userId ID of user requesting permissions
  */
- export async function maxObjectsCheck(
-    authDataById: { [id: string]: { __typename: GraphQLModelType, [x: string]: any } }, 
+export async function maxObjectsCheck(
+    authDataById: { [id: string]: { __typename: GraphQLModelType, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     prisma: PrismaType,
     userData: SessionUser,
@@ -95,21 +98,33 @@ const maxPublicObjectsOrganizationMap: { [key in GraphQLModelType]?: (hasPremium
     // Loop through every "Create" action, and increment the count for the object type
     if (idsByAction.Create) {
         for (const id of idsByAction.Create) {
+            // Get auth data
+            const authData = authDataById[id]
+            // Get validator
+            const validator = getValidator(authData.__typename, 'maxObjectsCheck-create')
             // Find owner and object type
-            adsfasdf
-            asdf
+            const owners = validator.owner(authData);
             // Increment count for owner
-            fdasfdsafd
+            const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
+            if (!ownerId) throw new CustomError(CODE.InternalError, 'Could not find owner ID for object', { code: genErrorCode('0310') });
+            counts[authData.__typename] = counts[authData.__typename] || {}
+            counts[authData.__typename]![ownerId] = (counts[authData.__typename]![ownerId] || 0) + 1
         }
     }
     // Loop through every "Delete" action, and decrement the count for the object type
     if (idsByAction.Delete) {
         for (const id of idsByAction.Delete) {
+            // Get auth data
+            const authData = authDataById[id]
+            // Get validator
+            const validator = getValidator(authData.__typename, 'maxObjectsCheck-delete')
             // Find owner and object type
-            adsfasdf
-            asdf
+            const owners = validator.owners(authData);
             // Decrement count for owner
-            fdasfdsafd
+            const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
+            if (!ownerId) throw new CustomError(CODE.InternalError, 'Could not find owner ID for object', { code: genErrorCode('0311') });
+            counts[authData.__typename] = counts[authData.__typename] || {}
+            counts[authData.__typename]![ownerId] = (counts[authData.__typename]![ownerId] || 0) - 1
         }
     }
     // Query the database for the current counts of all objects owned by the user or organization, 

@@ -13,7 +13,6 @@ import { projectValidator } from "./project";
 import { routineValidator } from "./routine";
 import { standardValidator } from "./standard";
 import { oneIsPublic } from "./utils";
-import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 
 export const resourceListFormatter = (): FormatConverter<ResourceList, any> => ({
     relationshipMap: {
@@ -59,7 +58,10 @@ export const resourceListValidator = (): Validator<
         ['canDelete', async () => isAdmin],
         ['canEdit', async () => isAdmin],
     ]),
-    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => (d.userSchedule as any).user, userId),
+    owner: (data) => ({
+        Organization: data.organization,
+        User: (data.userSchedule as any)?.user,
+    }),
     isDeleted: () => false,
     isPublic: (data) => oneIsPublic<Prisma.resource_listSelect>(data, [
         // ['apiVersion', 'Api'],

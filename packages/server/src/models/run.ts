@@ -10,7 +10,6 @@ import { PrismaType } from "../types";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { oneIsPublic } from "./utils";
-import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 import { organizationQuerier } from "./organization";
 
 export const runFormatter = (): FormatConverter<Run, ''> => ({
@@ -100,8 +99,11 @@ export const runValidator = (): Validator<
         ['canEdit', async () => isAdmin && !isDeleted],
         ['canView', async () => !isDeleted && (isAdmin || isPublic)],
     ]),
-    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
-    isDeleted: (data) => false,
+    owner: (data) => ({
+        Organization: data.organization,
+        User: data.user,
+    }),
+    isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],

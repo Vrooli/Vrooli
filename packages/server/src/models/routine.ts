@@ -17,7 +17,6 @@ import { cudHelper } from "./actions";
 import { FormatConverter, PartialGraphQLInfo, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { oneIsPublic } from "./utils";
-import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 import { organizationQuerier } from "./organization";
 import { getSingleTypePermissions } from "./validators";
 
@@ -233,7 +232,10 @@ export const routineValidator = (): Validator<
         ['canView', async () => !isDeleted && (isAdmin || isPublic)],
         ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
     ]),
-    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => (d.root as any).organization, (d) => (d.root as any).user, userId),
+    owner: (data) => ({
+        Organization: (data.root as any).organization,
+        User: (data.root as any).user,
+    }),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data) => data.isPrivate === false &&
         data.isDeleted === false &&

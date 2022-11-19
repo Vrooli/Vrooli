@@ -72,7 +72,9 @@ export const reportValidator = (): Validator<
     permissionResolvers: ({ isAdmin }) => ([
         ['isOwn', async () => isAdmin],
     ]),
-    isAdmin: (data, userId) => userValidator().isAdmin(data.user as any, userId),
+    owner: (data) => ({
+        User: data.user,
+    }),
     isDeleted: () => false,
     isPublic: () => true,
     ownerOrMemberWhere: (userId) => ({ userId }),

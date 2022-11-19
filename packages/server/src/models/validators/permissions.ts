@@ -5,6 +5,7 @@ import { PrismaType } from "../../types";
 import { GraphQLModelType } from "../types";
 import { getDelegate, getValidator } from "../utils";
 import { QueryAction } from "../utils/types";
+import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
 
 /**
  * Handles setting and interpreting permission policies for organizations and their objects. Permissions are stored as stringified JSON 
@@ -233,7 +234,7 @@ export function getMultiTypePermissions(
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
         const validator = getValidator(authDataById[id].__typename, 'getMultiplePermissions');
-        const isAdmin = userData?.id ? validator.isAdmin(authDataById[id], userData?.id) : false;
+        const isAdmin = isOwnerAdminCheck(validator.owner(authDataById[id]), userData?.id);
         const isDeleted = validator.isDeleted(authDataById[id]);
         const isPublic = validator.isPublic(authDataById[id]);
         const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });
@@ -271,7 +272,7 @@ export async function getSingleTypePermissions<PermissionObject extends { [x: st
     })
     // Loop through each object and calculate permissions
     for (const authDataItem of authData) {
-        const isAdmin = userData?.id ? validator.isAdmin(authDataItem, userData?.id) : false;
+        const isAdmin = isOwnerAdminCheck(validator.owner(authDataItem), userData?.id);
         const isDeleted = validator.isDeleted(authDataItem);
         const isPublic = validator.isPublic(authDataItem);
         const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });

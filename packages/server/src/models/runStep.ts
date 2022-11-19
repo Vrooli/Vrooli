@@ -1,6 +1,6 @@
 import { stepsCreate, stepsUpdate } from "@shared/validation";
 import { RunStepStatus } from "@shared/consts";
-import { relationshipBuilderHelper, RelationshipTypes } from "./builder";
+import { relationshipBuilderHelper } from "./builder";
 import { RunStep, RunStepCreateInput, RunStepUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { validateProfanity } from "../utils/censor";

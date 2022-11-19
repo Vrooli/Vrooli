@@ -11,7 +11,6 @@ import { FormatConverter, Searcher, Querier, GraphQLInfo, PartialGraphQLInfo, CU
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
 import { oneIsPublic } from "./utils";
-import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 import { Request } from "express";
 import { getSingleTypePermissions } from "./validators";
 
@@ -121,7 +120,10 @@ export const commentValidator = (): Validator<
         ['canView', async () => isAdmin || isPublic],
         ['canVote', async () => isAdmin || isPublic],
     ]),
-    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
+    owner: (data) => ({
+        Organization: data.organization,
+        User: data.user,
+    }),
     isDeleted: () => false,
     isPublic: (data) => oneIsPublic<Prisma.commentSelect>(data, [
         // ['apiVersion', 'Api'],

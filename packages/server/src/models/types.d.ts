@@ -330,10 +330,6 @@ export type Validator<
      */
     ownerOrMemberWhere: (userId: string) => OwnerOrMemberWhere;
     /**
-     * Uses query result to determine if the user has admin/owner privileges for the object
-     */
-    isAdmin: (data: PrismaObject, userId: string) => boolean;
-    /**
      * Uses query result to determine if the object is soft-deleted
      */
     isDeleted: (data: PrismaObject) => boolean;
@@ -341,6 +337,13 @@ export type Validator<
      * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false
      */
     isPublic: (data: PrismaObject) => boolean;
+    /**
+     * Permissions data for the object's owner
+     */
+    owner: (data: PrismaObject) => {
+        Organization?: { [x: string]: any } | null;
+        User?: { [x: string]: any } | null;
+    }
     /**
      * String fields which must be checked for profanity. You don't need to 
      * include fields in a translate object, as those will be checked

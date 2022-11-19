@@ -54,7 +54,7 @@ export const nodeValidator = (): Validator<
             }
         }
     }),
-    isAdmin: (data, userId) => routineValidator().isAdmin(data.routineVersion as any, userId),
+    owner: (data) => routineValidator().owner(data.routineVersion as any),
     isDeleted: () => false,
     isPublic: (data) => routineValidator().isPublic(data.routineVersion as any),
     validations: {

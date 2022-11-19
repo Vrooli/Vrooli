@@ -1,6 +1,6 @@
 import { PrismaType, RecursivePartial } from "../types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, SessionUser, Success, TagCreateInput, UserDeleteInput } from "../schema/types";
-import { addJoinTablesHelper, addSupplementalFields, getUser, modelToGraphQL, padSelect, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./builder";
+import { addJoinTablesHelper, addSupplementalFields, modelToGraphQL, padSelect, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./builder";
 import { CODE } from "@shared/consts";
 import { profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@shared/validation";
 import bcrypt from 'bcrypt';

@@ -70,7 +70,7 @@ export const tagValidator = (): Validator<
     validateMap: { __typename: 'Tag' },
     permissionsSelect: () => ({ id: true }),
     permissionResolvers: () => [],
-    isAdmin: () => false,
+    owner: () => ({}),
     isDeleted: () => false,
     isPublic: () => true,
     profanityFields: ['tag'],

@@ -76,7 +76,10 @@ export const walletValidator = (): Validator<
         ], userId)
     }),
     permissionResolvers: () => [],
-    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => d.organization, (d) => d.user, userId),
+    owner: (data) => ({
+        Organization: data.organization,
+        User: data.user,
+    }),
     isDeleted: () => false,
     isPublic: (data) => oneIsPublic<Prisma.walletSelect>(data, [
         ['organization', 'Organization'],

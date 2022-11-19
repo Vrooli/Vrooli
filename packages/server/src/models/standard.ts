@@ -1,5 +1,5 @@
 import { standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
-import { CODE, StandardSortBy } from "@shared/consts";
+import { StandardSortBy } from "@shared/consts";
 import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
@@ -15,7 +15,6 @@ import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { oneIsPublic } from "./utils";
-import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 import { organizationQuerier } from "./organization";
 import { cudHelper } from "./actions";
 import { getSingleTypePermissions } from "./validators";
@@ -170,7 +169,10 @@ export const standardValidator = (): Validator<
         ['canView', async () => !isDeleted && (isAdmin || isPublic)],
         ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
     ]),
-    isAdmin: (data, userId) => isOwnerAdminCheck(data, (d) => (d.root as any).organization, (d) => (d.root as any).user, userId),
+    owner: (data) => ({
+        Organization: (data.root as any).organization,
+        User: (data.root as any).user,
+    }),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data) => data.isPrivate === false &&
         data.isDeleted === false &&
