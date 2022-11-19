@@ -622,7 +622,7 @@ model notification {
 
 model notification_device {
     id       String    @id @default(uuid()) @db.Uuid
-    endpoint String    @db.VarChar(1024)
+    endpoint String    @db.VarChar(1024) @unique
     p256dh   String    @db.VarChar(1024)
     auth     String    @db.VarChar(1024)
     expires  DateTime? @db.Timestamptz(6)
@@ -784,6 +784,7 @@ model organization_tags {
 
 model member {
     id             String       @id @default(uuid()) @db.Uuid
+    isAdmin        Boolean      @default(false)
     permissions    String       @db.VarChar(4096)
     organizationId String       @db.Uuid
     userId         String       @db.Uuid
@@ -1952,6 +1953,7 @@ model transfer {
     created_at         DateTime        @default(now()) @db.Timestamptz(6)
     updated_at         DateTime        @default(now()) @db.Timestamptz(6)
     status             TransferStatus  @default(Pending)
+    message            String?         @db.VarChar(2048)
     fromUserId         String?         @db.Uuid
     fromOrganizationId String?         @db.Uuid
     toUserId           String?         @db.Uuid

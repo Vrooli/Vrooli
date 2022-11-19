@@ -370,7 +370,7 @@ export const Award = (prisma: PrismaType, userId: string) => ({
         if (isNewTier) {
             // Send a notification to the user
             const { name, description } = awardNames[category](award.progress);
-            if (name && description) Notify(prisma, userId).pushAward(name, description);
+            if (name && description) await Notify(prisma).pushAward(name, description).toUser(userId);
             // Set "timeCurrentTierCompleted" to the current time
             await prisma.award.update({
                 where: { userId_category: { userId, category } },

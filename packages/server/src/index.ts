@@ -21,7 +21,7 @@ const main = async () => {
     logger.log(LogLevel.info, 'Starting server...');
 
     // Check for required .env variables
-    const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET'];
+    const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'PUSH_NOTIFICATIONS_PUBLIC_KEY', 'PUSH_NOTIFICATIONS_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             console.error('uh oh', process.env[env]);

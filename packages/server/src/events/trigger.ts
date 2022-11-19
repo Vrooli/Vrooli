@@ -45,10 +45,10 @@ const CreateAwardTypeMap: { [key in GraphQLModelType]?: AwardCategory } = {
  * Maps GraphQLModelTypes to "Complete" award types
  */
 const CompleteAwardTypeMap: { [key in GraphQLModelType]?: AwardCategory } = {
-    PullRequest: 'PullRequestComplete',
-    Quiz: 'QuizPass',
+    // PullRequest: 'PullRequestComplete',
+    // Quiz: 'QuizPass',
     RunRoutine: 'RunRoutine',
-    RunProject: 'RunProject',
+    // RunProject: 'RunProject',
 }
 
 /**
@@ -109,17 +109,17 @@ export const Trigger = (prisma: PrismaType) => ({
     reportContribute: async (reportId: string, userId: string) => { },
     runComplete: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, userId).pushRunComplete(runTitle, runId);
+        if (wasAutomatic) await Notify(prisma).pushRunComplete(runTitle, runId).toUser(userId);
         // Track award progress
         Award(prisma, userId).update('RunComplete', 1);
     },
     runFail: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, userId).pushRunFail(runTitle, runId);
+        if (wasAutomatic) await Notify(prisma).pushRunFail(runTitle, runId).toUser(userId);
     },
     runStart: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
         // If started automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, userId).pushRunStartedAutomatically(runTitle, runId);
+        if (wasAutomatic) await Notify(prisma,).pushRunStartedAutomatically(runTitle, runId).toUser(userId);
     },
     sessionValidate: async (userId: string) => { },
     userInvite: async (userId: string) => { },

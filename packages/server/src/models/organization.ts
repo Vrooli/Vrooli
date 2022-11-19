@@ -123,6 +123,7 @@ export const organizationValidator = (): Validator<
                     userId,
                 },
                 select: {
+                    isAdmin: true,
                     permissions: true,
                 },
             }

@@ -1,4 +1,10 @@
+import { CODE } from "@shared/consts";
+import { CustomError, genErrorCode, logger, LogLevel } from "../events";
+import { initializeRedis } from "../redisConn";
 import { PrismaType } from "../types";
+import { sendMail } from "./email";
+import { findRecipientsAndLimit, NotificationSettings, updateNotificationSettings } from "./notificationSettings";
+import { sendPush } from "./push";
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
 
@@ -16,16 +22,8 @@ export enum NotificationCategory {
     Schedule = 'Schedule',
     Security = 'Security',
     Streak = 'Streak',
+    Transfer = 'Transfer',
     UserInvite = 'UserInvite',
-}
-
-/**
- * Queries a user for their notification permissions and push devices, emails, and phone numbers
- * @param userId The user's id
- */
-const getNotificationSettingsAndDevices = async (userId: string): Promise<{ settings: any, pushDevices: any, emails: any, phoneNumbers: any }> => {
-    //TODO
-    return {} as any;
 }
 
 type PushParams = {
@@ -44,16 +42,56 @@ type PushParams = {
  * open the app.
  */
 const push = async ({ body, category, link, prisma, title, userId }: PushParams) => {
-    // Get the user's notification settings and devices
-    const { settings, pushDevices, emails, phoneNumbers } = await getNotificationSettingsAndDevices(userId);
-    // Filter out devices which don't allow any notifications
-    // TODO
-    // Increment count in Redis for this user. If it is over the limit, don't send the notification
-    // TODO
-    // Send the notification to each allowed device
-    //TODO
-    // Store the notification in the database
-    //TODO
+    // Find out which devices can receive this notification, and the daily limit
+    const { pushDevices, emails, phoneNumbers, dailyLimit } = await findRecipientsAndLimit(category, prisma, userId);
+    // Try connecting to redis
+    try {
+        const client = await initializeRedis();
+        // Increment count in Redis for this user. If it is over the limit, don't send the notification
+        const count = await client.incr(`notification:${userId}:${category}`);
+        if (dailyLimit && count > dailyLimit) return;
+        // Send the notification to each device
+        const icon = `https://app.vrooli.com/Logo.png`; // TODO location of logo
+        for (const device of pushDevices) {
+            try {
+                const subscription = {
+                    endpoint: device.endpoint,
+                    keys: {
+                        p256dh: device.p256dh,
+                        auth: device.auth,
+                    },
+                }
+                const payload = { body, icon, link, title }
+                sendPush(subscription, payload);
+            } catch (err) {
+                logger.log(LogLevel.error, 'Error sending push notification', { code: genErrorCode('0306') });
+            }
+        }
+        // Send the notification to each email (ignore if no title)
+        if (emails.length && title) {
+            sendMail(emails.map(e => e.emailAddress), title, body);
+        }
+        // Send the notification to each phone number
+        // for (const phoneNumber of phoneNumbers) {
+        //     fdasfsd
+        // }
+        // Store the notification in the database
+        await prisma.notification.create({
+            data: {
+                category,
+                // Title or first 20 characters of body
+                title: title ?? `${body.substring(0, 10)}...`,
+                description: body,
+                link,
+                imgLink: icon,
+                user: { connect: { id: userId } },
+            }
+        })
+    }
+    // If Redis fails, let the user through. It's not their fault. 
+    catch (error) {
+        logger.log(LogLevel.error, 'Error occured while connecting or accessing redis server', { code: genErrorCode('0305'), error });
+    }
 }
 
 /**
@@ -71,161 +109,259 @@ const getEventStartLabel = (date: Date) => {
     return `in ${Math.round(diff / (1000 * 60 * 60 * 24))} days`;
 }
 
+type NotifyResultType = {
+    toUser: (userId: string) => Promise<void>,
+    toOrganization: (organizationId: string) => Promise<void>,
+}
+
 /**
- * Handles sending and registering notifications for a user. 
+ * Class returned by each notify function. Allows us to either
+ * send the notification to one user, or to all admins of an organization
+ */
+const NotifyResult = (prisma: PrismaType, params: Omit<PushParams, 'userId'>): NotifyResultType => ({
+    /**
+     * Sends a notification to a user
+     * @param userId The user's id
+     */
+    toUser: async (userId) => {
+        await push({ ...params, userId, prisma });
+    },
+    /**
+     * Sends a notification to an organization
+     * @param organizationId The organization's id
+     */
+    toOrganization: async (organizationId) => {
+        // Find every admin of the organization
+        const admins = await prisma.member.findMany({
+            where: {
+                AND: [
+                    { organizationId },
+                    { isAdmin: true }
+                ]
+            },
+            select: { userId: true }
+        })
+        const adminIds = admins ? admins.map(a => a.userId) : [];
+        // Send a notification to each admin
+        for (const adminId of adminIds) {
+            await push({ ...params, userId: adminId, prisma });
+        }
+    },
+})
+
+/**
+ * Handles sending and registering notifications for a user or organization. 
+ * Organization notifications are sent to every admin of the organization.
  * Notifications settings and devices are queried from the main database.
  * Notification limits are tracked using Redis.
  */
- export const Notify = (prisma: PrismaType, userId: string) => ({
+export const Notify = (prisma: PrismaType) => ({
     /**
      * Sets up a push device to receive notifications
-     * @param userId The user's id
-     * @param device The device to register
      */
-    registerPushDevice: async (device: any) => {
-        //TODO
+    registerPushDevice: async ({ endpoint, p256dh, auth, expires, userId }: {
+        endpoint: string,
+        p256dh: string,
+        auth: string,
+        expires?: Date,
+        userId: string,
+    }) => {
+        // Check if the device is already registered
+        const device = await prisma.notification_device.findUnique({
+            where: { endpoint },
+            select: { id: true }
+        })
+        // If it is, update the auth and p256dh keys
+        if (device) {
+            await prisma.notification_device.update({
+                where: { id: device.id },
+                data: { auth, p256dh, expires }
+            })
+        }
+        // If it isn't, create a new device
+        await prisma.notification_device.create({
+            data: {
+                endpoint,
+                auth,
+                p256dh,
+                expires,
+                user: { connect: { id: userId } }
+            }
+        })
+    },
+    /**
+     * Removes a push device from the database
+     * @param deviceId The device's id
+     * @param userId The user's id
+     */
+    unregisterPushDevice: async (deviceId: string, userId: string) => {
+        // Check if the device is registered to the user
+        const device = await prisma.notification_device.findUnique({
+            where: { id: deviceId },
+            select: { userId: true }
+        })
+        if (!device || device.userId !== userId) 
+            throw new CustomError(CODE.NotFound, 'Device not found, or not registered to user',  { code: genErrorCode('0307') });
+        // If it is, delete it  
+        await prisma.notification_device.delete({ where: { id: deviceId } })
     },
     /**
      * Updates a user's notification settings
      * @param settings The new settings
-     * @param emails Email addresses with updated notification settings
-     * @param phoneNumbers Phone numbers with updated notification settings
      */
-    updateSettings: async (settings: any, emails: any, phoneNumbers: any) => {
-        //TODO
+    updateSettings: async (settings: NotificationSettings, userId: string) => {
+        await updateNotificationSettings(settings, prisma, userId);
     },
-    pushApiOutOfCredits: async () => {
+    pushApiOutOfCredits: (): NotifyResultType => {
         const title = 'API out of credits';
         const body = 'Your API ran out of credits. Please add more credits to your account if you want to continue using it, or wait until tomorrow to receive new credits.';
-        await push({ body, category: NotificationCategory.AccountCreditsOrApi, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.AccountCreditsOrApi, prisma, title });
     },
-    pushAward: async (awardName: string, awardDescription: string) => {
+    pushAward: (awardName: string, awardDescription: string): NotifyResultType => {
         const title = 'New Award Earned';
         const body = `You earned the "${awardName}" award! ${awardDescription}`;
         const link = `/awards`;
-        push({ body, category: NotificationCategory.Award, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.Award, link, prisma, title });
     },
-    pushIssueActivity: async (issueName: string, issueId: string) => { 
+    pushIssueActivity: (issueName: string, issueId: string): NotifyResultType => {
         const title = 'Issue Activity';
         const body = `New activity on issue "${issueName}"`;
         const link = `/issues/${issueId}`;
-        push({ body, category: NotificationCategory.IssueActivity, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.IssueActivity, link, prisma, title });
     },
-    pushNewQuestionOnObject: async (objectName: string, objectType: string, objectId: string) => {
+    pushNewDeviceSignIn: (): NotifyResultType => {
+        const title = 'New device sign-in';
+        const body = 'You have signed in to your account on a new device. If this was not you, please change your password.';
+        return NotifyResult(prisma, { body, category: NotificationCategory.Security, prisma, title });
+    },
+    pushNewQuestionOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
         const title = 'New Question';
         const body = `There's a new Question on ${objectName}. Do you know the answer?`;
         const link = `/${objectType}/${objectId}`;
-        push({ body, category: NotificationCategory.NewQuestionOrIssue, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.NewQuestionOrIssue, link, prisma, title });
     },
-    pushNewIssueOnObject: async (objectName: string, objectType: string, objectId: string) => {
+    pushNewIssueOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
         const title = 'New Issue';
         const body = `There's a new Issue on ${objectName}. Can you help?`;
         const link = `/${objectType}/${objectId}`;
-        push({ body, category: NotificationCategory.NewQuestionOrIssue, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.NewQuestionOrIssue, link, prisma, title });
     },
-    pushObjectReceivedStar: async (objectName: string, objectType: string, objectId: string, totalStars: number) => {
+    pushObjectReceivedStar: (objectName: string, objectType: string, objectId: string, totalStars: number): NotifyResultType => {
         const title = 'New Stars';
         const body = `${objectName} now has ${totalStars} ${totalStars === 1 ? 'star' : 'stars'}!`;
         const link = `/${objectType}/${objectId}`;
-        push({ body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title });
     },
-    pushObjectReceivedUpvote: async (objectName: string, objectType: string, objectId: string, totalScore: number) => {
+    pushObjectReceivedUpvote: (objectName: string, objectType: string, objectId: string, totalScore: number): NotifyResultType => {
         const title = 'New Votes';
         const body = `${objectName} now has a score of ${totalScore}!`;
         const link = `/${objectType}/${objectId}`;
-        push({ body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title });
     },
-    pushObjectReceivedFork: async (objectName: string, objectType: string, objectId: string) => {
+    pushObjectReceivedFork: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
         const title = 'New Fork';
         const body = `${objectName} was forked!`;
         const link = `/${objectType}/${objectId}`;
-        push({ body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title });
     },
-    pushReportClosedObjectDeleted: async (objectName: string) => {
+    pushReportClosedObjectDeleted: (objectName: string): NotifyResultType => {
         const title = 'Object Deleted';
         const body = `Sorry, the community decided to delete ${objectName}. Your reputation score has been reduced.`;
-        push({ body, category: NotificationCategory.ReportClose, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.ReportClose, prisma, title });
     },
-    pushReportClosedObjectHidden: async (objectName: string, objectType: string, objectId: string) => {
+    pushReportClosedObjectHidden: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
         const title = 'Object Hidden';
         const body = `${objectName} has been hidden from the community. Please fix the issues mentioned in its reports and publish an updated version if you'd like it to be visible again.`;
         const link = `/${objectType}/${objectId}`;
-        push({ body, category: NotificationCategory.ReportClose, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.ReportClose, link, prisma, title });
     },
-    pushReportClosedAccountSuspended: async (objectName: string) => {
+    pushReportClosedAccountSuspended: (objectName: string): NotifyResultType => {
         const title = 'Account Suspended';
         const body = `Your account has been suspended due to the reports on ${objectName}. Please contact us if you think this was a mistake.`;
-        push({ body, category: NotificationCategory.ReportClose, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.ReportClose, prisma, title });
     },
-    pushPromotion: async (title: string, body: string, link: string) => {
-        push({ body, category: NotificationCategory.Promotion, link, prisma, title, userId });
+    pushPromotion: (title: string, body: string, link: string): NotifyResultType => {
+        return NotifyResult(prisma, { body, category: NotificationCategory.Promotion, link, prisma, title });
     },
-    pushPullRequestAccepted: async (objectName: string, objectType: string, objectId: string) => {
+    pushPullRequestAccepted: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
         const title = 'Pull Request Accepted';
         const body = `Your improvements for ${objectName} have been accepted! Thank you for your contribution.`;
         const link = `/${objectType}/${objectId}`;
-        push({ body, category: NotificationCategory.PullRequestClose, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.PullRequestClose, link, prisma, title });
     },
-    pushPullRequestRejected: async (objectName: string, objectType: string, objectId: string) => {
+    pushPullRequestRejected: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
         const title = 'Pull Request Rejected';
         const body = `Sorry, your improvements for ${objectName} have been rejected.`;
         const link = `/${objectType}/${objectId}`;
-        push({ body, category: NotificationCategory.PullRequestClose, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.PullRequestClose, link, prisma, title });
     },
-    pushQuestionActivity: async (questionName: string, questionId: string) => {
+    pushQuestionActivity: (questionName: string, questionId: string): NotifyResultType => {
         const title = 'Question Activity';
         const body = `New activity on question "${questionName}"`;
         const link = `/questions/${questionId}`;
-        push({ body, category: NotificationCategory.QuestionActivty, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.QuestionActivty, link, prisma, title });
     },
-    pushRunStartedAutomatically: async (runName: string, runId: string) => {
+    pushRunStartedAutomatically: (runName: string, runId: string): NotifyResultType => {
         const title = 'Run Started';
         const body = `Your run "${runName}" has started! We'll let you know when it's finished.`;
         const link = `/runs/${runId}`;
-        push({ body, category: NotificationCategory.Run, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.Run, link, prisma, title });
     },
-    pushRunComplete: async (runTitle: string, runId: string) => {
+    pushRunComplete: (runTitle: string, runId: string): NotifyResultType => {
         const title = `Run completed!`;
         const body = `Your run "${runTitle}" is complete! Press here to view the results.`;
         const link = `/runs/${runId}`;
-        push({ body, category: NotificationCategory.Run, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.Run, link, prisma, title });
     },
-    pushRunFail: async (runTitle: string, runId: string) => {
+    pushRunFail: (runTitle: string, runId: string): NotifyResultType => {
         const title = `Run failed!`;
         const body = `Your run "${runTitle}" failed. Press here to see more details.`;
         const link = `/runs/${runId}`;
-        push({ body, category: NotificationCategory.Run, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.Run, link, prisma, title });
     },
-    pushScheduleOrganization: async (meetingName: string, startTime: Date) => {
+    pushScheduleOrganization: (meetingName: string, startTime: Date): NotifyResultType => {
         const startLabel = getEventStartLabel(startTime);
         const title = 'Meeting reminder';
         const body = `${meetingName} is starting in ${startLabel}!`;
         const link = `/meeting/${meetingName}`; //TODO
-        push({ body, category: NotificationCategory.Schedule, link, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.Schedule, link, prisma, title });
     },
-    pushScheduleUser: async (title: string, startTime: Date) => {
+    pushScheduleUser: (title: string, startTime: Date): NotifyResultType => {
         const startLabel = getEventStartLabel(startTime);
         const body = `${title} is starting in ${startLabel}!`;
-        push({ body, category: NotificationCategory.Schedule, prisma, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.Schedule, prisma });
     },
-    pushNewDeviceSignIn: async () => { 
-        const title = 'New device sign-in';
-        const body = 'You have signed in to your account on a new device. If this was not you, please change your password.';
-        push({ body, category: NotificationCategory.Security, prisma, title, userId });
-    },
-    pushStreakReminder: async (timeToReset: Date) => {
+    pushStreakReminder: (timeToReset: Date): NotifyResultType => {
         const startLabel = getEventStartLabel(timeToReset);
         const title = 'Streak reminder';
         const body = `Your streak will be broken in ${startLabel}. Complete a routine to keep your streak going!`;
-        push({ body, category: NotificationCategory.Streak, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.Streak, prisma, title });
     },
-    pushStreakBroken: async () => {
+    pushStreakBroken: (): NotifyResultType => {
         const title = 'Streak broken';
         const body = 'Your streak has been broken. Complete a routine to start a new streak!';
-        push({ body, category: NotificationCategory.Streak, prisma, title, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.Streak, prisma, title });
     },
-    pushUserInvite: async (friendUsername: string) => { 
+    pushTransferRequest: (transferId: string, objectType: string): NotifyResultType => {
+        const title = 'Transfer Request';
+        const body = 'Someone wants to send you an object!';
+        const link = `/transfers/${transferId}`;
+        return NotifyResult(prisma, { body, category: NotificationCategory.Transfer, link, prisma, title });
+    },
+    pushTransferAccepted: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
+        const title = 'Transfer Accepted';
+        const body = `Your transfer request for ${objectName} has been accepted!`;
+        const link = `/${objectType}/${objectId}`;
+        return NotifyResult(prisma, { body, category: NotificationCategory.Transfer, link, prisma, title });
+    },
+    pushTransferRejected: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
+        const title = 'Transfer Rejected';
+        const body = `Your transfer request for ${objectName} has been rejected.`;
+        const link = `/${objectType}/${objectId}`;
+        return NotifyResult(prisma, { body, category: NotificationCategory.Transfer, link, prisma, title });
+    },
+    pushUserInvite: (friendUsername: string): NotifyResultType => {
         const body = `${friendUsername} has created an account using your invite code! Enjoy your free month of premium😎`;
-        push({ body, category: NotificationCategory.UserInvite, prisma, userId });
+        return NotifyResult(prisma, { body, category: NotificationCategory.UserInvite, prisma });
     },
 });

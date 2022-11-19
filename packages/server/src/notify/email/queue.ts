@@ -9,7 +9,7 @@ const welcomeTemplate = fs.readFileSync(`${process.env.PROJECT_DIR}/packages/ser
 const emailQueue = new Bull('email', { redis: { port: PORT, host: HOST } });
 emailQueue.process(emailProcess);
 
-export function sendMail(to=[], subject='', text='', html='') {
+export function sendMail(to: string[] = [], subject='', text='', html='') {
     emailQueue.add({
         to: to,
         subject: subject,

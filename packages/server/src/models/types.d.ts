@@ -107,7 +107,7 @@ export type PrismaSelect = {
     select: { [key: string]: boolean | PrismaSelectInside }
 }
 
-type PrismaSelectInside = Exclude<PrismaSearch, 'select'> & {
+type PrismaSelectInside = Omit<PrismaSearch, 'select'> & {
     select: { [x: string]: boolean | PrismaSelectInside }
 }
 
@@ -323,7 +323,7 @@ export type Validator<
         isAdmin: boolean,
         isDeleted: boolean,
         isPublic: boolean,
-    }) => [keyof Exclude<PermissionObject, '__typename'>, () => any][];
+    }) => [keyof Omit<PermissionObject, '__typename'>, () => any][];
     /**
      * Partial where query added to the object's search query. Useful when querying things like an organization's routines, 
      * where you should only see private routines if you are a member of the organization
