@@ -1,4 +1,4 @@
-import { CODE, CommentSortBy } from "@shared/consts";
+import { CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
@@ -6,7 +6,7 @@ import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraph
 import { TranslationModel } from "./translation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { CustomError, genErrorCode, Trigger } from "../events";
+import { CustomError, Trigger } from "../events";
 import { FormatConverter, Searcher, Querier, GraphQLInfo, PartialGraphQLInfo, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { cudHelper } from "./actions";
@@ -153,7 +153,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Partially convert info type
         let partialInfo = toPartialGraphQLInfo(info, commentFormatter().relationshipMap);
         if (!partialInfo)
-            throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
+            throw new CustomError('InternalError', { trace: '0023' });
         // Create query for specified ids
         const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
         // Combine queries
@@ -223,7 +223,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Partially convert info type
         let partialInfo = toPartialGraphQLInfo(info, commentFormatter().relationshipMap);
         if (!partialInfo)
-            throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0023') });
+            throw new CustomError('InternalError', { trace: '0023' });
         // Determine text search query
         const searchQuery = input.searchString ? getSearchString({ objectType: 'Comment', searchString: input.searchString }) : undefined;
         // Determine createdTimeFrame query

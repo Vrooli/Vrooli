@@ -1,5 +1,4 @@
-import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode, logger, LogLevel } from "../events";
+import { CustomError, logger } from "../events";
 import { initializeRedis } from "../redisConn";
 import { PrismaType } from "../types";
 import { sendMail } from "./email";
@@ -64,7 +63,7 @@ const push = async ({ body, category, link, prisma, title, userId }: PushParams)
                 const payload = { body, icon, link, title }
                 sendPush(subscription, payload);
             } catch (err) {
-                logger.log(LogLevel.error, 'Error sending push notification', { code: genErrorCode('0306') });
+                logger.error('Error sending push notification', { trace: '0306' });
             }
         }
         // Send the notification to each email (ignore if no title)
@@ -90,7 +89,7 @@ const push = async ({ body, category, link, prisma, title, userId }: PushParams)
     }
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
-        logger.log(LogLevel.error, 'Error occured while connecting or accessing redis server', { code: genErrorCode('0305'), error });
+        logger.error('Error occured while connecting or accessing redis server', { trace: '0305', error });
     }
 }
 
@@ -201,7 +200,7 @@ export const Notify = (prisma: PrismaType) => ({
             select: { userId: true }
         })
         if (!device || device.userId !== userId) 
-            throw new CustomError(CODE.NotFound, 'Device not found, or not registered to user',  { code: genErrorCode('0307') });
+            throw new CustomError('NotFound', 'Device not found, or not registered to user',  { trace: '0307' });
         // If it is, delete it  
         await prisma.notification_device.delete({ where: { id: deviceId } })
     },
@@ -348,15 +347,15 @@ export const Notify = (prisma: PrismaType) => ({
         const link = `/transfers/${transferId}`;
         return NotifyResult(prisma, { body, category: NotificationCategory.Transfer, link, prisma, title });
     },
-    pushTransferAccepted: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
+    pushTransferAccepted: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => {
         const title = 'Transfer Accepted';
-        const body = `Your transfer request for ${objectName} has been accepted!`;
+        const body = `Your transfer request ${objectName ? 'for ' : ''}${objectName}has been accepted!`;;
         const link = `/${objectType}/${objectId}`;
         return NotifyResult(prisma, { body, category: NotificationCategory.Transfer, link, prisma, title });
     },
-    pushTransferRejected: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
+    pushTransferRejected: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => {
         const title = 'Transfer Rejected';
-        const body = `Your transfer request for ${objectName} has been rejected.`;
+        const body = `Your transfer request ${objectName ? 'for ' : ''}${objectName}has been rejected.`;;
         const link = `/${objectType}/${objectId}`;
         return NotifyResult(prisma, { body, category: NotificationCategory.Transfer, link, prisma, title });
     },

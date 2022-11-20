@@ -1,5 +1,4 @@
-import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode } from "../../events";
+import { CustomError } from "../../events";
 import { PrismaType } from "../../types";
 import { isRelationshipArray, isRelationshipObject } from "../builder";
 import { GraphQLModelType, PrismaSelect, PrismaUpdate } from "../types";
@@ -103,7 +102,7 @@ const objectToIds = ( // TODO doesn't support versioned objects
                 if (isRelationshipArray(value)) {
                     // 'Connect', 'Delete', and 'Disconnect' are invalid for object arrays
                     if (['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-                        throw new CustomError(CODE.InvalidArgs, `Action type does not match relationship data`, { code: genErrorCode('0282') })
+                        throw new CustomError('InvalidArgs', `Action type does not match relationship data`, { trace: '0282' })
                     }
                     // Recursively call objectToIds on each object in array
                     value.forEach((item: any) => {
@@ -118,7 +117,7 @@ const objectToIds = ( // TODO doesn't support versioned objects
                 else if (Array.isArray(value)) {
                     // Only 'Connect', 'Delete', and 'Disconnect' are valid for id arrays
                     if (!['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-                        throw new CustomError(CODE.InvalidArgs, `Action type does not match relationship data`, { code: genErrorCode('0283') })
+                        throw new CustomError('InvalidArgs', `Action type does not match relationship data`, { trace: '0283' })
                     }
                     // Add ids to return object
                     if (ids[relMap[key]]) { ids[relMap[key]] = [...(ids[relMap[key]] ?? []), ...value.map(id => `${childActionType}-${id}`)]; }
@@ -127,7 +126,7 @@ const objectToIds = ( // TODO doesn't support versioned objects
                 else if (isRelationshipObject(value)) {
                     // 'Connect', 'Delete', and 'Disconnect' are invalid for objects
                     if (['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-                        throw new CustomError(CODE.InvalidArgs, `Action type does not match relationship data`, { code: genErrorCode('0284') })
+                        throw new CustomError('InvalidArgs', `Action type does not match relationship data`, { trace: '0284' })
                     }
                     // Recursively call objectToIds on object
                     const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap as any, value);
@@ -140,7 +139,7 @@ const objectToIds = ( // TODO doesn't support versioned objects
                 else if (typeof value === 'string') {
                     // Only 'Connect', 'Delete', and 'Disconnect' are valid for ids
                     if (!['Connect', 'Delete', 'Disconnect'].includes(childActionType)) {
-                        throw new CustomError(CODE.InvalidArgs, `Action type does not match relationship data`, { code: genErrorCode('0285') })
+                        throw new CustomError('InvalidArgs', `Action type does not match relationship data`, { trace: '0285' })
                     }
                     // Add id to return object
                     if (ids[relMap[key]]) { ids[relMap[key]] = [...(ids[relMap[key]] ?? []), `${childActionType}-${value}`]; }

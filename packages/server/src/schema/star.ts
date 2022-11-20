@@ -1,12 +1,10 @@
 import { gql } from 'apollo-server-express';
-import { CODE, StarSortBy } from '@shared/consts';
-import { CustomError } from '../events/error';
+import { StarSortBy } from '@shared/consts';
 import { StarFor, StarInput, StarSearchInput, StarSearchResult, Success } from './types';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { getUser, readManyHelper, StarModel } from '../models';
-import { genErrorCode } from '../events/logger';
+import { readManyHelper, StarModel } from '../models';
 import { resolveStarTo } from './resolvers';
 import { assertRequestFrom } from '../auth/auth';
 

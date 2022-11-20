@@ -1,6 +1,6 @@
 import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
 import { inputTranslationCreate, inputTranslationUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routinesUpdate } from "@shared/validation";
-import { CODE, ResourceListUsedFor } from "@shared/consts";
+import { ResourceListUsedFor } from "@shared/consts";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -10,7 +10,7 @@ import { TranslationModel } from "./translation";
 import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
 import { runFormatter } from "./run";
-import { CustomError, genErrorCode, Trigger } from "../events";
+import { CustomError, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy } from "../schema/types";
 import { PrismaType } from "../types";
 import { cudHelper } from "./actions";
@@ -78,7 +78,7 @@ export const routineFormatter = (): FormatConverter<Routine, SupplementalFields>
                     routineVersionId: true
                 }
                 if (runPartial === undefined) {
-                    throw new CustomError(CODE.InternalError, 'Error converting query', { code: genErrorCode('0178') });
+                    throw new CustomError('InternalError', 'Error converting query', { trace: '0178' });
                 }
                 // Query runs made by user
                 let runs: any[] = await prisma.run_routine.findMany({
@@ -280,7 +280,7 @@ export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: Node
     // If this isn't the case, this algorithm could run into an error
     for (const edge of edges) {
         if (!nodes[edge.toId] || !nodes[edge.fromId]) {
-            throw new CustomError(CODE.InvalidArgs, 'Could not calculate complexity/simplicity: not all edges map to existing nodes', { code: genErrorCode('0237'), failedEdge: edge })
+            throw new CustomError('InvalidArgs', 'Could not calculate complexity/simplicity: not all edges map to existing nodes', { trace: '0237', failedEdge: edge })
         }
     }
     // If no nodes or edges, return 1
@@ -477,7 +477,7 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
         // // Remove nodes that have duplicate rowIndexes and columnIndexes
         // console.log('unique nodes check', JSON.stringify(combinedNodes));
         // const uniqueNodes = uniqBy(combinedNodes, (n) => `${n.rowIndex}-${n.columnIndex}`);
-        // if (uniqueNodes.length < combinedNodes.length) throw new CustomError(CODE.NodeDuplicatePosition);
+        // if (uniqueNodes.length < combinedNodes.length) throw new CustomError('NodeDuplicatePosition', {});
         return;
     },
     async shapeBase(userId: string, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean) {
@@ -656,7 +656,7 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
      * If a copy, there is no parent.
      */
     async duplicate({ userId, objectId, isFork, createCount = 0 }: DuplicateInput): Promise<DuplicateResult<Routine>> {
-        throw new CustomError(CODE.NotImplemented);
+        throw new CustomError('NotImplemented', {});
         // let newCreateCount = createCount;
         // // Find routine, with fields we want to copy.
         // // I hope I discover a better way to do this.
@@ -828,13 +828,13 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
         // });
         // // If routine didn't exist
         // if (!routine) {
-        //     throw new CustomError(CODE.NotFound, 'Routine not found', { code: genErrorCode('0225') });
+        //     throw new CustomError('NotFound', 'Routine not found', { trace: '0225' });
         // }
         // // If routine is marked as internal and it doesn't belong to you
         // else if (routine.isInternal && routine.userId !== userId) {
         //     const roles = await OrganizationModel.query().hasRole(prisma, userId, [routine.organizationId]);
         //     if (roles.some(role => !role))
-        //         throw new CustomError(CODE.Unauthorized, 'Not authorized to copy', { code: genErrorCode('0226') })
+        //         throw new CustomError('Unauthorized', 'Not authorized to copy', { trace: '0226' })
         // }
         // // Initialize new routine object
         // const newRoutine: any = routine;

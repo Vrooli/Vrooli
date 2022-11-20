@@ -1,5 +1,5 @@
 import { GraphQLError, Kind } from 'graphql';
-import { genErrorCode, logger, LogLevel } from '../events/logger';
+import { logger } from '../events/logger';
 
 interface Options {
     ignoreTypenames?: any
@@ -26,7 +26,7 @@ export const depthLimit = (maxDepth: number, options: Options = {}, callback: an
         callback(queryDepths)
         return validationContext
     } catch (error) {
-        logger.log(LogLevel.error, 'Caught error finding depthLimit', { code: genErrorCode('0001'), error });
+        logger.error('Caught error finding depthLimit', { trace: '0001', error });
         throw error
     }
 }

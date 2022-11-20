@@ -1,8 +1,6 @@
 import { CustomError } from '../events/error';
 import fs from 'fs';
-import { CODE } from '@shared/consts';
 import { isObject } from '@shared/utils';
-import { genErrorCode } from '../events/logger';
 import pkg from 'lodash';
 const { flatten } = pkg;
 
@@ -60,7 +58,7 @@ export const validateProfanity = (items: any[], fields: string[] | null = null):
     // Convert items to strings. For objects, recursively convert values to strings
     let strings: string[] = flatten(items.map(i => toStringArray(i, fields))).filter(i => i !== null) as string[];
     if (hasProfanity(...strings))
-        throw new CustomError(CODE.BannedWord, 'Banned word detected', { code: genErrorCode('0042') });
+        throw new CustomError('BannedWord', 'Banned word detected', { trace: '0042' });
 }
 
 /**

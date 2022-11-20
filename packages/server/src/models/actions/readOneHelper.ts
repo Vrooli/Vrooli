@@ -1,5 +1,5 @@
-import { CODE, ViewFor } from "@shared/consts";
-import { CustomError, genErrorCode } from "../../events";
+import { ViewFor } from "@shared/consts";
+import { CustomError } from "../../events";
 import { FindByIdOrHandleInput, FindByVersionInput } from "../../schema/types";
 import { RecursivePartial } from "../../types";
 import { addSupplementalFields, getUser, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builder";
@@ -23,11 +23,11 @@ export async function readOneHelper<GraphQLModel>({
     const userData = getUser(req);
     // Validate input. Can read by id, handle, or versionGroupId
     if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
-        throw new CustomError(CODE.InvalidArgs, 'id or handle is required', { code: genErrorCode('0019') });
+        throw new CustomError('IdOrHandleRequired', { trace: '0019' });
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
-        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0020') });
+        throw new CustomError('InternalError', { trace: '0020' });
     // If using versionGroupId, find the latest completed version in that group and use that id from now on
     let id: string | null | undefined;
     if ((input as FindByVersionInput).versionGroupId) {
@@ -49,7 +49,7 @@ export async function readOneHelper<GraphQLModel>({
         await (model.prismaObject(prisma) as any).findUnique({ where: { id: id }, ...selectHelper(partialInfo) }) :
         await (model.prismaObject(prisma) as any).findFirst({ where: { handle: (input as FindByIdOrHandleInput).handle as string }, ...selectHelper(partialInfo) });
     if (!object)
-        throw new CustomError(CODE.NotFound, `${objectType} not found`, { code: genErrorCode('0022') });
+        throw new CustomError('NotFound', { trace: '0022', objectType });
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object has view count, handle it

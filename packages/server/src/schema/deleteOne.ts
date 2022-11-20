@@ -5,8 +5,7 @@ import { deleteOneHelper, ObjectMap } from '../models';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../events/error';
-import { CODE, DeleteOneType } from '@shared/consts';
-import { genErrorCode } from '../events/logger';
+import { DeleteOneType } from '@shared/consts';
 
 export const typeDef = gql`
     enum DeleteOneType {
@@ -39,7 +38,7 @@ export const resolvers = {
         deleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ info, maxUser: 1000, req });
             const model = ObjectMap[input.objectType];
-            if (!model) throw new CustomError(CODE.InvalidArgs, 'Invalid delete object type.', { code: genErrorCode('0216') });
+            if (!model) throw new CustomError('InvalidArgs', 'Invalid delete object type.', { trace: '0216' });
             return deleteOneHelper({ input, model, prisma, req });
         },
     }

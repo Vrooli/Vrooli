@@ -1,15 +1,30 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
-import { CODE, COOKIE } from '@shared/consts';
+import { COOKIE } from '@shared/consts';
 import { CustomError } from '../events/error';
 import { Session, SessionUser } from '../schema/types';
 import { RecursivePartial } from '../types';
-import { genErrorCode, logger, LogLevel } from '../events/logger';
+import { logger } from '../events/logger';
 import { isSafeOrigin } from '../utils';
-import { uuidValidate } from '@shared/uuid';
 import { getUser } from '../models';
 
 const SESSION_MILLI = 30 * 86400 * 1000;
+
+/**
+ * Parses a request's accept-language header
+ * @param req The request
+ * @returns A list of languages without any subtags
+ */
+const parseAcceptLanguage = (req: Request): string[] => {
+    let acceptString = req.headers['accept-language'];
+    // Default to english if not found or a wildcard
+    if (!acceptString || acceptString === '*') return ['en'];
+    // Strip q values
+    let acceptValues = acceptString.split(',').map((lang) => lang.split(';')[0]);
+    // Remove subtags
+    acceptValues = acceptValues.map((lang) => lang.split('-')[0]);
+    return acceptValues;
+};
 
 /**
  * Verifies if a user is authenticated, using an http cookie. 
@@ -23,17 +38,21 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
     // Check if request is coming from a safe origin. 
     // This is useful for handling public API requests.
     req.fromSafeOrigin = isSafeOrigin(req);
+    // Add user's preferred language to the request. Later on we'll 
+    // use the preferred languages set in the user's account for localization, 
+    // but this is a good fallback.
+    req.languages = parseAcceptLanguage(req);
     // Check if a valid session cookie was supplied
     const token = cookies[COOKIE.Jwt];
     if (token === null || token === undefined) {
         // If from unsafe origin, deny access.
         let error: CustomError | undefined;
-        if (!req.fromSafeOrigin) error = new CustomError(CODE.Unauthorized, 'Unsafe origin with expired/missing API token', { code: genErrorCode('0247') });
+        if (!req.fromSafeOrigin) error = new CustomError('0247', 'UnsafeOriginNoApiToken', req.languages);
         next(error);
         return;
     }
     if (!process.env.JWT_SECRET) {
-        logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0003') });
+        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0003' });
         return;
     }
     // Verify that the session token is valid
@@ -41,7 +60,7 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
             // If from unsafe origin, deny access.
             let error: CustomError | undefined;
-            if (!req.fromSafeOrigin) error = new CustomError(CODE.Unauthorized, 'Unsafe origin with expired/missing API token', { code: genErrorCode('0248') });
+            if (!req.fromSafeOrigin) error = new CustomError('0248', 'UnsafeOriginNoApiToken', req.languages);
             next(error);
             return;
         }
@@ -51,6 +70,10 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         req.timeZone = payload.timeZone ?? 'UTC';
         // Users, but make sure they all have unique ids
         req.users = [...new Map((payload.users ?? []).map((user: SessionUser) => [user.id, user])).values()] as SessionUser[];
+        // Find preferred languages for first user
+        if (req.users.length && req.users[0].languages && req.users[0].languages.length) {
+            req.languages = req.users[0].languages as string[];
+        }
         req.validToken = true;
         next();
     })
@@ -96,7 +119,7 @@ export async function generateSessionJwt(res: Response, session: RecursivePartia
         users: [...new Map((session.users ?? []).map((user: SessionUser) => [user.id, user])).values()],
     }
     if (!process.env.JWT_SECRET) {
-        logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0004') });
+        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0004' });
         return;
     }
     const token = jwt.sign(tokenContents, process.env.JWT_SECRET);
@@ -119,7 +142,7 @@ export async function generateApiJwt(res: Response, apiToken: string): Promise<u
         apiToken,
     }
     if (!process.env.JWT_SECRET) {
-        logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0005') });
+        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0005' });
         return;
     }
     const token = jwt.sign(tokenContents, process.env.JWT_SECRET);
@@ -139,16 +162,16 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
     const { cookies } = req;
     const token = cookies[COOKIE.Jwt];
     if (token === null || token === undefined) {
-        logger.log(LogLevel.error, '❗️ No session token found', { code: genErrorCode('0006') });
+        logger.error('❗️ No session token found', { trace: '0006' });
         return;
     }
     if (!process.env.JWT_SECRET) {
-        logger.log(LogLevel.error, '❗️ JWT_SECRET not set! Please check .env file', { code: genErrorCode('0007') });
+        logger.error('❗️ JWT_SECRET not set! Please check .env file', { trace: '0007' });
         return;
     }
     jwt.verify(token, process.env.JWT_SECRET, async (error: any, payload: any) => {
         if (error || isNaN(payload.exp) || payload.exp < Date.now()) {
-            logger.log(LogLevel.error, '❗️ Session token is invalid', { code: genErrorCode('0008') });
+            logger.error('❗️ Session token is invalid', { trace: '0008' });
             return;
         }
         const tokenContents: SessionToken = {
@@ -170,7 +193,7 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
  */
 export async function requireLoggedIn(req: Request, _: any, next: any) {
     let error: CustomError | undefined;
-    if (!req.isLoggedIn) error = new CustomError(CODE.Unauthorized, 'You must be logged in to access this resource', { code: genErrorCode('0018') });
+    if (!req.isLoggedIn) error = new CustomError('0018', 'NotLoggedIn', req.languages);
     next(error);
 }
 
@@ -208,20 +231,20 @@ export const assertRequestFrom = <Conditions extends RequestConditions>(req: Req
     // Check isApiRoot condition
     if (conditions.isApiRoot !== undefined) {
         const isApiRoot = hasApiToken && !hasUserData;
-        if (conditions.isApiRoot === true && !isApiRoot) throw new CustomError(CODE.Unauthorized, 'Call must be made from an API token.', { code: genErrorCode('0265') });
-        if (conditions.isApiRoot === false && isApiRoot) throw new CustomError(CODE.Unauthorized, 'Call cannot be made from an API token.', { code: genErrorCode('0266') });
+        if (conditions.isApiRoot === true && !isApiRoot) throw new CustomError('0265', 'MustUseApiToken', req.languages);
+        if (conditions.isApiRoot === false && isApiRoot) throw new CustomError('0266', 'MustNotUseApiToken', req.languages);
     }
     // Check isUser condition
     if (conditions.isUser !== undefined) {
         const isUser = hasUserData && (hasApiToken || req.fromSafeOrigin === true)
-        if (conditions.isUser === true && !isUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in.', { code: genErrorCode('0267') });
-        if (conditions.isUser === false && isUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in.', { code: genErrorCode('0268') });
+        if (conditions.isUser === true && !isUser) throw new CustomError('0267', 'NotLoggedIn', req.languages);
+        if (conditions.isUser === false && isUser) throw new CustomError('0268', 'NotLoggedIn', req.languages);
     }
     // Check isOfficialUser condition
     if (conditions.isOfficialUser !== undefined) {
         const isOfficialUser = hasUserData && !hasApiToken && req.fromSafeOrigin === true;
-        if (conditions.isOfficialUser === true && !isOfficialUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in via the official Vrooli app/website.', { code: genErrorCode('0269') });
-        if (conditions.isOfficialUser === false && isOfficialUser) throw new CustomError(CODE.Unauthorized, 'Must be logged in via the official Vrooli app/website.', { code: genErrorCode('0270') });
+        if (conditions.isOfficialUser === true && !isOfficialUser) throw new CustomError('0269', 'NotLoggedInOfficial', req.languages);
+        if (conditions.isOfficialUser === false && isOfficialUser) throw new CustomError('0270', 'NotLoggedInOfficial', req.languages);
     }
     return conditions.isUser === true || conditions.isOfficialUser === true ? userData as any : undefined;
 }

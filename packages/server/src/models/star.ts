@@ -1,4 +1,4 @@
-import { CODE, StarFor, StarSortBy } from "@shared/consts";
+import { StarFor, StarSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils';
 import { combineQueries, ObjectMap, onlyValidIds } from "./builder";
 import { OrganizationModel } from "./organization";
@@ -7,7 +7,7 @@ import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
-import { CustomError, genErrorCode, Trigger } from "../events";
+import { CustomError, Trigger } from "../events";
 import { resolveStarTo } from "../schema/resolvers";
 import { Star, StarSearchInput, StarInput } from "../schema/types";
 import { PrismaType } from "../types";
@@ -57,7 +57,7 @@ export const starFormatter = (): FormatConverter<Star, 'to'> => ({
                             'User',
                         ];
                         if (!validTypes.includes(type as GraphQLModelType)) {
-                            throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
+                            throw new CustomError('InternalError', `View applied to unsupported type: ${type}`, { trace: '0185' });
                         }
                         const model: ModelLogic<any, any, any, any> = ObjectMap[type] as ModelLogic<any, any, any, any>;
                         const paginated = await readManyHelper({
@@ -132,7 +132,7 @@ const starMutater = (prisma: PrismaType): Mutater<Star> => ({
         // Check if object being starred exists
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
         if (!starringFor)
-            throw new CustomError(CODE.ErrorUnknown, 'Could not find object being starred', { code: genErrorCode('0110') });
+            throw new CustomError('ErrorUnknown', 'Could not find object being starred', { trace: '0110' });
         // Check if star already exists on object by this user TODO fix for tags
         const star = await prisma.star.findFirst({
             where: {

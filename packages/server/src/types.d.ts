@@ -1,5 +1,9 @@
 import pkg from '@prisma/client';
 import { SessionUser } from './schema/types';
+import commonLocale from './locales/en/common.json';
+import errorLocale from './locales/en/error.json';
+import notifyLocale from './locales/en/notify.json';
+import validateLocale from './locales/en/validate.json';
 
 // Request type
 declare global {
@@ -18,6 +22,11 @@ declare global {
              */
             isLoggedIn?: boolean;
             /**
+             * Preferred languages to display errors, push notifications, etc. in. 
+             * Always has at least one language
+             */
+            languages: string[];
+            /**
              * User's current time zone
              */
             timeZone?: string;
@@ -27,6 +36,19 @@ declare global {
             users?: SessionUser[];
             validToken?: boolean;
         }
+    }
+}
+
+// Internationlization
+declare module "i18next" {
+    interface CustomTypeOptions {
+        defaultNS: 'common';
+        resources: {
+            common: typeof commonLocale;
+            validate: typeof validateLocale;
+            error: typeof errorLocale;
+            notify: typeof notifyLocale;
+        };
     }
 }
 

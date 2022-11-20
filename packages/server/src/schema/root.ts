@@ -130,7 +130,7 @@ export const resolvers = {
     Mutation: {
         writeAssets: async (_parent: undefined, { input }: any, { req }: Context, info: GraphQLResolveInfo): Promise<boolean> => {
             await rateLimit({ info, maxUser: 500, req });
-            throw new CustomError(CODE.NotImplemented); // TODO add safety checks before allowing uploads
+            throw new CustomError('NotImplemented', {}); // TODO add safety checks before allowing uploads
             const data = await saveFiles(input.files);
             // Any failed writes will return null
             return !data.some(d => d === null)

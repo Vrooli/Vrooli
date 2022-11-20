@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { genErrorCode, logger, LogLevel } from "../events";
+import { logger } from "../events";
 import { PrismaType, RecursivePartial } from "../types";
 import { NotificationCategory } from "./notify";
 
@@ -46,7 +46,7 @@ export const parseNotificationSettings = (settingsJson: string | null): Notifica
         const settings = settingsJson ? JSON.parse(settingsJson) : defaultSettings;
         return settings;
     } catch (error) {
-        logger.log(LogLevel.error, `Failed to parse notification settings`, { code: genErrorCode('0304') });
+        logger.error(`Failed to parse notification settings`, { trace: '0304' });
         // If there is an error parsing the JSON, return the default settings
         return { enabled: false }
     }

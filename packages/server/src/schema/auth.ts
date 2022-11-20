@@ -14,7 +14,6 @@ import { GraphQLResolveInfo } from 'graphql';
 import { Context, rateLimit } from '../middleware';
 import { hasProfanity } from '../utils/censor';
 import pkg from '@prisma/client';
-import { genErrorCode } from '../events/logger';
 import { getUser, ProfileModel } from '../models';
 import { Trigger } from '../events';
 const { AccountStatus } = pkg;
@@ -86,7 +85,7 @@ export const typeDef = gql`
         handle: String
         hasPremium: Boolean!
         id: String!
-        languages: [String]
+        languages: [String]!
         name: String
         theme: String
     }
@@ -128,23 +127,23 @@ export const resolvers = {
             assertRequestFrom(req, { isOfficialUser: true });
             await rateLimit({ info, maxUser: 5, req });
             // TODO
-            throw new CustomError(CODE.NotImplemented);
+            throw new CustomError('NotImplemented', {});
         },
         apiKeyDelete: async (_parent: undefined, { input }: IWrap<any>, { req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             assertRequestFrom(req, { isOfficialUser: true });
             await rateLimit({ info, maxUser: 5, req });
             // TODO
-            throw new CustomError(CODE.NotImplemented);
+            throw new CustomError('NotImplemented', {});
         },
         apiKeyValidate: async (_parent: undefined, { input }: IWrap<any>, { req, res }: Context, info: GraphQLResolveInfo): Promise<ApiKeyStatus> => {
             await rateLimit({ info, maxApi: 5000, req });
             // If session is expired
             if (!req.apiToken || !req.validToken) {
                 res.clearCookie(COOKIE.Jwt);
-                throw new CustomError(CODE.SessionExpired, 'Session expired. Please log in again');
+                throw new CustomError('SessionExpired', 'Session expired. Please log in again');
             }
             // TODO
-            throw new CustomError(CODE.NotImplemented);
+            throw new CustomError('NotImplemented', {});
         },
         emailLogIn: async (_parent: undefined, { input }: IWrap<EmailLogInInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Session> => {
             await rateLimit({ info, maxUser: 100, req });
@@ -156,18 +155,18 @@ export const resolvers = {
             if (!input.email) {
                 const userId = getUser(req)?.id;
                 if (!userId)
-                    throw new CustomError(CODE.BadCredentials, 'Must supply email if not logged in', { code: genErrorCode('0128') });
+                    throw new CustomError('BadCredentials', 'Must supply email if not logged in', { trace: '0128' });
                 // Find user by id
                 user = await prisma.user.findUnique({
                     where: { id: userId },
                     select: { id: true }
                 });
                 if (!user)
-                    throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0129') });
+                    throw new CustomError('0129', 'NoUser', req.languages);
                 // Validate verification code
                 if (input.verificationCode) {
                     if (!input.verificationCode.includes(':'))
-                        throw new CustomError(CODE.InvalidArgs, 'Invalid verification code', { code: genErrorCode('0130') });
+                        throw new CustomError('0130', 'CannotVerifyEmailCode', req.languages);
                     const [, verificationCode] = input.verificationCode.split(':');
                     // Find all emails for user
                     const emails = await prisma.email.findMany({
@@ -179,35 +178,35 @@ export const resolvers = {
                         }
                     });
                     if (emails.length === 0)
-                        throw new CustomError(CODE.ErrorUnknown, 'Invalid email or expired verification code', { code: genErrorCode('0131') });
+                        throw new CustomError('ErrorUnknown', 'Invalid email or expired verification code', { trace: '0131' });
                     const verified = await ProfileModel.verify.validateVerificationCode(emails[0].emailAddress, user.id, verificationCode, prisma);
                     if (!verified)
-                        throw new CustomError(CODE.BadCredentials, 'Could not verify code.', { code: genErrorCode('0132') });
+                        throw new CustomError('0132', 'CannotVerifyEmailCode', req.languages);
                 }
-                return await ProfileModel.verify.toSession(user, prisma, { isLoggedIn: true, users: req.users });
+                return await ProfileModel.verify.toSession(user, prisma, req, { isLoggedIn: true, users: req.users });
             }
             // If email supplied, validate
             else {
                 const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
                 if (!email)
-                    throw new CustomError(CODE.EmailNotFound, 'Email not found', { code: genErrorCode('0133') });
+                    throw new CustomError('0133', 'EmailNotFound', req.languages);
                 // Find user
                 user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
                 if (!user)
-                    throw new CustomError(CODE.InternalError, 'User not found', { code: genErrorCode('0134') });
+                    throw new CustomError('0134', 'NoUser', req.languages);
                 // Check for password in database, if doesn't exist, send a password reset link
                 if (!Boolean(user.password)) {
                     await ProfileModel.verify.setupPasswordReset(user, prisma);
-                    throw new CustomError(CODE.MustResetPassword, 'Must reset password', { code: genErrorCode('0135') });
+                    throw new CustomError('0135', 'MustResetPassword', req.languages);
                 }
                 // Validate verification code, if supplied
                 if (input.verificationCode) {
                     if (!input.verificationCode.includes(':'))
-                        throw new CustomError(CODE.InvalidArgs, 'Invalid verification code', { code: genErrorCode('0136') });
+                        throw new CustomError('InvalidArgs', 'Invalid verification code', { trace: '0136' });
                     const [, verificationCode] = input.verificationCode.split(':');
                     const verified = await ProfileModel.verify.validateVerificationCode(email.emailAddress, user.id, verificationCode, prisma);
                     if (!verified)
-                        throw new CustomError(CODE.BadCredentials, 'Could not verify code.', { code: genErrorCode('0137') });
+                        throw new CustomError('BadCredentials', 'Could not verify code.', { trace: '0137' });
                 }
                 // Create new session
                 const session = await ProfileModel.verify.logIn(input?.password as string, user, prisma, req);
@@ -216,7 +215,7 @@ export const resolvers = {
                     await generateSessionJwt(res, session);
                     return session;
                 } else {
-                    throw new CustomError(CODE.BadCredentials, 'Invalid email or password', { code: genErrorCode('0138') });
+                    throw new CustomError('BadCredentials', 'Invalid email or password', { trace: '0138' });
                 }
             }
         },
@@ -226,10 +225,10 @@ export const resolvers = {
             emailSignUpSchema.validateSync(input, { abortEarly: false });
             // Check for censored words
             if (hasProfanity(input.name))
-                throw new CustomError(CODE.BannedWord, 'Name includes banned word', { code: genErrorCode('0140') });
+                throw new CustomError('BannedWord', 'Name includes banned word', { trace: '0140' });
             // Check if email exists
             const existingEmail = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
-            if (existingEmail) throw new CustomError(CODE.EmailInUse, 'Email already in use', { code: genErrorCode('0141') });
+            if (existingEmail) throw new CustomError('EmailInUse', 'Email already in use', { trace: '0141' });
             // Create user object
             const user = await prisma.user.create({
                 data: {
@@ -245,7 +244,7 @@ export const resolvers = {
                 }
             });
             if (!user)
-                throw new CustomError(CODE.ErrorUnknown, 'Could not create user', { code: genErrorCode('0142') });
+                throw new CustomError('ErrorUnknown', 'Could not create user', { trace: '0142' });
             // Create session from user object
             const session = await ProfileModel.verify.toSession(user, prisma, req);
             // Set up session token
@@ -262,11 +261,11 @@ export const resolvers = {
             // Validate email address
             const email = await prisma.email.findUnique({ where: { emailAddress: input.email ?? '' } });
             if (!email)
-                throw new CustomError(CODE.EmailNotFound, 'Email not found', { code: genErrorCode('0143') });
+                throw new CustomError('EmailNotFound', 'Email not found', { trace: '0143' });
             // Find user
             let user = await prisma.user.findUnique({ where: { id: email.userId ?? '' } });
             if (!user)
-                throw new CustomError(CODE.NoUser, 'No user found', { code: genErrorCode('0144') });
+                throw new CustomError('NoUser', 'No user found', { trace: '0144' });
             // Generate and send password reset code
             const success = await ProfileModel.verify.setupPasswordReset(user, prisma);
             return { success };
@@ -285,13 +284,13 @@ export const resolvers = {
                 }
             });
             if (!user)
-                throw new CustomError(CODE.ErrorUnknown, 'No user found', { code: genErrorCode('0145') });
+                throw new CustomError('ErrorUnknown', 'No user found', { trace: '0145' });
             // If code is invalid
             if (!ProfileModel.verify.validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
                 // Generate and send new code
                 await ProfileModel.verify.setupPasswordReset(user, prisma);
                 // Return error
-                throw new CustomError(CODE.InvalidResetCode, 'Invalid reset code', { code: genErrorCode('0146') });
+                throw new CustomError('InvalidResetCode', 'Invalid reset code', { trace: '0146' });
             }
             // Remove request data from user, and set new password
             await prisma.user.update({
@@ -336,7 +335,7 @@ export const resolvers = {
             // If session is expired
             if (!userId || !req.validToken) {
                 res.clearCookie(COOKIE.Jwt);
-                throw new CustomError(CODE.SessionExpired, 'Session expired. Please log in again');
+                throw new CustomError('SessionExpired', 'Session expired. Please log in again');
             }
             // If timezone is updated, update session
             updateSessionTimeZone(req, res, input.timeZone);
@@ -356,13 +355,13 @@ export const resolvers = {
             if (userData) return await ProfileModel.verify.toSession(userData, prisma, { isLoggedIn: req.isLoggedIn ?? false, users: req.users });
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Jwt);
-            throw new CustomError(CODE.ErrorUnknown, 'Could not validate session', { code: genErrorCode('0148') });
+            throw new CustomError('ErrorUnknown', 'Could not validate session', { trace: '0148' });
         },
         switchCurrentAccount: async (_parent: undefined, { input }: IWrap<SwitchCurrentAccountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             // Find index of user in session
             const index = req.users?.findIndex(u => u.id === input.id) ?? -1;
             // If user not found, throw error
-            if (!req.users || index === -1) throw new CustomError(CODE.Unauthorized, 'User not found in session', { code: genErrorCode('0272') });
+            if (!req.users || index === -1) throw new CustomError('Unauthorized', 'User not found in session', { trace: '0272' });
             // Filter out user from session, then place at front
             const users = req.users.filter(u => u.id !== input.id) ?? [];
             const session = { isLoggedIn: true, users: [req.users[index], ...users] };
@@ -379,7 +378,7 @@ export const resolvers = {
             // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
             const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
             if (!deserializedStakingAddress.startsWith('stake1'))
-                throw new CustomError(CODE.InvalidArgs, 'Must use wallet on mainnet', { code: genErrorCode('0149') });
+                throw new CustomError('InvalidArgs', 'Must use wallet on mainnet', { trace: '0149' });
             // Generate nonce for handshake
             const nonce = await generateNonce(input.nonceDescription as string | undefined);
             // Find existing wallet data in database
@@ -438,18 +437,18 @@ export const resolvers = {
             });
             // If wallet doesn't exist, throw error
             if (!walletData)
-                throw new CustomError(CODE.InvalidArgs, 'Wallet not found', { code: genErrorCode('0150') });
+                throw new CustomError('InvalidArgs', 'Wallet not found', { trace: '0150' });
             // If nonce expired, throw error
-            if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError(CODE.NonceExpired)
+            if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) throw new CustomError('NonceExpired', {})
             // Verify that message was signed by wallet address
             const walletVerified = verifySignedMessage(input.stakingAddress, walletData.nonce, input.signedPayload);
             if (!walletVerified)
-                throw new CustomError(CODE.Unauthorized, 'Wallet could not be verified', { code: genErrorCode('0151') });
+                throw new CustomError('Unauthorized', 'Wallet could not be verified', { trace: '0151' });
             let userId: string | undefined = walletData.user?.id;
             // If wallet is verified and assigned to another user, throw error
             // Otherwise, we can take ownership of wallet
             if (walletData.verified && userId && !req.users?.find(u => u.id === userId)) {
-                throw new CustomError(CODE.Unauthorized, 'Wallet assigned to a different user', { code: genErrorCode('0152') });
+                throw new CustomError('Unauthorized', 'Wallet assigned to a different user', { trace: '0152' });
             }
             // If there are no users in the session, create a new user
             let firstLogIn: boolean = false;

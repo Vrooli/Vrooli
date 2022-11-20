@@ -5,8 +5,7 @@ import { forkHelper, lowercaseFirstLetter, ObjectMap } from '../models';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../events/error';
-import { CODE, ForkType } from '@shared/consts';
-import { genErrorCode } from '../events/logger';
+import { ForkType } from '@shared/consts';
 
 export const typeDef = gql`
 
@@ -41,7 +40,7 @@ export const resolvers = {
         fork: async (_parent: undefined, { input }: IWrap<ForkInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ForkResult> => {
             await rateLimit({ info, maxUser: 500, req });
             const model = ObjectMap[input.objectType];
-            if (!model) throw new CustomError(CODE.InvalidArgs, 'Invalid fork object type.', { code: genErrorCode('0228') });
+            if (!model) throw new CustomError('InvalidArgs', 'Invalid fork object type.', { trace: '0228' });
             const result = await forkHelper({ info, input, model: model, prisma, req })
             return { [lowercaseFirstLetter(input.objectType)]: result };
         }

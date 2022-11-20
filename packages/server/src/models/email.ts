@@ -1,9 +1,8 @@
-import { CODE } from "@shared/consts";
 import { emailsCreate, emailsUpdate } from "@shared/validation";
 import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { relationshipBuilderHelper } from "./builder";
-import { CustomError, genErrorCode, Trigger } from "../events";
+import { CustomError, Trigger } from "../events";
 import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { cudHelper } from "./actions";
 import { Prisma } from "@prisma/client";
@@ -47,7 +46,7 @@ export const emailValidator = (): Validator<
             const existingEmails = await prisma.email.findMany({
                 where: { emailAddress: { in: createMany.map(x => x.emailAddress) } },
             });
-            if (existingEmails.length > 0) throw new CustomError(CODE.EmailInUse, 'Email address is already in use', { code: genErrorCode('0044') })
+            if (existingEmails.length > 0) throw new CustomError('EmailInUse', { trace: '0044' })
         },
         delete: async (deleteMany, prisma, userId) => {
             // Prevent deleting emails if it will leave you with less than one verified authentication method
@@ -60,7 +59,7 @@ export const emailValidator = (): Validator<
                 where: { user: { id: userId }, verified: true },
             });
             if (remainingVerifiedEmailsCount + verifiedWalletsCount < 1)
-                throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods", { code: genErrorCode('0049') });
+                throw new CustomError('MustLeaveVerificationMethod', { trace: '0049' });
         }
     }
 })

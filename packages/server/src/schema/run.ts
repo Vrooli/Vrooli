@@ -4,9 +4,6 @@ import { Count, DeleteManyInput, FindByIdInput, Run, RunCancelInput, RunComplete
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteManyHelper, getUser, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
-import { CustomError } from '../events/error';
-import { genErrorCode } from '../events/logger';
-import { CODE } from '@shared/consts';
 import { assertRequestFrom } from '../auth/auth';
 
 export const typeDef = gql`

@@ -6,12 +6,12 @@
  *  3. Repeat for all other object types in the union
  */
 
-import { genErrorCode, logger, LogLevel } from "../events/logger";
+import { logger } from "../events/logger";
 import { GraphQLModelType } from "../models/types";
 
 export const resolveCommentedOn = (obj: any): GraphQLModelType => {
     if (!obj) {
-        logger.log(LogLevel.error, 'Null or undefined passed to resolveCommentedOn', { code: genErrorCode('0217') });
+        logger.error('Null or undefined passed to resolveCommentedOn', { trace: '0217' });
         return 'Standard';
     }
     // Only a Standard has a type field
@@ -23,7 +23,7 @@ export const resolveCommentedOn = (obj: any): GraphQLModelType => {
 
 export const resolveNodeData = (obj: any): GraphQLModelType => {
     if (!obj) {
-        logger.log(LogLevel.error, 'Null or undefined passed to resolveNodeData', { code: genErrorCode('0218') });
+        logger.error('Null or undefined passed to resolveNodeData', { trace: '0218' });
         return 'NodeEnd';
     }
     // Only NodeEnd has wasSuccessful field
@@ -33,7 +33,7 @@ export const resolveNodeData = (obj: any): GraphQLModelType => {
 
 export const resolveProjectOrRoutine = (obj: any): GraphQLModelType => {
     if (!obj) {
-        logger.log(LogLevel.error, 'Null or undefined passed to resolveProjectOrRoutine', { code: genErrorCode('0219') });
+        logger.error('Null or undefined passed to resolveProjectOrRoutine', { trace: '0219' });
         return 'Project'
     }
     // Only a project has a handle field
@@ -43,7 +43,7 @@ export const resolveProjectOrRoutine = (obj: any): GraphQLModelType => {
 
 export const resolveProjectOrOrganization = (obj: any): GraphQLModelType => {
     if (!obj) {
-        logger.log(LogLevel.error, 'Null or undefined passed to resolveProjectOrOrganization', { code: genErrorCode('0220') });
+        logger.error('Null or undefined passed to resolveProjectOrOrganization', { trace: '0220' });
         return 'Project'
     }
     // Only a project has a score field
@@ -53,7 +53,7 @@ export const resolveProjectOrOrganization = (obj: any): GraphQLModelType => {
 
 export const resolveProjectOrOrganizationOrRoutineOrStandardOrUser = (obj: any): GraphQLModelType => {
     if (!obj) {
-        logger.log(LogLevel.error, 'Null or undefined passed to resolveProjectOrOrganizationOrRoutineOrStandardOrUser', { code: genErrorCode('0221') });
+        logger.error('Null or undefined passed to resolveProjectOrOrganizationOrRoutineOrStandardOrUser', { trace: '0221' });
         return 'Routine'
     }
     // Only a routine has a complexity field
@@ -70,7 +70,7 @@ export const resolveProjectOrOrganizationOrRoutineOrStandardOrUser = (obj: any):
 
 export const resolveContributor = (obj: any): GraphQLModelType => {
     if (!obj) {
-        logger.log(LogLevel.error, 'Null or undefined passed to resolveContributor', { code: genErrorCode('0222') });
+        logger.error('Null or undefined passed to resolveContributor', { trace: '0222' });
         return 'User'
     }
     // Only a user has a name field
@@ -80,7 +80,7 @@ export const resolveContributor = (obj: any): GraphQLModelType => {
 
 export const resolveStarTo = (obj: any): GraphQLModelType => {
     if (!obj) {
-        logger.log(LogLevel.error, 'Null or undefined passed to resolveStarTo', { code: genErrorCode('0223') });
+        logger.error('Null or undefined passed to resolveStarTo', { trace: '0223' });
         return 'Standard'
     }
     if (obj.hasOwnProperty('yup')) return 'Standard';
@@ -94,7 +94,7 @@ export const resolveStarTo = (obj: any): GraphQLModelType => {
 
 export const resolveVoteTo = (obj: any): GraphQLModelType => {
     if (!obj) {
-        logger.log(LogLevel.error, 'Null or undefined passed to resolveVoteTo', { code: genErrorCode('0224') });
+        logger.error('Null or undefined passed to resolveVoteTo', { trace: '0224' });
         return 'Standard'
     }
     if (obj.hasOwnProperty('type')) return 'Standard';

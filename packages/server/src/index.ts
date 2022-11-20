@@ -8,8 +8,15 @@ import { graphqlUploadExpress } from 'graphql-upload';
 import { schema } from './schema';
 import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
-import { genErrorCode, logger, LogLevel } from './events/logger';
+import { logger } from './events/logger';
 import { initializeRedis } from './redisConn';
+import i18next from 'i18next';
+import commonLocale from './locales/en/common.json';
+import errorLocale from './locales/en/error.json';
+import notifyLocale from './locales/en/notify.json';
+import validateLocale from './locales/en/validate.json';
+
+const debug = process.env.NODE_ENV === 'development';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -18,14 +25,36 @@ const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
         `http://${process.env.SITE_IP}:5329/api`;
 
 const main = async () => {
-    logger.log(LogLevel.info, 'Starting server...');
+    logger.info('Starting server...');
+
+    // Setup internationization
+    const defaultNS = 'common';
+    const resources = {
+        en: {
+            common: commonLocale,
+            validate: validateLocale,
+            error: errorLocale,
+            notify: notifyLocale,
+        },
+    } as const;
+    await i18next.init({
+        debug,
+        partialBundledLanguages: true,
+        defaultNS,
+        ns: ['common', 'validation', 'errors', 'notifications'],
+        fallbackLng: 'en',
+        resources,
+        backend: {
+            loadPath: './locales/{{lng}}/{{ns}}.json',
+        }
+    });
 
     // Check for required .env variables
     const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'PUSH_NOTIFICATIONS_PUBLIC_KEY', 'PUSH_NOTIFICATIONS_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             console.error('uh oh', process.env[env]);
-            logger.log(LogLevel.error, `🚨 ${env} not in environment variables. Stopping server`, { code: genErrorCode('0007') });
+            logger.error(`🚨 ${env} not in environment variables. Stopping server`, { trace: '0007' });
             process.exit(1);
         }
     }
@@ -36,9 +65,9 @@ const main = async () => {
     // Redis 
     try {
         await initializeRedis();
-        logger.log(LogLevel.info, '✅ Connected to Redis');
+        logger.info('✅ Connected to Redis');
     } catch (error) {
-        logger.log(LogLevel.error, '🚨 Failed to connect to Redis', { code: genErrorCode('0207'), error });
+        logger.error('🚨 Failed to connect to Redis', { trace: '0207', error });
     }
 
     const app = express();
@@ -70,7 +99,7 @@ const main = async () => {
     // Apollo server for latest API version
     const apollo_options_latest = new ApolloServer({
         cache: 'bounded' as any,
-        introspection: process.env.NODE_ENV === 'development',
+        introspection: debug,
         schema: schema,
         context: (c) => context(c), // Allows request and response to be included in the context
         validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
@@ -87,7 +116,7 @@ const main = async () => {
     // to be compatible with the latest version.
     // const apollo_options_previous = new ApolloServer({
     //     cache: 'bounded' as any,
-    //     introspection: process.env.NODE_ENV === 'development',
+    //     introspection: debug,
     //     schema: schema,
     //     context: (c) => context(c), // Allows request and response to be included in the context
     //     validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
@@ -106,7 +135,7 @@ const main = async () => {
     // Start cron jobs for calculating site statistics
     initStatsCronJobs();
 
-    logger.log(LogLevel.info, `🚀 Server running at ${SERVER_URL}`);
+    logger.info( `🚀 Server running at ${SERVER_URL}`);
 }
 
 main();

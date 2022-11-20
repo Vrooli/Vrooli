@@ -4,7 +4,7 @@
 
 import { initializeRedis } from "../redisConn";
 import { PrismaType } from "../types";
-import { genErrorCode, logger, LogLevel } from "./logger";
+import { logger } from "./logger";
 
 export type ReputationEvent = 'ObjectDeletedFromReport' |
     'ReportWasAccepted' |
@@ -111,7 +111,7 @@ export async function getReputationGainedToday(userId: string, delta: number): P
     }
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
-        logger.log(LogLevel.error, 'Error occured while connecting or accessing redis server', { code: genErrorCode('0279'), error });
+        logger.error('Error occured while connecting or accessing redis server', { trace: '0279', error });
         // Return absurdly high number so we don't store reputation
         return Number.MAX_SAFE_INTEGER;
     }

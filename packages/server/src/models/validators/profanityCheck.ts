@@ -1,4 +1,4 @@
-import { CustomError, genErrorCode } from "../../events";
+import { CustomError } from "../../events";
 import { hasProfanity } from "../../utils/censor";
 import { isRelationshipArray, isRelationshipObject, ObjectMap } from "../builder";
 import { PartialGraphQLInfo, Validator } from "../types";
@@ -91,7 +91,7 @@ export const profanityCheck = (input: { [x: string]: any }[], partialInfo: Parti
     // Check each field for profanity
     for (const field in fieldsToCheck) {
         if (hasProfanity(...fieldsToCheck[field])) {
-            throw new CustomError('ProfanityCheckError', `Banned word found in "${field}".`, { code: genErrorCode('0115'), field });
+            throw new CustomError('ProfanityCheckError', `Banned word found in "${field}".`, { trace: '0115', field });
         }
     }
 }

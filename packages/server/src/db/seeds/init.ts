@@ -6,7 +6,7 @@ import { InputType } from '@shared/consts';
 import { ProfileModel } from '../../models';
 import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
-import { genErrorCode, logger, LogLevel } from '../../events/logger';
+import { logger } from '../../events/logger';
 import { uuid } from '@shared/uuid';
 const { AccountStatus, NodeType, ResourceUsedFor } = pkg;
 
@@ -14,11 +14,11 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Initialization */
     //==============================================================
-    logger.log(LogLevel.info, '🌱 Starting database intial seed...');
+    logger.info('🌱 Starting database intial seed...');
 
     // Check for required .env variables
     if (['ADMIN_WALLET', 'ADMIN_PASSWORD', 'SITE_EMAIL_USERNAME'].some(name => !process.env[name])) {
-        logger.log(LogLevel.error, '🚨 Missing required .env variables. Not seeding database.', { code: genErrorCode('0006') });
+        logger.error('🚨 Missing required .env variables. Not seeding database.', { trace: '0006' });
         return;
     };
 
@@ -119,7 +119,7 @@ export async function init(prisma: PrismaType) {
         }
     })
     if (!vrooli) {
-        logger.log(LogLevel.info, '🏗 Creating Vrooli organization');
+        logger.info('🏗 Creating Vrooli organization');
         vrooli = await prisma.organization.create({
             data: {
                 translations: {
@@ -223,7 +223,7 @@ export async function init(prisma: PrismaType) {
         }
     })
     if (!projectEntrepreneur) {
-        logger.log(LogLevel.info, '📚 Creating Project Catalyst Guide project');
+        logger.info('📚 Creating Project Catalyst Guide project');
         projectEntrepreneur = await prisma.project_version.create({
             data: {
                 translations: {
@@ -261,7 +261,7 @@ export async function init(prisma: PrismaType) {
         }
     })
     if (!standardCip0025) {
-        logger.log(LogLevel.info, '📚 Creating CIP-0025 standard');
+        logger.info('📚 Creating CIP-0025 standard');
         standardCip0025 = await prisma.standard_version.create({
             data: {
                 root: {
@@ -305,7 +305,7 @@ export async function init(prisma: PrismaType) {
         where: { id: mintTokenId }
     })
     if (!mintToken) {
-        logger.log(LogLevel.info, '📚 Creating Native Token Minting routine');
+        logger.info('📚 Creating Native Token Minting routine');
         mintToken = await prisma.routine_version.create({
             data: {
                 root: {
@@ -365,7 +365,7 @@ export async function init(prisma: PrismaType) {
         where: { id: mintNftId }
     })
     if (!mintNft) {
-        logger.log(LogLevel.info, '📚 Creating NFT Minting routine');
+        logger.info('📚 Creating NFT Minting routine');
         mintNft = await prisma.routine_version.create({
             data: {
                 root: {
@@ -431,6 +431,6 @@ export async function init(prisma: PrismaType) {
     /* #endregion Create Routines */
     //==============================================================
 
-    logger.log(LogLevel.info, '✅ Database seeding complete.');
+    logger.info('✅ Database seeding complete.');
 }
 

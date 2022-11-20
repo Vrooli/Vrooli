@@ -1,5 +1,4 @@
-import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode } from "../../events";
+import { CustomError } from "../../events";
 import { PrismaType } from "../../types";
 import { ObjectMap } from "../builder";
 import { GraphQLModelType, PrismaDelegate } from "../types";
@@ -15,7 +14,7 @@ export function getDelegate(
     // Find validator and prisma delegate for this object type
     const prismaDelegate: PrismaDelegate | undefined = ObjectMap[objectType]?.prismaObject!(prisma);
     if (!prismaDelegate) {
-        throw new CustomError(CODE.InvalidArgs, `Invalid object type in ${errorTrace}: ${objectType}`, { code: genErrorCode('0281') });
+        throw new CustomError('InvalidArgs', `Invalid object type in ${errorTrace}: ${objectType}`, { trace: '0281' });
     }
     return prismaDelegate;
 }

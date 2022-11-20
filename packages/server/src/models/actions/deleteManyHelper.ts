@@ -1,6 +1,6 @@
-import { CODE, DeleteOneType } from "@shared/consts";
+import { DeleteOneType } from "@shared/consts";
 import { assertRequestFrom } from "../../auth/auth";
-import { CustomError, genErrorCode, Trigger } from "../../events";
+import { CustomError, Trigger } from "../../events";
 import { Count } from "../../schema/types";
 import { DeleteManyHelperProps } from "./types";
 
@@ -16,11 +16,11 @@ export async function deleteManyHelper({
 }: DeleteManyHelperProps): Promise<Count> {
     const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).cud)
-        throw new CustomError(CODE.InternalError, 'Model does not support delete', { code: genErrorCode('0036') });
+        throw new CustomError('DeleteNotSupported', { trace: '0036' });
     // Delete objects. cud will check permissions
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userData, deleteMany: input.ids });
     if (!deleted)
-        throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in deleteManyHelper', { code: genErrorCode('0037') });
+        throw new CustomError('InternalError', { trace: '0037' });
     const objectType = model.format.relationshipMap.__typename;
     // Handle trigger
     for (const id of input.ids) {

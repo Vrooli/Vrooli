@@ -2,8 +2,7 @@ import { Request } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import { initializeRedis } from "../redisConn";
 import { CustomError } from "../events/error";
-import { CODE } from "@shared/consts";
-import { genErrorCode, logger, LogLevel } from "../events/logger";
+import { logger } from "../events/logger";
 import { getUser } from "../models";
 
 /**
@@ -20,7 +19,7 @@ export async function checkRateLimit(client: any, key: string, max: number, wind
     const count = await client.incr(key);
     // If limit reached, throw error.
     if (count > max) {
-        throw new CustomError(CODE.RateLimitExceeded, `Rate limit exceeded. Please try again in ${window} seconds.`, { code: genErrorCode('0017') });
+        throw new CustomError('RateLimitExceeded', { trace: '0017' });
     }
     // If key is new, set expiration.
     if (count === 1) {
@@ -78,7 +77,7 @@ export async function rateLimit({
         }
         // If API token is not supplied, make sure request is from the official Vrooli app/website
         else if (req.fromSafeOrigin === false) {
-            throw new CustomError(CODE.Unauthorized, 'Call is missing an API key.', { code: genErrorCode('0271') });
+            throw new CustomError('MustUseApiToken', { trace: '0271' });
         }
         // Apply rate limit to IP address
         const key = `${keyBase}:ip:${req.ip}`;
@@ -91,6 +90,6 @@ export async function rateLimit({
     }
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
-        logger.log(LogLevel.error, 'Error occured while connecting or accessing redis server', { code: genErrorCode('0168'), error });
+        logger.error('Error occured while connecting or accessing redis server', { trace: '0168', error });
     }
 }

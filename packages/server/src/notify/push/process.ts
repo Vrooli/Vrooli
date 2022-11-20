@@ -1,4 +1,4 @@
-import { genErrorCode, logger, LogLevel } from "../../events";
+import { logger } from "../../events";
 import webpush from 'web-push';
 import { PushPayload, PushSubscription } from "./queue";
 
@@ -24,6 +24,6 @@ export async function pushProcess(job: PushSubscription & PushPayload) {
             title: job.title,
         }));
     } catch (err) {
-        logger.log(LogLevel.error, 'Error sending push notification', { code: genErrorCode('0308') });
+        logger.error('Error sending push notification', { trace: '0308' });
     }
 }

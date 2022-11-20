@@ -1,5 +1,4 @@
-import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode } from "../../events";
+import { CustomError } from "../../events";
 import { SessionUser } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { GraphQLModelType } from "../types";
@@ -310,7 +309,7 @@ export function permissionsCheck(
             const permissions = permissionsById[id];
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
-                throw new CustomError(CODE.Unauthorized, `User does not have permission to ${action} ${authDataById[id].__typename} ${id}`, { code: genErrorCode('0297') })
+                throw new CustomError('Unauthorized', `User does not have permission to ${action} ${authDataById[id].__typename} ${id}`, { trace: '0297' })
             }
         }
     }

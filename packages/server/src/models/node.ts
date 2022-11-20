@@ -8,8 +8,7 @@ import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Muta
 import { Prisma } from "@prisma/client";
 import { routineValidator } from "./routine";
 import { cudHelper } from "./actions";
-import { CustomError, genErrorCode } from "../events";
-import { CODE } from "@shared/consts";
+import { CustomError } from "../events";
 import { organizationQuerier } from "./organization";
 
 const MAX_NODES_IN_ROUTINE = 100;
@@ -67,7 +66,7 @@ export const nodeValidator = (): Validator<
                 include: { _count: { select: { nodes: true } } }
             });
             if ((existingCount?._count.nodes ?? 0) + deltaAdding > MAX_NODES_IN_ROUTINE) {
-                throw new CustomError(CODE.ErrorUnknown, `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`, { code: genErrorCode('0052') });
+                throw new CustomError('ErrorUnknown', `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`, { trace: '0052' });
             }
         }
     }

@@ -1,8 +1,7 @@
-import { CODE } from "@shared/consts";
 import { assertRequestFrom } from "../../auth/auth";
-import { CustomError, genErrorCode, Trigger } from "../../events";
+import { CustomError, Trigger } from "../../events";
 import { RecursivePartial } from "../../types";
-import { addSupplementalFields, getUser, toPartialGraphQLInfo } from "../builder";
+import { addSupplementalFields, toPartialGraphQLInfo } from "../builder";
 import { GraphQLModelType } from "../types";
 import { CreateHelperProps } from "./types";
 
@@ -20,11 +19,11 @@ export async function createHelper<GraphQLModel>({
 }: CreateHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).cud)
-        throw new CustomError(CODE.InternalError, 'Model does not support create', { code: genErrorCode('0026') });
+        throw new CustomError('CreateNotSupported', { trace: '0026' });
     // Partially convert info type
     const partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
-        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0027') });
+        throw new CustomError('InternalError', { trace: '0027' });
     // Create objects. cud will check permissions
     const cudResult = await model.mutate!(prisma).cud!({ partialInfo, userData, createMany: [input] });
     const { created } = cudResult;
@@ -36,5 +35,5 @@ export async function createHelper<GraphQLModel>({
         }
         return (await addSupplementalFields(prisma, userData, created, partialInfo))[0] as any;
     }
-    throw new CustomError(CODE.ErrorUnknown, 'Unknown error occurred in createHelper', { code: genErrorCode('0028') });
+    throw new CustomError('ErrorUnknown', { trace: '0028' });
 }

@@ -22,7 +22,7 @@
 import cron from 'node-cron';
 import { PrismaType } from './types';
 import pkg from '@prisma/client';
-import { genErrorCode, logger, LogLevel } from './events/logger';
+import { logger } from './events/logger';
 const { PrismaClient } = pkg;
 
 // Cron syntax created using this website: https://crontab.guru/
@@ -249,7 +249,7 @@ async function calculateStandards(timeInterval: StatTimeInterval, prisma: Prisma
  * where each key is a StatType, and the value is the calculated statistic as a number
  */
 async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in StatType]: number } & { timestamp: number } | undefined> {
-    logger.log(LogLevel.info, 'Starting to calculate site statistics', { code: genErrorCode('0211') });
+    logger.info('Starting to calculate site statistics', { trace: '0211' });
     const prisma = new PrismaClient();
     let results: any = undefined;
     try {
@@ -268,7 +268,7 @@ async function calculateStats(timeInterval: StatTimeInterval): Promise<{ [key in
         }
         prisma.$disconnect();
     } catch (error) {
-        logger.log(LogLevel.error, 'Caught error calculating stats', { code: genErrorCode('0000'), error });
+        logger.error('Caught error calculating stats', { trace: '0000', error });
     } finally {
         return results;
     }
@@ -308,7 +308,7 @@ async function logStats(timeInterval: StatTimeInterval) {
         //         break;
         // }
     } catch (error) {
-        logger.log(LogLevel.error, 'Caught error logging stats', { code: genErrorCode('0192'), error });
+        logger.error('Caught error logging stats', { trace: '0192', error });
     }
 }
 
@@ -321,27 +321,27 @@ async function logStats(timeInterval: StatTimeInterval) {
  * See https://crontab.guru/ for more information on cron jobs.
  */
 export const initStatsCronJobs = () => {
-    logger.log(LogLevel.info, 'Initializing stats cron jobs.', { code: genErrorCode('0209') });
+    logger.info('Initializing stats cron jobs.', { trace: '0209' });
     // Daily
     cron.schedule(dailyCron, () => {
-        logger.log(LogLevel.info, 'Starting daily stats cron job.', { code: genErrorCode('0212') });
+        logger.info('Starting daily stats cron job.', { trace: '0212' });
         logStats(StatTimeInterval.Daily);
     });
     // Weekly
     cron.schedule(weeklyCron, () => {
-        logger.log(LogLevel.info, 'Starting weekly stats cron job.', { code: genErrorCode('0213') });
+        logger.info('Starting weekly stats cron job.', { trace: '0213' });
         logStats(StatTimeInterval.Weekly);
     });
     // Monthly
     cron.schedule(monthlyCron, () => {
-        logger.log(LogLevel.info, 'Starting monthly stats cron job.', { code: genErrorCode('0214') });
+        logger.info('Starting monthly stats cron job.', { trace: '0214' });
         logStats(StatTimeInterval.Monthly);
     });
     // Yearly/All-time (they use the same time interval)
     cron.schedule(yearlyCron, () => {
-        logger.log(LogLevel.info, 'Starting yearly stats cron job.', { code: genErrorCode('0215') });
+        logger.info('Starting yearly stats cron job.', { trace: '0215' });
         logStats(StatTimeInterval.Yearly);
         logStats(StatTimeInterval.AllTime);
     });
-    logger.log(LogLevel.info, '✅ Stats cron jobs initialized');
+    logger.info('✅ Stats cron jobs initialized');
 };

@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { logger, LogLevel, genErrorCode } from '../../events';
+import { logger } from '../../events';
 
 const HOST = 'smtp.gmail.com';
 const PORT = 465;
@@ -25,7 +25,7 @@ export async function emailProcess(job: any) {
             'info': info
         }
     }).catch((error: any) => {
-        logger.log(LogLevel.error, 'Caught error using email transporter', { code: genErrorCode('00012'), error });
+        logger.error('Caught error using email transporter', { trace: '0012', error });
         return {
             'success': false
         }

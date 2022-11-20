@@ -1,4 +1,5 @@
-import { CustomError, genErrorCode } from "../../events";
+import { CODE } from "@shared/consts";
+import { CustomError } from "../../events";
 
 /**
  * Makes sure there are no more than k line breaks in the specified fields
@@ -7,13 +8,13 @@ import { CustomError, genErrorCode } from "../../events";
  * @param error - The error to throw if failed
  * @param k - The maximum number of line breaks allowed
  */
-export const lineBreaksCheck = (input: any, fields: string[], error: any, k: number = 2): void => {
+export const lineBreaksCheck = (input: any, fields: string[], error: CODE, k: number = 2): void => {
     // First, check translations
     const checkTranslations = (translations: any[], fields: string[]): void => {
         translations.forEach((x: any) => {
             fields.forEach(field => {
                 if (x[field] && x[field].split('\n').length > (k + 1)) {
-                    throw new CustomError(error, 'Maximun number of line breaks exceeded', { code: genErrorCode('0116') });
+                    throw new CustomError(error, 'Maximun number of line breaks exceeded', { trace: '0116' });
                 }
             })
         })
@@ -23,7 +24,7 @@ export const lineBreaksCheck = (input: any, fields: string[], error: any, k: num
     // Then, check the main object
     fields.forEach(field => {
         if (input[field] && input[field].split('\n').length > (k + 1)) {
-            throw new CustomError(error, 'Maximun number of line breaks exceeded', { code: genErrorCode('0117') });
+            throw new CustomError(error, 'Maximun number of line breaks exceeded', { trace: '0117' });
         }
     });
 }

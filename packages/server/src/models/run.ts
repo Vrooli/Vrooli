@@ -1,10 +1,10 @@
 import { runsCreate, runsUpdate } from "@shared/validation";
-import { CODE, RunSortBy } from "@shared/consts";
+import { RunSortBy } from "@shared/consts";
 import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, combineQueries, permissionsSelectHelper } from "./builder";
 import { RunStepModel } from "./runStep";
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { RunInputModel } from "./runInput";
-import { CustomError, genErrorCode, Trigger } from "../events";
+import { CustomError, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator, Mutater } from "./types";
@@ -205,7 +205,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
     async complete(userData: SessionUser, input: RunCompleteInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
         const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
-        if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0179') });
+        if (partial === undefined) throw new CustomError('ErrorUnknown', 'Invalid query.', { trace: '0179' });
         let run: run_routine | null;
         // Check if run is being created or updated
         if (input.exists) {
@@ -218,7 +218,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
                     ]
                 }
             })
-            if (!run) throw new CustomError(CODE.NotFound, 'Run not found.', { code: genErrorCode('0180') });
+            if (!run) throw new CustomError('NotFound', 'Run not found.', { trace: '0180' });
             const { timeElapsed, contextSwitches, completedComplexity } = run;
             // Update object
             run = await prisma.run_routine.update({
@@ -299,7 +299,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
     async cancel(userData: SessionUser, input: RunCancelInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
         const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
-        if (partial === undefined) throw new CustomError(CODE.ErrorUnknown, 'Invalid query.', { code: genErrorCode('0181') });
+        if (partial === undefined) throw new CustomError('ErrorUnknown', 'Invalid query.', { trace: '0181' });
         // Find in database
         let object = await prisma.run_routine.findFirst({
             where: {
@@ -309,7 +309,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
                 ]
             }
         })
-        if (!object) throw new CustomError(CODE.NotFound, 'Run not found.', { code: genErrorCode('0182') });
+        if (!object) throw new CustomError('NotFound', 'Run not found.', { trace: '0182' });
         // Update object
         const updated = await prisma.run_routine.update({
             where: { id: input.id },

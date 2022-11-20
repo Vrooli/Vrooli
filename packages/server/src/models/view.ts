@@ -1,4 +1,4 @@
-import { CODE, ViewFor, ViewSortBy } from "@shared/consts";
+import { ViewFor, ViewSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils'
 import { combineQueries, lowercaseFirstLetter, ObjectMap, onlyValidIds, timeFrameToPrisma } from "./builder";
 import { OrganizationModel, organizationQuerier } from "./organization";
@@ -6,7 +6,7 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { UserModel } from "./user";
 import { StandardModel } from "./standard";
-import { CustomError, genErrorCode } from "../events";
+import { CustomError } from "../events";
 import { initializeRedis } from "../redisConn";
 import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../schema/resolvers";
 import { User, ViewSearchInput, Count } from "../schema/types";
@@ -59,7 +59,7 @@ export const viewFormatter = (): FormatConverter<View, 'to'> => ({
                             'User',
                         ];
                         if (!validTypes.includes(type as GraphQLModelType)) {
-                            throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0186') });
+                            throw new CustomError('InternalError', `View applied to unsupported type: ${type}`, { trace: '0186' });
                         }
                         const model = ObjectMap[type] as ModelLogic<any, any, any, any>;
                         const paginated = await readManyHelper({
@@ -161,7 +161,7 @@ const viewMutater = (prisma: PrismaType): Mutater<View> => ({
         // Check if object being viewed on exists
         const viewFor: null | { id: string, views: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, views: true } });
         if (!viewFor)
-            throw new CustomError(CODE.ErrorUnknown, 'Could not find object being viewed', { code: genErrorCode('0173') });
+            throw new CustomError('ErrorUnknown', 'Could not find object being viewed', { trace: '0173' });
         // Check if view exists
         let view = await prisma.view.findFirst({
             where: {

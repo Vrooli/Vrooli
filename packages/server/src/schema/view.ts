@@ -1,10 +1,9 @@
-import { CODE, ViewSortBy } from '@shared/consts';
+import { ViewSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from 'graphql';
 import { assertRequestFrom } from '../auth/auth';
 import { Context, rateLimit } from '../middleware';
 import { CustomError } from '../events/error';
-import { genErrorCode } from '../events/logger';
 import { getUser, readManyHelper, ViewModel } from '../models';
 import { IWrap } from '../types';
 import { ViewSearchInput, ViewSearchResult } from './types';
@@ -54,7 +53,7 @@ export const resolvers = {
             assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
             const userId = getUser(req)?.id;
-            if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to view views.', { code: genErrorCode('0275') });
+            if (!userId) throw new CustomError('Unauthorized', 'Must be logged in to view views.', { trace: '0275' });
             return readManyHelper({ info, input, model: ViewModel, prisma, req, additionalQueries: { userId } });
         },
     },

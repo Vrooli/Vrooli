@@ -1,6 +1,5 @@
-import { CODE } from "@shared/consts";
 import { assertRequestFrom } from "../../auth/auth";
-import { CustomError, genErrorCode, Trigger } from "../../events";
+import { CustomError, Trigger } from "../../events";
 import { toPartialGraphQLInfo, lowercaseFirstLetter } from "../builder";
 import { getAuthenticatedData } from "../utils";
 import { maxObjectsCheck, permissionsCheck } from "../validators";
@@ -20,11 +19,11 @@ export async function forkHelper({
 }: ForkHelperProps<any>): Promise<any> {
     const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).duplicate)
-        throw new CustomError(CODE.InternalError, 'Model does not support fork', { code: genErrorCode('0234') });
+        throw new CustomError('CopyNotSupported', { trace: '0234' });
     // Query for all authentication data
     const authDataById = await getAuthenticatedData({ [model.type]: [input.id] }, prisma, userData.id);
     // Check permissions
-    await permissionsCheck(authDataById, { ['Create']: [input.id] }, userData);
+    permissionsCheck(authDataById, { ['Create']: [input.id] }, userData);
     // Additional check for paywall
     //TODO
     // Check max objects
@@ -38,7 +37,7 @@ export async function forkHelper({
         'standard': 'Standard',
     }));
     if (!partialInfo)
-        throw new CustomError(CODE.InternalError, 'Could not convert info to partial select', { code: genErrorCode('0235') });
+        throw new CustomError('InternalError', { trace: '0235' });
     const { object } = await model.mutate(prisma).duplicate!({ userId: userData.id, objectId: input.id, isFork: false, createCount: 0 });
     // Handle trigger
     await Trigger(prisma).objectFork(input.objectType, input.id, userData.id);

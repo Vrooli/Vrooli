@@ -1,5 +1,4 @@
-import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode } from "../../events";
+import { CustomError } from "../../events";
 import { ObjectMap } from "../builder";
 import { GraphQLModelType, Searcher } from "../types";
 
@@ -17,7 +16,7 @@ export function getSearcher<
     // Find searcher and prisma delegate for this object type
     const searcher: Searcher<SearchInput, SortBy, OrderBy, Where> | undefined = ObjectMap[objectType]?.search;
     if (!searcher) {
-        throw new CustomError(CODE.InvalidArgs, `Invalid object type in ${errorTrace}: ${objectType}`, { code: genErrorCode('0296') });
+        throw new CustomError('InvalidArgs', `Invalid object type in ${errorTrace}: ${objectType}`, { trace: '0296' });
     }
     return searcher;
 }

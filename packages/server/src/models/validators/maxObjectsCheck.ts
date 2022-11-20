@@ -11,8 +11,7 @@
  * We want objects to be owned by organizations rather than users, as this means the objects are tied to 
  * the organization's governance structure.
  */
-import { CODE } from "@shared/consts";
-import { CustomError, genErrorCode } from "../../events";
+import { CustomError } from "../../events";
 import { SessionUser } from "../../schema/types";
 import { PrismaType } from "../../types";
 import { GraphQLModelType } from "../types";
@@ -106,7 +105,7 @@ export async function maxObjectsCheck(
             const owners = validator.owner(authData);
             // Increment count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
-            if (!ownerId) throw new CustomError(CODE.InternalError, 'Could not find owner ID for object', { code: genErrorCode('0310') });
+            if (!ownerId) throw new CustomError('InternalError', 'Could not find owner ID for object', { trace: '0310' });
             counts[authData.__typename] = counts[authData.__typename] || {}
             counts[authData.__typename]![ownerId] = (counts[authData.__typename]![ownerId] || 0) + 1
         }
@@ -119,10 +118,10 @@ export async function maxObjectsCheck(
             // Get validator
             const validator = getValidator(authData.__typename, 'maxObjectsCheck-delete')
             // Find owner and object type
-            const owners = validator.owners(authData);
+            const owners = validator.owner(authData);
             // Decrement count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
-            if (!ownerId) throw new CustomError(CODE.InternalError, 'Could not find owner ID for object', { code: genErrorCode('0311') });
+            if (!ownerId) throw new CustomError('InternalError', 'Could not find owner ID for object', { trace: '0311' });
             counts[authData.__typename] = counts[authData.__typename] || {}
             counts[authData.__typename]![ownerId] = (counts[authData.__typename]![ownerId] || 0) - 1
         }

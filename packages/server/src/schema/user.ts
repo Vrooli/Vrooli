@@ -1,12 +1,10 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@shared/consts';
 import { CustomError } from '../events/error';
 import { countHelper, ProfileModel, readManyHelper, readOneHelper, UserModel } from '../models';
 import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput, UserSortBy } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { genErrorCode } from '../events/logger';
 import { assertRequestFrom, generateSessionJwt } from '../auth/auth';
 
 export const typeDef = gql`
@@ -197,7 +195,7 @@ export const resolvers = {
             // Update object
             const updated = await ProfileModel.mutate(prisma).updateProfile(userData, input, info);
             if (!updated)
-                throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0160') });
+                throw new CustomError('ErrorUnknown', 'Could not update profile', { trace: '0160' });
             // Update session
             const session = await ProfileModel.verify.toSession({ id: userData.id }, prisma, req);
             await generateSessionJwt(res, session);
@@ -209,7 +207,7 @@ export const resolvers = {
             // Update object
             const updated = await ProfileModel.mutate(prisma).updateEmails(userData.id, input, info);
             if (!updated)
-                throw new CustomError(CODE.ErrorUnknown, 'Could not update profile', { code: genErrorCode('0162') });
+                throw new CustomError('ErrorUnknown', 'Could not update profile', { trace: '0162' });
             return updated;
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Success> => {

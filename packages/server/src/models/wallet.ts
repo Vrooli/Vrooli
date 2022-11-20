@@ -1,7 +1,6 @@
 import { Prisma } from "@prisma/client";
-import { CODE } from "@shared/consts";
 import { walletsUpdate } from '@shared/validation';
-import { CustomError, genErrorCode, Trigger } from "../events";
+import { CustomError, Trigger } from "../events";
 import { Wallet, WalletUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
@@ -10,7 +9,6 @@ import { permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
 import { organizationQuerier } from "./organization";
 import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
 import { oneIsPublic } from "./utils";
-import { isOwnerAdminCheck } from "./validators/isOwnerAdminCheck";
 
 export const walletFormatter = (): FormatConverter<Wallet, any> => ({
     relationshipMap: {
@@ -53,10 +51,10 @@ export const verifyHandle = async (prisma: PrismaType, forType: 'User' | 'Organi
     });
     const found = Boolean(wallets.find(w => w.handles.find(h => h.handle === handle)));
     if (!found)
-        throw new CustomError(CODE.InvalidArgs, 'Selected handle cannot be verified.', { code: genErrorCode('0119') });
+        throw new CustomError('InvalidArgs', 'Selected handle cannot be verified.', { trace: '0119' });
     // Check for censored words
     if (hasProfanity(handle))
-        throw new CustomError(CODE.BannedWord, 'Handle contains banned word', { code: genErrorCode('0120') });
+        throw new CustomError('BannedWord', 'Handle contains banned word', { trace: '0120' });
 }
 
 export const walletValidator = (): Validator<
@@ -112,7 +110,7 @@ export const walletValidator = (): Validator<
     // const wontHaveVerifiedEmail = numberOfVerifiedEmailDeletes >= verifiedEmailsCount;
     // const wontHaveVerifiedWallet = verifiedWalletsCount <= 0;
     // if (wontHaveVerifiedEmail || wontHaveVerifiedWallet)
-    //     throw new CustomError(CODE.InternalError, "Cannot delete all verified authentication methods", { code: genErrorCode('0049') });
+    //     throw new CustomError('InternalError', "Cannot delete all verified authentication methods", { trace: '0049' });
 })
 
 export const walletMutater = (prisma: PrismaType): Mutater<Wallet> => ({
@@ -139,7 +137,7 @@ export const walletMutater = (prisma: PrismaType): Mutater<Wallet> => ({
             shape: {
                 shapeCreate: () => {
                     // Not allowed to create wallets with cud metho
-                    throw new CustomError(CODE.InternalError, 'Not allowed to create wallets this way', { code: genErrorCode('0124') });
+                    throw new CustomError('InternalError', 'Not allowed to create wallets this way', { trace: '0124' });
                 },
                 shapeUpdate: (_, cuData) => cuData,
             },

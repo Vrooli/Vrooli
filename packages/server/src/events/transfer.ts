@@ -1,10 +1,9 @@
-import { CODE } from "@shared/consts";
 import { getDelegate, getValidator } from "../models/utils";
 import { isOwnerAdminCheck } from "../models/validators/isOwnerAdminCheck";
 import { Notify } from "../notify";
+import { SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { CustomError } from "./error";
-import { genErrorCode } from "./logger";
 
 export type TransferableObjects = 'Project' | 'Routine' | 'Standard'; //'Api' | 'Note' | 'Project' | 'Routine' | 'SmartContract' | 'Standard';
 
@@ -33,14 +32,15 @@ export const Transfer = (prisma: PrismaType) => ({
      * Initiates a transfer request from one user to another user or organization
      * @param to The user/org that is receiving the object
      * @param object The object being transferred
-     * @param userId The user who is transferring the object. We will check if this user is the owner of the object.
+     * @param userData The session data of the user who is transferring the object
+     * @param message Optional message to include with the transfer request
      * @returns True if transfer is complete (i.e. the user is transferring to an organization where they have the correct permissions), 
      * false if the transfer is pending
      */
     request: async (
         to: { __typename: 'Organization' | 'User', id: string },
         object: { __typename: TransferableObjects, id: string },
-        userId: string,
+        userData: SessionUser,
         message?: string,
     ): Promise<boolean> => {
         // Find the object and its owner
@@ -52,18 +52,21 @@ export const Transfer = (prisma: PrismaType) => ({
         });
         const owner = permissionData && validator.owner(permissionData);
         // Check if user is allowed to transfer this object
-        if (!owner || !isOwnerAdminCheck(owner, userId))
-            throw new CustomError(CODE.Unauthorized, 'User is not authorized to transfer this object', { code: genErrorCode('0286') });
+        if (!owner || !isOwnerAdminCheck(owner, userData.id))
+            throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
         // Check if the user is transferring to themselves
         const toValidator = getValidator(to.__typename, 'Transfer.request-validator');
         const toPrismaDelegate = getDelegate(to.__typename, prisma, 'Transfer.request-validator');
         const toPermissionData = await toPrismaDelegate.findUnique({
             where: { id: to.id },
-            select: toValidator.permissionsSelect(userId),
+            select: toValidator.permissionsSelect(userData.id),
         });
-        const isAdmin = toPermissionData && isOwnerAdminCheck(toValidator.owner(toPermissionData), userId)
+        const isAdmin = toPermissionData && isOwnerAdminCheck(toValidator.owner(toPermissionData), userData.id)
         // If so, return true. NOTE: What called this function should handle the rest
-        if (isAdmin) return true
+        if (isAdmin) return true;
+        // Find the name of the object in your preferred language, so the accept/reject message can show the object's name
+        const preferredLanguage: string = userData.languages && userData.languages.length > 0 ? userData.languages[0] : 'en';
+        const objectTitle = await asdfdsafdsafdsa;
         // Create transfer request
         const request = await prisma.transfer.create({
             data: {
@@ -74,6 +77,7 @@ export const Transfer = (prisma: PrismaType) => ({
                 toOrganization: to.__typename === 'Organization' ? { connect: { id: to.id } } : undefined,
                 status: 'Pending',
                 message,
+                objectTitle,
             }
         });
         // Notify user/org that is receiving the object
@@ -86,9 +90,9 @@ export const Transfer = (prisma: PrismaType) => ({
     /**
      * Cancels a transfer request that you initiated
      * @param transferId The ID of the transfer request
-     * @param userId The user who is cancelling the transfer request
+     * @param userData The session data of the user who is cancelling the transfer request
      */
-    cancel: async (transferId: string, userId: string) => {
+    cancel: async (transferId: string, userData: SessionUser) => {
         // Find the transfer request
         const transfer = await prisma.transfer.findUnique({
             where: { id: transferId },
@@ -103,22 +107,22 @@ export const Transfer = (prisma: PrismaType) => ({
         });
         // Make sure transfer exists, and is not already accepted or rejected
         if (!transfer)
-            throw new CustomError(CODE.InvalidArgs, 'Transfer request does not exist', { code: genErrorCode('0293') });
+            throw new CustomError('TransferNotFound', { trace: '0293' });
         if (transfer.status === 'Accepted')
-            throw new CustomError(CODE.InvalidArgs, 'Transfer request has already been accepted', { code: genErrorCode('0294') });
+            throw new CustomError('TransferAlreadyAccepted', { trace: '0294' });
         if (transfer.status === 'Denied')
-            throw new CustomError(CODE.InvalidArgs, 'Transfer request has already been rejected', { code: genErrorCode('0295') });
+            throw new CustomError('TransferAlreadyRejected', { trace: '0295' });
         // Make sure user is the owner of the transfer request
         if (transfer.fromOrganizationId) {
             const validator = getValidator('Organization', 'Transfer.cancel');
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.fromOrganizationId },
-                select: validator.permissionsSelect(userId),
+                select: validator.permissionsSelect(userData.id),
             });
-            if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userId))
-                throw new CustomError(CODE.Unauthorized, 'User is not authorized to cancel this transfer request', { code: genErrorCode('0300') });
-        } else if (transfer.fromUserId !== userId) {
-            throw new CustomError(CODE.Unauthorized, 'User is not authorized to cancel this transfer request', { code: genErrorCode('0301') });
+            if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
+                throw new CustomError('TransferCancelNotAuthorized', { trace: '0300' });
+        } else if (transfer.fromUserId !== userData.id) {
+            throw new CustomError('TransferCancelNotAuthorized', { trace: '0301' });
         }
         // Delete transfer request
         await prisma.transfer.delete({
@@ -128,37 +132,37 @@ export const Transfer = (prisma: PrismaType) => ({
     /**
      * Accepts a transfer request
      * @param transferId The ID of the transfer request
-     * @param userId The user who is accepting the transfer request
+     * @param userData The session data of the user who is accepting the transfer request
      */
-    accept: async (transferId: string, userId: string) => {
+    accept: async (transferId: string, userData: SessionUser) => {
         // Find the transfer request
         const transfer = await prisma.transfer.findUnique({
             where: { id: transferId },
         });
         // Make sure transfer exists, and is not accepted or rejected
         if (!transfer)
-            throw new CustomError(CODE.InvalidArgs, 'Transfer request does not exist', { code: genErrorCode('0287') });
+            throw new CustomError('TransferNotFound', { trace: '0287' });
         if (transfer.status === 'Accepted')
-            throw new CustomError(CODE.InvalidArgs, 'Transfer request has already been accepted', { code: genErrorCode('0288') });
+            throw new CustomError('TransferAlreadyAccepted', { trace: '0288' });
         if (transfer.status === 'Denied')
-            throw new CustomError(CODE.InvalidArgs, 'Transfer request has already been rejected', { code: genErrorCode('0289') });
+            throw new CustomError('TransferAlreadyRejected', { trace: '0289' });
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
             const validator = getValidator('Organization', 'Transfer.accept');
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
-                select: validator.permissionsSelect(userId),
+                select: validator.permissionsSelect(userData.id),
             });
-            if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userId))
-                throw new CustomError(CODE.Unauthorized, 'Not authorized to accept this transfer request', { code: genErrorCode('0302') });
-        } else if (transfer.toUserId !== userId) {
-            throw new CustomError(CODE.Unauthorized, 'Not authorized to accept this transfer request', { code: genErrorCode('0303') });
+            if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
+                throw new CustomError('TransferAcceptNotAuthorized', { trace: '0302' });
+        } else if (transfer.toUserId !== userData.id) {
+            throw new CustomError('TransferAcceptNotAuthorized', { trace: '0303' });
         }
         // Transfer object, then mark transfer request as accepted
         // Find the object type, based on which relation is not null
         const typeField = ['apiId', 'noteId', 'projectId', 'routineId', 'smartContractId', 'standardId'].find((field) => transfer[field] !== null);
         if (!typeField)
-            throw new CustomError(CODE.InternalError, 'Transfer request is missing a relation', { code: genErrorCode('0290') });
+            throw new CustomError('TransferMissingData', { trace: '0290' });
         const type = typeField.replace('Id', '');
         await prisma.transfer.update({
             where: { id: transferId },
@@ -173,40 +177,45 @@ export const Transfer = (prisma: PrismaType) => ({
             }
         });
         // Notify user/org that sent the transfer request
-        const pushNotification = Notify(prisma).pushTransferAccepted(asdf, transferId, type);
+        const pushNotification = Notify(prisma).pushTransferAccepted(transfer.objectTitle, transferId, type);
         if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
         else await pushNotification.toOrganization(transfer.fromOrganizationId as string);
     },
     /**
      * Rejects a transfer request
      * @param transferId The ID of the transfer request
-     * @param userId The user who is rejecting the transfer request
-     * @param reason The reason for rejecting the transfer request
+     * @param userData The session data of the user who is rejecting the transfer request
+     * @param reason Optional reason for rejecting the transfer request
      */
-    reject: async (transferId: string, userId: string, reason?: string) => {
+    reject: async (transferId: string, userData: SessionUser, reason?: string) => {
         // Find the transfer request
         const transfer = await prisma.transfer.findUnique({
             where: { id: transferId },
         });
         // Make sure transfer exists, and is not already accepted or rejected
         if (!transfer)
-            throw new CustomError(CODE.InvalidArgs, 'Transfer request does not exist', { code: genErrorCode('0290') });
+            throw new CustomError('TransferNotFound', { trace: '0290' });
         if (transfer.status === 'Accepted')
-            throw new CustomError(CODE.InvalidArgs, 'You already accepted this transfer', { code: genErrorCode('0291') });
+            throw new CustomError('TransferAlreadyAccepted', { trace: '0291' });
         if (transfer.status === 'Denied')
-            throw new CustomError(CODE.InvalidArgs, 'Transfer request has already been rejected', { code: genErrorCode('0292') });
+            throw new CustomError('TransferAlreadyRejected', { trace: '0292' });
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
             const validator = getValidator('Organization', 'Transfer.reject');
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
-                select: validator.permissionsSelect(userId),
+                select: validator.permissionsSelect(userData.id),
             });
-            if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userId))
-                throw new CustomError(CODE.Unauthorized, 'Not authorized to reject this transfer request', { code: genErrorCode('0312') });
-        } else if (transfer.toUserId !== userId) {
-            throw new CustomError(CODE.Unauthorized, 'Not authorized to reject this transfer request', { code: genErrorCode('0313') });
+            if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
+                throw new CustomError('TransferRejectNotAuthorized', { trace: '0312' });
+        } else if (transfer.toUserId !== userData.id) {
+            throw new CustomError('TransferRejectNotAuthorized', { trace: '0313' });
         }
+        // Find the object type, based on which relation is not null
+        const typeField = ['apiId', 'noteId', 'projectId', 'routineId', 'smartContractId', 'standardId'].find((field) => transfer[field] !== null);
+        if (!typeField)
+            throw new CustomError('TransferMissingData', { trace: '0290' });
+        const type = typeField.replace('Id', '');
         // Deny the transfer
         await prisma.transfer.update({
             where: { id: transferId },
@@ -216,7 +225,7 @@ export const Transfer = (prisma: PrismaType) => ({
             }
         });
         // Notify user/org that sent the transfer request
-        const pushNotification = Notify(prisma).pushTransferRejected(asdf, transferId);
+        const pushNotification = Notify(prisma).pushTransferRejected(transfer.objectTitle, type, transferId);
         if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
         else await pushNotification.toOrganization(transfer.fromOrganizationId as string);
     },

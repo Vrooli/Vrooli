@@ -1,6 +1,6 @@
-import { CODE, VoteFor } from "@shared/consts";
+import { VoteFor } from "@shared/consts";
 import { isObject } from "@shared/utils";
-import { CustomError, genErrorCode, Trigger } from "../events";
+import { CustomError, Trigger } from "../events";
 import { resolveVoteTo } from "../schema/resolvers";
 import { Vote, VoteInput } from "../schema/types";
 import { PrismaType } from "../types";
@@ -48,7 +48,7 @@ export const voteFormatter = (): FormatConverter<Vote, 'to'> => ({
                             'User',
                         ];
                         if (!validTypes.includes(type as GraphQLModelType)) {
-                            throw new CustomError(CODE.InternalError, `View applied to unsupported type: ${type}`, { code: genErrorCode('0185') });
+                            throw new CustomError('InternalError', `View applied to unsupported type: ${type}`, { trace: '0185' });
                         }
                         const model: ModelLogic<any, any, any, any> = ObjectMap[type] as ModelLogic<any, any, any, any>;
                         const paginated = await readManyHelper({
@@ -93,7 +93,7 @@ const voteMutater = (prisma: PrismaType): Mutater<Vote> => ({
         // Check if object being voted on exists
         const votingFor: null | { id: string, score: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, score: true } });
         if (!votingFor)
-            throw new CustomError(CODE.ErrorUnknown, 'Could not find object being voted on', { code: genErrorCode('0118') });
+            throw new CustomError('ErrorUnknown', 'Could not find object being voted on', { trace: '0118' });
         // Check if vote exists
         const vote = await prisma.vote.findFirst({
             where: {
