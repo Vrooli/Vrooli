@@ -297,110 +297,155 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ObjectReceivedUpvoteTitle',
     }),
-    pushObjectReceivedFork: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
-        const title = 'New Fork';
-        const body = `${objectName} was forked!`;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: 'ObjectStarVoteFork', link, prisma, title });
-    },
-    pushReportClosedObjectDeleted: (objectName: string): NotifyResultType => {
-        const title = 'Object Deleted';
-        const body = `Sorry, the community decided to delete ${objectName}. Your reputation score has been reduced.`;
-        return NotifyResult(prisma, { body, category: 'ReportClose', prisma, title });
-    },
-    pushReportClosedObjectHidden: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
-        const title = 'Object Hidden';
-        const body = `${objectName} has been hidden from the community. Please fix the issues mentioned in its reports and publish an updated version if you'd like it to be visible again.`;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.ReportClose, link, prisma, title });
-    },
-    pushReportClosedAccountSuspended: (objectName: string): NotifyResultType => {
-        const title = 'Account Suspended';
-        const body = `Your account has been suspended due to the reports on ${objectName}. Please contact us if you think this was a mistake.`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.ReportClose, prisma, title });
-    },
-    pushPromotion: (title: string, body: string, link: string): NotifyResultType => {
-        return NotifyResult(prisma, { body, category: NotificationCategory.Promotion, link, prisma, title });
-    },
-    pushPullRequestAccepted: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
-        const title = 'Pull Request Accepted';
-        const body = `Your improvements for ${objectName} have been accepted! Thank you for your contribution.`;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.PullRequestClose, link, prisma, title });
-    },
-    pushPullRequestRejected: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
-        const title = 'Pull Request Rejected';
-        const body = `Sorry, your improvements for ${objectName} have been rejected.`;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.PullRequestClose, link, prisma, title });
-    },
-    pushQuestionActivity: (questionName: string, questionId: string): NotifyResultType => {
-        const title = 'Question Activity';
-        const body = `New activity on question "${questionName}"`;
-        const link = `/questions/${questionId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.QuestionActivty, link, prisma, title });
-    },
-    pushRunStartedAutomatically: (runName: string, runId: string): NotifyResultType => {
-        const title = 'Run Started';
-        const body = `Your run "${runName}" has started! We'll let you know when it's finished.`;
-        const link = `/runs/${runId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.Run, link, prisma, title });
-    },
-    pushRunComplete: (runTitle: string, runId: string): NotifyResultType => {
-        const title = `Run completed!`;
-        const body = `Your run "${runTitle}" is complete! Press here to view the results.`;
-        const link = `/runs/${runId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.Run, link, prisma, title });
-    },
-    pushRunFail: (runTitle: string, runId: string): NotifyResultType => {
-        const title = `Run failed!`;
-        const body = `Your run "${runTitle}" failed. Press here to see more details.`;
-        const link = `/runs/${runId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.Run, link, prisma, title });
-    },
-    pushScheduleOrganization: (meetingName: string, startTime: Date): NotifyResultType => {
-        const startLabel = getEventStartLabel(startTime);
-        const title = 'Meeting reminder';
-        const body = `${meetingName} is starting in ${startLabel}!`;
-        const link = `/meeting/${meetingName}`; //TODO
-        return NotifyResult(prisma, { body, category: NotificationCategory.Schedule, link, prisma, title });
-    },
-    pushScheduleUser: (title: string, startTime: Date): NotifyResultType => {
-        const startLabel = getEventStartLabel(startTime);
-        const body = `${title} is starting in ${startLabel}!`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.Schedule, prisma });
-    },
-    pushStreakReminder: (timeToReset: Date): NotifyResultType => {
-        const startLabel = getEventStartLabel(timeToReset);
-        const title = 'Streak reminder';
-        const body = `Your streak will be broken in ${startLabel}. Complete a routine to keep your streak going!`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.Streak, prisma, title });
-    },
-    pushStreakBroken: (): NotifyResultType => {
-        const title = 'Streak broken';
-        const body = 'Your streak has been broken. Complete a routine to start a new streak!';
-        return NotifyResult(prisma, { body, category: NotificationCategory.Streak, prisma, title });
-    },
-    pushTransferRequest: (transferId: string, objectType: string): NotifyResultType => {
-        const title = 'Transfer Request';
-        const body = 'Someone wants to send you an object!';
-        const link = `/transfers/${transferId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.Transfer, link, prisma, title });
-    },
-    pushTransferAccepted: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => {
-        const title = 'Transfer Accepted';
-        const body = `Your transfer request ${objectName ? 'for ' : ''}${objectName}has been accepted!`;;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.Transfer, link, prisma, title });
-    },
-    pushTransferRejected: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => {
-        const title = 'Transfer Rejected';
-        const body = `Your transfer request ${objectName ? 'for ' : ''}${objectName}has been rejected.`;;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.Transfer, link, prisma, title });
-    },
-    pushUserInvite: (friendUsername: string): NotifyResultType => {
-        const body = `${friendUsername} has created an account using your invite code! Enjoy your free month of premium😎`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.UserInvite, prisma });
-    },
+    pushObjectReceivedFork: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'ObjectReceivedForkBody',
+        bodyVariables: { objectName },
+        category: 'ObjectStarVoteFork',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'ObjectReceivedForkTitle',
+    }),
+    pushReportClosedObjectDeleted: (objectName: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'ReportClosedObjectDeletedBody',
+        bodyVariables: { objectName },
+        category: 'ReportClose',
+        languages,
+        prisma,
+        titleKey: 'ReportClosedObjectDeletedTitle',
+    }),
+    pushReportClosedObjectHidden: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'ReportClosedObjectHiddenBody',
+        bodyVariables: { objectName },
+        category: 'ReportClose',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'ReportClosedObjectHiddenTitle',
+    }),
+    pushReportClosedAccountSuspended: (objectName: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'ReportClosedAccountSuspendedBody',
+        bodyVariables: { objectName },
+        category: 'ReportClose',
+        languages,
+        prisma,
+        titleKey: 'ReportClosedAccountSuspendedTitle',
+    }),
+    pushPullRequestAccepted: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'PullRequestAcceptedBody',
+        bodyVariables: { objectName },
+        category: 'PullRequestClose',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'PullRequestAcceptedTitle',
+    }),
+    pushPullRequestRejected: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'PullRequestRejectedBody',
+        bodyVariables: { objectName },
+        category: 'PullRequestClose',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'PullRequestRejectedTitle',
+    }),
+    pushQuestionActivity: (questionName: string, questionId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'QuestionActivityBody',
+        bodyVariables: { questionName },
+        category: 'QuestionActivity',
+        languages,
+        link: `/questions/${questionId}`,
+        prisma,
+        titleKey: 'QuestionActivityTitle',
+    }),
+    pushRunStartedAutomatically: (runName: string, runId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'RunStartedAutomaticallyBody',
+        bodyVariables: { runName },
+        category: 'Run',
+        languages,
+        link: `/runs/${runId}`,
+        prisma,
+        titleKey: 'RunStartedAutomaticallyTitle',
+    }),
+    pushRunCompletedAutomatically: (runName: string, runId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'RunCompletedAutomaticallyBody',
+        bodyVariables: { runName },
+        category: 'Run',
+        languages,
+        link: `/runs/${runId}`,
+        prisma,
+        titleKey: 'RunCompletedAutomaticallyTitle',
+    }),
+    pushRunFailedAutomatically: (runName: string, runId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'RunFailedAutomaticallyBody',
+        bodyVariables: { runName },
+        category: 'Run',
+        languages,
+        link: `/runs/${runId}`,
+        prisma,
+        titleKey: 'RunFailedAutomaticallyTitle',
+    }),
+    pushScheduleOrganization: (meetingName: string, meetingId: string, startTime: Date): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'ScheduleOrganizationBody',
+        bodyVariables: { meetingName, startLabel: getEventStartLabel(startTime) },
+        category: 'Schedule',
+        languages,
+        link: `/meeting/${meetingId}`,
+        prisma,
+        titleKey: 'ScheduleOrganizationTitle',
+    }),
+    pushScheduleUser: (title: string, startTime: Date): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'ScheduleUserBody',
+        bodyVariables: { title, startLabel: getEventStartLabel(startTime) },
+        category: 'Schedule',
+        languages,
+        prisma,
+    }),
+    pushStreakReminder: (timeToReset: Date): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'StreakReminderBody',
+        bodyVariables: { endLabel: getEventStartLabel(timeToReset) },
+        category: 'Streak',
+        languages,
+        prisma,
+    }),
+    pushStreakBroken: (): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'StreakBrokenBody',
+        category: 'Streak',
+        languages,
+        prisma,
+        titleKey: 'StreakBrokenTitle',
+    }),
+    pushTransferRequest: (transferId: string, objectType: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'TransferRequestBody',
+        category: 'Transfer',
+        languages,
+        link: `/transfers/${transferId}`,
+        prisma,
+        titleKey: 'TransferRequestTitle',
+    }),
+    pushTransferAccepted: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: objectName ? 'TransferAcceptedWithNameBody' : 'TransferAcceptedTitle',
+        bodyVariables: objectName ? { objectName } : {},
+        category: 'Transfer',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'TransferAcceptedTitle',
+    }),
+    pushTransferRejected: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: objectName ? 'TransferRejectedWithNameBody' : 'TransferRejectedTitle',
+        bodyVariables: objectName ? { objectName } : {},
+        category: 'Transfer',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'TransferRejectedTitle',
+    }),
+    pushUserInvite: (friendUsername: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'UserInviteBody',
+        bodyVariables: { friendUsername },
+        category: 'UserInvite',
+        languages,
+        prisma,
+    }),
 });
