@@ -153,7 +153,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Partially convert info type
         let partialInfo = toPartialGraphQLInfo(info, commentFormatter().relationshipMap);
         if (!partialInfo)
-            throw new CustomError('InternalError', { trace: '0023' });
+            throw new CustomError('0023', 'InternalError', languages);
         // Create query for specified ids
         const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
         // Combine queries
@@ -223,7 +223,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Partially convert info type
         let partialInfo = toPartialGraphQLInfo(info, commentFormatter().relationshipMap);
         if (!partialInfo)
-            throw new CustomError('InternalError', { trace: '0023' });
+            throw new CustomError('0322', 'InternalError', languages);
         // Determine text search query
         const searchQuery = input.searchString ? getSearchString({ objectType: 'Comment', searchString: input.searchString }) : undefined;
         // Determine createdTimeFrame query

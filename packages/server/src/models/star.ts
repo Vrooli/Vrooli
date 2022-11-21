@@ -31,7 +31,7 @@ export const starFormatter = (): FormatConverter<Star, 'to'> => ({
     },
     supplemental: {
         graphqlFields: ['to'],
-        toGraphQL: ({ objects, partial, prisma, userData }) => [
+        toGraphQL: ({ languages, objects, partial, prisma, userData }) => [
             ['to', async () => {
                 if (!userData) return new Array(objects.length).fill([]);
                 // Query for data that star is applied to
@@ -57,7 +57,7 @@ export const starFormatter = (): FormatConverter<Star, 'to'> => ({
                             'User',
                         ];
                         if (!validTypes.includes(type as GraphQLModelType)) {
-                            throw new CustomError('InternalError', `View applied to unsupported type: ${type}`, { trace: '0185' });
+                            throw new CustomError('0185', 'InternalError', languages, { type });
                         }
                         const model: ModelLogic<any, any, any, any> = ObjectMap[type] as ModelLogic<any, any, any, any>;
                         const paginated = await readManyHelper({
@@ -65,7 +65,7 @@ export const starFormatter = (): FormatConverter<Star, 'to'> => ({
                             input: { ids: toIdsByType[type] },
                             model,
                             prisma,
-                            req: { users: [userData] }
+                            req: { languages, users: [userData] }
                         })
                         tos.push(...paginated.edges.map(x => x.node));
                     }
@@ -121,7 +121,7 @@ const forMapper: { [key in StarFor]: string } = {
 }
 
 const starMutater = (prisma: PrismaType): Mutater<Star> => ({
-    async star(userId: string, input: StarInput): Promise<boolean> {
+    async star(userId: string, input: StarInput, languages: string[]): Promise<boolean> {
         prisma.star.findMany({
             where: {
                 tagId: null
@@ -132,7 +132,7 @@ const starMutater = (prisma: PrismaType): Mutater<Star> => ({
         // Check if object being starred exists
         const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
         if (!starringFor)
-            throw new CustomError('ErrorUnknown', 'Could not find object being starred', { trace: '0110' });
+            throw new CustomError('0110', 'ErrorUnknown', languages, { starFor: input.starFor, forId: input.forId });
         // Check if star already exists on object by this user TODO fix for tags
         const star = await prisma.star.findFirst({
             where: {

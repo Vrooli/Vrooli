@@ -22,7 +22,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Partially convert info type
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
-        throw new CustomError('InternalError', { trace: '0023' });
+        throw new CustomError('0023', 'InternalError', userData?.languages ?? ['en']);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     // Create query for specified ids

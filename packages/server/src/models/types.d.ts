@@ -220,6 +220,7 @@ export interface SupplementalConverter<GQLModel, GQLFields extends string> {
      */
     toGraphQL: ({ ids, objects, partial, prisma, userId }: {
         ids: string[],
+    languages: string[],
         objects: ({ id: string } & { [x: string]: any })[], // TODO: fix this type
         partial: PartialGraphQLInfo,
         prisma: PrismaType,

@@ -15,7 +15,7 @@ export async function deleteOneHelper({
 }: DeleteOneHelperProps): Promise<Success> {
     const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).cud)
-        throw new CustomError('DeleteNotSupported', { trace: '0034' });
+        throw new CustomError('0035', 'DeleteNotSupported', userData.languages);
     // Delete object. cud will check permissions
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userData, deleteMany: [input.id] });
     if (deleted?.count && deleted.count > 0) {

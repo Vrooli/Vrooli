@@ -19,11 +19,11 @@ export async function createHelper<GraphQLModel>({
 }: CreateHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).cud)
-        throw new CustomError('CreateNotSupported', { trace: '0026' });
+        throw new CustomError('0026', 'CreateNotSupported', userData.languages);
     // Partially convert info type
     const partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
-        throw new CustomError('InternalError', { trace: '0027' });
+        throw new CustomError('0027', 'InternalError', userData.languages);
     // Create objects. cud will check permissions
     const cudResult = await model.mutate!(prisma).cud!({ partialInfo, userData, createMany: [input] });
     const { created } = cudResult;
@@ -35,5 +35,5 @@ export async function createHelper<GraphQLModel>({
         }
         return (await addSupplementalFields(prisma, userData, created, partialInfo))[0] as any;
     }
-    throw new CustomError('ErrorUnknown', { trace: '0028' });
+    throw new CustomError('0028', 'ErrorUnknown', userData.languages);
 }

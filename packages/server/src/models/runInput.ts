@@ -56,7 +56,7 @@ export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
 
 export const runInputVerifier = () => ({
     profanityCheck(data: (RunInputCreateInput | RunInputUpdateInput)[]): void {
-        validateProfanity(data.map((d) => d.data));
+        validateProfanity(data.map((d) => d.data), languages);
     },
 })
 

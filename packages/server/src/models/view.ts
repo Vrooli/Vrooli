@@ -35,7 +35,7 @@ export const viewFormatter = (): FormatConverter<View, 'to'> => ({
     },
     supplemental: {
         graphqlFields: ['to'],
-        toGraphQL: ({ objects, partial, prisma, userData }) => [
+        toGraphQL: ({ languages, objects, partial, prisma, userData }) => [
             ['to', async () => {
                 if (!userData) return new Array(objects.length).fill([]);
                 // Query for data that view is applied to
@@ -59,7 +59,7 @@ export const viewFormatter = (): FormatConverter<View, 'to'> => ({
                             'User',
                         ];
                         if (!validTypes.includes(type as GraphQLModelType)) {
-                            throw new CustomError('InternalError', `View applied to unsupported type: ${type}`, { trace: '0186' });
+                            throw new CustomError('0186', 'InternalError', languages, { type });
                         }
                         const model = ObjectMap[type] as ModelLogic<any, any, any, any>;
                         const paginated = await readManyHelper({
@@ -67,7 +67,7 @@ export const viewFormatter = (): FormatConverter<View, 'to'> => ({
                             input: { ids: toIdsByType[type] },
                             model,
                             prisma,
-                            req: { users: [userData] }
+                            req: { languages, users: [userData] }
                         })
                         tos.push(...paginated.edges.map(x => x.node));
                     }
@@ -155,13 +155,13 @@ const viewQuerier = (prisma: PrismaType) => ({
  * @returns True if view updated correctly
  */
 const viewMutater = (prisma: PrismaType): Mutater<View> => ({
-    async view(userId: string, input: ViewInput): Promise<boolean> {
+    async view(userId: string, input: ViewInput, languages: string[]): Promise<boolean> {
         // Define prisma type for viewed object
         const prismaFor = (prisma[forMapper[input.viewFor] as keyof PrismaType] as any);
         // Check if object being viewed on exists
         const viewFor: null | { id: string, views: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, views: true } });
         if (!viewFor)
-            throw new CustomError('ErrorUnknown', 'Could not find object being viewed', { trace: '0173' });
+            throw new CustomError('0173', 'NotFound', languages);
         // Check if view exists
         let view = await prisma.view.findFirst({
             where: {

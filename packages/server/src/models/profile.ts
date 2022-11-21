@@ -143,19 +143,20 @@ export const profileVerifier = () => ({
      * Validates a user's password, taking into account the user's account status
      * @param plaintext Plaintext password to check
      * @param user User object
+     * @param languages Preferred languages to display error messages in
      * @returns Boolean indicating if the password is valid
      */
-    validatePassword(plaintext: string, user: any): boolean {
+    validatePassword(plaintext: string, user: any, languages: string[]): boolean {
         // A password is only valid if the user is:
         // 1. Not deleted
         // 2. Not locked out
-        const status_to_code: any = {
-            [AccountStatus.Deleted]: CODE.NoUser,
-            [AccountStatus.SoftLocked]: CODE.SoftLockout,
-            [AccountStatus.HardLocked]: CODE.HardLockout
-        }
-        if (user.status in status_to_code)
-            throw new CustomError(status_to_code[user.status], 'Account is locked or deleted', { trace: '0059', status: user.status });
+        // If account is deleted or locked, throw error
+        if (user.status === AccountStatus.HardLocked)
+            throw new CustomError('0060', 'HardLockout', languages);
+        if (user.status === AccountStatus.SoftLocked)
+            throw new CustomError('0330', 'SoftLockout', languages);
+        if (user.status === AccountStatus.Deleted)
+            throw new CustomError('0061', 'AccountDeleted', languages);
         // Validate plaintext password against hash
         return bcrypt.compareSync(plaintext, user.password)
     },
@@ -169,20 +170,23 @@ export const profileVerifier = () => ({
      */
     async logIn(password: string, user: any, prisma: PrismaType, req: Request): Promise<Session | null> {
         // First, check if the log in fail counter should be reset
-        const unable_to_reset = [AccountStatus.HardLocked, AccountStatus.Deleted];
-        // If account is not deleted or hard-locked, and lockout duration has passed
-        if (!unable_to_reset.includes(user.status) && Date.now() - new Date(user.lastLoginAttempt).getTime() > SOFT_LOCKOUT_DURATION) {
+        // If account is NOT deleted or hard-locked, and lockout duration has passed
+        if (![AccountStatus.HardLocked, AccountStatus.Deleted].includes(user.status) && Date.now() - new Date(user.lastLoginAttempt).getTime() > SOFT_LOCKOUT_DURATION) {
             // Reset log in fail counter
             await prisma.user.update({
                 where: { id: user.id },
                 data: { logInAttempts: 0 },
             });
         }
-        // If account is deleted or hard-locked, throw error
-        if (unable_to_reset.includes(user.status))
-            throw new CustomError('BadCredentials', 'Account is locked. Please contact us for assistance', { trace: '0060', status: user.status });
+        // If account is deleted or locked, throw error
+        if (user.status === AccountStatus.HardLocked)
+            throw new CustomError('0060', 'HardLockout', req.languages);
+        if (user.status === AccountStatus.SoftLocked)
+            throw new CustomError('0330', 'SoftLockout', req.languages);
+        if (user.status === AccountStatus.Deleted)
+            throw new CustomError('0061', 'AccountDeleted', req.languages);
         // If password is valid
-        if (this.validatePassword(password, user)) {
+        if (this.validatePassword(password, user, req.languages)) {
             const userData = await prisma.user.update({
                 where: { id: user.id },
                 data: {
@@ -236,7 +240,7 @@ export const profileVerifier = () => ({
     /**
     * Updates email object with new verification code, and sends email to user with link
     */
-    async setupVerificationCode(emailAddress: string, prisma: PrismaType): Promise<void> {
+    async setupVerificationCode(emailAddress: string, prisma: PrismaType, languages: string): Promise<void> {
         // Generate new code
         const verificationCode = this.generateCode();
         // Store code and request time in email row
@@ -247,7 +251,7 @@ export const profileVerifier = () => ({
         })
         // If email is not associated with a user, throw error
         if (!email.userId)
-            throw new CustomError('ErrorUnknown', 'Email not associated with a user', { trace: '0061' });
+            throw new CustomError('0061', 'EmailNotYours', languages);
         // Send new verification email
         sendVerificationLink(emailAddress, email.userId, verificationCode);
         // TODO send email to existing emails from user, warning of new email
@@ -257,10 +261,11 @@ export const profileVerifier = () => ({
      * @param emailAddress Email address string
      * @param userId ID of user who owns email
      * @param code Verification code
-     * @param prisma 
+     * @param prisma The Prisma client
+     * @param languages Preferred languages to display error messages in
      * @returns True if email was is verified
      */
-    async validateVerificationCode(emailAddress: string, userId: string, code: string, prisma: PrismaType): Promise<boolean> {
+    async validateVerificationCode(emailAddress: string, userId: string, code: string, prisma: PrismaType, languages: string[]): Promise<boolean> {
         // Find email data
         const email: any = await prisma.email.findUnique({
             where: { emailAddress },
@@ -273,10 +278,10 @@ export const profileVerifier = () => ({
             }
         })
         if (!email)
-            throw new CustomError('EmailNotVerified', 'Email not found', { trace: '0062' });
+            throw new CustomError('0062', 'EmailNotFound', languages);
         // Check that userId matches email's userId
         if (email.userId !== userId)
-            throw new CustomError('EmailNotVerified', 'Email does not belong to user', { trace: '0063' });
+            throw new CustomError('0063', 'EmailNotYours', languages);
         // If email already verified, remove old verification code
         if (email.verified) {
             await prisma.email.update({
@@ -302,7 +307,7 @@ export const profileVerifier = () => ({
             }
             // If email is not verified, set up new verification code
             else if (!email.verified) {
-                await this.setupVerificationCode(emailAddress, prisma);
+                await this.setupVerificationCode(emailAddress, prisma, languages);
             }
             return false;
         }
@@ -314,9 +319,9 @@ export const profileVerifier = () => ({
      * @param prisma Prisma type
      * @param req Express request object
      */
-    async toSessionUser(user: { id: string }, prisma: PrismaType, req: Request): Promise<SessionUser> {
+    async toSessionUser(user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<SessionUser> {
         if (!user.id)
-            throw new CustomError('0064', 'NotFound', req.languages);
+            throw new CustomError('0064', 'NotFound', req.languages ?? ['en']);
         // Update user's lastSessionVerified
         const userData = await prisma.user.update({
             where: { id: user.id },
@@ -333,7 +338,7 @@ export const profileVerifier = () => ({
         // Calculate langugages, by combining user's languages with languages 
         // in request. Make sure to remove duplicates
         let languages: string[] =  userData.languages.map((l) => l.language).filter(Boolean) as string[];
-        languages.push(...req.languages);
+        if (req.languages) languages.push(...req.languages);
         languages = [...new Set(languages)];
         // Return shaped SessionUser object
         return {
@@ -349,17 +354,16 @@ export const profileVerifier = () => ({
      * Creates session object from user and existing session data
      * @param user User object
      * @param prisma 
-     * @param session current session object
-     * @param req Express request object
+     * @param req Express request object (with current session data)
      * @returns Updated session object, with user data added to the START of the users array
      */
-    async toSession(user: { id: string }, prisma: PrismaType, req: Request, session: Partial<Session>): Promise<Session> {
+    async toSession(user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<Session> {
         const sessionUser = await this.toSessionUser(user, prisma, req);
         return {
             __typename: 'Session',
             isLoggedIn: true,
             // Make sure users are unique by id
-            users: [sessionUser, ...(session.users ?? []).filter((u: SessionUser) => u.id !== sessionUser.id)],
+            users: [sessionUser, ...(req.users ?? []).filter((u: SessionUser) => u.id !== sessionUser.id)],
         }
     }
 })
@@ -376,7 +380,7 @@ const porter = (prisma: PrismaType) => ({
      * @param id 
      */
     async importData(data: string): Promise<Success> {
-        throw new CustomError('NotImplemented', {});
+        throw new CustomError('0323', 'NotImplemented', languages);
     },
     /**
      * Export data to JSON. Useful if you want to use Vrooli data on your own,
@@ -386,8 +390,8 @@ const porter = (prisma: PrismaType) => ({
     async exportData(id: string): Promise<string> {
         // Find user
         const user = await prisma.user.findUnique({ where: { id }, select: { numExports: true, lastExport: true } });
-        if (!user) throw new CustomError('ErrorUnknown', 'User not found', { trace: '0065' });
-        throw new CustomError('NotImplemented', {})
+        if (!user) throw new CustomError('0065', 'NoUser', languages);
+        throw new CustomError('0324', 'NotImplemented', languages)
     },
 })
 
@@ -399,7 +403,7 @@ const profileQuerier = (prisma: PrismaType) => ({
         const userData = assertRequestFrom(req, { isUser: true });
         const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)
-            throw new CustomError('InternalError', 'Could not convert info to partial select.', { trace: '0190' });
+            throw new CustomError('0190', 'InternalError', req.languages);
         // Query profile data and tags
         const profileData = await readOneHelper<any>({
             info,
@@ -425,13 +429,13 @@ const profileMutater = (prisma: PrismaType) => ({
         profileUpdateSchema.validateSync(input, { abortEarly: false });
         await verifyHandle(prisma, 'User', userData.id, input.handle);
         if (hasProfanity(input.name))
-            throw new CustomError('BannedWord', 'User name contains banned word', { trace: '0066' });
+            throw new CustomError('0066', 'BannedWord', languages);
         profanityCheck([input], { __typename: 'User' });
         lineBreaksCheck(input, ['bio'], 'LineBreaksBio')
         // Convert info to partial select
         const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)
-            throw new CustomError('InternalError', 'Could not convert info to partial select', { trace: '0067' });
+            throw new CustomError('0067', 'InternalError', languages);
         // Handle starred tags
         const tagsToCreate: TagCreateInput[] = [
             ...(input.starredTagsCreate ?? []),
@@ -497,13 +501,13 @@ const profileMutater = (prisma: PrismaType) => ({
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user)
-            throw new CustomError('InternalError', 'User not found', { trace: '0068' });
+            throw new CustomError('0068', 'NoUser', languages);
         if (!profileVerifier().validatePassword(input.currentPassword, user))
-            throw new CustomError('BadCredentials', 'Incorrect password', { trace: '0069' });
+            throw new CustomError('0069', 'BadCredentials', languages);
         // Convert input to partial select
         const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
         if (!partial)
-            throw new CustomError('InternalError', 'Could not convert info to partial select', { trace: '0070' });
+            throw new CustomError('0070', 'InternalError', languages);
         // Create user data
         let userData: { [x: string]: any } = {
             password: input.newPassword ? profileVerifier().hashPassword(input.newPassword) : undefined,
@@ -556,9 +560,9 @@ const profileMutater = (prisma: PrismaType) => ({
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user)
-            throw new CustomError('InternalError', 'User not found', { trace: '0071' });
+            throw new CustomError('0071', 'NoUser', languages);
         if (!profileVerifier().validatePassword(input.password, user))
-            throw new CustomError('BadCredentials', 'Incorrect password', { trace: '0072' });
+            throw new CustomError('0072', 'BadCredentials', languages);
         // Delete user. User's created objects are deleted separately, with explicit confirmation 
         // given by the user. This is to minimize the chance of deleting objects which other users rely on. TODO
         await prisma.user.delete({

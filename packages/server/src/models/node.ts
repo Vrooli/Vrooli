@@ -65,8 +65,9 @@ export const nodeValidator = (): Validator<
                 where: { id: createMany[0].routineVersionId },
                 include: { _count: { select: { nodes: true } } }
             });
-            if ((existingCount?._count.nodes ?? 0) + deltaAdding > MAX_NODES_IN_ROUTINE) {
-                throw new CustomError('ErrorUnknown', `To prevent performance issues, no more than ${MAX_NODES_IN_ROUTINE} nodes can be added to a routine. If you think this is a mistake, please contact us`, { trace: '0052' });
+            const totalCount = (existingCount?._count.nodes ?? 0) + deltaAdding
+            if (totalCount > MAX_NODES_IN_ROUTINE) {
+                throw new CustomError('0052', 'MaxNodesReached', languages, { totalCount });
             }
         }
     }

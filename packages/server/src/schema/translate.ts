@@ -27,7 +27,7 @@ export const typeDef = gql`
 export const resolvers = {
     Query: {
         translate: async (_parent: undefined, { input }: IWrap<TranslateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Translate> => {
-            throw new CustomError('NotImplemented', {});
+            throw new CustomError('0328', 'NotImplemented', req.languages);
             // Get IETF subtags for source and target languages
             const sourceTag = input.languageSource.split('-')[0];
             const targetTag = input.languageTarget.split('-')[0];
@@ -36,7 +36,7 @@ export const resolvers = {
             try {
                 fields = JSON.parse(input.fields);
             } catch (e) {
-                throw new CustomError('InvalidArgs', 'Translation fields must be a stringified object', { trace: '0264' });
+                throw new CustomError('0329', 'InvalidArgs', req.languages);
             }
             // Grab translatable values from input
             const filteredFields = Object.entries(fields).filter(([key, value]) => !['__typename', 'id', 'language'].includes(key) && typeof value === 'string' && value.trim().length > 0);

@@ -107,11 +107,11 @@ export const Transfer = (prisma: PrismaType) => ({
         });
         // Make sure transfer exists, and is not already accepted or rejected
         if (!transfer)
-            throw new CustomError('TransferNotFound', { trace: '0293' });
+            throw new CustomError('0293', 'TransferNotFound', userData.languages);
         if (transfer.status === 'Accepted')
-            throw new CustomError('TransferAlreadyAccepted', { trace: '0294' });
+            throw new CustomError('0294', 'TransferAlreadyAccepted', userData.languages);
         if (transfer.status === 'Denied')
-            throw new CustomError('TransferAlreadyRejected', { trace: '0295' });
+            throw new CustomError('0295', 'TransferAlreadyRejected', userData.languages);
         // Make sure user is the owner of the transfer request
         if (transfer.fromOrganizationId) {
             const validator = getValidator('Organization', 'Transfer.cancel');
@@ -120,9 +120,9 @@ export const Transfer = (prisma: PrismaType) => ({
                 select: validator.permissionsSelect(userData.id),
             });
             if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
-                throw new CustomError('TransferCancelNotAuthorized', { trace: '0300' });
+                throw new CustomError('0300', 'TransferRejectNotAuthorized', userData.languages);
         } else if (transfer.fromUserId !== userData.id) {
-            throw new CustomError('TransferCancelNotAuthorized', { trace: '0301' });
+            throw new CustomError('0301', 'TransferRejectNotAuthorized', userData.languages);
         }
         // Delete transfer request
         await prisma.transfer.delete({
@@ -141,11 +141,11 @@ export const Transfer = (prisma: PrismaType) => ({
         });
         // Make sure transfer exists, and is not accepted or rejected
         if (!transfer)
-            throw new CustomError('TransferNotFound', { trace: '0287' });
+            throw new CustomError('0287', 'TransferNotFound', userData.languages);
         if (transfer.status === 'Accepted')
-            throw new CustomError('TransferAlreadyAccepted', { trace: '0288' });
+            throw new CustomError('0288', 'TransferAlreadyAccepted', userData.languages);
         if (transfer.status === 'Denied')
-            throw new CustomError('TransferAlreadyRejected', { trace: '0289' });
+            throw new CustomError('0289', 'TransferAlreadyRejected', userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
             const validator = getValidator('Organization', 'Transfer.accept');
@@ -154,15 +154,15 @@ export const Transfer = (prisma: PrismaType) => ({
                 select: validator.permissionsSelect(userData.id),
             });
             if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
-                throw new CustomError('TransferAcceptNotAuthorized', { trace: '0302' });
+                throw new CustomError('0302', 'TransferAcceptNotAuthorized', userData.languages);
         } else if (transfer.toUserId !== userData.id) {
-            throw new CustomError('TransferAcceptNotAuthorized', { trace: '0303' });
+            throw new CustomError('0303', 'TransferAcceptNotAuthorized', userData.languages);
         }
         // Transfer object, then mark transfer request as accepted
         // Find the object type, based on which relation is not null
         const typeField = ['apiId', 'noteId', 'projectId', 'routineId', 'smartContractId', 'standardId'].find((field) => transfer[field] !== null);
         if (!typeField)
-            throw new CustomError('TransferMissingData', { trace: '0290' });
+            throw new CustomError('0290', 'TransferMissingData', userData.languages);
         const type = typeField.replace('Id', '');
         await prisma.transfer.update({
             where: { id: transferId },
@@ -194,11 +194,11 @@ export const Transfer = (prisma: PrismaType) => ({
         });
         // Make sure transfer exists, and is not already accepted or rejected
         if (!transfer)
-            throw new CustomError('TransferNotFound', { trace: '0290' });
+            throw new CustomError('0320', 'TransferNotFound', userData.languages);
         if (transfer.status === 'Accepted')
-            throw new CustomError('TransferAlreadyAccepted', { trace: '0291' });
+            throw new CustomError('0291', 'TransferAlreadyAccepted', userData.languages);
         if (transfer.status === 'Denied')
-            throw new CustomError('TransferAlreadyRejected', { trace: '0292' });
+            throw new CustomError('0292', 'TransferAlreadyRejected', userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
             const validator = getValidator('Organization', 'Transfer.reject');
@@ -207,14 +207,14 @@ export const Transfer = (prisma: PrismaType) => ({
                 select: validator.permissionsSelect(userData.id),
             });
             if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
-                throw new CustomError('TransferRejectNotAuthorized', { trace: '0312' });
+                throw new CustomError('0312', 'TransferRejectNotAuthorized', userData.languages);
         } else if (transfer.toUserId !== userData.id) {
-            throw new CustomError('TransferRejectNotAuthorized', { trace: '0313' });
+            throw new CustomError('0313', 'TransferRejectNotAuthorized', userData.languages);
         }
         // Find the object type, based on which relation is not null
         const typeField = ['apiId', 'noteId', 'projectId', 'routineId', 'smartContractId', 'standardId'].find((field) => transfer[field] !== null);
         if (!typeField)
-            throw new CustomError('TransferMissingData', { trace: '0290' });
+            throw new CustomError('0290', 'TransferMissingData', userData.languages);
         const type = typeField.replace('Id', '');
         // Deny the transfer
         await prisma.transfer.update({

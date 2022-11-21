@@ -23,11 +23,11 @@ export async function readOneHelper<GraphQLModel>({
     const userData = getUser(req);
     // Validate input. Can read by id, handle, or versionGroupId
     if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
-        throw new CustomError('IdOrHandleRequired', { trace: '0019' });
+        throw new CustomError('0019', 'IdOrHandleRequired', userData?.languages ?? req.languages);
     // Partially convert info
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
     if (!partialInfo)
-        throw new CustomError('InternalError', { trace: '0020' });
+        throw new CustomError('0020', 'InternalError', userData?.languages ?? req.languages);
     // If using versionGroupId, find the latest completed version in that group and use that id from now on
     let id: string | null | undefined;
     if ((input as FindByVersionInput).versionGroupId) {
@@ -49,7 +49,7 @@ export async function readOneHelper<GraphQLModel>({
         await (model.prismaObject(prisma) as any).findUnique({ where: { id: id }, ...selectHelper(partialInfo) }) :
         await (model.prismaObject(prisma) as any).findFirst({ where: { handle: (input as FindByIdOrHandleInput).handle as string }, ...selectHelper(partialInfo) });
     if (!object)
-        throw new CustomError('NotFound', { trace: '0022', objectType });
+        throw new CustomError('0022', 'NotFound', userData?.languages ?? req.languages, { objectType });
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object has view count, handle it

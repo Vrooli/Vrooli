@@ -46,7 +46,7 @@ export const emailValidator = (): Validator<
             const existingEmails = await prisma.email.findMany({
                 where: { emailAddress: { in: createMany.map(x => x.emailAddress) } },
             });
-            if (existingEmails.length > 0) throw new CustomError('EmailInUse', { trace: '0044' })
+            if (existingEmails.length > 0) throw new CustomError('0044', 'EmailInUse', languages)
         },
         delete: async (deleteMany, prisma, userId) => {
             // Prevent deleting emails if it will leave you with less than one verified authentication method
@@ -59,7 +59,7 @@ export const emailValidator = (): Validator<
                 where: { user: { id: userId }, verified: true },
             });
             if (remainingVerifiedEmailsCount + verifiedWalletsCount < 1)
-                throw new CustomError('MustLeaveVerificationMethod', { trace: '0049' });
+                throw new CustomError('0049', 'MustLeaveVerificationMethod', languages);
         }
     }
 })

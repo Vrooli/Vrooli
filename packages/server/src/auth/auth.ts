@@ -70,9 +70,12 @@ export async function authenticate(req: Request, _: Response, next: NextFunction
         req.timeZone = payload.timeZone ?? 'UTC';
         // Users, but make sure they all have unique ids
         req.users = [...new Map((payload.users ?? []).map((user: SessionUser) => [user.id, user])).values()] as SessionUser[];
-        // Find preferred languages for first user
+        // Find preferred languages for first user. Combine with languages in request header
         if (req.users.length && req.users[0].languages && req.users[0].languages.length) {
-            req.languages = req.users[0].languages as string[];
+            let languages: string[] = req.users[0].languages
+            languages.push(...req.languages);
+            languages = [...new Set(languages)];
+            req.languages = languages;
         }
         req.validToken = true;
         next();

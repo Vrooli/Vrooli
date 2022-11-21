@@ -16,11 +16,11 @@ export async function deleteManyHelper({
 }: DeleteManyHelperProps): Promise<Count> {
     const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).cud)
-        throw new CustomError('DeleteNotSupported', { trace: '0036' });
+        throw new CustomError('0036', 'DeleteNotSupported', userData.languages);
     // Delete objects. cud will check permissions
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userData, deleteMany: input.ids });
     if (!deleted)
-        throw new CustomError('InternalError', { trace: '0037' });
+        throw new CustomError('0037', 'InternalError', userData.languages);
     const objectType = model.format.relationshipMap.__typename;
     // Handle trigger
     for (const id of input.ids) {

@@ -51,10 +51,10 @@ export const verifyHandle = async (prisma: PrismaType, forType: 'User' | 'Organi
     });
     const found = Boolean(wallets.find(w => w.handles.find(h => h.handle === handle)));
     if (!found)
-        throw new CustomError('InvalidArgs', 'Selected handle cannot be verified.', { trace: '0119' });
+        throw new CustomError('0019', 'ErrorUnknown', languages);
     // Check for censored words
     if (hasProfanity(handle))
-        throw new CustomError('BannedWord', 'Handle contains banned word', { trace: '0120' });
+        throw new CustomError('0120', 'BannedWord', 'Handle contains banned word', languages);
 }
 
 export const walletValidator = (): Validator<

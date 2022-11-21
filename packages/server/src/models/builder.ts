@@ -1066,7 +1066,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     // Get IDs from objects
     const ids = objects.map(({ id }) => id);
     // Call each resolver to get supplemental data
-    const resolvers = supplementer.toGraphQL({ ids, objects, partial, prisma, userData });
+    const resolvers = supplementer.toGraphQL({ ids, languages objects, partial, prisma, userData });
     for (const [field, resolver] of resolvers) {
         // If not in partial, skip
         if (!partial[field]) continue;

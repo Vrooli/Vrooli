@@ -19,7 +19,7 @@ export async function forkHelper({
 }: ForkHelperProps<any>): Promise<any> {
     const userData = assertRequestFrom(req, { isUser: true });
     if (!model.mutate || !model.mutate(prisma).duplicate)
-        throw new CustomError('CopyNotSupported', { trace: '0234' });
+        throw new CustomError('0234', 'CopyNotSupported', userData.languages);
     // Query for all authentication data
     const authDataById = await getAuthenticatedData({ [model.type]: [input.id] }, prisma, userData.id);
     // Check permissions
@@ -37,7 +37,7 @@ export async function forkHelper({
         'standard': 'Standard',
     }));
     if (!partialInfo)
-        throw new CustomError('InternalError', { trace: '0235' });
+        throw new CustomError('0235', 'InternalError', userData.languages);
     const { object } = await model.mutate(prisma).duplicate!({ userId: userData.id, objectId: input.id, isFork: false, createCount: 0 });
     // Handle trigger
     await Trigger(prisma).objectFork(input.objectType, input.id, userData.id);

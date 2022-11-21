@@ -22,7 +22,7 @@ export const voteFormatter = (): FormatConverter<Vote, 'to'> => ({
     },
     supplemental: {
         graphqlFields: ['to'],
-        toGraphQL: ({ objects, partial, prisma, userData }) => [
+        toGraphQL: ({ languages, objects, partial, prisma, userData }) => [
             ['to', async () => {
                 if (!userData) return new Array(objects.length).fill([]);
                 // Query for data that star is applied to
@@ -48,7 +48,7 @@ export const voteFormatter = (): FormatConverter<Vote, 'to'> => ({
                             'User',
                         ];
                         if (!validTypes.includes(type as GraphQLModelType)) {
-                            throw new CustomError('InternalError', `View applied to unsupported type: ${type}`, { trace: '0185' });
+                            throw new CustomError('0321', 'InternalError', languages, { type });
                         }
                         const model: ModelLogic<any, any, any, any> = ObjectMap[type] as ModelLogic<any, any, any, any>;
                         const paginated = await readManyHelper({
@@ -56,7 +56,7 @@ export const voteFormatter = (): FormatConverter<Vote, 'to'> => ({
                             input: { ids: toIdsByType[type] },
                             model,
                             prisma,
-                            req: { users: [userData] }
+                            req: { languages, users: [userData] }
                         })
                         tos.push(...paginated.edges.map(x => x.node));
                     }
@@ -87,13 +87,13 @@ const forMapper: { [key in VoteFor]: string } = {
  * @returns True if cast correctly (even if skipped because of duplicate)
  */
 const voteMutater = (prisma: PrismaType): Mutater<Vote> => ({
-    async vote(userId: string, input: VoteInput): Promise<boolean> {
+    async vote(userId: string, input: VoteInput, languages: string[]): Promise<boolean> {
         // Define prisma type for voted-on object
         const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);
         // Check if object being voted on exists
         const votingFor: null | { id: string, score: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, score: true } });
         if (!votingFor)
-            throw new CustomError('ErrorUnknown', 'Could not find object being voted on', { trace: '0118' });
+            throw new CustomError('0118', 'NotFound', languages, { voteFor: input.voteFor, forId: input.forId });
         // Check if vote exists
         const vote = await prisma.vote.findFirst({
             where: {

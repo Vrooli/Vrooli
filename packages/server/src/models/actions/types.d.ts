@@ -62,7 +62,7 @@ export type ReadManyHelperProps<GraphQLModel, SearchInput extends SearchInputBas
     input: any;
     model: ModelLogic<GraphQLModel, SearchInput, any, any>;
     prisma: PrismaType;
-    req: { users?: SessionUser[] };
+    req: { languages: string[], users?: SessionUser[] };
 }
 
 export type ReadOneHelperProps<GraphQLModel> = {
@@ -70,7 +70,7 @@ export type ReadOneHelperProps<GraphQLModel> = {
     input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
     model: ModelLogic<GraphQLModel, any, any, any>;
     prisma: PrismaType;
-    req: { users?: SessionUser[] };
+    req: { languages: string[], users?: SessionUser[] };
 }
 
 export type UpdateHelperProps<GraphQLModel> = {

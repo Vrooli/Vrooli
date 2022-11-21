@@ -4,33 +4,37 @@ import { PrismaType } from "../types";
 import { sendMail } from "./email";
 import { findRecipientsAndLimit, NotificationSettings, updateNotificationSettings } from "./notificationSettings";
 import { sendPush } from "./push";
+import i18next, { TFuncKey } from 'i18next';
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
 
-export enum NotificationCategory {
-    AccountCreditsOrApi = 'AccountCreditsOrApi',
-    Award = 'Award',
-    IssueActivity = 'IssueActivity',
-    NewQuestionOrIssue = 'NewQuestionOrIssue',
-    ObjectStarVoteFork = 'ObjectStarVoteFork',
-    Promotion = 'Promotion',
-    PullRequestClose = 'PullRequestClose',
-    QuestionActivty = 'QuestionActivity',
-    ReportClose = 'ReportClose',
-    Run = 'Run',
-    Schedule = 'Schedule',
-    Security = 'Security',
-    Streak = 'Streak',
-    Transfer = 'Transfer',
-    UserInvite = 'UserInvite',
-}
+export type NotificationCategory = 'AccountCreditsOrApi' |
+    'Award' |
+    'IssueActivity' |
+    'NewQuestionOrIssue' |
+    'ObjectStarVoteFork' |
+    'Promotion' |
+    'PullRequestClose' |
+    'QuestionActivity' |
+    'ReportClose' |
+    'Run' |
+    'Schedule' |
+    'Security' |
+    'Streak' |
+    'Transfer' |
+    'UserInvite';
+
+type TransKey = TFuncKey<'notify', undefined>
 
 type PushParams = {
-    body: string,
+    bodyKey: TransKey,
+    bodyVariables?: { [key: string]: string | number },
     category: NotificationCategory,
+    languages: string[],
     link?: string,
     prisma: PrismaType,
-    title?: string,
+    titleKey?: TransKey,
+    titleVariables?: { [key: string]: string | number },
     userId: string,
 }
 
@@ -40,7 +44,17 @@ type PushParams = {
  * it is still stored in the database for the user to see when they 
  * open the app.
  */
-const push = async ({ body, category, link, prisma, title, userId }: PushParams) => {
+const push = async ({
+    bodyKey,
+    bodyVariables,
+    category,
+    languages,
+    link,
+    prisma,
+    titleKey,
+    titleVariables,
+    userId
+}: PushParams) => {
     // Find out which devices can receive this notification, and the daily limit
     const { pushDevices, emails, phoneNumbers, dailyLimit } = await findRecipientsAndLimit(category, prisma, userId);
     // Try connecting to redis
@@ -49,6 +63,10 @@ const push = async ({ body, category, link, prisma, title, userId }: PushParams)
         // Increment count in Redis for this user. If it is over the limit, don't send the notification
         const count = await client.incr(`notification:${userId}:${category}`);
         if (dailyLimit && count > dailyLimit) return;
+        // Find title and body
+        const lng = languages.length > 0 ? languages[0] : 'en';
+        const title: string | undefined = titleKey ? i18next.t(`notify:${titleKey}`, { lng, ...(titleVariables ?? {}) }) : undefined;
+        const body: string = i18next.t(`notify:${bodyKey}`, { lng, ...(bodyVariables ?? {}) });
         // Send the notification to each device
         const icon = `https://app.vrooli.com/Logo.png`; // TODO location of logo
         for (const device of pushDevices) {
@@ -154,7 +172,7 @@ const NotifyResult = (prisma: PrismaType, params: Omit<PushParams, 'userId'>): N
  * Notifications settings and devices are queried from the main database.
  * Notification limits are tracked using Redis.
  */
-export const Notify = (prisma: PrismaType) => ({
+export const Notify = (prisma: PrismaType, languages: string[]) => ({
     /**
      * Sets up a push device to receive notifications
      */
@@ -199,8 +217,8 @@ export const Notify = (prisma: PrismaType) => ({
             where: { id: deviceId },
             select: { userId: true }
         })
-        if (!device || device.userId !== userId) 
-            throw new CustomError('NotFound', 'Device not found, or not registered to user',  { trace: '0307' });
+        if (!device || device.userId !== userId)
+            throw new CustomError('0307', 'PushDeviceNotFound', languages);
         // If it is, delete it  
         await prisma.notification_device.delete({ where: { id: deviceId } })
     },
@@ -211,62 +229,84 @@ export const Notify = (prisma: PrismaType) => ({
     updateSettings: async (settings: NotificationSettings, userId: string) => {
         await updateNotificationSettings(settings, prisma, userId);
     },
-    pushApiOutOfCredits: (): NotifyResultType => {
-        const title = 'API out of credits';
-        const body = 'Your API ran out of credits. Please add more credits to your account if you want to continue using it, or wait until tomorrow to receive new credits.';
-        return NotifyResult(prisma, { body, category: NotificationCategory.AccountCreditsOrApi, prisma, title });
-    },
-    pushAward: (awardName: string, awardDescription: string): NotifyResultType => {
-        const title = 'New Award Earned';
-        const body = `You earned the "${awardName}" award! ${awardDescription}`;
-        const link = `/awards`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.Award, link, prisma, title });
-    },
-    pushIssueActivity: (issueName: string, issueId: string): NotifyResultType => {
-        const title = 'Issue Activity';
-        const body = `New activity on issue "${issueName}"`;
-        const link = `/issues/${issueId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.IssueActivity, link, prisma, title });
-    },
-    pushNewDeviceSignIn: (): NotifyResultType => {
-        const title = 'New device sign-in';
-        const body = 'You have signed in to your account on a new device. If this was not you, please change your password.';
-        return NotifyResult(prisma, { body, category: NotificationCategory.Security, prisma, title });
-    },
-    pushNewQuestionOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
-        const title = 'New Question';
-        const body = `There's a new Question on ${objectName}. Do you know the answer?`;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.NewQuestionOrIssue, link, prisma, title });
-    },
-    pushNewIssueOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
-        const title = 'New Issue';
-        const body = `There's a new Issue on ${objectName}. Can you help?`;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.NewQuestionOrIssue, link, prisma, title });
-    },
-    pushObjectReceivedStar: (objectName: string, objectType: string, objectId: string, totalStars: number): NotifyResultType => {
-        const title = 'New Stars';
-        const body = `${objectName} now has ${totalStars} ${totalStars === 1 ? 'star' : 'stars'}!`;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title });
-    },
-    pushObjectReceivedUpvote: (objectName: string, objectType: string, objectId: string, totalScore: number): NotifyResultType => {
-        const title = 'New Votes';
-        const body = `${objectName} now has a score of ${totalScore}!`;
-        const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title });
-    },
+    pushApiOutOfCredits: (): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'ApiOutOfCreditsBody',
+        category: 'AccountCreditsOrApi',
+        languages,
+        prisma,
+        titleKey: 'ApiOutOfCreditsTitle',
+    }),
+    pushAward: (awardName: string, awardDescription: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'AwardEarnedBody',
+        bodyVariables: { awardName, awardDescription },
+        category: 'Award',
+        languages,
+        link: '/awards',
+        prisma,
+        titleKey: 'AwardEarnedTitle',
+    }),
+    pushIssueActivity: (issueName: string, issueId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'IssueActivityBody',
+        bodyVariables: { issueName },
+        category: 'IssueActivity',
+        languages,
+        link: `/issues/${issueId}`,
+        prisma,
+        titleKey: 'IssueActivityTitle',
+    }),
+    pushNewDeviceSignIn: (): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'NewDeviceBody',
+        category: 'Security',
+        languages,
+        prisma,
+        titleKey: 'NewDeviceTitle',
+    }),
+    pushNewQuestionOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'NewQuestionOnObjectBody',
+        bodyVariables: { objectName },
+        category: 'NewQuestionOrIssue',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'NewQuestionOnObjectTitle',
+    }),
+    pushNewIssueOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'NewIssueOnObjectBody',
+        bodyVariables: { objectName },
+        category: 'NewQuestionOrIssue',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'NewIssueOnObjectTitle',
+    }),
+    pushObjectReceivedStar: (objectName: string, objectType: string, objectId: string, totalStars: number): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'ObjectReceivedStarBody',
+        bodyVariables: { objectName, count: totalStars },
+        category: 'ObjectStarVoteFork',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'ObjectReceivedStarTitle',
+    }),
+    pushObjectReceivedUpvote: (objectName: string, objectType: string, objectId: string, totalScore: number): NotifyResultType => NotifyResult(prisma, {
+        bodyKey: 'ObjectReceivedUpvoteBody',
+        bodyVariables: { objectName, count: totalScore },
+        category: 'ObjectStarVoteFork',
+        languages,
+        link: `/${objectType}/${objectId}`,
+        prisma,
+        titleKey: 'ObjectReceivedUpvoteTitle',
+    }),
     pushObjectReceivedFork: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
         const title = 'New Fork';
         const body = `${objectName} was forked!`;
         const link = `/${objectType}/${objectId}`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.ObjectStarVoteFork, link, prisma, title });
+        return NotifyResult(prisma, { body, category: 'ObjectStarVoteFork', link, prisma, title });
     },
     pushReportClosedObjectDeleted: (objectName: string): NotifyResultType => {
         const title = 'Object Deleted';
         const body = `Sorry, the community decided to delete ${objectName}. Your reputation score has been reduced.`;
-        return NotifyResult(prisma, { body, category: NotificationCategory.ReportClose, prisma, title });
+        return NotifyResult(prisma, { body, category: 'ReportClose', prisma, title });
     },
     pushReportClosedObjectHidden: (objectName: string, objectType: string, objectId: string): NotifyResultType => {
         const title = 'Object Hidden';

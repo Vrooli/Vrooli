@@ -12,14 +12,15 @@ import { getUser } from "../models";
  * @param key The key to check
  * @param max The max to check against
  * @param window The window for the limit
+ * @param languages Languages preferred to display error message
  */
-export async function checkRateLimit(client: any, key: string, max: number, window: number) {
+export async function checkRateLimit(client: any, key: string, max: number, window: number, languages: string[]) {
     // If 
     // Increment and get the current count.
     const count = await client.incr(key);
     // If limit reached, throw error.
     if (count > max) {
-        throw new CustomError('RateLimitExceeded', { trace: '0017' });
+        throw new CustomError('0017', 'RateLimitExceeded', languages);
     }
     // If key is new, set expiration.
     if (count === 1) {
@@ -73,19 +74,19 @@ export async function rateLimit({
         // Apply rate limit to API TODO factor in cost of request, instead of just incrementing by 1
         if (hasApiToken) {
             const key = `${keyBase}:api:${req.apiToken}`;
-            await checkRateLimit(client, key, maxApi, window);
+            await checkRateLimit(client, key, maxApi, window, req.languages);
         }
         // If API token is not supplied, make sure request is from the official Vrooli app/website
         else if (req.fromSafeOrigin === false) {
-            throw new CustomError('MustUseApiToken', { trace: '0271' });
+            throw new CustomError('0271', 'MustUseApiToken', req.languages);
         }
         // Apply rate limit to IP address
         const key = `${keyBase}:ip:${req.ip}`;
-        await checkRateLimit(client, key, maxIp, window);
+        await checkRateLimit(client, key, maxIp, window, req.languages);
         // Apply rate limit to user
         if (hasUserData) {
             const key = `${keyBase}:user:${userData.id}`;
-            await checkRateLimit(client, key, maxUser, window);
+            await checkRateLimit(client, key, maxUser, window, req.languages);
         }
     }
     // If Redis fails, let the user through. It's not their fault. 

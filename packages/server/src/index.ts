@@ -11,6 +11,7 @@ import { initStatsCronJobs } from './statsLog';
 import { logger } from './events/logger';
 import { initializeRedis } from './redisConn';
 import i18next from 'i18next';
+import awardLocale from './locales/en/award.json';
 import commonLocale from './locales/en/common.json';
 import errorLocale from './locales/en/error.json';
 import notifyLocale from './locales/en/notify.json';
@@ -31,6 +32,7 @@ const main = async () => {
     const defaultNS = 'common';
     const resources = {
         en: {
+            award: awardLocale,
             common: commonLocale,
             validate: validateLocale,
             error: errorLocale,

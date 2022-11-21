@@ -53,7 +53,7 @@ export const resolvers = {
             assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
             const userId = getUser(req)?.id;
-            if (!userId) throw new CustomError('Unauthorized', 'Must be logged in to view views.', { trace: '0275' });
+            if (!userId) throw new CustomError('0275', 'NotLoggedIn', req.languages);
             return readManyHelper({ info, input, model: ViewModel, prisma, req, additionalQueries: { userId } });
         },
     },

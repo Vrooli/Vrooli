@@ -75,7 +75,7 @@ export const resolvers = {
             else {
                 const userId = getUser(req)?.id;
                 if (!userId) 
-                    throw new CustomError('Unauthorized', 'Must be logged in to query your wallets', { trace: '0166' })
+                    throw new CustomError('0166', 'NotLoggedIn', req.languages);
                 wallets = await prisma.wallet.findMany({
                     where: { userId },
                     select: walletFields
@@ -108,7 +108,7 @@ export const resolvers = {
                     // If code is 404, then resource does not exist. This means that the wallet has no transactions.
                     // In this case, we shouldn't throw an error
                     if (err.status_code !== 404) {
-                        throw new CustomError('ErrorUnknown', 'Failed to query Blockfrost', { trace: '0167' });
+                        throw new CustomError('0167', 'ExternalServiceError', req.languages);
                     }
                 } finally {
                     return handles;

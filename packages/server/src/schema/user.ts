@@ -195,7 +195,7 @@ export const resolvers = {
             // Update object
             const updated = await ProfileModel.mutate(prisma).updateProfile(userData, input, info);
             if (!updated)
-                throw new CustomError('ErrorUnknown', 'Could not update profile', { trace: '0160' });
+                throw new CustomError('0160', 'ErrorUnknown', req.languages);
             // Update session
             const session = await ProfileModel.verify.toSession({ id: userData.id }, prisma, req);
             await generateSessionJwt(res, session);
@@ -207,7 +207,7 @@ export const resolvers = {
             // Update object
             const updated = await ProfileModel.mutate(prisma).updateEmails(userData.id, input, info);
             if (!updated)
-                throw new CustomError('ErrorUnknown', 'Could not update profile', { trace: '0162' });
+                throw new CustomError('0162', 'ErrorUnknown', req.languages);
             return updated;
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Success> => {

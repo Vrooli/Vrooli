@@ -476,7 +476,7 @@ export const resolvers = {
             await rateLimit({ info, maxUser: 500, req });
             // Query current stats
             // Read historical stats from file
-            throw new CustomError('NotImplemented', {});
+            throw new CustomError('0326', 'NotImplemented', req.languages);
         },
     },
 }

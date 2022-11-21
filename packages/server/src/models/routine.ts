@@ -656,7 +656,7 @@ export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
      * If a copy, there is no parent.
      */
     async duplicate({ userId, objectId, isFork, createCount = 0 }: DuplicateInput): Promise<DuplicateResult<Routine>> {
-        throw new CustomError('NotImplemented', {});
+        throw new CustomError('0325', 'NotImplemented', langauges);
         // let newCreateCount = createCount;
         // // Find routine, with fields we want to copy.
         // // I hope I discover a better way to do this.

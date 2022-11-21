@@ -19,7 +19,7 @@ export const runStepFormatter = (): FormatConverter<RunStep, any> => ({
 
 export const runStepVerifier = () => ({
     profanityCheck(data: (RunStepCreateInput | RunStepUpdateInput)[]): void {
-        validateProfanity(data.map((d: any) => d.title));
+        validateProfanity(data.map((d: any) => d.title), languages);
     },
 })
 
