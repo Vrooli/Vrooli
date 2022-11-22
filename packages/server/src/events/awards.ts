@@ -321,7 +321,7 @@ const shouldAward = (awardCategory: AwardCategory, previousCount: number, curren
  * Handles tracking awards for a user. If a new award is earned, a notification
  * can be sent to the user (push or email)
  */
-export const Award = (prisma: PrismaType, userId: string) => ({
+export const Award = (prisma: PrismaType, userId: string, languages: string[]) => ({
     /**
      * Upserts an award into the database. If the award progress reaches a new goal,
      * the user is notified
@@ -329,7 +329,7 @@ export const Award = (prisma: PrismaType, userId: string) => ({
      * @param newProgress The new progress of the award
      * @param languages Preferred languages for the award title and body
      */
-    update: async (category: AwardCategory, newProgress: number, languages: string[]) => {
+    update: async (category: AwardCategory, newProgress: number) => {
         // Upsert the award into the database, with progress incremented
         // by the new progress
         const award = await prisma.award.upsert({

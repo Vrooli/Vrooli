@@ -1,4 +1,4 @@
-import { CustomError, logger } from "../events";
+import { CustomError, logger, SubscribableObject } from "../events";
 import { initializeRedis } from "../redisConn";
 import { PrismaType } from "../types";
 import { sendMail } from "./email";
@@ -33,9 +33,10 @@ type PushParams = {
     languages: string[],
     link?: string,
     prisma: PrismaType,
+    silents?: boolean[],
     titleKey?: TransKey,
     titleVariables?: { [key: string]: string | number },
-    userId: string,
+    userIds: string[],
 }
 
 /**
@@ -51,59 +52,67 @@ const push = async ({
     languages,
     link,
     prisma,
+    silents,
     titleKey,
     titleVariables,
-    userId
+    userIds
 }: PushParams) => {
     // Find out which devices can receive this notification, and the daily limit
-    const { pushDevices, emails, phoneNumbers, dailyLimit } = await findRecipientsAndLimit(category, prisma, userId);
+    const devicesAndLimits = await findRecipientsAndLimit(category, prisma, userIds);
+    // Find title and body
+    const lng = languages.length > 0 ? languages[0] : 'en';
+    const title: string | undefined = titleKey ? i18next.t(`notify:${titleKey}`, { lng, ...(titleVariables ?? {}) }) : undefined;
+    const body: string = i18next.t(`notify:${bodyKey}`, { lng, ...(bodyVariables ?? {}) });
+    const icon = `https://app.vrooli.com/Logo.png`; // TODO location of logo
     // Try connecting to redis
     try {
         const client = await initializeRedis();
-        // Increment count in Redis for this user. If it is over the limit, don't send the notification
-        const count = await client.incr(`notification:${userId}:${category}`);
-        if (dailyLimit && count > dailyLimit) return;
-        // Find title and body
-        const lng = languages.length > 0 ? languages[0] : 'en';
-        const title: string | undefined = titleKey ? i18next.t(`notify:${titleKey}`, { lng, ...(titleVariables ?? {}) }) : undefined;
-        const body: string = i18next.t(`notify:${bodyKey}`, { lng, ...(bodyVariables ?? {}) });
-        // Send the notification to each device
-        const icon = `https://app.vrooli.com/Logo.png`; // TODO location of logo
-        for (const device of pushDevices) {
-            try {
-                const subscription = {
-                    endpoint: device.endpoint,
-                    keys: {
-                        p256dh: device.p256dh,
-                        auth: device.auth,
-                    },
+        // For each user
+        for (let i = 0; i < userIds.length; i++) {
+            const { pushDevices, emails, phoneNumbers, dailyLimit } = devicesAndLimits[i];
+            let currSilent = silents ? silents[i] : false;
+            // Increment count in Redis for this user. If it is over the limit, make the notification silent
+            const count = await client.incr(`notification:${userIds[i]}:${category}`);
+            if (dailyLimit && count > dailyLimit) currSilent = true;
+            // Send the notification to each device, if not silent
+            if (!currSilent) {
+                for (const device of pushDevices) {
+                    try {
+                        const subscription = {
+                            endpoint: device.endpoint,
+                            keys: {
+                                p256dh: device.p256dh,
+                                auth: device.auth,
+                            },
+                        }
+                        const payload = { body, icon, link, title }
+                        sendPush(subscription, payload);
+                    } catch (err) {
+                        logger.error('Error sending push notification', { trace: '0306' });
+                    }
                 }
-                const payload = { body, icon, link, title }
-                sendPush(subscription, payload);
-            } catch (err) {
-                logger.error('Error sending push notification', { trace: '0306' });
+                // Send the notification to each email (ignore if no title)
+                if (emails.length && title) {
+                    sendMail(emails.map(e => e.emailAddress), title, body);
+                }
+                // Send the notification to each phone number
+                // for (const phoneNumber of phoneNumbers) {
+                //     fdasfsd
+                // }
             }
         }
-        // Send the notification to each email (ignore if no title)
-        if (emails.length && title) {
-            sendMail(emails.map(e => e.emailAddress), title, body);
-        }
-        // Send the notification to each phone number
-        // for (const phoneNumber of phoneNumbers) {
-        //     fdasfsd
-        // }
-        // Store the notification in the database
-        await prisma.notification.create({
-            data: {
+        // Store the notifications in the database
+        await prisma.notification.createMany({
+            data: userIds.map(userId => ({
                 category,
                 // Title or first 20 characters of body
                 title: title ?? `${body.substring(0, 10)}...`,
                 description: body,
                 link,
                 imgLink: icon,
-                user: { connect: { id: userId } },
-            }
-        })
+                userId,
+            }))
+        });
     }
     // If Redis fails, let the user through. It's not their fault. 
     catch (error) {
@@ -128,42 +137,75 @@ const getEventStartLabel = (date: Date) => {
 
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
-    toOrganization: (organizationId: string) => Promise<void>,
+    toOrganization: (organizationId: string, excludeUserId?: string) => Promise<void>,
+    toSubscribers: (objectType: SubscribableObject, objectId: string, excludeUserId?: string) => Promise<void>,
 }
 
 /**
  * Class returned by each notify function. Allows us to either
  * send the notification to one user, or to all admins of an organization
  */
-const NotifyResult = (prisma: PrismaType, params: Omit<PushParams, 'userId'>): NotifyResultType => ({
+const NotifyResult = (params: Omit<PushParams, 'userIds'>): NotifyResultType => ({
     /**
      * Sends a notification to a user
      * @param userId The user's id
      */
     toUser: async (userId) => {
-        await push({ ...params, userId, prisma });
+        await push({ ...params, userIds: [userId] });
     },
     /**
      * Sends a notification to an organization
      * @param organizationId The organization's id
+     * @param excludeUserId The user to exclude from the notification 
+     * (usually the user who triggered the notification)
      */
-    toOrganization: async (organizationId) => {
-        // Find every admin of the organization
-        const admins = await prisma.member.findMany({
+    toOrganization: async (organizationId, excludeUserId) => {
+        // Find every admin of the organization, excluding the user who triggered the notification
+        const admins = await params.prisma.member.findMany({
             where: {
                 AND: [
                     { organizationId },
-                    { isAdmin: true }
+                    { isAdmin: true },
+                    { userId: { not: excludeUserId } }
                 ]
             },
             select: { userId: true }
         })
         const adminIds = admins ? admins.map(a => a.userId) : [];
         // Send a notification to each admin
-        for (const adminId of adminIds) {
-            await push({ ...params, userId: adminId, prisma });
-        }
+        await push({ ...params, userIds: adminIds });
     },
+    /**
+     * Sends a notification to all subscribers of an object
+     * @param objectType The type of object
+     * @param objectId The object's id
+     * @param excludeUserId The user to exclude from the notification
+     */
+    toSubscribers: async (objectType, objectId, excludeUserId) => {
+        // Find all subscribers of the object. There may be a lot, 
+        // so we need to do this in batches
+        const batchSize = 100;
+        let skip = 0;
+        let currentBatchSize = 0;
+        do {
+            const batch = await params.prisma.notification_subscription.findMany({
+                where: {
+                    AND: [
+                        { objectType },
+                        { objectId },
+                        { userId: { not: excludeUserId } }
+                    ]
+                },
+                select: { userId: true, silent: true },
+                skip,
+                take: batchSize,
+            });
+            skip += batchSize;
+            currentBatchSize = batch.length;
+            // Send a notification to each subscriber
+            await push({ ...params, userIds: batch.map(b => b.userId), silents: batch.map(b => b.silent) });
+        } while (currentBatchSize === batchSize);
+    }
 })
 
 /**
@@ -229,14 +271,14 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
     updateSettings: async (settings: NotificationSettings, userId: string) => {
         await updateNotificationSettings(settings, prisma, userId);
     },
-    pushApiOutOfCredits: (): NotifyResultType => NotifyResult(prisma, {
+    pushApiOutOfCredits: (): NotifyResultType => NotifyResult({
         bodyKey: 'ApiOutOfCreditsBody',
         category: 'AccountCreditsOrApi',
         languages,
         prisma,
         titleKey: 'ApiOutOfCreditsTitle',
     }),
-    pushAward: (awardName: string, awardDescription: string): NotifyResultType => NotifyResult(prisma, {
+    pushAward: (awardName: string, awardDescription: string): NotifyResultType => NotifyResult({
         bodyKey: 'AwardEarnedBody',
         bodyVariables: { awardName, awardDescription },
         category: 'Award',
@@ -245,7 +287,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'AwardEarnedTitle',
     }),
-    pushIssueActivity: (issueName: string, issueId: string): NotifyResultType => NotifyResult(prisma, {
+    pushIssueActivity: (issueName: string, issueId: string): NotifyResultType => NotifyResult({
         bodyKey: 'IssueActivityBody',
         bodyVariables: { issueName },
         category: 'IssueActivity',
@@ -254,14 +296,14 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'IssueActivityTitle',
     }),
-    pushNewDeviceSignIn: (): NotifyResultType => NotifyResult(prisma, {
+    pushNewDeviceSignIn: (): NotifyResultType => NotifyResult({
         bodyKey: 'NewDeviceBody',
         category: 'Security',
         languages,
         prisma,
         titleKey: 'NewDeviceTitle',
     }),
-    pushNewQuestionOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+    pushNewQuestionOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'NewQuestionOnObjectBody',
         bodyVariables: { objectName },
         category: 'NewQuestionOrIssue',
@@ -270,7 +312,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewQuestionOnObjectTitle',
     }),
-    pushNewIssueOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+    pushNewIssueOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'NewIssueOnObjectBody',
         bodyVariables: { objectName },
         category: 'NewQuestionOrIssue',
@@ -279,7 +321,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewIssueOnObjectTitle',
     }),
-    pushObjectReceivedStar: (objectName: string, objectType: string, objectId: string, totalStars: number): NotifyResultType => NotifyResult(prisma, {
+    pushObjectReceivedStar: (objectName: string, objectType: string, objectId: string, totalStars: number): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedStarBody',
         bodyVariables: { objectName, count: totalStars },
         category: 'ObjectStarVoteFork',
@@ -288,7 +330,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ObjectReceivedStarTitle',
     }),
-    pushObjectReceivedUpvote: (objectName: string, objectType: string, objectId: string, totalScore: number): NotifyResultType => NotifyResult(prisma, {
+    pushObjectReceivedUpvote: (objectName: string, objectType: string, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedUpvoteBody',
         bodyVariables: { objectName, count: totalScore },
         category: 'ObjectStarVoteFork',
@@ -297,7 +339,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ObjectReceivedUpvoteTitle',
     }),
-    pushObjectReceivedFork: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+    pushObjectReceivedFork: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedForkBody',
         bodyVariables: { objectName },
         category: 'ObjectStarVoteFork',
@@ -306,7 +348,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ObjectReceivedForkTitle',
     }),
-    pushReportClosedObjectDeleted: (objectName: string): NotifyResultType => NotifyResult(prisma, {
+    pushReportClosedObjectDeleted: (objectName: string): NotifyResultType => NotifyResult({
         bodyKey: 'ReportClosedObjectDeletedBody',
         bodyVariables: { objectName },
         category: 'ReportClose',
@@ -314,7 +356,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ReportClosedObjectDeletedTitle',
     }),
-    pushReportClosedObjectHidden: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+    pushReportClosedObjectHidden: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'ReportClosedObjectHiddenBody',
         bodyVariables: { objectName },
         category: 'ReportClose',
@@ -323,7 +365,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ReportClosedObjectHiddenTitle',
     }),
-    pushReportClosedAccountSuspended: (objectName: string): NotifyResultType => NotifyResult(prisma, {
+    pushReportClosedAccountSuspended: (objectName: string): NotifyResultType => NotifyResult({
         bodyKey: 'ReportClosedAccountSuspendedBody',
         bodyVariables: { objectName },
         category: 'ReportClose',
@@ -331,7 +373,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ReportClosedAccountSuspendedTitle',
     }),
-    pushPullRequestAccepted: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+    pushPullRequestAccepted: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'PullRequestAcceptedBody',
         bodyVariables: { objectName },
         category: 'PullRequestClose',
@@ -340,7 +382,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'PullRequestAcceptedTitle',
     }),
-    pushPullRequestRejected: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+    pushPullRequestRejected: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'PullRequestRejectedBody',
         bodyVariables: { objectName },
         category: 'PullRequestClose',
@@ -349,7 +391,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'PullRequestRejectedTitle',
     }),
-    pushQuestionActivity: (questionName: string, questionId: string): NotifyResultType => NotifyResult(prisma, {
+    pushQuestionActivity: (questionName: string, questionId: string): NotifyResultType => NotifyResult({
         bodyKey: 'QuestionActivityBody',
         bodyVariables: { questionName },
         category: 'QuestionActivity',
@@ -358,7 +400,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'QuestionActivityTitle',
     }),
-    pushRunStartedAutomatically: (runName: string, runId: string): NotifyResultType => NotifyResult(prisma, {
+    pushRunStartedAutomatically: (runName: string, runId: string): NotifyResultType => NotifyResult({
         bodyKey: 'RunStartedAutomaticallyBody',
         bodyVariables: { runName },
         category: 'Run',
@@ -367,7 +409,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'RunStartedAutomaticallyTitle',
     }),
-    pushRunCompletedAutomatically: (runName: string, runId: string): NotifyResultType => NotifyResult(prisma, {
+    pushRunCompletedAutomatically: (runName: string, runId: string): NotifyResultType => NotifyResult({
         bodyKey: 'RunCompletedAutomaticallyBody',
         bodyVariables: { runName },
         category: 'Run',
@@ -376,7 +418,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'RunCompletedAutomaticallyTitle',
     }),
-    pushRunFailedAutomatically: (runName: string, runId: string): NotifyResultType => NotifyResult(prisma, {
+    pushRunFailedAutomatically: (runName: string, runId: string): NotifyResultType => NotifyResult({
         bodyKey: 'RunFailedAutomaticallyBody',
         bodyVariables: { runName },
         category: 'Run',
@@ -385,7 +427,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'RunFailedAutomaticallyTitle',
     }),
-    pushScheduleOrganization: (meetingName: string, meetingId: string, startTime: Date): NotifyResultType => NotifyResult(prisma, {
+    pushScheduleOrganization: (meetingName: string, meetingId: string, startTime: Date): NotifyResultType => NotifyResult({
         bodyKey: 'ScheduleOrganizationBody',
         bodyVariables: { meetingName, startLabel: getEventStartLabel(startTime) },
         category: 'Schedule',
@@ -394,28 +436,28 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ScheduleOrganizationTitle',
     }),
-    pushScheduleUser: (title: string, startTime: Date): NotifyResultType => NotifyResult(prisma, {
+    pushScheduleUser: (title: string, startTime: Date): NotifyResultType => NotifyResult({
         bodyKey: 'ScheduleUserBody',
         bodyVariables: { title, startLabel: getEventStartLabel(startTime) },
         category: 'Schedule',
         languages,
         prisma,
     }),
-    pushStreakReminder: (timeToReset: Date): NotifyResultType => NotifyResult(prisma, {
+    pushStreakReminder: (timeToReset: Date): NotifyResultType => NotifyResult({
         bodyKey: 'StreakReminderBody',
         bodyVariables: { endLabel: getEventStartLabel(timeToReset) },
         category: 'Streak',
         languages,
         prisma,
     }),
-    pushStreakBroken: (): NotifyResultType => NotifyResult(prisma, {
+    pushStreakBroken: (): NotifyResultType => NotifyResult({
         bodyKey: 'StreakBrokenBody',
         category: 'Streak',
         languages,
         prisma,
         titleKey: 'StreakBrokenTitle',
     }),
-    pushTransferRequest: (transferId: string, objectType: string): NotifyResultType => NotifyResult(prisma, {
+    pushTransferRequest: (transferId: string, objectType: string): NotifyResultType => NotifyResult({
         bodyKey: 'TransferRequestBody',
         category: 'Transfer',
         languages,
@@ -423,7 +465,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'TransferRequestTitle',
     }),
-    pushTransferAccepted: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+    pushTransferAccepted: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: objectName ? 'TransferAcceptedWithNameBody' : 'TransferAcceptedTitle',
         bodyVariables: objectName ? { objectName } : {},
         category: 'Transfer',
@@ -432,7 +474,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'TransferAcceptedTitle',
     }),
-    pushTransferRejected: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => NotifyResult(prisma, {
+    pushTransferRejected: (objectName: string | null | undefined, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: objectName ? 'TransferRejectedWithNameBody' : 'TransferRejectedTitle',
         bodyVariables: objectName ? { objectName } : {},
         category: 'Transfer',
@@ -441,7 +483,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'TransferRejectedTitle',
     }),
-    pushUserInvite: (friendUsername: string): NotifyResultType => NotifyResult(prisma, {
+    pushUserInvite: (friendUsername: string): NotifyResultType => NotifyResult({
         bodyKey: 'UserInviteBody',
         bodyVariables: { friendUsername },
         category: 'UserInvite',

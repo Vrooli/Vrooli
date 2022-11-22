@@ -81,9 +81,9 @@ export const Transfer = (prisma: PrismaType) => ({
             }
         });
         // Notify user/org that is receiving the object
-        const pushNotification = Notify(prisma).pushTransferRequest(request.id, object.__typename);
+        const pushNotification = Notify(prisma, userData.languages).pushTransferRequest(request.id, object.__typename);
         if (to.__typename === 'User') await pushNotification.toUser(to.id);
-        else await pushNotification.toOrganization(to.id);
+        else await pushNotification.toOrganization(to.id, userData.id);
         // Return false
         return false
     },
@@ -177,9 +177,9 @@ export const Transfer = (prisma: PrismaType) => ({
             }
         });
         // Notify user/org that sent the transfer request
-        const pushNotification = Notify(prisma).pushTransferAccepted(transfer.objectTitle, transferId, type);
+        const pushNotification = Notify(prisma, userData.languages).pushTransferAccepted(transfer.objectTitle, transferId, type);
         if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
-        else await pushNotification.toOrganization(transfer.fromOrganizationId as string);
+        else await pushNotification.toOrganization(transfer.fromOrganizationId as string, userData.id);
     },
     /**
      * Rejects a transfer request
@@ -225,8 +225,8 @@ export const Transfer = (prisma: PrismaType) => ({
             }
         });
         // Notify user/org that sent the transfer request
-        const pushNotification = Notify(prisma).pushTransferRejected(transfer.objectTitle, type, transferId);
+        const pushNotification = Notify(prisma, userData.languages).pushTransferRejected(transfer.objectTitle, type, transferId);
         if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
-        else await pushNotification.toOrganization(transfer.fromOrganizationId as string);
+        else await pushNotification.toOrganization(transfer.fromOrganizationId as string, userData.id);
     },
 })

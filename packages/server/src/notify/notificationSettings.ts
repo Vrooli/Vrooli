@@ -53,34 +53,50 @@ export const parseNotificationSettings = (settingsJson: string | null): Notifica
 }
 
 /**
- * Finds the current notification settings for a user
+ * Finds the current notification settings for a list of users
  * @param prisma Prisma client
- * @param userId ID of the user
- * @returns Notification settings for the user
+ * @param userIds IDs of the users
+ * @returns Notification settings for each user, in the same order as the IDs
  */
-export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, userId: string): Promise<{
-    settings: NotificationSettings,
-} & NotificationRecipients> => {
-    // Get the current notification settings
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { 
+export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, userIds: string[]): Promise<Array<{ settings: NotificationSettings } & NotificationRecipients>> => {
+    // Initialize results array
+    const results: Array<{ settings: NotificationSettings } & NotificationRecipients> = [];
+    // Get the current notification settings for each user
+    const usersData = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: {
+            id: true,
             notificationSettings: true,
             notificationDevices: true,
             emails: true,
         }
     });
-    const settings: NotificationSettings = user?.notificationSettings ? parseNotificationSettings(user.notificationSettings) : defaultSettings;
-    return {
-        settings,
-        pushDevices: user?.notificationDevices ?? [],
-        emails: user?.emails ?? [],
-        phoneNumbers: [],
+    // If no results, return default settings
+    if (!usersData) return Array(userIds.length).fill({ settings: defaultSettings, pushDevices: [], emails: [], phoneNumbers: [] });
+    // For each user, parse the notification settings and add to the results array
+    for (let i = 0; i < userIds.length; i++) {
+        // Find queried user data
+        const user = usersData.find(u => u.id === userIds[i]);
+        // If no user data, return default settings
+        if (!user) {
+            results.push({ settings: defaultSettings, pushDevices: [], emails: [], phoneNumbers: [] });
+            continue;
+        }
+        // Parse the notification settings
+        const settings = parseNotificationSettings(user.notificationSettings);
+        // Add to results array
+        results.push({
+            settings,
+            pushDevices: user.notificationDevices,
+            emails: user.emails,
+            phoneNumbers: [],
+        });
     }
+    return results;
 }
 
 /**
- * Updates the notification settings of a user
+ * Updates the notification settings of one user
  * @param settings The new notification settings, or partial notification settings
  * @param prisma The prisma client
  * @param userId The id of the user
@@ -91,7 +107,8 @@ export const updateNotificationSettings = async (
     prisma: PrismaType,
     userId: string): Promise<NotificationSettings> => {
     // Get the current notification settings
-    const { settings: currentSettings } = await getNotificationSettingsAndRecipients(prisma, userId);
+    const settingsAndData = await getNotificationSettingsAndRecipients(prisma, [userId]);
+    const currentSettings = settingsAndData[0].settings;
     // Merge the new settings with the current settings, making sure to handle nested objects.
     // For example, { category: { 'Transfer': { enabled: true } } } merged with 
     // { category: { 'Transfer': { dailyLimit: 10 } } } should result in
@@ -117,46 +134,60 @@ export const updateNotificationSettings = async (
  * finds out maximum number of notifications that can be sent in a day.
  * @param category The category of the notification
  * @param prisma The prisma client
- * @param userId The id of the user
+ * @param userIds The ids of the users
  */
 export const findRecipientsAndLimit = async (
     category: NotificationCategory,
     prisma: PrismaType,
-    userId: string
-): Promise<NotificationRecipients & { dailyLimit?: number }> => {
+    userIds: string[]
+): Promise<Array<NotificationRecipients & { dailyLimit?: number }>> => {
     // Initialize the return object
-    const result: NotificationRecipients & { dailyLimit?: number } = { pushDevices: [], emails: [], phoneNumbers: [] };
+    const result: Array<NotificationRecipients & { dailyLimit?: number }> = [];
     // Get the current notification settings and recipients
-    let { settings, pushDevices, emails, phoneNumbers } = await getNotificationSettingsAndRecipients(prisma, userId);
-    // If the user has disabled notifications, return empty arrays
-    if (!settings.enabled) return result;
-    // Set limit
-    if (settings.dailyLimit) result.dailyLimit = settings.dailyLimit;
-    // If the category is not enabled, return empty arrays
-    if (settings.categories && settings.categories[category] && !settings.categories[category].enabled) return result;
-    // Add included devices, emails, and numbers to the return object
-    if (settings.includedDeviceIds && settings.toPush !== false) {
-        result.pushDevices = pushDevices.filter(device => settings.includedDeviceIds?.includes(device.id));
-    } else {
-        result.pushDevices = pushDevices;
-    }
-    if (settings.includedEmails && settings.toEmails !== false) {
-        result.emails = emails.filter(email => settings.includedEmails?.includes(email.id));
-    } else {
-        result.emails = emails;
-    }
-    if (settings.includedSms && settings.toSms !== false) {
-        result.phoneNumbers = phoneNumbers.filter(phoneNumber => settings.includedSms?.includes(phoneNumber.id));
-    } else {
-        result.phoneNumbers = phoneNumbers;
-    }
-    // Exclude any recipient types that are not enabled for the category
-    if (settings.categories && settings.categories[category]) {
-        const categoryData = settings.categories[category];
-        if (categoryData.toPush === false) result.pushDevices = [];
-        if (categoryData.toEmails === false) result.emails = [];
-        if (categoryData.toSms === false) result.phoneNumbers = [];
-        if (categoryData.dailyLimit) result.dailyLimit = categoryData.dailyLimit;
+    let allData = await getNotificationSettingsAndRecipients(prisma, userIds);
+    // For each user, find the recipients and daily limit
+    for (let i = 0; i < userIds.length; i++) {
+        // Initialize the return object for this user
+        const userResult: NotificationRecipients & { dailyLimit?: number } = { pushDevices: [], emails: [], phoneNumbers: [] };
+        const { settings, pushDevices, emails, phoneNumbers } = allData[i];
+        // If the user has disabled notifications, return empty arrays
+        if (!settings.enabled) {
+            result.push(userResult);
+            continue;
+        }
+        // Set limit
+        if (settings.dailyLimit) userResult.dailyLimit = settings.dailyLimit;
+        // If the category is not enabled, return empty arrays
+        if (settings.categories && settings.categories[category] && !settings.categories[category].enabled) {
+            result.push(userResult);
+            continue;
+        }
+        // Add included devices, emails, and numbers to the return object
+        if (settings.includedDeviceIds && settings.toPush !== false) {
+            userResult.pushDevices = pushDevices.filter(device => settings.includedDeviceIds?.includes(device.id));
+        } else {
+            userResult.pushDevices = pushDevices;
+        }
+        if (settings.includedEmails && settings.toEmails !== false) {
+            userResult.emails = emails.filter(email => settings.includedEmails?.includes(email.id));
+        } else {
+            userResult.emails = emails;
+        }
+        if (settings.includedSms && settings.toSms !== false) {
+            userResult.phoneNumbers = phoneNumbers.filter(phoneNumber => settings.includedSms?.includes(phoneNumber.id));
+        } else {
+            userResult.phoneNumbers = phoneNumbers;
+        }
+        // Exclude any recipient types that are not enabled for the category
+        if (settings.categories && settings.categories[category]) {
+            const categoryData = settings.categories[category];
+            if (categoryData.toPush === false) userResult.pushDevices = [];
+            if (categoryData.toEmails === false) userResult.emails = [];
+            if (categoryData.toSms === false) userResult.phoneNumbers = [];
+            if (categoryData.dailyLimit) userResult.dailyLimit = categoryData.dailyLimit;
+        }
+        // Add to results array
+        result.push(userResult);
     }
     return result;
 }

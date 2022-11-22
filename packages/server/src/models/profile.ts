@@ -182,7 +182,7 @@ export const profileVerifier = () => ({
         if (user.status === AccountStatus.HardLocked)
             throw new CustomError('0060', 'HardLockout', req.languages);
         if (user.status === AccountStatus.SoftLocked)
-            throw new CustomError('0330', 'SoftLockout', req.languages);
+            throw new CustomError('0331', 'SoftLockout', req.languages);
         if (user.status === AccountStatus.Deleted)
             throw new CustomError('0061', 'AccountDeleted', req.languages);
         // If password is valid
