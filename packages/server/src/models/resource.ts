@@ -1,19 +1,18 @@
-import { resourceCreate, resourcesCreate, resourcesUpdate, resourceUpdate } from "@shared/validation";
+import { resourcesCreate, resourcesUpdate } from "@shared/validation";
 import { ResourceSortBy } from "@shared/consts";
-import { combineQueries, permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
-import { TranslationModel } from "./translation";
-import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput } from "../schema/types";
+import { combineQueries, permissionsSelectHelper } from "./builder";
+import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
-import { cudHelper } from "./actions";
-import { resourceListValidator } from "./resourceList";
+import { ResourceListModel } from "./resourceList";
+import { translationRelationshipBuilder } from "./utils";
 
-export const resourceFormatter = (): FormatConverter<Resource, any> => ({
+const formatter = (): Formatter<Resource, any> => ({
     relationshipMap: { __typename: 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
 })
 
-export const resourceSearcher = (): Searcher<
+const searcher = (): Searcher<
     ResourceSearchInput,
     ResourceSortBy,
     Prisma.resourceOrderByWithRelationInput,
@@ -43,7 +42,7 @@ export const resourceSearcher = (): Searcher<
     },
 })
 
-export const resourceValidator = (): Validator<
+const validator = (): Validator<
     ResourceCreateInput,
     ResourceUpdateInput,
     Resource,
@@ -56,85 +55,73 @@ export const resourceValidator = (): Validator<
         __typename: 'Resource',
         list: 'ResourceList',
     },
-    permissionsSelect: (userId) => ({
+    permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
             ['list', 'ResourceList'],
-        ], userId)
+        ], ...params)
     }),
-    permissionResolvers: (params) => resourceListValidator().permissionResolvers(params),
-    owner: (data) => resourceListValidator().owner(data.list as any),
+    permissionResolvers: (params) => ResourceListModel.validate.permissionResolvers(params),
+    owner: (data) => ResourceListModel.validate.owner(data.list as any),
     isDeleted: () => false,
-    isPublic: (data) => resourceListValidator().isPublic(data.list as any),
+    isPublic: (data, languages) => ResourceListModel.validate.isPublic(data.list as any, languages),
     ownerOrMemberWhere: (userId) => ({
-        list: resourceListValidator().ownerOrMemberWhere(userId),
+        list: ResourceListModel.validate.ownerOrMemberWhere(userId),
     }),
 })
 
-export const resourceMutater = (prisma: PrismaType): Mutater<Resource> => ({
-    shapeBase(userId: string, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) {
-        return {
-            id: data.id,
-            index: data.index,
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceCreate, update: resourceUpdate }, isAdd),
-        };
+const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) => {
+    return {
+        id: data.id,
+        index: data.index,
+        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+        usedFor: data.usedFor ?? undefined,
+    }
+}
+
+const mutater = (): Mutater<
+    Resource,
+    { graphql: ResourceCreateInput, db: Prisma.resourceUpsertArgs['create'] },
+    { graphql: ResourceUpdateInput, db: Prisma.resourceUpsertArgs['update'] },
+    { graphql: ResourceCreateInput, db: Prisma.resourceCreateWithoutListInput },
+    { graphql: ResourceUpdateInput, db: Prisma.resourceUpdateWithoutListInput }
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => {
+            return {
+                ...await shapeBase(prisma, userData, data, true),
+                link: data.link,
+                listId: data.listId,
+            };
+        },
+        update: async ({ data, prisma, userData }) => {
+            return {
+                ...await shapeBase(prisma, userData, data, false),
+                link: data.link ?? undefined,
+                listId: data.listId ?? undefined,
+            };
+        },
+        relCreate: async ({ data, prisma, userData }) => {
+            return {
+                ...await shapeBase(prisma, userData, data, true),
+                link: data.link,
+            }
+        },
+        relUpdate: async ({ data, prisma, userData }) => {
+            return {
+                ...await shapeBase(prisma, userData, data, false),
+                link: data.link ?? undefined,
+            }
+        }
     },
-    shapeRelationshipCreate(userId: string, data: ResourceCreateInput): Prisma.resourceCreateWithoutListInput {
-        return {
-            ...this.shapeBase(userId, data, true),
-            link: data.link,
-            usedFor: data.usedFor,
-        };
-    },
-    shapeRelationshipUpdate(userId: string, data: ResourceUpdateInput): Prisma.resourceUpdateWithoutListInput {
-        return {
-            ...this.shapeBase(userId, data, false),
-            link: data.link ?? undefined,
-            usedFor: data.usedFor ?? undefined,
-        };
-    },
-    shapeCreate(userId: string, data: ResourceCreateInput & { listId: string }): Prisma.resourceUpsertArgs['create'] {
-        return {
-            ...this.shapeRelationshipCreate(userId, data),
-            listId: data.listId,
-        };
-    },
-    shapeUpdate(userId: string, data: ResourceUpdateInput): Prisma.resourceUpsertArgs['update'] {
-        return {
-            ...this.shapeRelationshipUpdate(userId, data),
-        };
-    },
-    relationshipBuilder(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-        relationshipName: string = 'resources',
-    ): Promise<{ [x: string]: any } | undefined> {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName,
-            isAdd,
-            isTransferable: false,
-            shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
-            userId,
-        });
-    },
-    async cud(params: CUDInput<ResourceCreateInput & { listId: string }, ResourceUpdateInput>): Promise<CUDResult<Resource>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Resource',
-            prisma,
-            yup: { yupCreate: resourcesCreate, yupUpdate: resourcesUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
-        })
-    },
+    yup: { create: resourcesCreate, update: resourcesUpdate },
 })
 
 export const ResourceModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.resource,
-    format: resourceFormatter(),
-    mutate: resourceMutater,
-    search: resourceSearcher(),
+    delegate: (prisma: PrismaType) => prisma.resource,
+    format: formatter(),
+    mutate: mutater(),
+    search: searcher(),
     type: 'Resource' as GraphQLModelType,
-    validate: resourceValidator(),
+    validate: validator(),
 })

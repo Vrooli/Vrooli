@@ -100,12 +100,12 @@ export async function maxObjectsCheck(
             // Get auth data
             const authData = authDataById[id]
             // Get validator
-            const validator = getValidator(authData.__typename, 'maxObjectsCheck-create')
+            const validator = getValidator(authData.__typename, userData.languages, 'maxObjectsCheck-create')
             // Find owner and object type
             const owners = validator.owner(authData);
             // Increment count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
-            if (!ownerId) throw new CustomError('InternalError', 'Could not find owner ID for object', { trace: '0310' });
+            if (!ownerId) throw new CustomError('0310', 'InternalError', userData.languages);
             counts[authData.__typename] = counts[authData.__typename] || {}
             counts[authData.__typename]![ownerId] = (counts[authData.__typename]![ownerId] || 0) + 1
         }
@@ -116,12 +116,12 @@ export async function maxObjectsCheck(
             // Get auth data
             const authData = authDataById[id]
             // Get validator
-            const validator = getValidator(authData.__typename, 'maxObjectsCheck-delete')
+            const validator = getValidator(authData.__typename, userData.languages, 'maxObjectsCheck-delete')
             // Find owner and object type
             const owners = validator.owner(authData);
             // Decrement count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
-            if (!ownerId) throw new CustomError('InternalError', 'Could not find owner ID for object', { trace: '0311' });
+            if (!ownerId) throw new CustomError('0311', 'InternalError', userData.languages);
             counts[authData.__typename] = counts[authData.__typename] || {}
             counts[authData.__typename]![ownerId] = (counts[authData.__typename]![ownerId] || 0) - 1
         }

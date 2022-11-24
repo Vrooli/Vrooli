@@ -1,22 +1,21 @@
 import { PrismaType } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission } from "../schema/types";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission, SessionUser } from "../schema/types";
 import { addJoinTablesHelper, removeJoinTablesHelper, addCountFieldsHelper, removeCountFieldsHelper, onlyValidIds, visibilityBuilder, combineQueries } from "./builder";
-import { organizationsCreate, organizationsUpdate, organizationTranslationCreate, organizationTranslationUpdate } from "@shared/validation";
+import { organizationsCreate, organizationsUpdate } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
-import { TranslationModel } from "./translation";
-import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
-import { cudHelper } from "./actions";
-import { Trigger } from "../events";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
 import { getSingleTypePermissions } from "./validators";
+import { uuid } from "@shared/uuid";
+import { relBuilderHelper } from "./actions";
+import { translationRelationshipBuilder } from "./utils";
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
 const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
 type SupplementalFields = 'isStarred' | 'isViewed' | 'permissionsOrganization';
-export const organizationFormatter = (): FormatConverter<Organization, SupplementalFields> => ({
+const formatter = (): Formatter<Organization, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Organization',
         comments: 'Comment',
@@ -36,14 +35,14 @@ export const organizationFormatter = (): FormatConverter<Organization, Supplemen
     supplemental: {
         graphqlFields: ['isStarred', 'isViewed', 'permissionsOrganization'],
         toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Organization')],
-            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userData?.id, ids, 'Organization')],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Organization')],
+            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'Organization')],
             ['permissionsOrganization', async () => await getSingleTypePermissions('Organization', ids, prisma, userData)],
         ],
     },
 })
 
-export const organizationSearcher = (): Searcher<
+const searcher = (): Searcher<
     OrganizationSearchInput,
     OrganizationSortBy,
     Prisma.organizationOrderByWithRelationInput,
@@ -84,7 +83,7 @@ export const organizationSearcher = (): Searcher<
     },
 })
 
-export const organizationValidator = (): Validator<
+const validator = (): Validator<
     OrganizationCreateInput,
     OrganizationUpdateInput,
     Organization,
@@ -140,18 +139,9 @@ export const organizationValidator = (): Validator<
     owner: (data) => ({
         Organization: data,
     }),
-    // isAdmin: (data, userId) => {
-    //     // If no userId, can't be admin
-    //     if (!userId) return false;
-    //     // Convert stringified permissions to object
-    //     const orgPermissions: OrganizationPolicy = asdfasfd;
-    //     const rolePermissions: RolePolicy[] = fdsafdas;
-    //     const memberPermissions: MemberPolicy | null = fdasfsd;
-    //     return true;// TODO
-    // },
     isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false,
-    ownerOrMemberWhere: (userId) => organizationQuerier().hasRoleInOrganizationQuery(userId).organization,
+    ownerOrMemberWhere: (userId) => querier().hasRoleInOrganizationQuery(userId).organization,
     // if (!createMany && !updateMany && !deleteMany) return;
     // if (createMany) {
     //     createMany.forEach(input => lineBreaksCheck(input, ['bio'], CODE.LineBreaksBio));
@@ -164,7 +154,7 @@ export const organizationValidator = (): Validator<
     // }
 })
 
-export const organizationQuerier = () => ({
+const querier = () => ({
     /**
      * Query for checking if a user has a specific role in an organization
      */
@@ -204,58 +194,66 @@ export const organizationQuerier = () => ({
     },
 })
 
-export const organizationMutater = (prisma: PrismaType): Mutater<Organization> => ({
-    async shapeBase(userId: string, data: OrganizationCreateInput | OrganizationUpdateInput) {
-        return {
-            id: data.id,
-            handle: data.handle ?? undefined,
-            isOpenToNewMembers: data.isOpenToNewMembers ?? undefined,
-            isPrivate: data.isPrivate ?? undefined,
-            permissions: JSON.stringify({}),
-            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder!(userId, data, false),
-            tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userId, data, 'Organization'),
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: organizationTranslationCreate, update: organizationTranslationUpdate }, false),
-        }
-    },
-    async shapeCreate(userId: string, data: OrganizationCreateInput): Promise<Prisma.organizationUpsertArgs['create']> {
-        // Add yourself as a member
-        const members = { members: { create: { user: { connect: { id: userId } } } } };
-        // Create an Admin role assignment for yourself
-        const roles = { roles: { create: { title: 'Admin', assignees: { create: { user: { connect: { id: userId } } } } } } };
-        return {
-            ...members,
-            ...roles,
-            ...this.shapeBase(userId, data),
-        }
-    },
-    async shapeUpdate(userId: string, data: OrganizationUpdateInput): Promise<Prisma.organizationUpsertArgs['update']> {
-        // TODO members
-        return {
-            ...this.shapeBase(userId, data),
-        }
-    },
-    async cud(params: CUDInput<OrganizationCreateInput, OrganizationUpdateInput>): Promise<CUDResult<Organization>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Organization',
-            prisma,
-            yup: { yupCreate: organizationsCreate, yupUpdate: organizationsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            onCreated: (created) => {
-                for (const c of created) {
-                    Trigger(prisma).objectCreate('Organization', c.id as string, params.userData.id);
+const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: OrganizationCreateInput | OrganizationUpdateInput, isAdd: boolean) => {
+    return {
+        id: data.id,
+        handle: data.handle ?? undefined,
+        isOpenToNewMembers: data.isOpenToNewMembers ?? undefined,
+        isPrivate: data.isPrivate ?? undefined,
+        permissions: JSON.stringify({}),
+        resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
+        tags: await TagModel.mutate.relationshipBuilder!(prisma, userData.id, data, 'Organization'),
+        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+    }
+}
+
+const mutater = (): Mutater<
+    Organization,
+    { graphql: OrganizationCreateInput, db: Prisma.organizationUpsertArgs['create'] },
+    { graphql: OrganizationUpdateInput, db: Prisma.organizationUpsertArgs['update'] },
+    false,
+    false
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => {
+            // ID for your member record
+            const memberId = uuid();
+            return {
+                ...(await shapeBase(prisma, userData, data, true)),
+                // Add yourself as a member
+                members: {
+                    create: {
+                        id: memberId,
+                        permissions: JSON.stringify({}), //TODO
+                        user: { connect: { id: userData.id } }
+                    }
+                },
+                // Give yourself an Admin role
+                roles: {
+                    create: {
+                        title: 'Admin',
+                        permissions: JSON.stringify({}), //TODO
+                        assignees: { connect: { id: memberId } }
+                    }
                 }
-            },
-        })
+            }
+        },
+        update: async ({ data, prisma, userData }) => {
+            // TODO members
+            return {
+                ...(await shapeBase(prisma, userData, data, false)),
+            }
+        }
     },
+    yup: { create: organizationsCreate, update: organizationsUpdate },
 })
 
 export const OrganizationModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.organization,
-    format: organizationFormatter(),
-    mutate: organizationMutater,
-    search: organizationSearcher(),
-    query: organizationQuerier,
+    delegate: (prisma: PrismaType) => prisma.organization,
+    format: formatter(),
+    mutate: mutater(),
+    search: searcher(),
+    query: querier(),
     type: 'Organization' as GraphQLModelType,
-    validate: organizationValidator(),
+    validate: validator(),
 })

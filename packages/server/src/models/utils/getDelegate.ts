@@ -9,12 +9,12 @@ import { GraphQLModelType, PrismaDelegate } from "../types";
 export function getDelegate(
     objectType: GraphQLModelType,
     prisma: PrismaType,
+    languages: string[],
     errorTrace: string,
 ): PrismaDelegate {
-    // Find validator and prisma delegate for this object type
-    const prismaDelegate: PrismaDelegate | undefined = ObjectMap[objectType]?.prismaObject!(prisma);
+    const prismaDelegate: PrismaDelegate | undefined = ObjectMap[objectType]?.delegate!(prisma);
     if (!prismaDelegate) {
-        throw new CustomError('InvalidArgs', `Invalid object type in ${errorTrace}: ${objectType}`, { trace: '0281' });
+        throw new CustomError('0281', 'InvalidArgs', languages, { errorTrace, objectType });
     }
     return prismaDelegate;
 }

@@ -1,28 +1,26 @@
-import { standardsCreate, standardsUpdate, standardTranslationCreate, standardTranslationUpdate } from "@shared/validation";
+import { standardsCreate, standardsUpdate } from "@shared/validation";
 import { StandardSortBy } from "@shared/consts";
 import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { TranslationModel } from "./translation";
 import { ViewModel } from "./view";
-import { ResourceListModel } from "./resourceList";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
+import { Formatter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/walletAuth";
 import { Trigger } from "../events";
-import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput } from "../schema/types";
+import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
-import { oneIsPublic } from "./utils";
-import { organizationQuerier } from "./organization";
-import { cudHelper } from "./actions";
+import { oneIsPublic, translationRelationshipBuilder } from "./utils";
 import { getSingleTypePermissions } from "./validators";
+import { OrganizationModel } from "./organization";
+import { relBuilderHelper } from "./actions";
 
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsStandard' | 'versions';
-export const standardFormatter = (): FormatConverter<Standard, SupplementalFields> => ({
+const formatter = (): Formatter<Standard, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Standard',
         comments: 'Comment',
@@ -47,9 +45,9 @@ export const standardFormatter = (): FormatConverter<Standard, SupplementalField
     supplemental: {
         graphqlFields: ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'],
         toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Standard')],
-            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userData?.id, ids, 'Standard')],
-            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userData?.id, ids, 'Standard')],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Standard')],
+            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Standard')],
+            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'Standard')],
             ['permissionsStandard', async () => await getSingleTypePermissions('Standard', ids, prisma, userData)],
             ['versions', async () => {
                 const groupData = await prisma.standard.findMany({
@@ -62,7 +60,7 @@ export const standardFormatter = (): FormatConverter<Standard, SupplementalField
     },
 })
 
-export const standardSearcher = (): Searcher<
+const searcher = (): Searcher<
     StandardSearchInput,
     StandardSortBy,
     Prisma.standard_versionOrderByWithRelationInput,
@@ -121,7 +119,7 @@ export const standardSearcher = (): Searcher<
     },
 })
 
-export const standardValidator = (): Validator<
+const validator = (): Validator<
     StandardCreateInput,
     StandardUpdateInput,
     Standard,
@@ -142,7 +140,7 @@ export const standardValidator = (): Validator<
         forks: 'Standard',
         // directoryListings: 'ProjectDirectory',
     },
-    permissionsSelect: (userId) => ({
+    permissionsSelect: (...params) => ({
         id: true,
         isComplete: true,
         isPrivate: true,
@@ -156,7 +154,7 @@ export const standardValidator = (): Validator<
                 ...permissionsSelectHelper([
                     ['organization', 'Organization'],
                     ['user', 'User'],
-                ], userId)
+                ], ...params)
             }
         }
     }),
@@ -174,19 +172,19 @@ export const standardValidator = (): Validator<
         User: (data.root as any).user,
     }),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-    isPublic: (data) => data.isPrivate === false &&
+    isPublic: (data, languages) => data.isPrivate === false &&
         data.isDeleted === false &&
         data.root?.isDeleted === false &&
         data.root?.isInternal === false &&
         data.root?.isPrivate === false && oneIsPublic<Prisma.standardSelect>(data.root, [
             ['organization', 'Organization'],
             ['user', 'User'],
-        ]),
+        ], languages),
     profanityFields: ['name'],
     ownerOrMemberWhere: (userId) => ({
         root: {
             OR: [
-                organizationQuerier().hasRoleInOrganizationQuery(userId),
+                OrganizationModel.query.hasRoleInOrganizationQuery(userId),
                 { user: { id: userId } }
             ]
         }
@@ -206,24 +204,26 @@ export const standardValidator = (): Validator<
     // })
 })
 
-export const standardQuerier = (prisma: PrismaType) => ({
+const querier = () => ({
     /**
      * Checks for existing standards with the same shape. Useful to avoid duplicates
+     * @param prisma Prisma client
      * @param data StandardCreateData to check
-     * @param userId The ID of the user creating the standard
+     * @param userData The ID of the user creating the standard
      * @param uniqueToCreator Whether to check if the standard is unique to the user/organization 
      * @param isInternal Used to determine if the standard should show up in search results
      * @returns data of matching standard, or null if no match
      */
     async findMatchingStandardVersion(
+        prisma: PrismaType,
         data: StandardCreateInput,
-        userId: string,
+        userData: SessionUser,
         uniqueToCreator: boolean,
         isInternal: boolean
     ): Promise<{ [x: string]: any } | null> {
         // Sort all JSON properties that are part of the comparison
-        const props = sortify(data.props);
-        const yup = data.yup ? sortify(data.yup) : null;
+        const props = sortify(data.props, userData.languages);
+        const yup = data.yup ? sortify(data.yup, userData.languages) : null;
         // Find all standards that match the given standard
         const standards = await prisma.standard_version.findMany({
             where: {
@@ -231,7 +231,7 @@ export const standardQuerier = (prisma: PrismaType) => ({
                     isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
                     isDeleted: false,
                     isPrivate: false,
-                    createdByUserId: (uniqueToCreator && !data.createdByOrganizationId) ? userId : undefined,
+                    createdByUserId: (uniqueToCreator && !data.createdByOrganizationId) ? userData.id : undefined,
                     createdByOrganizationId: (uniqueToCreator && data.createdByOrganizationId) ? data.createdByOrganizationId : undefined,
                 },
                 default: data.default ?? null,
@@ -249,11 +249,13 @@ export const standardQuerier = (prisma: PrismaType) => ({
     /**
      * Checks if a standard exists that has the same createdByUserId, 
      * createdByOrganizationId, and name
+     * @param prisma Prisma client
      * @param data StandardCreateData to check
      * @param userId The ID of the user creating the standard
      * @returns data of matching standard, or null if no match
      */
     async findMatchingStandardName(
+        prisma: PrismaType,
         data: StandardCreateInput & { name: string },
         userId: string
     ): Promise<{ [x: string]: any } | null> {
@@ -275,11 +277,12 @@ export const standardQuerier = (prisma: PrismaType) => ({
     /**
      * Generates a valid name for a standard.
      * Standards must have a unique name per user/organization
+     * @param prisma Prisma client
      * @param userId The user's ID
      * @param data The standard create data
      * @returns A valid name for the standard
      */
-    async generateName(userId: string, data: StandardCreateInput): Promise<string> {
+    async generateName(prisma: PrismaType, userId: string, data: StandardCreateInput): Promise<string> {
         // Created by query
         const id = data.createdByOrganizationId ?? data.createdByUserId ?? userId
         const createdBy = { [`createdBy${data.createdByOrganizationId ? 'Organization' : 'User'}Id`]: id };
@@ -306,85 +309,108 @@ export const standardQuerier = (prisma: PrismaType) => ({
     }
 })
 
-export const standardMutater = (prisma: PrismaType): Mutater<Standard> => ({
-    async shapeBase(userId: string, data: StandardCreateInput | StandardUpdateInput) {
-        return {
-            root: {
-                isPrivate: data.isPrivate ?? undefined,
-                tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userId, data, 'Standard'),
-            },
+const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: StandardCreateInput | StandardUpdateInput, isAdd: boolean) => {
+    return {
+        root: {
             isPrivate: data.isPrivate ?? undefined,
-            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder!(userId, data, true),
-        }
-    },
-    async shapeRelationshipCreate(userId: string, data: StandardCreateInput): Promise<Prisma.standard_versionUpsertArgs['create']> {
-        let translations = TranslationModel.relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, true)
-        if (translations?.jsonVariable) {
-            translations.jsonVariable = sortify(translations.jsonVariable);
-        }
-        const base = await this.shapeBase(userId, data,);
-        return {
-            ...base,
-            root: {
-                create: {
-                    ...base.root,
-                    isInternal: data.isInternal ?? false,
-                    name: await standardQuerier(prisma).generateName(userId, data),
-                    permissions: JSON.stringify({}),
+            tags: await TagModel.mutate.relationshipBuilder(prisma, userData, data, 'Standard'),
+        },
+        isPrivate: data.isPrivate ?? undefined,
+        resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
+    }
+}
+
+const mutater = (): Mutater<
+    Standard,
+    { graphql: StandardCreateInput, db: Prisma.standard_versionUpsertArgs['create'] },
+    { graphql: StandardUpdateInput, db: Prisma.standard_versionUpsertArgs['update'] },
+    { graphql: StandardCreateInput, db: Prisma.standard_versionCreateWithoutRootInput },
+    { graphql: StandardUpdateInput, db: Prisma.standard_versionUpdateWithoutRootInput }
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => {
+            const base = await shapeBase(prisma, userData, data, true);
+            // If jsonVariables defined, sort them
+            let translations = await translationRelationshipBuilder(prisma, userData, data, true)
+            if (translations?.create?.length) {
+                translations.create = translations.create.map(t => {
+                    t.jsonVariables = sortify(t.jsonVariables, userData.languages);
+                    return t;
+                })
+            }
+            return {
+                ...base,
+                root: {
+                    create: {
+                        ...base.root,
+                        isInternal: data.isInternal ?? undefined,
+                        name: data.name ?? await querier().generateName(prisma, userData.id, data),
+                        permissions: JSON.stringify({}), //TODO
+                        createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                        organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                        createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                        user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                    },
                 },
-            },
-            default: data.default ?? undefined,
-            versionLabel: data.versionLabel ?? '1.0.0',
-            type: data.type,
-            props: sortify(data.props),
-            yup: data.yup ? sortify(data.yup) : undefined,
-            translations,
-        }
-    },
-    async shapeRelationshipUpdate(userId: string, data: StandardUpdateInput): Promise<Prisma.standard_versionUpsertArgs['update']> {
-        let translations = TranslationModel.relationshipBuilder(userId, data, { create: standardTranslationCreate, update: standardTranslationUpdate }, false)
-        if (translations?.jsonVariable) {
-            translations.jsonVariable = sortify(translations.jsonVariable);
-        }
-        const base = await this.shapeBase(userId, data);
-        return {
-            ...base,
-            root: {
-                update: {
-                    ...base.root,
+                default: data.default ?? undefined,
+                props: sortify(data.props, userData.languages),
+                yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+                type: data.type,
+                translations,
+            }
+        },
+        update: async ({ data, prisma, userData }) => {
+            const base = await shapeBase(prisma, userData, data, false);
+            // If jsonVariables defined, sort them
+            let translations = await translationRelationshipBuilder(prisma, userData, data, false)
+            if (translations?.update?.length) {
+                translations.update = translations.update.map(t => {
+                    t.data = {
+                        ...t.data,
+                        jsonVariables: sortify(t.data.jsonVariables, userData.languages),
+                    }
+                    return t;
+                })
+            }
+            if (translations?.create?.length) {
+                translations.create = translations.create.map(t => {
+                    t.jsonVariables = sortify(t.jsonVariables, userData.languages);
+                    return t;
+                })
+            }
+            return {
+                ...base,
+                root: {
+                    update: {
+                        ...base.root,
+                        organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+                        user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+                    },
                 },
-            },
-            translations,
-        }
+                translations,
+            }
+        },
+        relCreate: mutater().shape.create,
+        relUpdate: mutater().shape.update,
     },
-    async shapeCreate(userId: string, data: StandardCreateInput): Promise<Prisma.standard_versionUpsertArgs['create']> {
-        const base: any = await this.shapeRelationshipCreate(userId, data);
-        return {
-            ...base,
-            root: {
-                create: {
-                    ...base.root.create,
-                    createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                    organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                    createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                    user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                },
-            },
-        } as any
+    trigger: {
+        onCreated: ({ created, prisma, userData }) => {
+            for (const c of created) {
+                Trigger(prisma, userData.languages).objectCreate('Standard', c.id as string, userData.id);
+            }
+        },
+        onUpdated: ({ prisma, updated, updateInput, userData }) => {
+            for (let i = 0; i < updated.length; i++) {
+                const u = updated[i];
+                const input = updateInput[i];
+                // Check if version changed
+                if (input.versionLabel && u.isComplete) {
+                    Trigger(prisma, userData.languages).objectNewVersion('Standard', u.id as string, userData.id);
+                }
+            }
+        },
     },
-    async shapeUpdate(userId: string, data: StandardUpdateInput): Promise<Prisma.standard_versionUpsertArgs['update']> {
-        const base: any = await this.shapeRelationshipUpdate(userId, data);
-        return {
-            ...base,
-            root: {
-                update: {
-                    ...base.root.update,
-                    organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                    user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-                },
-            },
-        }
-    },
+    yup: { create: standardsCreate, update: standardsUpdate },
     /**
      * Add, update, or remove a one-to-one standard relationship. 
      * Due to some unknown Prisma bug, it won't let us create/update a standard directly
@@ -417,7 +443,7 @@ export const standardMutater = (prisma: PrismaType): Mutater<Standard> => ({
             // Find shapes of all initial standards
             for (const standard of initialCombined) {
                 const initialShape = await this.shapeCreate(userId, standard);
-                const exists = await standardQuerier(prisma).findMatchingStandardVersion(standard, userId, true, false)
+                const exists = await querier().findMatchingStandardVersion(prisma, standard, userId, true, false)
                 if (exists) existingIds.push(exists.id);
             }
             // All existing shapes are the new connects
@@ -432,38 +458,14 @@ export const standardMutater = (prisma: PrismaType): Mutater<Standard> => ({
             shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
         });
     },
-    async cud(params: CUDInput<StandardCreateInput, StandardUpdateInput>): Promise<CUDResult<Standard>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Standard',
-            prisma,
-            yup: { yupCreate: standardsCreate, yupUpdate: standardsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            onCreated: (created) => {
-                for (const c of created) {
-                    Trigger(prisma).objectCreate('Standard', c.id as string, params.userData.id);
-                }
-            },
-            onUpdated: (updatedData, updateInput) => {
-                for (let i = 0; i < updatedData.length; i++) {
-                    const u = updatedData[i];
-                    const input = updateInput[i];
-                    // Check if version changed
-                    if (input.versionLabel && u.isComplete) {
-                        Trigger(prisma).objectNewVersion('Standard', u.id as string, params.userData.id);
-                    }
-                }
-            }
-        })
-    },
 })
 
 export const StandardModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.standard_version,
-    format: standardFormatter(),
-    mutate: standardMutater,
-    query: standardQuerier,
-    search: standardSearcher(),
+    delegate: (prisma: PrismaType) => prisma.standard_version,
+    format: formatter(),
+    mutate: mutater(),
+    query: querier(),
+    search: searcher(),
     type: 'Standard' as GraphQLModelType,
-    validate: standardValidator(),
+    validate: validator(),
 })

@@ -232,10 +232,10 @@ export function getMultiTypePermissions(
     // Loop through each ID and calculate permissions
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
-        const validator = getValidator(authDataById[id].__typename, 'getMultiplePermissions');
+        const validator = getValidator(authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
         const isAdmin = isOwnerAdminCheck(validator.owner(authDataById[id]), userData?.id);
-        const isDeleted = validator.isDeleted(authDataById[id]);
-        const isPublic = validator.isPublic(authDataById[id]);
+        const isDeleted = validator.isDeleted(authDataById[id], userData?.languages ?? ['en']);
+        const isPublic = validator.isPublic(authDataById[id], userData?.languages ?? ['en']);
         const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
@@ -262,18 +262,18 @@ export async function getSingleTypePermissions<PermissionObject extends { [x: st
     // Initialize result
     const permissions: PermissionObject[] = [];
     // Get validator and prismaDelegate
-    const validator = getValidator(type, 'getSingleTypePermissions');
-    const prismaDelegate = getDelegate(type, prisma, 'getSingleTypePermissions');
+    const validator = getValidator(type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
+    const prismaDelegate = getDelegate(type, prisma, userData?.languages ?? ['en'], 'getSingleTypePermissions');
     // Get auth data for all objects
     const authData = await prismaDelegate.findMany({
         where: { id: { in: ids } },
-        select: validator.permissionsSelect(userData?.id ?? null),
+        select: validator.permissionsSelect(userData?.id ?? null, userData?.languages ?? ['en']),
     })
     // Loop through each object and calculate permissions
     for (const authDataItem of authData) {
         const isAdmin = isOwnerAdminCheck(validator.owner(authDataItem), userData?.id);
-        const isDeleted = validator.isDeleted(authDataItem);
-        const isPublic = validator.isPublic(authDataItem);
+        const isDeleted = validator.isDeleted(authDataItem, userData?.languages ?? ['en']);
+        const isPublic = validator.isPublic(authDataItem, userData?.languages ?? ['en']);
         const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
@@ -309,7 +309,7 @@ export function permissionsCheck(
             const permissions = permissionsById[id];
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
-                throw new CustomError('Unauthorized', `User does not have permission to ${action} ${authDataById[id].__typename} ${id}`, { trace: '0297' })
+                throw new CustomError('0297', 'Unauthorized', userData?.languages ?? ['en'], { action, id, type: authDataById[id].__typename });
             }
         }
     }

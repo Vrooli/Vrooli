@@ -29,14 +29,14 @@ export const Subscriber = (prisma: PrismaType) => ({
         silent?: boolean
     ) => {
         // Find the object and its owner
-        const validator = getValidator(object.__typename, 'Transfer.request-object');
-        const prismaDelegate = getDelegate(object.__typename, prisma, 'Transfer.request-object');
+        const validator = getValidator(object.__typename, userData.languages, 'Transfer.request-object');
+        const prismaDelegate = getDelegate(object.__typename, prisma, userData.languages, 'Transfer.request-object');
         const permissionData = await prismaDelegate.findUnique({
             where: { id: object.id },
             select: validator.permissionsSelect,
         });
-        const isPublic = permissionData && validator.isPublic(permissionData);
-        const isDeleted = permissionData && validator.isDeleted(permissionData);
+        const isPublic = permissionData && validator.isPublic(permissionData, userData.languages);
+        const isDeleted = permissionData && validator.isDeleted(permissionData, userData.languages);
         // Don't subscribe if object is private or deleted
         if (!isPublic || isDeleted)
             throw new CustomError('0332', 'Unauthorized', userData.languages);

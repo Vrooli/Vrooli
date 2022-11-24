@@ -250,7 +250,7 @@ export const resolvers = {
             // Set up session token
             await generateSessionJwt(res, session);
             // Trigger new account
-            await Trigger(prisma).acountNew(user.id, input.email);
+            await Trigger(prisma, req.languages).acountNew(user.id, input.email);
             // Return user data
             return session;
         },

@@ -152,11 +152,11 @@ export const resolvers = {
     Mutation: {
         resourceListCreate: async (_parent: undefined, { input }: IWrap<ResourceListCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<ResourceList>> => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, model: ResourceListModel, prisma, req });
+            return createHelper({ info, input, objectType: 'ResourceList', prisma, req });
         },
         resourceListUpdate: async (_parent: undefined, { input }: IWrap<ResourceListUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<ResourceList>> => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, model: ResourceListModel, prisma, req });
+            return updateHelper({ info, input, objectType: 'ResourceList', prisma, req });
         },
         resourceListDeleteMany: async (_parent: undefined, { input }: IWrap<DeleteManyInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Count> => {
             await rateLimit({ info, maxUser: 100, req });

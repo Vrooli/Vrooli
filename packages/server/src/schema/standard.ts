@@ -184,24 +184,13 @@ export const resolvers = {
         },
     },
     Mutation: {
-        /**
-         * Create a new standard
-         * @returns Standard object if successful
-         */
         standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             await rateLimit({ info, maxUser: 250, req });
-            return createHelper({ info, input, model: StandardModel, prisma, req });
+            return createHelper({ info, input, objectType: 'Standard', prisma, req });
         },
-        /**
-         * Update a standard you created.
-         * NOTE: You can only update the description and tags. If you need to update 
-         * the other fields, you must either create a new standard (could be the same but with an updated
-         * version number) or delete the old one and create a new one.
-         * @returns Standard object if successful
-         */
         standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             await rateLimit({ info, maxUser: 500, req });
-            return updateHelper({ info, input, model: StandardModel, prisma, req });
+            return updateHelper({ info, input, objectType: 'Standard', prisma, req });
         },
     }
 }

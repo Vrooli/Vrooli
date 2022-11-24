@@ -46,9 +46,9 @@ export const resolvers = {
          * @returns 
          */
         vote: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            assertRequestFrom(req, { isUser: true });
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
-            const success = await VoteModel.mutate(prisma).vote(getUser(req)?.id as string, input);
+            const success = await VoteModel.vote(prisma, userData, input);
             return { success };
         },
     }

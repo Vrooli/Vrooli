@@ -1,7 +1,7 @@
 import { Count } from "../../schema/types";
 import { modelToGraphQL, selectHelper } from "../builder";
-import { CUDHelperInput, CUDResult } from "../types";
-import { getAuthenticatedData, getAuthenticatedIds, getDelegate, getValidator } from "../utils";
+import { CUDHelperInput, CUDResult, Mutater, MutaterShapes } from "../types";
+import { getAuthenticatedData, getAuthenticatedIds, getDelegate, getMutater, getValidator } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 
 /**
@@ -20,43 +20,42 @@ import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators
  * 
  * Finally, it performs the operations in the database, and returns the results in shape of GraphQL objects
  */
-export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdate extends { [x: string]: any }, GQLObject extends { [x: string]: any }, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }>({
+export async function cudHelper<
+    GQLObject extends { [x: string]: any }
+>({
     createMany,
     deleteMany,
     objectType,
-    onCreated,
-    onUpdated,
-    onDeleted,
     partialInfo,
     prisma,
-    shape,
     updateMany,
     userData,
-    yup,
-}: CUDHelperInput<GQLCreate, GQLUpdate, GQLObject, DBCreate, DBUpdate>): Promise<CUDResult<GQLObject>> {
+}: CUDHelperInput<GQLObject>): Promise<CUDResult<GQLObject>> {
+    // Get mutater
+    const mutater: Mutater<GQLObject, { graphql: any, db: any }, { graphql: any, db: any }, any, any> = getMutater(objectType, userData.languages, 'cudHelper');
     // Initialize results
     let created: GQLObject[] = [], updated: GQLObject[] = [], deleted: Count = { count: 0 };
     // Validate yup
-    createMany && yup.yupCreate.validateSync(createMany, { abortEarly: false });
-    updateMany && yup.yupUpdate.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+    createMany && mutater.yup.create.validateSync(createMany, { abortEarly: false });
+    updateMany && mutater.yup.update.validateSync(updateMany.map(u => u.data), { abortEarly: false });
     // Profanity check
-    createMany && profanityCheck(createMany, partialInfo);
-    updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo);
+    createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
+    updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
     // Shape create and update data. This must be done before other validations, as shaping may convert creates to connects
-    const shapedCreate: DBCreate[] = [];
-    const shapedUpdate: { where: { [x: string]: any }, data: DBUpdate }[] = [];
+    const shapedCreate: { [x: string]: any }[] = [];
+    const shapedUpdate: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
     if (createMany) {
-        for (const create of createMany) { shapedCreate.push(await shape.shapeCreate(userData.id, create)) }
+        for (const create of createMany) { shapedCreate.push(await mutater.shape.create({ data: create, prisma, userData })) }
     }
     if (updateMany) {
         for (const update of updateMany) {
-            const shaped = await shape.shapeUpdate(userData.id, update.data);
+            const shaped = await mutater.shape.update({ data: update.data, prisma, userData });
             shapedUpdate.push({ where: update.where, data: shaped });
         }
     }
     // Find validator and prisma delegate for this object type
-    const validator = getValidator(objectType, 'cudHelper');
-    const prismaDelegate = getDelegate(objectType, prisma, 'cudHelper');
+    const validator = getValidator(objectType, userData.languages, 'cudHelper');
+    const prismaDelegate = getDelegate(objectType, prisma, userData.languages, 'cudHelper');
     // Get IDs of all objects which need to be authenticated
     const { idsByType, idsByAction } = await getAuthenticatedIds([
         ...(shapedCreate.map(data => ({ actionType: 'Create', data }))),
@@ -72,7 +71,7 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
     if (shapedCreate.length > 0) {
         // Perform custom validation
         const deltaAdding = shapedCreate.length - (deleteMany ? deleteMany.length : 0);
-        validator?.validations?.create && await validator.validations.create(shapedCreate, prisma, userData.id, deltaAdding);
+        validator?.validations?.create && await validator.validations.create({ createMany: shapedCreate, prisma, userData, deltaAdding });
         for (const data of shapedCreate) {
             // Create
             const select = await prismaDelegate.create({
@@ -84,11 +83,11 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
             created.push(converted);
         }
         // Call onCreated
-        onCreated && await onCreated(created);
+        mutater.trigger?.onCreated && await mutater.trigger.onCreated({ created, prisma, userData });
     }
     if (shapedUpdate.length > 0) {
         // Perform custom validation
-        validator?.validations?.update && await validator.validations.update(shapedUpdate.map(u => u.data), prisma, userData.id);
+        validator?.validations?.update && await validator.validations.update({ updateMany: shapedUpdate.map(u => u.data), prisma, userData });
         for (const update of shapedUpdate) {
             // Update
             const select = await prismaDelegate.update({
@@ -101,16 +100,16 @@ export async function cudHelper<GQLCreate extends { [x: string]: any }, GQLUpdat
             updated.push(converted);
         }
         // Call onUpdated
-        onUpdated && await onUpdated(updated, updateMany!.map(u => u.data));
+        mutater.trigger?.onUpdated && await mutater.trigger.onUpdated({ prisma, updated, updateInput: updateMany!.map(u => u.data), userData });
     }
     if (deleteMany) {
         // Perform custom validation
-        validator?.validations?.delete && await validator.validations.delete(deleteMany, prisma, userData.id);
+        validator?.validations?.delete && await validator.validations.delete({ deleteMany, prisma, userData });
         deleted = await prismaDelegate.deleteMany({
             where: { id: { in: deleteMany } }
         })
         // Call onDeleted
-        onDeleted && await onDeleted(deleted);
+        mutater.trigger?.onDeleted && await mutater.trigger.onDeleted({ deleted, prisma, userData });
     }
     return {
         created: createMany ? created : undefined,

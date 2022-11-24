@@ -1,24 +1,19 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
-import { inputTranslationCreate, inputTranslationUpdate, outputTranslationCreate, outputTranslationUpdate, routinesCreate, routineTranslationCreate, routineTranslationUpdate, routinesUpdate } from "@shared/validation";
+import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, permissionsSelectHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
+import { routinesCreate, routinesUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { NodeModel } from "./node";
-import { StandardModel } from "./standard";
-import { TranslationModel } from "./translation";
-import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
-import { runFormatter } from "./run";
 import { CustomError, Trigger } from "../events";
-import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy } from "../schema/types";
+import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { cudHelper } from "./actions";
-import { FormatConverter, PartialGraphQLInfo, Searcher, CUDInput, CUDResult, DuplicateInput, DuplicateResult, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, PartialGraphQLInfo, Searcher, GraphQLModelType, Validator, Mutater, Duplicater } from "./types";
 import { Prisma } from "@prisma/client";
-import { oneIsPublic } from "./utils";
-import { organizationQuerier } from "./organization";
+import { oneIsPublic, translationRelationshipBuilder } from "./utils";
 import { getSingleTypePermissions } from "./validators";
+import { OrganizationModel } from "./organization";
+import { relBuilderHelper } from "./actions";
 
 type NodeWeightData = {
     simplicity: number,
@@ -30,7 +25,7 @@ type NodeWeightData = {
 const joinMapper = { tags: 'tag', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' };
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsRoutine' | 'runs' | 'versions';
-export const routineFormatter = (): FormatConverter<Routine, SupplementalFields> => ({
+const formatter = (): Formatter<Routine, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Routine',
         comments: 'Comment',
@@ -78,7 +73,7 @@ export const routineFormatter = (): FormatConverter<Routine, SupplementalFields>
                     routineVersionId: true
                 }
                 if (runPartial === undefined) {
-                    throw new CustomError('InternalError', 'Error converting query', { trace: '0178' });
+                    throw new CustomError('0178', 'InternalError', userData.languages);
                 }
                 // Query runs made by user
                 let runs: any[] = await prisma.run_routine.findMany({
@@ -109,7 +104,7 @@ export const routineFormatter = (): FormatConverter<Routine, SupplementalFields>
     },
 })
 
-export const routineSearcher = (): Searcher<
+const searcher = (): Searcher<
     RoutineSearchInput,
     RoutineSortBy,
     Prisma.routine_versionOrderByWithRelationInput,
@@ -181,7 +176,7 @@ export const routineSearcher = (): Searcher<
     },
 })
 
-export const routineValidator = (): Validator<
+const validator = (): Validator<
     RoutineCreateInput,
     RoutineUpdateInput,
     Routine,
@@ -204,7 +199,7 @@ export const routineValidator = (): Validator<
         // smartContract: 'SmartContract',
         // directoryListings: 'ProjectDirectory',
     },
-    permissionsSelect: (userId) => ({
+    permissionsSelect: (...params) => ({
         id: true,
         isComplete: true,
         isPrivate: true,
@@ -218,7 +213,7 @@ export const routineValidator = (): Validator<
                 ...permissionsSelectHelper([
                     ['organization', 'Organization'],
                     ['user', 'User'],
-                ], userId)
+                ], ...params)
             }
         }
     }),
@@ -237,18 +232,18 @@ export const routineValidator = (): Validator<
         User: (data.root as any).user,
     }),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-    isPublic: (data) => data.isPrivate === false &&
+    isPublic: (data, languages) => data.isPrivate === false &&
         data.isDeleted === false &&
         data.root?.isDeleted === false &&
         data.root?.isInternal === false &&
         data.root?.isPrivate === false && oneIsPublic<Prisma.routineSelect>(data.root, [
             ['organization', 'Organization'],
             ['user', 'User'],
-        ]),
+        ], languages),
     ownerOrMemberWhere: (userId) => ({
         root: {
             OR: [
-                organizationQuerier().hasRoleInOrganizationQuery(userId),
+                OrganizationModel.query.hasRoleInOrganizationQuery(userId),
                 { user: { id: userId } }
             ]
         }
@@ -275,12 +270,12 @@ export const routineValidator = (): Validator<
  * @param edges The edges of the graph, with each object containing a fromId and toId
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
-export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: NodeWeightData }, edges: { fromId: string, toId: string }[]): [number, number] => {
+const calculateShortestLongestWeightedPath = (nodes: { [id: string]: NodeWeightData }, edges: { fromId: string, toId: string }[]): [number, number] => {
     // First, check that all edges point to valid nodes. 
     // If this isn't the case, this algorithm could run into an error
     for (const edge of edges) {
         if (!nodes[edge.toId] || !nodes[edge.fromId]) {
-            throw new CustomError('InvalidArgs', 'Could not calculate complexity/simplicity: not all edges map to existing nodes', { trace: '0237', failedEdge: edge })
+            throw new CustomError('0237', 'UnlinkedNodes', languages, { failedEdge: edge })
         }
     }
     // If no nodes or edges, return 1
@@ -342,727 +337,421 @@ export const calculateShortestLongestWeightedPath = (nodes: { [id: string]: Node
     ]
 }
 
-/**
- * Handles authorized creates, updates, and deletes
- */
-export const routineMutater = (prisma: PrismaType): Mutater<Routine> => ({
-    /**
-     * Calculates the maximum and minimum complexity of a routine based on the number of steps. 
-     * Simplicity is a the minimum number of inputs and decisions required to complete the routine, while 
-     * complexity is the maximum.
-     * @param data The routine data, either a create or update
-     * @param versionId If existing data, its version ID
-     * @returns [simplicity, complexity] Numbers representing the shorted and longest weighted paths
-     */
-    async calculateComplexity(data: RoutineCreateInput | RoutineUpdateInput, versionId?: string | null): Promise<[number, number]> {
-        // If the routine is being updated, Find the complexity of existing subroutines
-        let existingRoutine;
-        if (versionId) {
-            existingRoutine = await prisma.routine_version.findUnique({
-                where: { id: versionId },
-                select: {
-                    nodeLinks: { select: { id: true, fromId: true, toId: true } },
-                    nodes: {
-                        select: {
-                            id: true, // Needed to associate with links
-                            nodeRoutineList: {
-                                select: {
-                                    routines: {
-                                        select: {
-                                            routineVersion: { select: { id: true, complexity: true, simplicity: true } }
-                                        }
-                                    },
-                                }
-                            },
-                        }
-                    },
-                }
-            })
-        }
-        // Calculate the list of links after mutations are applied
-        let nodeLinks: any[] = existingRoutine?.nodeLinks || [];
-        if (data.nodeLinksCreate) nodeLinks = nodeLinks.concat(data.nodeLinksCreate);
-        if ((data as RoutineUpdateInput).nodeLinksUpdate) {
-            nodeLinks = nodeLinks.map(link => {
-                const updatedLink = (data as RoutineUpdateInput).nodeLinksUpdate?.find(updatedLink => link.id && updatedLink.id === link.id);
-                return updatedLink ? { ...link, ...updatedLink } : link;
-            })
-        }
-        if ((data as RoutineUpdateInput).nodeLinksDelete) {
-            nodeLinks = nodeLinks.filter(link => !(data as RoutineUpdateInput).nodeLinksDelete?.find(deletedLink => deletedLink === link.id));
-        }
-        // Calculate the list of nodes after mutations are applied
-        let nodes: any[] = existingRoutine?.nodes || [];
-        if (data.nodesCreate) nodes = nodes.concat(data.nodesCreate);
-        if ((data as RoutineUpdateInput).nodesUpdate) {
-            nodes = nodes.map(node => {
-                const updatedNode = (data as RoutineUpdateInput).nodesUpdate?.find(updatedNode => node.id && updatedNode.id === node.id);
-                return updatedNode ? { ...node, ...updatedNode } : node;
-            })
-        }
-        if ((data as RoutineUpdateInput).nodesDelete) {
-            nodes = nodes.filter(node => !(data as RoutineUpdateInput).nodesDelete?.find(deletedNode => deletedNode === node.id));
-        }
-        // Initialize node dictionary to map node IDs to their subroutine IDs
-        const subroutineIdsByNode: { [id: string]: string[] } = {};
-        // Find the ID of every subroutine
-        const subroutineIds: string[] = nodes.map((node: any | NodeCreateInput | NodeUpdateInput) => {
-            // Calculate the list of subroutines after mutations are applied
-            let ids: string[] = node.nodeRoutineList?.routines?.map((item: NodeRoutineListItem) => item.routineVersion.id) ?? [];
-            if ((data as NodeCreateInput).nodeRoutineListCreate) {
-                const listCreate = (data as NodeCreateInput).nodeRoutineListCreate as NodeRoutineListCreateInput;
-                // Handle creates
-                ids = ids.concat(listCreate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
-            }
-            else if ((data as NodeUpdateInput).nodeRoutineListUpdate) {
-                const listUpdate = (data as NodeUpdateInput).nodeRoutineListUpdate as NodeRoutineListUpdateInput;
-                // Handle creates
-                ids = ids.concat(listUpdate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
-                // Handle deletes. No need to handle updates, as routine items cannot switch their routine associations
-                if (listUpdate.routinesDelete) {
-                    ids = ids.filter(id => !listUpdate.routinesDelete?.find(deletedId => deletedId === id));
-                }
-            }
-            subroutineIdsByNode[node.id] = ids;
-            return ids
-        }).flat();
-        // Query every subroutine's complexity, simplicity, and number of inputs
-        const subroutineWeightData = await prisma.routine_version.findMany({
-            where: { id: { in: subroutineIds } },
+const routineDuplicater = (): Duplicater<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
+    select: {
+        id: true,
+        apiCallData: true,
+        complexity: true,
+        isAutomatable: true,
+        isInternal: true,
+        simplicity: true,
+        userId: true,
+        organizationId: true,
+        // Only select top-level nodes
+        nodes: {
             select: {
                 id: true,
-                complexity: true,
-                simplicity: true,
-                inputs: {
+                columnIndex: true,
+                rowIndex: true,
+                type: true,
+                nodeEnd: {
                     select: {
-                        isRequired: true
+                        wasSuccessful: true
+                    }
+                },
+                loop: {
+                    select: {
+                        loops: true,
+                        maxLoops: true,
+                        operation: true,
+                        whiles: {
+                            select: {
+                                condition: true,
+                                translations: {
+                                    select: {
+                                        description: true,
+                                        title: true,
+                                        language: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                nodeRoutineList: {
+                    select: {
+                        isOrdered: true,
+                        isOptional: true,
+                        routines: {
+                            select: {
+                                id: true,
+                                index: true,
+                                isOptional: true,
+                                routineVersion: {
+                                    select: {
+                                        id: true,
+                                        isInternal: true,
+                                    }
+                                },
+                                translations: {
+                                    select: {
+                                        description: true,
+                                        title: true,
+                                        language: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                translations: {
+                    select: {
+                        description: true,
+                        title: true,
+                        language: true,
                     }
                 }
             }
-        })
-        // Convert compexity/simplicity to a map for easy lookup
-        let subroutineWeightDataDict: { [routineId: string]: NodeWeightData } = {};
-        for (const sub of subroutineWeightData) {
-            subroutineWeightDataDict[sub.id] = {
-                complexity: sub.complexity,
-                simplicity: sub.simplicity,
-                optionalInputs: sub.inputs.filter(input => !input.isRequired).length,
-                allInputs: sub.inputs.length,
-            };
-        }
-        // Calculate the complexity/simplicity of each node. If node has no subroutines, its complexity is 0 (e.g. start node, end node)
-        let nodeWeightDataDict: { [nodeId: string]: NodeWeightData } = {};
-        for (const node of nodes) {
-            nodeWeightDataDict[node.id] = {
-                complexity: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].complexity, 0) || 0,
-                simplicity: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].simplicity, 0) || 0,
-                optionalInputs: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].optionalInputs, 0) || 0,
-                allInputs: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].allInputs, 0) || 0,
-            }
-        }
-        // Using the node links, determine the most complex path through the routine
-        const [shortest, longest] = calculateShortestLongestWeightedPath(nodeWeightDataDict, nodeLinks);
-        // return with +1, so that nesting routines has a small factor in determining weight
-        return [shortest + 1, longest + 1];
-    },
-    /**
-     * Validates node positions
-     */
-    validateNodePositions(input: RoutineCreateInput | RoutineUpdateInput): void {
-        // // Check that node columnIndexes and rowIndexes are valid TODO query existing data to do this
-        // let combinedNodes = [];
-        // if (input.nodesCreate) combinedNodes.push(...input.nodesCreate);
-        // if ((input as RoutineUpdateInput).nodesUpdate) combinedNodes.push(...(input as any).nodesUpdate);
-        // if ((input as RoutineUpdateInput).nodesDelete) combinedNodes = combinedNodes.filter(node => !(input as any).nodesDelete.includes(node.id));
-        // // Remove nodes that have duplicate rowIndexes and columnIndexes
-        // console.log('unique nodes check', JSON.stringify(combinedNodes));
-        // const uniqueNodes = uniqBy(combinedNodes, (n) => `${n.rowIndex}-${n.columnIndex}`);
-        // if (uniqueNodes.length < combinedNodes.length) throw new CustomError('NodeDuplicatePosition', {});
-        return;
-    },
-    async shapeBase(userId: string, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean) {
-        return {
-            root: {
-                isPrivate: data.isPrivate ?? undefined,
-                hasCompleteVersion: (data.isComplete === true) ? true : (data.isComplete === false) ? false : undefined,
-                completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
-                project: data.projectId ? { connect: { id: data.projectId } } : undefined,
-                tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userId, data, 'Routine'),
-                permissions: JSON.stringify({}),
-            },
-            isAutomatable: data.isAutomatable ?? undefined,
-            isComplete: data.isComplete ?? undefined,
-            isInternal: data.isInternal ?? undefined,
-            versionLabel: data.versionLabel ?? undefined,
-            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder!(userId, data, isAdd),
-            inputs: await this.relationshipBuilderInput(userId, data, isAdd),
-            outputs: await this.relationshipBuilderOutput(userId, data, isAdd),
-            nodes: await NodeModel.mutate(prisma).relationshipBuilder!(userId, data, isAdd),
-            nodeLinks: NodeModel.mutate(prisma).relationshipBuilderNodeLink(userId, data, isAdd),
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: routineTranslationCreate, update: routineTranslationUpdate }, isAdd),
-        }
-    },
-    async shapeCreate(userId: string, data: RoutineCreateInput): Promise<Prisma.routine_versionUpsertArgs['create']> {
-        const [simplicity, complexity] = await this.calculateComplexity(data);
-        const base = await this.shapeBase(userId, data, true);
-        return {
-            ...base,
-            root: {
-                create: {
-                    ...base.root,
-                    parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
-                    createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                    organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                    createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                    user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                }
-            },
-            id: data.id,
-            complexity,
-            simplicity,
-        }
-    },
-    async shapeUpdate(userId: string, data: RoutineUpdateInput): Promise<Prisma.routine_versionUpsertArgs['update']> {
-        const [simplicity, complexity] = await this.calculateComplexity(data, data.versionId);
-        const base = await this.shapeBase(userId, data, false);
-        return {
-            ...base,
-            root: {
-                update: {
-                    ...base.root,
-                    // parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
-                    organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                    user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-                }
-            },
-            complexity: complexity,
-            simplicity: simplicity,
-        }
-    },
-    async relationshipBuilderInput(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-    ): Promise<{ [x: string]: any } | undefined> {
-        // If nodes relationship provided, calculate inputs from nodes. Otherwise, use given inputs
-        //TODO
-        return relationshipBuilderHelper({
-            data,
-            relationshipName: 'inputs',
-            isAdd,
-            isTransferable: false,
-            shape: {
-                shapeCreate: async (userId, cuData) => ({
-                    id: cuData.id,
-                    name: cuData.name,
-                    standard: await StandardModel.mutate(prisma).relationshipBuilder!(userId, {
-                        ...cuData,
-                        // If standard was not internal, then it would have been created 
-                        // in its own mutation
-                        isInternal: true,
-                    }, true),
-                    translations: TranslationModel.relationshipBuilder(userId, cuData, { create: inputTranslationCreate, update: inputTranslationUpdate }, true),
-                }),
-                shapeUpdate: async (userId, cuData) => ({
-                    name: cuData.name,
-                    standardId: await StandardModel.mutate(prisma).relationshipBuilder!(userId, cuData, false),
-                    translations: TranslationModel.relationshipBuilder(userId, cuData, { create: inputTranslationCreate, update: inputTranslationUpdate }, false),
-                })
-            },
-            userId,
-        });
-    },
-    async relationshipBuilderOutput(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-    ): Promise<{ [x: string]: any } | undefined> {
-        // If nodes relationship provided, calculate outputs from nodes. Otherwise, use given outputs
-        //TODO
-        return relationshipBuilderHelper({
-            data,
-            relationshipName: 'outputs',
-            isAdd,
-            isTransferable: false,
-            shape: {
-                shapeCreate: async (userId, cuData) => ({
-                    id: cuData.id,
-                    name: cuData.name,
-                    standard: await StandardModel.mutate(prisma).relationshipBuilder!(userId, {
-                        ...cuData,
-                        // If standard was not internal, then it would have been created 
-                        // in its own mutation
-                        isInternal: true,
-                    }, true),
-                    translations: TranslationModel.relationshipBuilder(userId, cuData, { create: outputTranslationCreate, update: outputTranslationUpdate }, true),
-                }),
-                shapeUpdate: async (userId, cuData) => ({
-                    name: cuData.name,
-                    standard: await StandardModel.mutate(prisma).relationshipBuilder!(userId, cuData, false),
-                    translations: TranslationModel.relationshipBuilder(userId, cuData, { create: outputTranslationCreate, update: outputTranslationUpdate }, false),
-                })
-            },
-            userId,
-        });
-    },
-    /**
-     * Add, update, or remove a one-to-one routine relationship. 
-     * Due to some unknown Prisma bug, it won't let us create/update a routine directly
-     * in the main mutation query like most other relationship builders. Instead, we 
-     * must do this separately, and return the routine's ID.
-     */
-    async relationshipBuilder(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-    ): Promise<{ [x: string]: any } | undefined> {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName: 'routine',
-            fieldExcludes: ['user', 'userId', 'organization', 'organizationId', 'createdByUser', 'createdByUserId', 'createdByOrganization', 'createdByOrganizationId'],
-            isAdd,
-            isOneToOne: true,
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            userId,
-        });
-    },
-    async cud(params: CUDInput<RoutineCreateInput, RoutineUpdateInput>): Promise<CUDResult<Routine>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Routine',
-            prisma,
-            yup: { yupCreate: routinesCreate, yupUpdate: routinesUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            onCreated: (created) => {
-                for (const c of created) {
-                    Trigger(prisma).objectCreate('Routine', c.id as string, params.userData.id);
-                }
-            },
-            onUpdated: (updatedData, updateInput) => {
-                for (let i = 0; i < updatedData.length; i++) {
-                    const u = updatedData[i];
-                    const input = updateInput[i];
-                    // Check if version changed
-                    if (input.versionLabel && u.isComplete) {
-                        Trigger(prisma).objectNewVersion('Routine', u.id as string, params.userData.id);
+        },
+        nodeLinks: {
+            select: {
+                fromId: true,
+                toId: true,
+                whens: {
+                    select: {
+                        condition: true,
+                        translations: {
+                            select: {
+                                description: true,
+                                title: true,
+                                language: true,
+                            }
+                        }
                     }
                 }
             }
-        })
+        },
+        resourceLists: {
+            select: {
+                index: true,
+                usedFor: true,
+                resources: {
+                    select: {
+                        index: true,
+                        link: true,
+                        usedFor: true,
+                        translations: {
+                            select: {
+                                description: true,
+                                title: true,
+                                language: true,
+                            }
+                        }
+                    }
+                },
+                translations: {
+                    select: {
+                        description: true,
+                        title: true,
+                        language: true,
+                    }
+                }
+            }
+        },
+        inputs: {
+            select: {
+                isRequired: true,
+                name: true,
+                standardId: true,
+                translations: {
+                    select: {
+                        description: true,
+                        language: true,
+                    }
+                }
+            }
+        },
+        outputs: {
+            select: {
+                name: true,
+                standardId: true,
+                translations: {
+                    select: {
+                        description: true,
+                        language: true,
+                    }
+                }
+            }
+        },
+        tags: {
+            select: {
+                id: true,
+            }
+        },
+        translations: {
+            select: {
+                description: true,
+                instructions: true,
+                title: true,
+                language: true,
+            }
+        }
     },
-    /**
-     * Duplicates a routine, along with its nodes and edges. 
-     * If a fork, then the parent is set as the original routine. 
-     * If a copy, there is no parent.
-     */
-    async duplicate({ userId, objectId, isFork, createCount = 0 }: DuplicateInput): Promise<DuplicateResult<Routine>> {
-        throw new CustomError('0325', 'NotImplemented', langauges);
-        // let newCreateCount = createCount;
-        // // Find routine, with fields we want to copy.
-        // // I hope I discover a better way to do this.
-        // // Notable fields not being copied are completedAt and isComplete (since the copy will default to not complete),
-        // // score and views and other stats (since the copy will default to 0),
-        // // createdByUserId and createdByOrganizationId and projectId (since the copy will default to your own),
-        // // parentId (since the original will be the parent of the copy),
-        // // version (since the copy will default to 1.0.0),
-        // const routine = await prisma.routine.findFirst({
-        //     where: { id: objectId },
-        //     select: {
-        //         id: true,
-        //         complexity: true,
-        //         isAutomatable: true,
-        //         isInternal: true,
-        //         simplicity: true,
-        //         userId: true,
-        //         organizationId: true,
-        //         nodes: {
-        //             select: {
-        //                 id: true,
-        //                 columnIndex: true,
-        //                 rowIndex: true,
-        //                 type: true,
-        //                 nodeEnd: {
-        //                     select: {
-        //                         wasSuccessful: true
-        //                     }
-        //                 },
-        //                 loop: {
-        //                     select: {
-        //                         loops: true,
-        //                         maxLoops: true,
-        //                         operation: true,
-        //                         whiles: {
-        //                             select: {
-        //                                 condition: true,
-        //                                 translations: {
-        //                                     select: {
-        //                                         description: true,
-        //                                         title: true,
-        //                                         language: true,
-        //                                     }
-        //                                 }
-        //                             }
-        //                         }
-        //                     }
-        //                 },
-        //                 nodeRoutineList: {
-        //                     select: {
-        //                         isOrdered: true,
-        //                         isOptional: true,
-        //                         routines: {
-        //                             select: {
-        //                                 id: true,
-        //                                 index: true,
-        //                                 isOptional: true,
-        //                                 routine: {
-        //                                     select: {
-        //                                         id: true,
-        //                                         isInternal: true,
-        //                                     }
-        //                                 },
-        //                                 translations: {
-        //                                     select: {
-        //                                         description: true,
-        //                                         title: true,
-        //                                         language: true,
-        //                                     }
-        //                                 }
-        //                             }
-        //                         }
-        //                     }
-        //                 },
-        //                 translations: {
-        //                     select: {
-        //                         description: true,
-        //                         title: true,
-        //                         language: true,
-        //                     }
-        //                 }
-        //             }
-        //         },
-        //         nodeLinks: {
-        //             select: {
-        //                 fromId: true,
-        //                 toId: true,
-        //                 operation: true,
-        //                 whens: {
-        //                     select: {
-        //                         condition: true,
-        //                         translations: {
-        //                             select: {
-        //                                 description: true,
-        //                                 title: true,
-        //                                 language: true,
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //             }
-        //         },
-        //         resourceLists: {
-        //             select: {
-        //                 index: true,
-        //                 usedFor: true,
-        //                 resources: {
-        //                     select: {
-        //                         index: true,
-        //                         link: true,
-        //                         usedFor: true,
-        //                         translations: {
-        //                             select: {
-        //                                 description: true,
-        //                                 title: true,
-        //                                 language: true,
-        //                             }
-        //                         }
-        //                     }
-        //                 },
-        //                 translations: {
-        //                     select: {
-        //                         description: true,
-        //                         title: true,
-        //                         language: true,
-        //                     }
-        //                 }
-        //             }
-        //         },
-        //         inputs: {
-        //             select: {
-        //                 isRequired: true,
-        //                 name: true,
-        //                 standardId: true,
-        //                 translations: {
-        //                     select: {
-        //                         description: true,
-        //                         language: true,
-        //                     }
-        //                 }
-        //             }
-        //         },
-        //         outputs: {
-        //             select: {
-        //                 name: true,
-        //                 standardId: true,
-        //                 translations: {
-        //                     select: {
-        //                         description: true,
-        //                         language: true,
-        //                     }
-        //                 }
-        //             }
-        //         },
-        //         tags: {
-        //             select: {
-        //                 id: true,
-        //             }
-        //         },
-        //         translations: {
-        //             select: {
-        //                 description: true,
-        //                 instructions: true,
-        //                 title: true,
-        //                 language: true,
-        //             }
-        //         }
-        //     }
-        // });
-        // // If routine didn't exist
-        // if (!routine) {
-        //     throw new CustomError('NotFound', 'Routine not found', { trace: '0225' });
-        // }
-        // // If routine is marked as internal and it doesn't belong to you
-        // else if (routine.isInternal && routine.userId !== userId) {
-        //     const roles = await OrganizationModel.query().hasRole(prisma, userId, [routine.organizationId]);
-        //     if (roles.some(role => !role))
-        //         throw new CustomError('Unauthorized', 'Not authorized to copy', { trace: '0226' })
-        // }
-        // // Initialize new routine object
-        // const newRoutine: any = routine;
-        // // For every node in the routine (and every edge which references it), change the ID 
-        // // to a new random ID.
-        // for (const node of newRoutine.nodes) {
-        //     const oldId = node.id;
-        //     // Update ID
-        //     node.id = uuid();
-        //     // Update reference to node in nodeLinks
-        //     for (const nodeLink of newRoutine.nodeLinks) {
-        //         if (nodeLink.fromId === oldId) {
-        //             nodeLink.fromId = node.id;
-        //         }
-        //         if (nodeLink.toId === oldId) {
-        //             nodeLink.toId = node.id;
-        //         }
-        //     }
-        // }
-        // // If copying subroutines, call this function for each subroutine
-        // if (createCount < 100 && routine.nodes && routine.nodes.length > 0) {
-        //     const newSubroutineIds: string[] = [];
-        //     // Find the IDs of all isInternal subroutines
-        //     const oldSubroutineIds: string[] = [];
-        //     for (const node of routine.nodes) {
-        //         if (node.nodeRoutineList?.routines && node.nodeRoutineList?.routines.length > 0) {
-        //             for (const subroutine of node.nodeRoutineList.routines) {
-        //                 if (subroutine.routine?.id && subroutine.routine?.isInternal) {
-        //                     oldSubroutineIds.push(subroutine.routine.id);
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     // Copy each subroutine
-        //     for (const subroutineId of oldSubroutineIds) {
-        //         const { object: copiedSubroutine, numCreated } = await this.duplicate({ userId, objectId: subroutineId, isFork: false, createCount: newCreateCount });
-        //         newSubroutineIds.push(copiedSubroutine.id ?? '');
-        //         newCreateCount += numCreated;
-        //         if (newCreateCount >= 100) {
-        //             break;
-        //         }
-        //     }
-        //     // Change the IDs of all subroutines to the new IDs
-        //     for (const node of newRoutine.nodes) {
-        //         if (node.nodeRoutineList?.routines && node.nodeRoutineList?.routines.length > 0) {
-        //             for (const subroutine of node.nodeRoutineList.routines) {
-        //                 if (subroutine.routine?.id && newSubroutineIds.includes(subroutine.routine.id)) {
-        //                     subroutine.routine.id = newSubroutineIds.find(id => id === subroutine.routine.id);
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        // // Create the new routine
-        // const createdRoutine = await prisma.routine.create({
-        //     data: {
-        //         // Give ownership to user copying routine
-        //         createdByUser: { connect: { id: userId } },
-        //         user: { connect: { id: userId } },
-        //         // Set parentId to original routine's id
-        //         parent: isFork ? { connect: { id: routine.id } } : undefined,
-        //         // Copy the rest of the fields
-        //         complexity: newRoutine.complexity,
-        //         isAutomatable: newRoutine.isAutomatable,
-        //         isInternal: newRoutine.isInternal,
-        //         simplicity: newRoutine.simplicity,
-        //         versionGroupId: uuid(),
-        //         nodes: newRoutine.nodes ? {
-        //             create: newRoutine.nodes.map((node: any) => ({
-        //                 id: node.id,
-        //                 columnIndex: node.columnIndex,
-        //                 rowIndex: node.rowIndex,
-        //                 type: node.type,
-        //                 nodeEnd: node.nodeEnd ? {
-        //                     create: {
-        //                         wasSuccessful: node.nodeEnd.wasSuccessful
-        //                     }
-        //                 } : undefined,
-        //                 loop: node.loop ? {
-        //                     create: {
-        //                         loops: node.loop.loops,
-        //                         maxLoops: node.loop.maxLoops,
-        //                         operation: node.loop.operation,
-        //                         whiles: node.loop.whiles ? {
-        //                             create: node.loop.whiles.map((whileNode: any) => ({
-        //                                 condition: whileNode.condition,
-        //                                 translations: whileNode.translations ? {
-        //                                     create: whileNode.translations.map((translation: any) => ({
-        //                                         description: translation.description,
-        //                                         title: translation.title,
-        //                                         language: translation.language
-        //                                     }))
-        //                                 } : undefined
-        //                             }))
-        //                         } : undefined
-        //                     }
-        //                 } : undefined,
-        //                 nodeRoutineList: node.nodeRoutineList ? {
-        //                     create: {
-        //                         isOrdered: node.nodeRoutineList.isOrdered,
-        //                         isOptional: node.nodeRoutineList.isOptional,
-        //                         routines: node.nodeRoutineList.routines ? {
-        //                             create: [...node.nodeRoutineList.routines.map((routine: any) => {
-        //                                 return ({
-        //                                     index: routine.index,
-        //                                     routine: { connect: { id: routine.routine.id } },
-        //                                     translations: routine.translations ? {
-        //                                         create: routine.translations.map((translation: any) => ({
-        //                                             description: translation.description,
-        //                                             title: translation.title,
-        //                                             language: translation.language
-        //                                         }))
-        //                                     } : undefined
-        //                                 })
-        //                             })]
-        //                         } : undefined
-        //                     }
-        //                 } : undefined,
-        //                 translations: node.translations ? {
-        //                     create: node.translations.map((translation: any) => ({
-        //                         description: translation.description,
-        //                         title: translation.title,
-        //                         language: translation.language
-        //                     }))
-        //                 } : undefined,
-        //             }))
-        //         } : undefined,
-        //         nodeLinks: newRoutine.nodeLinks ? {
-        //             create: newRoutine.nodeLinks.map((nodeLink: any) => ({
-        //                 from: { connect: { id: nodeLink.fromId } },
-        //                 to: { connect: { id: nodeLink.toId } },
-        //                 operation: nodeLink.operation,
-        //                 whens: nodeLink.whens ? {
-        //                     create: nodeLink.whens.map((when: any) => ({
-        //                         condition: when.condition,
-        //                         translations: when.translations ? {
-        //                             create: when.translations.map((translation: any) => ({
-        //                                 description: translation.description,
-        //                                 title: translation.title,
-        //                                 language: translation.language
-        //                             }))
-        //                         } : undefined
-        //                     }))
-        //                 } : undefined,
-        //                 translations: nodeLink.translations ? {
-        //                     create: nodeLink.translations.map((translation: any) => ({
-        //                         description: translation.description,
-        //                         title: translation.title,
-        //                         language: translation.language
-        //                     }))
-        //                 } : undefined
-        //             }))
-        //         } : undefined,
-        //         resourceLists: newRoutine.resourceLists ? {
-        //             create: newRoutine.resourceLists.map((resourceList: any) => ({
-        //                 index: resourceList.index,
-        //                 usedFor: resourceList.usedFor,
-        //                 resources: resourceList.resources ? {
-        //                     create: resourceList.resources.map((resource: any) => ({
-        //                         index: resource.index,
-        //                         link: resource.link,
-        //                         usedFor: resource.usedFor,
-        //                         translations: resource.translations ? {
-        //                             create: resource.translations.map((translation: any) => ({
-        //                                 description: translation.description,
-        //                                 title: translation.title,
-        //                                 language: translation.language
-        //                             }))
-        //                         } : null
-        //                     }))
-        //                 } : null
-        //             }))
-        //         } : undefined,
-        //         inputs: newRoutine.inputs ? {
-        //             create: newRoutine.inputs.map((input: any) => ({
-        //                 isRequired: input.isRequired,
-        //                 name: input.name,
-        //                 standard: { connect: { id: input.standardId } },
-        //                 translations: input.translations ? {
-        //                     create: input.translations.map((translation: any) => ({
-        //                         description: translation.description,
-        //                         title: translation.title,
-        //                         language: translation.language
-        //                     }))
-        //                 } : undefined
-        //             }))
-        //         } : undefined,
-        //         outputs: newRoutine.outputs ? {
-        //             create: newRoutine.outputs.map((output: any) => ({
-        //                 name: output.name,
-        //                 standardId: output.standardId,
-        //                 translations: output.translations ? {
-        //                     create: output.translations.map((translation: any) => ({
-        //                         description: translation.description,
-        //                         title: translation.title,
-        //                         language: translation.language
-        //                     }))
-        //                 } : null
-        //             }))
-        //         } : undefined,
-        //         tags: newRoutine.tags ? {
-        //             connect: newRoutine.tags.map((tag: any) => ({
-        //                 id: tag.id
-        //             }))
-        //         } : undefined,
-        //         translations: newRoutine.translations ? {
-        //             create: newRoutine.translations.map((translation: any) => ({
-        //                 description: translation.description,
-        //                 instructions: translation.instructions,
-        //                 // Add "Copy" to title
-        //                 title: `${translation.title} (Copy)`,
-        //                 language: translation.language
-        //             }))
-        //         } : undefined,
-        //     }
-        // });
-        // return {
-        //     object: createdRoutine as any,
-        //     numCreated: newCreateCount + 1
-        // }
+    validateSelect: {
+        nodes: {
+            select: {
+                nodeRoutineList: {
+                    select: {
+                        routines: {
+                            select: {
+                                routineVersion: 'Routine',
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 })
 
+/**
+ * Calculates the maximum and minimum complexity of a routine based on the number of steps. 
+ * Simplicity is a the minimum number of inputs and decisions required to complete the routine, while 
+ * complexity is the maximum.
+ * @param prisma The prisma client
+ * @param data The routine data, either a create or update
+ * @param versionId If existing data, its version ID
+ * @returns [simplicity, complexity] Numbers representing the shorted and longest weighted paths
+ */
+const calculateComplexity = async (prisma: PrismaType, data: RoutineCreateInput | RoutineUpdateInput, versionId?: string | null): Promise<[number, number]> => {
+    // If the routine is being updated, Find the complexity of existing subroutines
+    let existingRoutine;
+    if (versionId) {
+        existingRoutine = await prisma.routine_version.findUnique({
+            where: { id: versionId },
+            select: {
+                nodeLinks: { select: { id: true, fromId: true, toId: true } },
+                nodes: {
+                    select: {
+                        id: true, // Needed to associate with links
+                        nodeRoutineList: {
+                            select: {
+                                routines: {
+                                    select: {
+                                        routineVersion: { select: { id: true, complexity: true, simplicity: true } }
+                                    }
+                                },
+                            }
+                        },
+                    }
+                },
+            }
+        })
+    }
+    // Calculate the list of links after mutations are applied
+    let nodeLinks: any[] = existingRoutine?.nodeLinks || [];
+    if (data.nodeLinksCreate) nodeLinks = nodeLinks.concat(data.nodeLinksCreate);
+    if ((data as RoutineUpdateInput).nodeLinksUpdate) {
+        nodeLinks = nodeLinks.map(link => {
+            const updatedLink = (data as RoutineUpdateInput).nodeLinksUpdate?.find(updatedLink => link.id && updatedLink.id === link.id);
+            return updatedLink ? { ...link, ...updatedLink } : link;
+        })
+    }
+    if ((data as RoutineUpdateInput).nodeLinksDelete) {
+        nodeLinks = nodeLinks.filter(link => !(data as RoutineUpdateInput).nodeLinksDelete?.find(deletedLink => deletedLink === link.id));
+    }
+    // Calculate the list of nodes after mutations are applied
+    let nodes: any[] = existingRoutine?.nodes || [];
+    if (data.nodesCreate) nodes = nodes.concat(data.nodesCreate);
+    if ((data as RoutineUpdateInput).nodesUpdate) {
+        nodes = nodes.map(node => {
+            const updatedNode = (data as RoutineUpdateInput).nodesUpdate?.find(updatedNode => node.id && updatedNode.id === node.id);
+            return updatedNode ? { ...node, ...updatedNode } : node;
+        })
+    }
+    if ((data as RoutineUpdateInput).nodesDelete) {
+        nodes = nodes.filter(node => !(data as RoutineUpdateInput).nodesDelete?.find(deletedNode => deletedNode === node.id));
+    }
+    // Initialize node dictionary to map node IDs to their subroutine IDs
+    const subroutineIdsByNode: { [id: string]: string[] } = {};
+    // Find the ID of every subroutine
+    const subroutineIds: string[] = nodes.map((node: any | NodeCreateInput | NodeUpdateInput) => {
+        // Calculate the list of subroutines after mutations are applied
+        let ids: string[] = node.nodeRoutineList?.routines?.map((item: NodeRoutineListItem) => item.routineVersion.id) ?? [];
+        if ((data as NodeCreateInput).nodeRoutineListCreate) {
+            const listCreate = (data as NodeCreateInput).nodeRoutineListCreate as NodeRoutineListCreateInput;
+            // Handle creates
+            ids = ids.concat(listCreate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
+        }
+        else if ((data as NodeUpdateInput).nodeRoutineListUpdate) {
+            const listUpdate = (data as NodeUpdateInput).nodeRoutineListUpdate as NodeRoutineListUpdateInput;
+            // Handle creates
+            ids = ids.concat(listUpdate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
+            // Handle deletes. No need to handle updates, as routine items cannot switch their routine associations
+            if (listUpdate.routinesDelete) {
+                ids = ids.filter(id => !listUpdate.routinesDelete?.find(deletedId => deletedId === id));
+            }
+        }
+        subroutineIdsByNode[node.id] = ids;
+        return ids
+    }).flat();
+    // Query every subroutine's complexity, simplicity, and number of inputs
+    const subroutineWeightData = await prisma.routine_version.findMany({
+        where: { id: { in: subroutineIds } },
+        select: {
+            id: true,
+            complexity: true,
+            simplicity: true,
+            inputs: {
+                select: {
+                    isRequired: true
+                }
+            }
+        }
+    })
+    // Convert compexity/simplicity to a map for easy lookup
+    let subroutineWeightDataDict: { [routineId: string]: NodeWeightData } = {};
+    for (const sub of subroutineWeightData) {
+        subroutineWeightDataDict[sub.id] = {
+            complexity: sub.complexity,
+            simplicity: sub.simplicity,
+            optionalInputs: sub.inputs.filter(input => !input.isRequired).length,
+            allInputs: sub.inputs.length,
+        };
+    }
+    // Calculate the complexity/simplicity of each node. If node has no subroutines, its complexity is 0 (e.g. start node, end node)
+    let nodeWeightDataDict: { [nodeId: string]: NodeWeightData } = {};
+    for (const node of nodes) {
+        nodeWeightDataDict[node.id] = {
+            complexity: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].complexity, 0) || 0,
+            simplicity: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].simplicity, 0) || 0,
+            optionalInputs: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].optionalInputs, 0) || 0,
+            allInputs: subroutineIdsByNode[node.id]?.reduce((acc, cur) => acc + subroutineWeightDataDict[cur].allInputs, 0) || 0,
+        }
+    }
+    // Using the node links, determine the most complex path through the routine
+    const [shortest, longest] = calculateShortestLongestWeightedPath(nodeWeightDataDict, nodeLinks);
+    // return with +1, so that nesting routines has a small factor in determining weight
+    return [shortest + 1, longest + 1];
+}
+
+/**
+ * Validates node positions
+ */
+const validateNodePositions = (input: RoutineCreateInput | RoutineUpdateInput): void => {
+    // // Check that node columnIndexes and rowIndexes are valid TODO query existing data to do this
+    // let combinedNodes = [];
+    // if (input.nodesCreate) combinedNodes.push(...input.nodesCreate);
+    // if ((input as RoutineUpdateInput).nodesUpdate) combinedNodes.push(...(input as any).nodesUpdate);
+    // if ((input as RoutineUpdateInput).nodesDelete) combinedNodes = combinedNodes.filter(node => !(input as any).nodesDelete.includes(node.id));
+    // // Remove nodes that have duplicate rowIndexes and columnIndexes
+    // console.log('unique nodes check', JSON.stringify(combinedNodes));
+    // const uniqueNodes = uniqBy(combinedNodes, (n) => `${n.rowIndex}-${n.columnIndex}`);
+    // if (uniqueNodes.length < combinedNodes.length) throw new CustomError('NodeDuplicatePosition', {});
+    return;
+}
+
+const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: RoutineCreateInput | RoutineUpdateInput, isAdd: boolean) => {
+    return {
+        root: {
+            isPrivate: data.isPrivate ?? undefined,
+            hasCompleteVersion: (data.isComplete === true) ? true : (data.isComplete === false) ? false : undefined,
+            completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
+            project: data.projectId ? { connect: { id: data.projectId } } : undefined,
+            tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userData, data, 'Routine'),
+            permissions: JSON.stringify({}),
+        },
+        isAutomatable: data.isAutomatable ?? undefined,
+        isComplete: data.isComplete ?? undefined,
+        isInternal: data.isInternal ?? undefined,
+        versionLabel: data.versionLabel ?? undefined,
+        resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
+        inputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'input', objectType: 'InputItem', prisma, userData }),
+        outputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'output', objectType: 'OutputItem', prisma, userData }),
+        nodes: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'node', objectType: 'Node', prisma, userData }),
+        nodeLinks: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'nodeLink', objectType: 'NodeLink', prisma, userData }),
+        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+    }
+}
+
+/**
+ * Handles authorized creates, updates, and deletes
+ */
+const mutater = (): Mutater<
+    Routine,
+    { graphql: RoutineCreateInput, db: Prisma.routine_versionUpsertArgs['create'] },
+    { graphql: RoutineUpdateInput, db: Prisma.routine_versionUpsertArgs['update'] },
+    { graphql: RoutineCreateInput, db: Prisma.routine_versionCreateWithoutNodesInput },
+    { graphql: RoutineUpdateInput, db: Prisma.routine_versionUpdateWithoutNodesInput }
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => {
+            const [simplicity, complexity] = await calculateComplexity(prisma, data);
+            const base = await shapeBase(prisma, userData, data, true);
+            return {
+                ...base,
+                root: {
+                    create: {
+                        ...base.root,
+                        parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
+                        createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                        organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                        createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                        user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                    }
+                },
+                id: data.id,
+                complexity,
+                simplicity,
+            }
+        },
+        update: async ({ data, prisma, userData }) => {
+            const [simplicity, complexity] = await calculateComplexity(prisma, data, data.versionId);
+            const base = await shapeBase(prisma, userData, data, false);
+            return {
+                ...base,
+                root: {
+                    update: {
+                        ...base.root,
+                        // parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
+                        organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+                        user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+                    }
+                },
+                complexity: complexity,
+                simplicity: simplicity,
+            }
+        },
+        relCreate: mutater().shape.create,
+        relUpdate: mutater().shape.update,
+    },
+    trigger: {
+        onCreated: ({ created, prisma, userData }) => {
+            for (const c of created) {
+                Trigger(prisma, userData.languages).objectCreate('Routine', c.id as string, userData.id);
+            }
+        },
+        onUpdated: ({ prisma, updated, updateInput, userData }) => {
+            for (let i = 0; i < updated.length; i++) {
+                const u = updated[i];
+                const input = updateInput[i];
+                // Check if version changed
+                if (input.versionLabel && u.isComplete) {
+                    Trigger(prisma, userData.languages).objectNewVersion('Routine', u.id as string, userData.id);
+                }
+            }
+        },
+    },
+    yup: { create: routinesCreate, update: routinesUpdate },
+})
+
 export const RoutineModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.routine_version,
-    format: routineFormatter(),
-    mutate: routineMutater,
-    search: routineSearcher(),
+    delegate: (prisma: PrismaType) => prisma.routine_version,
+    format: formatter(),
+    mutate: mutater(),
+    search: searcher(),
     type: 'Routine' as GraphQLModelType,
-    validate: routineValidator()
+    validate: validator(),
+    calculateComplexity,
+    validateNodePositions,
 })

@@ -1,17 +1,15 @@
 import { addJoinTablesHelper, combineQueries, relationshipBuilderHelper, removeJoinTablesHelper } from "./builder";
-import { tagsCreate, tagsUpdate, tagTranslationCreate, tagTranslationUpdate } from "@shared/validation";
+import { tagsCreate, tagsUpdate } from "@shared/validation";
 import { TagSortBy } from "@shared/consts";
 import { StarModel } from "./star";
-import { TranslationModel } from "./translation";
-import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from "../schema/types";
+import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
-import { cudHelper } from "./actions";
 
 const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' };
 type SupplementalFields = 'isStarred' | 'isOwn';
-export const tagFormatter = (): FormatConverter<Tag, SupplementalFields> => ({
+const formatter = (): Formatter<Tag, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Tag',
         starredBy: 'User',
@@ -28,7 +26,7 @@ export const tagFormatter = (): FormatConverter<Tag, SupplementalFields> => ({
     },
 })
 
-export const tagSearcher = (): Searcher<
+const searcher = (): Searcher<
     TagSearchInput,
     TagSortBy,
     Prisma.tagOrderByWithRelationInput,
@@ -58,7 +56,7 @@ export const tagSearcher = (): Searcher<
     },
 })
 
-export const tagValidator = (): Validator<
+const validator = (): Validator<
     TagCreateInput,
     TagUpdateInput,
     Tag,
@@ -77,24 +75,26 @@ export const tagValidator = (): Validator<
     ownerOrMemberWhere: () => ({}),
 })
 
-export const tagMutater = (prisma: PrismaType): Mutater<Tag> => ({
-    shapeBase(userId: string | null, data: TagCreateInput | TagUpdateInput) {
-        return {
-            tag: data.tag,
-            createdByUserId: userId,
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: tagTranslationCreate, update: tagTranslationUpdate }, false),
-        }
+const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCreateInput | TagUpdateInput, isAdd: boolean) => {
+    return {
+        tag: data.tag,
+        createdByUserId: userData.id,
+        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+    }
+}
+
+const mutater = (): Mutater<
+    Tag,
+    { graphql: TagCreateInput, db: Prisma.tagUpsertArgs['create'] },
+    { graphql: TagUpdateInput, db: Prisma.tagUpsertArgs['update'] },
+    false,
+    false
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, true),
+        update: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, false),
     },
-    async shapeCreate(userId: string | null, data: TagCreateInput): Promise<Prisma.tagUpsertArgs['create']> {
-        return {
-            ...this.shapeBase(userId, data),
-        }
-    },
-    async shapeUpdate(userId: string | null, data: TagUpdateInput): Promise<Prisma.tagUpsertArgs['update']> {
-        return {
-            ...this.shapeBase(userId, data),
-        }
-    },
+    yup: { create: tagsCreate, update: tagsUpdate },
     /**
      * Maps type of a tag's parent with the unique field
      */
@@ -160,22 +160,13 @@ export const tagMutater = (prisma: PrismaType): Mutater<Tag> => ({
             }
         });
     },
-    async cud(params: CUDInput<TagCreateInput, TagUpdateInput>): Promise<CUDResult<Tag>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Tag',
-            prisma,
-            yup: { yupCreate: tagsCreate, yupUpdate: tagsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
-        })
-    },
 })
 
 export const TagModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.tag,
-    format: tagFormatter(),
-    mutate: tagMutater,
-    search: tagSearcher(),
+    delegate: (prisma: PrismaType) => prisma.tag,
+    format: formatter(),
+    mutate: mutater,
+    search: searcher(),
     type: 'Tag' as GraphQLModelType,
-    validate: tagValidator(),
+    validate: validator(),
 })

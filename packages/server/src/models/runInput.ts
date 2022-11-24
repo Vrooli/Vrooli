@@ -1,20 +1,59 @@
 import { runInputsCreate, runInputsUpdate } from "@shared/validation";
-import { relationshipBuilderHelper } from "./builder";
 import { RunInput, RunInputCreateInput, RunInputUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { validateProfanity } from "../utils/censor";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Mutater } from "./types";
+import { Formatter, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
-import { cudHelper } from "./actions";
+import { OrganizationModel } from "./organization";
+import { RunModel } from "./run";
 
-export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
+const formatter = (): Formatter<RunInput, any> => ({
     relationshipMap: {
         __typename: 'RunInput',
         input: 'InputItem',
     },
 })
 
-// export const runInputSearcher = (): Searcher<RunSearchInput, RunSortBy, Prisma.run_routineOrderByWithRelationInput, Prisma.run_routineWhereInput> => ({
+const validator = (): Validator<
+    RunInputCreateInput,
+    RunInputUpdateInput,
+    RunInput,
+    Prisma.run_routine_inputGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_inputSelect>]: true } }>,
+    any,
+    Prisma.run_routine_inputSelect,
+    Prisma.run_routine_inputWhereInput
+> => ({
+    validateMap: {
+        __typename: 'RunRoutine',
+        input: 'InputItem',
+        runRoutine: 'RunRoutine',
+    },
+    permissionsSelect: (...params) => ({
+        runRoutine: { select: RunModel.validate.permissionsSelect(...params) }
+    }),
+    permissionResolvers: ({ isAdmin, isPublic }) => ([
+        ['canDelete', async () => isAdmin],
+        ['canEdit', async () => isAdmin],
+        ['canView', async () => isPublic],
+    ]),
+    profanityFields: ['data'],
+    ownerOrMemberWhere: (userId) => ({
+        runRoutine: {
+            routineVersion: {
+                root: {
+                    OR: [
+                        { user: { id: userId } },
+                        OrganizationModel.query.hasRoleInOrganizationQuery(userId)
+                    ]
+                }
+            }
+        }
+    }),
+    owner: (data) => RunModel.validate.owner(data.runRoutine as any),
+    isDeleted: () => false,
+    isPublic: (data, languages) => RunModel.validate.isPublic(data.runRoutine as any, languages),
+})
+
+// const searcher = (): Searcher<RunSearchInput, RunSortBy, Prisma.run_routineOrderByWithRelationInput, Prisma.run_routineWhereInput> => ({
 //     defaultSort: RunSortBy.DateUpdatedDesc,
 //     sortMap:  {
 //             DateStartedAsc: { timeStarted: 'asc' },
@@ -54,70 +93,38 @@ export const runInputFormatter = (): FormatConverter<RunInput, any> => ({
 //     },
 // })
 
-export const runInputVerifier = () => ({
-    profanityCheck(data: (RunInputCreateInput | RunInputUpdateInput)[]): void {
-        validateProfanity(data.map((d) => d.data), languages);
-    },
-})
-
 /**
  * Handles mutations of run inputs
  */
-export const runInputMutater = (prisma: PrismaType): Mutater<RunInput> => ({
-    shapeRelationshipCreate(userId: string, data: RunInputCreateInput): Prisma.run_routine_inputUncheckedCreateWithoutRunRoutineInput {
-        return {
-            id: data.id,
-            data: data.data,
-            inputId: data.inputId,
+const mutater = (): Mutater<
+    RunInput,
+    false,
+    false,
+    { graphql: RunInputCreateInput, db: Prisma.run_routine_inputCreateWithoutRunRoutineInput },
+    { graphql: RunInputUpdateInput, db: Prisma.run_routine_inputUpdateWithoutRunRoutineInput }
+> => ({
+    shape: {
+        relCreate: async ({ data }) => {
+            return {
+                id: data.id,
+                data: data.data,
+                input: { connect: { id: data.inputId } },
+            }
+        },
+        relUpdate: async ({ data }) => {
+            return {
+                data: data.data
+            }
         }
     },
-    shapeRelationshipUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_routine_inputUncheckedUpdateWithoutRunRoutineInput {
-        return {
-            data: data.data
-        }
-    },
-    shapeCreate(userId: string, data: RunInputCreateInput & { runId: string }): Prisma.run_routine_inputUpsertArgs['create'] {
-        return {
-            ...this.shapeRelationshipCreate(userId, data),
-            runId: data.runId,
-        }
-    },
-    shapeUpdate(userId: string, data: RunInputUpdateInput): Prisma.run_routine_inputUpsertArgs['update'] {
-        return {
-            ...this.shapeRelationshipUpdate(userId, data),
-        }
-    },
-    async relationshipBuilder(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-        relationshipName: string = 'inputs',
-    ): Promise<{ [x: string]: any } | undefined> {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName,
-            isAdd,
-            isTransferable: false,
-            shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
-            userId,
-        });
-    },
-    async cud(params: CUDInput<RunInputCreateInput & { runId: string }, RunInputUpdateInput>): Promise<CUDResult<RunInput>> {
-        return cudHelper({
-            ...params,
-            objectType: 'RunInput',
-            prisma,
-            yup: { yupCreate: runInputsCreate, yupUpdate: runInputsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
-        })
-    },
+    yup: { create: runInputsCreate, update: runInputsUpdate },
 })
 
 export const RunInputModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.run_routine_input,
-    format: runInputFormatter(),
-    mutate: runInputMutater,
-    // search: runInputSearcher(),
+    delegate: (prisma: PrismaType) => prisma.run_routine_input,
+    format: formatter(),
+    mutate: mutater(),
+    // search: searcher(),
     type: 'RunInput' as GraphQLModelType,
-    verify: runInputVerifier(),
+    validate: validator(),
 })

@@ -1,21 +1,19 @@
 import { emailsCreate, emailsUpdate } from "@shared/validation";
 import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { relationshipBuilderHelper } from "./builder";
 import { CustomError, Trigger } from "../events";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
-import { cudHelper } from "./actions";
+import { Formatter, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { userValidator } from "./user";
+import { UserModel } from "./user";
 
-export const emailFormatter = (): FormatConverter<Email, any> => ({
+const formatter = (): Formatter<Email, any> => ({
     relationshipMap: {
         __typename: 'Email',
         user: 'Profile',
     }
 })
 
-export const emailValidator = (): Validator<
+const validator = (): Validator<
     EmailCreateInput,
     EmailUpdateInput,
     Email,
@@ -28,7 +26,7 @@ export const emailValidator = (): Validator<
         __typename: 'Email',
         user: 'User',
     },
-    permissionsSelect: (userId) => ({ id: true, user: { select: userValidator().permissionsSelect(userId) } }),
+    permissionsSelect: (...params) => ({ id: true, user: { select: UserModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['canDelete', async () => isAdmin],
         ['canEdit', async () => isAdmin],
@@ -41,76 +39,65 @@ export const emailValidator = (): Validator<
     isPublic: () => false,
     profanityFields: ['emailAddress'],
     validations: {
-        create: async (createMany, prisma) => {
+        create: async ({ createMany, prisma, userData }) => {
             // Prevent creating emails if at least one is already in use
             const existingEmails = await prisma.email.findMany({
                 where: { emailAddress: { in: createMany.map(x => x.emailAddress) } },
             });
-            if (existingEmails.length > 0) throw new CustomError('0044', 'EmailInUse', languages)
+            if (existingEmails.length > 0) throw new CustomError('0044', 'EmailInUse', userData.languages)
         },
-        delete: async (deleteMany, prisma, userId) => {
+        delete: async ({ deleteMany, prisma, userData }) => {
             // Prevent deleting emails if it will leave you with less than one verified authentication method
             const allEmails = await prisma.email.findMany({
-                where: { user: { id: userId } },
+                where: { user: { id: userData.id } },
                 select: { id: true, verified: true }
             });
             const remainingVerifiedEmailsCount = allEmails.filter(x => !deleteMany.includes(x.id) && x.verified).length;
             const verifiedWalletsCount = await prisma.wallet.count({
-                where: { user: { id: userId }, verified: true },
+                where: { user: { id: userData.id }, verified: true },
             });
             if (remainingVerifiedEmailsCount + verifiedWalletsCount < 1)
-                throw new CustomError('0049', 'MustLeaveVerificationMethod', languages);
+                throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
         }
     }
 })
 
-export const emailMutater = (prisma: PrismaType): Mutater<Email> => ({
-    shapeCreate(userId: string, data: EmailCreateInput): Prisma.emailUpsertArgs['create'] {
-        return {
-            userId,
-            emailAddress: data.emailAddress,
-        }
+const mutater = (): Mutater<
+    Email,
+    { graphql: EmailCreateInput, db: Prisma.emailUpsertArgs['create'] },
+    { graphql: EmailUpdateInput, db: Prisma.emailUpsertArgs['update'] },
+    { graphql: EmailCreateInput, db: Prisma.emailCreateWithoutUserInput },
+    { graphql: EmailUpdateInput, db: Prisma.emailUpdateWithoutUserInput }
+> => ({
+    shape: {
+        create: async ({ data, userData }) => {
+            return {
+                userId: userData.id,
+                emailAddress: data.emailAddress,
+            }
+        },
+        update: async ({ data }) => {
+            return {
+                id: data.id,
+            }
+        },
+        relCreate: mutater().shape.create,
+        relUpdate: mutater().shape.update,
     },
-    shapeUpdate(userId: string, data: EmailUpdateInput): Prisma.emailUpsertArgs['update'] {
-        return {
-            id: data.id,
-        }
+    trigger: {
+        onCreated: ({ created, prisma, userData }) => {
+            for (const c of created) {
+                Trigger(prisma, userData.languages).objectCreate('Email', c.id as string, userData.id);
+            }
+        },
     },
-    async relationshipBuilder(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-        relationshipName: string = 'emails',
-    ): Promise<{ [x: string]: any } | undefined> {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName,
-            isAdd,
-            isTransferable: false,
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            userId,
-        });
-    },
-    cud(params: CUDInput<EmailCreateInput, EmailUpdateInput>): Promise<CUDResult<Email>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Email',
-            prisma,
-            yup: { yupCreate: emailsCreate, yupUpdate: emailsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            onCreated: (created) => {
-                for (const c of created) {
-                    Trigger(prisma).objectCreate('Email', c.id as string, params.userData.id);
-                }
-            },
-        })
-    },
+    yup: { create: emailsCreate, update: emailsUpdate },
 })
 
 export const EmailModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.email,
-    format: emailFormatter(),
-    mutate: emailMutater,
+    delegate: (prisma: PrismaType) => prisma.email,
+    format: formatter(),
+    mutate: mutater(),
     type: 'Email' as GraphQLModelType,
-    validate: emailValidator(),
+    validate: validator(),
 })

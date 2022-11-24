@@ -1,10 +1,10 @@
 import { Role } from "../schema/types";
 import { PrismaType } from "../types";
 import { addJoinTablesHelper, removeJoinTablesHelper } from "./builder";
-import { FormatConverter, GraphQLModelType } from "./types";
+import { Formatter, GraphQLModelType } from "./types";
 
 const joinMapper = { assignees: 'user' };
-export const roleFormatter = (): FormatConverter<Role, any> => ({
+const formatter = (): Formatter<Role, any> => ({
     relationshipMap: {
         __typename: 'Role',
         assignees: 'User',
@@ -15,7 +15,7 @@ export const roleFormatter = (): FormatConverter<Role, any> => ({
 })
 
 export const RoleModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.role,
-    format: roleFormatter(),
+    delegate: (prisma: PrismaType) => prisma.role,
+    format: formatter(),
     type: 'Role' as GraphQLModelType,
 })

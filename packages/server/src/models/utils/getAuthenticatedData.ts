@@ -16,8 +16,8 @@ export const getAuthenticatedData = async (
     // For every type of object which needs to be authenticated, query for all data required to perform authentication
     for (const type of Object.keys(idsByType) as GraphQLModelType[]) {
         // Find validator and prisma delegate for this object type
-        const validator = getValidator(type, 'getAuthenticatedData');
-        const prismaDelegate = getDelegate(type, prisma, 'getAuthenticatedData');
+        const validator = getValidator(type, userData?.languages ?? ['en'], 'getAuthenticatedData');
+        const prismaDelegate = getDelegate(type, prisma, userData?.languages ?? ['en'], 'getAuthenticatedData');
         // Query for data
         const data = await prismaDelegate.findMany({
             where: { id: { in: idsByType[type] } },

@@ -20,7 +20,7 @@ export async function deleteOneHelper({
     const { deleted } = await model.mutate!(prisma).cud!({ partialInfo: {}, userData, deleteMany: [input.id] });
     if (deleted?.count && deleted.count > 0) {
         // Handle trigger
-        await Trigger(prisma).objectDelete(input.objectType, input.id, userData.id);
+        await Trigger(prisma, req.languages).objectDelete(input.objectType, input.id, userData.id);
         return { success: true }
     }
     return { success: false };

@@ -26,7 +26,7 @@ export async function countHelper<GraphQLModel, CountInput extends CountInputBas
         visibilityQuery = visibilityBuilder({ model, userId, visibility });
     }
     // Count objects that match queries
-    return await (model.prismaObject(prisma) as any).count({
+    return await (model.delegate(prisma) as any).count({
         where: combineQueries([where, createdQuery, updatedQuery, visibilityQuery])
     });
 }

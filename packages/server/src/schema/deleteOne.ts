@@ -38,7 +38,7 @@ export const resolvers = {
         deleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ info, maxUser: 1000, req });
             const model = ObjectMap[input.objectType];
-            if (!model) throw new CustomError('InvalidArgs', 'Invalid delete object type.', { trace: '0216' });
+            if (!model) throw new CustomError('0216', 'InvalidArgs', req.languages);
             return deleteOneHelper({ input, model, prisma, req });
         },
     }

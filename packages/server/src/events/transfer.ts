@@ -44,8 +44,8 @@ export const Transfer = (prisma: PrismaType) => ({
         message?: string,
     ): Promise<boolean> => {
         // Find the object and its owner
-        const validator = getValidator(object.__typename, 'Transfer.request-object');
-        const prismaDelegate = getDelegate(object.__typename, prisma, 'Transfer.request-object');
+        const validator = getValidator(object.__typename, userData.languages, 'Transfer.request-object');
+        const prismaDelegate = getDelegate(object.__typename, prisma, userData.languages, 'Transfer.request-object');
         const permissionData = await prismaDelegate.findUnique({
             where: { id: object.id },
             select: validator.permissionsSelect,
@@ -55,11 +55,11 @@ export const Transfer = (prisma: PrismaType) => ({
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
             throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
         // Check if the user is transferring to themselves
-        const toValidator = getValidator(to.__typename, 'Transfer.request-validator');
-        const toPrismaDelegate = getDelegate(to.__typename, prisma, 'Transfer.request-validator');
+        const toValidator = getValidator(to.__typename, userData.languages, 'Transfer.request-validator');
+        const toPrismaDelegate = getDelegate(to.__typename, prisma, userData.languages, 'Transfer.request-validator');
         const toPermissionData = await toPrismaDelegate.findUnique({
             where: { id: to.id },
-            select: toValidator.permissionsSelect(userData.id),
+            select: toValidator.permissionsSelect(userData.id, userData.languages),
         });
         const isAdmin = toPermissionData && isOwnerAdminCheck(toValidator.owner(toPermissionData), userData.id)
         // If so, return true. NOTE: What called this function should handle the rest
@@ -114,10 +114,10 @@ export const Transfer = (prisma: PrismaType) => ({
             throw new CustomError('0295', 'TransferAlreadyRejected', userData.languages);
         // Make sure user is the owner of the transfer request
         if (transfer.fromOrganizationId) {
-            const validator = getValidator('Organization', 'Transfer.cancel');
+            const validator = getValidator('Organization', userData.languages, 'Transfer.cancel');
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.fromOrganizationId },
-                select: validator.permissionsSelect(userData.id),
+                select: validator.permissionsSelect(userData.id, userData.languages),
             });
             if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
                 throw new CustomError('0300', 'TransferRejectNotAuthorized', userData.languages);
@@ -148,10 +148,10 @@ export const Transfer = (prisma: PrismaType) => ({
             throw new CustomError('0289', 'TransferAlreadyRejected', userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const validator = getValidator('Organization', 'Transfer.accept');
+            const validator = getValidator('Organization', userData.languages, 'Transfer.accept');
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
-                select: validator.permissionsSelect(userData.id),
+                select: validator.permissionsSelect(userData.id, userData.languages),
             });
             if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
                 throw new CustomError('0302', 'TransferAcceptNotAuthorized', userData.languages);
@@ -201,10 +201,10 @@ export const Transfer = (prisma: PrismaType) => ({
             throw new CustomError('0292', 'TransferAlreadyRejected', userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const validator = getValidator('Organization', 'Transfer.reject');
+            const validator = getValidator('Organization', userData.languages, 'Transfer.reject');
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
-                select: validator.permissionsSelect(userData.id),
+                select: validator.permissionsSelect(userData.id, userData.languages),
             });
             if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
                 throw new CustomError('0312', 'TransferRejectNotAuthorized', userData.languages);

@@ -1,8 +1,8 @@
 import { PrismaType } from "../types";
 import { Member } from "../schema/types";
-import { FormatConverter, GraphQLModelType } from "./types";
+import { Formatter, GraphQLModelType } from "./types";
 
-export const memberFormatter = (): FormatConverter<Member, any> => ({
+const formatter = (): Formatter<Member, any> => ({
     relationshipMap: {
         __typename: 'Member',
         organization: 'Organization',
@@ -11,7 +11,7 @@ export const memberFormatter = (): FormatConverter<Member, any> => ({
 })
 
 export const MemberModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.member,
-    format: memberFormatter(),
+    delegate: (prisma: PrismaType) => prisma.member,
+    format: formatter(),
     type: 'Member' as GraphQLModelType,
 })

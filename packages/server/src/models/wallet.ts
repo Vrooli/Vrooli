@@ -1,16 +1,15 @@
 import { Prisma } from "@prisma/client";
 import { walletsUpdate } from '@shared/validation';
-import { CustomError, Trigger } from "../events";
+import { CustomError } from "../events";
 import { Wallet, WalletUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
-import { cudHelper } from "./actions";
-import { permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
-import { organizationQuerier } from "./organization";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
+import { permissionsSelectHelper } from "./builder";
+import { OrganizationModel } from "./organization";
+import { Formatter, GraphQLModelType, Validator, Mutater } from "./types";
 import { oneIsPublic } from "./utils";
 
-export const walletFormatter = (): FormatConverter<Wallet, any> => ({
+const formatter = (): Formatter<Wallet, any> => ({
     relationshipMap: {
         __typename: 'Wallet',
         handles: 'Handle',
@@ -35,8 +34,15 @@ const walletOwnerMap = {
  * @params for The type of object that the wallet is owned by (i.e. Project, Organization, User)
  * @params forId The ID of the object that the wallet is owned by
  * @params handle The handle to verify
+ * @params languages Preferred languages for error messages
  */
-export const verifyHandle = async (prisma: PrismaType, forType: 'User' | 'Organization' | 'Project', forId: string, handle: string | null | undefined): Promise<void> => {
+export const verifyHandle = async (
+    prisma: PrismaType,
+    forType: 'User' | 'Organization' | 'Project',
+    forId: string,
+    handle: string | null | undefined,
+    languages: string[]
+): Promise<void> => {
     if (!handle) return;
     // Check that handle belongs to one of user's wallets
     const wallets = await prisma.wallet.findMany({
@@ -54,10 +60,10 @@ export const verifyHandle = async (prisma: PrismaType, forType: 'User' | 'Organi
         throw new CustomError('0019', 'ErrorUnknown', languages);
     // Check for censored words
     if (hasProfanity(handle))
-        throw new CustomError('0120', 'BannedWord', 'Handle contains banned word', languages);
+        throw new CustomError('0120', 'BannedWord', languages);
 }
 
-export const walletValidator = (): Validator<
+const validator = (): Validator<
     any,
     WalletUpdateInput,
     Wallet,
@@ -66,12 +72,12 @@ export const walletValidator = (): Validator<
     Prisma.walletSelect,
     Prisma.walletWhereInput
 > => ({
-    permissionsSelect: (userId) => ({
+    permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
             ['organization', 'Organization'],
             ['user', 'User'],
-        ], userId)
+        ], ...params)
     }),
     permissionResolvers: () => [],
     owner: (data) => ({
@@ -79,13 +85,13 @@ export const walletValidator = (): Validator<
         User: data.user,
     }),
     isDeleted: () => false,
-    isPublic: (data) => oneIsPublic<Prisma.walletSelect>(data, [
+    isPublic: (data, languages) => oneIsPublic<Prisma.walletSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],
-    ]),
+    ], languages),
     ownerOrMemberWhere: (userId) => ({
         OR: [
-            organizationQuerier().hasRoleInOrganizationQuery(userId),
+            OrganizationModel.query.hasRoleInOrganizationQuery(userId),
             { user: { id: userId } }
         ]
     }),
@@ -94,66 +100,41 @@ export const walletValidator = (): Validator<
         user: 'User',
         organization: 'Organization',
     },
-
-
-    // TODO verify handle for create/update
-
-
-    // // Check if user has at least one verified authentication method, besides the one being deleted
-    // const numberOfVerifiedEmailDeletes = emails.filter(email => email.verified).length;
-    // const verifiedEmailsCount = await prisma.email.count({
-    //     where: { userId, verified: true }//TODO or organizationId
-    // })
-    // const verifiedWalletsCount = await prisma.wallet.count({
-    //     where: { userId, verified: true }//TODO or organizationId
-    // })
-    // const wontHaveVerifiedEmail = numberOfVerifiedEmailDeletes >= verifiedEmailsCount;
-    // const wontHaveVerifiedWallet = verifiedWalletsCount <= 0;
-    // if (wontHaveVerifiedEmail || wontHaveVerifiedWallet)
-    //     throw new CustomError('InternalError', "Cannot delete all verified authentication methods", { trace: '0049' });
+    validations: {
+        delete: async ({ deleteMany, prisma, userData }) => {
+            // Prevent deleting wallets if it will leave you with less than one verified authentication method
+            const allWallets = await prisma.wallet.findMany({
+                where: { user: { id: userData.id } },
+                select: { id: true, verified: true }
+            });
+            const remainingVerifiedWalletsCount = allWallets.filter(x => !deleteMany.includes(x.id) && x.verified).length;
+            const verifiedEmailsCount = await prisma.email.count({
+                where: { user: { id: userData.id }, verified: true },
+            });
+            if (remainingVerifiedWalletsCount + verifiedEmailsCount < 1)
+                throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
+        }
+    }
 })
 
-export const walletMutater = (prisma: PrismaType): Mutater<Wallet> => ({
-    async relationshipBuilder(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-        relationshipName: string = 'wallets',
-    ): Promise<{ [x: string]: any } | undefined> {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName,
-            isAdd,
-            isTransferable: false,
-            userId,
-        });
+const mutater = (): Mutater<
+    Wallet,
+    false,
+    { graphql: WalletUpdateInput, db: Prisma.walletUpsertArgs['update'] },
+    false,
+    { graphql: WalletUpdateInput, db: Prisma.walletUpdateWithoutUserInput }
+> => ({
+    shape: {
+        update: async ({ data }) => data,
+        relUpdate: mutater().shape.update,
     },
-    async cud(params: CUDInput<any, WalletUpdateInput>): Promise<CUDResult<Wallet>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Wallet',
-            prisma,
-            yup: { yupCreate: walletsUpdate, yupUpdate: walletsUpdate },
-            shape: {
-                shapeCreate: () => {
-                    // Not allowed to create wallets with cud metho
-                    throw new CustomError('InternalError', 'Not allowed to create wallets this way', { trace: '0124' });
-                },
-                shapeUpdate: (_, cuData) => cuData,
-            },
-            onCreated: (created) => {
-                for (const c of created) {
-                    Trigger(prisma).objectCreate('Wallet', c.id as string, params.userData.id);
-                }
-            },
-        })
-    },
+    yup: { update: walletsUpdate },
 })
 
 export const WalletModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.wallet,
-    format: walletFormatter(),
-    mutate: walletMutater,
+    delegate: (prisma: PrismaType) => prisma.wallet,
+    format: formatter(),
+    mutate: mutater(),
     type: 'Wallet' as GraphQLModelType,
-    validate: walletValidator(),
+    validate: validator(),
 })

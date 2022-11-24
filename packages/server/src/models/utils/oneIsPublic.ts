@@ -8,14 +8,15 @@ import { getValidator } from "./getValidator";
 export const oneIsPublic = <PrismaSelect extends { [x: string]: any }>(
     permissionsData: { [key in keyof PrismaSelect]: any },
     list: [keyof PrismaSelect, GraphQLModelType][],
+    languages: string[],
 ): boolean => {
     // Loop through each field in the list
     for (let i = 0; i < list.length; i++) {
         const [field, type] = list[i];
         // Get the validator for this type
-        const validator = getValidator(type, 'oneIsPublic');
+        const validator = getValidator(type, languages, 'oneIsPublic');
         // Use validator to determine if this field is public
-        if (validator.isPublic(permissionsData[field])) {
+        if (validator.isPublic(permissionsData[field], languages)) {
             return true;
         }
     }

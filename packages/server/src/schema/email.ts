@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Email, EmailCreateInput, EmailUpdateInput, Success } from './types';
 import { Context, rateLimit } from '../middleware';
-import { createHelper, EmailModel, ProfileModel, updateHelper } from '../models';
+import { createHelper, ProfileModel, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 
 export const typeDef = gql`
@@ -45,18 +45,18 @@ export const resolvers = {
          */
         emailCreate: async (_parent: undefined, { input }: IWrap<EmailCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             await rateLimit({ info, maxUser: 10, req });
-            return createHelper({ info, input, model: EmailModel, prisma, req })
+            return createHelper({ info, input, objectType: 'Email', prisma, req })
         },
         /**
          * Update an existing email address that is associated with your account.
          */
         emailUpdate: async (_parent: undefined, { input }: IWrap<EmailUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Email>> => {
             await rateLimit({ info, maxUser: 10, req });
-            return updateHelper({ info, input, model: EmailModel, prisma, req })
+            return updateHelper({ info, input, objectType: 'Email', prisma, req })
         },
         sendVerificationEmail: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ info, maxUser: 50, req });
-            await ProfileModel.verify.setupVerificationCode(input.emailAddress, prisma);
+            await ProfileModel.verify.setupVerificationCode(input.emailAddress, prisma, req.languages);
             return { success: true };   
         },
     }

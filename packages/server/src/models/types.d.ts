@@ -1,8 +1,9 @@
 import { GraphQLResolveInfo } from "graphql";
 import { Count, PageInfo, SessionUser, TimeFrame } from "../schema/types";
-import { PrismaDelegate, PrismaType, RecursivePartial, ReplaceTypes, SingleOrArray } from "../types";
+import { PrismaDelegate, PrismaType, PromiseOrValue, RecursivePartial, ReplaceTypes, SingleOrArray } from "../types";
 import { ObjectSchema } from 'yup';
 import { prisma, Prisma } from "@prisma/client";
+import { BuiltRelationship } from "./builder";
 
 export type GraphQLModelType =
     'Comment' |
@@ -18,6 +19,8 @@ export type GraphQLModelType =
     'Member' |
     'Node' |
     'NodeEnd' |
+    'NodeLink' |
+    'NodeLinkWhen' |
     'NodeLoop' |
     'NodeRoutineList' |
     'NodeRoutineListItem' |
@@ -66,13 +69,12 @@ export type WithSelect<T> = { select: { [K in keyof T]: T[K] extends object ? Wi
  * Everything else is optional
  */
 export type ModelLogic<GraphQLModel, SearchInput, PermissionObject, PermissionsQuery> = {
-    format: FormatConverter<GraphQLModel, PermissionObject>;
-    prismaObject: (prisma: PrismaType) => PrismaDelegate;
+    format: Formatter<GraphQLModel, PermissionObject>;
+    delegate: (prisma: PrismaType) => PrismaDelegate;
     search?: Searcher<SearchInput>;
-    mutate?: (prisma: PrismaType) => Mutater<GraphQLModel>;
+    mutate?: Mutater<GraphQLModel>;
     permissions?: () => Permissioner<PermissionObject, SearchInput>;
     validate?: Validator<GraphQLModel, PermissionsQuery>
-    query?: (prisma: PrismaType) => Querier;
     type: GraphQLModelType;
 }
 
@@ -220,7 +222,7 @@ export interface SupplementalConverter<GQLModel, GQLFields extends string> {
      */
     toGraphQL: ({ ids, objects, partial, prisma, userId }: {
         ids: string[],
-    languages: string[],
+        languages: string[],
         objects: ({ id: string } & { [x: string]: any })[], // TODO: fix this type
         partial: PartialGraphQLInfo,
         prisma: PrismaType,
@@ -231,7 +233,7 @@ export interface SupplementalConverter<GQLModel, GQLFields extends string> {
 /**
  * Helper functions for converting between Prisma types and GraphQL types
  */
-export interface FormatConverter<GraphQLModel, GQLFields extends string> {
+export interface Formatter<GraphQLModel, GQLFields extends string> {
     /**
      * Maps relationship names to their GraphQL type. 
      * If the relationship is a union (i.e. has mutliple possible types), 
@@ -282,11 +284,6 @@ export type Searcher<SearchInput, SortBy extends string, OrderBy extends { [x: s
 }
 
 /**
- * Describes shape of component that can be queried
- */
-export type Querier = { [x: string]: any };
-
-/**
  * Describes shape of component that has validation rules 
  */
 export type Validator<
@@ -316,7 +313,7 @@ export type Validator<
      * conjunction with the parent object's permissions (also queried in this field) - to determine if you 
      * are allowed to perform the mutation
      */
-    permissionsSelect: (userId: string | null) => PermissionsSelect;
+    permissionsSelect: (userId: string | null, languages: string[]) => PermissionsSelect;
     /**
      * Array of resolvers to calculate the object's permissions
      */
@@ -333,11 +330,11 @@ export type Validator<
     /**
      * Uses query result to determine if the object is soft-deleted
      */
-    isDeleted: (data: PrismaObject) => boolean;
+    isDeleted: (data: PrismaObject, languages: string[]) => boolean;
     /**
      * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false
      */
-    isPublic: (data: PrismaObject) => boolean;
+    isPublic: (data: PrismaObject, languages: string[]) => boolean;
     /**
      * Permissions data for the object's owner
      */
@@ -357,15 +354,36 @@ export type Validator<
      * user
      */
     validations?: {
-        connect?: (connectMany: string[], prisma: PrismaType, userId: string) => Promise<void> | void;
-        create?: (createMany: GQLCreate[], prisma: PrismaType, userId: string, deltaAdding: number) => Promise<void> | void;
-        delete?: (deleteMany: string[], prisma: PrismaType, userId: string) => Promise<void> | void;
-        disconnect?: (disconnectMany: string[], prisma: PrismaType, userId: string) => Promise<void> | void;
-        update?: (updateMany: GQLUpdate[], prisma: PrismaType, userId: string) => Promise<void> | void;
+        connect?: ({ connectMany, languages, prisma, userId }: {
+            connectMany: string[],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => Promise<void> | void;
+        create?: ({ createMany, deltaAdding, languages, prisma, userId }: {
+            createMany: GQLCreate[],
+            deltaAdding: number,
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => Promise<void> | void;
+        delete?: ({ deleteMany, languages, prisma, userId }: {
+            deleteMany: string[],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => Promise<void> | void;
+        disconnect?: ({ disconnectMany, languages, prisma, userId }: {
+            disconnectMany: string[],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => Promise<void> | void;
+        update?: ({ languages, prisma, updateMany, userId }: {
+            prisma: PrismaType,
+            updateMany: GQLUpdate[],
+            userData: SessionUser,
+        }) => Promise<void> | void;
     };
     /**
      * Any custom transformations you want to perform before a create/update mutation, 
-     * besides the ones specified in cudHelper. This includes converting creates to 
+     * besides the ones supported by default in cudHelper. This includes converting creates to 
      * connects, which means this function has to be pretty flexible in what it allows
      */
     transformations?: {
@@ -375,13 +393,111 @@ export type Validator<
 };
 
 /**
+ * Describes shape of component that can be duplicated
+ */
+export type Duplicater<
+    // Select must include "id" and "intendToPullRequest" fields
+    Select extends { id?: boolean | undefined, intendToPullRequest?: boolean | undefined, [x: string]: any },
+    Data extends { [x: string]: any }
+> = {
+    /**
+     * Data to select from the database to duplicate. DO NOT select anything that 
+     * is not meant to be duplicated 
+     * 
+     * 
+     * NOTE: All IDs will be converted to new IDs. This is especially useful for 
+     * child data that references each other, like nodes and edges 
+     */
+    select: Select;
+    /**
+     * Data to connect to new owner
+     */
+    owner: (id: string) => {
+        Organization?: Partial<Data> | null
+        User?: Partial<Data> | null;
+    }
+}
+
+export type MutaterShapes = {
+    graphql: { [x: string]: any },
+    db: { [x: string]: any },
+}
+
+export type RelBuilderInput<RelName extends string, Relationship extends MutaterShapes> = {
+    data: { [RelName]: Relationship['graphql'] },
+    prisma: PrismaType,
+    relationshipName: RelName,
+    userData: SessionUser,
+}
+
+/**
  * Describes shape of component that can be mutated
  */
-export type Mutater<GQLModel> = {
-    relationshipBuilder?(userId: string, data: { [x: string]: any }, isAdd: boolean = true, relationshipName?: string | undefined): Promise<{ [x: string]: any } | undefined>;
-    cud?({ partialInfo, userId, createMany, updateMany, deleteMany }: CUDInput<any, any>): Promise<CUDResult<GQLModel>>;
-    duplicate?({ userId, objectId, isFork, createCount }: DuplicateInput): Promise<DuplicateResult<GQLModel>>;
-} & { [x: string]: any };
+export type Mutater<
+    GQLObject extends { [x: string]: any },
+    Create extends MutaterShapes | false,
+    Update extends MutaterShapes | false,
+    RelationshipCreate extends MutaterShapes | false,
+    RelationshipUpdate extends MutaterShapes | false,
+> = {
+    /**
+     * Shapes data for create/update mutations, both as a main 
+     * object and as a relationship object
+     */
+    shape: (Create extends false ? {} : {
+        create: ({ data, prisma, userData }: {
+            data: Create['graphql'],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<Create['db']>,
+    }) & (Update extends false ? {} : {
+        update: ({ data, prisma, userData }: {
+            data: Update['graphql'],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<Update['db']>,
+    }) & (RelationshipCreate extends false ? {} : {
+        relCreate: ({ data, prisma, userData }: {
+            data: RelationshipCreate['graphql'],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<RelationshipCreate['db']>,
+    }) & (RelationshipUpdate extends false ? {} : {
+        relUpdate: ({ data, prisma, userData }: {
+            data: RelationshipUpdate['graphql'],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<RelationshipUpdate['db']>,
+    }),
+    /**
+     * Triggers when a mutation is performed on the object
+     */
+    trigger?: (Create extends false ? {} : {
+        onCreated?: ({ created, prisma, userData }: {
+            created: RecursivePartial<GQLObject>[],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<void>,
+    }) & (Update extends false ? {} : {
+        onUpdated?: ({ updated, updateInput, prisma, userData }: {
+            updated: RecursivePartial<GQLObject>[],
+            updateInput: Update['graphql'][],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<void>,
+    }) & {
+        onDeleted?: ({ deleted, prisma, userData }: {
+            deleted: Count,
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<void>,
+    },
+    yup: (Create extends false ? {} : {
+        create: ObjectSchema,
+    }) & (Update extends false ? {} : {
+        update: ObjectSchema,
+    });
+}
 
 /**
  * Mapper for associating a model's many-to-many relationship names with
@@ -417,58 +533,20 @@ export type CountInputBase = {
     updatedTimeFrame?: Partial<TimeFrame> | null;
 }
 
-export interface CUDInput<Create, Update> {
-    userData: SessionUser,
-    createMany?: Create[] | null | undefined,
-    updateMany?: { where: { [x: string]: any }, data: Update }[] | null | undefined,
-    deleteMany?: string[] | null | undefined,
-    partialInfo: PartialGraphQLInfo,
-}
-
 export interface CUDResult<GraphQLObject> {
     created?: RecursivePartial<GraphQLObject>[],
     updated?: RecursivePartial<GraphQLObject>[],
     deleted?: Count, // Number of deleted organizations
 }
 
-export interface CUDHelperInput<GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }, GraphQLObject, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }> {
-    objectType: GraphQLModelType,
-    userData: SessionUser,
-    prisma: PrismaType,
-    createMany?: GraphQLCreate[] | null | undefined,
-    updateMany?: { where: { [x: string]: any }, data: GraphQLUpdate }[] | null | undefined,
+export interface CUDHelperInput<
+    GQLObject extends { [x: string]: any }
+> {
+    createMany?: { [x: string]: any }[] | null | undefined;
     deleteMany?: string[] | null | undefined,
+    objectType: GraphQLModelType,
     partialInfo: PartialGraphQLInfo,
-    yup: { yupCreate: ObjectSchema, yupUpdate: ObjectSchema },
-    shape: {
-        shapeCreate: (userId: string, create: GraphQLCreate) => (Promise<DBCreate> | DBCreate),
-        shapeUpdate: (userId: string, update: GraphQLUpdate) => (Promise<DBUpdate> | DBUpdate),
-    },
-    onCreated?: (created: RecursivePartial<GraphQLObject>[]) => Promise<void> | void,
-    onUpdated?: (updated: RecursivePartial<GraphQLObject>[], updateData: GraphQLUpdate[]) => Promise<void> | void,
-    onDeleted?: (deleted: Count) => Promise<void> | void,
-}
-
-export interface DuplicateInput {
-    /**
-     * The userId of the user making the copy
-     */
-    userId: string,
-    /**
-     * The id of the object to copy.
-     */
-    objectId: string,
-    /**
-     * Whether the copy is a fork or a copy
-     */
-    isFork: boolean,
-    /**
-     * Number of child objects already created. Can be used to limit size of copy.
-     */
-    createCount: number,
-}
-
-export interface DuplicateResult<GraphQLObject> {
-    object: RecursivePartial<GraphQLObject>,
-    numCreated: number
+    prisma: PrismaType,
+    updateMany?: { [x: string]: any }[] | null | undefined,
+    userData: SessionUser,
 }

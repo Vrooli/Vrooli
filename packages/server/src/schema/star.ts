@@ -85,7 +85,7 @@ export const resolvers = {
         star: async (_parent: undefined, { input }: IWrap<StarInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
-            const success = await StarModel.mutate(prisma).star(userData.id, input);
+            const success = await StarModel.star(prisma, userData, input);
             return { success };
         },
     }

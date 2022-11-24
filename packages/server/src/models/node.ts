@@ -1,19 +1,17 @@
-import { Node, NodeCreateInput, NodeUpdateInput } from "../schema/types";
-import { relationshipBuilderHelper } from "./builder";
-import { nodeTranslationCreate, nodeTranslationUpdate, nodesCreate, nodesUpdate } from "@shared/validation";
+import { Node, NodeCreateInput, NodeUpdateInput, SessionUser } from "../schema/types";
+import { nodesCreate, nodesUpdate } from "@shared/validation";
 import { PrismaType } from "../types";
-import { TranslationModel } from "./translation";
-import { NodeRoutineListModel } from "./nodeRoutineList";
-import { FormatConverter, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { routineValidator } from "./routine";
-import { cudHelper } from "./actions";
 import { CustomError } from "../events";
-import { organizationQuerier } from "./organization";
+import { RoutineModel } from "./routine";
+import { OrganizationModel } from "./organization";
+import { relBuilderHelper } from "./actions";
+import { translationRelationshipBuilder } from "./utils";
 
 const MAX_NODES_IN_ROUTINE = 100;
 
-export const nodeFormatter = (): FormatConverter<Node, any> => ({
+const formatter = (): Formatter<Node, any> => ({
     relationshipMap: {
         __typename: 'Node',
         data: {
@@ -25,7 +23,7 @@ export const nodeFormatter = (): FormatConverter<Node, any> => ({
     },
 })
 
-export const nodeValidator = (): Validator<
+const validator = (): Validator<
     NodeCreateInput,
     NodeUpdateInput,
     Node,
@@ -38,7 +36,7 @@ export const nodeValidator = (): Validator<
         __typename: 'Node',
         routineVersion: 'Routine',
     },
-    permissionsSelect: (userId) => ({ routineVersion: { select: routineValidator().permissionsSelect(userId) } }),
+    permissionsSelect: (...params) => ({ routineVersion: { select: RoutineModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['canDelete', async () => isAdmin],
         ['canEdit', async () => isAdmin],
@@ -48,16 +46,16 @@ export const nodeValidator = (): Validator<
             root: {
                 OR: [
                     { user: { id: userId } },
-                    organizationQuerier().hasRoleInOrganizationQuery(userId)
+                    OrganizationModel.query.hasRoleInOrganizationQuery(userId)
                 ]
             }
         }
     }),
-    owner: (data) => routineValidator().owner(data.routineVersion as any),
+    owner: (data) => RoutineModel.validate.owner(data.routineVersion as any),
     isDeleted: () => false,
-    isPublic: (data) => routineValidator().isPublic(data.routineVersion as any),
+    isPublic: (data, languages) => RoutineModel.validate.isPublic(data.routineVersion as any, languages),
     validations: {
-        create: async (createMany, prisma, userId, deltaAdding) => {
+        create: async ({ createMany, deltaAdding, prisma, userData }) => {
             if (createMany.length === 0) return;
             // Don't allow more than 100 nodes in a routine
             if (deltaAdding < 0) return;
@@ -67,169 +65,56 @@ export const nodeValidator = (): Validator<
             });
             const totalCount = (existingCount?._count.nodes ?? 0) + deltaAdding
             if (totalCount > MAX_NODES_IN_ROUTINE) {
-                throw new CustomError('0052', 'MaxNodesReached', languages, { totalCount });
+                throw new CustomError('0052', 'MaxNodesReached', userData.languages, { totalCount });
             }
         }
     }
 })
 
-export const nodeMutater = (prisma: PrismaType): Mutater<Node> => ({
-    async toDBBase(userId: string, data: NodeCreateInput | NodeUpdateInput) {
-        return {
-            id: data.id,
-            columnIndex: data.columnIndex ?? undefined,
-            rowIndex: data.rowIndex ?? undefined,
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: nodeTranslationCreate, update: nodeTranslationUpdate }, false),
-            nodeEnd: (data as NodeCreateInput)?.nodeEndCreate ?
-                this.relationshipBuilderEndNode(userId, data, true) :
-                (data as NodeUpdateInput)?.nodeEndUpdate ?
-                    this.relationshipBuilderEndNode(userId, data, false) :
-                    undefined,
-            nodeRoutineList: (data as NodeCreateInput)?.nodeRoutineListCreate ?
-                await NodeRoutineListModel.mutate(prisma).relationshipBuilder!(userId, data, true) :
-                (data as NodeUpdateInput)?.nodeRoutineListUpdate ?
-                    await NodeRoutineListModel.mutate(prisma).relationshipBuilder!(userId, data, false) :
-                    undefined,
-        };
+const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: NodeCreateInput | NodeUpdateInput, isAdd: boolean) => {
+    // Make sure there isn't both end node and routine list node data
+    const result = { nodeEnd: null, nodeRoutineList: null }
+    return {
+        ...result,
+        id: data.id,
+        columnIndex: data.columnIndex ?? undefined,
+        rowIndex: data.rowIndex ?? undefined,
+        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+        nodeEnd: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'nodeEnd', objectType: 'NodeEnd', prisma, userData }),
+        nodeRoutineList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'nodeRoutineList', objectType: 'NodeRoutineList', prisma, userData }),
+        // loop: asdfa
+    }
+}
+
+const mutater = (): Mutater<
+    Node,
+    { graphql: NodeCreateInput, db: Prisma.nodeUpsertArgs['create'] },
+    { graphql: NodeUpdateInput, db: Prisma.nodeUpsertArgs['update'] },
+    { graphql: NodeCreateInput, db: Prisma.nodeCreateWithoutRoutineVersionInput },
+    { graphql: NodeUpdateInput, db: Prisma.nodeUpdateWithoutRoutineVersionInput }
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => {
+            return {
+                ...(await shapeBase(prisma, userData, data, true)),
+                permissions: JSON.stringify({}), //TODO
+                routineVersionId: data.routineVersionId,
+                type: data.type,
+            };
+        },
+        update: async ({ data, prisma, userData }) => {
+            return await shapeBase(prisma, userData, data, false);
+        },
+        relCreate: mutater().shape.create,
+        relUpdate: mutater().shape.update,
     },
-    async shapeCreate(userId: string, data: NodeCreateInput): Promise<Prisma.nodeUpsertArgs['create']> {
-        return {
-            ...(await this.toDBBase(userId, data)),
-            routineVersionId: data.routineVersionId,
-            type: data.type,
-        };
-    },
-    async shapeUpdate(userId: string, data: NodeUpdateInput): Promise<Prisma.nodeUpsertArgs['update']> {
-        return this.toDBBase(userId, data);
-    },
-    /**
-     * Add, update, or delete a node relationship on a routine
-     */
-    async relationshipBuilder(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-        relationshipName: string = 'nodes',
-    ): Promise<{ [x: string]: any } | undefined> {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName,
-            isAdd,
-            isTransferable: false,
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            userId,
-        });
-    },
-    /**
-     * Add, update, or remove whens from a node link
-     */
-    relationshipBuilderNodeLinkWhens(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName: 'whens',
-            isAdd,
-            isTransferable: false,
-            userId,
-        })
-    },
-    /**
-     * Add, update, or remove node link from a node orchestration
-     */
-    relationshipBuilderNodeLink(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName: 'nodeLinks',
-            isAdd,
-            isTransferable: false,
-            shape: (userId: string, cuData: { [x: string]: any }, isAdd: boolean) => {
-                let { fromId, toId, ...rest } = cuData;
-                return {
-                    ...rest,
-                    whens: this.relationshipBuilderNodeLinkWhens(userId, cuData, isAdd),
-                    from: { connect: { id: cuData.fromId } },
-                    to: { connect: { id: cuData.toId } },
-                }
-            },
-            userId,
-        })
-    },
-    /**
-     * Add, update, or remove combine node data from a node.
-     * Since this is a one-to-one relationship, we cannot return arrays
-     */
-    relationshipBuilderEndNode(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName: 'nodeEnd',
-            isAdd,
-            isOneToOne: true,
-            isTransferable: false,
-            userId,
-        })
-    },
-    /**
-     * Add, update, or remove loop while data from a node
-     */
-    relationshipBuilderLoopWhiles(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName: 'whiles',
-            isAdd,
-            isTransferable: false,
-            userId,
-        })
-    },
-    /**
-     * Add, update, or remove loop data from a node
-     */
-    relationshipBuilderLoop(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-    ): { [x: string]: any } | undefined {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName: 'loop',
-            isAdd,
-            isTransferable: false,
-            shape: (userId: string, cuData: { [x: string]: any }, isAdd: boolean) => ({
-                ...cuData,
-                whiles: this.relationshipBuilderLoopWhiles(userId, cuData, isAdd)
-            }),
-            userId,
-        })
-    },
-    async cud(params: CUDInput<NodeCreateInput, NodeUpdateInput>): Promise<CUDResult<Node>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Node',
-            prisma,
-            yup: { yupCreate: nodesCreate, yupUpdate: nodesUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-        })
-    },
+    yup: { create: nodesCreate, update: nodesUpdate },
 })
 
 export const NodeModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.node,
-    format: nodeFormatter(),
-    mutate: nodeMutater,
+    delegate: (prisma: PrismaType) => prisma.node,
+    format: formatter(),
+    mutate: mutater(),
     type: 'Node' as GraphQLModelType,
-    validate: nodeValidator(),
+    validate: validator(),
 })

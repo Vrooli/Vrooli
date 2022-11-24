@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { createHelper, NodeModel, updateHelper } from '../models';
+import { createHelper, updateHelper } from '../models';
 import { IWrap, RecursivePartial } from '../types';
 import { Node, NodeCreateInput, NodeUpdateInput } from './types';
 import { Context, rateLimit } from '../middleware';
@@ -302,11 +302,11 @@ export const resolvers = {
          */
         nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             await rateLimit({ info, maxUser: 2000, req });
-            return createHelper({ info, input, model: NodeModel, prisma, req })
+            return createHelper({ info, input, objectType: 'Node', prisma, req })
         },
         nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             await rateLimit({ info, maxUser: 2000, req });
-            return updateHelper({ info, input, model: NodeModel, prisma, req })
+            return updateHelper({ info, input, objectType: 'Node', prisma, req })
         },
     }
 }

@@ -328,11 +328,11 @@ export const resolvers = {
     Mutation: {
         routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, model: RoutineModel, prisma, req });
+            return createHelper({ info, input, objectType: 'Routine', prisma, req });
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, model: RoutineModel, prisma, req });
+            return updateHelper({ info, input, objectType: 'Routine', prisma, req });
         },
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ info, maxUser: 250, req });

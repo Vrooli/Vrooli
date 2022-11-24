@@ -79,6 +79,11 @@ export type RecursivePartial<T> = {
 export type SingleOrArray<T> = T | T[];
 
 /**
+ * Either a promise or a value
+ */
+export type PromiseOrValue<T> = Promise<T> | T;
+
+/**
  * Type for replacing one type with another in a nested object
  */
 export type ReplaceTypes<ObjType extends object, FromType, ToType> = {

@@ -15,12 +15,12 @@ export function getValidator<
     OwnerOrMemberWhere extends { [x: string]: any },
 >(
     objectType: GraphQLModelType,
+    languages: string[],
     errorTrace: string,
 ): Validator<GQLCreate, GQLUpdate, GQLModel, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere>{
-    // Find validator and prisma delegate for this object type
     const validator: Validator<GQLCreate, GQLUpdate, GQLModel, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere> | undefined = ObjectMap[objectType]?.validate;
     if (!validator) {
-        throw new CustomError('InvalidArgs', `Invalid object type in ${errorTrace}: ${objectType}`, { trace: '0280' });
+        throw new CustomError('0280', 'InvalidArgs', languages, { errorTrace, objectType });
     }
     return validator;
 }

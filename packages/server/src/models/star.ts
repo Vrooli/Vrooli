@@ -9,13 +9,14 @@ import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
 import { CustomError, Trigger } from "../events";
 import { resolveStarTo } from "../schema/resolvers";
-import { Star, StarSearchInput, StarInput } from "../schema/types";
+import { Star, StarSearchInput, StarInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { readManyHelper } from "./actions";
-import { FormatConverter, GraphQLModelType, ModelLogic, Mutater, PartialGraphQLInfo, Searcher } from "./types";
+import { Formatter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
+import { getDelegate } from "./utils";
 
-export const starFormatter = (): FormatConverter<Star, 'to'> => ({
+const formatter = (): Formatter<Star, 'to'> => ({
     relationshipMap: {
         __typename: 'Star',
         from: 'User',
@@ -82,7 +83,7 @@ export const starFormatter = (): FormatConverter<Star, 'to'> => ({
     },
 })
 
-export const starSearcher = (): Searcher<
+const searcher = (): Searcher<
     StarSearchInput,
     StarSortBy,
     Prisma.starOrderByWithRelationInput,
@@ -110,7 +111,7 @@ export const starSearcher = (): Searcher<
     },
 })
 
-const forMapper: { [key in StarFor]: string } = {
+const forMapper: { [key in StarFor]: keyof Prisma.starUpsertArgs['create'] } = {
     Comment: 'comment',
     Organization: 'organization',
     Project: 'project',
@@ -120,64 +121,63 @@ const forMapper: { [key in StarFor]: string } = {
     User: 'user',
 }
 
-const starMutater = (prisma: PrismaType): Mutater<Star> => ({
-    async star(userId: string, input: StarInput, languages: string[]): Promise<boolean> {
-        prisma.star.findMany({
-            where: {
-                tagId: null
-            }
-        })
-        // Define prisma type for object being starred
-        const prismaFor = (prisma[forMapper[input.starFor] as keyof PrismaType] as any);
-        // Check if object being starred exists
-        const starringFor: null | { id: string, stars: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } });
-        if (!starringFor)
-            throw new CustomError('0110', 'ErrorUnknown', languages, { starFor: input.starFor, forId: input.forId });
-        // Check if star already exists on object by this user TODO fix for tags
-        const star = await prisma.star.findFirst({
-            where: {
-                byId: userId,
+const star = async (prisma: PrismaType, userData: SessionUser, input: StarInput): Promise<boolean> => {
+    prisma.star.findMany({
+        where: {
+            tagId: null
+        }
+    })
+    // Get prisma delegate for type of object being starred
+    const prismaDelegate = getDelegate(input.starFor, prisma, userData.languages, 'star');
+    // Check if object being starred exists
+    const starringFor: null | { id: string, stars: number } = await prismaDelegate.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } }) as any;
+    if (!starringFor)
+        throw new CustomError('0110', 'ErrorUnknown', userData.languages, { starFor: input.starFor, forId: input.forId });
+    // Check if star already exists on object by this user TODO fix for tags
+    const star = await prisma.star.findFirst({
+        where: {
+            byId: userData.id,
+            [`${forMapper[input.starFor]}Id`]: input.forId
+        }
+    })
+    // If star already existed and we want to star, 
+    // or if star did not exist and we don't want to star, skip
+    if ((star && input.isStar) || (!star && !input.isStar)) return true;
+    // If star did not exist and we want to star, create
+    if (!star && input.isStar) {
+        // Create
+        await prisma.star.create({
+            data: {
+                byId: userData.id,
                 [`${forMapper[input.starFor]}Id`]: input.forId
             }
         })
-        // If star already existed and we want to star, 
-        // or if star did not exist and we don't want to star, skip
-        if ((star && input.isStar) || (!star && !input.isStar)) return true;
-        // If star did not exist and we want to star, create
-        if (!star && input.isStar) {
-            // Create
-            await prisma.star.create({
-                data: {
-                    byId: userId,
-                    [`${forMapper[input.starFor]}Id`]: input.forId
-                }
-            })
-            // Increment star count on object
-            await prismaFor.update({
-                where: { id: input.forId },
-                data: { stars: starringFor.stars + 1 }
-            })
-            // Handle trigger
-            await Trigger(prisma).objectStar(true, input.starFor, input.forId, userId);
-        }
-        // If star did exist and we don't want to star, delete
-        else if (star && !input.isStar) {
-            // Delete star
-            await prisma.star.delete({ where: { id: star.id } })
-            // Decrement star count on object
-            await prismaFor.update({
-                where: { id: input.forId },
-                data: { stars: starringFor.stars - 1 }
-            })
-            // Handle trigger
-            await Trigger(prisma).objectStar(false, input.starFor, input.forId, userId);
-        }
-        return true;
+        // Increment star count on object
+        await prismaDelegate.update({
+            where: { id: input.forId },
+            data: { stars: starringFor.stars + 1 }
+        })
+        // Handle trigger
+        await Trigger(prisma, userData.languages).objectStar(true, input.starFor, input.forId, userData.id);
     }
-})
+    // If star did exist and we don't want to star, delete
+    else if (star && !input.isStar) {
+        // Delete star
+        await prisma.star.delete({ where: { id: star.id } })
+        // Decrement star count on object
+        await prismaDelegate.update({
+            where: { id: input.forId },
+            data: { stars: starringFor.stars - 1 }
+        })
+        // Handle trigger
+        await Trigger(prisma, userData.languages).objectStar(false, input.starFor, input.forId, userData.id);
+    }
+    return true;
+}
 
-const starQuerier = (prisma: PrismaType) => ({
+const querier = () => ({
     async getIsStarreds(
+        prisma: PrismaType,
         userId: string | null | undefined,
         ids: string[],
         starFor: keyof typeof StarFor
@@ -203,10 +203,10 @@ const starQuerier = (prisma: PrismaType) => ({
 })
 
 export const StarModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.star,
-    format: starFormatter(),
-    mutate: starMutater,
-    query: starQuerier,
-    search: starSearcher(),
+    delegate: (prisma: PrismaType) => prisma.star,
+    format: formatter(),
+    query: querier(),
+    search: searcher(),
     type: 'Star' as GraphQLModelType,
+    star,
 })

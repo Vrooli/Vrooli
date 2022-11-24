@@ -46,15 +46,15 @@ export async function readOneHelper<GraphQLModel>({
     permissionsCheck(authDataById, { ['Read']: [id as string] }, userData);
     // Get the Prisma object
     let object = id ?
-        await (model.prismaObject(prisma) as any).findUnique({ where: { id: id }, ...selectHelper(partialInfo) }) :
-        await (model.prismaObject(prisma) as any).findFirst({ where: { handle: (input as FindByIdOrHandleInput).handle as string }, ...selectHelper(partialInfo) });
+        await (model.delegate(prisma) as any).findUnique({ where: { id: id }, ...selectHelper(partialInfo) }) :
+        await (model.delegate(prisma) as any).findFirst({ where: { handle: (input as FindByIdOrHandleInput).handle as string }, ...selectHelper(partialInfo) });
     if (!object)
         throw new CustomError('0022', 'NotFound', userData?.languages ?? req.languages, { objectType });
     // Return formatted for GraphQL
     let formatted = modelToGraphQL(object, partialInfo) as RecursivePartial<GraphQLModel>;
     // If logged in and object has view count, handle it
     if (userData?.id && objectType in ViewFor) {
-        ViewModel.mutate(prisma).view(userData.id, { forId: object.id, title: '', viewFor: objectType as any }); //TODO add title, which requires user's language
+        ViewModel.view(prisma, userData, { forId: object.id, title: asdfasd, viewFor: objectType as any }); //TODO add title, which requires user's language
     }
     return (await addSupplementalFields(prisma, userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
 }

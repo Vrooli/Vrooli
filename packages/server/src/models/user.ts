@@ -4,13 +4,13 @@ import { ViewModel } from "./view";
 import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
 import { User, UserSearchInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, GraphQLModelType, Validator } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
 type SupplementalFields = 'isStarred' | 'isViewed';
-export const userFormatter = (): FormatConverter<User, SupplementalFields> => ({
+const formatter = (): Formatter<User, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'User',
         comments: 'Comment',
@@ -27,13 +27,13 @@ export const userFormatter = (): FormatConverter<User, SupplementalFields> => ({
     supplemental: {
         graphqlFields: ['isStarred', 'isViewed'],
         toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'User')],
-            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userData?.id, ids, 'User')],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'User')],
+            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'User')],
         ],
     },
 })
 
-export const userSearcher = (): Searcher<
+export const searcher = (): Searcher<
     UserSearchInput,
     UserSortBy,
     Prisma.userOrderByWithRelationInput,
@@ -71,7 +71,7 @@ export const userSearcher = (): Searcher<
     },
 })
 
-export const userValidator = (): Validator<
+const validator = (): Validator<
     any,
     any,
     User,
@@ -98,9 +98,9 @@ export const userValidator = (): Validator<
 })
 
 export const UserModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.user,
-    format: userFormatter(),
-    search: userSearcher(),
+    delegate: (prisma: PrismaType) => prisma.user,
+    format: formatter(),
+    search: searcher(),
     type: 'User' as GraphQLModelType,
-    validate: userValidator(),
+    validate: validator(),
 })

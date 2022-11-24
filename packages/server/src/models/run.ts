@@ -7,12 +7,11 @@ import { RunInputModel } from "./runInput";
 import { CustomError, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, GraphQLInfo, Validator, Mutater } from "./types";
-import { cudHelper } from "./actions";
+import { Formatter, Searcher, GraphQLModelType, GraphQLInfo, Validator, Mutater } from "./types";
 import { oneIsPublic } from "./utils";
-import { organizationQuerier } from "./organization";
+import { OrganizationModel } from "./organization";
 
-export const runFormatter = (): FormatConverter<Run, ''> => ({
+const formatter = (): Formatter<Run, ''> => ({
     relationshipMap: {
         __typename: 'RunRoutine',
         routine: 'Routine',
@@ -28,7 +27,7 @@ export const runFormatter = (): FormatConverter<Run, ''> => ({
     },
 })
 
-export const runSearcher = (): Searcher<
+const searcher = (): Searcher<
     RunSearchInput,
     RunSortBy,
     Prisma.run_routineOrderByWithRelationInput,
@@ -70,7 +69,7 @@ export const runSearcher = (): Searcher<
     },
 })
 
-export const runValidator = (): Validator<
+const validator = (): Validator<
     RunCreateInput,
     RunUpdateInput,
     Run,
@@ -85,14 +84,14 @@ export const runValidator = (): Validator<
         organization: 'Organization',
         user: 'User',
     },
-    permissionsSelect: (userId) => ({
+    permissionsSelect: (...params) => ({
         id: true,
         isPrivate: true,
         ...permissionsSelectHelper([
             ['organization', 'Organization'],
             ['routineVersion', 'Routine'],
             ['user', 'User'],
-        ], userId)
+        ], ...params)
     }),
     permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
         ['canDelete', async () => isAdmin && !isDeleted],
@@ -104,13 +103,13 @@ export const runValidator = (): Validator<
         User: data.user,
     }),
     isDeleted: () => false,
-    isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
+    isPublic: (data, languages,) => data.isPrivate === false && oneIsPublic<Prisma.run_routineSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],
-    ]),
+    ], languages),
     ownerOrMemberWhere: (userId) => ({
         OR: [
-            organizationQuerier().hasRoleInOrganizationQuery(userId),
+            OrganizationModel.query.hasRoleInOrganizationQuery(userId),
             { user: { id: userId } }
         ]
     }),
@@ -122,90 +121,17 @@ export const runValidator = (): Validator<
     // as the current status, or an invalid transition (e.g. failed -> in progress)
 })
 
-/**
- * Handles run instances of routines
- */
-export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
-    async shapeCreate(userId: string, data: RunCreateInput): Promise<Prisma.run_routineUpsertArgs['create']> {
-        // TODO - when scheduling added, don't assume that it is being started right away
-        return {
-            id: data.id,
-            timeStarted: new Date(),
-            routineVersionId: data.routineVersionId,
-            status: RunStatus.InProgress,
-            steps: await RunStepModel.mutate(prisma).relationshipBuilder!(userId, data, true, 'step'),
-            title: data.title,
-            userId,
-        }
-    },
-    async shapeUpdate(userId: string, data: RunUpdateInput): Promise<Prisma.run_routineUpsertArgs['update']> {
-        return {
-            timeElapsed: data.timeElapsed ? { increment: data.timeElapsed } : undefined,
-            completedComplexity: data.completedComplexity ? { increment: data.completedComplexity } : undefined,
-            contextSwitches: data.contextSwitches ? { increment: data.contextSwitches } : undefined,
-            steps: await RunStepModel.mutate(prisma).relationshipBuilder!(userId, data, false),
-            inputs: await RunInputModel.mutate(prisma).relationshipBuilder!(userId, data, false),
-        }
-    },
-    async cud(params: CUDInput<RunCreateInput, RunUpdateInput>): Promise<CUDResult<Run>> {
-        return cudHelper({
-            ...params,
-            objectType: 'RunRoutine',
-            prisma,
-            yup: { yupCreate: runsCreate, yupUpdate: runsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            onCreated: (created) => {
-                // Handle run start trigger for every run with status InProgress
-                for (const c of created) {
-                    if (c.status === RunStatus.InProgress) {
-                        Trigger(prisma).runStart(c.title as string, c.id as string, params.userData.id, false);
-                    }
-                }
-            },
-            onUpdated: (updated, updateData) => {
-                for (let i = 0; i < updated.length; i++) {
-                    // Handle run start trigger for every run with status InProgress, 
-                    // that previously had a status of Scheduled
-                    if (updated[i].status === RunStatus.InProgress && updateData[i].hasOwnProperty('status')) {
-                        Trigger(prisma).runStart(updated[i].title as string, updated[i].id as string, params.userData.id, false);
-                    }
-                    // Handle run complete trigger for every run with status Completed,
-                    // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Completed && updateData[i].hasOwnProperty('status')) {
-                        Trigger(prisma).runComplete(updated[i].title as string, updated[i].id as string, params.userData.id, false);
-                    }
-                    // Handle run fail trigger for every run with status Failed,
-                    // that previously had a status of InProgress
-                    if (updated[i].status === RunStatus.Failed && updateData[i].hasOwnProperty('status')) {
-                        Trigger(prisma).runFail(updated[i].title as string, updated[i].id as string, params.userData.id, false);
-                    }
-                }
-            }
-        })
-    },
-    /**
-     * Deletes all runs for a user, except if they are in progress
-     */
-    async deleteAll(userId: string): Promise<Count> {
-        return prisma.run_routine.deleteMany({
-            where: {
-                AND: [
-                    { userId },
-                    { NOT: { status: RunStatus.InProgress } }
-                ]
-            }
-        });
-    },
+const runner = () => ({
     /**
      * Marks a run as completed. Run does not have to exist, since this can be called on simple routines 
      * via the "Mark as Complete" button. We could create a new run every time a simple routine is viewed 
      * to get around this, but I'm not sure if that would be a good idea. Most of the time, I imagine users
      * will just be looking at the routine instead of using it.
      */
-    async complete(userData: SessionUser, input: RunCompleteInput, info: GraphQLInfo): Promise<Run> {
+    async complete(prisma: PrismaType, userData: SessionUser, input: RunCompleteInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
-        const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
-        if (partial === undefined) throw new CustomError('ErrorUnknown', 'Invalid query.', { trace: '0179' });
+        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap);
+        if (partial === undefined) throw new CustomError('0179', 'ErrorUnknown', userData.languages);
         let run: run_routine | null;
         // Check if run is being created or updated
         if (input.exists) {
@@ -218,7 +144,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
                     ]
                 }
             })
-            if (!run) throw new CustomError('NotFound', 'Run not found.', { trace: '0180' });
+            if (!run) throw new CustomError('0180', 'NotFound', userData.languages);
             const { timeElapsed, contextSwitches, completedComplexity } = run;
             // Update object
             run = await prisma.run_routine.update({
@@ -288,18 +214,18 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userData, [converted], partial))[0];
         // Handle trigger
-        if (input.wasSuccessful) await Trigger(prisma).runComplete(input.title, input.id, userData.id, false);
-        else await Trigger(prisma).runFail(input.title, input.id, userData.id, false);
+        if (input.wasSuccessful) await Trigger(prisma, userData.languages).runComplete(input.title, input.id, userData.id, false);
+        else await Trigger(prisma, userData.languages).runFail(input.title, input.id, userData.id, false);
         // Return converted object
         return converted as Run;
     },
     /**
      * Cancels a run
      */
-    async cancel(userData: SessionUser, input: RunCancelInput, info: GraphQLInfo): Promise<Run> {
+    async cancel(prisma: PrismaType, userData: SessionUser, input: RunCancelInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
-        const partial = toPartialGraphQLInfo(info, runFormatter().relationshipMap);
-        if (partial === undefined) throw new CustomError('ErrorUnknown', 'Invalid query.', { trace: '0181' });
+        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap);
+        if (partial === undefined) throw new CustomError('181', 'ErrorUnknown', userData.languages);
         // Find in database
         let object = await prisma.run_routine.findFirst({
             where: {
@@ -309,7 +235,7 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
                 ]
             }
         })
-        if (!object) throw new CustomError('NotFound', 'Run not found.', { trace: '0182' });
+        if (!object) throw new CustomError('0182', 'NotFound', userData.languages);
         // Update object
         const updated = await prisma.run_routine.update({
             where: { id: input.id },
@@ -327,11 +253,105 @@ export const runMutater = (prisma: PrismaType): Mutater<Run> => ({
     },
 })
 
+const mutater = (): Mutater<
+    Run,
+    { graphql: RunCreateInput, db: Prisma.run_routineUpsertArgs['create'] },
+    { graphql: RunUpdateInput, db: Prisma.run_routineUpsertArgs['update'] },
+    false,
+    false
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => {
+            // TODO - when scheduling added, don't assume that it is being started right away
+            return {
+                id: data.id,
+                timeStarted: new Date(),
+                routineVersionId: data.routineVersionId,
+                status: RunStatus.InProgress,
+                steps: await RunStepModel.mutate.relationshipBuilder!(prisma, userData, data, true, 'step'),
+                title: data.title,
+                userId: userData.id,
+            }
+        },
+        update: async ({ data, prisma, userData }) => {
+            return {
+                timeElapsed: data.timeElapsed ? { increment: data.timeElapsed } : undefined,
+                completedComplexity: data.completedComplexity ? { increment: data.completedComplexity } : undefined,
+                contextSwitches: data.contextSwitches ? { increment: data.contextSwitches } : undefined,
+                steps: await RunStepModel.mutate.relationshipBuilder!(prisma, userData, data, false),
+                inputs: await RunInputModel.mutate.relationshipBuilder!(prisma, userData, data, false),
+            }
+        }
+    },
+    trigger: {
+        onCreated: ({ created, prisma, userData }) => {
+            // Handle run start trigger for every run with status InProgress
+            for (const c of created) {
+                if (c.status === RunStatus.InProgress) {
+                    Trigger(prisma, userData.languages).runStart(c.title as string, c.id as string, userData.id, false);
+                }
+            }
+        },
+        onUpdated: ({ prisma, updated, updateInput, userData }) => {
+            for (let i = 0; i < updated.length; i++) {
+                // Handle run start trigger for every run with status InProgress, 
+                // that previously had a status of Scheduled
+                if (updated[i].status === RunStatus.InProgress && updateInput[i].hasOwnProperty('status')) {
+                    Trigger(prisma, userData.languages).runStart(updated[i].title as string, updated[i].id as string, userData.id, false);
+                }
+                // Handle run complete trigger for every run with status Completed,
+                // that previously had a status of InProgress
+                if (updated[i].status === RunStatus.Completed && updateInput[i].hasOwnProperty('status')) {
+                    Trigger(prisma, userData.languages).runComplete(updated[i].title as string, updated[i].id as string, userData.id, false);
+                }
+                // Handle run fail trigger for every run with status Failed,
+                // that previously had a status of InProgress
+                if (updated[i].status === RunStatus.Failed && updateInput[i].hasOwnProperty('status')) {
+                    Trigger(prisma, userData.languages).runFail(updated[i].title as string, updated[i].id as string, userData.id, false);
+                }
+            }
+        },
+    },
+    yup: { create: runsCreate, update: runsUpdate },
+})
+
+const danger = () => ({
+    /**
+     * Anonymizes all public runs associated with a user or organization
+     */
+    async anonymize(prisma: PrismaType, owner: { __typename: 'User' | 'Organization', id: string }): Promise<void> {
+        await prisma.run_routine.updateMany({
+            where: {
+                userId: owner.__typename === 'User' ? owner.id : undefined,
+                organizationId: owner.__typename === 'Organization' ? owner.id : undefined,
+                isPrivate: false,
+            },
+            data: {
+                userId: null,
+                organizationId: null,
+            }
+        });
+    },
+    /**
+     * Deletes all runs associated with a user or organization
+     */
+    async deleteAll(prisma: PrismaType, owner: { __typename: 'User' | 'Organization', id: string }): Promise<Count> {
+        return prisma.run_routine.deleteMany({
+            where: {
+                userId: owner.__typename === 'User' ? owner.id : undefined,
+                organizationId: owner.__typename === 'Organization' ? owner.id : undefined,
+            }
+        });
+    }
+})
+
 export const RunModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.run_routine,
-    format: runFormatter(),
-    mutate: runMutater,
-    search: runSearcher(),
+    danger: danger(),
+    delegate: (prisma: PrismaType) => prisma.run_routine,
+    format: formatter(),
+    mutate: mutater(),
+    run: runner(),
+    search: searcher(),
     type: 'Run' as GraphQLModelType,
-    validate: runValidator(),
+    validate: validator(),
 })

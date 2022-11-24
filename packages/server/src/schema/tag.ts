@@ -145,14 +145,14 @@ export const resolvers = {
          */
         tagCreate: async (_parent: undefined, { input }: IWrap<TagCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, model: TagModel, prisma, req })
+            return createHelper({ info, input, objectType: 'Tag', prisma, req })
         },
         /**
          * Update tags you've created
          */
         tagUpdate: async (_parent: undefined, { input }: IWrap<TagUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Tag>> => {
             await rateLimit({ info, maxUser: 500, req });
-            return updateHelper({ info, input, model: TagModel, prisma, req })
+            return updateHelper({ info, input, objectType: 'Tag', prisma, req })
         },
         /**
          * Delete tags you've created. Other tags must go through a reporting system

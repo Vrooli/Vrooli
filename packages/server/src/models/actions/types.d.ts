@@ -1,7 +1,7 @@
 import { Request } from "express";
 import { CopyInput, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, SessionUser, VisibilityType } from "../../schema/types";
 import { PrismaType } from "../../types";
-import { CountInputBase, GraphQLInfo, ModelLogic, PartialGraphQLInfo, SearchInputBase } from "../types";
+import { CountInputBase, GraphQLInfo, GraphQLModelType, ModelLogic, PartialGraphQLInfo, SearchInputBase } from "../types";
 
 export type CopyHelperProps<GraphQLModel> = {
     info: GraphQLInfo | PartialGraphQLInfo;
@@ -23,7 +23,7 @@ export type CountHelperProps<GraphQLModel, CountInput extends CountInputBase> = 
 export type CreateHelperProps<GraphQLModel> = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
-    model: ModelLogic<GraphQLModel, any, any, any>;
+    objectType: GraphQLModelType;
     prisma: PrismaType;
     req: Request;
 }
@@ -73,10 +73,27 @@ export type ReadOneHelperProps<GraphQLModel> = {
     req: { languages: string[], users?: SessionUser[] };
 }
 
+export type RelBuilderHelperProps<
+    IsAdd extends boolean,
+    IsOneToOne extends boolean,
+    IsRequired extends boolean,
+    RelName extends string,
+    Input extends { [key in RelName]: any },
+> = {
+    data: Input
+    isAdd: IsAdd,
+    isOneToOne: IsOneToOne,
+    isRequired: IsRequired,
+    objectType: GraphQLModelType,
+    prisma: PrismaType,
+    relationshipName: RelName,
+    userData: SessionUser,
+}
+
 export type UpdateHelperProps<GraphQLModel> = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
-    model: ModelLogic<GraphQLModel, any, any, any>;
+    objectType: GraphQLModelType;
     prisma: PrismaType;
     req: Request;
     where?: (obj: any) => { [x: string]: any };

@@ -120,6 +120,7 @@ export async function init(prisma: PrismaType) {
     })
     if (!vrooli) {
         logger.info('🏗 Creating Vrooli organization');
+        const adminMemberId = uuid();
         vrooli = await prisma.organization.create({
             data: {
                 translations: {
@@ -135,10 +136,20 @@ export async function init(prisma: PrismaType) {
                 members: {
                     create: [
                         {
+                            id: adminMemberId,
                             permissions: JSON.stringify({}),
                             userId: admin.id
                         },
                     ]
+                },
+                roles: {
+                    create: {
+                        title: 'Admin',
+                        permissions: JSON.stringify({}),
+                        assignees: {
+                            connect: [{ id: adminMemberId }],
+                        }
+                    }
                 },
                 tags: {
                     create: [
@@ -172,37 +183,6 @@ export async function init(prisma: PrismaType) {
                             }
                         }
                     ]
-                }
-            }
-        })
-        const vrooliAdminRole = await prisma.role.upsert({
-            where: {
-                role_organizationId_title_unique: {
-                    title: 'Admin',
-                    organizationId: vrooli.id,
-                }
-            },
-            update: {},
-            create: {
-                title: 'Admin',
-                permissions: JSON.stringify({}),
-                organization: {
-                    connect: {
-                        id: vrooli.id
-                    }
-                }
-            }
-        })
-        // Assign admin role to admin
-        await prisma.user.update({
-            where: {
-                id: admin.id
-            },
-            data: {
-                roles: {
-                    connect: {
-                        id: vrooliAdminRole.id
-                    }
                 }
             }
         })

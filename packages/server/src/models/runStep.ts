@@ -1,14 +1,13 @@
 import { stepsCreate, stepsUpdate } from "@shared/validation";
 import { RunStepStatus } from "@shared/consts";
-import { relationshipBuilderHelper } from "./builder";
 import { RunStep, RunStepCreateInput, RunStepUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { validateProfanity } from "../utils/censor";
-import { CUDInput, CUDResult, FormatConverter, GraphQLModelType, Mutater } from "./types";
+import { Formatter, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
-import { cudHelper } from "./actions";
+import { RunModel } from "./run";
+import { OrganizationModel } from "./organization";
 
-export const runStepFormatter = (): FormatConverter<RunStep, any> => ({
+const formatter = (): Formatter<RunStep, any> => ({
     relationshipMap: {
         __typename: 'RunStep',
         run: 'RunRoutine',
@@ -17,81 +16,91 @@ export const runStepFormatter = (): FormatConverter<RunStep, any> => ({
     },
 })
 
-export const runStepVerifier = () => ({
-    profanityCheck(data: (RunStepCreateInput | RunStepUpdateInput)[]): void {
-        validateProfanity(data.map((d: any) => d.title), languages);
+const validator = (): Validator<
+    RunStepCreateInput,
+    RunStepUpdateInput,
+    RunStep,
+    Prisma.run_routine_stepGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_stepSelect>]: true } }>,
+    any,
+    Prisma.run_routine_stepSelect,
+    Prisma.run_routine_stepWhereInput
+> => ({
+    validateMap: {
+        __typename: 'RunRoutine',
+        node: 'Node',
+        runRoutine: 'RunRoutine',
+        subroutine: 'Routine',
     },
+    permissionsSelect: (...params) => ({
+        runRoutine: { select: RunModel.validate.permissionsSelect(...params) }
+    }),
+    permissionResolvers: ({ isAdmin, isPublic }) => ([
+        ['canDelete', async () => isAdmin],
+        ['canEdit', async () => isAdmin],
+        ['canView', async () => isPublic],
+    ]),
+    profanityFields: ['title'],
+    ownerOrMemberWhere: (userId) => ({
+        runRoutine: {
+            routineVersion: {
+                root: {
+                    OR: [
+                        { user: { id: userId } },
+                        OrganizationModel.query.hasRoleInOrganizationQuery(userId)
+                    ]
+                }
+            }
+        }
+    }),
+    owner: (data) => RunModel.validate.owner(data.runRoutine as any),
+    isDeleted: () => false,
+    isPublic: (data, languages) => RunModel.validate.isPublic(data.runRoutine as any, languages),
 })
+
+const shapeBase = (data: RunStepCreateInput | RunStepUpdateInput) => {
+    return {
+        id: data.id,
+        contextSwitches: data.contextSwitches ?? undefined,
+        timeElapsed: data.timeElapsed,
+    }
+}
 
 /**
  * Handles mutations of run steps
  */
-export const runStepMutater = (prisma: PrismaType): Mutater<RunStep> => ({
-    shapeBase(userId: string, data: RunStepCreateInput | RunStepUpdateInput) {
-        return {
-            id: data.id,
-            contextSwitches: data.contextSwitches ?? undefined,
-            timeElapsed: data.timeElapsed,
+const mutater = (): Mutater<
+    RunStep,
+    false,
+    false,
+    { graphql: RunStepCreateInput, db: Prisma.run_routine_stepCreateWithoutRunRoutineInput },
+    { graphql: RunStepUpdateInput, db: Prisma.run_routine_stepUpdateWithoutRunRoutineInput }
+> => ({
+    shape: {
+        relCreate: async ({ data, userData }) => {
+            return {
+                ...shapeBase(data),
+                nodeId: data.nodeId,
+                subroutineVersionId: data.subroutineVersionId,
+                order: data.order,
+                status: RunStepStatus.InProgress,
+                step: data.step,
+                title: data.title,
+            }
+        },
+        relUpdate: async ({ data, userData }) => {
+            return {
+                ...shapeBase(data),
+                status: data.status ?? undefined,
+            }
         }
     },
-    shapeRelationshipCreate(userId: string, data: RunStepCreateInput): Prisma.run_routine_stepUncheckedCreateWithoutRunRoutineInput {
-        return {
-            ...this.shapeBase(userId, data),
-            nodeId: data.nodeId,
-            subroutineVersionId: data.subroutineVersionId,
-            order: data.order,
-            status: RunStepStatus.InProgress,
-            step: data.step,
-            title: data.title,
-        }
-    },
-    shapeRelationshipUpdate(userId: string, data: RunStepUpdateInput): Prisma.run_routine_stepUncheckedUpdateWithoutRunRoutineInput {
-        return {
-            ...this.shapeBase(userId, data),
-            status: data.status ?? undefined,
-        }
-    },
-    shapeCreate(userId: string, data: RunStepCreateInput & { runId: string }): Prisma.run_routine_stepUpsertArgs['create'] {
-        return {
-            ...this.shapeRelationshipCreate(userId, data),
-            runId: data.runId,
-        }
-    },
-    shapeUpdate(userId: string, data: RunStepUpdateInput): Prisma.run_routine_stepUpsertArgs['update'] {
-        return {
-            ...this.shapeRelationshipUpdate(userId, data),
-        }
-    },
-    async relationshipBuilder(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-        relationshipName: string = 'steps',
-    ): Promise<{ [x: string]: any } | undefined> {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName,
-            isAdd,
-            isTransferable: false,
-            shape: { shapeCreate: this.shapeRelationshipCreate, shapeUpdate: this.shapeRelationshipUpdate },
-            userId,
-        });
-    },
-    async cud(params: CUDInput<RunStepCreateInput & { runId: string }, RunStepUpdateInput>): Promise<CUDResult<RunStep>> {
-        return cudHelper({
-            ...params,
-            objectType: 'RunStep',
-            prisma,
-            yup: { yupCreate: stepsCreate, yupUpdate: stepsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
-        })
-    },
+    yup: { create: stepsCreate, update: stepsUpdate },
 })
 
 export const RunStepModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.run_routine_step,
-    format: runStepFormatter(),
-    mutate: runStepMutater,
+    delegate: (prisma: PrismaType) => prisma.run_routine_step,
+    format: formatter(),
+    mutate: mutater(),
     type: 'RunStep' as GraphQLModelType,
-    verify: runStepVerifier(),
+    validate: validator(),
 })

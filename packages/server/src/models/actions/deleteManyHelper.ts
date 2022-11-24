@@ -24,7 +24,7 @@ export async function deleteManyHelper({
     const objectType = model.format.relationshipMap.__typename;
     // Handle trigger
     for (const id of input.ids) {
-        await Trigger(prisma).objectDelete(objectType as DeleteOneType, id, userData.id);
+        await Trigger(prisma, req.languages).objectDelete(objectType as DeleteOneType, id, userData.id);
     }
     return deleted
 }

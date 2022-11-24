@@ -193,7 +193,7 @@ const placeholdersToIds = async (idActions: { [key in GraphQLModelType]?: string
         // If there are any no ids, skip
         if (queries[key as any].ids.length === 0) continue;
         // Query for ids
-        const delegate = getDelegate(key as GraphQLModelType, prisma, 'disconnectPlaceholdersToIds');
+        const delegate = getDelegate(key as GraphQLModelType, prisma, languages, 'disconnectPlaceholdersToIds');
         queryData[key as any] = await delegate.findMany({
             where: { id: { in: queries[key as any].ids } },
             select: queries[key as any].select,

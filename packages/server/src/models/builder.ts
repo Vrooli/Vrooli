@@ -29,10 +29,15 @@ import { RunStepModel } from './runStep';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { RunInputModel } from './runInput';
 import { uuidValidate } from '@shared/uuid';
-import { CountMap, FormatConverter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, SupplementalConverter, WithSelect } from './types';
+import { CountMap, Formatter, GraphQLInfo, GraphQLModelType, JoinMap, ModelLogic, Mutater, MutaterShapes, PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect, RelationshipMap, SupplementalConverter, WithSelect } from './types';
 import { SessionUser, TimeFrame, VisibilityType } from '../schema/types';
 import { getSearcher, getValidator } from './utils';
 import { Request } from 'express';
+import { NodeRoutineListItemModel } from './nodeRoutineListItem';
+import { NodeEndModel } from './nodeEnd';
+import { CustomError } from '../events';
+import { NodeLinkModel } from './nodeLink';
+import { NodeLinkWhenModel } from './nodeLinkWhen';
 const { difference, flatten, merge } = pkg;
 
 /**
@@ -45,7 +50,11 @@ export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any, any, 
     InputItem: InputItemModel,
     Member: MemberModel, // TODO create searcher for members
     Node: NodeModel,
+    NodeEnd: NodeEndModel,
+    NodeLink: NodeLinkModel,
+    NodeLinkWhen: NodeLinkWhenModel,
     NodeRoutineList: NodeRoutineListModel,
+    NodeRoutineListItem: NodeRoutineListItemModel,
     Organization: OrganizationModel,
     OutputItem: OutputItemModel,
     Profile: ProfileModel,
@@ -438,7 +447,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     }
     // Handle base case
     const type: GraphQLModelType | undefined = partial?.__typename;
-    const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    const formatter: Formatter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
         result = removeSupplementalFieldsHelper(type as GraphQLModelType, result);
         result = deconstructRelationshipsHelper(result, formatter.relationshipMap);
@@ -491,7 +500,7 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     }
     // Convert data to usable shape
     const type: string | undefined = partialInfo?.__typename;
-    const formatter: FormatConverter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined as any;
+    const formatter: Formatter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined as any;
     if (formatter) {
         data = constructRelationshipsHelper(data, formatter.relationshipMap);
         if (formatter.removeJoinTables) data = formatter.removeJoinTables(data);
@@ -601,21 +610,28 @@ export enum RelationshipTypes {
     delete = 'delete',
 }
 
-export interface RelationshipBuilderHelperArgs<IDField extends string, GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }> {
+export interface RelationshipBuilderHelperArgs<
+    IDField extends string,
+    IsAdd extends boolean,
+    IsOneToOne extends boolean,
+    IsRequired extends boolean,
+    RelName extends string,
+    Input extends { [key in RelName]: any },
+> {
     /**
      * The data to convert
      */
-    data: { [x: string]: any },
+    data: Input,
     /**
      * The name of the relationship to convert. This is required because we're grabbing the 
      * relationship from its parent object
      */
-    relationshipName: string,
+    relationshipName: RelName,
     /**
      * True if we're creating the parent object, instead of updating it. Adding limits 
      * the types of Prisma operations we can perform
      */
-    isAdd: boolean,
+    isAdd: IsAdd,
     /**
      * True if object can be transferred to another parent object. Some cases where this is false are 
      * emails, phone numbers, etc.
@@ -624,12 +640,20 @@ export interface RelationshipBuilderHelperArgs<IDField extends string, GraphQLCr
     /**
      * True if relationship is one-to-one
      */
-    isOneToOne?: boolean,
+    isOneToOne?: IsOneToOne,
+    /**
+     * True if relationship must be provided
+     */
+    isRequired?: IsRequired,
     /**
      * Fields to exclude from the relationship data. This can be handled in the shape fields as well,
      * but this is more convenient
      */
     fieldExcludes?: string[],
+    /**
+     * The Prisma client
+     */
+    prisma: PrismaType,
     /**
      * Prisma operations to exclude from the relationship data. "isAdd" is often sufficient 
      * to determine which operations to exclude, sometimes it's also nice to exluce "connect" and 
@@ -648,15 +672,12 @@ export interface RelationshipBuilderHelperArgs<IDField extends string, GraphQLCr
      * Functions that perform additional formatting on create and update data. This is often 
      * used to shape grandchildren, great-grandchildren, etc.
      */
-    shape?: {
-        shapeCreate: (userId: string, create: GraphQLCreate) => (Promise<DBCreate> | DBCreate),
-        shapeUpdate: (userId: string, update: GraphQLUpdate) => (Promise<DBUpdate> | DBUpdate),
-    } | ((userId: string, data: GraphQLCreate | GraphQLUpdate, isAdd: boolean) => (Promise<DBCreate | DBUpdate> | DBCreate | DBUpdate)) | undefined,
+    shape?: Mutater<any, any, any, { graphql: any, db: any }, { graphql: any, db: any }>['shape'];
     /**
-     * The id of the user performing the operation. Relationship building is only used when performing 
+     * Session data of the user performing the operation. Relationship building is only used when performing 
      * create, update, and delete operations, so id is always required
      */
-    userId: string,
+    userData: SessionUser,
     /**
      * If relationship is a join table, data required to create the join table record
      * 
@@ -672,7 +693,47 @@ export interface RelationshipBuilderHelperArgs<IDField extends string, GraphQLCr
     }
 }
 
-type OneOrArray<T> = T | T[];
+type RelConnect<IDField extends string> = { [key in IDField]: string }
+type RelDisconnect<IDField extends string> = { [key in IDField]: string }
+type RelCreate<Shaped extends { [x: string]: any }> = Shaped
+type RelUpdate<Shaped extends { [x: string]: any }, IDField extends string> = { where: { [key in IDField]: string }, data: Shaped }
+type RelDelete<IDField extends string> = { [key in IDField]: string }
+
+// Optional if IsRequired is false
+type MaybeOptional<T extends { [x: string]: any }, IsRequired extends boolean> =
+    IsRequired extends true ? T : T | undefined;
+
+export type BuiltRelationship<
+    IDField extends string,
+    IsAdd extends boolean,
+    IsOneToOne extends boolean,
+    IsRequired extends boolean,
+    Shaped extends { [x: string]: any },
+> = MaybeOptional<(
+    IsAdd extends true ?
+    IsOneToOne extends true ?
+    {
+        connect?: RelConnect<IDField>,
+        create?: RelCreate<Shaped>,
+    } : {
+        connect?: RelConnect<IDField>[],
+        create?: RelCreate<Shaped>[],
+    }
+    : IsOneToOne extends true ?
+    {
+        connect?: RelConnect<IDField>,
+        disconnect?: boolean,
+        delete?: boolean,
+        create?: RelCreate<Shaped>,
+        update?: RelUpdate<Shaped, IDField>['data'],
+    } : {
+        connect?: RelConnect<IDField>[],
+        disconnect?: RelDisconnect<IDField>[],
+        delete?: RelDelete<IDField>[],
+        create?: RelCreate<Shaped>[],
+        update?: RelUpdate<Shaped, IDField>[],
+    }
+), IsRequired>
 
 /**
  * Converts an add or update's data to proper Prisma format. 
@@ -681,26 +742,31 @@ type OneOrArray<T> = T | T[];
  * 
  * NOTE2: Only goes one layer deep. You must handle grandchildren, great-grandchildren, etc. yourself
  */
-export const relationshipBuilderHelper = async<IDField extends string, GraphQLCreate extends { [x: string]: any }, GraphQLUpdate extends { [x: string]: any }, DBCreate extends { [x: string]: any }, DBUpdate extends { [x: string]: any }>({
+export const relationshipBuilderHelper = async<
+    IDField extends string,
+    IsAdd extends boolean,
+    IsOneToOne extends boolean,
+    IsRequired extends boolean,
+    RelName extends string,
+    Input extends { [x: string]: any },
+    Shaped extends { [x: string]: any },
+>({
     data,
-    relationshipName,
     isAdd,
-    isTransferable = true,
-    isOneToOne = false,
     fieldExcludes = [],
-    relExcludes = [],
-    softDelete = false,
     idField = 'id' as IDField,
-    shape,
-    userId,
+    isOneToOne = false as IsOneToOne,
+    isRequired = false as IsRequired,
+    isTransferable = true,
     joinData,
-}: RelationshipBuilderHelperArgs<IDField, GraphQLCreate, GraphQLUpdate, DBCreate, DBUpdate>): Promise<{
-    connect?: OneOrArray<{ [key in IDField]: string }>,
-    disconnect?: OneOrArray<{ [key in IDField]: string }>,
-    delete?: OneOrArray<{ [key in IDField]: string }>,
-    create?: OneOrArray<{ [x: string]: any }>,
-    update?: OneOrArray<{ where: { [key in IDField]: string }, data: { [x: string]: any } }>,
-} | undefined> => {
+    prisma,
+    relationshipName,
+    relExcludes = [],
+    shape,
+    softDelete = false,
+    userData,
+}: RelationshipBuilderHelperArgs<IDField, IsAdd, IsOneToOne, IsRequired, RelName, Input>
+): Promise<BuiltRelationship<IDField, IsAdd, IsOneToOne, IsRequired, Shaped>> => {
     // Determine valid operations, and remove operations that should be excluded
     let ops = isAdd ? [RelationshipTypes.connect, RelationshipTypes.create] : Object.values(RelationshipTypes);
     if (!isTransferable) ops = difference(ops, [RelationshipTypes.connect, RelationshipTypes.disconnect]);
@@ -733,24 +799,22 @@ export const relationshipBuilderHelper = async<IDField extends string, GraphQLCr
         converted.update = converted.update.map((e: any) => ({ where: { id: e.id }, data: e }));
     }
     // Shape creates and updates
-    const shapeCreate = shape !== undefined ? typeof shape === 'function' ? shape : shape.shapeCreate : undefined;
-    if (shapeCreate) {
+    if (shape?.relCreate) {
         if (Array.isArray(converted.create)) {
             const shaped: { [x: string]: any }[] = [];
             for (const create of converted.create) {
-                const shapedCreate = await shapeCreate(userId, create, true);
-                shaped.push(shapedCreate);
+                const created = await shape.relCreate({ data: create, prisma, userData });
+                shaped.push(created);
             }
             converted.create = shaped;
         }
     }
-    const shapeUpdate = shape !== undefined ? typeof shape === 'function' ? shape : shape.shapeUpdate : undefined;
-    if (shapeUpdate) {
+    if (shape?.relUpdate) {
         if (Array.isArray(converted.update)) {
             const shaped: { where: { [key in IDField]: string }, data: { [x: string]: any } }[] = [];
             for (const update of converted.update) {
-                const shapedUpdate = await shapeUpdate(userId, update.data, false);
-                shaped.push({ where: update.where, data: shapedUpdate });
+                const updated = await shape.relUpdate({ data: update.data, prisma, userData });
+                shaped.push({ where: update.where, data: updated });
             }
             converted.update = shaped;
         }
@@ -799,7 +863,37 @@ export const relationshipBuilderHelper = async<IDField extends string, GraphQLCr
             }
         }
     }
-    return Object.keys(converted).length > 0 ? converted : undefined;
+    // If isOneToOne, perform the following checks:
+    // 1. If required:
+    //    1.a If adding, must have connect or create
+    //    a.b If updating and has a disconnect or delete, must have connect or create
+    // 3. Does not have both a connect and create
+    // 4. Does not have both a disconnect and delete
+    if (isOneToOne) {
+        if (isRequired) {
+            if (isAdd && !converted.connect && !converted.create)
+                throw new CustomError('0340', 'InvalidArgs', userData.languages, { relationshipName });
+            if (!isAdd && (converted.disconnect || converted.delete) && !converted.connect && !converted.create)
+                throw new CustomError('0341', 'InvalidArgs', userData.languages, { relationshipName });
+        }
+        if (converted.connect && converted.create)
+            throw new CustomError('0342', 'InvalidArgs', userData.languages, { relationshipName });
+        if (converted.disconnect && converted.delete)
+            throw new CustomError('0343', 'InvalidArgs', userData.languages, { relationshipName });
+    }
+    // Convert to correct format, depending on whether it is a one-to-one or one-to-many
+    if (isOneToOne) {
+        // one-to-one's disconnect/delete must be true or undefined
+        if (converted.disconnect) converted.disconnect = true;
+        if (converted.delete) converted.delete = true;
+        // one-to-one's connect/create must be an object, not an array
+        if (Array.isArray(converted.connect)) converted.connect = converted.connect.length ? converted.connect[0] : undefined;
+        if (Array.isArray(converted.create)) converted.create = converted.create.length ? converted.create[0] : undefined;
+        // one-to-one's update must not have a where, and must be an object, not an array
+        if (Array.isArray(converted.update)) converted.update = converted.update.length ? converted.update[0].data : undefined;
+    }
+    // If one-to-many, should already be in correct format
+    return converted;
 }
 
 /**
@@ -1024,7 +1118,7 @@ const pickObjectById = (data: any, id: string): ({ id: string } & { [x: string]:
  * @param req Request object
  * @returns First userId in Session object, or null if not found/invalid
  */
- export const getUser = (req: { users?: Request['users'] }): SessionUser | null => {
+export const getUser = (req: { users?: Request['users'] }): SessionUser | null => {
     if (!req || !Array.isArray(req?.users) || req.users.length === 0) return null;
     const user = req.users[0];
     return typeof user.id === 'string' && uuidValidate(user.id) ? user : null;
@@ -1052,7 +1146,8 @@ export const removeSupplementalFieldsHelper = (objectType: GraphQLModelType, par
 /**
  * Adds supplemental fields data to the given objects
  */
-export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ objects, objectType, partial, prisma, userData }: {
+export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ languages, objects, objectType, partial, prisma, userData }: {
+    languages: string[],
     objects: ({ id: string } & { [x: string]: any })[],
     objectType: GraphQLModelType,
     partial: PartialGraphQLInfo,
@@ -1066,7 +1161,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     // Get IDs from objects
     const ids = objects.map(({ id }) => id);
     // Call each resolver to get supplemental data
-    const resolvers = supplementer.toGraphQL({ ids, languages objects, partial, prisma, userData });
+    const resolvers = supplementer.toGraphQL({ ids, languages, objects, partial, prisma, userData });
     for (const [field, resolver] of resolvers) {
         // If not in partial, skip
         if (!partial[field]) continue;
@@ -1119,9 +1214,9 @@ export const addSupplementalFields = async (
         // we must loop through each element in it and call pickObjectById
         const objectData = ids.map((id: string) => pickObjectById(data, id));
         // Now that we have the data for each object, we can add the supplemental fields
-        const formatter: FormatConverter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+        const formatter: Formatter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
         const valuesWithSupplements = formatter?.supplemental ?
-            await addSupplementalFieldsHelper({ objects: objectData, objectType: type as GraphQLModelType, partial: selectFieldsDict[type], prisma, userData }) :
+            await addSupplementalFieldsHelper({ languages: userData?.languages ?? ['en'], objects: objectData, objectType: type as GraphQLModelType, partial: selectFieldsDict[type], prisma, userData }) :
             objectData;
         // Add each value to objectsById
         for (const v of valuesWithSupplements) {
@@ -1184,13 +1279,13 @@ type GetSearchStringProps = {
  * Helper function for searchStringQuery
  * @returns GraphQL search query object
  */
- export function getSearchString<Where extends { [x: string]: any }>({
+export function getSearchString<Where extends { [x: string]: any }>({
     languages,
     objectType,
     searchString,
 }: GetSearchStringProps): Where {
     if (searchString.length === 0) return {} as Where;
-    const searcher = getSearcher<any, any, any, Where>(objectType, 'getSearchString');
+    const searcher = getSearcher<any, any, any, Where>(objectType, languages ?? ['en'], 'getSearchString');
     const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' as const });
     return searcher.searchStringQuery({ insensitive, languages, searchString })
 }
@@ -1425,17 +1520,18 @@ export function visibilityBuilder<GraphQLModelType>({
  * Given a list of fields and GraphQLModels which have validators, creates a Prisma 
  * select object that combines all of the select objects from the validators
  */
- export const permissionsSelectHelper = <PrismaSelect extends { [x: string]: any }>(
+export const permissionsSelectHelper = <PrismaSelect extends { [x: string]: any }>(
     list: [keyof PrismaSelect, GraphQLModelType][],
     userId: string | null,
+    languages: string[]
 ): PrismaSelect => {
     // Initialize result
     const result: Partial<PrismaSelect> = {};
     // Iterate through list
     for (const [field, model] of list) {
         // Get validator
-        const validator = getValidator(model, 'permissionsSelectHelper');
-        result[field] = { select: validator.permissionsSelect(userId) } as any;
+        const validator = getValidator(model, languages, 'permissionsSelectHelper');
+        result[field] = { select: validator.permissionsSelect(userId, languages) } as any;
     }
     return result as PrismaSelect;
 }

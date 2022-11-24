@@ -40,7 +40,7 @@ export const resolvers = {
         fork: async (_parent: undefined, { input }: IWrap<ForkInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ForkResult> => {
             await rateLimit({ info, maxUser: 500, req });
             const model = ObjectMap[input.objectType];
-            if (!model) throw new CustomError('InvalidArgs', 'Invalid fork object type.', { trace: '0228' });
+            if (!model) throw new CustomError('0228', 'InvalidArgs', req.languages);
             const result = await forkHelper({ info, input, model: model, prisma, req })
             return { [lowercaseFirstLetter(input.objectType)]: result };
         }

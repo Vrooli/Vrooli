@@ -1,27 +1,25 @@
-import { resourceListsCreate, resourceListsUpdate, resourceListTranslationsCreate, resourceListTranslationsUpdate } from "@shared/validation";
+import { resourceListsCreate, resourceListsUpdate } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
-import { combineQueries, permissionsSelectHelper, relationshipBuilderHelper } from "./builder";
-import { TranslationModel } from "./translation";
-import { ResourceModel } from "./resource";
-import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput } from "../schema/types";
+import { combineQueries, permissionsSelectHelper } from "./builder";
+import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { cudHelper } from "./actions";
-import { organizationValidator } from "./organization";
-import { projectValidator } from "./project";
-import { routineValidator } from "./routine";
-import { standardValidator } from "./standard";
-import { oneIsPublic } from "./utils";
+import { oneIsPublic, translationRelationshipBuilder } from "./utils";
+import { OrganizationModel } from "./organization";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
+import { StandardModel } from "./standard";
+import { relBuilderHelper } from "./actions";
 
-export const resourceListFormatter = (): FormatConverter<ResourceList, any> => ({
+const formatter = (): Formatter<ResourceList, any> => ({
     relationshipMap: {
         __typename: 'ResourceList',
         resources: 'Resource',
     },
 })
 
-export const resourceListValidator = (): Validator<
+const validator = (): Validator<
     ResourceListCreateInput,
     ResourceListUpdateInput,
     ResourceList,
@@ -41,7 +39,7 @@ export const resourceListValidator = (): Validator<
         // standard: 'Standard',
         // userSchedule: 'UserSchedule',
     },
-    permissionsSelect: (userId) => ({
+    permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
             // ['apiVersion', 'Api'],
@@ -52,7 +50,7 @@ export const resourceListValidator = (): Validator<
             // ['smartContractVersion', 'SmartContract'],
             ['standardVersion', 'Standard'],
             // ['userSchedule', 'UserSchedule'],
-        ], userId)
+        ], ...params)
     }),
     permissionResolvers: ({ isAdmin }) => ([
         ['canDelete', async () => isAdmin],
@@ -63,7 +61,7 @@ export const resourceListValidator = (): Validator<
         User: (data.userSchedule as any)?.user,
     }),
     isDeleted: () => false,
-    isPublic: (data) => oneIsPublic<Prisma.resource_listSelect>(data, [
+    isPublic: (data, languages) => oneIsPublic<Prisma.resource_listSelect>(data, [
         // ['apiVersion', 'Api'],
         ['organization', 'Organization'],
         // ['post', 'Post'],
@@ -72,22 +70,22 @@ export const resourceListValidator = (): Validator<
         // ['smartContractVersion', 'SmartContract'],
         ['standardVersion', 'Standard'],
         // ['userSchedule', 'UserSchedule'],
-    ]),
+    ], languages),
     ownerOrMemberWhere: (userId) => ({
         OR: [
-            // { apiVersion: apiValidator().ownerOrMemberWhere(userId) },
-            { organization: organizationValidator().ownerOrMemberWhere(userId) },
-            // { post: postValidator().ownerOrMemberWhere(userId) },
-            { project: projectValidator().ownerOrMemberWhere(userId) },
-            { routineVersion: routineValidator().ownerOrMemberWhere(userId) },
-            // { smartContractVersion: smartContractValidator().ownerOrMemberWhere(userId) },
-            { standardVersion: standardValidator().ownerOrMemberWhere(userId) },
+            // { apiVersion: ApiModel.validate.ownerOrMemberWhere(userId) },
+            { organization: OrganizationModel.validate.ownerOrMemberWhere(userId) },
+            // { post: PostModel.validate.ownerOrMemberWhere(userId) },
+            { project: ProjectModel.validate.ownerOrMemberWhere(userId) },
+            { routineVersion: RoutineModel.validate.ownerOrMemberWhere(userId) },
+            // { smartContractVersion: SmartContractModel.validate.ownerOrMemberWhere(userId) },
+            { standardVersion: StandardModel.validate.ownerOrMemberWhere(userId) },
             { userSchedule: { userId } },
         ]
     }),
 })
 
-export const resourceListSearcher = (): Searcher<
+const searcher = (): Searcher<
     ResourceListSearchInput,
     ResourceListSortBy,
     Prisma.resource_listOrderByWithRelationInput,
@@ -115,60 +113,47 @@ export const resourceListSearcher = (): Searcher<
     },
 })
 
-export const resourceListMutater = (prisma: PrismaType): Mutater<ResourceList> => ({
-    shapeBase(userId: string, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) {
-        return {
-            id: data.id,
-            organization: data.organizationId ? { connect: { id: data.organizationId } } : undefined,
-            project: data.projectId ? { connect: { id: data.projectId } } : undefined,
-            routine: data.routineId ? { connect: { id: data.routineId } } : undefined,
-            user: data.userId ? { connect: { id: data.userId } } : undefined,
-            resources: ResourceModel.mutate(prisma).relationshipBuilder!(userId, data, isAdd),
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: resourceListTranslationsCreate, update: resourceListTranslationsUpdate }, isAdd),
-        };
+const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) => {
+    return {
+        id: data.id,
+        organization: data.organizationId ? { connect: { id: data.organizationId } } : undefined,
+        project: data.projectId ? { connect: { id: data.projectId } } : undefined,
+        routine: data.routineId ? { connect: { id: data.routineId } } : undefined,
+        user: data.userId ? { connect: { id: data.userId } } : undefined,
+        resources: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'resources', objectType: 'Resource', prisma, userData }),
+        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+    }
+}
+
+const mutater = (): Mutater<
+    ResourceList,
+    { graphql: ResourceListCreateInput, db: Prisma.resource_listUpsertArgs['create'] },
+    { graphql: ResourceListUpdateInput, db: Prisma.resource_listUpsertArgs['update'] },
+    { graphql: ResourceListCreateInput, db: Prisma.resource_listCreateWithoutApiVersionInput },
+    { graphql: ResourceListUpdateInput, db: Prisma.resource_listUpdateWithoutApiVersionInput }
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => {
+            return {
+                ...await shapeBase(prisma, userData, data, true),
+            };
+        },
+        update: async ({ data, prisma, userData }) => {
+            return {
+                ...await shapeBase(prisma, userData, data, false),
+            };
+        },
+        relCreate: mutater().shape.create,
+        relUpdate: mutater().shape.update,
     },
-    shapeCreate(userId: string, data: ResourceListCreateInput): Prisma.resource_listUpsertArgs['create'] {
-        return {
-            ...this.shapeBase(userId, data, true),
-        };
-    },
-    shapeUpdate(userId: string, data: ResourceListUpdateInput): Prisma.resource_listUpsertArgs['update'] {
-        return {
-            ...this.shapeBase(userId, data, false),
-        };
-    },
-    relationshipBuilder(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-        relationshipName: string = 'resourceList',
-    ): Promise<{ [x: string]: any } | undefined> {
-        return relationshipBuilderHelper({
-            data,
-            relationshipName,
-            isAdd,
-            isOneToOne: true,
-            isTransferable: false,
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            userId,
-        });
-    },
-    async cud(params: CUDInput<ResourceListCreateInput, ResourceListUpdateInput>): Promise<CUDResult<ResourceList>> {
-        return cudHelper({
-            ...params,
-            objectType: 'ResourceList',
-            prisma,
-            yup: { yupCreate: resourceListsCreate, yupUpdate: resourceListsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate }
-        })
-    },
+    yup: { create: resourceListsCreate, update: resourceListsUpdate },
 })
 
 export const ResourceListModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.resource_list,
-    format: resourceListFormatter(),
-    mutate: resourceListMutater,
-    search: resourceListSearcher(),
+    delegate: (prisma: PrismaType) => prisma.resource_list,
+    format: formatter(),
+    mutate: mutater(),
+    search: searcher(),
     type: 'ResourceList' as GraphQLModelType,
-    validate: resourceListValidator(),
+    validate: validator(),
 })

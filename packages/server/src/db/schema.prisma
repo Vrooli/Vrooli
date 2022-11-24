@@ -790,6 +790,7 @@ model member {
     userId         String       @db.Uuid
     organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    roles         role[]
 
     @@unique([organizationId, userId], name: "member_organizationid_userid_unique")
 }
@@ -1227,16 +1228,16 @@ model report {
     standardVersionId      String?                 @db.Uuid
     tagId                  String?                 @db.Uuid
     userId                 String?                 @db.Uuid
-    api                    api_version?            @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
+    apiVersion                    api_version?            @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
     comment                comment?                @relation(fields: [commentId], references: [id], onDelete: Cascade)
     issue                  issue?                  @relation(fields: [issueId], references: [id], onDelete: Cascade)
     from                   user                    @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
     organization           organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     post                   post?                   @relation(fields: [postId], references: [id], onDelete: Cascade)
     projectVersion         project_version?        @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
-    routine                routine_version?        @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    smartContract          smart_contract_version? @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
-    standard               standard_version?       @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
+    routineVersion                routine_version?        @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
+    smartContractVersion          smart_contract_version? @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
+    standardVersion               standard_version?       @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
     tag                    tag?                    @relation(fields: [tagId], references: [id], onDelete: Cascade)
     user                   user?                   @relation(fields: [userId], references: [id], onDelete: Cascade)
     responses              report_response[]
@@ -1323,7 +1324,7 @@ model role {
     permissions           String                        @db.VarChar(4096)
     organizationId        String                        @db.Uuid
     organization          organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    assignees             user_roles[]
+    assignees             member[]
     organizationSchedules organization_schedule_roles[]
     translations          role_translation[]
 
@@ -2051,7 +2052,6 @@ model user {
     labels                         label[]
     notes                          note[]
     languages                      user_language[]
-    roles                          user_roles[]
     translations                   user_translation[]
     viewed                         view[]                            @relation("view_by")
     viewedBy                       view[]                            @relation("view_user")
@@ -2079,18 +2079,6 @@ model user_language {
     user     user   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([userId, language])
-}
-
-model user_roles {
-    id         String   @id @default(uuid()) @db.Uuid
-    created_at DateTime @default(now()) @db.Timestamptz(6)
-    updated_at DateTime @default(now()) @db.Timestamptz(6)
-    userId     String   @db.Uuid
-    roleId     String   @db.Uuid
-    user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-    role       role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-
-    @@unique([userId, roleId], name: "user_roles_userid_roleid_unique")
 }
 
 model user_schedule {

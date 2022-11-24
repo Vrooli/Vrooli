@@ -1,23 +1,21 @@
 import { CommentSortBy } from "@shared/consts";
-import { commentsCreate, commentsUpdate, commentTranslationCreate, commentTranslationUpdate } from "@shared/validation";
-import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput } from "../schema/types";
+import { commentsCreate, commentsUpdate } from "@shared/validation";
+import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, combineQueries, permissionsSelectHelper, getUser, getSearchString } from "./builder";
-import { TranslationModel } from "./translation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { CustomError, Trigger } from "../events";
-import { FormatConverter, Searcher, Querier, GraphQLInfo, PartialGraphQLInfo, CUDInput, CUDResult, GraphQLModelType, Mutater, Validator } from "./types";
+import { Formatter, Searcher, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
-import { cudHelper } from "./actions";
-import { oneIsPublic } from "./utils";
+import { oneIsPublic, translationRelationshipBuilder } from "./utils";
 import { Request } from "express";
 import { getSingleTypePermissions } from "./validators";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
 type SupplementalFields = 'isStarred' | 'isUpvoted' | 'permissionsComment';
-export const commentFormatter = (): FormatConverter<Comment, SupplementalFields> => ({
+const formatter = (): Formatter<Comment, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Comment',
         creator: {
@@ -39,14 +37,14 @@ export const commentFormatter = (): FormatConverter<Comment, SupplementalFields>
     supplemental: {
         graphqlFields: ['isStarred', 'isUpvoted', 'permissionsComment'],
         toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Comment')],
-            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userData?.id, ids, 'Routine')],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Comment')],
+            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Routine')],
             ['permissionsComment', async () => await getSingleTypePermissions('Comment', ids, prisma, userData)],
         ],
     },
 })
 
-export const commentSearcher = (): Searcher<
+const searcher = (): Searcher<
     CommentSearchInput,
     CommentSortBy,
     Prisma.commentOrderByWithRelationInput,
@@ -80,7 +78,7 @@ export const commentSearcher = (): Searcher<
     },
 })
 
-export const commentValidator = (): Validator<
+const validator = (): Validator<
     CommentCreateInput,
     CommentUpdateInput,
     Comment,
@@ -94,7 +92,7 @@ export const commentValidator = (): Validator<
         user: 'User',
         organization: 'Organization',
     },
-    permissionsSelect: (userId) => ({
+    permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
             // ['apiVersion', 'Api'],
@@ -109,7 +107,7 @@ export const commentValidator = (): Validator<
             // ['smartContractVersion', 'SmartContract'],
             ['standardVersion', 'Standard'],
             ['user', 'User'],
-        ], userId)
+        ], ...params)
     }),
     permissionResolvers: ({ isAdmin, isPublic }) => ([
         ['canDelete', async () => isAdmin],
@@ -125,7 +123,7 @@ export const commentValidator = (): Validator<
         User: data.user,
     }),
     isDeleted: () => false,
-    isPublic: (data) => oneIsPublic<Prisma.commentSelect>(data, [
+    isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
         // ['apiVersion', 'Api'],
         // ['issue', 'Issue'],
         // ['post', 'Post'],
@@ -136,30 +134,31 @@ export const commentValidator = (): Validator<
         ['routineVersion', 'Routine'],
         // ['smartContractVersion', 'SmartContract'],
         ['standardVersion', 'Standard'],
-    ]),
+    ], languages),
     ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
 })
 
-export const commentQuerier = (prisma: PrismaType): Querier => ({
+const querier = () => ({
     /**
      * Custom search query for querying comment threads
      */
     async searchThreads(
-        userId: string | null,
+        prisma: PrismaType,
+        userData: SessionUser | null,
         input: { ids: string[], take: number, sortBy: CommentSortBy },
         info: GraphQLInfo | PartialGraphQLInfo,
         nestLimit: number = 2,
     ): Promise<CommentThread[]> {
         // Partially convert info type
-        let partialInfo = toPartialGraphQLInfo(info, commentFormatter().relationshipMap);
+        let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap);
         if (!partialInfo)
-            throw new CustomError('0023', 'InternalError', languages);
+            throw new CustomError('0023', 'InternalError', userData?.languages ?? ['en']);
         // Create query for specified ids
         const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
         // Combine queries
         const where = { ...idQuery };
         // Determine sort order
-        const orderBy = commentSearcher().sortMap[input.sortBy ?? commentSearcher().defaultSort];
+        const orderBy = searcher().sortMap[input.sortBy ?? searcher().defaultSort];
         // Find requested search array
         const searchResults = await prisma.comment.findMany({
             where,
@@ -192,7 +191,7 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
             // Find end cursor of nested threads
             const endCursor = nestedThreads.length > 0 ? nestedThreads[nestedThreads.length - 1].id : undefined;
             // For nested threads, recursively call this function
-            const childThreads = nestLimit > 0 ? await this.searchThreads(userId, {
+            const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, userData, {
                 ids: nestedThreads.map(n => n.id),
                 take: input.take ?? 10,
                 sortBy: input.sortBy
@@ -215,15 +214,16 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
      * parentId equal to one of the second-level comments).
      */
     async searchNested(
+        prisma: PrismaType,
         req: Request,
         input: CommentSearchInput,
         info: GraphQLInfo | PartialGraphQLInfo,
         nestLimit: number = 2,
     ): Promise<CommentSearchResult> {
         // Partially convert info type
-        let partialInfo = toPartialGraphQLInfo(info, commentFormatter().relationshipMap);
+        let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap);
         if (!partialInfo)
-            throw new CustomError('0322', 'InternalError', languages);
+            throw new CustomError('0322', 'InternalError', req.languages);
         // Determine text search query
         const searchQuery = input.searchString ? getSearchString({ objectType: 'Comment', searchString: input.searchString }) : undefined;
         // Determine createdTimeFrame query
@@ -231,11 +231,11 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Determine updatedTimeFrame query
         const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
         // Create type-specific queries
-        let typeQuery = (commentSearcher() as any).customQueries(input);
+        let typeQuery = (searcher() as any).customQueries(input);
         // Combine queries
         const where = { ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
         // Determine sort order
-        const orderBy = commentSearcher().sortMap[input.sortBy ?? commentSearcher().defaultSort];
+        const orderBy = searcher().sortMap[input.sortBy ?? searcher().defaultSort];
         // Find requested search array
         const searchResults = await prisma.comment.findMany({
             where,
@@ -259,10 +259,10 @@ export const commentQuerier = (prisma: PrismaType): Querier => ({
         // Calculate end cursor
         const endCursor = searchResults[searchResults.length - 1].id;
         // If not as nestLimit, recurse with all result IDs
-        const childThreads = nestLimit > 0 ? await this.searchThreads(getUser(req)?.id, {
+        const childThreads = nestLimit > 0 ? await this.searchThreads(prisma, getUser(req), {
             ids: searchResults.map(r => r.id),
             take: input.take ?? 10,
-            sortBy: input.sortBy ?? commentSearcher().defaultSort,
+            sortBy: input.sortBy ?? searcher().defaultSort,
         }, info, nestLimit) : [];
         // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
         const flattenThreads = (threads: CommentThread[]) => {
@@ -315,43 +315,45 @@ const forMapper: { [key in CommentFor]: string } = {
 /**
  * Handles authorized creates, updates, and deletes
  */
-export const commentMutater = (prisma: PrismaType): Mutater<Comment> => ({
-    shapeCreate(userId: string, data: CommentCreateInput): Prisma.commentUpsertArgs['create'] {
-        return {
-            id: data.id,
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: commentTranslationCreate, update: commentTranslationUpdate }, true),
-            userId,
-            [forMapper[data.createdFor]]: data.forId,
-            parentId: data.parentId ?? null,
+const mutater = (): Mutater<
+    Comment,
+    { graphql: CommentCreateInput, db: Prisma.commentUpsertArgs['create'] },
+    { graphql: CommentUpdateInput, db: Prisma.commentUpsertArgs['update'] },
+    false,
+    false
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => {
+            return {
+                id: data.id,
+                translations: await translationRelationshipBuilder(prisma, userData, data, true),
+                userId: userData.id,
+                [forMapper[data.createdFor]]: data.forId,
+                parentId: data.parentId ?? null,
+            }
+        },
+        update: async ({ data, prisma, userData }) => {
+            return {
+                translations: await translationRelationshipBuilder(prisma, userData, data, false),
+            }
         }
     },
-    shapeUpdate(userId: string, data: CommentUpdateInput): Prisma.commentUpsertArgs['update'] {
-        return {
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: commentTranslationCreate, update: commentTranslationUpdate }, false),
-        }
+    trigger: {
+        onCreated: ({ created, prisma, userData }) => {
+            for (const c of created) {
+                Trigger(prisma, userData.languages).objectCreate('Comment', c.id as string, userData.id);
+            }
+        },
     },
-    cud(params: CUDInput<CommentCreateInput, CommentUpdateInput>): Promise<CUDResult<Comment>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Comment',
-            prisma,
-            yup: { yupCreate: commentsCreate, yupUpdate: commentsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            onCreated: (created) => {
-                for (const c of created) {
-                    Trigger(prisma).objectCreate('Comment', c.id as string, params.userData.id);
-                }
-            },
-        })
-    },
+    yup: { create: commentsCreate, update: commentsUpdate },
 })
 
 export const CommentModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.comment,
-    format: commentFormatter(),
-    mutate: commentMutater,
-    query: commentQuerier,
-    search: commentSearcher(),
+    delegate: (prisma: PrismaType) => prisma.comment,
+    format: formatter(),
+    mutate: mutater(),
+    query: querier(),
+    search: searcher(),
     type: 'Comment' as GraphQLModelType,
-    validate: commentValidator(),
+    validate: validator(),
 })

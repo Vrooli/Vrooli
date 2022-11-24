@@ -41,7 +41,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
     // Determine sort order
     const orderBy = searcher?.sortMap ? searcher.sortMap[input.sortBy ?? searcher.defaultSort] : undefined;
     // Find requested search array
-    const searchResults = await (model.prismaObject(prisma) as any).findMany({
+    const searchResults = await (model.delegate(prisma) as any).findMany({
         where,
         orderBy,
         take: input.take ?? 20,
@@ -57,7 +57,7 @@ export async function readManyHelper<GraphQLModel, SearchInput extends SearchInp
         // Find cursor
         const cursor = searchResults[searchResults.length - 1].id;
         // Query after the cursor to check if there are more results
-        const hasNextPage = await (model.prismaObject(prisma) as any).findMany({
+        const hasNextPage = await (model.delegate(prisma) as any).findMany({
             take: 1,
             cursor: {
                 id: cursor

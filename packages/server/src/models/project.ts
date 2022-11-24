@@ -1,26 +1,24 @@
-import { projectsCreate, projectsUpdate, projectTranslationCreate, projectTranslationUpdate } from "@shared/validation";
+import { projectsCreate, projectsUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
 import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, exceptionsBuilder, permissionsSelectHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
-import { organizationQuerier } from "./organization";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { TranslationModel } from "./translation";
-import { ResourceListModel } from "./resourceList";
 import { ViewModel } from "./view";
-import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy } from "../schema/types";
+import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { cudHelper } from "./actions";
 import { Trigger } from "../events";
-import { oneIsPublic } from "./utils";
+import { oneIsPublic, translationRelationshipBuilder } from "./utils";
 import { getSingleTypePermissions } from "./validators";
+import { OrganizationModel } from "./organization";
+import { relBuilderHelper } from "./actions";
 
 const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
 const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsProject';
-export const projectFormatter = (): FormatConverter<Project, SupplementalFields> => ({
+const formatter = (): Formatter<Project, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Project',
         comments: 'Comment',
@@ -51,15 +49,15 @@ export const projectFormatter = (): FormatConverter<Project, SupplementalFields>
     supplemental: {
         graphqlFields: ['isStarred', 'isUpvoted', 'isViewed', 'permissionsProject'],
         toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Project')],
-            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userData?.id, ids, 'Project')],
-            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userData?.id, ids, 'Project')],
+            ['isStarred', async () => StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Project')],
+            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Project')],
+            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'Project')],
             ['permissionsProject', async () => await getSingleTypePermissions('Project', ids, prisma, userData)],
         ],
     },
 })
 
-export const projectSearcher = (): Searcher<
+const searcher = (): Searcher<
     ProjectSearchInput,
     ProjectSortBy,
     Prisma.project_versionOrderByWithRelationInput,
@@ -114,7 +112,7 @@ export const projectSearcher = (): Searcher<
     },
 })
 
-export const projectValidator = (): Validator<
+const validator = (): Validator<
     ProjectCreateInput,
     ProjectUpdateInput,
     Project,
@@ -134,7 +132,7 @@ export const projectValidator = (): Validator<
         },
         forks: 'Project',
     },
-    permissionsSelect: (userId) => ({
+    permissionsSelect: (...params) => ({
         id: true,
         isComplete: true,
         isDeleted: true,
@@ -148,7 +146,7 @@ export const projectValidator = (): Validator<
                 ...permissionsSelectHelper([
                     ['organization', 'Organization'],
                     ['user', 'User'],
-                ], userId)
+                ], ...params)
             }
         },
     }),
@@ -167,14 +165,14 @@ export const projectValidator = (): Validator<
         User: (data.root as any).user,
     }),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-    isPublic: (data) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
+    isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
         ['organization', 'Organization'],
         ['user', 'User'],
-    ]),
+    ], languages),
     ownerOrMemberWhere: (userId) => ({
         root: {
             OR: [
-                organizationQuerier().hasRoleInOrganizationQuery(userId),
+                OrganizationModel.query.hasRoleInOrganizationQuery(userId),
                 { user: { id: userId } }
             ]
         }
@@ -183,58 +181,61 @@ export const projectValidator = (): Validator<
     // for (const input of updateMany) {
 })
 
+const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ProjectCreateInput | ProjectUpdateInput, isAdd: boolean) => {
+    return {
+        id: data.id,
+        isComplete: data.isComplete ?? undefined,
+        isPrivate: data.isPrivate ?? undefined,
+        completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
+        permissions: JSON.stringify({}),
+        resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
+        tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userData.id, data, 'Project'),
+        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+    }
+}
 
-export const projectMutater = (prisma: PrismaType): Mutater<Project> => ({
-    async shapeBase(userId: string, data: ProjectCreateInput | ProjectUpdateInput) {
-        return {
-            id: data.id,
-            isComplete: data.isComplete ?? undefined,
-            isPrivate: data.isPrivate ?? undefined,
-            completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
-            permissions: JSON.stringify({}),
-            resourceList: await ResourceListModel.mutate(prisma).relationshipBuilder!(userId, data, true),
-            tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userId, data, 'Project'),
-            translations: TranslationModel.relationshipBuilder(userId, data, { create: projectTranslationCreate, update: projectTranslationUpdate }, false),
+
+const mutater = (): Mutater<
+    Project,
+    { graphql: ProjectCreateInput, db: Prisma.projectUpsertArgs['create'] },
+    { graphql: ProjectUpdateInput, db: Prisma.projectUpsertArgs['update'] },
+    false,
+    false
+> => ({
+    shape: {
+        create: async ({ data, prisma, userData }) => {
+            return {
+                ...(await shapeBase(prisma, userData, data, true)),
+                parentId: data.parentId ?? undefined,
+                organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+            }
+        },
+        update: async ({ data, prisma, userData }) => {
+            return {
+                ...(await shapeBase(prisma, userData, data, false)),
+                organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+                user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+            }
         }
     },
-    async shapeCreate(userId: string, data: ProjectCreateInput): Promise<Prisma.projectUpsertArgs['create']> {
-        return {
-            ...this.shapeBase(userId, data),
-            parentId: data.parentId ?? undefined,
-            organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-            createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-            createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-            user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-        }
+    trigger: {
+        onCreated: ({ created, prisma, userData }) => {
+            for (const c of created) {
+                Trigger(prisma, userData.languages).objectCreate('Project', c.id as string, userData.id);
+            }
+        },
     },
-    async shapeUpdate(userId: string, data: ProjectUpdateInput): Promise<Prisma.projectUpsertArgs['update']> {
-        return {
-            ...this.shapeBase(userId, data),
-            organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-            user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-        }
-    },
-    async cud(params: CUDInput<ProjectCreateInput, ProjectUpdateInput>): Promise<CUDResult<Project>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Project',
-            prisma,
-            yup: { yupCreate: projectsCreate, yupUpdate: projectsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            onCreated: (created) => {
-                for (const c of created) {
-                    Trigger(prisma).objectCreate('Project', c.id as string, params.userData.id);
-                }
-            },
-        })
-    },
+    yup: { create: projectsCreate, update: projectsUpdate },
 });
 
 export const ProjectModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.project,
-    format: projectFormatter(),
-    mutate: projectMutater,
-    search: projectSearcher(),
+    delegate: (prisma: PrismaType) => prisma.project,
+    format: formatter(),
+    mutate: mutater(),
+    search: searcher(),
     type: 'Project' as GraphQLModelType,
-    validate: projectValidator(),
+    validate: validator(),
 })

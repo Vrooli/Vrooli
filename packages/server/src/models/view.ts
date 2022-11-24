@@ -1,7 +1,7 @@
 import { ViewFor, ViewSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils'
 import { combineQueries, lowercaseFirstLetter, ObjectMap, onlyValidIds, timeFrameToPrisma } from "./builder";
-import { OrganizationModel, organizationQuerier } from "./organization";
+import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { UserModel } from "./user";
@@ -9,19 +9,19 @@ import { StandardModel } from "./standard";
 import { CustomError } from "../events";
 import { initializeRedis } from "../redisConn";
 import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../schema/resolvers";
-import { User, ViewSearchInput, Count } from "../schema/types";
+import { User, ViewSearchInput, Count, SessionUser } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "./actions";
-import { FormatConverter, GraphQLModelType, ModelLogic, Mutater, PartialGraphQLInfo, Searcher } from "./types";
+import { Formatter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
 
-export interface View {
+interface View {
     __typename?: 'View';
     from: User;
     to: ViewFor;
 }
 
-export const viewFormatter = (): FormatConverter<View, 'to'> => ({
+const formatter = (): Formatter<View, 'to'> => ({
     relationshipMap: {
         __typename: 'View',
         from: 'User',
@@ -92,13 +92,13 @@ const forMapper: { [key in ViewFor]: string } = {
     User: 'user',
 }
 
-export interface ViewInput {
+interface ViewInput {
     forId: string;
     title: string;
     viewFor: ViewFor;
 }
 
-export const viewSearcher = (): Searcher<
+const searcher = (): Searcher<
     ViewSearchInput,
     ViewSortBy,
     Prisma.viewOrderByWithRelationInput,
@@ -126,8 +126,9 @@ export const viewSearcher = (): Searcher<
     },
 })
 
-const viewQuerier = (prisma: PrismaType) => ({
+const querier = () => ({
     async getIsVieweds(
+        prisma: PrismaType,
         userId: string | null | undefined,
         ids: string[],
         viewFor: keyof typeof ViewFor
@@ -154,133 +155,135 @@ const viewQuerier = (prisma: PrismaType) => ({
  * A user may view their own objects, but it does not count towards its view count.
  * @returns True if view updated correctly
  */
-const viewMutater = (prisma: PrismaType): Mutater<View> => ({
-    async view(userId: string, input: ViewInput, languages: string[]): Promise<boolean> {
-        // Define prisma type for viewed object
-        const prismaFor = (prisma[forMapper[input.viewFor] as keyof PrismaType] as any);
-        // Check if object being viewed on exists
-        const viewFor: null | { id: string, views: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, views: true } });
-        if (!viewFor)
-            throw new CustomError('0173', 'NotFound', languages);
-        // Check if view exists
-        let view = await prisma.view.findFirst({
-            where: {
-                byId: userId,
-                [`${forMapper[input.viewFor]}Id`]: input.forId
+const view = async (prisma: PrismaType, userData: SessionUser, input: ViewInput): Promise<boolean> => {
+    // Define prisma type for viewed object
+    const prismaFor = (prisma[forMapper[input.viewFor] as keyof PrismaType] as any);
+    // Check if object being viewed on exists
+    const viewFor: null | { id: string, views: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, views: true } });
+    if (!viewFor)
+        throw new CustomError('0173', 'NotFound', userData.languages);
+    // Check if view exists
+    let view = await prisma.view.findFirst({
+        where: {
+            byId: userData.id,
+            [`${forMapper[input.viewFor]}Id`]: input.forId
+        }
+    })
+    // If view already existed, update view time
+    if (view) {
+        await prisma.view.update({
+            where: { id: view.id },
+            data: {
+                lastViewed: new Date(),
+                title: input.title,
             }
         })
-        // If view already existed, update view time
-        if (view) {
-            await prisma.view.update({
-                where: { id: view.id },
-                data: {
-                    lastViewed: new Date(),
-                    title: input.title,
-                }
-            })
-        }
-        // If view did not exist, create it
-        else {
-            view = await prisma.view.create({
-                data: {
-                    byId: userId,
-                    [`${forMapper[input.viewFor]}Id`]: input.forId,
-                    title: input.title,
-                }
-            })
-        }
-        // Check if a view from this user should increment the view count
-        let isOwn = false;
-        switch (input.viewFor) {
-            case ViewFor.Organization:
-                // Check if user is an admin or owner of the organization
-                const roles = await OrganizationModel.query().hasRole(prisma, userId, [input.forId]);
-                isOwn = Boolean(roles[0]);
-                break;
-            case ViewFor.Project:
-            case ViewFor.Routine:
-                // Check if project/routine is owned by this user or by an organization they are a member of
-                const object = await (prisma[lowercaseFirstLetter(input.viewFor) as 'project' | 'routine'] as any).findFirst({
-                    where: {
-                        AND: [
-                            { id: input.forId },
-                            {
-                                OR: [
-                                    organizationQuerier().isMemberOfOrganizationQuery(userId),
-                                    { user: { id: userId } },
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (object) isOwn = true;
-                break;
-            case ViewFor.Standard:
-                // Check if standard is owned by this user or by an organization they are a member of
-                const object2 = await prisma.standard.findFirst({
-                    where: {
-                        AND: [
-                            { id: input.forId },
-                            {
-                                OR: [
-                                    { createdByOrganization: organizationQuerier().isMemberOfOrganizationQuery(userId).organization },
-                                    { createdByUser: { id: userId } },
-                                ]
-                            }
-                        ]
-                    }
-                })
-                if (object2) isOwn = true;
-                break;
-            case ViewFor.User:
-                isOwn = userId === input.forId;
-                break;
-        }
-        // If user is owner, don't do anything else
-        if (isOwn) return true;
-        // Check the last time the user viewed this object
-        const redisKey = `view:${userId}_${input.forId}_${input.viewFor}`
-        const client = await initializeRedis();
-        const lastViewed = await client.get(redisKey);
-        // If object viewed more than 1 hour ago, update view count
-        if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
-            await prismaFor.update({
-                where: { id: input.forId },
-                data: { views: viewFor.views + 1 }
-            })
-        }
-        // Update last viewed time
-        await client.set(redisKey, new Date().toISOString());
-        return true;
-    },
-    /**
-     * Deletes views from user's view list, but does not affect view count or logs.
-     */
-    async deleteViews(userId: string, ids: string[]): Promise<Count> {
-        return await prisma.view.deleteMany({
-            where: {
-                AND: [
-                    { id: { in: ids } },
-                    { byId: userId },
-                ]
+    }
+    // If view did not exist, create it
+    else {
+        view = await prisma.view.create({
+            data: {
+                byId: userData.id,
+                [`${forMapper[input.viewFor]}Id`]: input.forId,
+                title: input.title,
             }
         })
-    },
-    /**
-     * Removes all of user's views, but does not affect view count or logs.
-     */
-    async clearViews(userId: string): Promise<Count> {
-        return await prisma.view.deleteMany({
-            where: { byId: userId }
+    }
+    // Check if a view from this user should increment the view count
+    let isOwn = false;
+    switch (input.viewFor) {
+        case ViewFor.Organization:
+            // Check if user is an admin or owner of the organization
+            const roles = await OrganizationModel.query.hasRole(prisma, userData.id, [input.forId]);
+            isOwn = Boolean(roles[0]);
+            break;
+        case ViewFor.Project:
+        case ViewFor.Routine:
+            // Check if project/routine is owned by this user or by an organization they are a member of
+            const object = await (prisma[lowercaseFirstLetter(input.viewFor) as 'project' | 'routine'] as any).findFirst({
+                where: {
+                    AND: [
+                        { id: input.forId },
+                        {
+                            OR: [
+                                OrganizationModel.query.isMemberOfOrganizationQuery(userData.id),
+                                { user: { id: userData.id } },
+                            ]
+                        }
+                    ]
+                }
+            })
+            if (object) isOwn = true;
+            break;
+        case ViewFor.Standard:
+            // Check if standard is owned by this user or by an organization they are a member of
+            const object2 = await prisma.standard.findFirst({
+                where: {
+                    AND: [
+                        { id: input.forId },
+                        {
+                            OR: [
+                                { createdByOrganization: OrganizationModel.query.isMemberOfOrganizationQuery(userData.id).organization },
+                                { createdByUser: { id: userData.id } },
+                            ]
+                        }
+                    ]
+                }
+            })
+            if (object2) isOwn = true;
+            break;
+        case ViewFor.User:
+            isOwn = userData.id === input.forId;
+            break;
+    }
+    // If user is owner, don't do anything else
+    if (isOwn) return true;
+    // Check the last time the user viewed this object
+    const redisKey = `view:${userData.id}_${input.forId}_${input.viewFor}`
+    const client = await initializeRedis();
+    const lastViewed = await client.get(redisKey);
+    // If object viewed more than 1 hour ago, update view count
+    if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
+        await prismaFor.update({
+            where: { id: input.forId },
+            data: { views: viewFor.views + 1 }
         })
-    },
-})
+    }
+    // Update last viewed time
+    await client.set(redisKey, new Date().toISOString());
+    return true;
+}
+
+/**
+ * Deletes views from user's view list, but does not affect view count or logs.
+ */
+const deleteViews = async (prisma: PrismaType, userId: string, ids: string[]): Promise<Count> => {
+    return await prisma.view.deleteMany({
+        where: {
+            AND: [
+                { id: { in: ids } },
+                { byId: userId },
+            ]
+        }
+    })
+}
+
+/**
+ * Removes all of user's views, but does not affect view count or logs.
+ */
+const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> => {
+    return await prisma.view.deleteMany({
+        where: { byId: userId }
+    })
+}
 
 export const ViewModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.view,
-    mutate: viewMutater,
-    format: viewFormatter(),
-    search: viewSearcher(),
-    query: viewQuerier,
+    delegate: (prisma: PrismaType) => prisma.view,
+    format: formatter(),
+    search: searcher(),
+    query: querier(),
     type: 'View' as GraphQLModelType,
+    view,
+    deleteViews,
+    clearViews,
 })

@@ -3,6 +3,8 @@ import { CustomError, Trigger } from "../../events";
 import { RecursivePartial } from "../../types";
 import { addSupplementalFields, toPartialGraphQLInfo } from "../builder";
 import { GraphQLModelType } from "../types";
+import { getFormatter } from "../utils";
+import { cudHelper } from "./cudHelper";
 import { CreateHelperProps } from "./types";
 
 /**
@@ -13,25 +15,24 @@ import { CreateHelperProps } from "./types";
 export async function createHelper<GraphQLModel>({
     info,
     input,
-    model,
+    objectType,
     prisma,
     req,
 }: CreateHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
     const userData = assertRequestFrom(req, { isUser: true });
-    if (!model.mutate || !model.mutate(prisma).cud)
-        throw new CustomError('0026', 'CreateNotSupported', userData.languages);
+    const formatter = getFormatter(objectType, req.languages, 'createHelper');
     // Partially convert info type
-    const partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap);
+    const partialInfo = toPartialGraphQLInfo(info, formatter.relationshipMap);
     if (!partialInfo)
         throw new CustomError('0027', 'InternalError', userData.languages);
-    // Create objects. cud will check permissions
-    const cudResult = await model.mutate!(prisma).cud!({ partialInfo, userData, createMany: [input] });
+    // Create objects. cudHelper will check permissions
+    const cudResult = await cudHelper({ createMany: [input], objectType, partialInfo, prisma, userData });
     const { created } = cudResult;
     if (created && created.length > 0) {
         const objectType = partialInfo.__typename as GraphQLModelType;
         // Handle trigger
         for (const id of input.ids) {
-            await Trigger(prisma).objectCreate(objectType, id, userData.id);
+            await Trigger(prisma, req.languages).objectCreate(objectType, id, userData.id);
         }
         return (await addSupplementalFields(prisma, userData, created, partialInfo))[0] as any;
     }

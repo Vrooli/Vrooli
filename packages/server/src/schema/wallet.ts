@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Wallet, WalletUpdateInput } from './types';
 import { Context, rateLimit } from '../middleware';
-import { getUser, onlyValidIds, updateHelper, WalletModel } from '../models';
+import { getUser, onlyValidIds, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../events/error';
 import { serializedAddressToBech32 } from '../auth/walletAuth';
@@ -171,7 +171,7 @@ export const resolvers = {
     Mutation: {
         walletUpdate: async (_parent: undefined, { input }: IWrap<WalletUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Wallet>> => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, model: WalletModel, prisma: prisma, req })
+            return updateHelper({ info, input, objectType: 'Wallet', prisma: prisma, req })
         },
     }
 }

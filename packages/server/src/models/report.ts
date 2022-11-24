@@ -3,14 +3,13 @@ import { ReportFor, ReportSortBy } from '@shared/consts';
 import { combineQueries } from "./builder";
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { FormatConverter, Searcher, CUDInput, CUDResult, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
-import { cudHelper } from "./actions";
-import { Trigger } from "../events";
-import { userValidator } from "./user";
+import { CustomError, Trigger } from "../events";
+import { UserModel } from "./user";
 
 type SupplementalFields = 'isOwn';
-export const reportFormatter = (): FormatConverter<Report, SupplementalFields> => ({
+const formatter = (): Formatter<Report, SupplementalFields> => ({
     relationshipMap: { __typename: 'Report' },
     removeJoinTables: (data) => {
         // Remove userId to hide who submitted the report
@@ -26,7 +25,7 @@ export const reportFormatter = (): FormatConverter<Report, SupplementalFields> =
     },
 })
 
-export const reportSearcher = (): Searcher<
+const searcher = (): Searcher<
     ReportSearchInput,
     ReportSortBy,
     Prisma.reportOrderByWithRelationInput,
@@ -56,7 +55,17 @@ export const reportSearcher = (): Searcher<
     },
 })
 
-export const reportValidator = (): Validator<
+const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] } = {
+    Comment: 'comment',
+    Organization: 'organization',
+    Project: 'projectVersion',
+    Routine: 'routineVersion',
+    Standard: 'standardVersion',
+    Tag: 'tag',
+    User: 'user',
+}
+
+const validator = (): Validator<
     ReportCreateInput,
     ReportUpdateInput,
     Report,
@@ -68,7 +77,7 @@ export const reportValidator = (): Validator<
     validateMap: {
         __typename: 'Report',
     },
-    permissionsSelect: (userId) => ({ id: true, user: { select: userValidator().permissionsSelect(userId) } }),
+    permissionsSelect: (...params) => ({ id: true, user: { select: UserModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['isOwn', async () => isAdmin],
     ]),
@@ -79,58 +88,65 @@ export const reportValidator = (): Validator<
     isPublic: () => true,
     ownerOrMemberWhere: (userId) => ({ userId }),
     profanityFields: ['reason', 'details'],
-    // TODO validation Make sure user has only one report on object
+    validations: {
+        create: async ({ createMany, prisma, userData }) => {
+            // Make sure user does not have any open reports on these objects
+            const existing = await prisma.report.findMany({
+                where: {
+                    status: 'Open',
+                    user: { id: userData.id },
+                    OR: createMany.map((x) => ({
+                        [`${forMapper[x.createdFor]}Id`]: { id: x.createdForId },
+                    })),
+                },
+            });
+            if (existing.length > 0)
+                throw new CustomError('0337', 'MaxReportsReached', userData.languages);
+        }
+    },
 })
 
-const forMapper: { [key in ReportFor]: string } = {
-    Comment: 'comment',
-    Organization: 'organization',
-    Project: 'project',
-    Routine: 'routine',
-    Standard: 'standard',
-    Tag: 'tag',
-    User: 'user',
-}
-
-export const reportMutater = (prisma: PrismaType): Mutater<Report> => ({
-    async shapeCreate(userId: string, data: ReportCreateInput): Promise<Prisma.reportUpsertArgs['create']> {
-        return {
-            id: data.id,
-            language: data.language,
-            reason: data.reason,
-            details: data.details,
-            status: ReportStatus.Open,
-            from: { connect: { id: userId } },
-            [forMapper[data.createdFor]]: { connect: { id: data.createdForId } },
+const mutater = (): Mutater<
+    Report,
+    { graphql: ReportCreateInput, db: Prisma.reportUpsertArgs['create'] },
+    { graphql: ReportUpdateInput, db: Prisma.reportUpsertArgs['update'] },
+    false,
+    false
+> => ({
+    shape: {
+        create: async ({ data, userData }) => {
+            return {
+                id: data.id,
+                language: data.language,
+                reason: data.reason,
+                details: data.details,
+                status: ReportStatus.Open,
+                from: { connect: { id: userData.id } },
+                [forMapper[data.createdFor]]: { connect: { id: data.createdForId } },
+            }
+        },
+        update: async ({ data }) => {
+            return {
+                reason: data.reason ?? undefined,
+                details: data.details,
+            }
         }
     },
-    async shapeUpdate(userId: string, data: ReportUpdateInput): Promise<Prisma.reportUpsertArgs['update']> {
-        return {
-            reason: data.reason ?? undefined,
-            details: data.details,
-        }
+    trigger: {
+        onCreated: ({ created, prisma, userData }) => {
+            for (const c of created) {
+                Trigger(prisma, userData.languages).objectCreate('Report', c.id as string, userData.id);
+            }
+        },
     },
-    async cud(params: CUDInput<ReportCreateInput, ReportUpdateInput>): Promise<CUDResult<Report>> {
-        return cudHelper({
-            ...params,
-            objectType: 'Report',
-            prisma,
-            yup: { yupCreate: reportsCreate, yupUpdate: reportsUpdate },
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-            onCreated: (created) => {
-                for (const c of created) {
-                    Trigger(prisma).objectCreate('Report', c.id as string, params.userData.id);
-                }
-            },
-        })
-    },
+    yup: { create: reportsCreate, update: reportsUpdate },
 })
 
 export const ReportModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.report,
-    format: reportFormatter(),
-    mutate: reportMutater,
-    search: reportSearcher(),
+    delegate: (prisma: PrismaType) => prisma.report,
+    format: formatter(),
+    mutate: mutater(),
+    search: searcher(),
     type: 'Report' as GraphQLModelType,
-    validate: reportValidator(),
+    validate: validator(),
 })

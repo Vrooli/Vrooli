@@ -1,21 +1,20 @@
 import { PrismaType, RecursivePartial } from "../types";
 import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, SessionUser, Success, TagCreateInput, UserDeleteInput } from "../schema/types";
 import { addJoinTablesHelper, addSupplementalFields, modelToGraphQL, padSelect, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./builder";
-import { profileUpdateSchema, userTranslationCreate, userTranslationUpdate } from "@shared/validation";
+import { profileUpdateSchema } from "@shared/validation";
 import bcrypt from 'bcrypt';
-import { hasProfanity } from "../utils/censor";
 import { TagModel } from "./tag";
 import { EmailModel } from "./email";
-import { TranslationModel } from "./translation";
 import { verifyHandle } from "./wallet";
 import { Request } from "express";
 import { CustomError } from "../events";
 import { readOneHelper } from "./actions";
-import { FormatConverter, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType } from "./types";
+import { Formatter, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType } from "./types";
 import pkg, { Prisma } from '@prisma/client';
 import { sendResetPasswordLink, sendVerificationLink } from "../notify";
 import { lineBreaksCheck, profanityCheck } from "./validators";
 import { assertRequestFrom } from "../auth/auth";
+import { translationRelationshipBuilder } from "./utils";
 const { AccountStatus } = pkg;
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;
@@ -38,7 +37,7 @@ const tagSelect = {
 
 const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
 type SupplementalFields = 'starredTags' | 'hiddenTags';
-export const profileFormatter = (): FormatConverter<Profile, SupplementalFields> => ({
+const formatter = (): Formatter<Profile, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Profile',
         comments: 'Comment',
@@ -112,7 +111,7 @@ export const profileFormatter = (): FormatConverter<Profile, SupplementalFields>
 /**
  * Custom component for email/password validation
  */
-export const profileVerifier = () => ({
+const verifier = () => ({
     /**
      * Generates a URL-safe code for account confirmations and password resets
      * @returns Hashed and salted code, with invalid characters removed
@@ -240,7 +239,7 @@ export const profileVerifier = () => ({
     /**
     * Updates email object with new verification code, and sends email to user with link
     */
-    async setupVerificationCode(emailAddress: string, prisma: PrismaType, languages: string): Promise<void> {
+    async setupVerificationCode(emailAddress: string, prisma: PrismaType, languages: string[]): Promise<void> {
         // Generate new code
         const verificationCode = this.generateCode();
         // Store code and request time in email row
@@ -337,7 +336,7 @@ export const profileVerifier = () => ({
         })
         // Calculate langugages, by combining user's languages with languages 
         // in request. Make sure to remove duplicates
-        let languages: string[] =  userData.languages.map((l) => l.language).filter(Boolean) as string[];
+        let languages: string[] = userData.languages.map((l) => l.language).filter(Boolean) as string[];
         if (req.languages) languages.push(...req.languages);
         languages = [...new Set(languages)];
         // Return shaped SessionUser object
@@ -373,13 +372,13 @@ export const profileVerifier = () => ({
  * @param state 
  * @returns 
  */
-const porter = (prisma: PrismaType) => ({
+const porter = () => ({
     /**
      * Import JSON data to Vrooli. Useful if uploading data created offline, or if
      * you're switching from a competitor to Vrooli. :)
      * @param id 
      */
-    async importData(data: string): Promise<Success> {
+    async importData(prisma: PrismaType, data: string): Promise<Success> {
         throw new CustomError('0323', 'NotImplemented', languages);
     },
     /**
@@ -387,7 +386,7 @@ const porter = (prisma: PrismaType) => ({
      * or switch to a competitor :(
      * @param id 
      */
-    async exportData(id: string): Promise<string> {
+    async exportData(prisma: PrismaType, id: string): Promise<string> {
         // Find user
         const user = await prisma.user.findUnique({ where: { id }, select: { numExports: true, lastExport: true } });
         if (!user) throw new CustomError('0065', 'NoUser', languages);
@@ -395,13 +394,14 @@ const porter = (prisma: PrismaType) => ({
     },
 })
 
-const profileQuerier = (prisma: PrismaType) => ({
+const querier = () => ({
     async findProfile(
+        prisma: PrismaType,
         req: Request,
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile> | null> {
         const userData = assertRequestFrom(req, { isUser: true });
-        const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
+        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap);
         if (!partial)
             throw new CustomError('0190', 'InternalError', req.languages);
         // Query profile data and tags
@@ -420,22 +420,27 @@ const profileQuerier = (prisma: PrismaType) => ({
     },
 })
 
-const profileMutater = (prisma: PrismaType) => ({
+const mutater = () => ({
+    shape: {
+        create: async (prisma, userData, data) => {
+        },
+        update: async (prisma, userData, data) => {
+        }
+    },
     async updateProfile(
+        prisma: PrismaType,
         userData: SessionUser,
         input: ProfileUpdateInput,
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         profileUpdateSchema.validateSync(input, { abortEarly: false });
-        await verifyHandle(prisma, 'User', userData.id, input.handle);
-        if (hasProfanity(input.name))
-            throw new CustomError('0066', 'BannedWord', languages);
-        profanityCheck([input], { __typename: 'User' });
-        lineBreaksCheck(input, ['bio'], 'LineBreaksBio')
+        await verifyHandle(prisma, 'User', userData.id, input.handle, userData.languages);
+        profanityCheck([input], 'User', userData.languages);
+        lineBreaksCheck(input, ['bio'], 'LineBreaksBio', userData.languages)
         // Convert info to partial select
-        const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
+        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap);
         if (!partial)
-            throw new CustomError('0067', 'InternalError', languages);
+            throw new CustomError('0067', 'InternalError', userData.languages);
         // Handle starred tags
         const tagsToCreate: TagCreateInput[] = [
             ...(input.starredTagsCreate ?? []),
@@ -479,7 +484,7 @@ const profileMutater = (prisma: PrismaType) => ({
                 create: starredCreate,
                 delete: starredDelete,
             },
-            translations: TranslationModel.relationshipBuilder(userData.id, input, { create: userTranslationCreate, update: userTranslationUpdate }, false),
+            translations: await translationRelationshipBuilder(prisma, userData, input, false),
         };
         // Update user
         const profileData = await prisma.user.update({
@@ -494,35 +499,36 @@ const profileMutater = (prisma: PrismaType) => ({
         return data
     },
     async updateEmails(
-        userId: string,
+        prisma: PrismaType,
+        userData: SessionUser,
         input: ProfileEmailUpdateInput,
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         // Check for correct password
         let user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user)
-            throw new CustomError('0068', 'NoUser', languages);
-        if (!profileVerifier().validatePassword(input.currentPassword, user))
-            throw new CustomError('0069', 'BadCredentials', languages);
+            throw new CustomError('0068', 'NoUser', userData.languages);
+        if (!verifier().validatePassword(input.currentPassword, user))
+            throw new CustomError('0069', 'BadCredentials', userData.languages);
         // Convert input to partial select
-        const partial = toPartialGraphQLInfo(info, profileFormatter().relationshipMap);
+        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap);
         if (!partial)
-            throw new CustomError('0070', 'InternalError', languages);
+            throw new CustomError('0070', 'InternalError', userData.languages);
         // Create user data
-        let userData: { [x: string]: any } = {
-            password: input.newPassword ? profileVerifier().hashPassword(input.newPassword) : undefined,
+        let data: { [x: string]: any } = {
+            password: input.newPassword ? verifier().hashPassword(input.newPassword) : undefined,
             emails: await EmailModel.mutate(prisma).relationshipBuilder!(userId, input, true),
         };
         // Send verification emails
         if (Array.isArray(input.emailsCreate)) {
             for (const email of input.emailsCreate) {
-                await profileVerifier().setupVerificationCode(email.emailAddress, prisma);
+                await verifier().setupVerificationCode(email.emailAddress, prisma, userData.languages);
             }
         }
         // Update user
         user = await prisma.user.update({
-            where: { id: userId },
-            data: userData,
+            where: { id: userData.id },
+            data: data,
             ...selectHelper(partial)
         });
         return modelToGraphQL(user, partial);
@@ -556,17 +562,21 @@ const profileMutater = (prisma: PrismaType) => ({
     //     // Standards
     //     // Tags (can only be anonymized, not deleted)
     // },
-    async deleteProfile(userId: string, input: UserDeleteInput): Promise<Success> {
+    async deleteProfile(
+        prisma: PrismaType,
+        userData: SessionUser,
+        input: UserDeleteInput
+    ): Promise<Success> {
         // Check for correct password
-        let user = await prisma.user.findUnique({ where: { id: userId } });
+        let user = await prisma.user.findUnique({ where: { id: userData.id } });
         if (!user)
-            throw new CustomError('0071', 'NoUser', languages);
-        if (!profileVerifier().validatePassword(input.password, user))
-            throw new CustomError('0072', 'BadCredentials', languages);
+            throw new CustomError('0071', 'NoUser', userData.languages);
+        if (!verifier().validatePassword(input.password, user, userData.languages))
+            throw new CustomError('0072', 'BadCredentials', userData.languages);
         // Delete user. User's created objects are deleted separately, with explicit confirmation 
         // given by the user. This is to minimize the chance of deleting objects which other users rely on. TODO
         await prisma.user.delete({
-            where: { id: userId }
+            where: { id: userData.id }
         })
         return { success: true };
     },
@@ -574,11 +584,11 @@ const profileMutater = (prisma: PrismaType) => ({
 
 
 export const ProfileModel = ({
-    prismaObject: (prisma: PrismaType) => prisma.user,
-    format: profileFormatter(),
-    mutate: profileMutater,
-    port: porter,
-    query: profileQuerier,
+    delegate: (prisma: PrismaType) => prisma.user,
+    format: formatter(),
+    mutate: mutater(),
+    port: porter(),
+    query: querier(),
     type: 'Profile' as GraphQLModelType,
-    verify: profileVerifier(),
+    verify: verifier(),
 })
