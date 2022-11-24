@@ -1,4 +1,4 @@
-import { getDelegate, getValidator } from "../models/utils";
+import { getDelegate, getDisplay, getValidator } from "../models/utils";
 import { isOwnerAdminCheck } from "../models/validators/isOwnerAdminCheck";
 import { Notify } from "../notify";
 import { SessionUser } from "../schema/types";
@@ -64,9 +64,10 @@ export const Transfer = (prisma: PrismaType) => ({
         const isAdmin = toPermissionData && isOwnerAdminCheck(toValidator.owner(toPermissionData), userData.id)
         // If so, return true. NOTE: What called this function should handle the rest
         if (isAdmin) return true;
-        // Find the name of the object in your preferred language, so the accept/reject message can show the object's name
-        const preferredLanguage: string = userData.languages && userData.languages.length > 0 ? userData.languages[0] : 'en';
-        const objectTitle = await asdfdsafdsafdsa;
+        // Find a user-readable label for the object
+        const requesteeLanguages = (owner.Organization?.languages || owner.User?.languages).map(l => l.language);
+        const display = getDisplay(object.__typename, userData.languages, 'Transfer.request');
+        const objectTitle = (await display.labels(prisma, [{ id: object.id, languages: requesteeLanguages }]))[0];
         // Create transfer request
         const request = await prisma.transfer.create({
             data: {

@@ -3,9 +3,6 @@ import { PrismaType } from "../../types";
 import { ObjectMap } from "../builder";
 import { GraphQLModelType, PrismaDelegate } from "../types";
 
-/**
- * Finds all permissions for the given object ids
- */
 export function getDelegate(
     objectType: GraphQLModelType,
     prisma: PrismaType,

@@ -6,7 +6,7 @@ import { PrismaType } from "../types";
 import { hasProfanity } from "../utils/censor";
 import { permissionsSelectHelper } from "./builder";
 import { OrganizationModel } from "./organization";
-import { Formatter, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { oneIsPublic } from "./utils";
 
 const formatter = (): Formatter<Wallet, any> => ({
@@ -131,8 +131,22 @@ const mutater = (): Mutater<
     yup: { update: walletsUpdate },
 })
 
+const displayer = (): Displayer => ({
+    labels: async (prisma, objects) => {
+        const nameData = await prisma.wallet.findMany({
+            where: { id: { in: objects.map(x => x.id) } },
+            select: { id: true, name: true }    
+        })
+        return objects.map(o => {
+            const name = nameData.find(n => n.id === o.id)?.name;
+            return name ?? '';
+        })
+    }
+})
+
 export const WalletModel = ({
     delegate: (prisma: PrismaType) => prisma.wallet,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     type: 'Wallet' as GraphQLModelType,

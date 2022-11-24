@@ -4,7 +4,7 @@ import { ViewModel } from "./view";
 import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
 import { User, UserSearchInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 
 const joinMapper = { starredBy: 'user' };
@@ -87,7 +87,11 @@ const validator = (): Validator<
         routines: 'Routine',
         // userSchedules: 'UserSchedule',
     },
-    permissionsSelect: () => ({ id: true, isPrivate: true }),
+    permissionsSelect: () => ({
+        id: true,
+        isPrivate: true,
+        languages: { select: { language: true } },
+    }),
     permissionResolvers: () => [],
     ownerOrMemberWhere: (userId) => ({ id: userId }),
     owner: (data) => ({ User: data }),
@@ -97,8 +101,22 @@ const validator = (): Validator<
     profanityFields: ['name', 'handle'],
 })
 
+const displayer = (): Displayer => ({
+    labels: async (prisma, objects) => {
+        const nameData = await prisma.user.findMany({
+            where: { id: { in: objects.map((o) => o.id) } },
+            select: { id: true, name: true }
+        })
+        return objects.map(o => {
+            const name = nameData.find(n => n.id === o.id)?.name;
+            return name ?? '';
+        })
+    }
+})
+
 export const UserModel = ({
     delegate: (prisma: PrismaType) => prisma.user,
+    display: displayer(),
     format: formatter(),
     search: searcher(),
     type: 'User' as GraphQLModelType,

@@ -8,9 +8,9 @@ import { ViewModel } from "./view";
 import { CustomError, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, PartialGraphQLInfo, Searcher, GraphQLModelType, Validator, Mutater, Duplicater } from "./types";
+import { Formatter, PartialGraphQLInfo, Searcher, GraphQLModelType, Validator, Mutater, Duplicater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
-import { oneIsPublic, translationRelationshipBuilder } from "./utils";
+import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "./utils";
 import { getSingleTypePermissions } from "./validators";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "./actions";
@@ -745,8 +745,22 @@ const mutater = (): Mutater<
     yup: { create: routinesCreate, update: routinesUpdate },
 })
 
+const displayer = (): Displayer => ({
+    labels: async (prisma, objects) => {
+        const translations = await prisma.routine_version_translation.findMany({
+            where: { routineVersionId: { in: objects.map((o) => o.id) } },
+            select: { routineVersionId: true, language: true, title: true }    
+        })
+        return objects.map(o => {
+            const oTrans = translations.filter(t => t.routineVersionId === o.id);
+            return bestLabel(oTrans, 'title', o.languages);
+        })
+    }
+})
+
 export const RoutineModel = ({
     delegate: (prisma: PrismaType) => prisma.routine_version,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),

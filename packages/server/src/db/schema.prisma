@@ -622,7 +622,7 @@ model notification {
 
 model notification_device {
     id       String    @id @default(uuid()) @db.Uuid
-    endpoint String    @db.VarChar(1024) @unique
+    endpoint String    @unique @db.VarChar(1024)
     p256dh   String    @db.VarChar(1024)
     auth     String    @db.VarChar(1024)
     expires  DateTime? @db.Timestamptz(6)
@@ -680,12 +680,22 @@ model organization {
     viewedBy              view[]                      @relation("view_organization")
     wallets               wallet[]
     roles                 role[]
+    languages             organization_language[]
     transfersIncoming     transfer[]                  @relation("transfer_to_organization")
     transfersOutgoing     transfer[]                  @relation("transfer_from_organization")
     pullRequests          pull_request[]
     stats                 data_organization[]
     questions             question[]
     directoryListings     project_version_directory[]
+}
+
+model organization_language {
+    id             String       @id @default(uuid()) @db.Uuid
+    organizationId String       @db.Uuid
+    language       String       @db.VarChar(3)
+    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+    @@unique([organizationId, language])
 }
 
 model organization_schedule {
@@ -790,7 +800,7 @@ model member {
     userId         String       @db.Uuid
     organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
-    roles         role[]
+    roles          role[]
 
     @@unique([organizationId, userId], name: "member_organizationid_userid_unique")
 }
@@ -1228,16 +1238,16 @@ model report {
     standardVersionId      String?                 @db.Uuid
     tagId                  String?                 @db.Uuid
     userId                 String?                 @db.Uuid
-    apiVersion                    api_version?            @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
+    apiVersion             api_version?            @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
     comment                comment?                @relation(fields: [commentId], references: [id], onDelete: Cascade)
     issue                  issue?                  @relation(fields: [issueId], references: [id], onDelete: Cascade)
     from                   user                    @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
     organization           organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     post                   post?                   @relation(fields: [postId], references: [id], onDelete: Cascade)
     projectVersion         project_version?        @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
-    routineVersion                routine_version?        @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    smartContractVersion          smart_contract_version? @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
-    standardVersion               standard_version?       @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
+    routineVersion         routine_version?        @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
+    smartContractVersion   smart_contract_version? @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
+    standardVersion        standard_version?       @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
     tag                    tag?                    @relation(fields: [tagId], references: [id], onDelete: Cascade)
     user                   user?                   @relation(fields: [userId], references: [id], onDelete: Cascade)
     responses              report_response[]
@@ -1954,7 +1964,7 @@ model transfer {
     created_at         DateTime        @default(now()) @db.Timestamptz(6)
     updated_at         DateTime        @default(now()) @db.Timestamptz(6)
     status             TransferStatus  @default(Pending)
-    objectTitle        String?          @db.VarChar(128)
+    objectTitle        String?         @db.VarChar(128)
     message            String?         @db.VarChar(2048)
     denyReason         String?         @db.VarChar(2048)
     fromUserId         String?         @db.Uuid

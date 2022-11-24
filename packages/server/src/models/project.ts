@@ -7,10 +7,10 @@ import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
-import { oneIsPublic, translationRelationshipBuilder } from "./utils";
+import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "./utils";
 import { getSingleTypePermissions } from "./validators";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "./actions";
@@ -231,8 +231,22 @@ const mutater = (): Mutater<
     yup: { create: projectsCreate, update: projectsUpdate },
 });
 
+const displayer = (): Displayer => ({
+    labels: async (prisma, objects) => {
+        const translations = await prisma.project_version_translation.findMany({
+            where: { projectVersionId: { in: objects.map((o) => o.id) } },
+            select: { projectVersionId: true, language: true, name: true }    
+        })
+        return objects.map(o => {
+            const oTrans = translations.filter(t => t.projectVersionId === o.id);
+            return bestLabel(oTrans, 'name', o.languages);
+        })
+    }
+})
+
 export const ProjectModel = ({
     delegate: (prisma: PrismaType) => prisma.project,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),

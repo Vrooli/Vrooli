@@ -123,10 +123,9 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         if (wasAutomatic) Notify(prisma, languages).pushRunStartedAutomatically(runTitle, runId).toUser(userId);
     },
     sessionValidate: async (userId: string) => { },
-    userInvite: async (userId: string) => {
-        // Send notification to user
-        Notify(prisma, languages).pushUserInvite(fdsaf).toUser(userId);
+    userInvite: async (referrerId: string, joinedUsername: string) => {
+        Notify(prisma, languages).pushUserInvite(joinedUsername).toUser(referrerId);
         // Track award progress
-        Award(prisma, userId, languages).update('UserInvite', 1);
+        Award(prisma, referrerId, languages).update('UserInvite', 1);
     },
 });

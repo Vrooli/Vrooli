@@ -7,9 +7,10 @@ import { RunInputModel } from "./runInput";
 import { CustomError, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, GraphQLInfo, Validator, Mutater } from "./types";
+import { Formatter, Searcher, GraphQLModelType, GraphQLInfo, Validator, Mutater, Displayer } from "./types";
 import { oneIsPublic } from "./utils";
 import { OrganizationModel } from "./organization";
+import { relBuilderHelper } from "./actions";
 
 const formatter = (): Formatter<Run, ''> => ({
     relationshipMap: {
@@ -268,7 +269,7 @@ const mutater = (): Mutater<
                 timeStarted: new Date(),
                 routineVersionId: data.routineVersionId,
                 status: RunStatus.InProgress,
-                steps: await RunStepModel.mutate.relationshipBuilder!(prisma, userData, data, true, 'step'),
+                steps: await relBuilderHelper({ data, isAdd: true, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunStep', prisma, userData }),
                 title: data.title,
                 userId: userData.id,
             }
@@ -278,8 +279,8 @@ const mutater = (): Mutater<
                 timeElapsed: data.timeElapsed ? { increment: data.timeElapsed } : undefined,
                 completedComplexity: data.completedComplexity ? { increment: data.completedComplexity } : undefined,
                 contextSwitches: data.contextSwitches ? { increment: data.contextSwitches } : undefined,
-                steps: await RunStepModel.mutate.relationshipBuilder!(prisma, userData, data, false),
-                inputs: await RunInputModel.mutate.relationshipBuilder!(prisma, userData, data, false),
+                steps: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunStep', prisma, userData }),
+                inputs: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'inputs', objectType: 'RunInput', prisma, userData }),
             }
         }
     },
@@ -345,9 +346,23 @@ const danger = () => ({
     }
 })
 
+const displayer = (): Displayer => ({
+    labels: async (prisma, objects) => {
+        const titleData = await prisma.run_routine.findMany({
+            where: { id: { in: objects.map(x => x.id) } },
+            select: { id: true, title: true }
+        })
+        return objects.map(o => {
+            const title = titleData.find(n => n.id === o.id)?.title;
+            return title ?? '';
+        })
+    }
+})
+
 export const RunModel = ({
     danger: danger(),
     delegate: (prisma: PrismaType) => prisma.run_routine,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     run: runner(),

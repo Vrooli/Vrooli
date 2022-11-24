@@ -70,6 +70,7 @@ export type WithSelect<T> = { select: { [K in keyof T]: T[K] extends object ? Wi
  */
 export type ModelLogic<GraphQLModel, SearchInput, PermissionObject, PermissionsQuery> = {
     format: Formatter<GraphQLModel, PermissionObject>;
+    display: Displayer;
     delegate: (prisma: PrismaType) => PrismaDelegate;
     search?: Searcher<SearchInput>;
     mutate?: Mutater<GraphQLModel>;
@@ -497,6 +498,20 @@ export type Mutater<
     }) & (Update extends false ? {} : {
         update: ObjectSchema,
     });
+}
+
+/**
+ * Functions for displaying an object
+ */
+export type Displayer = {
+    /**
+     * Finds a string to represent each object in each user's preferred language
+     * @param prisma Prisma client
+     * @param objects List of object ids and the corresponding user's preferred languages
+     * @returns List of strings to represent each object in each user's preferred language, 
+     * in the same order as the input
+     */
+    labels: (prisma: PrismaType, objects: { id: string, languages: string[] }[]) => PromiseOrValue<string[]>,
 }
 
 /**

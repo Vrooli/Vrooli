@@ -5,7 +5,7 @@ import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Formatter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
+import { Displayer, Formatter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/walletAuth";
 import { Trigger } from "../events";
 import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from "../schema/types";
@@ -460,8 +460,22 @@ const mutater = (): Mutater<
     },
 })
 
+const displayer = (): Displayer => ({
+    labels: async (prisma, objects) => {
+        const nameData = await prisma.standard.findMany({
+            where: { id: { in: objects.map(o => o.id) } },
+            select: { id: true, name: true }    
+        })
+        return objects.map(o => {
+            const name = nameData.find(n => n.id === o.id)?.name;
+            return name ?? '';
+        })
+    }
+})
+
 export const StandardModel = ({
     delegate: (prisma: PrismaType) => prisma.standard_version,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     query: querier(),

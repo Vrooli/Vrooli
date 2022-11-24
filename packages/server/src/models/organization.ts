@@ -1,16 +1,16 @@
 import { PrismaType } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission, SessionUser } from "../schema/types";
 import { addJoinTablesHelper, removeJoinTablesHelper, addCountFieldsHelper, removeCountFieldsHelper, onlyValidIds, visibilityBuilder, combineQueries } from "./builder";
-import { organizationsCreate, organizationsUpdate } from "@shared/validation";
+import { handle, organizationsCreate, organizationsUpdate } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { getSingleTypePermissions } from "./validators";
 import { uuid } from "@shared/uuid";
 import { relBuilderHelper } from "./actions";
-import { translationRelationshipBuilder } from "./utils";
+import { bestLabel, translationRelationshipBuilder } from "./utils";
 
 const joinMapper = { starredBy: 'user', tags: 'tag' };
 const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
@@ -103,6 +103,7 @@ const validator = (): Validator<
         id: true,
         isOpenToNewMembers: true,
         isPrivate: true,
+        languages: { select: { language: true } },
         permissions: true,
         ...(userId ? {
             roles: {
@@ -248,8 +249,22 @@ const mutater = (): Mutater<
     yup: { create: organizationsCreate, update: organizationsUpdate },
 })
 
+const displayer = (): Displayer => ({
+    labels: async (prisma, objects) => {
+        const translations = await prisma.organization_translation.findMany({
+            where: { organizationId: { in: objects.map((o) => o.id) } },
+            select: { organizationId: true, language: true, name: true }    
+        })
+        return objects.map(o => {
+            const oTrans = translations.filter(t => t.organizationId === o.id);
+            return bestLabel(oTrans, 'name', o.languages);
+        })
+    }
+})
+
 export const OrganizationModel = ({
     delegate: (prisma: PrismaType) => prisma.organization,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),

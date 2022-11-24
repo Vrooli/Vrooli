@@ -6,9 +6,9 @@ import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraph
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { CustomError, Trigger } from "../events";
-import { Formatter, Searcher, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType, Mutater, Validator } from "./types";
+import { Formatter, Searcher, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
-import { oneIsPublic, translationRelationshipBuilder } from "./utils";
+import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "./utils";
 import { Request } from "express";
 import { getSingleTypePermissions } from "./validators";
 
@@ -348,8 +348,22 @@ const mutater = (): Mutater<
     yup: { create: commentsCreate, update: commentsUpdate },
 })
 
+const displayer = (): Displayer => ({
+    labels: async (prisma, objects) => {
+        const translations = await prisma.comment_translation.findMany({
+            where: { commentId: { in: objects.map((o) => o.id) } },
+            select: { commentId: true, language: true, text: true }    
+        })
+        return objects.map(o => {
+            const oTrans = translations.filter(t => t.commentId === o.id);
+            return bestLabel(oTrans, 'text', o.languages);
+        })
+    }
+})
+
 export const CommentModel = ({
     delegate: (prisma: PrismaType) => prisma.comment,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     query: querier(),

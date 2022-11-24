@@ -2,9 +2,6 @@ import { CustomError } from "../../events";
 import { ObjectMap } from "../builder";
 import { GraphQLModelType, Validator } from "../types";
 
-/**
- * Finds all permissions for the given object ids
- */
 export function getValidator<
     GQLCreate extends { [x: string]: any },
     GQLUpdate extends { [x: string]: any },
