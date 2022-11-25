@@ -1,4 +1,4 @@
-import { assertRequestFrom } from "../../auth/auth";
+import { assertRequestFrom } from "../../auth/request";
 import { CustomError, Trigger } from "../../events";
 import { Success } from "../../schema/types";
 import { DeleteOneHelperProps } from "./types";

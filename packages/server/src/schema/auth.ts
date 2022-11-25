@@ -4,18 +4,19 @@
 // 3. Guest login
 import { gql } from 'apollo-server-express';
 import { emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema } from '@shared/validation';
-import { CODE, COOKIE } from "@shared/consts";
+import { COOKIE } from "@shared/consts";
 import { CustomError } from '../events/error';
-import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/walletAuth';
-import { assertRequestFrom, generateSessionJwt, updateSessionTimeZone } from '../auth/auth.js';
+import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
+import { assertRequestFrom, generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
 import { IWrap, RecursivePartial } from '../types';
 import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, ApiKeyStatus, LogOutInput, SwitchCurrentAccountInput } from './types';
 import { GraphQLResolveInfo } from 'graphql';
 import { Context, rateLimit } from '../middleware';
 import { hasProfanity } from '../utils/censor';
 import pkg from '@prisma/client';
-import { getUser, ProfileModel } from '../models';
+import { getUser } from '../models';
 import { Trigger } from '../events';
+import { hashPassword, logIn, setupPasswordReset, toSession, validateCode, validateVerificationCode } from '../auth';
 const { AccountStatus } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -179,11 +180,11 @@ export const resolvers = {
                     });
                     if (emails.length === 0)
                         throw new CustomError('0131', 'EmailOrCodeInvalid', req.languages);
-                    const verified = await ProfileModel.verify.validateVerificationCode(emails[0].emailAddress, user.id, verificationCode, prisma, req.languages);
+                    const verified = await validateVerificationCode(emails[0].emailAddress, user.id, verificationCode, prisma, req.languages);
                     if (!verified)
                         throw new CustomError('0132', 'CannotVerifyEmailCode', req.languages);
                 }
-                return await ProfileModel.verify.toSession(user, prisma, req);
+                return await toSession(user, prisma, req);
             }
             // If email supplied, validate
             else {
@@ -196,7 +197,7 @@ export const resolvers = {
                     throw new CustomError('0134', 'NoUser', req.languages);
                 // Check for password in database, if doesn't exist, send a password reset link
                 if (!Boolean(user.password)) {
-                    await ProfileModel.verify.setupPasswordReset(user, prisma);
+                    await setupPasswordReset(user, prisma);
                     throw new CustomError('0135', 'MustResetPassword', req.languages);
                 }
                 // Validate verification code, if supplied
@@ -204,12 +205,12 @@ export const resolvers = {
                     if (!input.verificationCode.includes(':'))
                         throw new CustomError('0136', 'CannotVerifyEmailCode', req.languages);
                     const [, verificationCode] = input.verificationCode.split(':');
-                    const verified = await ProfileModel.verify.validateVerificationCode(email.emailAddress, user.id, verificationCode, prisma, req.languages);
+                    const verified = await validateVerificationCode(email.emailAddress, user.id, verificationCode, prisma, req.languages);
                     if (!verified)
                         throw new CustomError('0137', 'CannotVerifyEmailCode', req.languages);
                 }
                 // Create new session
-                const session = await ProfileModel.verify.logIn(input?.password as string, user, prisma, req);
+                const session = await logIn(input?.password as string, user, prisma, req);
                 if (session) {
                     // Set session token
                     await generateSessionJwt(res, session);
@@ -233,7 +234,7 @@ export const resolvers = {
             const user = await prisma.user.create({
                 data: {
                     name: input.name,
-                    password: ProfileModel.verify.hashPassword(input.password),
+                    password: hashPassword(input.password),
                     theme: input.theme,
                     status: AccountStatus.Unlocked,
                     emails: {
@@ -246,7 +247,7 @@ export const resolvers = {
             if (!user)
                 throw new CustomError('0142', 'FailedToCreate', req.languages);
             // Create session from user object
-            const session = await ProfileModel.verify.toSession(user, prisma, req);
+            const session = await toSession(user, prisma, req);
             // Set up session token
             await generateSessionJwt(res, session);
             // Trigger new account
@@ -267,7 +268,7 @@ export const resolvers = {
             if (!user)
                 throw new CustomError('0144', 'NoUser', req.languages);
             // Generate and send password reset code
-            const success = await ProfileModel.verify.setupPasswordReset(user, prisma);
+            const success = await setupPasswordReset(user, prisma);
             return { success };
         },
         emailResetPassword: async (_parent: undefined, { input }: IWrap<EmailResetPasswordInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
@@ -286,9 +287,9 @@ export const resolvers = {
             if (!user)
                 throw new CustomError('0145', 'NoUser', req.languages);
             // If code is invalid
-            if (!ProfileModel.verify.validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
+            if (!validateCode(input.code, user.resetPasswordCode ?? '', user.lastResetPasswordReqestAttempt as Date)) {
                 // Generate and send new code
-                await ProfileModel.verify.setupPasswordReset(user, prisma);
+                await setupPasswordReset(user, prisma);
                 // Return error
                 throw new CustomError('0156', 'InvalidResetCode', req.languages);
             }
@@ -298,11 +299,11 @@ export const resolvers = {
                 data: {
                     resetPasswordCode: null,
                     lastResetPasswordReqestAttempt: null,
-                    password: ProfileModel.verify.hashPassword(input.newPassword)
+                    password: hashPassword(input.newPassword)
                 }
             })
             // Return session
-            return await ProfileModel.verify.toSession(user, prisma, req);
+            return await toSession(user, prisma, req);
         },
         guestLogIn: async (_parent: undefined, _args: undefined, { req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Session>> => {
             await rateLimit({ info, maxUser: 500, req });
@@ -352,7 +353,7 @@ export const resolvers = {
                 where: { id: userId },
                 select: { id: true }
             });
-            if (userData) return await ProfileModel.verify.toSession(userData, prisma, req);
+            if (userData) return await toSession(userData, prisma, req);
             // If user data failed to fetch, clear session and return error
             res.clearCookie(COOKIE.Jwt);
             throw new CustomError('0148', 'NotVerified', req.languages);
@@ -502,7 +503,7 @@ export const resolvers = {
                 }
             })
             // Create session token
-            const session = await ProfileModel.verify.toSession({ id: userId as string }, prisma, req)
+            const session = await toSession({ id: userId as string }, prisma, req)
             // Add session token to return payload
             await generateSessionJwt(res, session);
             return {

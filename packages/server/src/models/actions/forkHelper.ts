@@ -1,4 +1,4 @@
-import { assertRequestFrom } from "../../auth/auth";
+import { assertRequestFrom } from "../../auth/request";
 import { CustomError, Trigger } from "../../events";
 import { getAuthenticatedData, getDelegate, getValidator } from "../utils";
 import { maxObjectsCheck, permissionsCheck } from "../validators";

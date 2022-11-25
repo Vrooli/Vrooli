@@ -1,4 +1,4 @@
-import { assertRequestFrom } from "../../auth/auth";
+import { assertRequestFrom } from "../../auth/request";
 import { CustomError } from "../../events";
 import { RecursivePartial } from "../../types";
 import { addSupplementalFields, toPartialGraphQLInfo } from "../builder";

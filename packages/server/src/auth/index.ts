@@ -1,2 +1,5 @@
+export * from './email';
 export * from './permissions';
-export * from './walletAuth';
+export * from './request';
+export * from './session';
+export * from './wallet';

@@ -312,9 +312,6 @@ const forMapper: { [key in CommentFor]: string } = {
     Standard: 'standardId',
 }
 
-/**
- * Handles authorized creates, updates, and deletes
- */
 const mutater = (): Mutater<
     Comment,
     { graphql: CommentCreateInput, db: Prisma.commentUpsertArgs['create'] },

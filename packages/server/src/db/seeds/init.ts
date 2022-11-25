@@ -8,7 +8,7 @@ import { PrismaType } from '../../types';
 import pkg from '@prisma/client';
 import { logger } from '../../events/logger';
 import { uuid } from '@shared/uuid';
-const { AccountStatus, NodeType, ResourceUsedFor } = pkg;
+import { hashPassword } from '../../auth';
 
 export async function init(prisma: PrismaType) {
     //==============================================================
@@ -82,8 +82,8 @@ export async function init(prisma: PrismaType) {
         create: {
             id: adminId,
             name: 'Matt Halloran',
-            password: ProfileModel.verify.hashPassword(process.env.ADMIN_PASSWORD ?? ''),
-            status: AccountStatus.Unlocked,
+            password: hashPassword(process.env.ADMIN_PASSWORD ?? ''),
+            status: 'Unlocked',
             emails: {
                 create: [
                     { emailAddress: process.env.SITE_EMAIL_USERNAME ?? '', verified: true },
@@ -164,7 +164,7 @@ export async function init(prisma: PrismaType) {
                             resources: {
                                 create: [
                                     {
-                                        usedFor: ResourceUsedFor.OfficialWebsite as any,
+                                        usedFor: 'OfficialWebsite',
                                         index: 0,
                                         link: 'https://vrooli.com',
                                         translations: {
@@ -172,7 +172,7 @@ export async function init(prisma: PrismaType) {
                                         },
                                     },
                                     {
-                                        usedFor: ResourceUsedFor.Social as any,
+                                        usedFor: 'Social',
                                         index: 1,
                                         link: 'https://twitter.com/VrooliOfficial',
                                         translations: {
@@ -318,14 +318,14 @@ export async function init(prisma: PrismaType) {
                             resources: {
                                 create: [
                                     {
-                                        usedFor: ResourceUsedFor.ExternalService as any,
+                                        usedFor: 'ExternalService',
                                         link: 'https://minterr.io/mint-cardano-tokens/',
                                         translations: {
                                             create: [{ language: EN, title: "minterr.io" }]
                                         },
                                     },
                                     {
-                                        usedFor: ResourceUsedFor.Developer as any,
+                                        usedFor: 'Developer',
                                         link: 'https://developers.cardano.org/docs/native-tokens/minting/',
                                         translations: {
                                             create: [{ language: EN, title: "cardano.org guide" }]
@@ -378,21 +378,21 @@ export async function init(prisma: PrismaType) {
                             resources: {
                                 create: [
                                     {
-                                        usedFor: ResourceUsedFor.ExternalService as any,
+                                        usedFor: 'ExternalService',
                                         link: 'https://minterr.io/mint-cardano-tokens/',
                                         translations: {
                                             create: [{ language: EN, title: "minterr.io" }]
                                         },
                                     },
                                     {
-                                        usedFor: ResourceUsedFor.ExternalService as any,
+                                        usedFor: 'ExternalService',
                                         link: 'https://cardano-tools.io/mint',
                                         translations: {
                                             create: [{ language: EN, title: "cardano-tools.io" }]
                                         },
                                     },
                                     {
-                                        usedFor: ResourceUsedFor.Developer as any,
+                                        usedFor: 'Developer',
                                         link: 'https://developers.cardano.org/docs/native-tokens/minting-nfts',
                                         translations: {
                                             create: [{ language: EN, title: "cardano.org guide" }]

@@ -4,7 +4,7 @@ import { Count, DeleteManyInput, FindByIdInput, Run, RunCancelInput, RunComplete
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, deleteManyHelper, readManyHelper, readOneHelper, RunModel, updateHelper } from '../models';
-import { assertRequestFrom } from '../auth/auth';
+import { assertRequestFrom } from '../auth/request';
 
 export const typeDef = gql`
     enum RunSortBy {

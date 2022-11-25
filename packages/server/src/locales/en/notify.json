@@ -7,6 +7,8 @@
     "IssueActivityBody": "New activity on issue \"{{issueName}}\"",
     "NewDeviceTitle": "New device sign-in",
     "NewDeviceBody": "A new device signed in to your account. If you didn't sign in, please change your password.",
+    "NewEmailVerificationTitle": "New email in use",
+    "NewEmailVerificationBody": "A new email address is now in use for your account. If this wasn't you, please change your password.",
     "NewIssueOnObjectTitle": "New issue",
     "NewIssueOnObjectBody": "`There's a new Issue on \"{{objectName}}\". Can you help?",
     "NewQuestionOnObjectTitle": "New question",

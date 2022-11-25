@@ -1,7 +1,7 @@
 import { ViewSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from 'graphql';
-import { assertRequestFrom } from '../auth/auth';
+import { assertRequestFrom } from '../auth/request';
 import { Context, rateLimit } from '../middleware';
 import { CustomError } from '../events/error';
 import { getUser, readManyHelper, ViewModel } from '../models';

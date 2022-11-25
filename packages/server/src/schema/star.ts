@@ -6,7 +6,7 @@ import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { readManyHelper, StarModel } from '../models';
 import { resolveStarTo } from './resolvers';
-import { assertRequestFrom } from '../auth/auth';
+import { assertRequestFrom } from '../auth/request';
 
 export const typeDef = gql`
     enum StarSortBy {

@@ -6,7 +6,7 @@ import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { Displayer, Formatter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
-import { randomString } from "../auth/walletAuth";
+import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
 import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";

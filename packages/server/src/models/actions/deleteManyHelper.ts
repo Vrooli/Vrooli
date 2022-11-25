@@ -1,5 +1,5 @@
 import { DeleteOneType } from "@shared/consts";
-import { assertRequestFrom } from "../../auth/auth";
+import { assertRequestFrom } from "../../auth/request";
 import { CustomError, Trigger } from "../../events";
 import { Count } from "../../schema/types";
 import { DeleteManyHelperProps } from "./types";

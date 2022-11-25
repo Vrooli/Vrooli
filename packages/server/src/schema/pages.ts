@@ -4,12 +4,11 @@
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
 import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, HistoryPageInput, HistoryPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, RunStatus, RunSortBy, ViewSortBy } from './types';
-import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { addSupplementalFieldsMultiTypes, getUser, OrganizationModel, ProjectModel, readManyAsFeedHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
 import { CustomError } from '../events/error';
-import { assertRequestFrom } from '../auth/auth';
+import { assertRequestFrom } from '../auth/request';
 import { PartialGraphQLInfo } from '../models/types';
 
 export const typeDef = gql`

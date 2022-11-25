@@ -5,7 +5,7 @@ import { Context, rateLimit } from '../middleware';
 import { getUser, onlyValidIds, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../events/error';
-import { serializedAddressToBech32 } from '../auth/walletAuth';
+import { serializedAddressToBech32 } from '../auth/wallet';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
 
 export const typeDef = gql`

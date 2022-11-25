@@ -2,10 +2,12 @@ import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, removeCountF
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
-import { User, UserSearchInput } from "../schema/types";
+import { ProfileUpdateInput, User, UserSearchInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Displayer } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Displayer, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
+import { profilesUpdate } from "@shared/validation";
+import { translationRelationshipBuilder } from "./utils";
 
 const joinMapper = { starredBy: 'user' };
 const countMapper = { reportsCount: 'reports' };
@@ -95,10 +97,35 @@ const validator = (): Validator<
     permissionResolvers: () => [],
     ownerOrMemberWhere: (userId) => ({ id: userId }),
     owner: (data) => ({ User: data }),
-    // isAdmin: (data, userId) => data.id === userId,
     isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false,
     profanityFields: ['name', 'handle'],
+    // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
+})
+
+const mutater = (): Mutater<
+    User,
+    false,
+    { graphql: ProfileUpdateInput, db: Prisma.userUpsertArgs['update'] },
+    false,
+    false
+> => ({
+    shape: {
+        update: async ({ data, prisma, userData }) => {
+            return {
+                handle: data.handle,
+                name: data.name ?? undefined,
+                theme: data.theme ?? undefined,
+                // // hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder!(userData.id, input, false),
+                // starred: {
+                //     create: starredCreate,
+                //     delete: starredDelete,
+                // }, TODO
+                translations: await translationRelationshipBuilder(prisma, userData, data, false),
+            }
+        }
+    },
+    yup: { update: profilesUpdate },
 })
 
 const displayer = (): Displayer => ({
@@ -118,6 +145,7 @@ export const UserModel = ({
     delegate: (prisma: PrismaType) => prisma.user,
     display: displayer(),
     format: formatter(),
+    mutate: mutater(),
     search: searcher(),
     type: 'User' as GraphQLModelType,
     validate: validator(),

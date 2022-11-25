@@ -303,6 +303,13 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewDeviceTitle',
     }),
+    pushNewEmailVerification: (): NotifyResultType => NotifyResult({
+        bodyKey: 'NewEmailVerificationBody',
+        category: 'Security',
+        languages,
+        prisma,
+        titleKey: 'NewEmailVerificationTitle',
+    }),
     pushNewQuestionOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'NewQuestionOnObjectBody',
         bodyVariables: { objectName },

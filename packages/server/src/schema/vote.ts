@@ -5,7 +5,7 @@ import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { getUser, VoteModel } from '../models';
 import { resolveVoteTo } from './resolvers';
-import { assertRequestFrom } from '../auth/auth';
+import { assertRequestFrom } from '../auth/request';
 
 export const typeDef = gql`
     enum VoteFor {

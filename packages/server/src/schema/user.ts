@@ -5,7 +5,7 @@ import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdOrHandle
 import { IWrap, RecursivePartial } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { assertRequestFrom, generateSessionJwt } from '../auth/auth';
+import { assertRequestFrom, generateSessionJwt } from '../auth/request';
 
 export const typeDef = gql`
     enum UserSortBy {
