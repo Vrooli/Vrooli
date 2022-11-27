@@ -3,7 +3,8 @@ import { IWrap, RecursivePartial } from '../types';
 import { DeleteOneInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy, FindByVersionInput } from './types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, updateHelper } from '../models';
+import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { RoutineModel } from '../models';
 
 export const typeDef = gql`
     enum RoutineSortBy {

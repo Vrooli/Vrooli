@@ -3,7 +3,8 @@ import { FindByIdInput, Report, ReportCountInput, ReportCreateInput, ReportFor, 
 import { IWrap, RecursivePartial } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, readManyHelper, readOneHelper, ReportModel, updateHelper } from '../models';
+import { countHelper, createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { ReportModel } from '../models';
 
 export const typeDef = gql`
     enum ReportFor {

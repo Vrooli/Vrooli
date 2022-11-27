@@ -14,9 +14,8 @@ import { GraphQLResolveInfo } from 'graphql';
 import { Context, rateLimit } from '../middleware';
 import { hasProfanity } from '../utils/censor';
 import pkg from '@prisma/client';
-import { getUser } from '../models';
 import { Trigger } from '../events';
-import { hashPassword, logIn, setupPasswordReset, toSession, validateCode, validateVerificationCode } from '../auth';
+import { getUser, hashPassword, logIn, setupPasswordReset, toSession, validateCode, validateVerificationCode } from '../auth';
 const { AccountStatus } = pkg;
 
 const NONCE_VALID_DURATION = 5 * 60 * 1000; // 5 minutes

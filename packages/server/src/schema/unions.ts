@@ -6,9 +6,12 @@ import { GraphQLResolveInfo } from "graphql";
 import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutinePageInfo, ProjectOrRoutineEdge, ProjectOrOrganizationEdge, ProjectOrOrganizationPageInfo, ProjectOrRoutine, ProjectOrOrganization } from './types';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
-import { addSupplementalFieldsMultiTypes, getUser, OrganizationModel, ProjectModel, readManyAsFeedHelper, RoutineModel, toPartialGraphQLInfo } from '../models';
+import { OrganizationModel, ProjectModel, RoutineModel } from '../models';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
-import { PartialGraphQLInfo } from '../models/types';
+import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
+import { PartialGraphQLInfo } from '../builders/types';
+import { readManyAsFeedHelper } from '../actions';
+import { getUser } from '../auth';
 
 export const typeDef = gql`
     enum ProjectOrRoutineSortBy {
@@ -163,7 +166,7 @@ export const resolvers = {
                 '__typename': 'ProjectOrRoutineSearchResult',
                 'Project': 'Project',
                 'Routine': 'Routine',
-            }) as PartialGraphQLInfo;
+            }, req.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req }
             // Query projects
@@ -275,7 +278,7 @@ export const resolvers = {
                 '__typename': 'ProjectOrOrganizationSearchResult',
                 'Project': 'Project',
                 'Organization': 'Organization',
-            }) as PartialGraphQLInfo;
+            }, req.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req }
             // Query projects

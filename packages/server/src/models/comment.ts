@@ -2,18 +2,19 @@ import { CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { addJoinTablesHelper, removeJoinTablesHelper, selectHelper, modelToGraphQL, toPartialGraphQLInfo, timeFrameToPrisma, addSupplementalFields, addCountFieldsHelper, removeCountFieldsHelper, combineQueries, permissionsSelectHelper, getUser, getSearchString } from "./builder";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { CustomError, Trigger } from "../events";
-import { Formatter, Searcher, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
-import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "./utils";
 import { Request } from "express";
-import { getSingleTypePermissions } from "./validators";
+import { getSingleTypePermissions } from "../validators";
+import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
+import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
+import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
+import { getSearchString } from "../getters";
+import { getUser } from "../auth";
 
-const joinMapper = { starredBy: 'user' };
-const countMapper = { reportsCount: 'reports' };
 type SupplementalFields = 'isStarred' | 'isUpvoted' | 'permissionsComment';
 const formatter = (): Formatter<Comment, SupplementalFields> => ({
     relationshipMap: {
@@ -30,10 +31,8 @@ const formatter = (): Formatter<Comment, SupplementalFields> => ({
         reports: 'Report',
         starredBy: 'User',
     },
-    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
-    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
-    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
-    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    joinMap: { starredBy: 'user' },
+    countMap: { reportsCount: 'reports' },
     supplemental: {
         graphqlFields: ['isStarred', 'isUpvoted', 'permissionsComment'],
         toGraphQL: ({ ids, prisma, userData }) => [
@@ -89,15 +88,16 @@ const validator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'Comment',
-        user: 'User',
-        organization: 'Organization',
+        ownedByUser: 'User',
+        ownedByOrganization: 'Organization',
     },
+    isTransferable: false,
     permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
             // ['apiVersion', 'Api'],
             // ['issue', 'Issue'],
-            ['organization', 'Organization'],
+            ['ownedByOrganization', 'Organization'],
             // ['post', 'Post'],
             ['projectVersion', 'Project'],
             // ['pullRequest', 'PullRequest'],
@@ -106,7 +106,7 @@ const validator = (): Validator<
             ['routineVersion', 'Routine'],
             // ['smartContractVersion', 'SmartContract'],
             ['standardVersion', 'Standard'],
-            ['user', 'User'],
+            ['ownedByUser', 'User'],
         ], ...params)
     }),
     permissionResolvers: ({ isAdmin, isPublic }) => ([
@@ -119,8 +119,8 @@ const validator = (): Validator<
         ['canVote', async () => isAdmin || isPublic],
     ]),
     owner: (data) => ({
-        Organization: data.organization,
-        User: data.user,
+        Organization: data.ownedByOrganization,
+        User: data.ownedByUser,
     }),
     isDeleted: () => false,
     isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
@@ -135,7 +135,7 @@ const validator = (): Validator<
         // ['smartContractVersion', 'SmartContract'],
         ['standardVersion', 'Standard'],
     ], languages),
-    ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
+    ownerOrMemberWhere: (userId) => ({ ownedByUser: { id: userId } }),
 })
 
 const querier = () => ({
@@ -150,9 +150,7 @@ const querier = () => ({
         nestLimit: number = 2,
     ): Promise<CommentThread[]> {
         // Partially convert info type
-        let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap);
-        if (!partialInfo)
-            throw new CustomError('0023', 'InternalError', userData?.languages ?? ['en']);
+        let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap, userData?.languages ?? ['en'], true);
         // Create query for specified ids
         const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
         // Combine queries
@@ -221,9 +219,7 @@ const querier = () => ({
         nestLimit: number = 2,
     ): Promise<CommentSearchResult> {
         // Partially convert info type
-        let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap);
-        if (!partialInfo)
-            throw new CustomError('0322', 'InternalError', req.languages);
+        let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap, req.languages, true);
         // Determine text search query
         const searchQuery = input.searchString ? getSearchString({ objectType: 'Comment', searchString: input.searchString }) : undefined;
         // Determine createdTimeFrame query
@@ -338,7 +334,7 @@ const mutater = (): Mutater<
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
             for (const c of created) {
-                Trigger(prisma, userData.languages).objectCreate('Comment', c.id as string, userData.id);
+                Trigger(prisma, userData.languages).createComment(userData.id, c.id as string);
             }
         },
     },

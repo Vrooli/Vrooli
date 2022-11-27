@@ -1,9 +1,12 @@
+import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
 import { DeleteOneType, ForkType, StarFor, VoteFor } from "@shared/consts";
-import { ProfileModel } from "../models";
+import { setupVerificationCode } from "../auth";
+import { OrganizationModel } from "../models";
 import { GraphQLModelType } from "../models/types";
+import { getDisplay } from "../models/utils";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
-import { Award, AwardCategory } from "./awards";
+import { Award } from "./awards";
 
 export type ActionTrigger = 'AccountNew' |
     'ObjectComplete' | // except runs
@@ -23,33 +26,7 @@ export type ActionTrigger = 'AccountNew' |
     'SessionValidate' | // for checking anniversary
     'UserInvite'
 
-/**
- * Maps GraphQLModelTypes to "Create" award types
- */
-const CreateAwardTypeMap: { [key in GraphQLModelType]?: AwardCategory } = {
-    // Api: 'ApiCreate',
-    Comment: 'CommentCreate',
-    // Issue: 'IssueCreate',
-    // Note: 'NoteCreate',
-    Organization: 'OrganizationCreate',
-    // Post: 'PostCreate',
-    Project: 'ProjectCreate',
-    // PullRequest: 'PullRequestCreate',
-    // Question: 'QuestionCreate',
-    Routine: 'RoutineCreate',
-    // SmartContract: 'SmartContractCreate',
-    Standard: 'StandardCreate',
-}
-
-/**
- * Maps GraphQLModelTypes to "Complete" award types
- */
-const CompleteAwardTypeMap: { [key in GraphQLModelType]?: AwardCategory } = {
-    // PullRequest: 'PullRequestComplete',
-    // Quiz: 'QuizPass',
-    RunRoutine: 'RunRoutine',
-    // RunProject: 'RunProject',
-}
+type Owner = { __typename: 'User' | 'Organization', id: string };
 
 /**
  * Handles logging, notifications, achievements, and more when some action is performed.
@@ -61,69 +38,266 @@ const CompleteAwardTypeMap: { [key in GraphQLModelType]?: AwardCategory } = {
  * in case we want to add functionality later.
  */
 export const Trigger = (prisma: PrismaType, languages: string[]) => ({
-    /**
-     * Sends a verification email and gives the user a reward
-     * @param userId The new user's id
-     * @param emailAddress The new user's email address, if not created from wallet
-     */
     acountNew: async (userId: string, emailAddress?: string) => {
         // Send a welcome/verification email (if not created with wallet)
-        if (emailAddress) await ProfileModel.verify.setupVerificationCode(emailAddress, prisma, languages);
+        if (emailAddress) await setupVerificationCode(emailAddress, prisma, languages);
         // Give the user an award
         Award(prisma, userId, languages).update('AccountNew', 1);
     },
-    objectComplete: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
+    createApi: async (userId: string, apiId: string) => {
         // Track award progress
-        const awardType = CompleteAwardTypeMap[objectType];
-        if (awardType) Award(prisma, userId, languages).update(awardType, 1);
+        asdfasfdasdf
+        // If the version is public and complete, increase reputation score
+        adfdsfsa
     },
-    objectCreate: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
-        // If object was an email or a wallet, send notification to user warning them that a new sign in method was added
-        if (['Email', 'Wallet'].includes(objectType)) {
-            Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
+    createOrUpdateApiVersion: async (userId: string, apiId: string, versionId: string, versionStatus: string) => {
+        const wasPublicAndComplete = asdfasfdasfd
+        const isPublicAndComplete = asdfasfdasfd
+        const hasNeverBeenTransferred = asdfasfdasfd
+        // If the version is now public and complete
+        if (isPublicAndComplete) {
+            // If never transferred, increase reputation score of creator
+            if (hasNeverBeenTransferred) {
+                asdfasfdasfd
+            }
+            // Notify subscribers of completed version
+            asdfasfd
         }
-        // If object was added to a project, send notification to anyone subscribed to the project
-        asdfasfd
-        // If object was created by an organization, send notification to anyone subscribed to the organization (except for who created it)
-        Notify(prisma, languages).pushCreatedObject(objectName, objectType, objectId).toOrganizationSubscribers(userId);
-        fdsafdsaf
-        // If object was an auto-created quiz, send notification to user
-        fdsafds
+        // If the version was public and complete, but is now not
+        else if (wasPublicAndComplete) {
+            // If never transferred, decrease reputation score of creator
+            if (hasNeverBeenTransferred) {
+                asdfasfdasfd
+            }
+        }
+    },
+    deleteApiVersion: async (userId: string, apiId: string, versionId: string, versionStatus: string) => {
+        // If the version was public and complete and has never been transferred, decrease reputation score
+        fdsafdsafdsa
+    },
+    createComment: async (userId: string, commentId: string) => {
+        // Send notification to object owner(s)
+        asdfasdf
         // Track award progress
-        const awardType = CreateAwardTypeMap[objectType];
-        if (awardType) Award(prisma, userId, languages).update(awardType, 1);
+        Award(prisma, userId, languages).update('CommentCreate', 1);
+    },
+    createEmail: async (userId: string, emailAddress: string) => {
+        // Send notification to user warning them that a new sign in method was added
+        Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
+    },
+    createIssue: async (issueId: string, owner: Owner, createdById: string) => {
+        // Get label(s) for issue
+        let preferredLanguages: string[][] = [];
+        if (owner.__typename === 'User') {
+            asfdasfdasf
+        }
+        else if (owner.__typename === 'Organization') {
+            const adminIds = OrganizationModel.query.findAdminIds(prisma, owner.id, createdById);
+            fdsfadsa
+        }
+        const displayer = getDisplay('Issue', languages, 'createIssue');
+        const labelData = await displayer.labels(prisma, preferredLanguages.map(l => ({ id: issueId, languages: l })));
+        // Send notification to object owner(s)
+        Notify(prisma, languages).pushNewIssueOnObject(labelData[0], issueId).toOwner(owner, createdById);
+    },
+    createOrganization: async (userId: string, organizationId: string) => {
+        // Track award progress
+        Award(prisma, userId, languages).update('OrganizationCreate', 1);
+    },
+    createProject: async (userId: string, projectId: string) => {
+        // Track award progress
+        Award(prisma, userId, languages).update('ProjectCreate', 1);
+        // If the version is public and complete, increase reputation score
+        asdfdsfdsd
+    },
+    createOrUpdateProjectVersion: async (userId: string, projectId: string, versionId: string, versionStatus: string) => {
+        fdsfdsafds
+    },
+    deleteProjectVersion: async (userId: string, projectId: string, versionId: string, versionStatus: string) => {
+        asdfasdf
+    },
+    createQuestion: async (userId: string, questionId: string) => {
+        // Send notification to object owner(s)
+        Notify(prisma, languages).pushNewQuestion().fdsafdsafd
+    },
+    createRoutine: async (userId: string, routineId: string) => {
+        // Track award progress
+        Award(prisma, userId, languages).update('RoutineCreate', 1);
+        // If the version is public and complete, increase reputation score
+        asdfdsfdsd
+    },
+    createOrUpdateRoutineVersion: async (userId: string, routineId: string, versionId: string, versionStatus: string) => {
+        fdsafdsafd
+    },
+    deleteRoutineVersion: async (userId: string, routineId: string, versionId: string, versionStatus: string) => {
+        fdsafdsafd
+    },
+    createSmartContract: async (userId: string, smartContractId: string) => {
+        // Track award progress
+        Award(prisma, userId, languages).update('SmartContractCreate', 1);
+        // If the version is public and complete, increase reputation score
+        asdfdsfdsd
+    },
+    createOrUpdateSmartContractVersion: async (userId: string, smartContractId: string, versionId: string, versionStatus: string) => {
+       fdsafdsaf
+    },
+    deleteSmartContractVersion: async (userId: string, smartContractId: string, versionId: string, versionStatus: string) => {
+        fdsafdsaf
+    },
+    createStandard: async (userId: string, standardId: string) => {
+        // Track award progress
+        Award(prisma, userId, languages).update('StandardCreate', 1);
+        // If the version is public and complete, increase reputation score
+        asdfdsfdsd
+    },
+    createOrUpdateStandardVersion: async (userId: string, standardId: string, versionId: string, versionStatus: string) => {
+        fdsafdsaf
+    },
+    deleteStandardVersion: async (userId: string, standardId: string, versionId: string, versionStatus: string) => {
+        fdsafdsaf
+    },
+    createWallet: async (userId: string, walletAddress: string) => {
+        // Send notification to user warning them that a new sign in method was added
+        Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
+    },
+    issueClosed: async (userId: string, issueId: string, issueStatus: IssueStatus) => {
+        // Send notification to object owner(s)
+        fdsafdsafdsdf
+        // Track award progress of issue creator
+        fdsafdsafds
+        // If issue marked as resolved, icrease reputation of issue creator
+        fdsafdasfd
+        // If issue marked as rejected, decrease reputation of issue creator
+        asdfasdf
+    },
+    objectAddedToOrganization: async (userId: string, organizationId: string, objectId: string, objectType: GraphQLModelType) => {
+        const notification = Notify(prisma, languages).pushOrganizationActivity();
+        // Send notification to admins, except the user who added it
+        notification.toOrganization(organizationId, userId);
+        // Send notification to subscribers of the organization
+        notification.toSubscribers('Organization', organizationId, userId);
+    },
+    objectAddedToProject: async (userId: string, projectId: string, objectId: string, objectType: GraphQLModelType) => {
+        const notification = Notify(prisma, languages).pushProjectActivity();
+        // Send notification to object owner
+        asdfasdf
+        // Send notification to subscribers of the project
+        notification.toSubscribers('Project', projectId, userId);
     },
     objectNewVersion: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
+        const notification = Notify(prisma, languages).pushObjectNewVersion();
+        // Send notification to owner(s) (except for who created it)
+        asdfasfdsf
         // Send notification to anyone subscribed to the object
         asdfasdfas
     },
-    objectDelete: async (objectType: DeleteOneType, objectId: string, userId: string) => { },
-    objectFork: async (objectType: ForkType, parentId: string, userId: string) => {
-
+    /**
+     * NOTE: Unless the object is soft-deleted, this must be called BEFORE the object is deleted.
+     */
+    objectDelete: async (objectType: DeleteOneType, objectId: string, userId: string) => {
+        const notification = Notify(prisma, languages).pushObjectDelete();
+        // Send notification to owner(s) (except for who deleted it)
+        asdfasfdsf
+        // Send notification to anyone subscribed to the object
+        asdfasdfas
     },
-    objectStar: async (isStar: boolean, objectType: StarFor, objectId: string, userId: string) => { },
-    objectVote: async (isUpvote: boolean | null, objectType: VoteFor, objectId: string, userId: string) => { },
-    organizationJoin: async (organizationId: string, userId: string) => { },
-    pullRequestClose: async (pullRequestId: string, userId: string) => { },
-    questionAnswer: async (questionId: string, userId: string) => { },
-    reportClose: async (reportId: string, userId: string) => { },
-    reportContribute: async (reportId: string, userId: string) => { },
-    runComplete: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
+    objectFork: async (objectType: ForkType, parentId: string, userId: string) => {
+        const notification = Notify(prisma, languages).pushObjectFork();
+        // Send notification to owner(s), depending on how many forks the object already has
+        asdfasdf
+    },
+    objectStar: async (isStar: boolean, objectType: StarFor, objectId: string, userId: string) => {
+        const notification = Notify(prisma, languages).pushObjectStar();
+        // Send notification to owner(s), depending on how many stars the object already has
+        fasdf
+        // Increase reputation score of object owner(s)
+        asdfasdf
+    },
+    objectVote: async (isUpvote: boolean | null, objectType: VoteFor, objectId: string, userId: string) => {
+        const notification = Notify(prisma, languages).pushObjectVote();
+        // Send notification to owner(s), depending on how many votes the object already has
+        asdf
+        // Increase reputation score of object owner(s)
+        asdfasdf
+    },
+    organizationJoin: async (organizationId: string, userId: string) => {
+        const notification = Notify(prisma, languages).pushOrganizationJoin();
+        // Send notification to admins of organization
+        asdf
+    },
+    pullRequestClose: async (objectType: GraphQLModelType, objectId: string, status: PullRequestStatus, userId: string) => {
+        // If pull request was accepted, increase award progress and reputation of pull request creator
+        asdf
+        // If pull request was rejected, decrease reputation of pull request creator
+        asdf
+        const notification = Notify(prisma, languages).pushPullRequestClose();
+        // Send notification to owner(s) (except for who created it)
+        asdfasfdsf
+        // Send notifications to subscribers
+        asdfasdfas
+    },
+    questionAccepted: async (questionId: string, answerId: string, userId: string) => {
+        // Increase award progress and reputation of answer creator
+        asdf
+        const notification = Notify(prisma, languages).pushQuestionAccepted();
+        // Send notification to answer creator
+        asdf
+        // Send notification to subscribers
+        asdf
+    },
+    questionAnswer: async (questionId: string, userId: string) => {
+        const notification = Notify(prisma, languages).pushQuestionAnswer();
+        // Send notification to question owner
+        asdf
+        // Send notification to anyone subscribed to the question
+        asdf
+        // Track award progress
+        Award(prisma, userId, languages).update('QuestionAnswer', 1);
+        // Increase reputation of answer creator
+        fdsafsafdsa
+    },
+    reportClose: async (reportId: string, userId: string, status: ReportStatus) => {
+        // Send notification to creator of report
+        asdf
+        // Send notification to anyone subscribed to the report
+        asdf
+        // Track award progress and reputation for anyone who contributed to the report
+        asdf
+        // If report was accepted, increase reputation of user who created the report
+        asdf
+        // If report was rejected, decrease reputation of user who created the report
+        asdf
+        // If report resulted in object being deleted, reduce reputation of owner
+        asdf
+    },
+    reportOpen: async (reportId: string, userId: string) => {
+        // Send notification to owner(s) of object
+        asdfasfdsafds
+    },
+    runProjectComplete: async (runTitle: string, runId: string, userId: string) => {
+        // Track award progress
+        Award(prisma, userId, languages).update('RunProject', 1);
+        // If run data is public, send notification to owner of routine (depending on how many public runs the project already has)
+        asdf
+    },
+    runRoutineComplete: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
         if (wasAutomatic) Notify(prisma, languages).pushRunCompletedAutomatically(runTitle, runId).toUser(userId);
         // Track award progress
-        Award(prisma, userId, languages).update('RunComplete', 1);
+        Award(prisma, userId, languages).update('RunRoutine', 1);
+        // If run data is public, send notification to owner of routine (depending on how many public runs the routine already has)
+        asdf
     },
-    runFail: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
+    runRoutineFail: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
         if (wasAutomatic) Notify(prisma, languages).pushRunFailedAutomatically(runTitle, runId).toUser(userId);
     },
-    runStart: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
+    runRoutineStart: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
         // If started automatically, send notification to user
         if (wasAutomatic) Notify(prisma, languages).pushRunStartedAutomatically(runTitle, runId).toUser(userId);
     },
-    sessionValidate: async (userId: string) => { },
     userInvite: async (referrerId: string, joinedUsername: string) => {
+        // Send notification to referrer
         Notify(prisma, languages).pushUserInvite(joinedUsername).toUser(referrerId);
         // Track award progress
         Award(prisma, referrerId, languages).update('UserInvite', 1);

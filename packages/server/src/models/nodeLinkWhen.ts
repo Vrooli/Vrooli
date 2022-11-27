@@ -2,7 +2,7 @@ import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, Session
 import { PrismaType } from "../types";
 import { Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { translationRelationshipBuilder } from "./utils";
+import { translationRelationshipBuilder } from "../utils";
 
 const formatter = (): Formatter<NodeLinkWhen, any> => ({
     relationshipMap: {

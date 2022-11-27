@@ -2,8 +2,9 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Email, EmailCreateInput, EmailUpdateInput, Success } from './types';
 import { Context, rateLimit } from '../middleware';
-import { createHelper, ProfileModel, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
+import { createHelper, updateHelper } from '../actions';
+import { setupVerificationCode } from '../auth';
 
 export const typeDef = gql`
 
@@ -56,7 +57,7 @@ export const resolvers = {
         },
         sendVerificationEmail: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ info, maxUser: 50, req });
-            await ProfileModel.verify.setupVerificationCode(input.emailAddress, prisma, req.languages);
+            await setupVerificationCode(input.emailAddress, prisma, req.languages);
             return { success: true };   
         },
     }

@@ -6,10 +6,12 @@ import { GraphQLResolveInfo } from "graphql";
 import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, HistoryPageInput, HistoryPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, RunStatus, RunSortBy, ViewSortBy } from './types';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
-import { addSupplementalFieldsMultiTypes, getUser, OrganizationModel, ProjectModel, readManyAsFeedHelper, RoutineModel, RunModel, StandardModel, StarModel, toPartialGraphQLInfo, UserModel, ViewModel } from '../models';
+import { OrganizationModel, ProjectModel, RoutineModel, RunModel, StandardModel, StarModel, UserModel, ViewModel } from '../models';
 import { CustomError } from '../events/error';
-import { assertRequestFrom } from '../auth/request';
-import { PartialGraphQLInfo } from '../models/types';
+import { assertRequestFrom, getUser } from '../auth/request';
+import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
+import { PartialGraphQLInfo } from '../builders/types';
+import { readManyAsFeedHelper } from '../actions';
 
 export const typeDef = gql`
 
@@ -99,7 +101,7 @@ export const resolvers = {
                 'routines': 'Routine',
                 'standards': 'Standard',
                 'users': 'User',
-            }) as PartialGraphQLInfo;
+            }, req.languages, true);
             const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
@@ -170,7 +172,7 @@ export const resolvers = {
                 '__typename': 'LearnPageResult',
                 'courses': 'Project',
                 'tutorials': 'Routine',
-            }) as PartialGraphQLInfo;
+            }, req.languages, true);
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
@@ -220,7 +222,7 @@ export const resolvers = {
                 'needVotes': 'Project',
                 'needInvestments': 'Project',
                 'needMembers': 'Organization',
-            }) as PartialGraphQLInfo;
+            }, req.languages, true);
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
             const take = 5;
@@ -317,7 +319,7 @@ export const resolvers = {
                     'Project': 'Project',
                     'Routine': 'Routine',
                 },
-            }) as PartialGraphQLInfo;
+            }, req.languages, true);
             // If not signed in, return empty data
             const userId = getUser(req)?.id ?? null;
             if (!userId) return {
@@ -416,7 +418,7 @@ export const resolvers = {
                 'completedRuns': 'RunRoutine',
                 'recentlyViewed': 'View',
                 'recentlyStarred': 'Star',
-            }) as PartialGraphQLInfo;
+            }, req.languages, true);
             const userId = userData.id;
             const take = 5;
             const commonReadParams = { prisma, req }

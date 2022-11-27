@@ -1,16 +1,16 @@
 import { resourceListsCreate, resourceListsUpdate } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
-import { combineQueries, permissionsSelectHelper } from "./builder";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { oneIsPublic, translationRelationshipBuilder } from "./utils";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
-import { relBuilderHelper } from "./actions";
+import { relBuilderHelper } from "../actions";
+import { combineQueries, permissionsSelectHelper } from "../builders";
+import { oneIsPublic, translationRelationshipBuilder } from "../utils";
 
 const formatter = (): Formatter<ResourceList, any> => ({
     relationshipMap: {
@@ -39,6 +39,7 @@ const validator = (): Validator<
         // standard: 'Standard',
         // userSchedule: 'UserSchedule',
     },
+    isTransferable: false,
     permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([

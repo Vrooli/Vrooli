@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { createHelper, updateHelper } from '../models';
+import { createHelper, updateHelper } from '../actions';
 import { IWrap, RecursivePartial } from '../types';
 import { Node, NodeCreateInput, NodeUpdateInput } from './types';
 import { Context, rateLimit } from '../middleware';

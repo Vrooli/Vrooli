@@ -2,8 +2,9 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
 import { Context, rateLimit } from '../middleware';
-import { countHelper, createHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
+import { countHelper, createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { ProjectModel } from '../models';
 
 export const typeDef = gql`
     enum ProjectSortBy {

@@ -1,16 +1,15 @@
 import { runsCreate, runsUpdate } from "@shared/validation";
 import { RunSortBy } from "@shared/consts";
-import { addSupplementalFields, modelToGraphQL, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo, combineQueries, permissionsSelectHelper } from "./builder";
-import { RunStepModel } from "./runStep";
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
-import { RunInputModel } from "./runInput";
 import { CustomError, Trigger } from "../events";
 import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, GraphQLInfo, Validator, Mutater, Displayer } from "./types";
-import { oneIsPublic } from "./utils";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "./actions";
+import { relBuilderHelper } from "../actions";
+import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
+import { oneIsPublic } from "../utils";
+import { GraphQLInfo } from "../builders/types";
 
 const formatter = (): Formatter<Run, ''> => ({
     relationshipMap: {
@@ -85,6 +84,7 @@ const validator = (): Validator<
         organization: 'Organization',
         user: 'User',
     },
+    isTransferable: false,
     permissionsSelect: (...params) => ({
         id: true,
         isPrivate: true,
@@ -110,8 +110,8 @@ const validator = (): Validator<
     ], languages),
     ownerOrMemberWhere: (userId) => ({
         OR: [
-            OrganizationModel.query.hasRoleInOrganizationQuery(userId),
-            { user: { id: userId } }
+            { user: { id: userId } },
+            { organization: OrganizationModel.query.hasRoleQuery(userId) },
         ]
     }),
     // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
@@ -131,8 +131,7 @@ const runner = () => ({
      */
     async complete(prisma: PrismaType, userData: SessionUser, input: RunCompleteInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
-        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap);
-        if (partial === undefined) throw new CustomError('0179', 'ErrorUnknown', userData.languages);
+        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap, userData.languages, true);
         let run: run_routine | null;
         // Check if run is being created or updated
         if (input.exists) {
@@ -215,8 +214,8 @@ const runner = () => ({
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userData, [converted], partial))[0];
         // Handle trigger
-        if (input.wasSuccessful) await Trigger(prisma, userData.languages).runComplete(input.title, input.id, userData.id, false);
-        else await Trigger(prisma, userData.languages).runFail(input.title, input.id, userData.id, false);
+        if (input.wasSuccessful) await Trigger(prisma, userData.languages).runRoutineComplete(input.title, input.id, userData.id, false);
+        else await Trigger(prisma, userData.languages).runRoutineFail(input.title, input.id, userData.id, false);
         // Return converted object
         return converted as Run;
     },
@@ -225,8 +224,7 @@ const runner = () => ({
      */
     async cancel(prisma: PrismaType, userData: SessionUser, input: RunCancelInput, info: GraphQLInfo): Promise<Run> {
         // Convert info to partial
-        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap);
-        if (partial === undefined) throw new CustomError('181', 'ErrorUnknown', userData.languages);
+        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap, userData.languages, true);
         // Find in database
         let object = await prisma.run_routine.findFirst({
             where: {
@@ -289,7 +287,7 @@ const mutater = (): Mutater<
             // Handle run start trigger for every run with status InProgress
             for (const c of created) {
                 if (c.status === RunStatus.InProgress) {
-                    Trigger(prisma, userData.languages).runStart(c.title as string, c.id as string, userData.id, false);
+                    Trigger(prisma, userData.languages).runRoutineStart(c.title as string, c.id as string, userData.id, false);
                 }
             }
         },
@@ -298,17 +296,17 @@ const mutater = (): Mutater<
                 // Handle run start trigger for every run with status InProgress, 
                 // that previously had a status of Scheduled
                 if (updated[i].status === RunStatus.InProgress && updateInput[i].hasOwnProperty('status')) {
-                    Trigger(prisma, userData.languages).runStart(updated[i].title as string, updated[i].id as string, userData.id, false);
+                    Trigger(prisma, userData.languages).runRoutineStart(updated[i].title as string, updated[i].id as string, userData.id, false);
                 }
                 // Handle run complete trigger for every run with status Completed,
                 // that previously had a status of InProgress
                 if (updated[i].status === RunStatus.Completed && updateInput[i].hasOwnProperty('status')) {
-                    Trigger(prisma, userData.languages).runComplete(updated[i].title as string, updated[i].id as string, userData.id, false);
+                    Trigger(prisma, userData.languages).runRoutineComplete(updated[i].title as string, updated[i].id as string, userData.id, false);
                 }
                 // Handle run fail trigger for every run with status Failed,
                 // that previously had a status of InProgress
                 if (updated[i].status === RunStatus.Failed && updateInput[i].hasOwnProperty('status')) {
-                    Trigger(prisma, userData.languages).runFail(updated[i].title as string, updated[i].id as string, userData.id, false);
+                    Trigger(prisma, userData.languages).runRoutineFail(updated[i].title as string, updated[i].id as string, userData.id, false);
                 }
             }
         },

@@ -3,7 +3,7 @@ import { GraphQLResolveInfo } from "graphql";
 import { initializeRedis } from "../redisConn";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
-import { getUser } from "../models";
+import { getUser } from "../auth";
 
 /**
  * Applies a rate limit check to a key in redis. 

@@ -1,11 +1,11 @@
 import { gql } from 'apollo-server-express';
 import { DeleteOneInput, Success } from './types';
 import { IWrap } from '../types';
-import { deleteOneHelper, ObjectMap } from '../models';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { CustomError } from '../events/error';
 import { DeleteOneType } from '@shared/consts';
+import { deleteOneHelper } from '../actions';
+import { GraphQLModelType } from '../models/types';
 
 export const typeDef = gql`
     enum DeleteOneType {
@@ -37,9 +37,7 @@ export const resolvers = {
     Mutation: {
         deleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ info, maxUser: 1000, req });
-            const model = ObjectMap[input.objectType];
-            if (!model) throw new CustomError('0216', 'InvalidArgs', req.languages);
-            return deleteOneHelper({ input, model, prisma, req });
+            return deleteOneHelper({ input, objectType: input.objectType as GraphQLModelType, prisma, req });
         },
     }
 }

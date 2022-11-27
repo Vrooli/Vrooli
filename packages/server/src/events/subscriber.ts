@@ -1,4 +1,4 @@
-import { getDelegate, getValidator } from "../models/utils";
+import { getDelegate, getValidator } from "../getters";
 import { SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { CustomError } from "./error";

@@ -1,8 +1,8 @@
-import { getDelegate, getDisplay, getValidator } from "../models/utils";
-import { isOwnerAdminCheck } from "../models/validators/isOwnerAdminCheck";
+import { getDelegate, getDisplay, getValidator } from "../getters";
 import { Notify } from "../notify";
 import { SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
+import { isOwnerAdminCheck } from "../validators";
 import { CustomError } from "./error";
 
 export type TransferableObjects = 'Project' | 'Routine' | 'Standard'; //'Api' | 'Note' | 'Project' | 'Routine' | 'SmartContract' | 'Standard';

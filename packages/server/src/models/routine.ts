@@ -1,4 +1,3 @@
-import { addCountFieldsHelper, addJoinTablesHelper, addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, permissionsSelectHelper, removeCountFieldsHelper, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "./builder";
 import { routinesCreate, routinesUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
 import { TagModel } from "./tag";
@@ -8,12 +7,15 @@ import { ViewModel } from "./view";
 import { CustomError, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, PartialGraphQLInfo, Searcher, GraphQLModelType, Validator, Mutater, Duplicater, Displayer } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Duplicater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
-import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "./utils";
-import { getSingleTypePermissions } from "./validators";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "./actions";
+import { relBuilderHelper } from "../actions";
+import { getSingleTypePermissions } from "../validators";
+import { RunModel } from "./run";
+import { PartialGraphQLInfo } from "../builders/types";
+import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
+import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
 
 type NodeWeightData = {
     simplicity: number,
@@ -22,8 +24,6 @@ type NodeWeightData = {
     allInputs: number,
 }
 
-const joinMapper = { tags: 'tag', starredBy: 'user' };
-const countMapper = { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' };
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsRoutine' | 'runs' | 'versions';
 const formatter = (): Formatter<Routine, SupplementalFields> => ({
     relationshipMap: {
@@ -53,27 +53,22 @@ const formatter = (): Formatter<Routine, SupplementalFields> => ({
         tags: 'Tag',
     },
     rootFields: ['hasCompleteVersion', 'isDeleted', 'isInternal', 'isPrivate', 'votes', 'stars', 'views', 'permissions'],
-    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
-    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
-    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
-    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    joinMap: { tags: 'tag', starredBy: 'user' },
+    countMap: { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' },
     supplemental: {
         graphqlFields: ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs', 'versions'],
         toGraphQL: ({ ids, objects, partial, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Routine')],
-            ['isUpvoted', async () => await VoteModel.query(prisma).getIsUpvoteds(userData?.id, ids, 'Routine')],
-            ['isViewed', async () => await ViewModel.query(prisma).getIsVieweds(userData?.id, ids, 'Routine')],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Routine')],
+            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Routine')],
+            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'Routine')],
             ['permissionsRoutine', async () => await getSingleTypePermissions('Routine', ids, prisma, userData)],
             ['runs', async () => {
                 if (!userData) return new Array(objects.length).fill([]);
                 // Find requested fields of runs. Also add routineId, so we 
                 // can associate runs with their routine
                 const runPartial: PartialGraphQLInfo = {
-                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, runFormatter().relationshipMap),
+                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunModel.format.relationshipMap, userData.languages, true),
                     routineVersionId: true
-                }
-                if (runPartial === undefined) {
-                    throw new CustomError('0178', 'InternalError', userData.languages);
                 }
                 // Query runs made by user
                 let runs: any[] = await prisma.run_routine.findMany({
@@ -134,7 +129,7 @@ const searcher = (): Searcher<
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
-    customQueries(input, userId) {
+    customQueries(input, userData) {
         const isComplete = exceptionsBuilder({
             canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
             exceptionField: 'isCompleteExceptions',
@@ -152,7 +147,7 @@ const searcher = (): Searcher<
         return combineQueries([
             isComplete,
             isInternal,
-            visibilityBuilder({ model: RoutineModel, userId, visibility: input.visibility }),
+            visibilityBuilder({ objectType: 'Routine', userData, visibility: input.visibility }),
             (input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             (input.minComplexity !== undefined ? { complexity: { gte: input.minComplexity } } : {}),
@@ -190,8 +185,9 @@ const validator = (): Validator<
         root: {
             select: {
                 parent: 'Routine',
-                organization: 'Organization',
-                user: 'User',
+                createdBy: 'User',
+                ownedByOrganization: 'Organization',
+                ownedByUser: 'User',
             }
         },
         forks: 'Routine',
@@ -199,6 +195,7 @@ const validator = (): Validator<
         // smartContract: 'SmartContract',
         // directoryListings: 'ProjectDirectory',
     },
+    isTransferable: true,
     permissionsSelect: (...params) => ({
         id: true,
         isComplete: true,
@@ -211,8 +208,8 @@ const validator = (): Validator<
                 isInternal: true,
                 permissions: true,
                 ...permissionsSelectHelper([
-                    ['organization', 'Organization'],
-                    ['user', 'User'],
+                    ['ownedByOrganization', 'Organization'],
+                    ['ownedByUser', 'User'],
                 ], ...params)
             }
         }
@@ -228,8 +225,8 @@ const validator = (): Validator<
         ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
     ]),
     owner: (data) => ({
-        Organization: (data.root as any).organization,
-        User: (data.root as any).user,
+        Organization: (data.root as any).ownedByOrganization,
+        User: (data.root as any).ownedByUser,
     }),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data, languages) => data.isPrivate === false &&
@@ -237,14 +234,14 @@ const validator = (): Validator<
         data.root?.isDeleted === false &&
         data.root?.isInternal === false &&
         data.root?.isPrivate === false && oneIsPublic<Prisma.routineSelect>(data.root, [
-            ['organization', 'Organization'],
-            ['user', 'User'],
+            ['ownedByOrganization', 'Organization'],
+            ['ownedByUser', 'User'],
         ], languages),
     ownerOrMemberWhere: (userId) => ({
         root: {
             OR: [
-                OrganizationModel.query.hasRoleInOrganizationQuery(userId),
-                { user: { id: userId } }
+                { ownedByUser: { id: userId } },
+                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
             ]
         }
     }),
@@ -268,9 +265,14 @@ const validator = (): Validator<
  * Each node has a weight that is the summation of its contained subroutines.
  * @param nodes A map of node IDs to their weight (simplicity/complexity)
  * @param edges The edges of the graph, with each object containing a fromId and toId
+ * @param languages Preferred languages for error messages
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
-const calculateShortestLongestWeightedPath = (nodes: { [id: string]: NodeWeightData }, edges: { fromId: string, toId: string }[]): [number, number] => {
+const calculateShortestLongestWeightedPath = (
+    nodes: { [id: string]: NodeWeightData },
+    edges: { fromId: string, toId: string }[],
+    languages: string[]
+): [number, number] => {
     // First, check that all edges point to valid nodes. 
     // If this isn't the case, this algorithm could run into an error
     for (const edge of edges) {
@@ -519,11 +521,17 @@ const routineDuplicater = (): Duplicater<Prisma.routine_versionSelect, Prisma.ro
  * Simplicity is a the minimum number of inputs and decisions required to complete the routine, while 
  * complexity is the maximum.
  * @param prisma The prisma client
+ * @param languages Preferred languages for error messages
  * @param data The routine data, either a create or update
  * @param versionId If existing data, its version ID
  * @returns [simplicity, complexity] Numbers representing the shorted and longest weighted paths
  */
-const calculateComplexity = async (prisma: PrismaType, data: RoutineCreateInput | RoutineUpdateInput, versionId?: string | null): Promise<[number, number]> => {
+const calculateComplexity = async (
+    prisma: PrismaType,
+    languages: string[],
+    data: RoutineCreateInput | RoutineUpdateInput,
+    versionId?: string | null
+): Promise<[number, number]> => {
     // If the routine is being updated, Find the complexity of existing subroutines
     let existingRoutine;
     if (versionId) {
@@ -630,7 +638,7 @@ const calculateComplexity = async (prisma: PrismaType, data: RoutineCreateInput 
         }
     }
     // Using the node links, determine the most complex path through the routine
-    const [shortest, longest] = calculateShortestLongestWeightedPath(nodeWeightDataDict, nodeLinks);
+    const [shortest, longest] = calculateShortestLongestWeightedPath(nodeWeightDataDict, nodeLinks, languages);
     // return with +1, so that nesting routines has a small factor in determining weight
     return [shortest + 1, longest + 1];
 }
@@ -686,7 +694,7 @@ const mutater = (): Mutater<
 > => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
-            const [simplicity, complexity] = await calculateComplexity(prisma, data);
+            const [simplicity, complexity] = await calculateComplexity(prisma, userData.languages, data);
             const base = await shapeBase(prisma, userData, data, true);
             return {
                 ...base,
@@ -706,7 +714,7 @@ const mutater = (): Mutater<
             }
         },
         update: async ({ data, prisma, userData }) => {
-            const [simplicity, complexity] = await calculateComplexity(prisma, data, data.versionId);
+            const [simplicity, complexity] = await calculateComplexity(prisma, userData.languages, data, data.versionId);
             const base = await shapeBase(prisma, userData, data, false);
             return {
                 ...base,
@@ -728,7 +736,7 @@ const mutater = (): Mutater<
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
             for (const c of created) {
-                Trigger(prisma, userData.languages).objectCreate('Routine', c.id as string, userData.id);
+                Trigger(prisma, userData.languages).createRoutine(userData.id, c.id as string);
             }
         },
         onUpdated: ({ prisma, updated, updateInput, userData }) => {
@@ -749,7 +757,7 @@ const displayer = (): Displayer => ({
     labels: async (prisma, objects) => {
         const translations = await prisma.routine_version_translation.findMany({
             where: { routineVersionId: { in: objects.map((o) => o.id) } },
-            select: { routineVersionId: true, language: true, title: true }    
+            select: { routineVersionId: true, language: true, title: true }
         })
         return objects.map(o => {
             const oTrans = translations.filter(t => t.routineVersionId === o.id);

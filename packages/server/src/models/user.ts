@@ -1,4 +1,3 @@
-import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, removeCountFieldsHelper, removeJoinTablesHelper } from "./builder";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
@@ -7,10 +6,9 @@ import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Displayer, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { profilesUpdate } from "@shared/validation";
-import { translationRelationshipBuilder } from "./utils";
+import { combineQueries } from "../builders";
+import { translationRelationshipBuilder } from "../utils";
 
-const joinMapper = { starredBy: 'user' };
-const countMapper = { reportsCount: 'reports' };
 type SupplementalFields = 'isStarred' | 'isViewed';
 const formatter = (): Formatter<User, SupplementalFields> => ({
     relationshipMap: {
@@ -22,10 +20,8 @@ const formatter = (): Formatter<User, SupplementalFields> => ({
         reports: 'Report',
         routines: 'Routine',
     },
-    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
-    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
-    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
-    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    joinMap: { starredBy: 'user' },
+    countMap: { reportsCount: 'reports' },
     supplemental: {
         graphqlFields: ['isStarred', 'isViewed'],
         toGraphQL: ({ ids, prisma, userData }) => [
@@ -85,10 +81,11 @@ const validator = (): Validator<
     validateMap: {
         __typename: 'User',
         projects: 'Project',
-        reports: 'Report',
+        reportsCreated: 'Report',
         routines: 'Routine',
         // userSchedules: 'UserSchedule',
     },
+    isTransferable: false,
     permissionsSelect: () => ({
         id: true,
         isPrivate: true,

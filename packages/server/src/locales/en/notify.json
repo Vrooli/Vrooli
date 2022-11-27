@@ -5,6 +5,7 @@
     "AwardEarnedBody": "You earned the \"{{awardName}}\" award! {{awardDescription}}",
     "IssueActivityTitle": "Issue activity",
     "IssueActivityBody": "New activity on issue \"{{issueName}}\"",
+    "NewCommentTitle": "New comment on \"{{objectName}}\"",
     "NewDeviceTitle": "New device sign-in",
     "NewDeviceBody": "A new device signed in to your account. If you didn't sign in, please change your password.",
     "NewEmailVerificationTitle": "New email in use",

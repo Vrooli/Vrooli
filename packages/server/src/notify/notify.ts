@@ -5,6 +5,7 @@ import { sendMail } from "./email";
 import { findRecipientsAndLimit, NotificationSettings, updateNotificationSettings } from "./notificationSettings";
 import { sendPush } from "./push";
 import i18next, { TFuncKey } from 'i18next';
+import { OrganizationModel } from "../models";
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
 
@@ -12,7 +13,7 @@ export type NotificationCategory = 'AccountCreditsOrApi' |
     'Award' |
     'IssueActivity' |
     'NewQuestionOrIssue' |
-    'ObjectStarVoteFork' |
+    'ObjectActivity' |
     'Promotion' |
     'PullRequestClose' |
     'QuestionActivity' |
@@ -138,6 +139,7 @@ const getEventStartLabel = (date: Date) => {
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
     toOrganization: (organizationId: string, excludeUserId?: string) => Promise<void>,
+    toOwner: (owner: { __typename: 'User' | 'Organization', id: string }, excludeUserId?: string) => Promise<void>,
     toSubscribers: (objectType: SubscribableObject, objectId: string, excludeUserId?: string) => Promise<void>,
 }
 
@@ -161,19 +163,21 @@ const NotifyResult = (params: Omit<PushParams, 'userIds'>): NotifyResultType => 
      */
     toOrganization: async (organizationId, excludeUserId) => {
         // Find every admin of the organization, excluding the user who triggered the notification
-        const admins = await params.prisma.member.findMany({
-            where: {
-                AND: [
-                    { organizationId },
-                    { isAdmin: true },
-                    { userId: { not: excludeUserId } }
-                ]
-            },
-            select: { userId: true }
-        })
-        const adminIds = admins ? admins.map(a => a.userId) : [];
+        const adminIds = await OrganizationModel.query.findAdminIds(params.prisma, organizationId, excludeUserId);
         // Send a notification to each admin
         await push({ ...params, userIds: adminIds });
+    },
+    /**
+     * Sends a notification to an owner of an object
+     * @param owner The owner's id and type
+     * @param excludeUserId A user to exclude from the notification
+     */
+    toOwner: async (owner, excludeUserId) => {
+        if (owner.__typename === 'User') {
+            await NotifyResult(params).toUser(owner.id);
+        } else if (owner.__typename === 'Organization') {
+            await NotifyResult(params).toOrganization(owner.id, excludeUserId);
+        }
     },
     /**
      * Sends a notification to all subscribers of an object
@@ -303,6 +307,13 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewDeviceTitle',
     }),
+    pushNewComment: (objectName: string): NotifyResultType => NotifyResult({
+        category: 'ObjectActivity',
+        languages,
+        prisma,
+        titleKey: 'NewCommentTitle',
+        titleVariables: { objectName },
+    }),
     pushNewEmailVerification: (): NotifyResultType => NotifyResult({
         bodyKey: 'NewEmailVerificationBody',
         category: 'Security',
@@ -310,28 +321,28 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewEmailVerificationTitle',
     }),
-    pushNewQuestionOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
+    pushNewQuestionOnObject: (objectName: string, questionId: string): NotifyResultType => NotifyResult({
         bodyKey: 'NewQuestionOnObjectBody',
         bodyVariables: { objectName },
         category: 'NewQuestionOrIssue',
         languages,
-        link: `/${objectType}/${objectId}`,
+        link: `/questions/${questionId}`,
         prisma,
         titleKey: 'NewQuestionOnObjectTitle',
     }),
-    pushNewIssueOnObject: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
+    pushNewIssueOnObject: (objectName: string, issueId: string): NotifyResultType => NotifyResult({
         bodyKey: 'NewIssueOnObjectBody',
         bodyVariables: { objectName },
         category: 'NewQuestionOrIssue',
         languages,
-        link: `/${objectType}/${objectId}`,
+        link: `/issues/${issueId}`,
         prisma,
         titleKey: 'NewIssueOnObjectTitle',
     }),
     pushObjectReceivedStar: (objectName: string, objectType: string, objectId: string, totalStars: number): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedStarBody',
         bodyVariables: { objectName, count: totalStars },
-        category: 'ObjectStarVoteFork',
+        category: 'ObjectActivity',
         languages,
         link: `/${objectType}/${objectId}`,
         prisma,
@@ -340,7 +351,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
     pushObjectReceivedUpvote: (objectName: string, objectType: string, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedUpvoteBody',
         bodyVariables: { objectName, count: totalScore },
-        category: 'ObjectStarVoteFork',
+        category: 'ObjectActivity',
         languages,
         link: `/${objectType}/${objectId}`,
         prisma,
@@ -349,7 +360,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
     pushObjectReceivedFork: (objectName: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedForkBody',
         bodyVariables: { objectName },
-        category: 'ObjectStarVoteFork',
+        category: 'ObjectActivity',
         languages,
         link: `/${objectType}/${objectId}`,
         prisma,

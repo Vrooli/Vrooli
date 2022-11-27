@@ -1,19 +1,17 @@
 import { PrismaType } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission, SessionUser } from "../schema/types";
-import { addJoinTablesHelper, removeJoinTablesHelper, addCountFieldsHelper, removeCountFieldsHelper, onlyValidIds, visibilityBuilder, combineQueries } from "./builder";
-import { handle, organizationsCreate, organizationsUpdate } from "@shared/validation";
+import { organizationsCreate, organizationsUpdate } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
-import { getSingleTypePermissions } from "./validators";
 import { uuid } from "@shared/uuid";
-import { relBuilderHelper } from "./actions";
-import { bestLabel, translationRelationshipBuilder } from "./utils";
+import { relBuilderHelper } from "../actions";
+import { getSingleTypePermissions } from "../validators";
+import { combineQueries, onlyValidIds, visibilityBuilder } from "../builders";
+import { bestLabel, translationRelationshipBuilder } from "../utils";
 
-const joinMapper = { starredBy: 'user', tags: 'tag' };
-const countMapper = { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' };
 type SupplementalFields = 'isStarred' | 'isViewed' | 'permissionsOrganization';
 const formatter = (): Formatter<Organization, SupplementalFields> => ({
     relationshipMap: {
@@ -28,10 +26,8 @@ const formatter = (): Formatter<Organization, SupplementalFields> => ({
         starredBy: 'User',
         tags: 'Tag',
     },
-    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
-    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
-    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
-    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    joinMap: { starredBy: 'user', tags: 'tag' },
+    countMap: { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' },
     supplemental: {
         graphqlFields: ['isStarred', 'isViewed', 'permissionsOrganization'],
         toGraphQL: ({ ids, prisma, userData }) => [
@@ -64,9 +60,9 @@ const searcher = (): Searcher<
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
-    customQueries(input, userId) {
+    customQueries(input, userData) {
         return combineQueries([
-            visibilityBuilder({ model: OrganizationModel, userId, visibility: input.visibility }),
+            visibilityBuilder({ objectType: 'Organization', userData, visibility: input.visibility }),
             (input.isOpenToNewMembers !== undefined ? { isOpenToNewMembers: true } : {}),
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
@@ -99,6 +95,7 @@ const validator = (): Validator<
         routines: 'Routine',
         wallets: 'Wallet',
     },
+    isTransferable: false,
     permissionsSelect: (userId) => ({
         id: true,
         isOpenToNewMembers: true,
@@ -142,7 +139,7 @@ const validator = (): Validator<
     }),
     isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false,
-    ownerOrMemberWhere: (userId) => querier().hasRoleInOrganizationQuery(userId).organization,
+    ownerOrMemberWhere: (userId) => querier().hasRoleQuery(userId),
     // if (!createMany && !updateMany && !deleteMany) return;
     // if (createMany) {
     //     createMany.forEach(input => lineBreaksCheck(input, ['bio'], CODE.LineBreaksBio));
@@ -159,11 +156,11 @@ const querier = () => ({
     /**
      * Query for checking if a user has a specific role in an organization
      */
-    hasRoleInOrganizationQuery: (userId: string, titles: string[] = []) => {
+    hasRoleQuery: (userId: string, titles: string[] = []) => {
         // If no titles are provided, query by members (in case user was not assigned a role)
-        if (titles.length === 0) return { organization: { members: { some: { user: { id: userId } } } } };
+        if (titles.length === 0) return { members: { some: { user: { id: userId } } } };
         // Otherwise, query for roles with one of the provided titles
-        return { organization: { roles: { some: { title: { in: titles }, assignees: { some: { user: { id: userId } } } } } } }
+        return { roles: { some: { title: { in: titles }, assignees: { some: { user: { id: userId } } } } } };
     },
     /**
      * Query for checking if a user is a member of an organization
@@ -192,6 +189,27 @@ const querier = () => ({
         });
         // Create an array of the same length as the input, with the role data or undefined
         return organizationIds.map(id => roles.find(({ organizationId }) => organizationId === id));
+    },
+    /**
+     * Finds every admin of an organization
+     * @param prisma The prisma client
+     * @param organizationId The organization ID
+     * @param excludeUserId An option user to exclude from the results
+     * @returns A list of admin ids
+     */
+    async findAdminIds(prisma: PrismaType, organizationId: string, excludeUserId?: string): Promise<string[]> {
+        const admins = await prisma.member.findMany({
+            where: {
+                AND: [
+                    { organizationId },
+                    { isAdmin: true },
+                    { userId: { not: excludeUserId } }
+                ]
+            },
+            select: { userId: true }
+        })
+        const adminIds = admins ? admins.map(a => a.userId) : [];
+        return adminIds;
     },
 })
 
@@ -253,7 +271,7 @@ const displayer = (): Displayer => ({
     labels: async (prisma, objects) => {
         const translations = await prisma.organization_translation.findMany({
             where: { organizationId: { in: objects.map((o) => o.id) } },
-            select: { organizationId: true, language: true, name: true }    
+            select: { organizationId: true, language: true, name: true }
         })
         return objects.map(o => {
             const oTrans = translations.filter(t => t.organizationId === o.id);

@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { walletsUpdate } from '@shared/validation';
+import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
 import { Wallet, WalletUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
+import { oneIsPublic } from "../utils";
 import { hasProfanity } from "../utils/censor";
-import { permissionsSelectHelper } from "./builder";
 import { OrganizationModel } from "./organization";
 import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
-import { oneIsPublic } from "./utils";
 
 const formatter = (): Formatter<Wallet, any> => ({
     relationshipMap: {
@@ -72,6 +72,7 @@ const validator = (): Validator<
     Prisma.walletSelect,
     Prisma.walletWhereInput
 > => ({
+    isTransferable: false,
     permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
@@ -91,8 +92,8 @@ const validator = (): Validator<
     ], languages),
     ownerOrMemberWhere: (userId) => ({
         OR: [
-            OrganizationModel.query.hasRoleInOrganizationQuery(userId),
-            { user: { id: userId } }
+            { user: { id: userId } },
+            { organization: OrganizationModel.query.hasRoleQuery(userId) },
         ]
     }),
     validateMap: {

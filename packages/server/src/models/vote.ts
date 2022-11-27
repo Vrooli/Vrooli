@@ -4,9 +4,11 @@ import { CustomError, Trigger } from "../events";
 import { resolveVoteTo } from "../schema/resolvers";
 import { SessionUser, Vote, VoteInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { readManyHelper } from "./actions";
-import { ObjectMap, onlyValidIds } from "./builder";
-import { Formatter, GraphQLModelType, ModelLogic, PartialGraphQLInfo } from "./types";
+import { readManyHelper } from "../actions";
+import { AniedModelLogic, Formatter, GraphQLModelType, ModelLogic } from "./types";
+import { ObjectMap } from ".";
+import { PartialGraphQLInfo } from "../builders/types";
+import { onlyValidIds } from "../builders";
 
 const formatter = (): Formatter<Vote, 'to'> => ({
     relationshipMap: {
@@ -50,7 +52,7 @@ const formatter = (): Formatter<Vote, 'to'> => ({
                         if (!validTypes.includes(type as GraphQLModelType)) {
                             throw new CustomError('0321', 'InternalError', languages, { type });
                         }
-                        const model: ModelLogic<any, any, any, any> = ObjectMap[type] as ModelLogic<any, any, any, any>;
+                        const model: AniedModelLogic<any> = ObjectMap[type] as AniedModelLogic<any>
                         const paginated = await readManyHelper({
                             info: partial.to[type] as PartialGraphQLInfo,
                             input: { ids: toIdsByType[type] },

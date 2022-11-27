@@ -16,7 +16,6 @@ export type ReputationEvent = 'ObjectDeletedFromReport' |
     'AnsweredQuestion' |
     'AnsweredQuestionWasAccepted' |
     'PublicApiCreated' |
-    'PublicOrganizationCreated' |
     'PublicProjectCreated' |
     'PublicRoutineCreated' |
     'PublicSmartContractCreated' |
@@ -83,7 +82,6 @@ const reputationMap: { [key in ReputationEvent]?: number } = {
     AnsweredQuestion: 1,
     AnsweredQuestionWasAccepted: 3,
     PublicApiCreated: 2,
-    PublicOrganizationCreated: 2,
     PublicProjectCreated: 2,
     PublicRoutineCreated: 2,
     PublicSmartContractCreated: 2,

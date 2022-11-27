@@ -2,7 +2,7 @@ import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput
 import { PrismaType } from "../types";
 import { Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { relBuilderHelper } from "./actions";
+import { relBuilderHelper } from "../actions";
 
 const formatter = (): Formatter<NodeRoutineList, any> => ({
     relationshipMap: {

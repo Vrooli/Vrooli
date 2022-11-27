@@ -1,6 +1,5 @@
 import { StarFor, StarSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils';
-import { combineQueries, ObjectMap, onlyValidIds } from "./builder";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -11,10 +10,13 @@ import { CustomError, Trigger } from "../events";
 import { resolveStarTo } from "../schema/resolvers";
 import { Star, StarSearchInput, StarInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { readManyHelper } from "./actions";
-import { Formatter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, Searcher } from "./types";
+import { readManyHelper } from "../actions";
+import { AniedModelLogic, Formatter, GraphQLModelType, ModelLogic, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
-import { getDelegate } from "./utils";
+import { ObjectMap } from ".";
+import { PartialGraphQLInfo } from "../builders/types";
+import { combineQueries, onlyValidIds } from "../builders";
+import { getDelegate } from "../getters";
 
 const formatter = (): Formatter<Star, 'to'> => ({
     relationshipMap: {
@@ -60,7 +62,7 @@ const formatter = (): Formatter<Star, 'to'> => ({
                         if (!validTypes.includes(type as GraphQLModelType)) {
                             throw new CustomError('0185', 'InternalError', languages, { type });
                         }
-                        const model: ModelLogic<any, any, any, any> = ObjectMap[type] as ModelLogic<any, any, any, any>;
+                        const model: AniedModelLogic<any> = ObjectMap[type] as AniedModelLogic<any>;
                         const paginated = await readManyHelper({
                             info: partial.to[type] as PartialGraphQLInfo,
                             input: { ids: toIdsByType[type] },

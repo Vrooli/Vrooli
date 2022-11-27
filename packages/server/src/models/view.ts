@@ -1,6 +1,5 @@
 import { ViewFor, ViewSortBy } from "@shared/consts";
 import { isObject } from '@shared/utils'
-import { combineQueries, lowercaseFirstLetter, ObjectMap, onlyValidIds, timeFrameToPrisma } from "./builder";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -11,9 +10,12 @@ import { initializeRedis } from "../redisConn";
 import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../schema/resolvers";
 import { User, ViewSearchInput, Count, SessionUser } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
-import { readManyHelper } from "./actions";
-import { Formatter, GraphQLModelType, ModelLogic, PartialGraphQLInfo, Searcher } from "./types";
+import { readManyHelper } from "../actions";
+import { AniedModelLogic, Formatter, GraphQLModelType, ModelLogic, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
+import { ObjectMap } from ".";
+import { PartialGraphQLInfo } from "../builders/types";
+import { combineQueries, lowercaseFirstLetter, onlyValidIds, timeFrameToPrisma } from "../builders";
 
 interface View {
     __typename?: 'View';
@@ -61,7 +63,7 @@ const formatter = (): Formatter<View, 'to'> => ({
                         if (!validTypes.includes(type as GraphQLModelType)) {
                             throw new CustomError('0186', 'InternalError', languages, { type });
                         }
-                        const model = ObjectMap[type] as ModelLogic<any, any, any, any>;
+                        const model = ObjectMap[type] as AniedModelLogic<any>
                         const paginated = await readManyHelper({
                             info: partial.to[type] as PartialGraphQLInfo,
                             input: { ids: toIdsByType[type] },
@@ -223,8 +225,8 @@ const view = async (prisma: PrismaType, userData: SessionUser, input: ViewInput)
                         { id: input.forId },
                         {
                             OR: [
-                                { createdByOrganization: OrganizationModel.query.isMemberOfOrganizationQuery(userData.id).organization },
-                                { createdByUser: { id: userData.id } },
+                                { ownedByOrganization: OrganizationModel.query.isMemberOfOrganizationQuery(userData.id).organization },
+                                { ownedByUser: { id: userData.id } },
                             ]
                         }
                     ]

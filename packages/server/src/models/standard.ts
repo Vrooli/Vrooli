@@ -1,6 +1,5 @@
 import { standardsCreate, standardsUpdate } from "@shared/validation";
 import { StandardSortBy } from "@shared/consts";
-import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, permissionsSelectHelper, relationshipBuilderHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -12,13 +11,12 @@ import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput,
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
-import { oneIsPublic, translationRelationshipBuilder } from "./utils";
-import { getSingleTypePermissions } from "./validators";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "./actions";
+import { relBuilderHelper } from "../actions";
+import { getSingleTypePermissions } from "../validators";
+import { combineQueries, permissionsSelectHelper, visibilityBuilder } from "../builders";
+import { oneIsPublic, translationRelationshipBuilder } from "../utils";
 
-const joinMapper = { tags: 'tag', starredBy: 'user' };
-const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsStandard' | 'versions';
 const formatter = (): Formatter<Standard, SupplementalFields> => ({
     relationshipMap: {
@@ -38,10 +36,8 @@ const formatter = (): Formatter<Standard, SupplementalFields> => ({
         tags: 'Tag',
     },
     rootFields: ['hasCompleteVersion', 'isDeleted', 'isInternal', 'isPrivate', 'name', 'votes', 'stars', 'views', 'permissions'],
-    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
-    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
-    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
-    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    joinMap: { tags: 'tag', starredBy: 'user' },
+    countMap: { commentsCount: 'comments', reportsCount: 'reports' },
     supplemental: {
         graphqlFields: ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'],
         toGraphQL: ({ ids, prisma, userData }) => [
@@ -86,14 +82,14 @@ const searcher = (): Searcher<
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
-    customQueries(input, userId) {
+    customQueries(input, userData) {
         return combineQueries([
             /**
              * isInternal routines should never appear in the query, since they are 
              * only meant for a single input/output
              */
             { isInternal: false },
-            visibilityBuilder({ model: StandardModel, userId, visibility: input.visibility }),
+            visibilityBuilder({ objectType: 'Standard', userData, visibility: input.visibility }),
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
             (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
@@ -133,13 +129,15 @@ const validator = (): Validator<
         root: {
             select: {
                 parent: 'Standard',
-                organization: 'Organization',
-                user: 'User',
+                createdBy: 'User',
+                ownedByOrganization: 'Organization',
+                ownedByUser: 'User',
             }
         },
         forks: 'Standard',
         // directoryListings: 'ProjectDirectory',
     },
+    isTransferable: true,
     permissionsSelect: (...params) => ({
         id: true,
         isComplete: true,
@@ -152,8 +150,8 @@ const validator = (): Validator<
                 isDeleted: true,
                 permissions: true,
                 ...permissionsSelectHelper([
-                    ['organization', 'Organization'],
-                    ['user', 'User'],
+                    ['ownedByOrganization', 'Organization'],
+                    ['ownedByUser', 'User'],
                 ], ...params)
             }
         }
@@ -168,8 +166,8 @@ const validator = (): Validator<
         ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
     ]),
     owner: (data) => ({
-        Organization: (data.root as any).organization,
-        User: (data.root as any).user,
+        Organization: (data.root as any).ownedByOrganization,
+        User: (data.root as any).ownedByUser,
     }),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data, languages) => data.isPrivate === false &&
@@ -177,15 +175,15 @@ const validator = (): Validator<
         data.root?.isDeleted === false &&
         data.root?.isInternal === false &&
         data.root?.isPrivate === false && oneIsPublic<Prisma.standardSelect>(data.root, [
-            ['organization', 'Organization'],
-            ['user', 'User'],
+            ['ownedByOrganization', 'Organization'],
+            ['ownedByUser', 'User'],
         ], languages),
     profanityFields: ['name'],
     ownerOrMemberWhere: (userId) => ({
         root: {
             OR: [
-                OrganizationModel.query.hasRoleInOrganizationQuery(userId),
-                { user: { id: userId } }
+                { ownedByUser: { id: userId } },
+                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
             ]
         }
     }),
@@ -263,8 +261,8 @@ const querier = () => ({
         const standards = await prisma.standard.findMany({
             where: {
                 name: data.name,
-                createdByUserId: !data.createdByOrganizationId ? userId : undefined,
-                createdByOrganizationId: data.createdByOrganizationId ? data.createdByOrganizationId : undefined,
+                ownedByUserId: !data.createdByOrganizationId ? userId : undefined,
+                ownedByOrganizationId: data.createdByOrganizationId ? data.createdByOrganizationId : undefined,
             }
         });
         // If any standards match (should only ever be 0 or 1, but you never know) return the first one
@@ -396,7 +394,7 @@ const mutater = (): Mutater<
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
             for (const c of created) {
-                Trigger(prisma, userData.languages).objectCreate('Standard', c.id as string, userData.id);
+                Trigger(prisma, userData.languages).createStandard(userData.id, c.id as string);
             }
         },
         onUpdated: ({ prisma, updated, updateInput, userData }) => {

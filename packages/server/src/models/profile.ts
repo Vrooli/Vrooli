@@ -1,20 +1,14 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { Profile, ProfileEmailUpdateInput, ProfileUpdateInput, Session, SessionUser, Success, TagCreateInput, UserDeleteInput } from "../schema/types";
-import { addJoinTablesHelper, addSupplementalFields, modelToGraphQL, padSelect, removeJoinTablesHelper, selectHelper, toPartialGraphQLInfo } from "./builder";
-import { profileUpdateSchema } from "@shared/validation";
-import { TagModel } from "./tag";
+import { Profile, ProfileEmailUpdateInput, SessionUser, Success, UserDeleteInput } from "../schema/types";
 import { EmailModel } from "./email";
-import { verifyHandle } from "./wallet";
 import { Request } from "express";
 import { CustomError } from "../events";
-import { readOneHelper } from "./actions";
-import { Formatter, GraphQLInfo, PartialGraphQLInfo, GraphQLModelType } from "./types";
-import pkg, { Prisma } from '@prisma/client';
-import { sendResetPasswordLink, sendVerificationLink } from "../notify";
-import { lineBreaksCheck, profanityCheck } from "./validators";
+import { readOneHelper } from "../actions";
+import { Formatter, GraphQLModelType } from "./types";
 import { assertRequestFrom } from "../auth/request";
-import { translationRelationshipBuilder } from "./utils";
-const { AccountStatus } = pkg;
+import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
+import { hashPassword, setupVerificationCode, validatePassword } from "../auth";
+import { addSupplementalFields, modelToGraphQL, padSelect, selectHelper, toPartialGraphQLInfo } from "../builders";
 
 const tagSelect = {
     id: true,
@@ -28,7 +22,6 @@ const tagSelect = {
     }
 }
 
-const joinMapper = { hiddenTags: 'tag', roles: 'role', starredBy: 'user' };
 type SupplementalFields = 'starredTags' | 'hiddenTags';
 const formatter = (): Formatter<Profile, SupplementalFields> => ({
     relationshipMap: {
@@ -50,8 +43,7 @@ const formatter = (): Formatter<Profile, SupplementalFields> => ({
         reports: 'Report',
         votes: 'Vote',
     },
-    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
-    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    joinMap: { hiddenTags: 'tag', roles: 'role', starredBy: 'user' },
     supplemental: {
         graphqlFields: ['starredTags', 'hiddenTags'],
         toGraphQL: ({ ids, objects, partial, prisma, userData }) => [
@@ -135,9 +127,7 @@ const querier = () => ({
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile> | null> {
         const userData = assertRequestFrom(req, { isUser: true });
-        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap);
-        if (!partial)
-            throw new CustomError('0190', 'InternalError', req.languages);
+        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap, req.languages, true);
         // Query profile data and tags
         const profileData = await readOneHelper<any>({
             info,
@@ -165,21 +155,19 @@ const mutater = () => ({
         let user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user)
             throw new CustomError('0068', 'NoUser', userData.languages);
-        if (!verifier().validatePassword(input.currentPassword, user))
+        if (!validatePassword(input.currentPassword, user, userData.languages))
             throw new CustomError('0069', 'BadCredentials', userData.languages);
         // Convert input to partial select
-        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap);
-        if (!partial)
-            throw new CustomError('0070', 'InternalError', userData.languages);
+        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap, userData.languages, true);
         // Create user data
         let data: { [x: string]: any } = {
-            password: input.newPassword ? verifier().hashPassword(input.newPassword) : undefined,
+            password: input.newPassword ? hashPassword(input.newPassword) : undefined,
             emails: await EmailModel.mutate(prisma).relationshipBuilder!(userId, input, true),
         };
         // Send verification emails
         if (Array.isArray(input.emailsCreate)) {
             for (const email of input.emailsCreate) {
-                await verifier().setupVerificationCode(email.emailAddress, prisma, userData.languages);
+                await setupVerificationCode(email.emailAddress, prisma, userData.languages);
             }
         }
         // Update user
@@ -228,7 +216,7 @@ const mutater = () => ({
         let user = await prisma.user.findUnique({ where: { id: userData.id } });
         if (!user)
             throw new CustomError('0071', 'NoUser', userData.languages);
-        if (!verifier().validatePassword(input.password, user, userData.languages))
+        if (!validatePassword(input.password, user, userData.languages))
             throw new CustomError('0072', 'BadCredentials', userData.languages);
         // Delete user. User's created objects are deleted separately, with explicit confirmation 
         // given by the user. This is to minimize the chance of deleting objects which other users rely on. TODO

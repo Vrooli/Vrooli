@@ -3,7 +3,7 @@ import { VoteInput, Success, VoteFor } from './types';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { getUser, VoteModel } from '../models';
+import { VoteModel } from '../models';
 import { resolveVoteTo } from './resolvers';
 import { assertRequestFrom } from '../auth/request';
 

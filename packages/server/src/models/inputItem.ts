@@ -1,9 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { InputItem, InputItemCreateInput, InputItemUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { relBuilderHelper } from "./actions";
+import { relBuilderHelper } from "../actions";
 import { Formatter, GraphQLModelType, Mutater } from "./types";
-import { translationRelationshipBuilder } from "./utils";
+import { translationRelationshipBuilder } from "../utils";
 
 const formatter = (): Formatter<InputItem, any> => ({
     relationshipMap: {

@@ -6,8 +6,8 @@ import { Prisma } from "@prisma/client";
 import { CustomError } from "../events";
 import { RoutineModel } from "./routine";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "./actions";
-import { translationRelationshipBuilder } from "./utils";
+import { relBuilderHelper } from "../actions";
+import { translationRelationshipBuilder } from "../utils";
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -36,6 +36,7 @@ const validator = (): Validator<
         __typename: 'Node',
         routineVersion: 'Routine',
     },
+    isTransferable: false,
     permissionsSelect: (...params) => ({ routineVersion: { select: RoutineModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['canDelete', async () => isAdmin],
@@ -45,8 +46,8 @@ const validator = (): Validator<
         routineVersion: {
             root: {
                 OR: [
-                    { user: { id: userId } },
-                    OrganizationModel.query.hasRoleInOrganizationQuery(userId)
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
                 ]
             }
         }

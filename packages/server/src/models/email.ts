@@ -26,6 +26,7 @@ const validator = (): Validator<
         __typename: 'Email',
         user: 'User',
     },
+    isTransferable: false,
     permissionsSelect: (...params) => ({ id: true, user: { select: UserModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['canDelete', async () => isAdmin],
@@ -87,7 +88,7 @@ const mutater = (): Mutater<
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
             for (const c of created) {
-                Trigger(prisma, userData.languages).objectCreate('Email', c.id as string, userData.id);
+                Trigger(prisma, userData.languages).createEmail(userData.id, c.emailAddress);
             }
         },
     },

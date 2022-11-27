@@ -27,6 +27,7 @@ const validator = (): Validator<
         input: 'InputItem',
         runRoutine: 'RunRoutine',
     },
+    isTransferable: false,
     permissionsSelect: (...params) => ({
         runRoutine: { select: RunModel.validate.permissionsSelect(...params) }
     }),
@@ -42,7 +43,7 @@ const validator = (): Validator<
                 root: {
                     OR: [
                         { user: { id: userId } },
-                        OrganizationModel.query.hasRoleInOrganizationQuery(userId)
+                        { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
                     ]
                 }
             }

@@ -6,7 +6,7 @@ import { Session, SessionUser } from '../schema/types';
 import { RecursivePartial } from '../types';
 import { logger } from '../events/logger';
 import { isSafeOrigin } from '../utils';
-import { getUser } from '../models';
+import { uuidValidate } from '@shared/uuid';
 
 const SESSION_MILLI = 30 * 86400 * 1000;
 
@@ -198,6 +198,17 @@ export async function requireLoggedIn(req: Request, _: any, next: any) {
     let error: CustomError | undefined;
     if (!req.isLoggedIn) error = new CustomError('0018', 'NotLoggedIn', req.languages);
     next(error);
+}
+
+/**
+ * Finds current user in Request object. Also validates that the user data is valid
+ * @param req Request object
+ * @returns First userId in Session object, or null if not found/invalid
+ */
+export const getUser = (req: { users?: Request['users'] }): SessionUser | null => {
+    if (!req || !Array.isArray(req?.users) || req.users.length === 0) return null;
+    const user = req.users[0];
+    return typeof user.id === 'string' && uuidValidate(user.id) ? user : null;
 }
 
 export type RequestConditions = {

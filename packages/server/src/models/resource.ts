@@ -1,12 +1,12 @@
 import { resourcesCreate, resourcesUpdate } from "@shared/validation";
 import { ResourceSortBy } from "@shared/consts";
-import { combineQueries, permissionsSelectHelper } from "./builder";
 import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
-import { translationRelationshipBuilder } from "./utils";
+import { combineQueries, permissionsSelectHelper } from "../builders";
+import { translationRelationshipBuilder } from "../utils";
 
 const formatter = (): Formatter<Resource, any> => ({
     relationshipMap: { __typename: 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
@@ -55,6 +55,7 @@ const validator = (): Validator<
         __typename: 'Resource',
         list: 'ResourceList',
     },
+    isTransferable: false,
     permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([

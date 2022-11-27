@@ -49,7 +49,8 @@ export const hashPassword = (password: string): string => {
  * @param languages Preferred languages to display error messages in
  * @returns Boolean indicating if the password is valid
  */
-export const validatePassword = (plaintext: string, user: { status: AccountStatus, password: string }, languages: string[]): boolean => {
+export const validatePassword = (plaintext: string, user: { status: AccountStatus, password?: string }, languages: string[]): boolean => {
+    if (!user.password) return false;
     // A password is only valid if the user is:
     // 1. Not deleted
     // 2. Not locked out

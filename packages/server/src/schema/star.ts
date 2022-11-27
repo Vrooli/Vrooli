@@ -4,9 +4,10 @@ import { StarFor, StarInput, StarSearchInput, StarSearchResult, Success } from '
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { readManyHelper, StarModel } from '../models';
+import { StarModel } from '../models';
 import { resolveStarTo } from './resolvers';
 import { assertRequestFrom } from '../auth/request';
+import { readManyHelper } from '../actions';
 
 export const typeDef = gql`
     enum StarSortBy {

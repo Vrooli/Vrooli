@@ -1,11 +1,13 @@
 import { gql } from 'apollo-server-express';
 import { ForkInput, ForkResult } from './types';
 import { IWrap } from '../types';
-import { forkHelper, lowercaseFirstLetter, ObjectMap } from '../models';
+import { ObjectMap } from '../models';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../events/error';
 import { ForkType } from '@shared/consts';
+import { forkHelper } from '../actions';
+import { lowercaseFirstLetter } from '../builders';
 
 export const typeDef = gql`
 

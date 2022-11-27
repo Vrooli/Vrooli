@@ -1,4 +1,3 @@
-import { addJoinTablesHelper, combineQueries, relationshipBuilderHelper, removeJoinTablesHelper } from "./builder";
 import { tagsCreate, tagsUpdate } from "@shared/validation";
 import { TagSortBy } from "@shared/consts";
 import { StarModel } from "./star";
@@ -6,21 +5,21 @@ import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, SessionUser } from
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
+import { combineQueries, relationshipBuilderHelper } from "../builders";
+import { translationRelationshipBuilder } from "../utils";
 
-const joinMapper = { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' };
 type SupplementalFields = 'isStarred' | 'isOwn';
 const formatter = (): Formatter<Tag, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Tag',
         starredBy: 'User',
     },
-    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
-    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
+    joinMap: { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' },
     supplemental: {
         graphqlFields: ['isStarred', 'isOwn'],
         dbFields: ['createdByUserId', 'id'],
         toGraphQL: ({ ids, objects, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query(prisma).getIsStarreds(userData?.id, ids, 'Tag')],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Tag')],
             ['isOwn', async () => objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id)],
         ],
     },
@@ -66,6 +65,7 @@ const validator = (): Validator<
     Prisma.tagWhereInput
 > => ({
     validateMap: { __typename: 'Tag' },
+    isTransferable: false,
     permissionsSelect: () => ({ id: true }),
     permissionResolvers: () => [],
     owner: () => ({}),

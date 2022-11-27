@@ -1,11 +1,13 @@
 import { gql } from 'apollo-server-express';
 import { CustomError } from '../events/error';
-import { countHelper, ProfileModel, readManyHelper, readOneHelper, UserModel } from '../models';
 import { UserDeleteInput, Success, Profile, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, UserCountInput, UserSearchResult, User, ProfileEmailUpdateInput, UserSortBy } from './types';
 import { IWrap, RecursivePartial } from '../types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { assertRequestFrom, generateSessionJwt } from '../auth/request';
+import { ProfileModel, UserModel } from '../models';
+import { countHelper, readManyHelper, readOneHelper } from '../actions';
+import { toSession } from '../auth';
 
 export const typeDef = gql`
     enum UserSortBy {
@@ -197,7 +199,7 @@ export const resolvers = {
             if (!updated)
                 throw new CustomError('0160', 'ErrorUnknown', req.languages);
             // Update session
-            const session = await ProfileModel.verify.toSession({ id: userData.id }, prisma, req);
+            const session = await toSession({ id: userData.id }, prisma, req);
             await generateSessionJwt(res, session);
             return updated;
         },

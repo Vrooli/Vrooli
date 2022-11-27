@@ -31,6 +31,7 @@ const validator = (): Validator<
         runRoutine: 'RunRoutine',
         subroutine: 'Routine',
     },
+    isTransferable: false,
     permissionsSelect: (...params) => ({
         runRoutine: { select: RunModel.validate.permissionsSelect(...params) }
     }),
@@ -45,8 +46,8 @@ const validator = (): Validator<
             routineVersion: {
                 root: {
                     OR: [
-                        { user: { id: userId } },
-                        OrganizationModel.query.hasRoleInOrganizationQuery(userId)
+                        { ownedByUser: { id: userId } },
+                        { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
                     ]
                 }
             }

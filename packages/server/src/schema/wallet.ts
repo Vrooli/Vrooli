@@ -2,11 +2,13 @@ import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Wallet, WalletUpdateInput } from './types';
 import { Context, rateLimit } from '../middleware';
-import { getUser, onlyValidIds, updateHelper } from '../models';
 import { GraphQLResolveInfo } from 'graphql';
 import { CustomError } from '../events/error';
 import { serializedAddressToBech32 } from '../auth/wallet';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
+import { getUser } from '../auth';
+import { onlyValidIds } from '../builders';
+import { updateHelper } from '../actions';
 
 export const typeDef = gql`
 

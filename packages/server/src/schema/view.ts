@@ -3,10 +3,10 @@ import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from 'graphql';
 import { assertRequestFrom } from '../auth/request';
 import { Context, rateLimit } from '../middleware';
-import { CustomError } from '../events/error';
-import { getUser, readManyHelper, ViewModel } from '../models';
+import { ViewModel } from '../models';
 import { IWrap } from '../types';
 import { ViewSearchInput, ViewSearchResult } from './types';
+import { readManyHelper } from '../actions';
 
 export const typeDef = gql`
     enum ViewSortBy {
@@ -50,11 +50,9 @@ export const resolvers = {
     ViewSortBy: ViewSortBy,
     Query: {
         views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
-            assertRequestFrom(req, { isUser: true });
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            const userId = getUser(req)?.id;
-            if (!userId) throw new CustomError('0275', 'NotLoggedIn', req.languages);
-            return readManyHelper({ info, input, model: ViewModel, prisma, req, additionalQueries: { userId } });
+            return readManyHelper({ info, input, model: ViewModel, prisma, req, additionalQueries: { userId: userData.id } });
         },
     },
 }

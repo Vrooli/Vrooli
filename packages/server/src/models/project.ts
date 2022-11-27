@@ -1,6 +1,5 @@
 import { projectsCreate, projectsUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
-import { addCountFieldsHelper, addJoinTablesHelper, combineQueries, exceptionsBuilder, permissionsSelectHelper, removeCountFieldsHelper, removeJoinTablesHelper, visibilityBuilder } from "./builder";
 import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -10,13 +9,12 @@ import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
-import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "./utils";
-import { getSingleTypePermissions } from "./validators";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "./actions";
+import { relBuilderHelper } from "../actions";
+import { getSingleTypePermissions } from "../validators";
+import { combineQueries, exceptionsBuilder, permissionsSelectHelper, visibilityBuilder } from "../builders";
+import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
 
-const joinMapper = { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' };
-const countMapper = { commentsCount: 'comments', reportsCount: 'reports' };
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsProject';
 const formatter = (): Formatter<Project, SupplementalFields> => ({
     relationshipMap: {
@@ -42,10 +40,8 @@ const formatter = (): Formatter<Project, SupplementalFields> => ({
         tags: 'Tag',
     },
     rootFields: ['hasCompleteVersion', 'isDeleted', 'isInternal', 'isPrivate', 'votes', 'stars', 'views', 'permissions'],
-    addJoinTables: (partial) => addJoinTablesHelper(partial, joinMapper),
-    removeJoinTables: (data) => removeJoinTablesHelper(data, joinMapper),
-    addCountFields: (partial) => addCountFieldsHelper(partial, countMapper),
-    removeCountFields: (data) => removeCountFieldsHelper(data, countMapper),
+    joinMap: { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' },
+    countMap:  { commentsCount: 'comments', reportsCount: 'reports' },
     supplemental: {
         graphqlFields: ['isStarred', 'isUpvoted', 'isViewed', 'permissionsProject'],
         toGraphQL: ({ ids, prisma, userData }) => [
@@ -87,7 +83,7 @@ const searcher = (): Searcher<
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
-    customQueries(input, userId) {
+    customQueries(input, userData) {
         const isComplete = exceptionsBuilder({
             canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
             exceptionField: 'isCompleteExceptions',
@@ -96,7 +92,7 @@ const searcher = (): Searcher<
         })
         return combineQueries([
             isComplete,
-            visibilityBuilder({ model: ProjectModel, userId, visibility: input.visibility }),
+            visibilityBuilder({ objectType: 'Project', userData, visibility: input.visibility }),
             (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
             (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
             (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
@@ -126,12 +122,14 @@ const validator = (): Validator<
         root: {
             select: {
                 parent: 'Project',
-                organization: 'Organization',
-                user: 'User',
+                createdBy: 'User',
+                ownedByOrganization: 'Organization',
+                ownedByUser: 'User',
             }
         },
         forks: 'Project',
     },
+    isTransferable: true,
     permissionsSelect: (...params) => ({
         id: true,
         isComplete: true,
@@ -144,8 +142,8 @@ const validator = (): Validator<
                 isInternal: true,
                 permissions: true,
                 ...permissionsSelectHelper([
-                    ['organization', 'Organization'],
-                    ['user', 'User'],
+                    ['ownedByOrganization', 'Organization'],
+                    ['ownedByUser', 'User'],
                 ], ...params)
             }
         },
@@ -161,19 +159,19 @@ const validator = (): Validator<
         ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
     ]),
     owner: (data) => ({
-        Organization: (data.root as any).organization,
-        User: (data.root as any).user,
+        Organization: (data.root as any).ownedByOrganization,
+        User: (data.root as any).ownedByUser,
     }),
     isDeleted: (data) => data.isDeleted || data.root.isDeleted,
     isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
-        ['organization', 'Organization'],
-        ['user', 'User'],
+        ['ownedByOrganization', 'Organization'],
+        ['ownedByUser', 'User'],
     ], languages),
     ownerOrMemberWhere: (userId) => ({
         root: {
             OR: [
-                OrganizationModel.query.hasRoleInOrganizationQuery(userId),
-                { user: { id: userId } }
+                { ownedByUser: { id: userId } },
+                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
             ]
         }
     }),
@@ -224,7 +222,7 @@ const mutater = (): Mutater<
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
             for (const c of created) {
-                Trigger(prisma, userData.languages).objectCreate('Project', c.id as string, userData.id);
+                Trigger(prisma, userData.languages).createProject(userData.id, c.id as string);
             }
         },
     },

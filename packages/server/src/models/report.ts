@@ -1,21 +1,17 @@
 import { reportsCreate, reportsUpdate } from "@shared/validation";
 import { ReportFor, ReportSortBy } from '@shared/consts';
-import { combineQueries } from "./builder";
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { UserModel } from "./user";
+import { combineQueries } from "../builders";
 
 type SupplementalFields = 'isOwn';
 const formatter = (): Formatter<Report, SupplementalFields> => ({
     relationshipMap: { __typename: 'Report' },
-    removeJoinTables: (data) => {
-        // Remove userId to hide who submitted the report
-        let { userId, ...rest } = data;
-        return rest;
-    },
+    hiddenFields: ['userId'], // Always hide report creator
     supplemental: {
         graphqlFields: ['isOwn'],
         dbFields: ['userId'],
@@ -77,16 +73,17 @@ const validator = (): Validator<
     validateMap: {
         __typename: 'Report',
     },
-    permissionsSelect: (...params) => ({ id: true, user: { select: UserModel.validate.permissionsSelect(...params) } }),
+    isTransferable: false,
+    permissionsSelect: (...params) => ({ id: true, createdBy: { select: UserModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['isOwn', async () => isAdmin],
     ]),
     owner: (data) => ({
-        User: data.user,
+        User: data.createdBy,
     }),
     isDeleted: () => false,
     isPublic: () => true,
-    ownerOrMemberWhere: (userId) => ({ userId }),
+    ownerOrMemberWhere: (userId) => ({ createdById: userId }),
     profanityFields: ['reason', 'details'],
     validations: {
         create: async ({ createMany, prisma, userData }) => {
@@ -135,7 +132,7 @@ const mutater = (): Mutater<
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
             for (const c of created) {
-                Trigger(prisma, userData.languages).objectCreate('Report', c.id as string, userData.id);
+                Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
             }
         },
     },
