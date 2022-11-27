@@ -199,7 +199,7 @@ export const resolvers = {
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    model: ProjectModel,
+                    objectType: 'Project',
                 });
             }
             // Query routines
@@ -240,7 +240,7 @@ export const resolvers = {
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    model: RoutineModel,
+                    objectType: 'Routine',
                 });
             }
             // Add supplemental fields to every result
@@ -311,7 +311,7 @@ export const resolvers = {
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    model: ProjectModel,
+                    objectType: 'Project',
                 });
             }
             // Query organizations
@@ -342,7 +342,7 @@ export const resolvers = {
                         userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    model: OrganizationModel,
+                    objectType: 'Organization',
                 });
             }
             // Add supplemental fields to every result

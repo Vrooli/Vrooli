@@ -54,23 +54,23 @@ export type GraphQLModelType =
 export type ModelLogic<
     GQLObject extends { [key: string]: any },
     GQLFields extends string,
-    Create extends false | MutaterShapes, 
-    Update extends false | MutaterShapes, 
-    RelationshipCreate extends false | MutaterShapes, 
+    Create extends false | MutaterShapes,
+    Update extends false | MutaterShapes,
+    RelationshipCreate extends false | MutaterShapes,
     RelationshipUpdate extends false | MutaterShapes,
     SearchInput,
     SortBy extends string,
     OrderBy extends { [x: string]: any; },
     Where extends { [x: string]: any; },
-    GQLCreate extends { [x: string]: any; }, 
-    GQLUpdate extends { [x: string]: any; }, 
-    PrismaObject extends { [x: string]: any; }, 
-    PermissionObject extends { [x: string]: any; }, 
-    PermissionsSelect extends { [x: string]: any; }, 
+    GQLCreate extends { [x: string]: any; },
+    GQLUpdate extends { [x: string]: any; },
+    PrismaObject extends { [x: string]: any; },
+    PermissionObject extends { [x: string]: any; },
+    PermissionsSelect extends { [x: string]: any; },
     OwnerOrMemberWhere extends { [x: string]: any; }
 > = {
     format: Formatter<GQLObject, GQLFields>;
-    display: Displayer;
+    display: Displayer<PermissionsSelect, PrismaObject>;
     delegate: (prisma: PrismaType) => PrismaDelegate;
     search?: Searcher<SearchInput, SortBy, OrderBy, Where>;
     mutate?: Mutater<GQLObject, Create, Update, RelationshipCreate, RelationshipUpdate>;
@@ -81,7 +81,7 @@ export type ModelLogic<
 /**
  * Mostly unsafe type for a model logic object.
  */
-export type AniedModelLogic<GQLObject extends { [x: string]: any}> = ModelLogic<GQLObject, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any>;
+export type AniedModelLogic<GQLObject extends { [x: string]: any }> = ModelLogic<GQLObject, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any>;
 
 /**
  * Allows Prisma select fields to map to GraphQLModelTypes. Any field which can be 
@@ -191,6 +191,21 @@ export type Searcher<SearchInput, SortBy extends string, OrderBy extends { [x: s
     customQueries?: (input: SearchInput, userData: SessionUser | null | undefined) => Where;
 }
 
+export type ObjectLimitVisibility = number | {
+    noPremium: number,
+    premium: number,
+}
+
+export type ObjectLimitOwner = number | {
+    public: ObjectLimitVisibility,
+    private: ObjectLimitVisibility,
+}
+
+export type ObjectLimit = number | {
+    User: ObjectLimitOwner,
+    Organization: ObjectLimitOwner,
+}
+
 /**
  * Describes shape of component that has validation rules 
  */
@@ -221,6 +236,14 @@ export type Validator<
      */
     isTransferable: boolean;
     /**
+     * The maximum number of objects that can be created by a single user/organization.
+     * This depends on if the owner is a user or organization, if the owner 
+     * has a premium account, and if we're counting private or public objects. 
+     * Accounts can also define custom limits (for a custom price), which override 
+     * these defaults 
+     */
+    maxObjects: ObjectLimit;
+    /**
      * Select query to calculate the object's permissions. This will be used - possibly in 
      * conjunction with the parent object's permissions (also queried in this field) - to determine if you 
      * are allowed to perform the mutation
@@ -235,10 +258,22 @@ export type Validator<
         isPublic: boolean,
     }) => [keyof Omit<PermissionObject, '__typename'>, () => any][];
     /**
-     * Partial where query added to the object's search query. Useful when querying things like an organization's routines, 
-     * where you should only see private routines if you are a member of the organization
+     * Partial queries for various visibility checks
      */
-    ownerOrMemberWhere: (userId: string) => OwnerOrMemberWhere;
+    visibility: {
+        /**
+         * For private objects (i.e. only the owner can see them)
+         */
+        private: OwnerOrMemberWhere;
+        /**
+         * For public objects (i.e. anyone can see them)
+         */
+        public: OwnerOrMemberWhere;
+        /**
+         * For both private and public objects that you own
+         */
+        owner: (userId: string) => OwnerOrMemberWhere;
+    }
     /**
      * Uses query result to determine if the object is soft-deleted
      */
@@ -312,7 +347,7 @@ export type Validator<
 /**
  * Describes shape of component that can be duplicated
  */
-export type Duplicater<
+export type Duplicator<
     // Select must include "id" and "intendToPullRequest" fields
     Select extends { id?: boolean | undefined, intendToPullRequest?: boolean | undefined, [x: string]: any },
     Data extends { [x: string]: any }
@@ -361,48 +396,48 @@ export type Mutater<
      * Shapes data for create/update mutations, both as a main 
      * object and as a relationship object
      */
-    shape: (Create extends false ? {} : {
+    shape: (Create extends MutaterShapes ? {
         create: ({ data, prisma, userData }: {
             data: Create['graphql'],
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<Create['db']>,
-    }) & (Update extends false ? {} : {
+    } : {}) & (Update extends MutaterShapes ? {
         update: ({ data, prisma, userData }: {
             data: Update['graphql'],
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<Update['db']>,
-    }) & (RelationshipCreate extends false ? {} : {
+    } : {}) & (RelationshipCreate extends MutaterShapes ? {
         relCreate: ({ data, prisma, userData }: {
             data: RelationshipCreate['graphql'],
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<RelationshipCreate['db']>,
-    }) & (RelationshipUpdate extends false ? {} : {
+    } : {}) & (RelationshipUpdate extends MutaterShapes ? {
         relUpdate: ({ data, prisma, userData }: {
             data: RelationshipUpdate['graphql'],
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<RelationshipUpdate['db']>,
-    }),
+    } : {}),
     /**
      * Triggers when a mutation is performed on the object
      */
-    trigger?: (Create extends false ? {} : {
+    trigger?: (Create extends MutaterShapes ? {
         onCreated?: ({ created, prisma, userData }: {
             created: RecursivePartial<GQLObject>[],
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,
-    }) & (Update extends false ? {} : {
+    } : {}) & (Update extends MutaterShapes ? {
         onUpdated?: ({ updated, updateInput, prisma, userData }: {
             updated: RecursivePartial<GQLObject>[],
             updateInput: Update['graphql'][],
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,
-    }) & {
+    } : {}) & {
         onDeleted?: ({ deleted, prisma, userData }: {
             deleted: Count,
             prisma: PrismaType,
@@ -419,15 +454,18 @@ export type Mutater<
 /**
  * Functions for displaying an object
  */
-export type Displayer = {
+export type Displayer<
+    PrismaSelect extends { [x: string]: any },
+    PrismaSelectData extends { [x: string]: any }
+> = {
     /**
-     * Finds a string to represent each object in each user's preferred language
-     * @param prisma Prisma client
-     * @param objects List of object ids and the corresponding user's preferred languages
-     * @returns List of strings to represent each object in each user's preferred language, 
-     * in the same order as the input
+     * Select query for object's label
      */
-    labels: (prisma: PrismaType, objects: { id: string, languages: string[] }[]) => PromiseOrValue<string[]>,
+    select: PrismaSelect,
+    /**
+     * Uses labelSelect to get label for object
+     */
+    label: (select: PrismaSelectData, languages: string[]) => string,
 }
 
 /**

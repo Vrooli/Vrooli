@@ -1,5 +1,5 @@
+import { GraphQLModelType } from "../models/types";
 import { getSearcher } from "./getSearcher";
-import { GetSearchStringProps } from "./types";
 
 /**
  * Helper function for searchStringQuery
@@ -9,7 +9,11 @@ export function getSearchString<Where extends { [x: string]: any }>({
     languages,
     objectType,
     searchString,
-}: GetSearchStringProps): Where {
+}: {
+    languages?: string[] | undefined;
+    objectType: GraphQLModelType;
+    searchString: string;
+}): Where {
     if (searchString.length === 0) return {} as Where;
     const searcher = getSearcher<any, any, any, Where>(objectType, languages ?? ['en'], 'getSearchString');
     const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' as const });

@@ -1,9 +1,9 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
 import { DeleteOneType, ForkType, StarFor, VoteFor } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
+import { getDisplay } from "../getters";
 import { OrganizationModel } from "../models";
 import { GraphQLModelType } from "../models/types";
-import { getDisplay } from "../models/utils";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award } from "./awards";

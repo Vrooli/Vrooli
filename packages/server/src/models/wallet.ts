@@ -73,6 +73,19 @@ const validator = (): Validator<
     Prisma.walletWhereInput
 > => ({
     isTransferable: false,
+    maxObjects: {
+        User: {
+            private: 5,
+            public: 0,
+        },
+        Organization: {
+            private: {
+                noPremium: 1,
+                premium: 5,
+            },
+            public: 0,
+        },
+    },
     permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
@@ -90,12 +103,6 @@ const validator = (): Validator<
         ['organization', 'Organization'],
         ['user', 'User'],
     ], languages),
-    ownerOrMemberWhere: (userId) => ({
-        OR: [
-            { user: { id: userId } },
-            { organization: OrganizationModel.query.hasRoleQuery(userId) },
-        ]
-    }),
     validateMap: {
         __typename: 'Wallet',
         user: 'User',
@@ -115,7 +122,17 @@ const validator = (): Validator<
             if (remainingVerifiedWalletsCount + verifiedEmailsCount < 1)
                 throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
         }
-    }
+    },
+    visibility: {
+        private: {},
+        public: {},
+        owner: (userId) => ({
+            OR: [
+                { user: { id: userId } },
+                { organization: OrganizationModel.query.hasRoleQuery(userId) },
+            ]
+        }),
+    },
 })
 
 const mutater = (): Mutater<
@@ -132,17 +149,12 @@ const mutater = (): Mutater<
     yup: { update: walletsUpdate },
 })
 
-const displayer = (): Displayer => ({
-    labels: async (prisma, objects) => {
-        const nameData = await prisma.wallet.findMany({
-            where: { id: { in: objects.map(x => x.id) } },
-            select: { id: true, name: true }    
-        })
-        return objects.map(o => {
-            const name = nameData.find(n => n.id === o.id)?.name;
-            return name ?? '';
-        })
-    }
+const displayer = (): Displayer<
+    Prisma.walletSelect,
+    Prisma.walletGetPayload<{ select: { [K in keyof Required<Prisma.walletSelect>]: true } }>
+> => ({
+    select: { id: true, name: true },
+    label: (select) => select.name ?? '',
 })
 
 export const WalletModel = ({

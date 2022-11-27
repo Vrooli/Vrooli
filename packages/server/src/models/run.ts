@@ -85,6 +85,10 @@ const validator = (): Validator<
         user: 'User',
     },
     isTransferable: false,
+    maxObjects: {
+        User: 5000,
+        Organization: 50000,
+    },
     permissionsSelect: (...params) => ({
         id: true,
         isPrivate: true,
@@ -108,12 +112,16 @@ const validator = (): Validator<
         ['organization', 'Organization'],
         ['user', 'User'],
     ], languages),
-    ownerOrMemberWhere: (userId) => ({
-        OR: [
-            { user: { id: userId } },
-            { organization: OrganizationModel.query.hasRoleQuery(userId) },
-        ]
-    }),
+    visibility: {
+        private: { isPrivate: true },
+        public: { isPrivate: false },
+        owner: (userId) => ({
+            OR: [
+                { user: { id: userId } },
+                { organization: OrganizationModel.query.hasRoleQuery(userId) },
+            ]
+        }),
+    },
     // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
     //     validateProfanity(data.map((d: any) => d.title));
     // },
@@ -344,17 +352,12 @@ const danger = () => ({
     }
 })
 
-const displayer = (): Displayer => ({
-    labels: async (prisma, objects) => {
-        const titleData = await prisma.run_routine.findMany({
-            where: { id: { in: objects.map(x => x.id) } },
-            select: { id: true, title: true }
-        })
-        return objects.map(o => {
-            const title = titleData.find(n => n.id === o.id)?.title;
-            return title ?? '';
-        })
-    }
+const displayer = (): Displayer<
+    Prisma.run_routineSelect,
+    Prisma.run_routineGetPayload<{ select: { [K in keyof Required<Prisma.run_routineSelect>]: true } }>
+> => ({
+    select: { id: true, title: true },
+    label: (select) => select.title ?? '',
 })
 
 export const RunModel = ({

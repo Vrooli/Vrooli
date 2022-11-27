@@ -96,6 +96,19 @@ const validator = (): Validator<
         wallets: 'Wallet',
     },
     isTransferable: false,
+    maxObjects: {
+        User: {
+            private: {
+                noPremium: 1,
+                premium: 10,
+            },
+            public: {
+                noPremium: 3,
+                premium: 25,
+            }
+        },
+        Organization: 0,
+    },
     permissionsSelect: (userId) => ({
         id: true,
         isOpenToNewMembers: true,
@@ -139,7 +152,11 @@ const validator = (): Validator<
     }),
     isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false,
-    ownerOrMemberWhere: (userId) => querier().hasRoleQuery(userId),
+    visibility: {
+        private: { isPrivate: true },
+        public: { isPrivate: false },
+        owner: (userId) => querier().hasRoleQuery(userId),
+    }
     // if (!createMany && !updateMany && !deleteMany) return;
     // if (createMany) {
     //     createMany.forEach(input => lineBreaksCheck(input, ['bio'], CODE.LineBreaksBio));
@@ -239,6 +256,8 @@ const mutater = (): Mutater<
             const memberId = uuid();
             return {
                 ...(await shapeBase(prisma, userData, data, true)),
+                // Assign yourself as creator
+                createdBy: { connect: { id: userData.id } },
                 // Add yourself as a member
                 members: {
                     create: {
@@ -267,17 +286,12 @@ const mutater = (): Mutater<
     yup: { create: organizationsCreate, update: organizationsUpdate },
 })
 
-const displayer = (): Displayer => ({
-    labels: async (prisma, objects) => {
-        const translations = await prisma.organization_translation.findMany({
-            where: { organizationId: { in: objects.map((o) => o.id) } },
-            select: { organizationId: true, language: true, name: true }
-        })
-        return objects.map(o => {
-            const oTrans = translations.filter(t => t.organizationId === o.id);
-            return bestLabel(oTrans, 'name', o.languages);
-        })
-    }
+const displayer = (): Displayer<
+    Prisma.organizationSelect,
+    Prisma.organizationGetPayload<{ select: { [K in keyof Required<Prisma.organizationSelect>]: true } }>
+> => ({
+    select: { id: true, translations: { select: { language: true, name: true } } },
+    label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
 export const OrganizationModel = ({

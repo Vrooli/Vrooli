@@ -1,4 +1,4 @@
-import { getDelegate, getDisplay, getValidator } from "../getters";
+import { getDelegator, getLabels, getValidator } from "../getters";
 import { Notify } from "../notify";
 import { SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
@@ -45,7 +45,7 @@ export const Transfer = (prisma: PrismaType) => ({
     ): Promise<boolean> => {
         // Find the object and its owner
         const validator = getValidator(object.__typename, userData.languages, 'Transfer.request-object');
-        const prismaDelegate = getDelegate(object.__typename, prisma, userData.languages, 'Transfer.request-object');
+        const prismaDelegate = getDelegator(object.__typename, prisma, userData.languages, 'Transfer.request-object');
         const permissionData = await prismaDelegate.findUnique({
             where: { id: object.id },
             select: validator.permissionsSelect,
@@ -56,7 +56,7 @@ export const Transfer = (prisma: PrismaType) => ({
             throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
         // Check if the user is transferring to themselves
         const toValidator = getValidator(to.__typename, userData.languages, 'Transfer.request-validator');
-        const toPrismaDelegate = getDelegate(to.__typename, prisma, userData.languages, 'Transfer.request-validator');
+        const toPrismaDelegate = getDelegator(to.__typename, prisma, userData.languages, 'Transfer.request-validator');
         const toPermissionData = await toPrismaDelegate.findUnique({
             where: { id: to.id },
             select: toValidator.permissionsSelect(userData.id, userData.languages),
@@ -66,8 +66,7 @@ export const Transfer = (prisma: PrismaType) => ({
         if (isAdmin) return true;
         // Find a user-readable label for the object
         const requesteeLanguages = (owner.Organization?.languages || owner.User?.languages).map(l => l.language);
-        const display = getDisplay(object.__typename, userData.languages, 'Transfer.request');
-        const objectTitle = (await display.labels(prisma, [{ id: object.id, languages: requesteeLanguages }]))[0];
+        const objectTitle = (await getLabels([{ id: object.id, languages: requesteeLanguages }], object.__typename, prisma, userData.languages, 'Transfer.request'))[0];
         // Create transfer request
         const request = await prisma.transfer.create({
             data: {

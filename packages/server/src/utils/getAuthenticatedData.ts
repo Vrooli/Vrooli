@@ -1,4 +1,4 @@
-import { getDelegate, getValidator } from "../getters";
+import { getDelegator, getValidator } from "../getters";
 import { GraphQLModelType } from "../models/types";
 import { SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
@@ -17,7 +17,7 @@ export const getAuthenticatedData = async (
     for (const type of Object.keys(idsByType) as GraphQLModelType[]) {
         // Find validator and prisma delegate for this object type
         const validator = getValidator(type, userData?.languages ?? ['en'], 'getAuthenticatedData');
-        const prismaDelegate = getDelegate(type, prisma, userData?.languages ?? ['en'], 'getAuthenticatedData');
+        const prismaDelegate = getDelegator(type, prisma, userData?.languages ?? ['en'], 'getAuthenticatedData');
         // Query for data
         const data = await prismaDelegate.findMany({
             where: { id: { in: idsByType[type] } },

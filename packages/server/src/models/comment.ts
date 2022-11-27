@@ -4,7 +4,7 @@ import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSear
 import { PrismaType } from "../types";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
-import { CustomError, Trigger } from "../events";
+import { Trigger } from "../events";
 import { Formatter, Searcher, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
@@ -92,6 +92,13 @@ const validator = (): Validator<
         ownedByOrganization: 'Organization',
     },
     isTransferable: false,
+    maxObjects: {
+        User: {
+            private: 0,
+            public: 10000,
+        },
+        Organization: 0,
+    },
     permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
@@ -135,7 +142,11 @@ const validator = (): Validator<
         // ['smartContractVersion', 'SmartContract'],
         ['standardVersion', 'Standard'],
     ], languages),
-    ownerOrMemberWhere: (userId) => ({ ownedByUser: { id: userId } }),
+    visibility: {
+        private: {},
+        public: {},
+        owner: (userId) => ({ ownedByUser: { id: userId } }),
+    }
 })
 
 const querier = () => ({
@@ -341,17 +352,12 @@ const mutater = (): Mutater<
     yup: { create: commentsCreate, update: commentsUpdate },
 })
 
-const displayer = (): Displayer => ({
-    labels: async (prisma, objects) => {
-        const translations = await prisma.comment_translation.findMany({
-            where: { commentId: { in: objects.map((o) => o.id) } },
-            select: { commentId: true, language: true, text: true }    
-        })
-        return objects.map(o => {
-            const oTrans = translations.filter(t => t.commentId === o.id);
-            return bestLabel(oTrans, 'text', o.languages);
-        })
-    }
+const displayer = (): Displayer<
+    Prisma.commentSelect,
+    Prisma.commentGetPayload<{ select: { [K in keyof Required<Prisma.commentSelect>]: true } }>
+> => ({
+    select: { id: true, translations: { select: { language: true, text: true } } },
+    label: (select, languages) => bestLabel(select.translations, 'text', languages),
 })
 
 export const CommentModel = ({

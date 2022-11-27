@@ -77,7 +77,7 @@ export type ReadManyHelperProps<GQLObject extends { [x: string]: any}> = {
     addSupplemental?: boolean;
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
-    model: AniedModelLogic<GQLObject>;
+    objectType: GraphQLModelType;
     prisma: PrismaType;
     req: { languages: string[], users?: SessionUser[] };
 }
@@ -85,7 +85,7 @@ export type ReadManyHelperProps<GQLObject extends { [x: string]: any}> = {
 export type ReadOneHelperProps<GQLObject extends { [x: string]: any}> = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
-    model: AniedModelLogic<GQLObject>;
+    objectType: GraphQLModelType;
     prisma: PrismaType;
     req: { languages: string[], users?: SessionUser[] };
 }

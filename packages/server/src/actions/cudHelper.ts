@@ -3,7 +3,7 @@ import { Mutater } from "../models/types";
 import { getAuthenticatedData, getAuthenticatedIds } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";
-import { getDelegate, getMutater, getValidator } from "../getters";
+import { getDelegator, getMutater, getValidator } from "../getters";
 import { modelToGraphQL, selectHelper } from "../builders";
 
 /**
@@ -57,7 +57,7 @@ export async function cudHelper<
     }
     // Find validator and prisma delegate for this object type
     const validator = getValidator(objectType, userData.languages, 'cudHelper');
-    const prismaDelegate = getDelegate(objectType, prisma, userData.languages, 'cudHelper');
+    const prismaDelegate = getDelegator(objectType, prisma, userData.languages, 'cudHelper');
     // Get IDs of all objects which need to be authenticated
     const { idsByType, idsByAction } = await getAuthenticatedIds([
         ...(shapedCreate.map(data => ({ actionType: 'Create', data }))),

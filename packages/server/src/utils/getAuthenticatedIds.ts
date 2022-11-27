@@ -1,7 +1,7 @@
 import { isRelationshipArray, isRelationshipObject } from "../builders";
 import { PrismaUpdate } from "../builders/types";
 import { CustomError } from "../events";
-import { getDelegate, getValidator } from "../getters";
+import { getDelegator, getValidator } from "../getters";
 import { GraphQLModelType } from "../models/types";
 import { PrismaType } from "../types";
 import { QueryAction } from "./types";
@@ -195,7 +195,7 @@ const placeholdersToIds = async (idActions: { [key in GraphQLModelType]?: string
         // If there are any no ids, skip
         if (queries[key as any].ids.length === 0) continue;
         // Query for ids
-        const delegate = getDelegate(key as GraphQLModelType, prisma, languages, 'disconnectPlaceholdersToIds');
+        const delegate = getDelegator(key as GraphQLModelType, prisma, languages, 'disconnectPlaceholdersToIds');
         queryData[key as any] = await delegate.findMany({
             where: { id: { in: queries[key as any].ids } },
             select: queries[key as any].select,

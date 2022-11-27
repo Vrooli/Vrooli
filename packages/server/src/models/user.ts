@@ -86,17 +86,22 @@ const validator = (): Validator<
         // userSchedules: 'UserSchedule',
     },
     isTransferable: false,
+    maxObjects: 0,
     permissionsSelect: () => ({
         id: true,
         isPrivate: true,
         languages: { select: { language: true } },
     }),
     permissionResolvers: () => [],
-    ownerOrMemberWhere: (userId) => ({ id: userId }),
     owner: (data) => ({ User: data }),
     isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false,
     profanityFields: ['name', 'handle'],
+    visibility: {
+        private: { isPrivate: true },
+        public: { isPrivate: false },
+        owner: (userId) => ({ id: userId }),
+    },
     // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
 })
 
@@ -125,17 +130,12 @@ const mutater = (): Mutater<
     yup: { update: profilesUpdate },
 })
 
-const displayer = (): Displayer => ({
-    labels: async (prisma, objects) => {
-        const nameData = await prisma.user.findMany({
-            where: { id: { in: objects.map((o) => o.id) } },
-            select: { id: true, name: true }
-        })
-        return objects.map(o => {
-            const name = nameData.find(n => n.id === o.id)?.name;
-            return name ?? '';
-        })
-    }
+const displayer = (): Displayer<
+    Prisma.userSelect,
+    Prisma.userGetPayload<{ select: { [K in keyof Required<Prisma.userSelect>]: true } }>
+> => ({
+    select: { id: true, name: true },
+    label: (select) => select.name ?? '',
 })
 
 export const UserModel = ({

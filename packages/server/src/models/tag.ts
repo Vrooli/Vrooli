@@ -66,13 +66,21 @@ const validator = (): Validator<
 > => ({
     validateMap: { __typename: 'Tag' },
     isTransferable: false,
+    maxObjects: {
+        User: 10000,
+        Organization: 0,
+    },
     permissionsSelect: () => ({ id: true }),
     permissionResolvers: () => [],
     owner: () => ({}),
     isDeleted: () => false,
     isPublic: () => true,
     profanityFields: ['tag'],
-    ownerOrMemberWhere: () => ({}),
+    visibility: {
+        private: {},
+        public: {},
+        owner: () => ({}),
+    },
 })
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCreateInput | TagUpdateInput, isAdd: boolean) => {

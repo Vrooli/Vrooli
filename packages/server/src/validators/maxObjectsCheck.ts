@@ -12,69 +12,96 @@
  * the organization's governance structure.
  */
 import { CustomError } from "../events";
-import { getValidator } from "../getters";
-import { GraphQLModelType } from "../models/types";
+import { getDelegator, getValidator } from "../getters";
+import { GraphQLModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitVisibility } from "../models/types";
 import { SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { QueryAction } from "../utils/types";
 
 /**
- * Map which defines the maximum number of private objects a user can have. Other maximum checks 
- * (e.g. maximum nodes in a routine, projects in an organization) must be checked elsewhere.
+ * Helper function to check if a count exceeds a public/private limit
  */
-const maxPrivateObjectsUserMap: { [key in GraphQLModelType]?: (hasPremium: boolean) => number } = {
-    // Api: (hp) => hp ? 5 : 1,
-    Comment: () => 0, // No private comments
-    Email: () => 5, // Can only be applied to user, and is always private. So it doesn't show up in the other maps
-    // Note: (hp) => hp ? 1000 : 25,
-    Organization: () => 1,
-    Project: (hp) => hp ? 100 : 3,
-    Routine: (hp) => hp ? 250 : 25,
-    // SmartContract: (hp) => hp ? 25 : 1,
-    // ScheduleFilter: (hp) => hp ? 100 : 10, // *Per user schedule. Doesn't show up in the other maps
-    Standard: (hp) => hp ? 25 : 3,
-    Wallet: (hp) => hp ? 5 : 1, // Is always private. So it doesn't show up in public maps
+ const checkObjectLimitVisibility = (
+    count: number,
+    hasPremium: boolean,
+    limit: ObjectLimitVisibility,
+    languages: string[]
+): void => {
+    // If limit is a number, just check if count exceeds limit
+    if (typeof limit === 'number') {
+        if (count > limit) {
+            throw new CustomError('0353', 'MaxObjectsReached', languages);
+        }
+    }
+    // If limit is an object, check if count exceeds limit for the given premium status
+    else {
+        if (hasPremium) {
+            if (count > limit.premium) {
+                throw new CustomError('0354', 'MaxObjectsReached', languages);
+            }
+        }
+        else {
+            if (count > limit.noPremium) {
+                throw new CustomError('0355', 'MaxObjectsReached', languages);
+            }
+        }
+    }
 }
 
 /**
- * Map which defines the maximum number of public objects a user can have. Other maximum checks must be checked elsewhere.
+ * Helper function to check if a count exceeds an owner type's limit
  */
-const maxPublicObjectsUserMap: { [key in GraphQLModelType]?: (hasPremium: boolean) => number } = {
-    // Api: (hp) => hp ? 50 : 10,
-    Comment: () => 10000,
-    Handle: () => 1, // Is always public. So it doesn't show up in private maps
-    // Note: (hp) => hp ? 1000 : 25,
-    Organization: (hp) => hp ? 25 : 3,
-    Project: (hp) => hp ? 250 : 25,
-    Routine: (hp) => hp ? 1000 : 100,
-    // SmartContract: (hp) => hp ? 250 : 25,
-    Standard: (hp) => hp ? 1000 : 100,
+const checkObjectLimitOwner = (
+    count: number,
+    hasPremium: boolean,
+    isPrivate: boolean,
+    limit: ObjectLimitOwner,
+    languages: string[]
+): void => {
+    // If limit is a number, just check if count exceeds limit
+    if (typeof limit === 'number') {
+        if (count > limit) {
+            throw new CustomError('0352', 'MaxObjectsReached', languages);
+        }
+    }
+    // If limit is an object, check if count exceeds limit for the given privacy status
+    else {
+        if (isPrivate)
+            return checkObjectLimitVisibility(count, hasPremium, limit.private, languages);
+        return checkObjectLimitVisibility(count, hasPremium, limit.public, languages);
+    }
 }
 
 /**
- * Map which defines the maximum number of private objects an organization can have. Other maximum checks must be checked elsewhere.
+ * Helper function to check if a count exceeds the limit
+ * @param count The count
+ * @param ownerType User or Organization
+ * @param hasPremium Whether the user has a premium subscription
+ * @param isPrivate Whether to check limit for private or public objects
+ * @param limit The limit object. Can be a number, or object with different 
+ * @param languages The languages to use for error messages
+ * limits depending on premium status, owner type, etc.
  */
-const maxPrivateObjectsOrganizationMap: { [key in GraphQLModelType]?: (hasPremium: boolean) => number } = {
-    // Api: (hp) => hp ? 50 : 10,
-    // Note: (hp) => hp ? 1000 : 25,
-    Project: (hp) => hp ? 100 : 3,
-    Routine: (hp) => hp ? 250 : 25,
-    // SmartContract: (hp) => hp ? 25 : 1,
-    Standard: (hp) => hp ? 25 : 3,
-    Wallet: (hp) => hp ? 5 : 1, // Is always private. So it doesn't show up in public maps
-}
-
-/**
- * Map which defines the maximum number of public objects an organization can have. Other maximum checks must be checked elsewhere.
- */
-const maxPublicObjectsOrganizationMap: { [key in GraphQLModelType]?: (hasPremium: boolean) => number } = {
-    // Api: (hp) => hp ? 50 : 10,
-    Handle: () => 1, // Is always public. So it doesn't show up in private maps
-    // Note: (hp) => hp ? 1000 : 25,
-    Project: (hp) => hp ? 250 : 25,
-    Routine: (hp) => hp ? 1000 : 100,
-    // SmartContract: (hp) => hp ? 250 : 25,
-    Standard: (hp) => hp ? 1000 : 100,
+const checkObjectLimit = (
+    count: number,
+    ownerType: 'User' | 'Organization',
+    hasPremium: boolean,
+    isPrivate: boolean,
+    limit: ObjectLimit,
+    languages: string[],
+): void => {
+    // If limit is a number, just check if count exceeds limit
+    if (typeof limit === 'number') {
+        if (count > limit) {
+            throw new CustomError('0351', 'MaxObjectsReached', languages);
+        }
+    }
+    // If limit is an object, check if count exceeds limit for the given owner type
+    else {
+        if (ownerType === 'User')
+            return checkObjectLimitOwner(count, hasPremium, isPrivate, limit.User, languages);
+        return checkObjectLimitOwner(count, hasPremium, isPrivate, limit.Organization, languages);
+    }
 }
 
 /**
@@ -93,46 +120,70 @@ export async function maxObjectsCheck(
     userData: SessionUser,
 ) {
     // Initialize counts. This is used to count how many objects a user or organization will have after every action is applied.
-    const counts: { [key in GraphQLModelType]?: { [ownerId: string]: number } } = {}
+    const counts: { [key in GraphQLModelType]?: { [ownerId: string]: { private: number, public: number } } } = {}
     // Loop through every "Create" action, and increment the count for the object type
     if (idsByAction.Create) {
         for (const id of idsByAction.Create) {
             // Get auth data
             const authData = authDataById[id]
             // Get validator
-            const validator = getValidator(authData.__typename, userData.languages, 'maxObjectsCheck-create')
+            const validate = getValidator(authData.__typename, userData.languages, 'maxObjectsCheck-create')
             // Find owner and object type
-            const owners = validator.owner(authData);
+            const owners = validate.owner(authData);
             // Increment count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
             if (!ownerId) throw new CustomError('0310', 'InternalError', userData.languages);
+            // Initialize shape of counts for this owner
             counts[authData.__typename] = counts[authData.__typename] || {}
-            counts[authData.__typename]![ownerId] = (counts[authData.__typename]![ownerId] || 0) + 1
+            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 }
+            // Determine if object is public
+            const isPublic = validate.isPublic(authData, userData.languages);
+            // Increment count
+            counts[authData.__typename]![ownerId][isPublic ? 'public' : 'private']++;
         }
     }
+    // Ignore count for updates, as that doesn't change the total number of objects
     // Loop through every "Delete" action, and decrement the count for the object type
     if (idsByAction.Delete) {
         for (const id of idsByAction.Delete) {
             // Get auth data
             const authData = authDataById[id]
             // Get validator
-            const validator = getValidator(authData.__typename, userData.languages, 'maxObjectsCheck-delete')
+            const validate = getValidator(authData.__typename, userData.languages, 'maxObjectsCheck-delete')
             // Find owner and object type
-            const owners = validator.owner(authData);
+            const owners = validate.owner(authData);
             // Decrement count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
             if (!ownerId) throw new CustomError('0311', 'InternalError', userData.languages);
+            // Initialize shape of counts for this owner
             counts[authData.__typename] = counts[authData.__typename] || {}
-            counts[authData.__typename]![ownerId] = (counts[authData.__typename]![ownerId] || 0) - 1
+            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 }
+            // Determine if object is public
+            const isPublic = validate.isPublic(authData, userData.languages);
+            // Decrement count
+            counts[authData.__typename]![ownerId][isPublic ? 'public' : 'private']--;
         }
     }
-    // Query the database for the current counts of all objects owned by the user or organization, 
-    // and add them to the counts object
-    fdsafdsafds
-    // Check if any counts exceed the maximum
+    // Add counts for all existing objects, then check if any limits will be exceeded
+    // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
-        for (const ownerId of Object.keys(counts[objectType])) {
-            fdsafdsafd
+        // Get delegate and validate functions for the object type
+        const prismaDelegate = getDelegator(objectType as GraphQLModelType, prisma, userData.languages, 'maxObjectsCheck-existing');
+        const validate = getValidator(objectType as GraphQLModelType, userData.languages, 'maxObjectsCheck-existing');
+        // Loop through every owner in the counts object
+        for (const ownerId in counts[objectType]!) {
+            // Query the database for the current counts of objects owned by the owner
+            let currCountPrivate = await prismaDelegate.count({ where: validate.visibility.private });
+            let currCountPublic = await prismaDelegate.count({ where: validate.visibility.public });
+            // Add count obtained from add and deletes to the current counts
+            currCountPrivate += counts[objectType]![ownerId].private;
+            currCountPublic += counts[objectType]![ownerId].public;
+            // Now that we have the total counts for both private and public objects, check if either exceeds the maximum
+            const maxObjects = validate.maxObjects;
+            const ownerType = userData.id === ownerId ? 'User' : 'Organization';
+            const hasPremium = userData.hasPremium;
+            checkObjectLimit(currCountPrivate, ownerType, hasPremium, true, maxObjects, userData.languages);
+            checkObjectLimit(currCountPublic, ownerType, hasPremium, false, maxObjects, userData.languages);
         }
     }
 }

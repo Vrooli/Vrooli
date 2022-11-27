@@ -4,7 +4,6 @@ import { FindByIdOrHandleInput, Organization, OrganizationCountInput, Organizati
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import { countHelper, createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
-import { OrganizationModel } from '../models';
 
 export const typeDef = gql`
     enum OrganizationSortBy {
@@ -164,30 +163,31 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Organization';
 export const resolvers = {
     OrganizationSortBy: OrganizationSortBy,
     Query: {
         organization: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization> | null> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, model: OrganizationModel, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req })
         },
-        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
+        organizations: async (_parent: undefined, { input }: IWrap<OrganizationSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<OrganizationSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, model: OrganizationModel, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req })
         },
-        organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
+        organizationsCount: async (_parent: undefined, { input }: IWrap<OrganizationCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return countHelper({ input, model: OrganizationModel, prisma, req })
+            return countHelper({ input, objectType, prisma, req })
         },
     },
     Mutation: {
-        organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
+        organizationCreate: async (_parent: undefined, { input }: IWrap<OrganizationCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, objectType: 'Organization', prisma, req })
+            return createHelper({ info, input, objectType, prisma, req })
         },
-        organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
+        organizationUpdate: async (_parent: undefined, { input }: IWrap<OrganizationUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Organization>> => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType: 'Organization', prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req })
         },
     }
 }

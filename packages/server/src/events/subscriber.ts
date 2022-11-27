@@ -1,4 +1,4 @@
-import { getDelegate, getValidator } from "../getters";
+import { getDelegator, getValidator } from "../getters";
 import { SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { CustomError } from "./error";
@@ -30,7 +30,7 @@ export const Subscriber = (prisma: PrismaType) => ({
     ) => {
         // Find the object and its owner
         const validator = getValidator(object.__typename, userData.languages, 'Transfer.request-object');
-        const prismaDelegate = getDelegate(object.__typename, prisma, userData.languages, 'Transfer.request-object');
+        const prismaDelegate = getDelegator(object.__typename, prisma, userData.languages, 'Transfer.request-object');
         const permissionData = await prismaDelegate.findUnique({
             where: { id: object.id },
             select: validator.permissionsSelect,

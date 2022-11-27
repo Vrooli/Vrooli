@@ -3,7 +3,6 @@ import { GraphQLResolveInfo, GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 // import ogs from 'open-graph-scraper';
-import { CODE } from '@shared/consts';
 import { Context, rateLimit } from '../middleware';
 import { CustomError } from '../events/error';
 import { resolveContributor } from './resolvers';

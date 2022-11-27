@@ -27,12 +27,18 @@ const validator = (): Validator<
         user: 'User',
     },
     isTransferable: false,
+    maxObjects: {
+        User: {
+            private: 5,
+            public: 1,
+        },
+        Organization: 0,
+    },
     permissionsSelect: (...params) => ({ id: true, user: { select: UserModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['canDelete', async () => isAdmin],
         ['canEdit', async () => isAdmin],
     ]),
-    ownerOrMemberWhere: (userId) => ({ user: { id: userId } }),
     owner: (data) => ({
         User: data.user,
     }),
@@ -60,6 +66,11 @@ const validator = (): Validator<
             if (remainingVerifiedEmailsCount + verifiedWalletsCount < 1)
                 throw new CustomError('0049', 'MustLeaveVerificationMethod', userData.languages);
         }
+    },
+    visibility: {
+        private: {},
+        public: {},
+        owner: (userId) => ({ user: { id: userId } }),
     }
 })
 

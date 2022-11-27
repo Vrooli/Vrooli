@@ -37,21 +37,18 @@ const validator = (): Validator<
         routineVersion: 'Routine',
     },
     isTransferable: false,
+    maxObjects: {
+        User: {
+            private: 0,
+            public: 10000,
+        },
+        Organization: 0,
+    },
     permissionsSelect: (...params) => ({ routineVersion: { select: RoutineModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['canDelete', async () => isAdmin],
         ['canEdit', async () => isAdmin],
     ]),
-    ownerOrMemberWhere: (userId) => ({
-        routineVersion: {
-            root: {
-                OR: [
-                    { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
-            }
-        }
-    }),
     owner: (data) => RoutineModel.validate.owner(data.routineVersion as any),
     isDeleted: () => false,
     isPublic: (data, languages) => RoutineModel.validate.isPublic(data.routineVersion as any, languages),
@@ -69,6 +66,11 @@ const validator = (): Validator<
                 throw new CustomError('0052', 'MaxNodesReached', userData.languages, { totalCount });
             }
         }
+    },
+    visibility: {
+        private: { routineVersion: RoutineModel.validate.visibility.private },
+        public: { routineVersion: RoutineModel.validate.visibility.public },
+        owner: (userId) => ({ routineVersion: RoutineModel.validate.visibility.owner(userId) }),
     }
 })
 

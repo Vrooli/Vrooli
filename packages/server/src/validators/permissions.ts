@@ -1,5 +1,5 @@
 import { CustomError } from "../events";
-import { getDelegate, getValidator } from "../getters";
+import { getDelegator, getValidator } from "../getters";
 import { GraphQLModelType } from "../models/types";
 import { SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
@@ -263,7 +263,7 @@ export async function getSingleTypePermissions<PermissionObject extends { [x: st
     const permissions: PermissionObject[] = [];
     // Get validator and prismaDelegate
     const validator = getValidator(type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
-    const prismaDelegate = getDelegate(type, prisma, userData?.languages ?? ['en'], 'getSingleTypePermissions');
+    const prismaDelegate = getDelegator(type, prisma, userData?.languages ?? ['en'], 'getSingleTypePermissions');
     // Get auth data for all objects
     const authData = await prismaDelegate.findMany({
         where: { id: { in: ids } },

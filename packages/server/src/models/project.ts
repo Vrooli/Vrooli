@@ -41,7 +41,7 @@ const formatter = (): Formatter<Project, SupplementalFields> => ({
     },
     rootFields: ['hasCompleteVersion', 'isDeleted', 'isInternal', 'isPrivate', 'votes', 'stars', 'views', 'permissions'],
     joinMap: { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' },
-    countMap:  { commentsCount: 'comments', reportsCount: 'reports' },
+    countMap: { commentsCount: 'comments', reportsCount: 'reports' },
     supplemental: {
         graphqlFields: ['isStarred', 'isUpvoted', 'isViewed', 'permissionsProject'],
         toGraphQL: ({ ids, prisma, userData }) => [
@@ -130,6 +130,28 @@ const validator = (): Validator<
         forks: 'Project',
     },
     isTransferable: true,
+    maxObjects: {
+        User: {
+            private: {
+                noPremium: 3,
+                premium: 100,
+            },
+            public: {
+                noPremium: 25,
+                premium: 250,
+            },
+        },
+        Organization: {
+            private: {
+                noPremium: 3,
+                premium: 100,
+            },
+            public: {
+                noPremium: 25,
+                premium: 250,
+            },
+        },
+    },
     permissionsSelect: (...params) => ({
         id: true,
         isComplete: true,
@@ -167,14 +189,28 @@ const validator = (): Validator<
         ['ownedByOrganization', 'Organization'],
         ['ownedByUser', 'User'],
     ], languages),
-    ownerOrMemberWhere: (userId) => ({
-        root: {
+    visibility: {
+        private: {
             OR: [
-                { ownedByUser: { id: userId } },
-                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                { isPrivate: true },
+                { root: { isPrivate: true } },
             ]
-        }
-    }),
+        },
+        public: {
+            AND: [
+                { isPrivate: false },
+                { root: { isPrivate: false } },
+            ]
+        },
+        owner: (userId) => ({
+            root: {
+                OR: [
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }
+        }),
+    }
     // createMany.forEach(input => lineBreaksCheck(input, ['description'], CODE.LineBreaksDescription));
     // for (const input of updateMany) {
 })
@@ -229,21 +265,16 @@ const mutater = (): Mutater<
     yup: { create: projectsCreate, update: projectsUpdate },
 });
 
-const displayer = (): Displayer => ({
-    labels: async (prisma, objects) => {
-        const translations = await prisma.project_version_translation.findMany({
-            where: { projectVersionId: { in: objects.map((o) => o.id) } },
-            select: { projectVersionId: true, language: true, name: true }    
-        })
-        return objects.map(o => {
-            const oTrans = translations.filter(t => t.projectVersionId === o.id);
-            return bestLabel(oTrans, 'name', o.languages);
-        })
-    }
+const displayer = (): Displayer<
+    Prisma.project_versionSelect,
+    Prisma.project_versionGetPayload<{ select: { [K in keyof Required<Prisma.project_versionSelect>]: true } }>
+> => ({
+    select: { id: true, translations: { select: { language: true, name: true } } },
+    label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
 export const ProjectModel = ({
-    delegate: (prisma: PrismaType) => prisma.project,
+    delegate: (prisma: PrismaType) => prisma.project_version,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),

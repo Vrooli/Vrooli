@@ -56,6 +56,7 @@ const validator = (): Validator<
         list: 'ResourceList',
     },
     isTransferable: false,
+    maxObjects: 50000,
     permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
@@ -66,9 +67,11 @@ const validator = (): Validator<
     owner: (data) => ResourceListModel.validate.owner(data.list as any),
     isDeleted: () => false,
     isPublic: (data, languages) => ResourceListModel.validate.isPublic(data.list as any, languages),
-    ownerOrMemberWhere: (userId) => ({
-        list: ResourceListModel.validate.ownerOrMemberWhere(userId),
-    }),
+    visibility: {
+        private: {},
+        public: {},
+        owner: (userId) => ({ list: ResourceListModel.validate.visibility.owner(userId) }),
+    }
 })
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) => {

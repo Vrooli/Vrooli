@@ -47,6 +47,7 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Wallet';
 export const resolvers = {
     Query: {
         /**
@@ -173,7 +174,7 @@ export const resolvers = {
     Mutation: {
         walletUpdate: async (_parent: undefined, { input }: IWrap<WalletUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Wallet>> => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, objectType: 'Wallet', prisma: prisma, req })
+            return updateHelper({ info, input, objectType, prisma: prisma, req })
         },
     }
 }

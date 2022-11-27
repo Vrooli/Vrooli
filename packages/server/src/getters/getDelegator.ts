@@ -4,7 +4,7 @@ import { ObjectMap } from "../models";
 import { GraphQLModelType } from "../models/types";
 import { PrismaType } from "../types";
 
-export function getDelegate(
+export function getDelegator(
     objectType: GraphQLModelType,
     prisma: PrismaType,
     languages: string[],

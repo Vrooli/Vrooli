@@ -828,6 +828,7 @@ model post {
     comments       comment[]
     viewedBy       view[]         @relation("view_post")
     votedBy        vote[]         @relation("vote_post")
+    starredBy      star[]         @relation("star_post")
     reports        report[]
     tags           post_tags[]
 }
@@ -1901,6 +1902,7 @@ model star {
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
     organizationId   String?          @db.Uuid
+    postId           String?          @db.Uuid
     projectId        String?          @db.Uuid
     questionId       String?          @db.Uuid
     questionAnswerId String?          @db.Uuid
@@ -1915,6 +1917,7 @@ model star {
     comment          comment?         @relation("star_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue            issue?           @relation("star_issue", fields: [issueId], references: [id], onDelete: Cascade)
     organization     organization?    @relation("star_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    post            post?            @relation("star_post", fields: [postId], references: [id], onDelete: Cascade)
     project          project?         @relation("star_project", fields: [projectId], references: [id], onDelete: Cascade)
     question         question?        @relation("star_question", fields: [questionId], references: [id], onDelete: Cascade)
     questionAnswer   question_answer? @relation("star_question_answer", fields: [questionAnswerId], references: [id], onDelete: Cascade)

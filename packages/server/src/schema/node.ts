@@ -288,7 +288,7 @@ export const typeDef = gql`
         nodeUpdate(input: NodeUpdateInput!): Node!
     }
 `
-
+const objectType = 'Node';
 export const resolvers = {
     NodeType: NodeType,
     NodeData: {
@@ -302,11 +302,11 @@ export const resolvers = {
          */
         nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             await rateLimit({ info, maxUser: 2000, req });
-            return createHelper({ info, input, objectType: 'Node', prisma, req })
+            return createHelper({ info, input, objectType, prisma, req })
         },
         nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             await rateLimit({ info, maxUser: 2000, req });
-            return updateHelper({ info, input, objectType: 'Node', prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req })
         },
     }
 }

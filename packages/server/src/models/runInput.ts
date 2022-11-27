@@ -28,6 +28,7 @@ const validator = (): Validator<
         runRoutine: 'RunRoutine',
     },
     isTransferable: false,
+    maxObjects: 100000,
     permissionsSelect: (...params) => ({
         runRoutine: { select: RunModel.validate.permissionsSelect(...params) }
     }),
@@ -37,21 +38,14 @@ const validator = (): Validator<
         ['canView', async () => isPublic],
     ]),
     profanityFields: ['data'],
-    ownerOrMemberWhere: (userId) => ({
-        runRoutine: {
-            routineVersion: {
-                root: {
-                    OR: [
-                        { user: { id: userId } },
-                        { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                    ]
-                }
-            }
-        }
-    }),
     owner: (data) => RunModel.validate.owner(data.runRoutine as any),
     isDeleted: () => false,
     isPublic: (data, languages) => RunModel.validate.isPublic(data.runRoutine as any, languages),
+    visibility: {
+        private: { runRoutine: { isPrivate: true } },
+        public: { runRoutine: { isPrivate: false } },
+        owner: (userId) => ({ runRoutine: RunModel.validate.visibility.owner(userId) }),
+    },
 })
 
 // const searcher = (): Searcher<RunSearchInput, RunSortBy, Prisma.run_routineOrderByWithRelationInput, Prisma.run_routineWhereInput> => ({

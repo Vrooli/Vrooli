@@ -65,6 +65,7 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Star';
 export const resolvers = {
     StarSortBy: StarSortBy,
     StarFor: StarFor,
@@ -75,7 +76,7 @@ export const resolvers = {
         stars: async (_parent: undefined, { input }: IWrap<StarSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StarSearchResult> => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            return readManyHelper({ info, input, model: StarModel, prisma, req, additionalQueries: { userId: userData.id } });
+            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
         },
     },
     Mutation: {

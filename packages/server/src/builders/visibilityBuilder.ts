@@ -1,5 +1,4 @@
 import { getValidator } from "../getters";
-import { combineQueries } from "./combineQueries";
 import { VisibilityBuilderProps } from "./types";
 
 /**
@@ -11,31 +10,19 @@ export function visibilityBuilder({
     visibility,
 }: VisibilityBuilderProps): { [x: string]: any } {
     // Get validator for object type
-    const validator = getValidator(objectType, userData?.languages ?? ['en'], 'visibilityBuilder');
+    const validate = getValidator(objectType, userData?.languages ?? ['en'], 'visibilityBuilder');
     // If visibility is set to public or not defined, 
     // or user is not logged in, or model does not have 
     // the correct data to query for ownership
     if (!visibility || visibility === 'Public' || !userData) {
-        return { isPrivate: false };
+        return validate.visibility.public;
     }
     // If visibility is set to private, query private objects that you own
     else if (visibility === 'Private') {
-        return combineQueries([
-            { isPrivate: true }, 
-            validator.ownerOrMemberWhere(userData.id)
-        ])
+        return validate.visibility.private
     }
-    // Otherwise, must be set to All
+    // Otherwise, must be set to all
     else {
-        let query = validator.ownerOrMemberWhere(userData.id);
-        // If query has OR field with an array value, add isPrivate: false to OR array
-        if ('OR' in query && Array.isArray(query.OR)) {
-            query.OR.push({ isPrivate: false });
-        }
-        // Otherwise, wrap query in OR with isPrivate: false
-        else {
-            query = { OR: [query, { isPrivate: false }] };
-        }
-        return query;
+        return validate.visibility.owner(userData.id);
     }
 }

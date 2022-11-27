@@ -132,7 +132,7 @@ const querier = () => ({
         const profileData = await readOneHelper<any>({
             info,
             input: { id: userData.id },
-            model: ProfileModel,
+            objectType: 'Profile',
             prisma,
             req,
         })
@@ -152,7 +152,7 @@ const mutater = () => ({
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
         // Check for correct password
-        let user = await prisma.user.findUnique({ where: { id: userId } });
+        let user = await prisma.user.findUnique({ where: { id: userData.id } });
         if (!user)
             throw new CustomError('0068', 'NoUser', userData.languages);
         if (!validatePassword(input.currentPassword, user, userData.languages))

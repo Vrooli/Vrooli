@@ -1,7 +1,9 @@
 import { getUser } from "../auth";
 import { addSupplementalFields, combineQueries, modelToGraphQL, onlyValidIds, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
+import { CustomError } from "../events";
 import { getSearchString } from "../getters";
+import { ObjectMap } from "../models";
 import { Searcher } from "../models/types";
 import { ReadManyHelperProps } from "./types";
 
@@ -16,11 +18,13 @@ export async function readManyHelper<GraphQLModel extends { [x: string]: any }>(
     addSupplemental = true,
     info,
     input,
-    model,
+    objectType,
     prisma,
     req,
 }: ReadManyHelperProps<GraphQLModel>): Promise<PaginatedSearchResult> {
     const userData = getUser(req);
+    const model = ObjectMap[objectType];
+    if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
     // Partially convert info type
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap, req.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
@@ -35,7 +39,7 @@ export async function readManyHelper<GraphQLModel extends { [x: string]: any }>(
     // Determine updatedTimeFrame query
     const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
     // Create type-specific queries
-    let typeQuery = searcher?.customQueries ? searcher.customQueries(input, userData?.id) : undefined;
+    let typeQuery = searcher?.customQueries ? searcher.customQueries(input, userData) : undefined;
     // Combine queries
     const where = combineQueries([additionalQueries, idQuery, searchQuery, createdQuery, updatedQuery, typeQuery]);
     // Determine sort order

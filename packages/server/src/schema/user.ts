@@ -169,25 +169,26 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'User';
 export const resolvers = {
     UserSortBy: UserSortBy,
     Query: {
         profile: async (_parent: undefined, _args: undefined, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
             assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            return ProfileModel.query(prisma).findProfile(req, info);
+            return ProfileModel.query.findProfile(prisma, req, info);
         },
         user: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<User> | null> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, model: UserModel, prisma, req });
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         users: async (_parent: undefined, { input }: IWrap<UserSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<UserSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, model: UserModel, prisma, req });
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
         usersCount: async (_parent: undefined, { input }: IWrap<UserCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return countHelper({ input, model: UserModel, prisma, req });
+            return countHelper({ input, objectType: 'User', prisma, req });
         },
     },
     Mutation: {

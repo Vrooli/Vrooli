@@ -32,6 +32,7 @@ const validator = (): Validator<
         subroutine: 'Routine',
     },
     isTransferable: false,
+    maxObjects: 100000,
     permissionsSelect: (...params) => ({
         runRoutine: { select: RunModel.validate.permissionsSelect(...params) }
     }),
@@ -41,21 +42,14 @@ const validator = (): Validator<
         ['canView', async () => isPublic],
     ]),
     profanityFields: ['title'],
-    ownerOrMemberWhere: (userId) => ({
-        runRoutine: {
-            routineVersion: {
-                root: {
-                    OR: [
-                        { ownedByUser: { id: userId } },
-                        { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                    ]
-                }
-            }
-        }
-    }),
     owner: (data) => RunModel.validate.owner(data.runRoutine as any),
     isDeleted: () => false,
     isPublic: (data, languages) => RunModel.validate.isPublic(data.runRoutine as any, languages),
+    visibility: {
+        private: { runRoutine: { isPrivate: true } },
+        public: { runRoutine: { isPrivate: false } },
+        owner: (userId) => ({ runRoutine: RunModel.validate.visibility.owner(userId) }),
+    },
 })
 
 const shapeBase = (data: RunStepCreateInput | RunStepUpdateInput) => {

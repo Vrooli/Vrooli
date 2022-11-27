@@ -124,7 +124,7 @@ export interface PrismaDelegate {
         _sum?: any;
         _min?: any;
         _max?: any;
-    }) => Promise<{ count: number }>;
+    }) => Promise<any>;
 }
 
 export type PaginatedSearchResult = {

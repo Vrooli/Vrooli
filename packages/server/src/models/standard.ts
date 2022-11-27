@@ -138,6 +138,28 @@ const validator = (): Validator<
         // directoryListings: 'ProjectDirectory',
     },
     isTransferable: true,
+    maxObjects: {
+        User: {
+            private: {
+                noPremium: 5,
+                premium: 100,
+            },
+            public: {
+                noPremium: 100,
+                premium: 1000,
+            },
+        },
+        Organization: {
+            private: {
+                noPremium: 5,
+                premium: 100,
+            },
+            public: {
+                noPremium: 100,
+                premium: 1000,
+            },
+        },
+    },
     permissionsSelect: (...params) => ({
         id: true,
         isComplete: true,
@@ -179,14 +201,28 @@ const validator = (): Validator<
             ['ownedByUser', 'User'],
         ], languages),
     profanityFields: ['name'],
-    ownerOrMemberWhere: (userId) => ({
-        root: {
+    visibility: {
+        private: {
             OR: [
-                { ownedByUser: { id: userId } },
-                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                { isPrivate: true },
+                { root: { isPrivate: true } },
             ]
-        }
-    }),
+        },
+        public: {
+            AND: [
+                { isPrivate: false },
+                { root: { isPrivate: false } },
+            ]
+        },
+        owner: (userId) => ({
+            root: {
+                OR: [
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }
+        }),
+    },
     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
     // TODO when deleting, anonymize standards which are being used by inputs/outputs
     // const standard = await prisma.standard_version.findUnique({
@@ -458,17 +494,12 @@ const mutater = (): Mutater<
     },
 })
 
-const displayer = (): Displayer => ({
-    labels: async (prisma, objects) => {
-        const nameData = await prisma.standard.findMany({
-            where: { id: { in: objects.map(o => o.id) } },
-            select: { id: true, name: true }    
-        })
-        return objects.map(o => {
-            const name = nameData.find(n => n.id === o.id)?.name;
-            return name ?? '';
-        })
-    }
+const displayer = (): Displayer<
+    Prisma.standard_versionSelect,
+    Prisma.standard_versionGetPayload<{ select: { [K in keyof Required<Prisma.standard_versionSelect>]: true } }>
+> => ({
+    select: { id: true, root: { select: { name: true }}},
+    label: (select) => select.root.name ?? '',
 })
 
 export const StandardModel = ({

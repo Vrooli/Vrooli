@@ -3,7 +3,7 @@ import { IWrap } from '../types';
 import { RunInputSortBy } from './types';
 import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { readManyHelper, RunInputModel } from '../models';
+import { readManyHelper } from '../actions';
 
 export const typeDef = gql`
     enum RunInputSortBy {
@@ -56,12 +56,13 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'RunInput';
 export const resolvers = {
     RunInputSortBy: RunInputSortBy,
     Query: {
         runInputs: async (_parent: undefined, { input }: IWrap<any>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<any> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, model: RunInputModel, prisma, req });
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
     },
 }

@@ -7,7 +7,7 @@ import { ViewModel } from "./view";
 import { CustomError, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Duplicater, Displayer } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer, Duplicator } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
@@ -196,6 +196,28 @@ const validator = (): Validator<
         // directoryListings: 'ProjectDirectory',
     },
     isTransferable: true,
+    maxObjects: {
+        User: {
+            private: {
+                noPremium: 25,
+                premium: 250,
+            },
+            public: {
+                noPremium: 100,
+                premium: 2000,
+            },
+        },
+        Organization: {
+            private: {
+                noPremium: 25,
+                premium: 250,
+            },
+            public: {
+                noPremium: 100,
+                premium: 2000,
+            },
+        },
+    },
     permissionsSelect: (...params) => ({
         id: true,
         isComplete: true,
@@ -237,14 +259,28 @@ const validator = (): Validator<
             ['ownedByOrganization', 'Organization'],
             ['ownedByUser', 'User'],
         ], languages),
-    ownerOrMemberWhere: (userId) => ({
-        root: {
+    visibility: {
+        private: {
             OR: [
-                { ownedByUser: { id: userId } },
-                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                { isPrivate: true },
+                { root: { isPrivate: true } },
             ]
-        }
-    }),
+        },
+        public: {
+            AND: [
+                { isPrivate: false },
+                { root: { isPrivate: false } },
+            ]
+        },
+        owner: (userId) => ({
+            root: {
+                OR: [
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }
+        }),
+    },
     // if (createMany) {
     //     createMany.forEach(input => this.validateNodePositions(input));
     // }
@@ -339,7 +375,7 @@ const calculateShortestLongestWeightedPath = (
     ]
 }
 
-const routineDuplicater = (): Duplicater<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
+const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
     select: {
         id: true,
         apiCallData: true,
@@ -464,7 +500,7 @@ const routineDuplicater = (): Duplicater<Prisma.routine_versionSelect, Prisma.ro
             select: {
                 isRequired: true,
                 name: true,
-                standardId: true,
+                standardVersionId: true,
                 translations: {
                     select: {
                         description: true,
@@ -476,7 +512,7 @@ const routineDuplicater = (): Duplicater<Prisma.routine_versionSelect, Prisma.ro
         outputs: {
             select: {
                 name: true,
-                standardId: true,
+                standardVersionId: true,
                 translations: {
                     select: {
                         description: true,
@@ -753,17 +789,12 @@ const mutater = (): Mutater<
     yup: { create: routinesCreate, update: routinesUpdate },
 })
 
-const displayer = (): Displayer => ({
-    labels: async (prisma, objects) => {
-        const translations = await prisma.routine_version_translation.findMany({
-            where: { routineVersionId: { in: objects.map((o) => o.id) } },
-            select: { routineVersionId: true, language: true, title: true }
-        })
-        return objects.map(o => {
-            const oTrans = translations.filter(t => t.routineVersionId === o.id);
-            return bestLabel(oTrans, 'title', o.languages);
-        })
-    }
+const displayer = (): Displayer<
+    Prisma.routine_versionSelect,
+    Prisma.routine_versionGetPayload<{ select: { [K in keyof Required<Prisma.routine_versionSelect>]: true } }>
+> => ({
+    select: { id: true, translations: { select: { language: true, title: true } } },
+    label: (select, languages) => bestLabel(select.translations, 'title', languages),
 })
 
 export const RoutineModel = ({

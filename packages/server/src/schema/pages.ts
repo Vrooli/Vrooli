@@ -6,7 +6,6 @@ import { GraphQLResolveInfo } from "graphql";
 import { HomePageInput, HomePageResult, DevelopPageResult, LearnPageResult, OrganizationSortBy, ProjectSortBy, ResearchPageResult, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, HistoryPageInput, HistoryPageResult, StatisticsPageInput, StatisticsPageResult, Project, Routine, RunStatus, RunSortBy, ViewSortBy } from './types';
 import { IWrap } from '../types';
 import { Context, rateLimit } from '../middleware';
-import { OrganizationModel, ProjectModel, RoutineModel, RunModel, StandardModel, StarModel, UserModel, ViewModel } from '../models';
 import { CustomError } from '../events/error';
 import { assertRequestFrom, getUser } from '../auth/request';
 import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
@@ -112,7 +111,7 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.organizations as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: OrganizationSortBy.StarsDesc },
-                model: OrganizationModel,
+                objectType: 'Organization',
             });
             // Query projects
             const { nodes: projects } = await readManyAsFeedHelper({
@@ -120,7 +119,7 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.projects as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: ProjectSortBy.StarsDesc, isComplete: true },
-                model: ProjectModel,
+                objectType: 'Project',
             });
             // Query routines
             const { nodes: routines } = await readManyAsFeedHelper({
@@ -128,7 +127,7 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.routines as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: RoutineSortBy.StarsDesc, isComplete: true, isInternal: false },
-                model: RoutineModel,
+                objectType: 'Routine',
             });
             // Query standards
             const { nodes: standards } = await readManyAsFeedHelper({
@@ -136,7 +135,7 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.standards as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: StandardSortBy.StarsDesc, type: 'JSON' },
-                model: StandardModel,
+                objectType: 'Standard',
             });
             // Query users
             const { nodes: users } = await readManyAsFeedHelper({
@@ -144,7 +143,7 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery },
                 info: partial.users as PartialGraphQLInfo,
                 input: { ...input, take, sortBy: UserSortBy.StarsDesc },
-                model: UserModel,
+                objectType: 'User',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
@@ -183,7 +182,7 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.courses as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
-                model: ProjectModel,
+                objectType: 'Project',
             });
             // Query tutorials
             const { nodes: tutorials } = await readManyAsFeedHelper({
@@ -191,7 +190,7 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.tutorials as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
-                model: RoutineModel,
+                objectType: 'Routine',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
@@ -233,7 +232,7 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.processes as PartialGraphQLInfo,
                 input: { take, sortBy: RoutineSortBy.VotesDesc, tags: ['Research'], isComplete: true, isInternal: false },
-                model: RoutineModel,
+                objectType: 'Routine',
             });
             // Query newlyCompleted
             const { nodes: newlyCompletedProjects } = await readManyAsFeedHelper({
@@ -241,14 +240,14 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: (partial.newlyCompleted as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, sortBy: ProjectSortBy.DateCompletedAsc, isComplete: true },
-                model: ProjectModel,
+                objectType: 'Project',
             });
             const { nodes: newlyCompletedRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: (partial.newlyCompleted as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
                 input: { take, isComplete: true, isInternal: false, sortBy: RoutineSortBy.DateCompletedAsc },
-                model: RoutineModel,
+                objectType: 'Routine',
             });
             // Query needVotes
             const { nodes: needVotes } = await readManyAsFeedHelper({
@@ -256,7 +255,7 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.needVotes as PartialGraphQLInfo,
                 input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Proposal] },
-                model: ProjectModel,
+                objectType: 'Project',
             });
             // Query needInvestments
             const { nodes: needInvestments } = await readManyAsFeedHelper({
@@ -264,14 +263,14 @@ export const resolvers = {
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.needInvestments as PartialGraphQLInfo,
                 input: { take, isComplete: false, resourceTypes: [ResourceUsedFor.Donation] },
-                model: ProjectModel,
+                objectType: 'Project',
             });
             // Query needMembers
             const { nodes: needMembers } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: partial.needMembers as PartialGraphQLInfo,
                 input: { take, isOpenToNewMembers: true, sortBy: OrganizationSortBy.StarsDesc },
-                model: OrganizationModel,
+                objectType: 'Organization',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
@@ -334,42 +333,42 @@ export const resolvers = {
                 ...commonReadParams,
                 info: (partial.completed as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
                 input: { take, isComplete: true, isInternal: false, userId, sortBy: RoutineSortBy.DateCompletedAsc },
-                model: RoutineModel,
+                objectType: 'Routine',
             });
             // Query for projects you've completed
             const { nodes: completedProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.completed as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, isComplete: true, userId, sortBy: ProjectSortBy.DateCompletedAsc },
-                model: ProjectModel,
+                objectType: 'Project',
             });
             // Query for routines you're currently working on
             const { nodes: inProgressRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.inProgress as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
                 input: { take, isComplete: false, isInternal: false, userId, sortBy: RoutineSortBy.DateCreatedAsc },
-                model: RoutineModel,
+                objectType: 'Routine',
             });
             // Query for projects you're currently working on
             const { nodes: inProgressProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.inProgress as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, isComplete: false, userId, sortBy: ProjectSortBy.DateCreatedAsc },
-                model: ProjectModel,
+                objectType: 'Project',
             });
             // Query recently created/updated routines
             const { nodes: recentRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.recent as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
                 input: { take, userId, sortBy: RoutineSortBy.DateUpdatedAsc, isInternal: false },
-                model: RoutineModel,
+                objectType: 'Routine',
             });
             // Query recently created/updated projects
             const { nodes: recentProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.recent as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
                 input: { take, userId, sortBy: ProjectSortBy.DateUpdatedAsc },
-                model: ProjectModel,
+                objectType: 'Project',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
@@ -428,7 +427,7 @@ export const resolvers = {
                 additionalQueries: { userId },
                 info: partial.activeRuns as PartialGraphQLInfo,
                 input: { take, ...input, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
-                model: RunModel,
+                objectType: 'RunRoutine',
             });
             // Query for complete runs
             const { nodes: completedRuns } = await readManyAsFeedHelper({
@@ -436,7 +435,7 @@ export const resolvers = {
                 additionalQueries: { userId },
                 info: partial.completedRuns as PartialGraphQLInfo,
                 input: { take, ...input, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
-                model: RunModel,
+                objectType: 'RunRoutine',
             });
             // Query recently viewed objects (of any type)
             const { nodes: recentlyViewed } = await readManyAsFeedHelper({
@@ -444,7 +443,7 @@ export const resolvers = {
                 additionalQueries: { userId },
                 info: partial.recentlyViewed as PartialGraphQLInfo,
                 input: { take, ...input, sortBy: ViewSortBy.LastViewedDesc },
-                model: ViewModel,
+                objectType: 'View',
             });
             // Query recently starred objects (of any type). Make sure to ignore tags
             const { nodes: recentlyStarred } = await readManyAsFeedHelper({
@@ -452,7 +451,7 @@ export const resolvers = {
                 additionalQueries: { userId },
                 info: partial.recentlyStarred as PartialGraphQLInfo,
                 input: { take, ...input, sortBy: UserSortBy.DateCreatedDesc, excludeTags: true },
-                model: StarModel,
+                objectType: 'Star',
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(

@@ -9,6 +9,7 @@ import { ReadOneHelperProps } from "./types";
 import { getUser } from "../auth";
 import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { getIdFromHandle, getLatestVersion } from "../getters";
+import { ObjectMap } from "../models";
 
 /**
  * Helper function for reading one object in a single line
@@ -17,12 +18,13 @@ import { getIdFromHandle, getLatestVersion } from "../getters";
 export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     info,
     input,
-    model,
+    objectType,
     prisma,
     req,
 }: ReadOneHelperProps<GraphQLModel>): Promise<RecursivePartial<GraphQLModel>> {
-    const objectType = model.format.relationshipMap.__typename;
     const userData = getUser(req);
+    const model = ObjectMap[objectType];
+    if (!model) throw new CustomError('0350', 'InternalError', req.languages, { objectType });
     // Validate input. Can read by id, handle, or versionGroupId
     if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
         throw new CustomError('0019', 'IdOrHandleRequired', userData?.languages ?? req.languages);

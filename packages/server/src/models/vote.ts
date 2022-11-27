@@ -5,10 +5,11 @@ import { resolveVoteTo } from "../schema/resolvers";
 import { SessionUser, Vote, VoteInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { readManyHelper } from "../actions";
-import { AniedModelLogic, Formatter, GraphQLModelType, ModelLogic } from "./types";
-import { ObjectMap } from ".";
+import { AniedModelLogic, Displayer, Formatter, GraphQLModelType, ModelLogic } from "./types";
+import { CommentModel, ObjectMap, ProjectModel, RoutineModel, StandardModel } from ".";
 import { PartialGraphQLInfo } from "../builders/types";
-import { onlyValidIds } from "../builders";
+import { onlyValidIds, padSelect } from "../builders";
+import { Prisma } from "@prisma/client";
 
 const formatter = (): Formatter<Vote, 'to'> => ({
     relationshipMap: {
@@ -39,7 +40,7 @@ const formatter = (): Formatter<Vote, 'to'> => ({
                     })
                     // Query for each type
                     const tos: any[] = [];
-                    for (const type of Object.keys(toIdsByType)) {
+                    for (const objectType of Object.keys(toIdsByType)) {
                         const validTypes: GraphQLModelType[] = [
                             'Comment',
                             'Organization',
@@ -49,14 +50,13 @@ const formatter = (): Formatter<Vote, 'to'> => ({
                             'Tag',
                             'User',
                         ];
-                        if (!validTypes.includes(type as GraphQLModelType)) {
-                            throw new CustomError('0321', 'InternalError', languages, { type });
+                        if (!validTypes.includes(objectType as GraphQLModelType)) {
+                            throw new CustomError('0321', 'InternalError', languages, { objectType });
                         }
-                        const model: AniedModelLogic<any> = ObjectMap[type] as AniedModelLogic<any>
                         const paginated = await readManyHelper({
-                            info: partial.to[type] as PartialGraphQLInfo,
-                            input: { ids: toIdsByType[type] },
-                            model,
+                            info: partial.to[objectType] as PartialGraphQLInfo,
+                            input: { ids: toIdsByType[objectType] },
+                            objectType: objectType as GraphQLModelType,
                             prisma,
                             req: { languages, users: [userData] }
                         })
@@ -183,8 +183,42 @@ const querier = () => ({
     },
 })
 
+const displayer = (): Displayer<
+    Prisma.voteSelect,
+    Prisma.voteGetPayload<{ select: { [K in keyof Required<Prisma.voteSelect>]: true } }>
+> => ({
+    select: {
+        // api: padSelect(ApiModel.display.select),
+        comment: padSelect(CommentModel.display.select),
+        // issue: padSelect(IssueModel.display.select),
+        // post: padSelect(PostModel.display.select),
+        project: padSelect(ProjectModel.display.select),
+        // question: padSelect(QuestionModel.display.select),
+        // questionAnswer: padSelect(QuestionAnswerModel.display.select),
+        // quiz: padSelect(QuizModel.display.select),
+        routine: padSelect(RoutineModel.display.select),
+        // smartContract: padSelect(SmartContractModel.display.select),
+        standard: padSelect(StandardModel.display.select),
+    },
+    label: (select, languages) => {
+        // if (select.api) return ApiModel.display.label(select.api as any, languages);
+        if (select.comment) return CommentModel.display.label(select.comment as any, languages);
+        // if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+        // if (select.post) return PostModel.display.label(select.post as any, languages);
+        if (select.project) return ProjectModel.display.label(select.project as any, languages);
+        // if (select.question) return QuestionModel.display.label(select.question as any, languages);
+        // if (select.questionAnswer) return QuestionAnswerModel.display.label(select.questionAnswer as any, languages);
+        // if (select.quiz) return QuizModel.display.label(select.quiz as any, languages);
+        if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
+        // if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
+        if (select.standard) return StandardModel.display.label(select.standard as any, languages);
+        return '';
+    }
+})
+
 export const VoteModel = ({
     delegate: (prisma: PrismaType) => prisma.vote,
+    display: displayer(),
     format: formatter(),
     query: querier(),
     type: 'Vote' as GraphQLModelType,

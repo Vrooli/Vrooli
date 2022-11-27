@@ -11,11 +11,11 @@ import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../schema
 import { User, ViewSearchInput, Count, SessionUser } from "../schema/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "../actions";
-import { AniedModelLogic, Formatter, GraphQLModelType, ModelLogic, Searcher } from "./types";
+import { AniedModelLogic, Displayer, Formatter, GraphQLModelType, ModelLogic, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
 import { ObjectMap } from ".";
 import { PartialGraphQLInfo } from "../builders/types";
-import { combineQueries, lowercaseFirstLetter, onlyValidIds, timeFrameToPrisma } from "../builders";
+import { combineQueries, lowercaseFirstLetter, onlyValidIds, padSelect, timeFrameToPrisma } from "../builders";
 
 interface View {
     __typename?: 'View';
@@ -52,7 +52,7 @@ const formatter = (): Formatter<View, 'to'> => ({
                     })
                     // Query for each type
                     const tos: any[] = [];
-                    for (const type of Object.keys(toIdsByType)) {
+                    for (const objectType of Object.keys(toIdsByType)) {
                         const validTypes: Array<GraphQLModelType> = [
                             'Organization',
                             'Project',
@@ -60,14 +60,13 @@ const formatter = (): Formatter<View, 'to'> => ({
                             'Standard',
                             'User',
                         ];
-                        if (!validTypes.includes(type as GraphQLModelType)) {
-                            throw new CustomError('0186', 'InternalError', languages, { type });
+                        if (!validTypes.includes(objectType as GraphQLModelType)) {
+                            throw new CustomError('0186', 'InternalError', languages, { objectType });
                         }
-                        const model = ObjectMap[type] as AniedModelLogic<any>
                         const paginated = await readManyHelper({
-                            info: partial.to[type] as PartialGraphQLInfo,
-                            input: { ids: toIdsByType[type] },
-                            model,
+                            info: partial.to[objectType] as PartialGraphQLInfo,
+                            input: { ids: toIdsByType[objectType] },
+                            objectType: objectType as GraphQLModelType,
                             prisma,
                             req: { languages, users: [userData] }
                         })
@@ -279,8 +278,35 @@ const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> =>
     })
 }
 
+const displayer = (): Displayer<
+    Prisma.viewSelect,
+    Prisma.viewGetPayload<{ select: { [K in keyof Required<Prisma.viewSelect>]: true } }>
+> => ({
+    select: {
+        // api: padSelect(ApiModel.display.select),
+        organization: padSelect(OrganizationModel.display.select),
+        // post: padSelect(PostModel.display.select),
+        project: padSelect(ProjectModel.display.select),
+        routine: padSelect(RoutineModel.display.select),
+        // smartContract: padSelect(SmartContractModel.display.select),
+        standard: padSelect(StandardModel.display.select),
+        user: padSelect(UserModel.display.select),
+    },
+    label: (select, languages) => {
+        // if (select.api) return ApiModel.display.label(select.api as any, languages);
+        if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
+        if (select.project) return ProjectModel.display.label(select.project as any, languages);
+        if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
+        // if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
+        if (select.standard) return StandardModel.display.label(select.standard as any, languages);
+        if (select.user) return UserModel.display.label(select.user as any, languages);
+        return '';
+    }
+})
+
 export const ViewModel = ({
     delegate: (prisma: PrismaType) => prisma.view,
+    display: displayer(),
     format: formatter(),
     search: searcher(),
     query: querier(),

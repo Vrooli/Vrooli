@@ -1,6 +1,6 @@
 import { assertRequestFrom } from "../auth/request";
-import { CustomError, Trigger } from "../events";
-import { getDelegate, getValidator } from "../getters";
+import { Trigger } from "../events";
+import { getDelegator, getDuplicator, getValidator } from "../getters";
 import { getAuthenticatedData } from "../utils";
 import { maxObjectsCheck, permissionsCheck } from "../validators";
 import { readOneHelper } from "./readOneHelper";
@@ -22,8 +22,8 @@ export async function forkHelper({
     // find the IDs which need to be authenticated. Other functions use getAuthenticatedIds, 
     // but that function only looks at data being passed in, not data in the database.
     const validator = getValidator(objectType, req.languages, 'forkHelper');
-    const prismaDelegate = getDelegate(objectType, prisma, req.languages, 'forkHelper');
-    const duplicator = getDuplicator(objectType, prisma, req.languages, 'forkHelper');
+    const prismaDelegate = getDelegator(objectType, prisma, req.languages, 'forkHelper');
+    const duplicator = getDuplicator(objectType, req.languages, 'forkHelper');
     // Query for data required to validate ownership
     asdfasdf
     // Find owners of all objects being validated. Any object which is private 

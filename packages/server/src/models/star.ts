@@ -11,12 +11,12 @@ import { resolveStarTo } from "../schema/resolvers";
 import { Star, StarSearchInput, StarInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { readManyHelper } from "../actions";
-import { AniedModelLogic, Formatter, GraphQLModelType, ModelLogic, Searcher } from "./types";
+import { Displayer, Formatter, GraphQLModelType, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
-import { ObjectMap } from ".";
+import { UserModel } from ".";
 import { PartialGraphQLInfo } from "../builders/types";
-import { combineQueries, onlyValidIds } from "../builders";
-import { getDelegate } from "../getters";
+import { combineQueries, onlyValidIds, padSelect } from "../builders";
+import { getDelegator } from "../getters";
 
 const formatter = (): Formatter<Star, 'to'> => ({
     relationshipMap: {
@@ -49,7 +49,7 @@ const formatter = (): Formatter<Star, 'to'> => ({
                     })
                     // Query for each type
                     const tos: any[] = [];
-                    for (const type of Object.keys(toIdsByType)) {
+                    for (const objectType of Object.keys(toIdsByType)) {
                         const validTypes: GraphQLModelType[] = [
                             'Comment',
                             'Organization',
@@ -59,14 +59,13 @@ const formatter = (): Formatter<Star, 'to'> => ({
                             'Tag',
                             'User',
                         ];
-                        if (!validTypes.includes(type as GraphQLModelType)) {
-                            throw new CustomError('0185', 'InternalError', languages, { type });
+                        if (!validTypes.includes(objectType as GraphQLModelType)) {
+                            throw new CustomError('0185', 'InternalError', languages, { objectType });
                         }
-                        const model: AniedModelLogic<any> = ObjectMap[type] as AniedModelLogic<any>;
                         const paginated = await readManyHelper({
-                            info: partial.to[type] as PartialGraphQLInfo,
-                            input: { ids: toIdsByType[type] },
-                            model,
+                            info: partial.to[objectType] as PartialGraphQLInfo,
+                            input: { ids: toIdsByType[objectType] },
+                            objectType: objectType as GraphQLModelType,
                             prisma,
                             req: { languages, users: [userData] }
                         })
@@ -130,7 +129,7 @@ const star = async (prisma: PrismaType, userData: SessionUser, input: StarInput)
         }
     })
     // Get prisma delegate for type of object being starred
-    const prismaDelegate = getDelegate(input.starFor, prisma, userData.languages, 'star');
+    const prismaDelegate = getDelegator(input.starFor, prisma, userData.languages, 'star');
     // Check if object being starred exists
     const starringFor: null | { id: string, stars: number } = await prismaDelegate.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } }) as any;
     if (!starringFor)
@@ -204,8 +203,48 @@ const querier = () => ({
     },
 })
 
+const displayer = (): Displayer<
+    Prisma.starSelect,
+    Prisma.starGetPayload<{ select: { [K in keyof Required<Prisma.starSelect>]: true } }>
+> => ({
+    select: {
+        // api: padSelect(ApiModel.display.select),
+        comment: padSelect(CommentModel.display.select),
+        // issue: padSelect(IssueModel.display.select),
+        organization: padSelect(OrganizationModel.display.select),
+        // post: padSelect(PostModel.display.select),
+        project: padSelect(ProjectModel.display.select),
+        // question: padSelect(QuestionModel.display.select),
+        // questionAnswer: padSelect(QuestionAnswerModel.display.select),
+        // quiz: padSelect(QuizModel.display.select),
+        routine: padSelect(RoutineModel.display.select),
+        // smartContract: padSelect(SmartContractModel.display.select),
+        standard: padSelect(StandardModel.display.select),
+        tag: padSelect(TagModel.display.select),
+        user: padSelect(UserModel.display.select),
+    },
+    label: (select, languages) => {
+        // if (select.api) return ApiModel.display.label(select.api as any, languages);
+        if (select.comment) return CommentModel.display.label(select.comment as any, languages);
+        // if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+        if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
+        // if (select.post) return PostModel.display.label(select.post as any, languages);
+        if (select.project) return ProjectModel.display.label(select.project as any, languages);
+        // if (select.question) return QuestionModel.display.label(select.question as any, languages);
+        // if (select.questionAnswer) return QuestionAnswerModel.display.label(select.questionAnswer as any, languages);
+        // if (select.quiz) return QuizModel.display.label(select.quiz as any, languages);
+        if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
+        // if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
+        if (select.standard) return StandardModel.display.label(select.standard as any, languages);
+        if (select.tag) return TagModel.display.label(select.tag as any, languages);
+        if (select.user) return UserModel.display.label(select.user as any, languages);
+        return '';
+    }
+})
+
 export const StarModel = ({
     delegate: (prisma: PrismaType) => prisma.star,
+    display: displayer(),
     format: formatter(),
     query: querier(),
     search: searcher(),

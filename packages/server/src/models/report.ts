@@ -2,11 +2,17 @@ import { reportsCreate, reportsUpdate } from "@shared/validation";
 import { ReportFor, ReportSortBy } from '@shared/consts';
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { UserModel } from "./user";
-import { combineQueries } from "../builders";
+import { combineQueries, padSelect } from "../builders";
+import { CommentModel } from "./comment";
+import { OrganizationModel } from "./organization";
+import { ProjectModel } from "./project";
+import { RoutineModel } from "./routine";
+import { StandardModel } from "./standard";
+import { TagModel } from "./tag";
 
 type SupplementalFields = 'isOwn';
 const formatter = (): Formatter<Report, SupplementalFields> => ({
@@ -74,6 +80,13 @@ const validator = (): Validator<
         __typename: 'Report',
     },
     isTransferable: false,
+    maxObjects: {
+        User: {
+            private: 0,
+            public: 10000,
+        },
+        Organization: 0,
+    },
     permissionsSelect: (...params) => ({ id: true, createdBy: { select: UserModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['isOwn', async () => isAdmin],
@@ -83,7 +96,6 @@ const validator = (): Validator<
     }),
     isDeleted: () => false,
     isPublic: () => true,
-    ownerOrMemberWhere: (userId) => ({ createdById: userId }),
     profanityFields: ['reason', 'details'],
     validations: {
         create: async ({ createMany, prisma, userData }) => {
@@ -101,6 +113,11 @@ const validator = (): Validator<
                 throw new CustomError('0337', 'MaxReportsReached', userData.languages);
         }
     },
+    visibility: {
+        private: {},
+        public: {},
+        owner: (userId) => ({ createdBy: { id: userId } }),
+    }
 })
 
 const mutater = (): Mutater<
@@ -139,8 +156,42 @@ const mutater = (): Mutater<
     yup: { create: reportsCreate, update: reportsUpdate },
 })
 
+const displayer = (): Displayer<
+    Prisma.reportSelect,
+    Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>
+> => ({
+    select: {
+        // apiVersion: padSelect(ApiModel.display.select),
+        comment: padSelect(CommentModel.display.select),
+        // issue: padSelect(IssueModel.display.select),
+        organization: padSelect(OrganizationModel.display.select),
+        // post: padSelect(PostModel.display.select),
+        projectVersion: padSelect(ProjectModel.display.select),
+        routineVersion: padSelect(RoutineModel.display.select),
+        // smartContractVersion: padSelect(SmartContractModel.display.select),
+        standardVersion: padSelect(StandardModel.display.select),
+        tag: padSelect(TagModel.display.select),
+        user: padSelect(UserModel.display.select),
+    },
+    label: (select, languages) => {
+        // if (select.apiVersion) return ApiModel.display.label(select.api as any, languages);
+        if (select.comment) return CommentModel.display.label(select.comment as any, languages);
+        // if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+        if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
+        // if (select.post) return PostModel.display.label(select.post as any, languages);
+        if (select.projectVersion) return ProjectModel.display.label(select.projectVersion as any, languages);
+        if (select.routineVersion) return RoutineModel.display.label(select.routineVersion as any, languages);
+        // if (select.smartContractVersion) return SmartContractModel.display.label(select.smartContractVersion as any, languages);
+        if (select.standardVersion) return StandardModel.display.label(select.standardVersion as any, languages);
+        if (select.tag) return TagModel.display.label(select.tag as any, languages);
+        if (select.user) return UserModel.display.label(select.user as any, languages);
+        return '';
+    }
+})
+
 export const ReportModel = ({
     delegate: (prisma: PrismaType) => prisma.report,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),

@@ -40,6 +40,7 @@ const validator = (): Validator<
         // userSchedule: 'UserSchedule',
     },
     isTransferable: false,
+    maxObjects: 50000,
     permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
@@ -72,18 +73,22 @@ const validator = (): Validator<
         ['standardVersion', 'Standard'],
         // ['userSchedule', 'UserSchedule'],
     ], languages),
-    ownerOrMemberWhere: (userId) => ({
-        OR: [
-            // { apiVersion: ApiModel.validate.ownerOrMemberWhere(userId) },
-            { organization: OrganizationModel.validate.ownerOrMemberWhere(userId) },
-            // { post: PostModel.validate.ownerOrMemberWhere(userId) },
-            { project: ProjectModel.validate.ownerOrMemberWhere(userId) },
-            { routineVersion: RoutineModel.validate.ownerOrMemberWhere(userId) },
-            // { smartContractVersion: SmartContractModel.validate.ownerOrMemberWhere(userId) },
-            { standardVersion: StandardModel.validate.ownerOrMemberWhere(userId) },
-            { userSchedule: { userId } },
-        ]
-    }),
+    visibility: {
+        private: {},
+        public: {},
+        owner: (userId) => ({
+            OR: [
+                // { apiVersion: ApiModel.validate.visibility.owner(userId) },
+                { organization: OrganizationModel.validate.visibility.owner(userId) },
+                // { post: PostModel.validate.visibility.owner(userId) },
+                { project: ProjectModel.validate.visibility.owner(userId) },
+                { routineVersion: RoutineModel.validate.visibility.owner(userId) },
+                // { smartContractVersion: SmartContractModel.validate.visibility.owner(userId) },
+                { standardVersion: StandardModel.validate.visibility.owner(userId) },
+                { userSchedule: { userId } },
+            ]
+        }),
+    }
 })
 
 const searcher = (): Searcher<
