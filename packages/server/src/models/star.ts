@@ -208,6 +208,7 @@ const displayer = (): Displayer<
     Prisma.starGetPayload<{ select: { [K in keyof Required<Prisma.starSelect>]: true } }>
 > => ({
     select: {
+        id: true,
         // api: padSelect(ApiModel.display.select),
         comment: padSelect(CommentModel.display.select),
         // issue: padSelect(IssueModel.display.select),

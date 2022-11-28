@@ -230,6 +230,7 @@ const mutater = () => ({
 
 export const ProfileModel = ({
     delegate: (prisma: PrismaType) => prisma.user,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     port: porter(),

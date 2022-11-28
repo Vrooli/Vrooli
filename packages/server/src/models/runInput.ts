@@ -1,10 +1,12 @@
 import { runInputsCreate, runInputsUpdate } from "@shared/validation";
 import { RunInput, RunInputCreateInput, RunInputUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, GraphQLModelType, Mutater, Validator } from "./types";
+import { Displayer, Formatter, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { RunModel } from "./run";
+import { padSelect } from "../builders";
+import { InputItemModel } from "./inputItem";
 
 const formatter = (): Formatter<RunInput, any> => ({
     relationshipMap: {
@@ -115,8 +117,29 @@ const mutater = (): Mutater<
     yup: { create: runInputsCreate, update: runInputsUpdate },
 })
 
+const displayer = (): Displayer<
+    Prisma.run_routine_inputSelect,
+    Prisma.run_routine_inputGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_inputSelect>]: true } }>
+> => ({
+    select: {
+        id: true,
+        input: padSelect(InputItemModel.display.select),
+        runRoutine: padSelect(RunModel.display.select),
+    },
+    // Label combines runRoutine's label and input's label
+    label: (select, languages) => {
+        const runRoutineLabel = RunModel.display.label(select.runRoutine as any, languages);
+        const inputLabel = InputItemModel.display.label(select.input as any, languages);
+        if (runRoutineLabel.length > 0) {
+            return `${runRoutineLabel} - ${inputLabel}`;
+        }
+        return inputLabel;
+    }
+})
+
 export const RunInputModel = ({
     delegate: (prisma: PrismaType) => prisma.run_routine_input,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     // search: searcher(),

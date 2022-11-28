@@ -10,7 +10,7 @@ import { uuid } from "@shared/uuid";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { combineQueries, onlyValidIds, visibilityBuilder } from "../builders";
-import { bestLabel, translationRelationshipBuilder } from "../utils";
+import { bestLabel, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type SupplementalFields = 'isStarred' | 'isViewed' | 'permissionsOrganization';
 const formatter = (): Formatter<Organization, SupplementalFields> => ({
@@ -212,9 +212,9 @@ const querier = () => ({
      * @param prisma The prisma client
      * @param organizationId The organization ID
      * @param excludeUserId An option user to exclude from the results
-     * @returns A list of admin ids
+     * @returns A list of admin ids and their preferred languages. Useful for sending notifications
      */
-    async findAdminIds(prisma: PrismaType, organizationId: string, excludeUserId?: string): Promise<string[]> {
+    async findAdminInfo(prisma: PrismaType, organizationId: string, excludeUserId?: string): Promise<{ id: string, languages: string[] }[]> {
         const admins = await prisma.member.findMany({
             where: {
                 AND: [
@@ -223,10 +223,23 @@ const querier = () => ({
                     { userId: { not: excludeUserId } }
                 ]
             },
-            select: { userId: true }
+            select: {
+                user: {
+                    select: {
+                        id: true,
+                        languages: { select: { language: true } }
+                    },
+                }
+            }
         })
-        const adminIds = admins ? admins.map(a => a.userId) : [];
-        return adminIds;
+        const result: { id: string, languages: string[] }[] = [];
+        admins.forEach(({ user }) => {
+            result.push({
+                id: user.id,
+                languages: user.languages.map(({ language }) => language),
+            });
+        });
+        return result;
     },
 })
 
@@ -238,7 +251,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Organi
         isPrivate: data.isPrivate ?? undefined,
         permissions: JSON.stringify({}),
         resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        tags: await TagModel.mutate.relationshipBuilder!(prisma, userData.id, data, 'Organization'),
+        tags: await tagRelationshipBuilder(prisma, userData, data, 'Organization', isAdd),
         translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
     }
 }

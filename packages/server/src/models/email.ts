@@ -2,7 +2,7 @@ import { emailsCreate, emailsUpdate } from "@shared/validation";
 import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { CustomError, Trigger } from "../events";
-import { Formatter, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
 
@@ -97,17 +97,24 @@ const mutater = (): Mutater<
         relUpdate: mutater().shape.update,
     },
     trigger: {
-        onCreated: ({ created, prisma, userData }) => {
-            for (const c of created) {
-                Trigger(prisma, userData.languages).createEmail(userData.id, c.emailAddress);
-            }
+        onCreated: ({ prisma, userData }) => {
+            Trigger(prisma, userData.languages).createEmail(userData.id)
         },
     },
     yup: { create: emailsCreate, update: emailsUpdate },
 })
 
+const displayer = (): Displayer<
+    Prisma.emailSelect,
+    Prisma.emailGetPayload<{ select: { [K in keyof Required<Prisma.emailSelect>]: true } }>
+> => ({
+    select: { id: true, emailAddress: true },
+    label: (select) => select.emailAddress,
+})
+
 export const EmailModel = ({
     delegate: (prisma: PrismaType) => prisma.email,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     type: 'Email' as GraphQLModelType,

@@ -15,7 +15,7 @@ import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { combineQueries, permissionsSelectHelper, visibilityBuilder } from "../builders";
-import { oneIsPublic, translationRelationshipBuilder } from "../utils";
+import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsStandard' | 'versions';
 const formatter = (): Formatter<Standard, SupplementalFields> => ({
@@ -347,7 +347,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Standa
     return {
         root: {
             isPrivate: data.isPrivate ?? undefined,
-            tags: await TagModel.mutate.relationshipBuilder(prisma, userData, data, 'Standard'),
+            tags: await tagRelationshipBuilder(prisma, userData, data, 'Standard', isAdd),
         },
         isPrivate: data.isPrivate ?? undefined,
         resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),

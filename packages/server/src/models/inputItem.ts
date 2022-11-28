@@ -2,8 +2,10 @@ import { Prisma } from "@prisma/client";
 import { InputItem, InputItemCreateInput, InputItemUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
 import { relBuilderHelper } from "../actions";
-import { Formatter, GraphQLModelType, Mutater } from "./types";
+import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { translationRelationshipBuilder } from "../utils";
+import { RoutineModel } from "./routine";
+import { padSelect } from "../builders";
 
 const formatter = (): Formatter<InputItem, any> => ({
     relationshipMap: {
@@ -39,8 +41,21 @@ const mutater = (): Mutater<
     yup: {},
 })
 
+const displayer = (): Displayer<
+    Prisma.routine_version_inputSelect,
+    Prisma.routine_version_inputGetPayload<{ select: { [K in keyof Required<Prisma.routine_version_inputSelect>]: true } }>
+> => ({
+    select: {
+        id: true,
+        name: true,
+        routineVersion: padSelect(RoutineModel.display.select),
+    },
+    label: (select, languages) => select.name ?? RoutineModel.display.label(select.routineVersion as any, languages),
+})
+
 export const InputItemModel = ({
     delegate: (prisma: PrismaType) => prisma.routine_version_input,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     type: 'InputItem' as GraphQLModelType,

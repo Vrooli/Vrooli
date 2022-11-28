@@ -15,7 +15,7 @@ import { getSingleTypePermissions } from "../validators";
 import { RunModel } from "./run";
 import { PartialGraphQLInfo } from "../builders/types";
 import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
-import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
+import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type NodeWeightData = {
     simplicity: number,
@@ -381,10 +381,17 @@ const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.ro
         apiCallData: true,
         complexity: true,
         isAutomatable: true,
-        isInternal: true,
         simplicity: true,
-        userId: true,
-        organizationId: true,
+        root: {
+            select: {
+                isInternal: true,
+                tags: {
+                    select: {
+                        id: true,
+                    }
+                },
+            }
+        },
         // Only select top-level nodes
         nodes: {
             select: {
@@ -428,7 +435,11 @@ const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.ro
                                 routineVersion: {
                                     select: {
                                         id: true,
-                                        isInternal: true,
+                                        root: {
+                                            select: {
+                                                isInternal: true,
+                                            }
+                                        }
                                     }
                                 },
                                 translations: {
@@ -469,10 +480,9 @@ const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.ro
                 }
             }
         },
-        resourceLists: {
+        resourceList: {
             select: {
                 index: true,
-                usedFor: true,
                 resources: {
                     select: {
                         index: true,
@@ -519,11 +529,6 @@ const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.ro
                         language: true,
                     }
                 }
-            }
-        },
-        tags: {
-            select: {
-                id: true,
             }
         },
         translations: {
@@ -702,7 +707,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
             hasCompleteVersion: (data.isComplete === true) ? true : (data.isComplete === false) ? false : undefined,
             completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
             project: data.projectId ? { connect: { id: data.projectId } } : undefined,
-            tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userData, data, 'Routine'),
+            tags: await tagRelationshipBuilder(prisma, userData, data, 'Routine', isAdd),
             permissions: JSON.stringify({}),
         },
         isAutomatable: data.isAutomatable ?? undefined,

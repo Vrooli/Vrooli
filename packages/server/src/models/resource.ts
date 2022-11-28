@@ -2,11 +2,11 @@ import { resourcesCreate, resourcesUpdate } from "@shared/validation";
 import { ResourceSortBy } from "@shared/consts";
 import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Mutater, Validator } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
 import { combineQueries, permissionsSelectHelper } from "../builders";
-import { translationRelationshipBuilder } from "../utils";
+import { bestLabel, translationRelationshipBuilder } from "../utils";
 
 const formatter = (): Formatter<Resource, any> => ({
     relationshipMap: { __typename: 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
@@ -121,8 +121,17 @@ const mutater = (): Mutater<
     yup: { create: resourcesCreate, update: resourcesUpdate },
 })
 
+const displayer = (): Displayer<
+    Prisma.resourceSelect,
+    Prisma.resourceGetPayload<{ select: { [K in keyof Required<Prisma.resourceSelect>]: true } }>
+> => ({
+    select: { id: true, translations: { select: { language: true, title: true } } },
+    label: (select, languages) => bestLabel(select.translations, 'title', languages),
+})
+
 export const ResourceModel = ({
     delegate: (prisma: PrismaType) => prisma.resource,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),

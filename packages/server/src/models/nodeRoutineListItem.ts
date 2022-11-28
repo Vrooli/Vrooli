@@ -1,9 +1,11 @@
 import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, GraphQLModelType, Mutater } from "./types";
+import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { relBuilderHelper } from "../actions";
-import { translationRelationshipBuilder } from "../utils";
+import { bestLabel, translationRelationshipBuilder } from "../utils";
+import { padSelect } from "../builders";
+import { RoutineModel } from "./routine";
 
 const formatter = (): Formatter<NodeRoutineListItem, any> => ({
     relationshipMap: {
@@ -41,8 +43,26 @@ const mutater = (): Mutater<
     yup: {},
 })
 
+const displayer = (): Displayer<
+    Prisma.node_routine_list_itemSelect,
+    Prisma.node_routine_list_itemGetPayload<{ select: { [K in keyof Required<Prisma.node_routine_list_itemSelect>]: true } }>
+> => ({
+    select: {
+        id: true,
+        translations: padSelect({ id: true, title: true }),
+        routineVersion: padSelect(RoutineModel.display.select),
+    },
+    label: (select, languages) => {
+        // Prefer item translations over routineVersion's
+        const itemLabel = bestLabel(select.translations, 'title', languages);
+        if (itemLabel.length > 0) return itemLabel;
+        return RoutineModel.display.label(select.routineVersion as any, languages);
+    }
+})
+
 export const NodeRoutineListItemModel = ({
     delegate: (prisma: PrismaType) => prisma.node_routine_list_item,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     type: 'NodeRoutineListItem' as GraphQLModelType,

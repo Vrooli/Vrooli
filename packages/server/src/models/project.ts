@@ -13,7 +13,7 @@ import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { combineQueries, exceptionsBuilder, permissionsSelectHelper, visibilityBuilder } from "../builders";
-import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
+import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsProject';
 const formatter = (): Formatter<Project, SupplementalFields> => ({
@@ -223,7 +223,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
         completedAt: (data.isComplete === true) ? new Date().toISOString() : (data.isComplete === false) ? null : undefined,
         permissions: JSON.stringify({}),
         resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        tags: await TagModel.mutate(prisma).tagRelationshipBuilder(userData.id, data, 'Project'),
+        tags: await tagRelationshipBuilder(prisma, userData, data, 'Project', isAdd),
         translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
     }
 }
@@ -258,9 +258,14 @@ const mutater = (): Mutater<
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
             for (const c of created) {
-                Trigger(prisma, userData.languages).createProject(userData.id, c.id as string);
+                Trigger(prisma, userData.languages).createProject(userData.id, c.id);
             }
         },
+        onUpdated: ({ updated, prisma, userData }) => {
+            for (const u of updated) {
+                Trigger(prisma, userData.languages).updateProject(userData.id, u.id as string);
+            }
+        }
     },
     yup: { create: projectsCreate, update: projectsUpdate },
 });

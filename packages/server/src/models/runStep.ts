@@ -2,10 +2,12 @@ import { stepsCreate, stepsUpdate } from "@shared/validation";
 import { RunStepStatus } from "@shared/consts";
 import { RunStep, RunStepCreateInput, RunStepUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, GraphQLModelType, Mutater, Validator } from "./types";
+import { Displayer, Formatter, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunModel } from "./run";
 import { OrganizationModel } from "./organization";
+import { RoutineModel } from "./routine";
+import { padSelect } from "../builders";
 
 const formatter = (): Formatter<RunStep, any> => ({
     relationshipMap: {
@@ -92,8 +94,17 @@ const mutater = (): Mutater<
     yup: { create: stepsCreate, update: stepsUpdate },
 })
 
+const displayer = (): Displayer<
+    Prisma.run_routine_stepSelect,
+    Prisma.run_routine_stepGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_stepSelect>]: true } }>
+> => ({
+    select: { id: true, title: true },
+    label: (select) => select.title,
+})
+
 export const RunStepModel = ({
     delegate: (prisma: PrismaType) => prisma.run_routine_step,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     type: 'RunStep' as GraphQLModelType,

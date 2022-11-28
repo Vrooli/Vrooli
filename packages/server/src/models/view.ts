@@ -16,6 +16,7 @@ import { Prisma } from "@prisma/client";
 import { ObjectMap } from ".";
 import { PartialGraphQLInfo } from "../builders/types";
 import { combineQueries, lowercaseFirstLetter, onlyValidIds, padSelect, timeFrameToPrisma } from "../builders";
+import { getLabels } from "../getters";
 
 interface View {
     __typename?: 'View';
@@ -85,17 +86,16 @@ const formatter = (): Formatter<View, 'to'> => ({
     },
 })
 
-const forMapper: { [key in ViewFor]: string } = {
+const forMapper: { [key in ViewFor]: keyof PrismaType } = {
     Organization: 'organization',
-    Project: 'project',
-    Routine: 'routine',
-    Standard: 'standard',
+    Project: 'project_version',
+    Routine: 'routine_version',
+    Standard: 'standard_version',
     User: 'user',
 }
 
 interface ViewInput {
     forId: string;
-    title: string;
     viewFor: ViewFor;
 }
 
@@ -176,17 +176,17 @@ const view = async (prisma: PrismaType, userData: SessionUser, input: ViewInput)
             where: { id: view.id },
             data: {
                 lastViewed: new Date(),
-                title: input.title,
             }
         })
     }
     // If view did not exist, create it
     else {
+        const labels = await getLabels([{ id: input.forId, languages: userData.languages }], input.viewFor, prisma, userData.languages, 'view');
         view = await prisma.view.create({
             data: {
                 byId: userData.id,
                 [`${forMapper[input.viewFor]}Id`]: input.forId,
-                title: input.title,
+                title: labels[0],
             }
         })
     }
@@ -283,6 +283,7 @@ const displayer = (): Displayer<
     Prisma.viewGetPayload<{ select: { [K in keyof Required<Prisma.viewSelect>]: true } }>
 > => ({
     select: {
+        id: true,
         // api: padSelect(ApiModel.display.select),
         organization: padSelect(OrganizationModel.display.select),
         // post: padSelect(PostModel.display.select),

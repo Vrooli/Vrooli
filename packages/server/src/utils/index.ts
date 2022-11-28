@@ -6,5 +6,6 @@ export * from './objectTools';
 export * from './oneIsPublic';
 export * from './origin';
 export * from './resolveGraphQLInfo';
+export * from './tagRelationshipBuilder';
 export * from './translationRelationshipBuilder';
 export * from './setupDatabase';

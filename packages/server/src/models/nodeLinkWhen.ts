@@ -1,6 +1,6 @@
 import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, GraphQLModelType, Mutater } from "./types";
+import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { translationRelationshipBuilder } from "../utils";
 
@@ -40,8 +40,18 @@ const mutater = (): Mutater<
     yup: {},
 })
 
+// Doesn't make sense to have a displayer for this model
+const displayer = (): Displayer<
+    Prisma.node_link_whenSelect,
+    Prisma.node_link_whenGetPayload<{ select: { [K in keyof Required<Prisma.node_link_whenSelect>]: true } }>
+> => ({
+    select: { id: true },
+    label: () => ''
+})
+
 export const NodeLinkWhenModel = ({
     delegate: (prisma: PrismaType) => prisma.node_link,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     type: 'NodeLinkWhen' as GraphQLModelType,
