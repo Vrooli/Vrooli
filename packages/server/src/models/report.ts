@@ -161,6 +161,7 @@ const displayer = (): Displayer<
     Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>
 > => ({
     select: {
+        id: true,
         // apiVersion: padSelect(ApiModel.display.select),
         comment: padSelect(CommentModel.display.select),
         // issue: padSelect(IssueModel.display.select),

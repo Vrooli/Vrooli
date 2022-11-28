@@ -426,13 +426,13 @@ export type Mutater<
      */
     trigger?: (Create extends MutaterShapes ? {
         onCreated?: ({ created, prisma, userData }: {
-            created: RecursivePartial<GQLObject>[],
+            created: (RecursivePartial<GQLObject> & { id: string })[],
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,
     } : {}) & (Update extends MutaterShapes ? {
         onUpdated?: ({ updated, updateInput, prisma, userData }: {
-            updated: RecursivePartial<GQLObject>[],
+            updated: (RecursivePartial<GQLObject> & { id: string })[],
             updateInput: Update['graphql'][],
             prisma: PrismaType,
             userData: SessionUser,

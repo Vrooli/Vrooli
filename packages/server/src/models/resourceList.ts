@@ -2,7 +2,7 @@ import { resourceListsCreate, resourceListsUpdate } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
@@ -10,7 +10,7 @@ import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { relBuilderHelper } from "../actions";
 import { combineQueries, permissionsSelectHelper } from "../builders";
-import { oneIsPublic, translationRelationshipBuilder } from "../utils";
+import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
 
 const formatter = (): Formatter<ResourceList, any> => ({
     relationshipMap: {
@@ -155,8 +155,17 @@ const mutater = (): Mutater<
     yup: { create: resourceListsCreate, update: resourceListsUpdate },
 })
 
+const displayer = (): Displayer<
+    Prisma.resource_listSelect,
+    Prisma.resource_listGetPayload<{ select: { [K in keyof Required<Prisma.resource_listSelect>]: true } }>
+> => ({
+    select: { id: true, translations: { select: { language: true, title: true } } },
+    label: (select, languages) => bestLabel(select.translations, 'title', languages),
+})
+
 export const ResourceListModel = ({
     delegate: (prisma: PrismaType) => prisma.resource_list,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),

@@ -1,13 +1,13 @@
 import { Node, NodeCreateInput, NodeUpdateInput, SessionUser } from "../schema/types";
 import { nodesCreate, nodesUpdate } from "@shared/validation";
 import { PrismaType } from "../types";
-import { Formatter, GraphQLModelType, Validator, Mutater } from "./types";
+import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { CustomError } from "../events";
 import { RoutineModel } from "./routine";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
-import { translationRelationshipBuilder } from "../utils";
+import { bestLabel, translationRelationshipBuilder } from "../utils";
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -114,8 +114,17 @@ const mutater = (): Mutater<
     yup: { create: nodesCreate, update: nodesUpdate },
 })
 
+const displayer = (): Displayer<
+    Prisma.nodeSelect,
+    Prisma.nodeGetPayload<{ select: { [K in keyof Required<Prisma.nodeSelect>]: true } }>
+> => ({
+    select: { id: true, translations: { select: { language: true, title: true } } },
+    label: (select, languages) => bestLabel(select.translations, 'title', languages),
+})
+
 export const NodeModel = ({
     delegate: (prisma: PrismaType) => prisma.node,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     type: 'Node' as GraphQLModelType,

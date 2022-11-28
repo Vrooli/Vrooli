@@ -188,6 +188,7 @@ const displayer = (): Displayer<
     Prisma.voteGetPayload<{ select: { [K in keyof Required<Prisma.voteSelect>]: true } }>
 > => ({
     select: {
+        id: true,
         // api: padSelect(ApiModel.display.select),
         comment: padSelect(CommentModel.display.select),
         // issue: padSelect(IssueModel.display.select),

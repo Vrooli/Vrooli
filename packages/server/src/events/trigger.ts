@@ -1,7 +1,7 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
 import { DeleteOneType, ForkType, StarFor, VoteFor } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
-import { getDisplay } from "../getters";
+import { getDisplay, getLabels } from "../getters";
 import { OrganizationModel } from "../models";
 import { GraphQLModelType } from "../models/types";
 import { Notify } from "../notify";
@@ -81,24 +81,13 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Track award progress
         Award(prisma, userId, languages).update('CommentCreate', 1);
     },
-    createEmail: async (userId: string, emailAddress: string) => {
+    createEmail: async (userId: string) => {
         // Send notification to user warning them that a new sign in method was added
         Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
     },
     createIssue: async (issueId: string, owner: Owner, createdById: string) => {
-        // Get label(s) for issue
-        let preferredLanguages: string[][] = [];
-        if (owner.__typename === 'User') {
-            asfdasfdasf
-        }
-        else if (owner.__typename === 'Organization') {
-            const adminIds = OrganizationModel.query.findAdminIds(prisma, owner.id, createdById);
-            fdsfadsa
-        }
-        const displayer = getDisplay('Issue', languages, 'createIssue');
-        const labelData = await displayer.labels(prisma, preferredLanguages.map(l => ({ id: issueId, languages: l })));
         // Send notification to object owner(s)
-        Notify(prisma, languages).pushNewIssueOnObject(labelData[0], issueId).toOwner(owner, createdById);
+        Notify(prisma, languages).pushNewIssueOnObject(issueId).toOwner(owner, createdById);
     },
     createOrganization: async (userId: string, organizationId: string) => {
         // Track award progress
@@ -160,9 +149,9 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Send notification to user warning them that a new sign in method was added
         Notify(prisma, languages).pushNewDeviceSignIn().toUser(userId)
     },
-    issueClosed: async (userId: string, issueId: string, issueStatus: IssueStatus) => {
+    issueClosed: async (owner: Owner, closedByUserId: string, issueId: string, issueStatus: IssueStatus) => {
         // Send notification to object owner(s)
-        fdsafdsafdsdf
+        Notify(prisma, languages).pushIssueClosed(issueId).toOwner(owner, closedByUserId);
         // Track award progress of issue creator
         fdsafdsafds
         // If issue marked as resolved, icrease reputation of issue creator
@@ -177,34 +166,35 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Send notification to subscribers of the organization
         notification.toSubscribers('Organization', organizationId, userId);
     },
-    objectAddedToProject: async (userId: string, projectId: string, objectId: string, objectType: GraphQLModelType) => {
+    objectAddedToProject: async (owner: Owner, addedByUserId: string, projectId: string, objectId: string, objectType: GraphQLModelType) => {
         const notification = Notify(prisma, languages).pushProjectActivity();
         // Send notification to object owner
-        asdfasdf
+        notification.toOwner(owner, addedByUserId)
         // Send notification to subscribers of the project
-        notification.toSubscribers('Project', projectId, userId);
+        notification.toSubscribers('Project', projectId, addedByUserId);
     },
-    objectNewVersion: async (objectType: GraphQLModelType, objectId: string, userId: string) => {
+    objectNewVersion: async (owner: Owner, updatedByUserId: string, objectType: GraphQLModelType, objectId: string) => {
         const notification = Notify(prisma, languages).pushObjectNewVersion();
         // Send notification to owner(s) (except for who created it)
-        asdfasfdsf
+        notification.toOwner(owner, updatedByUserId);
         // Send notification to anyone subscribed to the object
-        asdfasdfas
+        notification.toSubscribers(objectType, objectId, updatedByUserId);
     },
     /**
      * NOTE: Unless the object is soft-deleted, this must be called BEFORE the object is deleted.
      */
-    objectDelete: async (objectType: DeleteOneType, objectId: string, userId: string) => {
+    objectDelete: async (owner: Owner, deletedByUserId: string, objectType: DeleteOneType, objectId: string) => {
         const notification = Notify(prisma, languages).pushObjectDelete();
         // Send notification to owner(s) (except for who deleted it)
-        asdfasfdsf
+        notification.toOwner(owner, deletedByUserId);
         // Send notification to anyone subscribed to the object
-        asdfasdfas
+        notification.toSubscribers(objectType, objectId, deletedByUserId);
     },
-    objectFork: async (objectType: ForkType, parentId: string, userId: string) => {
+    objectFork: async (owner: Owner, forkedByUserId: string, objectType: ForkType, parentId: string) => {
         const notification = Notify(prisma, languages).pushObjectFork();
         // Send notification to owner(s), depending on how many forks the object already has
-        asdfasdf
+        fdfdafdsaf
+        notification.toOwner(owner, forkedByUserId);
     },
     objectStar: async (isStar: boolean, objectType: StarFor, objectId: string, userId: string) => {
         const notification = Notify(prisma, languages).pushObjectStar();
@@ -278,23 +268,23 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Track award progress
         Award(prisma, userId, languages).update('RunProject', 1);
         // If run data is public, send notification to owner of routine (depending on how many public runs the project already has)
-        asdf
+        Notify(prisma, languages).pushNewRunDataAvailable(runId).toOwner(asdfasdf);
     },
-    runRoutineComplete: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
+    runRoutineComplete: async (runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, languages).pushRunCompletedAutomatically(runTitle, runId).toUser(userId);
+        if (wasAutomatic) Notify(prisma, languages).pushRunCompletedAutomatically(runId).toUser(userId);
         // Track award progress
         Award(prisma, userId, languages).update('RunRoutine', 1);
         // If run data is public, send notification to owner of routine (depending on how many public runs the routine already has)
-        asdf
+        Notify(prisma, languages).pushNewRunDataAvailable(runId).toOwner(asdfasdf);
     },
-    runRoutineFail: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
+    runRoutineFail: async (runId: string, userId: string, wasAutomatic: boolean) => {
         // If completed automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, languages).pushRunFailedAutomatically(runTitle, runId).toUser(userId);
+        if (wasAutomatic) Notify(prisma, languages).pushRunFailedAutomatically(runId).toUser(userId);
     },
-    runRoutineStart: async (runTitle: string, runId: string, userId: string, wasAutomatic: boolean) => {
+    runRoutineStart: async (runId: string, userId: string, wasAutomatic: boolean) => {
         // If started automatically, send notification to user
-        if (wasAutomatic) Notify(prisma, languages).pushRunStartedAutomatically(runTitle, runId).toUser(userId);
+        if (wasAutomatic) Notify(prisma, languages).pushRunStartedAutomatically(runId).toUser(userId);
     },
     userInvite: async (referrerId: string, joinedUsername: string) => {
         // Send notification to referrer

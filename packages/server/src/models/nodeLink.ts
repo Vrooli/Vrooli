@@ -1,8 +1,10 @@
 import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from "../schema/types";
 import { PrismaType } from "../types";
-import { Formatter, GraphQLModelType, Mutater } from "./types";
+import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { relBuilderHelper } from "../actions";
+import { padSelect } from "../builders";
+import { NodeModel } from "./node";
 
 const formatter = (): Formatter<NodeLink, any> => ({
     relationshipMap: {
@@ -40,8 +42,24 @@ const mutater = (): Mutater<
     yup: {},
 })
 
+const displayer = (): Displayer<
+    Prisma.node_linkSelect,
+    Prisma.node_linkGetPayload<{ select: { [K in keyof Required<Prisma.node_linkSelect>]: true } }>
+> => ({
+    select: { 
+        id: true, 
+        from: padSelect(NodeModel.display.select),
+        to: padSelect(NodeModel.display.select),
+    },
+    // Label combines from and to labels
+    label: (select, languages) => {
+        return `${NodeModel.display.label(select.from as any, languages)} -> ${NodeModel.display.label(select.to as any, languages)}`
+    }
+})
+
 export const NodeLinkModel = ({
     delegate: (prisma: PrismaType) => prisma.node_link,
+    display: displayer(),
     format: formatter(),
     mutate: mutater(),
     type: 'NodeLink' as GraphQLModelType,
