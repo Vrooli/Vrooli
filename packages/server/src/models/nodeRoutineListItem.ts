@@ -27,7 +27,7 @@ const mutater = (): Mutater<
                 id: data.id,
                 index: data.index,
                 isOptional: data.isOptional ?? false,
-                routineVersion: await relBuilderHelper({ data, isAdd: true, isOneToOne: true, isRequired: true, relationshipName: 'routineVersion', objectType: 'Routine', prisma, userData }),
+                routineVersion: await relBuilderHelper({ data, isAdd: true, isOneToOne: true, isRequired: true, linkVersion: true, relationshipName: 'routineVersion', objectType: 'Routine', prisma, userData }),
                 translations: await translationRelationshipBuilder(prisma, userData, data, true),
             }
         },
@@ -35,7 +35,7 @@ const mutater = (): Mutater<
             return {
                 index: data.index ?? undefined,
                 isOptional: data.isOptional ?? undefined,
-                routineVersion: await relBuilderHelper({ data, isAdd: false, isOneToOne: true, isRequired: false, relationshipName: 'routineVersion', objectType: 'Routine', prisma, userData }),
+                routineVersion: await relBuilderHelper({ data, isAdd: false, isOneToOne: true, isRequired: false, linkVersion: true, relationshipName: 'routineVersion', objectType: 'Routine', prisma, userData }),
                 translations: await translationRelationshipBuilder(prisma, userData, data, false),
             }
         },

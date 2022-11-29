@@ -1,10 +1,10 @@
 import { ObjectMap } from "../models";
 import { Formatter, GraphQLModelType } from "../models/types";
-import { addCountFieldsHelper } from "./addCountFieldsHelper";
-import { addJoinTablesHelper } from "./addJoinTablesHelper";
-import { deconstructRelationshipsHelper } from "./deconstructRelationshipsHelper";
+import { addCountFields } from "./addCountFields";
+import { addJoinTables } from "./addJoinTables";
+import { deconstructRelationships } from "./deconstructRelationships";
 import { isRelationshipObject } from "./isRelationshipObject";
-import { removeSupplementalFieldsHelper } from "./removeSupplementalFieldsHelper";
+import { removeSupplementalFields } from "./removeSupplementalFields";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
 
 /**
@@ -33,10 +33,10 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     const type: GraphQLModelType | undefined = partial?.__typename;
     const formatter: Formatter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (formatter) {
-        result = removeSupplementalFieldsHelper(type as GraphQLModelType, result);
-        result = deconstructRelationshipsHelper(result, formatter.relationshipMap);
-        result = addJoinTablesHelper(result, formatter.joinMap);
-        result = addCountFieldsHelper(result, formatter.countMap);
+        result = removeSupplementalFields(type as GraphQLModelType, result);
+        result = deconstructRelationships(result, formatter.relationshipMap);
+        result = addJoinTables(result, formatter.joinMap);
+        result = addCountFields(result, formatter.countMap);
     }
     return result;
 }

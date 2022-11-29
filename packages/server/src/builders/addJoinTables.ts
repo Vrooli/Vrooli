@@ -9,7 +9,7 @@ import { PartialGraphQLInfo } from "./types";
  * @param partialInfo - GraphQL-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
-export const addJoinTablesHelper = (partialInfo: PartialGraphQLInfo, map: JoinMap | undefined): any => {
+export const addJoinTables = (partialInfo: PartialGraphQLInfo, map: JoinMap | undefined): any => {
     if (!map) return partialInfo;
     // Create result object
     let result: any = {};

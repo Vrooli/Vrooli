@@ -29,14 +29,14 @@ const mutater = (): Mutater<
                 id: data.id,
                 isOrdered: data.isOrdered ?? undefined,
                 isOptional: data.isOptional ?? undefined,
-                routines: await relBuilderHelper({ data, isAdd: true, isRequired: false, isOneToOne: false, relationshipName: 'routines', objectType: 'Routine', prisma, userData }),
+                routines: await relBuilderHelper({ data, isAdd: true, isRequired: false, isOneToOne: false, relationshipName: 'routines', objectType: 'NodeRoutineListItem', prisma, userData }),
             }
         },
         relUpdate: async ({ data, prisma, userData }) => {
             return {
                 isOrdered: data.isOrdered ?? undefined,
                 isOptional: data.isOptional ?? undefined,
-                routines: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'routines', objectType: 'Routine', prisma, userData }),
+                routines: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'routines', objectType: 'NodeRoutineListItem', prisma, userData }),
             }
         },
     },

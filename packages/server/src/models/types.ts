@@ -67,21 +67,23 @@ export type ModelLogic<
     PrismaObject extends { [x: string]: any; },
     PermissionObject extends { [x: string]: any; },
     PermissionsSelect extends { [x: string]: any; },
-    OwnerOrMemberWhere extends { [x: string]: any; }
+    OwnerOrMemberWhere extends { [x: string]: any; },
+    IsTransferable extends boolean,
+    IsVersioned extends boolean,
 > = {
     format: Formatter<GQLObject, GQLFields>;
     display: Displayer<PermissionsSelect, PrismaObject>;
     delegate: (prisma: PrismaType) => PrismaDelegate;
     search?: Searcher<SearchInput, SortBy, OrderBy, Where>;
     mutate?: Mutater<GQLObject, Create, Update, RelationshipCreate, RelationshipUpdate>;
-    validate?: Validator<GQLCreate, GQLUpdate, GQLObject, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere>;
+    validate?: Validator<GQLCreate, GQLUpdate, GQLObject, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere, IsTransferable, IsVersioned>;
     type: GraphQLModelType;
 }
 
 /**
  * Mostly unsafe type for a model logic object.
  */
-export type AniedModelLogic<GQLObject extends { [x: string]: any }> = ModelLogic<GQLObject, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any>;
+export type AniedModelLogic<GQLObject extends { [x: string]: any }> = ModelLogic<GQLObject, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any>;
 
 /**
  * Allows Prisma select fields to map to GraphQLModelTypes. Any field which can be 
@@ -216,7 +218,9 @@ export type Validator<
     PrismaObject extends { [x: string]: any },
     PermissionObject extends { [x: string]: any },
     PermissionsSelect extends { [x: string]: any },
-    OwnerOrMemberWhere extends { [x: string]: any }
+    OwnerOrMemberWhere extends { [x: string]: any },
+    IsTransferable extends boolean,
+    IsVersioned extends boolean,
 > = {
     /**
      * Maps relationsips on the object's database schema to the corresponding GraphQL type,
@@ -231,10 +235,6 @@ export type Validator<
      * project -> resourceList
      */
     validateMap: { __typename: GraphQLModelType } & ValidateMap<PermissionsSelect>;
-    /**
-     * True if you are allowed to tranfer the object to another user/orgaization
-     */
-    isTransferable: boolean;
     /**
      * The maximum number of objects that can be created by a single user/organization.
      * This depends on if the owner is a user or organization, if the owner 
@@ -286,8 +286,8 @@ export type Validator<
      * Permissions data for the object's owner
      */
     owner: (data: PrismaObject) => {
-        Organization?: { [x: string]: any } | null;
-        User?: { [x: string]: any } | null;
+        Organization?: ({ id: string } & { [x: string]: any }) | null;
+        User?: ({ id: string } & { [x: string]: any }) | null;
     }
     /**
      * String fields which must be checked for profanity. You don't need to 
@@ -342,7 +342,25 @@ export type Validator<
         create?: (createMany: GQLCreate[], userId: string) => Promise<GQLCreate[]> | GQLCreate[];
         update?: (updateMany: GQLUpdate[], userId: string) => Promise<GQLUpdate[]> | GQLUpdate[];
     };
-};
+    /**
+     * True if you are allowed to tranfer the object to another user/orgaization
+     */
+    isTransferable: IsTransferable;
+} & (
+        IsTransferable extends true ? {
+            /*
+            * Determines if object has its original owner
+            */
+            hasOriginalOwner: (data: PrismaObject) => boolean;
+        } : {}
+    ) & (
+        IsVersioned extends true ? {
+            /**
+             * Determines if there is a completed version of the object
+             */
+            hasCompletedVersion: (data: PrismaObject) => boolean;
+        } : {}
+    )
 
 /**
  * Describes shape of component that can be duplicated
@@ -403,10 +421,11 @@ export type Mutater<
             userData: SessionUser,
         }) => PromiseOrValue<Create['db']>,
     } : {}) & (Update extends MutaterShapes ? {
-        update: ({ data, prisma, userData }: {
+        update: ({ data, prisma, userData, where }: {
             data: Update['graphql'],
             prisma: PrismaType,
             userData: SessionUser,
+            where: { id: string },
         }) => PromiseOrValue<Update['db']>,
     } : {}) & (RelationshipCreate extends MutaterShapes ? {
         relCreate: ({ data, prisma, userData }: {
@@ -419,6 +438,7 @@ export type Mutater<
             data: RelationshipUpdate['graphql'],
             prisma: PrismaType,
             userData: SessionUser,
+            where: { id: string },
         }) => PromiseOrValue<RelationshipUpdate['db']>,
     } : {}),
     /**
@@ -426,12 +446,14 @@ export type Mutater<
      */
     trigger?: (Create extends MutaterShapes ? {
         onCreated?: ({ created, prisma, userData }: {
+            authData: { [id: string]: { [x: string]: any } },
             created: (RecursivePartial<GQLObject> & { id: string })[],
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,
     } : {}) & (Update extends MutaterShapes ? {
         onUpdated?: ({ updated, updateInput, prisma, userData }: {
+            authData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<GQLObject> & { id: string })[],
             updateInput: Update['graphql'][],
             prisma: PrismaType,

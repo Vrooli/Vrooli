@@ -2782,6 +2782,12 @@ export type StandardUpdateInput = {
   translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<StandardTranslationUpdateInput>>;
+  versionId?: InputMaybe<Scalars['ID']>;
+  versionLabel?: InputMaybe<Scalars['String']>;
+  default: InputMaybe<Scalars['String']>;
+        type: InputMaybe<Scalars['String']>;
+        props: InputMaybe<Scalars['String']>;
+        yup: InputMaybe<Scalars['String']>;
 };
 
 export type Star = {

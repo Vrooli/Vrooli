@@ -20,7 +20,9 @@ const validator = (): Validator<
     Prisma.emailGetPayload<{ select: { [K in keyof Required<Prisma.emailSelect>]: true } }>,
     any,
     Prisma.emailSelect,
-    Prisma.emailWhereInput
+    Prisma.emailWhereInput,
+    false,
+    false
 > => ({
     validateMap: {
         __typename: 'Email',

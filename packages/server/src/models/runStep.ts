@@ -25,7 +25,9 @@ const validator = (): Validator<
     Prisma.run_routine_stepGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_stepSelect>]: true } }>,
     any,
     Prisma.run_routine_stepSelect,
-    Prisma.run_routine_stepWhereInput
+    Prisma.run_routine_stepWhereInput,
+    false,
+    false
 > => ({
     validateMap: {
         __typename: 'RunRoutine',

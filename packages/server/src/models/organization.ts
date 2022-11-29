@@ -86,7 +86,9 @@ const validator = (): Validator<
     Prisma.organizationGetPayload<{ select: { [K in keyof Required<Prisma.organizationSelect>]: true } }>,
     OrganizationPermission,
     Prisma.organizationSelect,
-    Prisma.organizationWhereInput
+    Prisma.organizationWhereInput,
+    false,
+    false
 > => ({
     validateMap: {
         __typename: 'Organization',

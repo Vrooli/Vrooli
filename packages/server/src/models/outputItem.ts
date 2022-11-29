@@ -26,14 +26,14 @@ const mutater = (): Mutater<
             return {
                 id: data.id,
                 name: data.name,
-                standard: await relBuilderHelper({ data, isAdd: true, isOneToOne: true, isRequired: true, relationshipName: 'standard', objectType: 'Standard', prisma, userData }),
+                standardVersion: await relBuilderHelper({ data, isAdd: true, isOneToOne: true, isRequired: true, linkVersion: true, relationshipName: 'standard', objectType: 'Standard', prisma, userData }),
                 translations: await translationRelationshipBuilder(prisma, userData, data, true),
             }
         },
         relUpdate: async ({ prisma, userData, data }) => {
             return {
                 name: data.name,
-                standard: await relBuilderHelper({ data, isAdd: false, isOneToOne: true, isRequired: true, relationshipName: 'standard', objectType: 'Standard', prisma, userData }),
+                standardVersion: await relBuilderHelper({ data, isAdd: false, isOneToOne: true, isRequired: true, linkVersion: true, relationshipName: 'standard', objectType: 'Standard', prisma, userData }),
                 translations: await translationRelationshipBuilder(prisma, userData, data, false),
             }
         },

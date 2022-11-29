@@ -26,7 +26,9 @@ const validator = (): Validator<
     Prisma.resource_listGetPayload<{ select: { [K in keyof Required<Prisma.resource_listSelect>]: true } }>,
     any,
     Prisma.resource_listSelect,
-    Prisma.resource_listWhereInput
+    Prisma.resource_listWhereInput,
+    false,
+    false
 > => ({
     validateMap: {
         __typename: 'ResourceList',

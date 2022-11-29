@@ -7,7 +7,7 @@ import { isRelationshipObject } from "./isRelationshipObject";
  * @param obj - DB-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
-export const removeJoinTablesHelper = (obj: any, map: JoinMap | undefined): any => {
+export const removeJoinTables = (obj: any, map: JoinMap | undefined): any => {
     if (!obj || !map) return obj;
     // Create result object
     let result: any = {};

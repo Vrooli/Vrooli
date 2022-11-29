@@ -14,7 +14,7 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { combineQueries, permissionsSelectHelper, visibilityBuilder } from "../builders";
+import { combineQueries, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsStandard' | 'versions';
@@ -119,25 +119,27 @@ const validator = (): Validator<
     StandardCreateInput,
     StandardUpdateInput,
     Standard,
-    Prisma.standard_versionGetPayload<{ select: { [K in keyof Required<Prisma.standard_versionSelect>]: true } }>,
+    Prisma.standardGetPayload<{ select: { [K in keyof Required<Prisma.standardSelect>]: true } }>,
     StandardPermission,
-    Prisma.standard_versionSelect,
-    Prisma.standard_versionWhereInput
+    Prisma.standardSelect,
+    Prisma.standardWhereInput,
+    true,
+    true
 > => ({
     validateMap: {
         __typename: 'Standard',
-        root: {
+        parent: 'Standard',
+        createdBy: 'User',
+        ownedByOrganization: 'Organization',
+        ownedByUser: 'User',
+        versions: {
             select: {
-                parent: 'Standard',
-                createdBy: 'User',
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
+                forks: 'Standard',
             }
         },
-        forks: 'Standard',
-        // directoryListings: 'ProjectDirectory',
     },
     isTransferable: true,
+    hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
     maxObjects: {
         User: {
             private: {
@@ -160,21 +162,23 @@ const validator = (): Validator<
             },
         },
     },
+    hasCompletedVersion: (data) => data.hasCompleteVersion === true,
     permissionsSelect: (...params) => ({
         id: true,
-        isComplete: true,
+        isInternal: true,
         isPrivate: true,
         isDeleted: true,
-        root: {
+        permissions: true,
+        createdBy: padSelect({ id: true }),
+        ...permissionsSelectHelper([
+            ['ownedByOrganization', 'Organization'],
+            ['ownedByUser', 'User'],
+        ], ...params),
+        versions: {
             select: {
-                isInternal: true,
+                isComplete: true,
                 isPrivate: true,
                 isDeleted: true,
-                permissions: true,
-                ...permissionsSelectHelper([
-                    ['ownedByOrganization', 'Organization'],
-                    ['ownedByUser', 'User'],
-                ], ...params)
             }
         }
     }),
@@ -188,42 +192,50 @@ const validator = (): Validator<
         ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
     ]),
     owner: (data) => ({
-        Organization: (data.root as any).ownedByOrganization,
-        User: (data.root as any).ownedByUser,
+        Organization: data.ownedByOrganization,
+        User: data.ownedByUser,
     }),
-    isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+    isDeleted: (data) => data.isDeleted,// || data.root.isDeleted,
     isPublic: (data, languages) => data.isPrivate === false &&
         data.isDeleted === false &&
-        data.root?.isDeleted === false &&
-        data.root?.isInternal === false &&
-        data.root?.isPrivate === false && oneIsPublic<Prisma.standardSelect>(data.root, [
+        data.isInternal === false &&
+        //latest(data.versions)?.isPrivate === false &&
+        //latest(data.versions)?.isDeleted === false &&
+        oneIsPublic<Prisma.routineSelect>(data, [
             ['ownedByOrganization', 'Organization'],
             ['ownedByUser', 'User'],
         ], languages),
     profanityFields: ['name'],
     visibility: {
         private: {
-            OR: [
-                { isPrivate: true },
-                { root: { isPrivate: true } },
-            ]
+            isPrivate: true,
+            // OR: [
+            //     { isPrivate: true },
+            //     { root: { isPrivate: true } },
+            // ]
         },
         public: {
-            AND: [
-                { isPrivate: false },
-                { root: { isPrivate: false } },
-            ]
+            isPrivate: false,
+            // AND: [
+            //     { isPrivate: false },
+            //     { root: { isPrivate: false } },
+            // ]
         },
         owner: (userId) => ({
-            root: {
-                OR: [
-                    { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
-            }
+            OR: [
+                { ownedByUser: { id: userId } },
+                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+            ]
+            // root: {
+            //     OR: [
+            //         { ownedByUser: { id: userId } },
+            //         { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+            //     ]
+            // }
         }),
     },
     // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
+    //TODO when updating, not allowed to update existing, completed version
     // TODO when deleting, anonymize standards which are being used by inputs/outputs
     // const standard = await prisma.standard_version.findUnique({
     //     where: { id },
@@ -349,17 +361,19 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Standa
             isPrivate: data.isPrivate ?? undefined,
             tags: await tagRelationshipBuilder(prisma, userData, data, 'Standard', isAdd),
         },
-        isPrivate: data.isPrivate ?? undefined,
-        resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
+        version: {
+            isPrivate: data.isPrivate ?? undefined,
+            resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
+        },
     }
 }
 
 const mutater = (): Mutater<
     Standard,
-    { graphql: StandardCreateInput, db: Prisma.standard_versionUpsertArgs['create'] },
-    { graphql: StandardUpdateInput, db: Prisma.standard_versionUpsertArgs['update'] },
-    { graphql: StandardCreateInput, db: Prisma.standard_versionCreateWithoutRootInput },
-    { graphql: StandardUpdateInput, db: Prisma.standard_versionUpdateWithoutRootInput }
+    { graphql: StandardCreateInput, db: Prisma.standardUpsertArgs['create'] },
+    { graphql: StandardUpdateInput, db: Prisma.standardUpsertArgs['update'] },
+    { graphql: StandardCreateInput, db: Prisma.standardCreateWithoutTransfersInput },
+    { graphql: StandardUpdateInput, db: Prisma.standardUpdateWithoutTransfersInput }
 > => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
@@ -373,24 +387,24 @@ const mutater = (): Mutater<
                 })
             }
             return {
-                ...base,
-                root: {
+                ...base.root,
+                isInternal: data.isInternal ?? undefined,
+                name: data.name ?? await querier().generateName(prisma, userData.id, data),
+                permissions: JSON.stringify({}), //TODO
+                createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                versions: {
                     create: {
-                        ...base.root,
-                        isInternal: data.isInternal ?? undefined,
-                        name: data.name ?? await querier().generateName(prisma, userData.id, data),
-                        permissions: JSON.stringify({}), //TODO
-                        createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                        organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                        createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                        user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                    },
-                },
-                default: data.default ?? undefined,
-                props: sortify(data.props, userData.languages),
-                yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                type: data.type,
-                translations,
+                        ...base.version,
+                        default: data.default ?? undefined,
+                        props: sortify(data.props, userData.languages),
+                        yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+                        type: data.type,
+                        translations,
+                    }
+                }
             }
         },
         update: async ({ data, prisma, userData }) => {
@@ -413,15 +427,36 @@ const mutater = (): Mutater<
                 })
             }
             return {
-                ...base,
-                root: {
-                    update: {
-                        ...base.root,
-                        organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                        user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-                    },
+                ...base.root,
+                organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+                user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+                // If versionId is provided, update that version. 
+                // Otherwise, versionLabel is provided, so create new version with that label
+                versions: {
+                    ...(data.versionId ? {
+                        update: {
+                            where: { id: data.versionId },
+                            data: {
+                                ...base.version,
+                                default: data.default ?? undefined,
+                                props: data.props ? sortify(data.props, userData.languages) : undefined,
+                                yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+                                type: data.type as string,
+                                translations,
+                            }
+                        }
+                    } : {
+                        create: {
+                            ...base.version,
+                            versionLabel: data.versionLabel as string,
+                            default: data.default as string,
+                            props: sortify(data.props as string, userData.languages),
+                            yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+                            type: data.type as string,
+                            translations,
+                        }
+                    })
                 },
-                translations,
             }
         },
         relCreate: mutater().shape.create,
@@ -498,7 +533,7 @@ const displayer = (): Displayer<
     Prisma.standard_versionSelect,
     Prisma.standard_versionGetPayload<{ select: { [K in keyof Required<Prisma.standard_versionSelect>]: true } }>
 > => ({
-    select: { id: true, root: { select: { name: true }}},
+    select: { id: true, root: { select: { name: true } } },
     label: (select) => select.root.name ?? '',
 })
 

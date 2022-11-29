@@ -84,7 +84,9 @@ const validator = (): Validator<
     Prisma.commentGetPayload<{ select: { [K in keyof Required<Prisma.commentSelect>]: true } }>,
     CommentPermission,
     Prisma.commentSelect,
-    Prisma.commentWhereInput
+    Prisma.commentWhereInput,
+    false,
+    false
 > => ({
     validateMap: {
         __typename: 'Comment',

@@ -10,12 +10,13 @@ export function getValidator<
     PermissionObject extends { [x: string]: any },
     PermissionsSelect extends { [x: string]: any },
     OwnerOrMemberWhere extends { [x: string]: any },
+    IsTransferable extends boolean,
 >(
     objectType: GraphQLModelType,
     languages: string[],
     errorTrace: string,
-): Validator<GQLCreate, GQLUpdate, GQLModel, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere>{
-    const validator: Validator<GQLCreate, GQLUpdate, GQLModel, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere> | undefined = ObjectMap[objectType]?.validate;
+): Validator<GQLCreate, GQLUpdate, GQLModel, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere, IsTransferable>{
+    const validator: Validator<GQLCreate, GQLUpdate, GQLModel, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere, IsTransferable> | undefined = ObjectMap[objectType]?.validate;
     if (!validator) {
         throw new CustomError('0280', 'InvalidArgs', languages, { errorTrace, objectType });
     }

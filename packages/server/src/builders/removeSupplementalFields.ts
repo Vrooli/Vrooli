@@ -11,7 +11,7 @@ import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
  * @param partial Select fields object
  * @returns partial with supplemental fields removed, and maybe additional fields added
  */
-export const removeSupplementalFieldsHelper = (objectType: GraphQLModelType, partial: PartialGraphQLInfo | PartialPrismaSelect) => {
+export const removeSupplementalFields = (objectType: GraphQLModelType, partial: PartialGraphQLInfo | PartialPrismaSelect) => {
     // Get supplemental info for object
     const supplementer: SupplementalConverter<any, any> | undefined = ObjectMap[objectType]?.format?.supplemental;
     if (!supplementer) return partial;

@@ -886,7 +886,7 @@ model project {
     id                    String            @id @default(uuid()) @db.Uuid
     created_at            DateTime          @default(now()) @db.Timestamptz(6)
     updated_at            DateTime          @default(now()) @db.Timestamptz(6)
-    isComplete            Boolean           @default(false)
+    hasCompleteVersion    Boolean                  @default(false)
     isDeleted             Boolean           @default(false)
     isPrivate             Boolean           @default(false)
     completedAt           DateTime?         @db.Timestamptz(6)

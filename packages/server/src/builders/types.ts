@@ -218,6 +218,12 @@ export interface RelationshipBuilderHelperArgs<
      */
     isRequired?: IsRequired,
     /**
+     * If true: 
+     * 1. Object is assumed to be versionable
+     * 2. Links the relationship to a version, rather than the root object
+     */
+    linkVersion?: boolean,
+    /**
      * Fields to exclude from the relationship data. This can be handled in the shape fields as well,
      * but this is more convenient
      */

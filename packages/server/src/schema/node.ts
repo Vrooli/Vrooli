@@ -181,7 +181,7 @@ export const typeDef = gql`
         id: ID!
         index: Int!
         isOptional: Boolean
-        routineConnect: ID!
+        routineVersionConnect: ID!
         translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
     }
     input NodeRoutineListItemUpdateInput {

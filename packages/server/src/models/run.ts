@@ -76,7 +76,9 @@ const validator = (): Validator<
     Prisma.run_routineGetPayload<{ select: { [K in keyof Required<Prisma.run_routineSelect>]: true } }>,
     RunPermission,
     Prisma.run_routineSelect,
-    Prisma.run_routineWhereInput
+    Prisma.run_routineWhereInput,
+    false,
+    false
 > => ({
     validateMap: {
         __typename: 'RunRoutine',
@@ -222,8 +224,8 @@ const runner = () => ({
         // Add supplemental fields
         converted = (await addSupplementalFields(prisma, userData, [converted], partial))[0];
         // Handle trigger
-        if (input.wasSuccessful) await Trigger(prisma, userData.languages).runRoutineComplete(input.title, input.id, userData.id, false);
-        else await Trigger(prisma, userData.languages).runRoutineFail(input.title, input.id, userData.id, false);
+        if (input.wasSuccessful) await Trigger(prisma, userData.languages).runRoutineComplete(input.id, userData.id, false);
+        else await Trigger(prisma, userData.languages).runRoutineFail(input.id, userData.id, false);
         // Return converted object
         return converted as Run;
     },
@@ -295,7 +297,7 @@ const mutater = (): Mutater<
             // Handle run start trigger for every run with status InProgress
             for (const c of created) {
                 if (c.status === RunStatus.InProgress) {
-                    Trigger(prisma, userData.languages).runRoutineStart(c.title as string, c.id as string, userData.id, false);
+                    Trigger(prisma, userData.languages).runRoutineStart(c.id, userData.id, false);
                 }
             }
         },
@@ -304,17 +306,17 @@ const mutater = (): Mutater<
                 // Handle run start trigger for every run with status InProgress, 
                 // that previously had a status of Scheduled
                 if (updated[i].status === RunStatus.InProgress && updateInput[i].hasOwnProperty('status')) {
-                    Trigger(prisma, userData.languages).runRoutineStart(updated[i].title as string, updated[i].id as string, userData.id, false);
+                    Trigger(prisma, userData.languages).runRoutineStart(updated[i].id, userData.id, false);
                 }
                 // Handle run complete trigger for every run with status Completed,
                 // that previously had a status of InProgress
                 if (updated[i].status === RunStatus.Completed && updateInput[i].hasOwnProperty('status')) {
-                    Trigger(prisma, userData.languages).runRoutineComplete(updated[i].title as string, updated[i].id as string, userData.id, false);
+                    Trigger(prisma, userData.languages).runRoutineComplete(updated[i].id, userData.id, false);
                 }
                 // Handle run fail trigger for every run with status Failed,
                 // that previously had a status of InProgress
                 if (updated[i].status === RunStatus.Failed && updateInput[i].hasOwnProperty('status')) {
-                    Trigger(prisma, userData.languages).runRoutineFail(updated[i].title as string, updated[i].id as string, userData.id, false);
+                    Trigger(prisma, userData.languages).runRoutineFail(updated[i].id, userData.id, false);
                 }
             }
         },

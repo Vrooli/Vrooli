@@ -41,6 +41,10 @@ export const typeDef = gql`
         makeAnonymous: Boolean
         isPrivate: Boolean
         userId: ID
+        default: String
+        type: String!
+        props: String!
+        yup: String
         organizationId: ID
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
@@ -51,7 +55,8 @@ export const typeDef = gql`
         translationsDelete: [ID!]
         translationsCreate: [StandardTranslationCreateInput!]
         translationsUpdate: [StandardTranslationUpdateInput!]
-        versionLabel: String! # Cannot update existing version, so we must pass in a new version label
+        versionId: ID # If versionId passed, then we're updating an existing version. NOTE: This will throw an error if you try to update a completed version
+        versionLabel: String # If version label passed, then we're creating a new version
     }
     type Standard {
         id: ID!

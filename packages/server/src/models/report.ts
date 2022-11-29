@@ -74,7 +74,9 @@ const validator = (): Validator<
     Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>,
     any,
     Prisma.reportSelect,
-    Prisma.reportWhereInput
+    Prisma.reportWhereInput,
+    false,
+    false
 > => ({
     validateMap: {
         __typename: 'Report',

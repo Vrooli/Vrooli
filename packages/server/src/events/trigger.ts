@@ -1,12 +1,13 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
 import { DeleteOneType, ForkType, StarFor, VoteFor } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
-import { getDisplay, getLabels } from "../getters";
-import { OrganizationModel } from "../models";
-import { GraphQLModelType } from "../models/types";
+import { getDelegator, getDisplay, getLabels, getValidator } from "../getters";
+import { ObjectMap, OrganizationModel } from "../models";
+import { GraphQLModelType, Validator } from "../models/types";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award } from "./awards";
+import { logger } from "./logger";
 
 export type ActionTrigger = 'AccountNew' |
     'ObjectComplete' | // except runs
@@ -50,27 +51,6 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If the version is public and complete, increase reputation score
         adfdsfsa
     },
-    createOrUpdateApiVersion: async (userId: string, apiId: string, versionId: string, versionStatus: string) => {
-        const wasPublicAndComplete = asdfasfdasfd
-        const isPublicAndComplete = asdfasfdasfd
-        const hasNeverBeenTransferred = asdfasfdasfd
-        // If the version is now public and complete
-        if (isPublicAndComplete) {
-            // If never transferred, increase reputation score of creator
-            if (hasNeverBeenTransferred) {
-                asdfasfdasfd
-            }
-            // Notify subscribers of completed version
-            asdfasfd
-        }
-        // If the version was public and complete, but is now not
-        else if (wasPublicAndComplete) {
-            // If never transferred, decrease reputation score of creator
-            if (hasNeverBeenTransferred) {
-                asdfasfdasfd
-            }
-        }
-    },
     deleteApiVersion: async (userId: string, apiId: string, versionId: string, versionStatus: string) => {
         // If the version was public and complete and has never been transferred, decrease reputation score
         fdsafdsafdsa
@@ -99,9 +79,6 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If the version is public and complete, increase reputation score
         asdfdsfdsd
     },
-    createOrUpdateProjectVersion: async (userId: string, projectId: string, versionId: string, versionStatus: string) => {
-        fdsfdsafds
-    },
     deleteProjectVersion: async (userId: string, projectId: string, versionId: string, versionStatus: string) => {
         asdfasdf
     },
@@ -115,9 +92,6 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If the version is public and complete, increase reputation score
         asdfdsfdsd
     },
-    createOrUpdateRoutineVersion: async (userId: string, routineId: string, versionId: string, versionStatus: string) => {
-        fdsafdsafd
-    },
     deleteRoutineVersion: async (userId: string, routineId: string, versionId: string, versionStatus: string) => {
         fdsafdsafd
     },
@@ -127,9 +101,6 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If the version is public and complete, increase reputation score
         asdfdsfdsd
     },
-    createOrUpdateSmartContractVersion: async (userId: string, smartContractId: string, versionId: string, versionStatus: string) => {
-       fdsafdsaf
-    },
     deleteSmartContractVersion: async (userId: string, smartContractId: string, versionId: string, versionStatus: string) => {
         fdsafdsaf
     },
@@ -138,9 +109,6 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         Award(prisma, userId, languages).update('StandardCreate', 1);
         // If the version is public and complete, increase reputation score
         asdfdsfdsd
-    },
-    createOrUpdateStandardVersion: async (userId: string, standardId: string, versionId: string, versionStatus: string) => {
-        fdsafdsaf
     },
     deleteStandardVersion: async (userId: string, standardId: string, versionId: string, versionStatus: string) => {
         fdsafdsaf
@@ -173,13 +141,35 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // Send notification to subscribers of the project
         notification.toSubscribers('Project', projectId, addedByUserId);
     },
-    objectNewVersion: async (owner: Owner, updatedByUserId: string, objectType: GraphQLModelType, objectId: string) => {
-        const notification = Notify(prisma, languages).pushObjectNewVersion();
-        // Send notification to owner(s) (except for who created it)
-        notification.toOwner(owner, updatedByUserId);
-        // Send notification to anyone subscribed to the object
-        notification.toSubscribers(objectType, objectId, updatedByUserId);
+    objectNewVersion: async (
+        updatedByUserId: string,
+        objectType: GraphQLModelType,
+        objectId: string,
+        owner: Owner | null,
+        hasOriginalOwner: boolean,
+        wasCompleteAndPublic: boolean,
+        isCompleteAndPublic: boolean,
+    ) => {
+        // If the object has a complete version and is public (and wasn't before)
+        if (!wasCompleteAndPublic && isCompleteAndPublic) {
+            // If never transferred, increase reputation score of creator
+            if (hasOriginalOwner) {
+                asdfasfdasfd
+            }
+            // Notify owners and subscribers of new version
+            const notification = Notify(prisma, languages).pushObjectNewVersion();
+            notification.toOwner(owner, updatedByUserId);
+            notification.toSubscribers(objectType, objectId, updatedByUserId);
+        }
+        // If the version was public and complete, but is now not
+        else if (wasCompleteAndPublic && !isCompleteAndPublic) {
+            // If never transferred, decrease reputation score of creator
+            if (hasOriginalOwner) {
+                asdfasfdasfd
+            }
+        }
     },
+    objectDeletedVersion: fdsafdsafasfdasfdsfsa,
     /**
      * NOTE: Unless the object is soft-deleted, this must be called BEFORE the object is deleted.
      */

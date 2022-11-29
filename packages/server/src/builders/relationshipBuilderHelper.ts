@@ -1,5 +1,6 @@
 import { difference } from "@shared/utils";
 import { CustomError } from "../events";
+import { linkToVersion } from "./linkToVersion";
 import { shapeRelationshipData } from "./shapeRelationshipData";
 import { BuiltRelationship, RelationshipBuilderHelperArgs, RelationshipTypes } from "./types";
 
@@ -26,6 +27,7 @@ export const relationshipBuilderHelper = async<
     isOneToOne = false as IsOneToOne,
     isRequired = false as IsRequired,
     isTransferable = true,
+    linkVersion = false,
     joinData,
     prisma,
     relationshipName,
@@ -46,8 +48,9 @@ export const relationshipBuilderHelper = async<
         if (value === null || value === undefined) continue;
         // Skip if not matching relationship or not a valid operation
         if (!key.startsWith(relationshipName) || !ops.some(o => key.toLowerCase().endsWith(o))) continue;
-        // Determine operation
-        const currOp = key.replace(relationshipName, '').toLowerCase();
+        // Determine operation. Versioned data may also have "Version" before "Connect", "Disconnect", and "Delete",
+        // so we must remove that too
+        const currOp = key.replace(relationshipName, '').replace('Version', '').toLowerCase();
         // TODO handle soft delete
         // Add operation to result object
         const shapedData = shapeRelationshipData(value, fieldExcludes, isOneToOne);
@@ -72,7 +75,13 @@ export const relationshipBuilderHelper = async<
             const shaped: { [x: string]: any }[] = [];
             for (const create of converted.create) {
                 const created = await shape.relCreate({ data: create, prisma, userData });
-                shaped.push(created);
+                // If linkVersion is true, the data from relCreate must be flipped so 
+                // version is top-level, and the rest is nested under "root"
+                if (linkVersion) {
+                    shaped.push(linkToVersion(created, true, userData.languages));
+                } else {
+                    shaped.push(created);
+                }
             }
             converted.create = shaped;
         }
@@ -81,8 +90,14 @@ export const relationshipBuilderHelper = async<
         if (Array.isArray(converted.update)) {
             const shaped: { where: { [key in IDField]: string }, data: { [x: string]: any } }[] = [];
             for (const update of converted.update) {
-                const updated = await shape.relUpdate({ data: update.data, prisma, userData });
-                shaped.push({ where: update.where, data: updated });
+                const updated = await shape.relUpdate({ data: update.data, prisma, userData, where: update.where });
+                // If linkVersion is true, the data from relUpdate must be flipped so 
+                // version is top-level, and the rest is nested under "root"
+                if (linkVersion) {
+                    shaped.push({ where: update.where, data: linkToVersion(updated, false, userData.languages) });
+                } else {
+                    shaped.push({ where: update.where, data: updated });
+                }
             }
             converted.update = shaped;
         }

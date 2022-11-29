@@ -30,7 +30,9 @@ const validator = (): Validator<
     Prisma.nodeGetPayload<{ select: { [K in keyof Required<Prisma.nodeSelect>]: true } }>,
     any,
     Prisma.nodeSelect,
-    Prisma.nodeWhereInput
+    Prisma.nodeWhereInput,
+    false,
+    false
 > => ({
     validateMap: {
         __typename: 'Node',

@@ -158,7 +158,7 @@ export const typeDef = gql`
         id: ID!
         isRequired: Boolean
         name: String
-        standardConnect: ID
+        standardVersionConnect: ID
         standardCreate: StandardCreateInput
         translationsDelete: [ID!]
         translationsCreate: [InputItemTranslationCreateInput!]
@@ -205,14 +205,14 @@ export const typeDef = gql`
     input OutputItemCreateInput {
         id: ID!
         name: String
-        standardConnect: ID
+        standardVersionConnect: ID
         standardCreate: StandardCreateInput
         translationsCreate: [OutputItemTranslationCreateInput!]
     }
     input OutputItemUpdateInput {
         id: ID!
         name: String
-        standardConnect: ID
+        standardVersionConnect: ID
         standardCreate: StandardCreateInput
         translationsDelete: [ID!]
         translationsCreate: [OutputItemTranslationCreateInput!]

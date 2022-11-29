@@ -70,7 +70,9 @@ const validator = (): Validator<
     Prisma.walletGetPayload<{ select: { [K in keyof Required<Prisma.walletSelect>]: true } }>,
     any,
     Prisma.walletSelect,
-    Prisma.walletWhereInput
+    Prisma.walletWhereInput,
+    false,
+    false
 > => ({
     isTransferable: false,
     maxObjects: {

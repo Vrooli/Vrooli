@@ -76,7 +76,9 @@ const validator = (): Validator<
     Prisma.userGetPayload<{ select: { [K in keyof Required<Prisma.userSelect>]: true } }>,
     any,
     Prisma.userSelect,
-    Prisma.userWhereInput
+    Prisma.userWhereInput,
+    false,
+    false
 > => ({
     validateMap: {
         __typename: 'User',

@@ -5,7 +5,7 @@ import { CountMap } from "../models/types";
  * @param obj - Prisma-shaped object
  * @param map - Mapping of GraphQL field names to Prisma relationship names
  */
-export const removeCountFieldsHelper = (obj: any, map: CountMap | undefined): any => {
+export const removeCountFields = (obj: any, map: CountMap | undefined): any => {
     if (!obj || !map) return obj;
     // Create result object
     let result: any = {};

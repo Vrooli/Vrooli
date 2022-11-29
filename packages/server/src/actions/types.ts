@@ -101,6 +101,7 @@ export type RelBuilderHelperProps<
     isAdd: IsAdd,
     isOneToOne: IsOneToOne,
     isRequired: IsRequired,
+    linkVersion?: boolean,
     objectType: GraphQLModelType,
     prisma: PrismaType,
     relationshipName: RelName,

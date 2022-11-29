@@ -14,7 +14,7 @@ import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { RunModel } from "./run";
 import { PartialGraphQLInfo } from "../builders/types";
-import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
+import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type NodeWeightData = {
@@ -175,27 +175,30 @@ const validator = (): Validator<
     RoutineCreateInput,
     RoutineUpdateInput,
     Routine,
-    Prisma.routine_versionGetPayload<{ select: { [K in keyof Required<Prisma.routine_versionSelect>]: true } }>,
+    Prisma.routineGetPayload<{ select: { [K in keyof Required<Prisma.routineSelect>]: true } }>,
     RoutinePermission,
-    Prisma.routine_versionSelect,
-    Prisma.routine_versionWhereInput
+    Prisma.routineSelect,
+    Prisma.routineWhereInput,
+    true,
+    true
 > => ({
     validateMap: {
         __typename: 'Routine',
-        root: {
+        parent: 'Routine',
+        createdBy: 'User',
+        ownedByOrganization: 'Organization',
+        ownedByUser: 'User',
+        versions: {
             select: {
-                parent: 'Routine',
-                createdBy: 'User',
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
+                forks: 'Routine',
+                // api: 'Api',
+                // smartContract: 'SmartContract',
+                // directoryListings: 'ProjectDirectory',
             }
-        },
-        forks: 'Routine',
-        // api: 'Api',
-        // smartContract: 'SmartContract',
-        // directoryListings: 'ProjectDirectory',
+        }
     },
     isTransferable: true,
+    hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
     maxObjects: {
         User: {
             private: {
@@ -218,21 +221,26 @@ const validator = (): Validator<
             },
         },
     },
+    hasCompletedVersion: (data) => data.hasCompleteVersion === true,
     permissionsSelect: (...params) => ({
         id: true,
-        isComplete: true,
-        isPrivate: true,
+        hasCompleteVersion: true,
         isDeleted: true,
-        root: {
+        isPrivate: true,
+        isInternal: true,
+        permissions: true,
+        createdBy: padSelect({ id: true }),
+        ...permissionsSelectHelper([
+            ['ownedByOrganization', 'Organization'],
+            ['ownedByUser', 'User'],
+        ], ...params),
+        versions: {
             select: {
-                isDeleted: true,
+                id: true,
+                isComplete: true,
                 isPrivate: true,
-                isInternal: true,
-                permissions: true,
-                ...permissionsSelectHelper([
-                    ['ownedByOrganization', 'Organization'],
-                    ['ownedByUser', 'User'],
-                ], ...params)
+                isDeleted: true,
+                versionIndex: true,
             }
         }
     }),
@@ -247,38 +255,45 @@ const validator = (): Validator<
         ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
     ]),
     owner: (data) => ({
-        Organization: (data.root as any).ownedByOrganization,
-        User: (data.root as any).ownedByUser,
+        Organization: data.ownedByOrganization,
+        User: data.ownedByUser,
     }),
-    isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+    isDeleted: (data) => data.isDeleted,// || latest(data.versions)?.isDeleted,
     isPublic: (data, languages) => data.isPrivate === false &&
         data.isDeleted === false &&
-        data.root?.isDeleted === false &&
-        data.root?.isInternal === false &&
-        data.root?.isPrivate === false && oneIsPublic<Prisma.routineSelect>(data.root, [
+        data.isInternal === false &&
+        //latest(data.versions)?.isPrivate === false &&
+        //latest(data.versions)?.isDeleted === false &&
+        oneIsPublic<Prisma.routineSelect>(data, [
             ['ownedByOrganization', 'Organization'],
             ['ownedByUser', 'User'],
         ], languages),
     visibility: {
         private: {
-            OR: [
-                { isPrivate: true },
-                { root: { isPrivate: true } },
-            ]
+            isPrivate: true,
+            // OR: [
+            //     { isPrivate: true },
+            //     { root: { isPrivate: true } },
+            // ]
         },
         public: {
-            AND: [
-                { isPrivate: false },
-                { root: { isPrivate: false } },
-            ]
+            isPrivate: false,
+            // AND: [
+            //     { isPrivate: false },
+            //     { root: { isPrivate: false } },
+            // ]
         },
         owner: (userId) => ({
-            root: {
-                OR: [
-                    { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
-            }
+            OR: [
+                { ownedByUser: { id: userId } },
+                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+            ]
+            // root: {
+            //     OR: [
+            //         { ownedByUser: { id: userId } },
+            //         { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+            //     ]
+            // }
         }),
     },
     // if (createMany) {
@@ -710,16 +725,18 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
             tags: await tagRelationshipBuilder(prisma, userData, data, 'Routine', isAdd),
             permissions: JSON.stringify({}),
         },
-        isAutomatable: data.isAutomatable ?? undefined,
-        isComplete: data.isComplete ?? undefined,
-        isInternal: data.isInternal ?? undefined,
-        versionLabel: data.versionLabel ?? undefined,
-        resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        inputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'input', objectType: 'InputItem', prisma, userData }),
-        outputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'output', objectType: 'OutputItem', prisma, userData }),
-        nodes: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'node', objectType: 'Node', prisma, userData }),
-        nodeLinks: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'nodeLink', objectType: 'NodeLink', prisma, userData }),
-        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+        version: {
+            isAutomatable: data.isAutomatable ?? undefined,
+            isComplete: data.isComplete ?? undefined,
+            isInternal: data.isInternal ?? undefined,
+            versionLabel: data.versionLabel ?? undefined,
+            resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
+            inputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'input', objectType: 'InputItem', prisma, userData }),
+            outputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'output', objectType: 'OutputItem', prisma, userData }),
+            nodes: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'node', objectType: 'Node', prisma, userData }),
+            nodeLinks: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'nodeLink', objectType: 'NodeLink', prisma, userData }),
+            translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+        }
     }
 }
 
@@ -728,47 +745,76 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
  */
 const mutater = (): Mutater<
     Routine,
-    { graphql: RoutineCreateInput, db: Prisma.routine_versionUpsertArgs['create'] },
-    { graphql: RoutineUpdateInput, db: Prisma.routine_versionUpsertArgs['update'] },
-    { graphql: RoutineCreateInput, db: Prisma.routine_versionCreateWithoutNodesInput },
-    { graphql: RoutineUpdateInput, db: Prisma.routine_versionUpdateWithoutNodesInput }
+    { graphql: RoutineCreateInput, db: Prisma.routineUpsertArgs['create'] },
+    { graphql: RoutineUpdateInput, db: Prisma.routineUpsertArgs['update'] },
+    { graphql: RoutineCreateInput, db: Prisma.routineCreateWithoutTransfersInput },
+    { graphql: RoutineUpdateInput, db: Prisma.routineUpdateWithoutTransfersInput }
 > => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             const [simplicity, complexity] = await calculateComplexity(prisma, userData.languages, data);
             const base = await shapeBase(prisma, userData, data, true);
             return {
-                ...base,
-                root: {
-                    create: {
-                        ...base.root,
-                        parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
-                        createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                        organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                        createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                        user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                    }
-                },
                 id: data.id,
-                complexity,
-                simplicity,
+                ...base.root,
+                hasCompleteVersion: data.isComplete ? true : false,
+                versions: {
+                    create: {
+                        ...base.version,
+                        complexity,
+                        simplicity,
+                    }
+                }
             }
         },
-        update: async ({ data, prisma, userData }) => {
+        update: async ({ data, prisma, userData, where }) => {
             const [simplicity, complexity] = await calculateComplexity(prisma, userData.languages, data, data.versionId);
             const base = await shapeBase(prisma, userData, data, false);
+            // Determine hasCompleteVersion. 
+            let hasCompleteVersion: boolean | undefined = undefined;
+            // If setting isComplete to true, set hasCompleteVersion to true
+            if (data.isComplete === true) hasCompleteVersion = true;
+            // Otherwise, query for existing versions
+            else {
+                const existingVersions = await prisma.routine_version.findMany({
+                    where: { rootId: where.id },
+                    select: { id: true, isComplete: true }
+                });
+                // Set hasCompleteVersion to true if any version is complete. 
+                // Exclude the version being updated, if it exists
+                if (existingVersions.some(v => v.id !== data.versionId && v.isComplete)) hasCompleteVersion = true;
+                // If none of the existing versions are complete, set hasCompleteVersion to false
+                else hasCompleteVersion = false;
+            }
             return {
-                ...base,
-                root: {
-                    update: {
-                        ...base.root,
-                        // parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
-                        organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                        user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-                    }
+                ...base.root,
+                //
+                hasCompleteVersion,
+                // parent: data.parentId ? { connect: { id: data.parentId } } : undefined,
+                creator: { connect: { id: userData.id } },
+                organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+                user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+                // If versionId is provided, update that version. 
+                // Otherwise, versionLabel is provided, so create new version with that label
+                versions: {
+                    ...(data.versionId ? {
+                        update: {
+                            where: { id: data.versionId },
+                            data: {
+                                ...base.version,
+                                complexity: complexity,
+                                simplicity: simplicity,
+                            }
+                        }
+                    } : {
+                        create: {
+                            ...base.version,
+                            versionLabel: data.versionLabel as string,
+                            complexity: complexity,
+                            simplicity: simplicity,
+                        }
+                    })
                 },
-                complexity: complexity,
-                simplicity: simplicity,
             }
         },
         relCreate: mutater().shape.create,
@@ -780,13 +826,35 @@ const mutater = (): Mutater<
                 Trigger(prisma, userData.languages).createRoutine(userData.id, c.id as string);
             }
         },
-        onUpdated: ({ prisma, updated, updateInput, userData }) => {
+        onUpdated: ({ authData, prisma, updated, updateInput, userData }) => {
+            // Initialize transfers, if any
+            asdfasdfasfd
+            // Handle new version triggers, if any versions have been created
+            // Loop through updated items
             for (let i = 0; i < updated.length; i++) {
                 const u = updated[i];
                 const input = updateInput[i];
-                // Check if version changed
-                if (input.versionLabel && u.isComplete) {
-                    Trigger(prisma, userData.languages).objectNewVersion('Routine', u.id as string, userData.id);
+                const permissionsData = authData[u.id];
+                const { Organization, User } = validator().owner(permissionsData as any);
+                const owner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
+                    { __typename: 'Organization', id: Organization.id } :
+                    User ? { __typename: 'User', id: User.id } : null;
+                const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
+                const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
+                const hadCompletedVersion = validator().hasCompletedVersion(permissionsData as any);
+                const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
+                const hasCompletedVersion = asdfasdfasdf
+                // Check if new version was created
+                if (input.versionLabel) {
+                    Trigger(prisma, userData.languages).objectNewVersion(
+                        userData.id,
+                        'Routine',
+                        u.id,
+                        owner,
+                        hasOriginalOwner,
+                        hadCompletedVersion && wasPublic,
+                        hasCompletedVersion && isPublic
+                    );
                 }
             }
         },

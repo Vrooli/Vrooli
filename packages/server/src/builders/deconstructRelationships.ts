@@ -2,12 +2,12 @@ import { RelationshipMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 
 /**
- * Deconstructs a GraphQL object's relationship fields into database fields. It's the opposite of constructRelationshipsHelper
+ * Deconstructs a GraphQL object's relationship fields into database fields. It's the opposite of constructRelationships
  * @param data - GraphQL-shaped object
  * @param relationshipMap - Mapping of relationship names to their transform shapes
  * @returns DB-shaped object
  */
-export const deconstructRelationshipsHelper = <GraphQLModel>(data: { [x: string]: any }, relationshipMap: RelationshipMap<GraphQLModel>): { [x: string]: any } => {
+export const deconstructRelationships = <GraphQLModel>(data: { [x: string]: any }, relationshipMap: RelationshipMap<GraphQLModel>): { [x: string]: any } => {
     // Create result object
     let result: { [x: string]: any } = data;
     // Filter out all fields in the relationshipMap that don't have an object value

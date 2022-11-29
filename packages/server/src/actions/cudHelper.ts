@@ -23,7 +23,7 @@ import { modelToGraphQL, selectHelper } from "../builders";
  * Finally, it performs the operations in the database, and returns the results in shape of GraphQL objects
  */
 export async function cudHelper<
-    GQLObject extends { [x: string]: any }
+    GQLObject extends ({ id: string} & { [x: string]: any })
 >({
     createMany,
     deleteMany,
@@ -51,7 +51,7 @@ export async function cudHelper<
     }
     if (updateMany) {
         for (const update of updateMany) {
-            const shaped = await mutater.shape.update({ data: update.data, prisma, userData });
+            const shaped = await mutater.shape.update({ data: update.data, prisma, userData, where: update.where });
             shapedUpdate.push({ where: update.where, data: shaped });
         }
     }
@@ -82,10 +82,12 @@ export async function cudHelper<
             });
             // Convert
             const converted = modelToGraphQL<GQLObject>(select, partialInfo);
-            created.push(converted);
+            created.push(converted as any);
         }
+        // Filter authDataById to only include objects which were created
+        const authData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => created.map(c => c.id).includes(id)));
         // Call onCreated
-        mutater.trigger?.onCreated && await mutater.trigger.onCreated({ created, prisma, userData });
+        mutater.trigger?.onCreated && await mutater.trigger.onCreated({ authData, created, prisma, userData });
     }
     if (shapedUpdate.length > 0) {
         // Perform custom validation
@@ -99,10 +101,12 @@ export async function cudHelper<
             });
             // Convert
             const converted = modelToGraphQL<GQLObject>(select, partialInfo);
-            updated.push(converted);
+            updated.push(converted as any);
         }
+        // Filter authDataById to only include objects which were updated
+        const authData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => updated.map(u => u.id).includes(id)));
         // Call onUpdated
-        mutater.trigger?.onUpdated && await mutater.trigger.onUpdated({ prisma, updated, updateInput: updateMany!.map(u => u.data), userData });
+        mutater.trigger?.onUpdated && await mutater.trigger.onUpdated({ authData, prisma, updated, updateInput: updateMany!.map(u => u.data), userData });
     }
     if (deleteMany) {
         // Perform custom validation

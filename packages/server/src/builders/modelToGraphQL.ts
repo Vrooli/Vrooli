@@ -1,10 +1,11 @@
 import { isObject } from "@shared/utils";
 import { ObjectMap } from "../models";
 import { Formatter } from "../models/types";
-import { constructRelationshipsHelper } from "./constructRelationshipsHelper";
+import { constructRelationships } from "./constructRelationships";
 import { isRelationshipObject } from "./isRelationshipObject";
-import { removeCountFieldsHelper } from "./removeCountFieldsHelper";
-import { removeJoinTablesHelper } from "./removeJoinTablesHelper";
+import { removeCountFields } from "./removeCountFields";
+import { removeHiddenFields } from "./removeHiddenFields";
+import { removeJoinTables } from "./removeJoinTables";
 import { subsetsMatch } from "./subsetsMatch";
 import { PartialGraphQLInfo } from "./types";
 
@@ -38,10 +39,10 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     const type: string | undefined = partialInfo?.__typename;
     const formatter: Formatter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined as any;
     if (formatter) {
-        data = constructRelationshipsHelper(data, formatter.relationshipMap);
-        data = removeJoinTablesHelper(data, formatter.joinMap);
-        data = removeCountFieldsHelper(data, formatter.countMap);
-        data = removeHiddenFieldsHelper(data, formatter.hiddenFields);
+        data = constructRelationships(data, formatter.relationshipMap);
+        data = removeJoinTables(data, formatter.joinMap);
+        data = removeCountFields(data, formatter.countMap);
+        data = removeHiddenFields(data, formatter.hiddenFields);
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {

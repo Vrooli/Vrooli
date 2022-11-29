@@ -62,7 +62,9 @@ const validator = (): Validator<
     Prisma.tagGetPayload<{ select: { [K in keyof Required<Prisma.tagSelect>]: true } }>,
     any,
     Prisma.tagSelect,
-    Prisma.tagWhereInput
+    Prisma.tagWhereInput,
+    false,
+    false
 > => ({
     validateMap: { __typename: 'Tag' },
     isTransferable: false,

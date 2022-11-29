@@ -1,6 +1,5 @@
 import { projectsCreate, projectsUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
-import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
@@ -12,7 +11,7 @@ import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { combineQueries, exceptionsBuilder, permissionsSelectHelper, visibilityBuilder } from "../builders";
+import { combineQueries, exceptionsBuilder, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsProject';
@@ -112,24 +111,27 @@ const validator = (): Validator<
     ProjectCreateInput,
     ProjectUpdateInput,
     Project,
-    Prisma.project_versionGetPayload<{ select: { [K in keyof Required<Prisma.project_versionSelect>]: true } }>,
+    Prisma.projectGetPayload<{ select: { [K in keyof Required<Prisma.projectSelect>]: true } }>,
     ProjectPermission,
-    Prisma.project_versionSelect,
-    Prisma.project_versionWhereInput
+    Prisma.projectSelect,
+    Prisma.projectWhereInput,
+    true,
+    true
 > => ({
     validateMap: {
         __typename: 'Project',
-        root: {
+        parent: 'Project',
+        createdBy: 'User',
+        ownedByOrganization: 'Organization',
+        ownedByUser: 'User',
+        versions: {
             select: {
-                parent: 'Project',
-                createdBy: 'User',
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
+                forks: 'Project',
             }
         },
-        forks: 'Project',
     },
     isTransferable: true,
+    hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
     maxObjects: {
         User: {
             private: {
@@ -154,19 +156,21 @@ const validator = (): Validator<
     },
     permissionsSelect: (...params) => ({
         id: true,
-        isComplete: true,
+        hasCompleteVersion: true,
         isDeleted: true,
         isPrivate: true,
-        root: {
+        isInternal: true,
+        permissions: true,
+        createdBy: padSelect({ id: true }),
+        ...permissionsSelectHelper([
+            ['ownedByOrganization', 'Organization'],
+            ['ownedByUser', 'User'],
+        ], ...params),
+        versions: {
             select: {
+                isComplete: true,
                 isDeleted: true,
                 isPrivate: true,
-                isInternal: true,
-                permissions: true,
-                ...permissionsSelectHelper([
-                    ['ownedByOrganization', 'Organization'],
-                    ['ownedByUser', 'User'],
-                ], ...params)
             }
         },
     }),
@@ -181,34 +185,41 @@ const validator = (): Validator<
         ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
     ]),
     owner: (data) => ({
-        Organization: (data.root as any).ownedByOrganization,
-        User: (data.root as any).ownedByUser,
+        Organization: data.ownedByOrganization,
+        User: data.ownedByUser,
     }),
-    isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+    hasCompletedVersion: (data) => data.hasCompleteVersion === true,
+    isDeleted: (data) => data.isDeleted,// || data.root.isDeleted,
     isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
         ['ownedByOrganization', 'Organization'],
         ['ownedByUser', 'User'],
     ], languages),
     visibility: {
         private: {
-            OR: [
-                { isPrivate: true },
-                { root: { isPrivate: true } },
-            ]
+            isPrivate: true,
+            // OR: [
+            //     { isPrivate: true },
+            //     { root: { isPrivate: true } },
+            // ]
         },
         public: {
-            AND: [
-                { isPrivate: false },
-                { root: { isPrivate: false } },
-            ]
+            isPrivate: false,
+            // AND: [
+            //     { isPrivate: false },
+            //     { root: { isPrivate: false } },
+            // ]
         },
         owner: (userId) => ({
-            root: {
-                OR: [
-                    { ownedByUser: { id: userId } },
-                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                ]
-            }
+            OR: [
+                { ownedByUser: { id: userId } },
+                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+            ]
+            // root: {
+            //     OR: [
+            //         { ownedByUser: { id: userId } },
+            //         { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+            //     ]
+            // }
         }),
     }
     // createMany.forEach(input => lineBreaksCheck(input, ['description'], CODE.LineBreaksDescription));

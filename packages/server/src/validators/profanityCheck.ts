@@ -17,13 +17,11 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: GraphQLMod
     const result: { [x: string]: string[] } = {};
     // Handle base case
     // Get current object's validator
-    const validator: Validator<any, any, any, any, any, any, any> | undefined = objectType ? ObjectMap[objectType]?.validate : undefined;
+    const validator: Validator<any, any, any, any, any, any, any, any, any> | undefined = objectType ? ObjectMap[objectType]?.validate : undefined;
     // If validator specifies profanityFields, add them to the result
     if (validator?.profanityFields) {
         for (const field of validator.profanityFields) {
             if (input[field]) result[field] = result[field] ? [...result[field], input[field]] : [input[field]];
-            // Also check "root" object, so we can support versioned objects without implementing dot notation
-            else if (input.root?.[field]) result[field] = result[field] ? [...result[field], input.root[field]] : [input.root[field]];
         }
     }
     // Add translationsCreate and translationsUpdate to the result

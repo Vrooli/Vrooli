@@ -17,6 +17,7 @@ export async function relBuilderHelper<
     isAdd,
     isOneToOne,
     isRequired,
+    linkVersion,
     objectType,
     prisma,
     relationshipName,
@@ -32,6 +33,7 @@ export async function relBuilderHelper<
         isOneToOne,
         isRequired,
         isTransferable: validator.isTransferable,
+        linkVersion,
         prisma,
         shape: mutater.shape as any,
         userData

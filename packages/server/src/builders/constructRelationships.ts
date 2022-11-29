@@ -2,12 +2,12 @@ import { RelationshipMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 
 /**
- * Constructs a GraphQL object's relationship fields from database fields. It's the opposite of deconstructRelationshipsHelper
+ * Constructs a GraphQL object's relationship fields from database fields. It's the opposite of deconstructRelationships
  * @param partialInfo - Partial info object
  * @param relationshipMap - Mapping of GraphQL union field names to Prisma object field names
  * @returns partialInfo object with union fields added
  */
-export const constructRelationshipsHelper = <GraphQLModel>(partialInfo: { [x: string]: any }, relationshipMap: RelationshipMap<GraphQLModel>): { [x: string]: any } => {
+export const constructRelationships = <GraphQLModel>(partialInfo: { [x: string]: any }, relationshipMap: RelationshipMap<GraphQLModel>): { [x: string]: any } => {
     // Create result object
     let result: { [x: string]: any } = partialInfo;
     // Filter out all fields in the relationshipMap that don't have an object value

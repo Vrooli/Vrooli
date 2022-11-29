@@ -1,6 +1,6 @@
 import { GraphQLModelType } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
-import { removeSupplementalFieldsHelper } from "./removeSupplementalFieldsHelper";
+import { removeSupplementalFields } from "./removeSupplementalFields";
 
 /**
  * Determines if a queried object matches the shape of a GraphQL request object
@@ -17,7 +17,7 @@ export const subsetsMatch = (obj: any, query: any): boolean => {
     let formattedQuery = query;
     if (query?.__typename === 'string') {
         // Remove calculated fields from query, since these will not be in obj
-        formattedQuery = removeSupplementalFieldsHelper(query.__typename as GraphQLModelType, query);
+        formattedQuery = removeSupplementalFields(query.__typename as GraphQLModelType, query);
     }
     // First, check if obj is a join table. If this is the case, what we want to check 
     // is actually one layer down
