@@ -1,5 +1,6 @@
-import { merge } from "lodash";
 import { isRelationshipObject } from "./isRelationshipObject";
+import pkg from 'lodash';
+const { merge } = pkg;
 
 /**
  * Recombines objects returned from calls to supplementalFields into shape that matches info

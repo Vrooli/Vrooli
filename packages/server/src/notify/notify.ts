@@ -38,7 +38,7 @@ type PushToUser = {
 }
 
 type PushParams = {
-    bodyKey: TransKey,
+    bodyKey?: TransKey,
     category: NotificationCategory,
     link?: string,
     prisma: PrismaType,
@@ -47,7 +47,7 @@ type PushParams = {
 }
 
 type NotifyResultParams = {
-    bodyKey: TransKey,
+    bodyKey?: TransKey,
     bodyVariables?: { [key: string]: string | number },
     category: NotificationCategory,
     languages: string[],
@@ -80,9 +80,11 @@ const push = async ({
     for (const user of users) {
         const lng = user.languages.length > 0 ? user.languages[0] : 'en';
         const title: string | undefined = titleKey ? i18next.t(`notify:${titleKey}`, { lng, ...(user.titleVariables ?? {}) }) : undefined;
-        const body: string = i18next.t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) });
-        userTitles[user.userId] = title ?? `${body.substring(0, 10)}...`; // If no title, use shortened body
-        userBodies[user.userId] = body;
+        const body: string | undefined = bodyKey ? i18next.t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) }) : undefined
+        // At least one of title or body must be defined
+        if (!title && !body) throw new CustomError('0362', 'InternalError', user.languages);
+        userTitles[user.userId] = title ?? `${body!.substring(0, 10)}...`; // If no title, use shortened body
+        userBodies[user.userId] = body ?? title!;
     }
     const icon = `https://app.vrooli.com/Logo.png`; // TODO location of logo
     // Try connecting to redis
@@ -196,7 +198,7 @@ const replaceLabels = async (
         const display = getDisplayer(objectType, languages, 'replaceLabels');
         const labels = await prismaDelegate.findUnique({
             where: { id: objectId },
-            select: display.select,
+            select: display.select(),
         })
         labelTranslations = labels ?? {};
     }

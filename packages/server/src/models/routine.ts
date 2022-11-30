@@ -174,7 +174,6 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     RoutineCreateInput,
     RoutineUpdateInput,
-    Routine,
     Prisma.routineGetPayload<{ select: { [K in keyof Required<Prisma.routineSelect>]: true } }>,
     RoutinePermission,
     Prisma.routineSelect,
@@ -390,187 +389,187 @@ const calculateShortestLongestWeightedPath = (
     ]
 }
 
-const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
-    select: {
-        id: true,
-        apiCallData: true,
-        complexity: true,
-        isAutomatable: true,
-        simplicity: true,
-        root: {
-            select: {
-                isInternal: true,
-                tags: {
-                    select: {
-                        id: true,
-                    }
-                },
-            }
-        },
-        // Only select top-level nodes
-        nodes: {
-            select: {
-                id: true,
-                columnIndex: true,
-                rowIndex: true,
-                type: true,
-                nodeEnd: {
-                    select: {
-                        wasSuccessful: true
-                    }
-                },
-                loop: {
-                    select: {
-                        loops: true,
-                        maxLoops: true,
-                        operation: true,
-                        whiles: {
-                            select: {
-                                condition: true,
-                                translations: {
-                                    select: {
-                                        description: true,
-                                        title: true,
-                                        language: true,
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                nodeRoutineList: {
-                    select: {
-                        isOrdered: true,
-                        isOptional: true,
-                        routines: {
-                            select: {
-                                id: true,
-                                index: true,
-                                isOptional: true,
-                                routineVersion: {
-                                    select: {
-                                        id: true,
-                                        root: {
-                                            select: {
-                                                isInternal: true,
-                                            }
-                                        }
-                                    }
-                                },
-                                translations: {
-                                    select: {
-                                        description: true,
-                                        title: true,
-                                        language: true,
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                translations: {
-                    select: {
-                        description: true,
-                        title: true,
-                        language: true,
-                    }
-                }
-            }
-        },
-        nodeLinks: {
-            select: {
-                fromId: true,
-                toId: true,
-                whens: {
-                    select: {
-                        condition: true,
-                        translations: {
-                            select: {
-                                description: true,
-                                title: true,
-                                language: true,
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        resourceList: {
-            select: {
-                index: true,
-                resources: {
-                    select: {
-                        index: true,
-                        link: true,
-                        usedFor: true,
-                        translations: {
-                            select: {
-                                description: true,
-                                title: true,
-                                language: true,
-                            }
-                        }
-                    }
-                },
-                translations: {
-                    select: {
-                        description: true,
-                        title: true,
-                        language: true,
-                    }
-                }
-            }
-        },
-        inputs: {
-            select: {
-                isRequired: true,
-                name: true,
-                standardVersionId: true,
-                translations: {
-                    select: {
-                        description: true,
-                        language: true,
-                    }
-                }
-            }
-        },
-        outputs: {
-            select: {
-                name: true,
-                standardVersionId: true,
-                translations: {
-                    select: {
-                        description: true,
-                        language: true,
-                    }
-                }
-            }
-        },
-        translations: {
-            select: {
-                description: true,
-                instructions: true,
-                title: true,
-                language: true,
-            }
-        }
-    },
-    validateSelect: {
-        nodes: {
-            select: {
-                nodeRoutineList: {
-                    select: {
-                        routines: {
-                            select: {
-                                routineVersion: 'Routine',
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-})
+// const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
+//     select: {
+//         id: true,
+//         apiCallData: true,
+//         complexity: true,
+//         isAutomatable: true,
+//         simplicity: true,
+//         root: {
+//             select: {
+//                 isInternal: true,
+//                 tags: {
+//                     select: {
+//                         id: true,
+//                     }
+//                 },
+//             }
+//         },
+//         // Only select top-level nodes
+//         nodes: {
+//             select: {
+//                 id: true,
+//                 columnIndex: true,
+//                 rowIndex: true,
+//                 type: true,
+//                 nodeEnd: {
+//                     select: {
+//                         wasSuccessful: true
+//                     }
+//                 },
+//                 loop: {
+//                     select: {
+//                         loops: true,
+//                         maxLoops: true,
+//                         operation: true,
+//                         whiles: {
+//                             select: {
+//                                 condition: true,
+//                                 translations: {
+//                                     select: {
+//                                         description: true,
+//                                         title: true,
+//                                         language: true,
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 },
+//                 nodeRoutineList: {
+//                     select: {
+//                         isOrdered: true,
+//                         isOptional: true,
+//                         routines: {
+//                             select: {
+//                                 id: true,
+//                                 index: true,
+//                                 isOptional: true,
+//                                 routineVersion: {
+//                                     select: {
+//                                         id: true,
+//                                         root: {
+//                                             select: {
+//                                                 isInternal: true,
+//                                             }
+//                                         }
+//                                     }
+//                                 },
+//                                 translations: {
+//                                     select: {
+//                                         description: true,
+//                                         title: true,
+//                                         language: true,
+//                                     }
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 },
+//                 translations: {
+//                     select: {
+//                         description: true,
+//                         title: true,
+//                         language: true,
+//                     }
+//                 }
+//             }
+//         },
+//         nodeLinks: {
+//             select: {
+//                 fromId: true,
+//                 toId: true,
+//                 whens: {
+//                     select: {
+//                         condition: true,
+//                         translations: {
+//                             select: {
+//                                 description: true,
+//                                 title: true,
+//                                 language: true,
+//                             }
+//                         }
+//                     }
+//                 }
+//             }
+//         },
+//         resourceList: {
+//             select: {
+//                 index: true,
+//                 resources: {
+//                     select: {
+//                         index: true,
+//                         link: true,
+//                         usedFor: true,
+//                         translations: {
+//                             select: {
+//                                 description: true,
+//                                 title: true,
+//                                 language: true,
+//                             }
+//                         }
+//                     }
+//                 },
+//                 translations: {
+//                     select: {
+//                         description: true,
+//                         title: true,
+//                         language: true,
+//                     }
+//                 }
+//             }
+//         },
+//         inputs: {
+//             select: {
+//                 isRequired: true,
+//                 name: true,
+//                 standardVersionId: true,
+//                 translations: {
+//                     select: {
+//                         description: true,
+//                         language: true,
+//                     }
+//                 }
+//             }
+//         },
+//         outputs: {
+//             select: {
+//                 name: true,
+//                 standardVersionId: true,
+//                 translations: {
+//                     select: {
+//                         description: true,
+//                         language: true,
+//                     }
+//                 }
+//             }
+//         },
+//         translations: {
+//             select: {
+//                 description: true,
+//                 instructions: true,
+//                 title: true,
+//                 language: true,
+//             }
+//         }
+//     },
+//     // validateSelect: {
+//     //     nodes: {
+//     //         select: {
+//     //             nodeRoutineList: {
+//     //                 select: {
+//     //                     routines: {
+//     //                         select: {
+//     //                             routineVersion: 'Routine',
+//     //                         }
+//     //                     }
+//     //                 }
+//     //             }
+//     //         }
+//     //     }
+//     // }
+// })
 
 /**
  * Calculates the maximum and minimum complexity of a routine based on the number of steps. 
@@ -645,12 +644,12 @@ const calculateComplexity = async (
         if ((data as NodeCreateInput).nodeRoutineListCreate) {
             const listCreate = (data as NodeCreateInput).nodeRoutineListCreate as NodeRoutineListCreateInput;
             // Handle creates
-            ids = ids.concat(listCreate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
+            ids = ids.concat(listCreate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineVersionConnect) ?? []);
         }
         else if ((data as NodeUpdateInput).nodeRoutineListUpdate) {
             const listUpdate = (data as NodeUpdateInput).nodeRoutineListUpdate as NodeRoutineListUpdateInput;
             // Handle creates
-            ids = ids.concat(listUpdate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineConnect) ?? []);
+            ids = ids.concat(listUpdate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineVersionConnect) ?? []);
             // Handle deletes. No need to handle updates, as routine items cannot switch their routine associations
             if (listUpdate.routinesDelete) {
                 ids = ids.filter(id => !listUpdate.routinesDelete?.find(deletedId => deletedId === id));
@@ -817,8 +816,8 @@ const mutater = (): Mutater<
                 },
             }
         },
-        relCreate: mutater().shape.create,
-        relUpdate: mutater().shape.update,
+        relCreate: (...args) => mutater().shape.create(...args),
+        relUpdate: (...args) => mutater().shape.update(...args),
     },
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
@@ -827,36 +826,36 @@ const mutater = (): Mutater<
             }
         },
         onUpdated: ({ authData, prisma, updated, updateInput, userData }) => {
-            // Initialize transfers, if any
-            asdfasdfasfd
-            // Handle new version triggers, if any versions have been created
-            // Loop through updated items
-            for (let i = 0; i < updated.length; i++) {
-                const u = updated[i];
-                const input = updateInput[i];
-                const permissionsData = authData[u.id];
-                const { Organization, User } = validator().owner(permissionsData as any);
-                const owner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
-                    { __typename: 'Organization', id: Organization.id } :
-                    User ? { __typename: 'User', id: User.id } : null;
-                const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
-                const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
-                const hadCompletedVersion = validator().hasCompletedVersion(permissionsData as any);
-                const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
-                const hasCompletedVersion = asdfasdfasdf
-                // Check if new version was created
-                if (input.versionLabel) {
-                    Trigger(prisma, userData.languages).objectNewVersion(
-                        userData.id,
-                        'Routine',
-                        u.id,
-                        owner,
-                        hasOriginalOwner,
-                        hadCompletedVersion && wasPublic,
-                        hasCompletedVersion && isPublic
-                    );
-                }
-            }
+            // // Initialize transfers, if any
+            // asdfasdfasfd
+            // // Handle new version triggers, if any versions have been created
+            // // Loop through updated items
+            // for (let i = 0; i < updated.length; i++) {
+            //     const u = updated[i];
+            //     const input = updateInput[i];
+            //     const permissionsData = authData[u.id];
+            //     const { Organization, User } = validator().owner(permissionsData as any);
+            //     const owner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
+            //         { __typename: 'Organization', id: Organization.id } :
+            //         User ? { __typename: 'User', id: User.id } : null;
+            //     const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
+            //     const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
+            //     const hadCompletedVersion = validator().hasCompletedVersion(permissionsData as any);
+            //     const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
+            //     const hasCompletedVersion = asdfasdfasdf
+            //     // Check if new version was created
+            //     if (input.versionLabel) {
+            //         Trigger(prisma, userData.languages).objectNewVersion(
+            //             userData.id,
+            //             'Routine',
+            //             u.id,
+            //             owner,
+            //             hasOriginalOwner,
+            //             hadCompletedVersion && wasPublic,
+            //             hasCompletedVersion && isPublic
+            //         );
+            //     }
+            // }
         },
     },
     yup: { create: routinesCreate, update: routinesUpdate },
@@ -866,7 +865,7 @@ const displayer = (): Displayer<
     Prisma.routine_versionSelect,
     Prisma.routine_versionGetPayload<{ select: { [K in keyof Required<Prisma.routine_versionSelect>]: true } }>
 > => ({
-    select: { id: true, translations: { select: { language: true, title: true } } },
+    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'title', languages),
 })
 

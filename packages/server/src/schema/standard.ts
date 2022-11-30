@@ -75,7 +75,7 @@ export const typeDef = gql`
         yup: String
         versionLabel: String!
         rootId: ID!
-        versions: [Version!]!
+        # versions: [Version!]!
         score: Int!
         stars: Int!
         views: Int!

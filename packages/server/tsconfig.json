@@ -14,12 +14,13 @@
         "forceConsistentCasingInFileNames": true,
         "noFallthroughCasesInSwitch": true,
         "moduleResolution": "node",
+        "module": "esnext",
         "resolveJsonModule": true,
         "isolatedModules": true,
         "noImplicitAny": false,
         "noImplicitThis": true,
         "strictNullChecks": true,
-        "removeComments": true
+        "removeComments": true,
     },
     "include": [
         "src"

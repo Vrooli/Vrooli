@@ -45,11 +45,11 @@ const displayer = (): Displayer<
     Prisma.routine_version_outputSelect,
     Prisma.routine_version_outputGetPayload<{ select: { [K in keyof Required<Prisma.routine_version_outputSelect>]: true } }>
 > => ({
-    select: {
+    select: () => ({
         id: true,
         name: true,
         routineVersion: padSelect(RoutineModel.display.select),
-    },
+    }),
     label: (select, languages) => select.name ?? RoutineModel.display.label(select.routineVersion as any, languages),
 })
 

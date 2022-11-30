@@ -207,7 +207,7 @@ const displayer = (): Displayer<
     Prisma.starSelect,
     Prisma.starGetPayload<{ select: { [K in keyof Required<Prisma.starSelect>]: true } }>
 > => ({
-    select: {
+    select: () => ({
         id: true,
         // api: padSelect(ApiModel.display.select),
         comment: padSelect(CommentModel.display.select),
@@ -223,7 +223,7 @@ const displayer = (): Displayer<
         standard: padSelect(StandardModel.display.select),
         tag: padSelect(TagModel.display.select),
         user: padSelect(UserModel.display.select),
-    },
+    }),
     label: (select, languages) => {
         // if (select.api) return ApiModel.display.label(select.api as any, languages);
         if (select.comment) return CommentModel.display.label(select.comment as any, languages);

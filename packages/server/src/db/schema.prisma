@@ -658,8 +658,8 @@ model organization {
     permissions        String                      @db.VarChar(4096)
     premiumId          String?                     @unique @db.Uuid
     resourceListId     String?                     @unique @db.Uuid
-    createdById        String                      @db.Uuid
-    createdBy          user                        @relation("organization_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
+    createdById        String?                      @db.Uuid
+    createdBy          user?                        @relation("organization_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     issues             issue[]
     labels             label[]
     notes              note[]                      @relation("note_ownedByOrganization")
@@ -1021,14 +1021,14 @@ model pull_request {
     updated_at               DateTime                @default(now()) @db.Timestamptz(6)
     status                   PullRequestStatus       @default(Open)
     mergedOrRejectedAt       DateTime?               @db.Timestamptz(6)
-    createdById              String                  @db.Uuid
-    toApiId                  String?                 @unique @db.VarChar(128)
+    createdById              String?                  @db.Uuid
+    toApiId                  String?                 @db.Uuid
     toNoteId                 String?                 @db.Uuid
     toProjectId              String?                 @db.Uuid
     toRoutineId              String?                 @db.Uuid
     toSmartContractId        String?                 @db.Uuid
     toStandardId             String?                 @db.Uuid
-    createdBy                user                    @relation("pull_request_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
+    createdBy                user?                    @relation("pull_request_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     toApi                    api?                    @relation(fields: [toApiId], references: [id], onDelete: Cascade)
     fromApiVersion           api_version?            @relation("pull_request_from_api_version")
     note                     note?                   @relation(fields: [toNoteId], references: [id], onDelete: Cascade)
@@ -1065,7 +1065,7 @@ model question {
     routine           routine?               @relation(fields: [routineId], references: [id], onDelete: Cascade)
     smartContract     smart_contract?        @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
     standard          standard?              @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    createdBy         user?                  @relation("question_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
+    createdBy         user?                  @relation("question_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     comments          comment[]
     answers           question_answer[]
     starredBy         star[]                 @relation("star_question")
@@ -1254,7 +1254,7 @@ model report {
     standardVersion        standard_version?       @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
     tag                    tag?                    @relation(fields: [tagId], references: [id], onDelete: Cascade)
     user                   user?                   @relation("report_user", fields: [userId], references: [id], onDelete: Cascade)
-    createdBy              user?                   @relation("report_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
+    createdBy              user?                   @relation("report_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     responses              report_response[]
 }
 

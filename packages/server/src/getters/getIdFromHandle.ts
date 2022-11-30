@@ -1,4 +1,5 @@
-import { GetIdFromHandleProps } from "./types";
+import { GraphQLModelType } from "../models/types";
+import { PrismaType } from "../types";
 
 /**
  * Finds the id of an object from its handle
@@ -8,7 +9,11 @@ export async function getIdFromHandle({
     handle,
     objectType,
     prisma,
-}: GetIdFromHandleProps): Promise<string | undefined> {
+}: {
+    handle: string;
+    objectType: GraphQLModelType,
+    prisma: PrismaType,
+}): Promise<string | undefined> {
     const where = { handle };
     const select = { id: true };
     const query = { where, select };

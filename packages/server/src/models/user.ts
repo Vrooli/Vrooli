@@ -72,7 +72,6 @@ export const searcher = (): Searcher<
 const validator = (): Validator<
     any,
     any,
-    User,
     Prisma.userGetPayload<{ select: { [K in keyof Required<Prisma.userSelect>]: true } }>,
     any,
     Prisma.userSelect,
@@ -136,7 +135,7 @@ const displayer = (): Displayer<
     Prisma.userSelect,
     Prisma.userGetPayload<{ select: { [K in keyof Required<Prisma.userSelect>]: true } }>
 > => ({
-    select: { id: true, name: true },
+    select: () => ({ id: true, name: true }),
     label: (select) => select.name ?? '',
 })
 

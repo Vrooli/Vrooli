@@ -1,8 +1,9 @@
 import { isObject } from "@shared/utils";
-import { merge } from "lodash";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { subsetsMatch } from "./subsetsMatch";
 import { PartialGraphQLInfo } from "./types";
+import pkg from 'lodash';
+const { merge } = pkg;
 
 /**
  * Combines fields from a Prisma object with arbitrarily nested relationships

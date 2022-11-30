@@ -26,6 +26,7 @@ export type GraphQLModelType =
     'OutputItem' |
     'Profile' |
     'Project' |
+    'ProjectVersion' |
     'ProjectOrRoutineSearchResult' |
     'ProjectOrOrganizationSearchResult' |
     'Report' |
@@ -34,10 +35,12 @@ export type GraphQLModelType =
     'ResourceList' |
     'Role' |
     'Routine' |
+    'RoutineVersion' |
     'RunRoutine' |
     'RunInput' |
     'RunStep' |
     'Standard' |
+    'StandardVersion' |
     'Star' |
     'Tag' |
     'TagHidden' |
@@ -76,7 +79,7 @@ export type ModelLogic<
     delegate: (prisma: PrismaType) => PrismaDelegate;
     search?: Searcher<SearchInput, SortBy, OrderBy, Where>;
     mutate?: Mutater<GQLObject, Create, Update, RelationshipCreate, RelationshipUpdate>;
-    validate?: Validator<GQLCreate, GQLUpdate, GQLObject, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere, IsTransferable, IsVersioned>;
+    validate?: Validator<GQLCreate, GQLUpdate, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere, IsTransferable, IsVersioned>;
     type: GraphQLModelType;
 }
 
@@ -214,7 +217,6 @@ export type ObjectLimit = number | {
 export type Validator<
     GQLCreate extends { [x: string]: any },
     GQLUpdate extends { [x: string]: any },
-    GQLModel extends { [x: string]: any },
     PrismaObject extends { [x: string]: any },
     PermissionObject extends { [x: string]: any },
     PermissionsSelect extends { [x: string]: any },
@@ -483,7 +485,7 @@ export type Displayer<
     /**
      * Select query for object's label
      */
-    select: PrismaSelect,
+    select: () => PrismaSelect,
     /**
      * Uses labelSelect to get label for object
      */

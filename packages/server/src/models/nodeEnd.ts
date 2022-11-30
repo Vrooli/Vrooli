@@ -38,7 +38,7 @@ const displayer = (): Displayer<
     Prisma.node_endSelect,
     Prisma.node_endGetPayload<{ select: { [K in keyof Required<Prisma.node_endSelect>]: true } }>
 > => ({
-    select: { id: true, node: padSelect(NodeModel.display.select) },
+    select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
     label: (select, languages) => NodeModel.display.label(select.node as any, languages),
 })
 

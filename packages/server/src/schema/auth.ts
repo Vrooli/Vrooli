@@ -85,7 +85,7 @@ export const typeDef = gql`
         handle: String
         hasPremium: Boolean!
         id: String!
-        languages: [String]!
+        languages: [String!]!
         name: String
         theme: String
     }

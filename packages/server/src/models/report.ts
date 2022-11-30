@@ -70,7 +70,6 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] }
 const validator = (): Validator<
     ReportCreateInput,
     ReportUpdateInput,
-    Report,
     Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>,
     any,
     Prisma.reportSelect,
@@ -162,7 +161,7 @@ const displayer = (): Displayer<
     Prisma.reportSelect,
     Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>
 > => ({
-    select: {
+    select: () => ({
         id: true,
         // apiVersion: padSelect(ApiModel.display.select),
         comment: padSelect(CommentModel.display.select),
@@ -175,7 +174,7 @@ const displayer = (): Displayer<
         standardVersion: padSelect(StandardModel.display.select),
         tag: padSelect(TagModel.display.select),
         user: padSelect(UserModel.display.select),
-    },
+    }),
     label: (select, languages) => {
         // if (select.apiVersion) return ApiModel.display.label(select.api as any, languages);
         if (select.comment) return CommentModel.display.label(select.comment as any, languages);

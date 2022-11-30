@@ -58,7 +58,6 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     TagCreateInput,
     TagUpdateInput,
-    Tag,
     Prisma.tagGetPayload<{ select: { [K in keyof Required<Prisma.tagSelect>]: true } }>,
     any,
     Prisma.tagSelect,
@@ -111,7 +110,7 @@ const displayer = (): Displayer<
     Prisma.tagSelect,
     Prisma.tagGetPayload<{ select: { [K in keyof Required<Prisma.tagSelect>]: true } }>
 > => ({
-    select: { id: true, tag: true },
+    select: () => ({ id: true, tag: true }),
     label: (select) => select.tag,
 })
 

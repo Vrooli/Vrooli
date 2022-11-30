@@ -47,11 +47,11 @@ const displayer = (): Displayer<
     Prisma.node_routine_list_itemSelect,
     Prisma.node_routine_list_itemGetPayload<{ select: { [K in keyof Required<Prisma.node_routine_list_itemSelect>]: true } }>
 > => ({
-    select: {
+    select: () => ({
         id: true,
         translations: padSelect({ id: true, title: true }),
         routineVersion: padSelect(RoutineModel.display.select),
-    },
+    }),
     label: (select, languages) => {
         // Prefer item translations over routineVersion's
         const itemLabel = bestLabel(select.translations, 'title', languages);

@@ -3,9 +3,7 @@
  * This is written so that it can be called multiple times without duplicating data.
  */
 import { InputType } from '@shared/consts';
-import { ProfileModel } from '../../models';
 import { PrismaType } from '../../types';
-import pkg from '@prisma/client';
 import { logger } from '../../events/logger';
 import { uuid } from '@shared/uuid';
 import { hashPassword } from '../../auth';
@@ -14,8 +12,7 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Initialization */
     //==============================================================
-    logger.info('🌱 Starting database intial seed...');
-
+    logger.info('🌱 Starting database initial seed...');
     // Check for required .env variables
     if (['ADMIN_WALLET', 'ADMIN_PASSWORD', 'SITE_EMAIL_USERNAME'].some(name => !process.env[name])) {
         logger.error('🚨 Missing required .env variables. Not seeding database.', { trace: '0006' });
@@ -66,6 +63,7 @@ export async function init(prisma: PrismaType) {
         update: {},
         create: { tag: 'Research' },
     })
+    console.log('d');
     //==============================================================
     /* #endregion Create Tags */
     //==============================================================
@@ -120,9 +118,11 @@ export async function init(prisma: PrismaType) {
     })
     if (!vrooli) {
         logger.info('🏗 Creating Vrooli organization');
-        const adminMemberId = uuid();
+        const organizationId = uuid();
         vrooli = await prisma.organization.create({
             data: {
+                id: organizationId,
+                createdBy: { connect: { id: admin.id } },
                 translations: {
                     create: [
                         {
@@ -133,21 +133,18 @@ export async function init(prisma: PrismaType) {
                     ]
                 },
                 permissions: JSON.stringify({}),
-                members: {
-                    create: [
-                        {
-                            id: adminMemberId,
-                            permissions: JSON.stringify({}),
-                            userId: admin.id
-                        },
-                    ]
-                },
                 roles: {
                     create: {
                         title: 'Admin',
                         permissions: JSON.stringify({}),
                         assignees: {
-                            connect: [{ id: adminMemberId }],
+                            create: [
+                                {
+                                    permissions: JSON.stringify({}),
+                                    user: { connect: { id: admin.id } },
+                                    organization: { connect: { id: organizationId } },
+                                }
+                            ]
                         }
                     }
                 },
@@ -159,30 +156,28 @@ export async function init(prisma: PrismaType) {
                     ]
                 },
                 resourceList: {
-                    create: [
-                        {
-                            resources: {
-                                create: [
-                                    {
-                                        usedFor: 'OfficialWebsite',
-                                        index: 0,
-                                        link: 'https://vrooli.com',
-                                        translations: {
-                                            create: [{ language: EN, title: "Website", description: "Vrooli's official website" }]
-                                        },
+                    create: {
+                        resources: {
+                            create: [
+                                {
+                                    usedFor: 'OfficialWebsite',
+                                    index: 0,
+                                    link: 'https://vrooli.com',
+                                    translations: {
+                                        create: [{ language: EN, title: "Website", description: "Vrooli's official website" }]
                                     },
-                                    {
-                                        usedFor: 'Social',
-                                        index: 1,
-                                        link: 'https://twitter.com/VrooliOfficial',
-                                        translations: {
-                                            create: [{ language: EN, title: "Twitter", description: "Follow us on Twitter" }]
-                                        },
+                                },
+                                {
+                                    usedFor: 'Social',
+                                    index: 1,
+                                    link: 'https://twitter.com/VrooliOfficial',
+                                    translations: {
+                                        create: [{ language: EN, title: "Twitter", description: "Follow us on Twitter" }]
                                     },
-                                ]
-                            }
+                                },
+                            ]
                         }
-                    ]
+                    }
                 }
             }
         })
@@ -197,7 +192,7 @@ export async function init(prisma: PrismaType) {
     let projectEntrepreneur = await prisma.project_version.findFirst({
         where: {
             AND: [
-                { root: { organizationId: vrooli.id } },
+                { root: { ownedByOrganizationId: vrooli.id } },
                 { translations: { some: { language: EN, name: 'Project Catalyst Entrepreneur Guide' } } },
             ]
         }
@@ -218,8 +213,8 @@ export async function init(prisma: PrismaType) {
                 root: {
                     create: {
                         permissions: JSON.stringify({}),
-                        createdByOrganizationId: vrooli.id,
-                        organizationId: vrooli.id,
+                        createdBy: { connect: { id: admin.id } },
+                        ownedByOrganization: { connect: { id: vrooli.id } },
                     }
                 }
             }
@@ -235,7 +230,7 @@ export async function init(prisma: PrismaType) {
     let standardCip0025 = await prisma.standard_version.findFirst({
         where: {
             AND: [
-                { root: { createdByUserId: admin.id } },
+                { root: { createdById: admin.id } },
                 { root: { name: 'CIP-0025 - NFT Metadata Standard' } },
             ]
         }
@@ -249,7 +244,7 @@ export async function init(prisma: PrismaType) {
                         id: uuid(),
                         name: "CIP-0025 - NFT Metadata Standard",
                         permissions: JSON.stringify({}),
-                        createdByUserId: admin.id,
+                        createdById: admin.id,
                         tags: {
                             create: [
                                 { tag: { connect: { id: tagCardano.id } } },
@@ -293,8 +288,8 @@ export async function init(prisma: PrismaType) {
                         id: mintTokenId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
                         permissions: JSON.stringify({}),
                         isInternal: false,
-                        createdByOrganization: { connect: { id: vrooli.id } },
-                        organization: { connect: { id: vrooli.id } },
+                        createdBy: { connect: { id: admin.id } },
+                        ownedByOrganization: { connect: { id: vrooli.id } },
                     }
                 },
                 translations: {
@@ -313,28 +308,26 @@ export async function init(prisma: PrismaType) {
                 versionLabel: '1.0.0',
                 versionIndex: 0,
                 resourceList: {
-                    create: [
-                        {
-                            resources: {
-                                create: [
-                                    {
-                                        usedFor: 'ExternalService',
-                                        link: 'https://minterr.io/mint-cardano-tokens/',
-                                        translations: {
-                                            create: [{ language: EN, title: "minterr.io" }]
-                                        },
+                    create: {
+                        resources: {
+                            create: [
+                                {
+                                    usedFor: 'ExternalService',
+                                    link: 'https://minterr.io/mint-cardano-tokens/',
+                                    translations: {
+                                        create: [{ language: EN, title: "minterr.io" }]
                                     },
-                                    {
-                                        usedFor: 'Developer',
-                                        link: 'https://developers.cardano.org/docs/native-tokens/minting/',
-                                        translations: {
-                                            create: [{ language: EN, title: "cardano.org guide" }]
-                                        },
+                                },
+                                {
+                                    usedFor: 'Developer',
+                                    link: 'https://developers.cardano.org/docs/native-tokens/minting/',
+                                    translations: {
+                                        create: [{ language: EN, title: "cardano.org guide" }]
                                     },
-                                ]
-                            }
+                                },
+                            ]
                         }
-                    ]
+                    }
                 }
             }
         })
@@ -344,6 +337,7 @@ export async function init(prisma: PrismaType) {
     let mintNft: any = await prisma.routine.findFirst({
         where: { id: mintNftId }
     })
+    console.log('n');
     if (!mintNft) {
         logger.info('📚 Creating NFT Minting routine');
         mintNft = await prisma.routine_version.create({
@@ -353,8 +347,8 @@ export async function init(prisma: PrismaType) {
                         id: mintNftId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
                         permissions: JSON.stringify({}),
                         isInternal: false,
-                        createdByOrganization: { connect: { id: vrooli.id } },
-                        organization: { connect: { id: vrooli.id } },
+                        createdBy: { connect: { id: admin.id } },
+                        ownedByOrganization: { connect: { id: vrooli.id } },
                     }
                 },
                 translations: {
@@ -373,39 +367,38 @@ export async function init(prisma: PrismaType) {
                 versionLabel: '1.0.0',
                 versionIndex: 0,
                 resourceList: {
-                    create: [
-                        {
-                            resources: {
-                                create: [
-                                    {
-                                        usedFor: 'ExternalService',
-                                        link: 'https://minterr.io/mint-cardano-tokens/',
-                                        translations: {
-                                            create: [{ language: EN, title: "minterr.io" }]
-                                        },
+                    create: {
+                        resources: {
+                            create: [
+                                {
+                                    usedFor: 'ExternalService',
+                                    link: 'https://minterr.io/mint-cardano-tokens/',
+                                    translations: {
+                                        create: [{ language: EN, title: "minterr.io" }]
                                     },
-                                    {
-                                        usedFor: 'ExternalService',
-                                        link: 'https://cardano-tools.io/mint',
-                                        translations: {
-                                            create: [{ language: EN, title: "cardano-tools.io" }]
-                                        },
+                                },
+                                {
+                                    usedFor: 'ExternalService',
+                                    link: 'https://cardano-tools.io/mint',
+                                    translations: {
+                                        create: [{ language: EN, title: "cardano-tools.io" }]
                                     },
-                                    {
-                                        usedFor: 'Developer',
-                                        link: 'https://developers.cardano.org/docs/native-tokens/minting-nfts',
-                                        translations: {
-                                            create: [{ language: EN, title: "cardano.org guide" }]
-                                        },
+                                },
+                                {
+                                    usedFor: 'Developer',
+                                    link: 'https://developers.cardano.org/docs/native-tokens/minting-nfts',
+                                    translations: {
+                                        create: [{ language: EN, title: "cardano.org guide" }]
                                     },
-                                ]
-                            }
+                                },
+                            ]
                         }
-                    ]
+                    }
                 }
             }
         })
     }
+    console.log('o');
 
     //==============================================================
     /* #endregion Create Routines */

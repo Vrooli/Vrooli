@@ -1,10 +1,10 @@
 import pkg from '@prisma/client';
 import { SessionUser } from './schema/types';
-import awardLocale from './locales/en/award.json';
-import commonLocale from './locales/en/common.json';
-import errorLocale from './locales/en/error.json';
-import notifyLocale from './locales/en/notify.json';
-import validateLocale from './locales/en/validate.json';
+import awardLocale from './locales/en/award.json' assert { type: 'json' };
+import commonLocale from './locales/en/common.json' assert { type: 'json' };
+import errorLocale from './locales/en/error.json' assert { type: 'json' };
+import notifyLocale from './locales/en/notify.json' assert { type: 'json' };
+import validateLocale from './locales/en/validate.json' assert { type: 'json' };
 
 // Request type
 declare global {

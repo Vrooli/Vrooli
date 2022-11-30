@@ -46,11 +46,11 @@ const displayer = (): Displayer<
     Prisma.node_linkSelect,
     Prisma.node_linkGetPayload<{ select: { [K in keyof Required<Prisma.node_linkSelect>]: true } }>
 > => ({
-    select: { 
+    select: () => ({ 
         id: true, 
         from: padSelect(NodeModel.display.select),
         to: padSelect(NodeModel.display.select),
-    },
+    }),
     // Label combines from and to labels
     label: (select, languages) => {
         return `${NodeModel.display.label(select.from as any, languages)} -> ${NodeModel.display.label(select.to as any, languages)}`

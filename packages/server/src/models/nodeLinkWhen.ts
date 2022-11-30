@@ -45,7 +45,7 @@ const displayer = (): Displayer<
     Prisma.node_link_whenSelect,
     Prisma.node_link_whenGetPayload<{ select: { [K in keyof Required<Prisma.node_link_whenSelect>]: true } }>
 > => ({
-    select: { id: true },
+    select: () => ({ id: true }),
     label: () => ''
 })
 

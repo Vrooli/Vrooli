@@ -187,7 +187,7 @@ const displayer = (): Displayer<
     Prisma.voteSelect,
     Prisma.voteGetPayload<{ select: { [K in keyof Required<Prisma.voteSelect>]: true } }>
 > => ({
-    select: {
+    select: () => ({
         id: true,
         // api: padSelect(ApiModel.display.select),
         comment: padSelect(CommentModel.display.select),
@@ -200,7 +200,7 @@ const displayer = (): Displayer<
         routine: padSelect(RoutineModel.display.select),
         // smartContract: padSelect(SmartContractModel.display.select),
         standard: padSelect(StandardModel.display.select),
-    },
+    }),
     label: (select, languages) => {
         // if (select.api) return ApiModel.display.label(select.api as any, languages);
         if (select.comment) return CommentModel.display.label(select.comment as any, languages);

@@ -82,7 +82,6 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     OrganizationCreateInput,
     OrganizationUpdateInput,
-    Organization,
     Prisma.organizationGetPayload<{ select: { [K in keyof Required<Prisma.organizationSelect>]: true } }>,
     OrganizationPermission,
     Prisma.organizationSelect,
@@ -267,26 +266,25 @@ const mutater = (): Mutater<
 > => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
-            // ID for your member record
-            const memberId = uuid();
+            // ID for organization
+            const organizationId = uuid();
             return {
                 ...(await shapeBase(prisma, userData, data, true)),
+                id: organizationId,
                 // Assign yourself as creator
                 createdBy: { connect: { id: userData.id } },
-                // Add yourself as a member
-                members: {
-                    create: {
-                        id: memberId,
-                        permissions: JSON.stringify({}), //TODO
-                        user: { connect: { id: userData.id } }
-                    }
-                },
                 // Give yourself an Admin role
                 roles: {
                     create: {
                         title: 'Admin',
                         permissions: JSON.stringify({}), //TODO
-                        assignees: { connect: { id: memberId } }
+                        assignees: {
+                            create: {
+                                permissions: JSON.stringify({}), //TODO
+                                user: { connect: { id: userData.id } },
+                                organization: { connect: { id: organizationId } },
+                            }
+                        }
                     }
                 }
             }
@@ -305,7 +303,7 @@ const displayer = (): Displayer<
     Prisma.organizationSelect,
     Prisma.organizationGetPayload<{ select: { [K in keyof Required<Prisma.organizationSelect>]: true } }>
 > => ({
-    select: { id: true, translations: { select: { language: true, name: true } } },
+    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 

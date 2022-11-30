@@ -1,8 +1,9 @@
-import { flatten } from "lodash";
 import { SessionUser } from "../schema/types";
 import { PrismaType } from "../types";
 import { addSupplementalFields } from "./addSupplementalFields";
 import { PartialGraphQLInfo } from "./types";
+import pkg from 'lodash';
+const { flatten } = pkg;
 
 /**
  * Combines addSupplementalFields calls for multiple object types

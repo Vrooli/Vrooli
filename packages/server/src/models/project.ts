@@ -110,7 +110,6 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     ProjectCreateInput,
     ProjectUpdateInput,
-    Project,
     Prisma.projectGetPayload<{ select: { [K in keyof Required<Prisma.projectSelect>]: true } }>,
     ProjectPermission,
     Prisma.projectSelect,
@@ -159,7 +158,6 @@ const validator = (): Validator<
         hasCompleteVersion: true,
         isDeleted: true,
         isPrivate: true,
-        isInternal: true,
         permissions: true,
         createdBy: padSelect({ id: true }),
         ...permissionsSelectHelper([
@@ -273,9 +271,9 @@ const mutater = (): Mutater<
             }
         },
         onUpdated: ({ updated, prisma, userData }) => {
-            for (const u of updated) {
-                Trigger(prisma, userData.languages).updateProject(userData.id, u.id as string);
-            }
+            // for (const u of updated) {
+            //     Trigger(prisma, userData.languages).updateProject(userData.id, u.id as string);
+            // }
         }
     },
     yup: { create: projectsCreate, update: projectsUpdate },
@@ -285,7 +283,7 @@ const displayer = (): Displayer<
     Prisma.project_versionSelect,
     Prisma.project_versionGetPayload<{ select: { [K in keyof Required<Prisma.project_versionSelect>]: true } }>
 > => ({
-    select: { id: true, translations: { select: { language: true, name: true } } },
+    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 

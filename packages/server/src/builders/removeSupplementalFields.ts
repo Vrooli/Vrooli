@@ -1,8 +1,10 @@
 import { omit } from "@shared/utils";
-import { merge } from "lodash";
 import { ObjectMap } from "../models";
 import { GraphQLModelType, SupplementalConverter } from "../models/types";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
+import pkg from 'lodash';
+const { merge } = pkg;
+
 
 /**
  * Removes supplemental fields (i.e. fields that cannot be calculated in the main query), and also may 

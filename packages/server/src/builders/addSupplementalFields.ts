@@ -1,4 +1,3 @@
-import { merge } from "lodash";
 import { ObjectMap } from "../models";
 import { Formatter, GraphQLModelType } from "../models/types";
 import { SessionUser } from "../schema/types";
@@ -8,6 +7,8 @@ import { combineSupplements } from "./combineSupplements";
 import { groupIdsByType } from "./groupIdsByType";
 import { pickObjectById } from "./pickObjectById";
 import { PartialGraphQLInfo } from "./types";
+import pkg from 'lodash';
+const { merge } = pkg;
 
 /**
  * Adds supplemental fields to the select object, and all of its relationships (and their relationships, etc.)

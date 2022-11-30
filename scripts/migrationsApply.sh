@@ -1,6 +1,6 @@
 #!/bin/bash
 # Locates all Prisma migrations up to the one you specify and applies them.
-# Usage: docker exec -i server sh < $( ./scripts/applyMigrations.sh "<migration_name>" )
+# Usage: docker exec -i server sh < $( ./scripts/migrationsApply.sh "<migration_name>" )
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 

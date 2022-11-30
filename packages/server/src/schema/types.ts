@@ -324,8 +324,8 @@ export type InputItemCreateInput = {
   id: Scalars['ID'];
   isRequired?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
-  standardConnect?: InputMaybe<Scalars['ID']>;
   standardCreate?: InputMaybe<StandardCreateInput>;
+  standardVersionConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<InputItemTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<InputItemTranslationUpdateInput>>;
@@ -914,7 +914,7 @@ export type NodeRoutineListItemCreateInput = {
   id: Scalars['ID'];
   index: Scalars['Int'];
   isOptional?: InputMaybe<Scalars['Boolean']>;
-  routineConnect: Scalars['ID'];
+  routineVersionConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
 };
 
@@ -1163,8 +1163,8 @@ export type OutputItem = {
 export type OutputItemCreateInput = {
   id: Scalars['ID'];
   name?: InputMaybe<Scalars['String']>;
-  standardConnect?: InputMaybe<Scalars['ID']>;
   standardCreate?: InputMaybe<StandardCreateInput>;
+  standardVersionConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<OutputItemTranslationCreateInput>>;
 };
 
@@ -1193,8 +1193,8 @@ export type OutputItemTranslationUpdateInput = {
 export type OutputItemUpdateInput = {
   id: Scalars['ID'];
   name?: InputMaybe<Scalars['String']>;
-  standardConnect?: InputMaybe<Scalars['ID']>;
   standardCreate?: InputMaybe<StandardCreateInput>;
+  standardVersionConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<OutputItemTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<OutputItemTranslationUpdateInput>>;
@@ -1890,7 +1890,7 @@ export type ReportSearchResult = {
 
 export enum ReportSortBy {
   DateCreatedAsc = 'DateCreatedAsc',
-  DateCreatedDesc = 'DateCreatedDesc',
+  DateCreatedDesc = 'DateCreatedDesc'
 }
 
 export type ReportUpdateInput = {
@@ -1957,10 +1957,10 @@ export type ResourceList = {
   project?: Maybe<Project>;
   resources: Array<Resource>;
   routine?: Maybe<Routine>;
+  standard?: Maybe<Standard>;
   translations: Array<ResourceListTranslation>;
   updated_at: Scalars['Date'];
   usedFor?: Maybe<ResourceListUsedFor>;
-  user?: Maybe<User>;
 };
 
 export type ResourceListCountInput = {
@@ -2222,6 +2222,7 @@ export type Routine = {
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
+  rootId: Scalars['ID'];
   runs: Array<Run>;
   score: Scalars['Int'];
   simplicity: Scalars['Int'];
@@ -2230,9 +2231,7 @@ export type Routine = {
   tags: Array<Tag>;
   translations: Array<RoutineTranslation>;
   updated_at: Scalars['Date'];
-  version: Scalars['String'];
-  versionGroupId: Scalars['ID'];
-  versions: Array<Scalars['String']>;
+  versionLabel: Scalars['String'];
   views: Scalars['Int'];
 };
 
@@ -2364,7 +2363,6 @@ export type RoutineTranslationUpdateInput = {
 };
 
 export type RoutineUpdateInput = {
-  versionId?: InputMaybe<Scalars['ID']>;
   inputsCreate?: InputMaybe<Array<InputItemCreateInput>>;
   inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   inputsUpdate?: InputMaybe<Array<InputItemUpdateInput>>;
@@ -2393,6 +2391,7 @@ export type RoutineUpdateInput = {
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<RoutineTranslationUpdateInput>>;
   userId?: InputMaybe<Scalars['ID']>;
+  versionId?: InputMaybe<Scalars['ID']>;
   versionLabel?: InputMaybe<Scalars['String']>;
 };
 
@@ -2428,7 +2427,6 @@ export type RunCompleteInput = {
   inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   inputsUpdate?: InputMaybe<Array<RunInputUpdateInput>>;
   title: Scalars['String'];
-  version: Scalars['String'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
@@ -2648,6 +2646,7 @@ export type Standard = {
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
+  rootId: Scalars['ID'];
   routineInputs: Array<Routine>;
   routineOutputs: Array<Routine>;
   score: Scalars['Int'];
@@ -2657,9 +2656,7 @@ export type Standard = {
   translations: Array<StandardTranslation>;
   type: Scalars['String'];
   updated_at: Scalars['Date'];
-  version: Scalars['String'];
-  versionGroupId: Scalars['ID'];
-  versions: Array<Scalars['String']>;
+  versionLabel: Scalars['String'];
   views: Scalars['Int'];
   yup?: Maybe<Scalars['String']>;
 };
@@ -2768,11 +2765,12 @@ export type StandardTranslationUpdateInput = {
 };
 
 export type StandardUpdateInput = {
+  default?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   makeAnonymous?: InputMaybe<Scalars['Boolean']>;
   organizationId?: InputMaybe<Scalars['ID']>;
-  userId?: InputMaybe<Scalars['ID']>;
+  props: Scalars['String'];
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
@@ -2782,12 +2780,11 @@ export type StandardUpdateInput = {
   translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<StandardTranslationUpdateInput>>;
+  type: Scalars['String'];
+  userId?: InputMaybe<Scalars['ID']>;
   versionId?: InputMaybe<Scalars['ID']>;
   versionLabel?: InputMaybe<Scalars['String']>;
-  default: InputMaybe<Scalars['String']>;
-        type: InputMaybe<Scalars['String']>;
-        props: InputMaybe<Scalars['String']>;
-        yup: InputMaybe<Scalars['String']>;
+  yup?: InputMaybe<Scalars['String']>;
 };
 
 export type Star = {
@@ -3096,6 +3093,12 @@ export type UserTranslationUpdateInput = {
 
 export type ValidateSessionInput = {
   timeZone?: InputMaybe<Scalars['String']>;
+};
+
+export type Version = {
+  id: Scalars['ID'];
+  label: Scalars['String'];
+  notes?: InputMaybe<Scalars['String']>;
 };
 
 export type View = {

@@ -12,15 +12,18 @@ import { OrganizationModel } from './organization';
 import { OutputItemModel } from './outputItem';
 import { ProfileModel } from './profile';
 import { ProjectModel } from './project';
+// import { ProjectVersionModel } from './projectVersion';
 import { ReportModel } from './report';
 import { ResourceModel } from './resource';
 import { ResourceListModel } from './resourceList';
 import { RoleModel } from './role';
 import { RoutineModel } from './routine';
+// import { RoutineVersionModel } from './routineVersion';
 import { RunModel } from './run';
 import { RunInputModel } from './runInput';
 import { RunStepModel } from './runStep';
 import { StandardModel } from './standard';
+// import { StandardVersionModel } from './standardVersion';
 import { StarModel } from './star';
 import { TagModel } from './tag';
 import { AniedModelLogic, GraphQLModelType } from './types';
@@ -46,16 +49,19 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     NodeRoutineListItem: NodeRoutineListItemModel,
     Organization: OrganizationModel,
     OutputItem: OutputItemModel,
-    Profile: ProfileModel,
+    // Profile: ProfileModel,
     Project: ProjectModel,
+    // ProjectVersion: ProjectVersionModel,
     Report: ReportModel,
     Resource: ResourceModel,
     ResourceList: ResourceListModel,
     Role: RoleModel,
     Routine: RoutineModel,
+    // RoutineVersion: RoutineVersionModel,
     RunRoutine: RunModel,
     RunInput: RunInputModel,
     Standard: StandardModel,
+    // StandardVersion: StandardVersionModel,
     RunStep: RunStepModel,
     Star: StarModel,
     Tag: TagModel,

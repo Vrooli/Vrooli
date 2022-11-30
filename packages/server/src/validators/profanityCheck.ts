@@ -17,7 +17,7 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: GraphQLMod
     const result: { [x: string]: string[] } = {};
     // Handle base case
     // Get current object's validator
-    const validator: Validator<any, any, any, any, any, any, any, any, any> | undefined = objectType ? ObjectMap[objectType]?.validate : undefined;
+    const validator: Validator<any, any, any, any, any, any, any, any> | undefined = objectType ? ObjectMap[objectType]?.validate : undefined;
     // If validator specifies profanityFields, add them to the result
     if (validator?.profanityFields) {
         for (const field of validator.profanityFields) {

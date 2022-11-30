@@ -17,11 +17,11 @@ const displayer = (): Displayer<
     Prisma.roleSelect,
     Prisma.roleGetPayload<{ select: { [K in keyof Required<Prisma.roleSelect>]: true } }>
 > => ({
-    select: { 
+    select: () => ({ 
         id: true, 
         title: true,
         translations: { select: { language: true, title: true } } 
-    },
+    }),
     label: (select, languages) => {
         // Prefer translated title over default title
         const translated = bestLabel(select.translations, 'title', languages)

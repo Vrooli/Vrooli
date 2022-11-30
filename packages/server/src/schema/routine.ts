@@ -96,7 +96,7 @@ export const typeDef = gql`
         views: Int!
         versionLabel: String!
         rootId: ID!
-        versions: [Version!]!
+        # versions: [Version!]!
         comments: [Comment!]!
         commentsCount: Int!
         creator: Contributor

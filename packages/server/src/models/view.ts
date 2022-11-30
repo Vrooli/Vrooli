@@ -282,7 +282,7 @@ const displayer = (): Displayer<
     Prisma.viewSelect,
     Prisma.viewGetPayload<{ select: { [K in keyof Required<Prisma.viewSelect>]: true } }>
 > => ({
-    select: {
+    select: () => ({
         id: true,
         // api: padSelect(ApiModel.display.select),
         organization: padSelect(OrganizationModel.display.select),
@@ -292,7 +292,7 @@ const displayer = (): Displayer<
         // smartContract: padSelect(SmartContractModel.display.select),
         standard: padSelect(StandardModel.display.select),
         user: padSelect(UserModel.display.select),
-    },
+    }),
     label: (select, languages) => {
         // if (select.api) return ApiModel.display.label(select.api as any, languages);
         if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);

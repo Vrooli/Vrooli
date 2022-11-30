@@ -66,7 +66,6 @@ export const verifyHandle = async (
 const validator = (): Validator<
     any,
     WalletUpdateInput,
-    Wallet,
     Prisma.walletGetPayload<{ select: { [K in keyof Required<Prisma.walletSelect>]: true } }>,
     any,
     Prisma.walletSelect,
@@ -146,7 +145,7 @@ const mutater = (): Mutater<
 > => ({
     shape: {
         update: async ({ data }) => data,
-        relUpdate: mutater().shape.update,
+        relUpdate: (...params) => mutater().shape.update(...params),
     },
     yup: { update: walletsUpdate },
 })
@@ -155,7 +154,7 @@ const displayer = (): Displayer<
     Prisma.walletSelect,
     Prisma.walletGetPayload<{ select: { [K in keyof Required<Prisma.walletSelect>]: true } }>
 > => ({
-    select: { id: true, name: true },
+    select: () => ({ id: true, name: true }),
     label: (select) => select.name ?? '',
 })
 

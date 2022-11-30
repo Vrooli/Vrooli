@@ -45,7 +45,6 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     ResourceCreateInput,
     ResourceUpdateInput,
-    Resource,
     Prisma.resourceGetPayload<{ select: { [K in keyof Required<Prisma.resourceSelect>]: true } }>,
     any,
     Prisma.resourceSelect,
@@ -127,7 +126,7 @@ const displayer = (): Displayer<
     Prisma.resourceSelect,
     Prisma.resourceGetPayload<{ select: { [K in keyof Required<Prisma.resourceSelect>]: true } }>
 > => ({
-    select: { id: true, translations: { select: { language: true, title: true } } },
+    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'title', languages),
 })
 

@@ -10,9 +10,10 @@ export function getDuplicator<
     languages: string[],
     errorTrace: string,
 ): Duplicator<Select, Data> {
-    const duplicate: Duplicator<Select, Data> | undefined = ObjectMap[objectType]?.duplicate
-    if (!duplicate) {
-        throw new CustomError('0348', 'InvalidArgs', languages, { errorTrace, objectType });
-    }
-    return duplicate;
+    throw new CustomError('0348', 'NotImplemented', languages, { errorTrace, objectType });
+    // const duplicate: Duplicator<Select, Data> | undefined = ObjectMap[objectType]?.duplicate
+    // if (!duplicate) {
+    //     throw new CustomError('0348', 'InvalidArgs', languages, { errorTrace, objectType });
+    // }
+    // return duplicate;
 }

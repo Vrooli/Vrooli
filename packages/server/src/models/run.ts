@@ -72,7 +72,6 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     RunCreateInput,
     RunUpdateInput,
-    Run,
     Prisma.run_routineGetPayload<{ select: { [K in keyof Required<Prisma.run_routineSelect>]: true } }>,
     RunPermission,
     Prisma.run_routineSelect,
@@ -358,7 +357,7 @@ const displayer = (): Displayer<
     Prisma.run_routineSelect,
     Prisma.run_routineGetPayload<{ select: { [K in keyof Required<Prisma.run_routineSelect>]: true } }>
 > => ({
-    select: { id: true, title: true },
+    select: () => ({ id: true, title: true }),
     label: (select) => select.title ?? '',
 })
 

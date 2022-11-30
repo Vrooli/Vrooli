@@ -1,4 +1,5 @@
 import { modelToGraphQL, toPartialGraphQLInfo } from "../builders"
+import { getFormatter } from "../getters"
 import { readManyHelper } from "./readManyHelper"
 import { ReadManyHelperProps } from "./types"
 
@@ -10,7 +11,7 @@ import { ReadManyHelperProps } from "./types"
     additionalQueries,
     info,
     input,
-    model,
+    objectType,
     prisma,
     req,
 }: Omit<ReadManyHelperProps<GraphQLModel>, 'addSupplemental'>): Promise<{ pageInfo: any, nodes: any[] }> {
@@ -19,12 +20,13 @@ import { ReadManyHelperProps } from "./types"
         addSupplemental: false,
         info,
         input,
-        model,
+        objectType,
         prisma,
         req,
     })
+    const format = getFormatter(objectType, req.languages, 'readManyAsFeedHelper')
     const nodes = readManyResult.edges.map(({ node }: any) =>
-        modelToGraphQL(node, toPartialGraphQLInfo(info, model.format.relationshipMap, req.languages, true))) as any[]
+        modelToGraphQL(node, toPartialGraphQLInfo(info, format.relationshipMap, req.languages, true))) as any[]
     return {
         pageInfo: readManyResult.pageInfo,
         nodes,

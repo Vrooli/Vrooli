@@ -193,31 +193,34 @@ export const resolvers = {
     },
     Mutation: {
         profileUpdate: async (_parent: undefined, { input }: IWrap<ProfileUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 250, req });
-            // Update object
-            const updated = await ProfileModel.mutate(prisma).updateProfile(userData, input, info);
-            if (!updated)
-                throw new CustomError('0160', 'ErrorUnknown', req.languages);
-            // Update session
-            const session = await toSession({ id: userData.id }, prisma, req);
-            await generateSessionJwt(res, session);
-            return updated;
+            throw new CustomError('0999', 'NotImplemented', ['en']);
+            // const userData = assertRequestFrom(req, { isUser: true });
+            // await rateLimit({ info, maxUser: 250, req });
+            // // Update object
+            // const updated = await ProfileModel.mutate(prisma).updateProfile(userData, input, info);
+            // if (!updated)
+            //     throw new CustomError('0160', 'ErrorUnknown', req.languages);
+            // // Update session
+            // const session = await toSession({ id: userData.id }, prisma, req);
+            // await generateSessionJwt(res, session);
+            // return updated;
         },
         profileEmailUpdate: async (_parent: undefined, { input }: IWrap<ProfileEmailUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Profile> | null> => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 100, req });
-            // Update object
-            const updated = await ProfileModel.mutate(prisma).updateEmails(userData.id, input, info);
-            if (!updated)
-                throw new CustomError('0162', 'ErrorUnknown', req.languages);
-            return updated;
+            throw new CustomError('0999', 'NotImplemented', ['en']);
+            // const userData = assertRequestFrom(req, { isUser: true });
+            // await rateLimit({ info, maxUser: 100, req });
+            // // Update object
+            // const updated = await ProfileModel.mutate(prisma).updateEmails(userData.id, input, info);
+            // if (!updated)
+            //     throw new CustomError('0162', 'ErrorUnknown', req.languages);
+            // return updated;
         },
         userDeleteOne: async (_parent: undefined, { input }: IWrap<UserDeleteInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 5, req });
-            // TODO anonymize public data
-            return await ProfileModel.mutate(prisma).deleteProfile(userData.id, input);
+            throw new CustomError('0999', 'NotImplemented', ['en']);
+            // const userData = assertRequestFrom(req, { isUser: true });
+            // await rateLimit({ info, maxUser: 5, req });
+            // // TODO anonymize public data
+            // return await ProfileModel.mutate(prisma).deleteProfile(userData.id, input);
         },
         /**
          * Exports user data to a JSON file (created/saved routines, projects, organizations, etc.).
@@ -225,9 +228,10 @@ export const resolvers = {
          * @returns JSON of all user data
          */
         exportData: async (_parent: undefined, _args: undefined, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<string> => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ info, maxUser: 5, req });
-            return await ProfileModel.port(prisma).exportData(userData.id);
+            throw new CustomError('0999', 'NotImplemented', ['en']);
+            // const userData = assertRequestFrom(req, { isUser: true });
+            // await rateLimit({ info, maxUser: 5, req });
+            // return await ProfileModel.port(prisma).exportData(userData.id);
         }
     }
 }

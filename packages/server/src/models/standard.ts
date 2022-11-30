@@ -118,7 +118,6 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     StandardCreateInput,
     StandardUpdateInput,
-    Standard,
     Prisma.standardGetPayload<{ select: { [K in keyof Required<Prisma.standardSelect>]: true } }>,
     StandardPermission,
     Prisma.standardSelect,
@@ -267,30 +266,31 @@ const querier = () => ({
         uniqueToCreator: boolean,
         isInternal: boolean
     ): Promise<{ [x: string]: any } | null> {
-        // Sort all JSON properties that are part of the comparison
-        const props = sortify(data.props, userData.languages);
-        const yup = data.yup ? sortify(data.yup, userData.languages) : null;
-        // Find all standards that match the given standard
-        const standards = await prisma.standard_version.findMany({
-            where: {
-                root: {
-                    isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
-                    isDeleted: false,
-                    isPrivate: false,
-                    createdByUserId: (uniqueToCreator && !data.createdByOrganizationId) ? userData.id : undefined,
-                    createdByOrganizationId: (uniqueToCreator && data.createdByOrganizationId) ? data.createdByOrganizationId : undefined,
-                },
-                default: data.default ?? null,
-                props: props,
-                yup: yup,
-            }
-        });
-        // If any standards match (should only ever be 0 or 1, but you never know) return the first one
-        if (standards.length > 0) {
-            return standards[0];
-        }
-        // If no standards match, then data is unique. Return null
         return null;
+        // // Sort all JSON properties that are part of the comparison
+        // const props = sortify(data.props, userData.languages);
+        // const yup = data.yup ? sortify(data.yup, userData.languages) : null;
+        // // Find all standards that match the given standard
+        // const standards = await prisma.standard_version.findMany({
+        //     where: {
+        //         root: {
+        //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
+        //             isDeleted: false,
+        //             isPrivate: false,
+        //             createdByUserId: (uniqueToCreator && !data.createdByOrganizationId) ? userData.id : undefined,
+        //             createdByOrganizationId: (uniqueToCreator && data.createdByOrganizationId) ? data.createdByOrganizationId : undefined,
+        //         },
+        //         default: data.default ?? null,
+        //         props: props,
+        //         yup: yup,
+        //     }
+        // });
+        // // If any standards match (should only ever be 0 or 1, but you never know) return the first one
+        // if (standards.length > 0) {
+        //     return standards[0];
+        // }
+        // // If no standards match, then data is unique. Return null
+        // return null;
     },
     /**
      * Checks if a standard exists that has the same createdByUserId, 
@@ -459,8 +459,8 @@ const mutater = (): Mutater<
                 },
             }
         },
-        relCreate: mutater().shape.create,
-        relUpdate: mutater().shape.update,
+        relCreate: (...args) => mutater().shape.create(...args),
+        relUpdate: (...args) => mutater().shape.update(...args),
     },
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
@@ -469,14 +469,14 @@ const mutater = (): Mutater<
             }
         },
         onUpdated: ({ prisma, updated, updateInput, userData }) => {
-            for (let i = 0; i < updated.length; i++) {
-                const u = updated[i];
-                const input = updateInput[i];
-                // Check if version changed
-                if (input.versionLabel && u.isComplete) {
-                    Trigger(prisma, userData.languages).objectNewVersion('Standard', u.id as string, userData.id);
-                }
-            }
+            // for (let i = 0; i < updated.length; i++) {
+            //     const u = updated[i];
+            //     const input = updateInput[i];
+            //     // Check if version changed
+            //     if (input.versionLabel && u.isComplete) {
+            //         Trigger(prisma, userData.languages).objectNewVersion('Standard', u.id as string, userData.id);
+            //     }
+            // }
         },
     },
     yup: { create: standardsCreate, update: standardsUpdate },
@@ -486,54 +486,54 @@ const mutater = (): Mutater<
      * in the main mutation query like most other relationship builders. Instead, we 
      * must do this separately, and return the standard's ID.
      */
-    async relationshipBuilder(
-        userId: string,
-        data: { [x: string]: any },
-        isAdd: boolean = true,
-    ): Promise<{ [x: string]: any } | undefined> {
-        // Check if standard of same shape already exists with the same creator. 
-        // If so, connect instead of creating a new standard
-        const initialCreate = Array.isArray(data[`standardCreate`]) ?
-            data[`standardCreate`].map((c: any) => c.id) :
-            typeof data[`standardCreate`] === 'object' ? [data[`standardCreate`].id] :
-                [];
-        const initialConnect = Array.isArray(data[`standardConnect`]) ?
-            data[`standardConnect`] :
-            typeof data[`standardConnect`] === 'object' ? [data[`standardConnect`]] :
-                [];
-        const initialUpdate = Array.isArray(data[`standardUpdate`]) ?
-            data[`standardUpdate`].map((c: any) => c.id) :
-            typeof data[`standardUpdate`] === 'object' ? [data[`standardUpdate`].id] :
-                [];
-        const initialCombined = [...initialCreate, ...initialConnect, ...initialUpdate];
-        // TODO this will have bugs
-        if (initialCombined.length > 0) {
-            const existingIds: string[] = [];
-            // Find shapes of all initial standards
-            for (const standard of initialCombined) {
-                const initialShape = await this.shapeCreate(userId, standard);
-                const exists = await querier().findMatchingStandardVersion(prisma, standard, userId, true, false)
-                if (exists) existingIds.push(exists.id);
-            }
-            // All existing shapes are the new connects
-            data[`standardConnect`] = existingIds;
-            data[`standardCreate`] = initialCombined.filter((s: any) => !existingIds.includes(s.id));
-        }
-        return relationshipBuilderHelper({
-            data,
-            relationshipName: 'standard',
-            isAdd,
-            userId,
-            shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-        });
-    },
+    // async relationshipBuilder(
+    //     userId: string,
+    //     data: { [x: string]: any },
+    //     isAdd: boolean = true,
+    // ): Promise<{ [x: string]: any } | undefined> {
+    //     // Check if standard of same shape already exists with the same creator. 
+    //     // If so, connect instead of creating a new standard
+    //     const initialCreate = Array.isArray(data[`standardCreate`]) ?
+    //         data[`standardCreate`].map((c: any) => c.id) :
+    //         typeof data[`standardCreate`] === 'object' ? [data[`standardCreate`].id] :
+    //             [];
+    //     const initialConnect = Array.isArray(data[`standardConnect`]) ?
+    //         data[`standardConnect`] :
+    //         typeof data[`standardConnect`] === 'object' ? [data[`standardConnect`]] :
+    //             [];
+    //     const initialUpdate = Array.isArray(data[`standardUpdate`]) ?
+    //         data[`standardUpdate`].map((c: any) => c.id) :
+    //         typeof data[`standardUpdate`] === 'object' ? [data[`standardUpdate`].id] :
+    //             [];
+    //     const initialCombined = [...initialCreate, ...initialConnect, ...initialUpdate];
+    //     // TODO this will have bugs
+    //     if (initialCombined.length > 0) {
+    //         const existingIds: string[] = [];
+    //         // Find shapes of all initial standards
+    //         for (const standard of initialCombined) {
+    //             const initialShape = await this.shapeCreate(userId, standard);
+    //             const exists = await querier().findMatchingStandardVersion(prisma, standard, userId, true, false)
+    //             if (exists) existingIds.push(exists.id);
+    //         }
+    //         // All existing shapes are the new connects
+    //         data[`standardConnect`] = existingIds;
+    //         data[`standardCreate`] = initialCombined.filter((s: any) => !existingIds.includes(s.id));
+    //     }
+    //     return relationshipBuilderHelper({
+    //         data,
+    //         relationshipName: 'standard',
+    //         isAdd,
+    //         userId,
+    //         shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+    //     });
+    // },
 })
 
 const displayer = (): Displayer<
     Prisma.standard_versionSelect,
     Prisma.standard_versionGetPayload<{ select: { [K in keyof Required<Prisma.standard_versionSelect>]: true } }>
 > => ({
-    select: { id: true, root: { select: { name: true } } },
+    select: () => ({ id: true, root: { select: { name: true } } }),
     label: (select) => select.root.name ?? '',
 })
 

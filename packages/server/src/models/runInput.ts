@@ -18,7 +18,6 @@ const formatter = (): Formatter<RunInput, any> => ({
 const validator = (): Validator<
     RunInputCreateInput,
     RunInputUpdateInput,
-    RunInput,
     Prisma.run_routine_inputGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_inputSelect>]: true } }>,
     any,
     Prisma.run_routine_inputSelect,
@@ -123,11 +122,11 @@ const displayer = (): Displayer<
     Prisma.run_routine_inputSelect,
     Prisma.run_routine_inputGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_inputSelect>]: true } }>
 > => ({
-    select: {
+    select: () => ({
         id: true,
         input: padSelect(InputItemModel.display.select),
         runRoutine: padSelect(RunModel.display.select),
-    },
+    }),
     // Label combines runRoutine's label and input's label
     label: (select, languages) => {
         const runRoutineLabel = RunModel.display.label(select.runRoutine as any, languages);

@@ -1,4 +1,5 @@
-import { GetLatestVersionProps } from "./types";
+import { GraphQLModelType } from "../models/types";
+import { PrismaType } from "../types";
 
 /**
  * Finds the latest version of a versioned object. This includes apis, notes, routines, smart contracts, and standards
@@ -9,7 +10,12 @@ export async function getLatestVersion({
     objectType,
     prisma,
     versionGroupId,
-}: GetLatestVersionProps): Promise<string | undefined> {
+}: {
+    includeIncomplete?: boolean,
+    objectType: string, // GraphQLModelType,
+    prisma: PrismaType,
+    versionGroupId: string,
+}): Promise<string | undefined> {
     // Handle apis and notes, which don't have an "isComplete" field
     if (['Api', 'Note'].includes(objectType)) {
         const query = {

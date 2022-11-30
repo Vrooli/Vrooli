@@ -17,10 +17,10 @@ const displayer = (): Displayer<
     Prisma.memberSelect,
     Prisma.memberGetPayload<{ select: { [K in keyof Required<Prisma.memberSelect>]: true } }>
 > => ({
-    select: {
+    select: () => ({
         id: true,
         user: padSelect(UserModel.display.select),
-    },
+    }),
     label: (select, languages) => UserModel.display.label(select.user as any, languages),
 })
 

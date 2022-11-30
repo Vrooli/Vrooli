@@ -26,7 +26,6 @@ const formatter = (): Formatter<Node, any> => ({
 const validator = (): Validator<
     NodeCreateInput,
     NodeUpdateInput,
-    Node,
     Prisma.nodeGetPayload<{ select: { [K in keyof Required<Prisma.nodeSelect>]: true } }>,
     any,
     Prisma.nodeSelect,
@@ -46,7 +45,8 @@ const validator = (): Validator<
         },
         Organization: 0,
     },
-    permissionsSelect: (...params) => ({ routineVersion: { select: RoutineModel.validate.permissionsSelect(...params) } }),
+    permissionsSelect: () => ({}) as any,
+    //permissionsSelect: (...params) => ({ routineVersion: { select: RoutineModel.validate.permissionsSelect(...params) } }),
     permissionResolvers: ({ isAdmin }) => ([
         ['canDelete', async () => isAdmin],
         ['canEdit', async () => isAdmin],
@@ -110,8 +110,8 @@ const mutater = (): Mutater<
         update: async ({ data, prisma, userData }) => {
             return await shapeBase(prisma, userData, data, false);
         },
-        relCreate: mutater().shape.create,
-        relUpdate: mutater().shape.update,
+        relCreate: (...args) => mutater().shape.create(...args),
+        relUpdate: (...args) => mutater().shape.update(...args),
     },
     yup: { create: nodesCreate, update: nodesUpdate },
 })
@@ -120,7 +120,7 @@ const displayer = (): Displayer<
     Prisma.nodeSelect,
     Prisma.nodeGetPayload<{ select: { [K in keyof Required<Prisma.nodeSelect>]: true } }>
 > => ({
-    select: { id: true, translations: { select: { language: true, title: true } } },
+    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'title', languages),
 })
 

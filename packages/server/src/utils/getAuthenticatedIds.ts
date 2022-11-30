@@ -107,7 +107,7 @@ const objectToIds = ( // TODO doesn't support versioned objects
                     }
                     // Recursively call objectToIds on each object in array
                     value.forEach((item: any) => {
-                        const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap as any, item);
+                        const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap as any, item, languages);
                         Object.keys(nestedIds).forEach(nestedKey => {
                             if (ids[nestedKey]) { ids[nestedKey] = [...ids[nestedKey], ...nestedIds[nestedKey]]; }
                             else { ids[nestedKey] = nestedIds[nestedKey]; }
@@ -130,7 +130,7 @@ const objectToIds = ( // TODO doesn't support versioned objects
                         throw new CustomError('0284', 'InternalError', languages)
                     }
                     // Recursively call objectToIds on object
-                    const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap as any, value);
+                    const nestedIds = objectToIds(childActionType as 'Create' | 'Read' | 'Update', childRelMap as any, value as any, languages);
                     Object.keys(nestedIds).forEach(nestedKey => {
                         if (ids[nestedKey]) { ids[nestedKey] = [...ids[nestedKey], ...nestedIds[nestedKey]]; }
                         else { ids[nestedKey] = nestedIds[nestedKey]; }
@@ -246,34 +246,35 @@ export const getAuthenticatedIds = async (
     idsByType: { [key in GraphQLModelType]?: string[] }
     idsByAction: { [key in QueryAction]?: string[] }
 }> => {
-    // Initialize return objects
-    let idsByType: { [key in GraphQLModelType]?: string[] } = {};
-    let idsByAction: { [key in QueryAction]?: string[] } = {};
-    // Find validator and prisma delegate for this object type
-    const validator = getValidator(objectType, languages, 'getAuthenticatedIds');
-    // Filter out objects that are strings
-    const filteredObjects = objects.filter(object => {
-        const isString = typeof object.data === 'string';
-        if (isString) {
-            idsByType[objectType] = [...(idsByType[objectType] ?? []), object.data as string];
-            idsByAction['Delete'] = [...(idsByAction['Delete'] ?? []), object.data as string];
-        }
-        return !isString;
-    });
-    // For each object
-    filteredObjects.forEach(object => {
-        // Call objectToIds to get ids of all objects requiring authentication
-        const ids = objectToIds(object.actionType, validator.validateMap as any, object.data as PrismaUpdate, languages); //TODO validateMap must account  for dot notation
-        // Add ids to return object
-        Object.keys(ids).forEach(key => {
-            if (result[key]) { result[key] = [...result[key], ...ids[key]]; }
-            else { result[key] = ids[key]; }
-        });
-    });
-    // Now we should have ALMOST all ids of objects requiring authentication. What's missing are the ids of 
-    // objects that are being implicitly disconnected (i.e. being replaced by a new connect). We need to find
-    // these ids by querying for them
-    result = await placeholdersToIds(result, prisma, languages);
-    // Return result
-    return result;
+    throw new CustomError('0999', 'NotImplemented', languages);
+    // // Initialize return objects
+    // let idsByType: { [key in GraphQLModelType]?: string[] } = {};
+    // let idsByAction: { [key in QueryAction]?: string[] } = {};
+    // // Find validator and prisma delegate for this object type
+    // const validator = getValidator(objectType, languages, 'getAuthenticatedIds');
+    // // Filter out objects that are strings
+    // const filteredObjects = objects.filter(object => {
+    //     const isString = typeof object.data === 'string';
+    //     if (isString) {
+    //         idsByType[objectType] = [...(idsByType[objectType] ?? []), object.data as string];
+    //         idsByAction['Delete'] = [...(idsByAction['Delete'] ?? []), object.data as string];
+    //     }
+    //     return !isString;
+    // });
+    // // For each object
+    // filteredObjects.forEach(object => {
+    //     // Call objectToIds to get ids of all objects requiring authentication
+    //     const ids = objectToIds(object.actionType, validator.validateMap as any, object.data as PrismaUpdate, languages); //TODO validateMap must account  for dot notation
+    //     // Add ids to return object
+    //     Object.keys(ids).forEach(key => {
+    //         if (result[key]) { result[key] = [...result[key], ...ids[key]]; }
+    //         else { result[key] = ids[key]; }
+    //     });
+    // });
+    // // Now we should have ALMOST all ids of objects requiring authentication. What's missing are the ids of 
+    // // objects that are being implicitly disconnected (i.e. being replaced by a new connect). We need to find
+    // // these ids by querying for them
+    // result = await placeholdersToIds(result, prisma, languages);
+    // // Return result
+    // return result;
 }

@@ -80,7 +80,6 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     CommentCreateInput,
     CommentUpdateInput,
-    Comment,
     Prisma.commentGetPayload<{ select: { [K in keyof Required<Prisma.commentSelect>]: true } }>,
     CommentPermission,
     Prisma.commentSelect,
@@ -358,7 +357,7 @@ const displayer = (): Displayer<
     Prisma.commentSelect,
     Prisma.commentGetPayload<{ select: { [K in keyof Required<Prisma.commentSelect>]: true } }>
 > => ({
-    select: { id: true, translations: { select: { language: true, text: true } } },
+    select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'text', languages),
 })
 

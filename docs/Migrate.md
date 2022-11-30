@@ -6,12 +6,8 @@ Before you even think about migrating your schema, make sure you have already cr
 1. Make sure schema.prisma matches the current database schema.  
 2. Start the project with `docker-compose up -d`, and wait for the server container to finish starting. If the server cannot run due to an error, it's okay to comment out everything in the `server.sh` script to get it to start. To keep the server running, you can add `tail -f /dev/null` to the end of the script.
 3. `docker exec -it server sh`   
-4. `cd packages/server`  
-5. Migrate without applying schema - `prisma migrate dev --name init --create-only`. This will generate a migration file in src/db/migrations.
-6. Open migration file, and add extension create lines for every database extension used.
-    e.g. `CREATE EXTENSION IF NOT EXISTS citext;`
-7. `prisma migrate dev --name init`  
-8. Type `exit` to exit the shell.  
+4. `./scripts/migrateInit.sh`
+5. Type `exit` to exit the shell.  
 
 
 ## Non-Initial Migrations

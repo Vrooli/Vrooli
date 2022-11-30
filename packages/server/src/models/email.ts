@@ -16,7 +16,6 @@ const formatter = (): Formatter<Email, any> => ({
 const validator = (): Validator<
     EmailCreateInput,
     EmailUpdateInput,
-    Email,
     Prisma.emailGetPayload<{ select: { [K in keyof Required<Prisma.emailSelect>]: true } }>,
     any,
     Prisma.emailSelect,
@@ -95,8 +94,8 @@ const mutater = (): Mutater<
                 id: data.id,
             }
         },
-        relCreate: mutater().shape.create,
-        relUpdate: mutater().shape.update,
+        relCreate: (...args) => mutater().shape.create(...args),
+        relUpdate: (...args) => mutater().shape.update(...args),
     },
     trigger: {
         onCreated: ({ prisma, userData }) => {
@@ -110,7 +109,7 @@ const displayer = (): Displayer<
     Prisma.emailSelect,
     Prisma.emailGetPayload<{ select: { [K in keyof Required<Prisma.emailSelect>]: true } }>
 > => ({
-    select: { id: true, emailAddress: true },
+    select: () => ({ id: true, emailAddress: true }),
     label: (select) => select.emailAddress,
 })
 

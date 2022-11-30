@@ -16,7 +16,7 @@
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "build": "yarn tsc && yarn post-build",
-        "post-build": "wasmPath=\"auth/message_signing/rust/pkg\" && cp src/$wasmPath/*.wasm dist/$wasmPath/ 2>/dev/null && cp src/$wasmPath/*.json dist/$wasmPath/ 2>/dev/null && [ -f dist/$wasmPath/emurgo_message_signing.cjs ] && mv dist/$wasmPath/emurgo_message_signing.cjs dist/$wasmPath/emurgo_message_signing.js && cp -R src/notify/email/templates dist/notify/email/",
+        "post-build": "wasmPath=\"auth/message_signing/rust/pkg\" && cp src/$wasmPath/*.wasm dist/$wasmPath/ 2>/dev/null && cp src/$wasmPath/*.json dist/$wasmPath/ 2>/dev/null && [ -f dist/$wasmPath/emurgo_message_signing.js ] && mv dist/$wasmPath/emurgo_message_signing.js dist/$wasmPath/emurgo_message_signing.js && cp -R src/notify/email/templates dist/notify/email/",
         "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "start-production": "yarn build && node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
@@ -26,7 +26,7 @@
         "@blockfrost/blockfrost-js": "^4.1.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
-        "@prisma/client": "4.5.0",
+        "@prisma/client": "4.7.0",
         "@shared/consts": "*",
         "@shared/utils": "*",
         "@shared/uuid": "*",

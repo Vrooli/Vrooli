@@ -21,7 +21,6 @@ const formatter = (): Formatter<RunStep, any> => ({
 const validator = (): Validator<
     RunStepCreateInput,
     RunStepUpdateInput,
-    RunStep,
     Prisma.run_routine_stepGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_stepSelect>]: true } }>,
     any,
     Prisma.run_routine_stepSelect,
@@ -100,7 +99,7 @@ const displayer = (): Displayer<
     Prisma.run_routine_stepSelect,
     Prisma.run_routine_stepGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_stepSelect>]: true } }>
 > => ({
-    select: { id: true, title: true },
+    select: () => ({ id: true, title: true }),
     label: (select) => select.title,
 })
 

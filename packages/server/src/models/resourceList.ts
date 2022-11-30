@@ -22,7 +22,6 @@ const formatter = (): Formatter<ResourceList, any> => ({
 const validator = (): Validator<
     ResourceListCreateInput,
     ResourceListUpdateInput,
-    ResourceList,
     Prisma.resource_listGetPayload<{ select: { [K in keyof Required<Prisma.resource_listSelect>]: true } }>,
     any,
     Prisma.resource_listSelect,
@@ -151,8 +150,8 @@ const mutater = (): Mutater<
                 ...await shapeBase(prisma, userData, data, false),
             };
         },
-        relCreate: mutater().shape.create,
-        relUpdate: mutater().shape.update,
+        relCreate: (...args) => mutater().shape.create(...args),
+        relUpdate: (...args) => mutater().shape.update(...args),
     },
     yup: { create: resourceListsCreate, update: resourceListsUpdate },
 })
@@ -161,7 +160,7 @@ const displayer = (): Displayer<
     Prisma.resource_listSelect,
     Prisma.resource_listGetPayload<{ select: { [K in keyof Required<Prisma.resource_listSelect>]: true } }>
 > => ({
-    select: { id: true, translations: { select: { language: true, title: true } } },
+    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'title', languages),
 })
 

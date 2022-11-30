@@ -4,7 +4,7 @@ let texting_client: any = null;
 try {
     texting_client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 } catch(error) {
-    logger.warn('TWILIO client could not be initialized. Sending SMS will not work', { trace: '0013', error });
+    logger.warning('TWILIO client could not be initialized. Sending SMS will not work', { trace: '0013', error });
 }
 
 export async function smsProcess(job: any) {

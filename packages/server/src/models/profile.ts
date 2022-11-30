@@ -105,7 +105,7 @@ const porter = () => ({
      * @param id 
      */
     async importData(prisma: PrismaType, data: string): Promise<Success> {
-        throw new CustomError('0323', 'NotImplemented', languages);
+        throw new CustomError('0323', 'NotImplemented', ['en']);
     },
     /**
      * Export data to JSON. Useful if you want to use Vrooli data on your own,
@@ -115,8 +115,8 @@ const porter = () => ({
     async exportData(prisma: PrismaType, id: string): Promise<string> {
         // Find user
         const user = await prisma.user.findUnique({ where: { id }, select: { numExports: true, lastExport: true } });
-        if (!user) throw new CustomError('0065', 'NoUser', languages);
-        throw new CustomError('0324', 'NotImplemented', languages)
+        if (!user) throw new CustomError('0065', 'NoUser', ['en']);
+        throw new CustomError('0324', 'NotImplemented', ['en'])
     },
 })
 
@@ -151,32 +151,33 @@ const mutater = () => ({
         input: ProfileEmailUpdateInput,
         info: GraphQLInfo,
     ): Promise<RecursivePartial<Profile>> {
-        // Check for correct password
-        let user = await prisma.user.findUnique({ where: { id: userData.id } });
-        if (!user)
-            throw new CustomError('0068', 'NoUser', userData.languages);
-        if (!validatePassword(input.currentPassword, user, userData.languages))
-            throw new CustomError('0069', 'BadCredentials', userData.languages);
-        // Convert input to partial select
-        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap, userData.languages, true);
-        // Create user data
-        let data: { [x: string]: any } = {
-            password: input.newPassword ? hashPassword(input.newPassword) : undefined,
-            emails: await EmailModel.mutate(prisma).relationshipBuilder!(userId, input, true),
-        };
-        // Send verification emails
-        if (Array.isArray(input.emailsCreate)) {
-            for (const email of input.emailsCreate) {
-                await setupVerificationCode(email.emailAddress, prisma, userData.languages);
-            }
-        }
-        // Update user
-        user = await prisma.user.update({
-            where: { id: userData.id },
-            data: data,
-            ...selectHelper(partial)
-        });
-        return modelToGraphQL(user, partial);
+        throw new CustomError('0069', 'NotImplemented', userData.languages)
+        // // Check for correct password
+        // let user = await prisma.user.findUnique({ where: { id: userData.id } });
+        // if (!user)
+        //     throw new CustomError('0068', 'NoUser', userData.languages);
+        // if (!validatePassword(input.currentPassword, user, userData.languages))
+        //     throw new CustomError('0069', 'BadCredentials', userData.languages);
+        // // Convert input to partial select
+        // const partial = toPartialGraphQLInfo(info, formatter().relationshipMap, userData.languages, true);
+        // // Create user data
+        // let data: { [x: string]: any } = {
+        //     password: input.newPassword ? hashPassword(input.newPassword) : undefined,
+        //     emails: await EmailModel.mutate(prisma).relationshipBuilder!(userId, input, true),
+        // };
+        // // Send verification emails
+        // if (Array.isArray(input.emailsCreate)) {
+        //     for (const email of input.emailsCreate) {
+        //         await setupVerificationCode(email.emailAddress, prisma, userData.languages);
+        //     }
+        // }
+        // // Update user
+        // user = await prisma.user.update({
+        //     where: { id: userData.id },
+        //     data: data,
+        //     ...selectHelper(partial)
+        // });
+        // return modelToGraphQL(user, partial);
     },
     //TODO write this function, and make a similar one for organizations and projects
     // /**
@@ -212,25 +213,26 @@ const mutater = () => ({
         userData: SessionUser,
         input: UserDeleteInput
     ): Promise<Success> {
-        // Check for correct password
-        let user = await prisma.user.findUnique({ where: { id: userData.id } });
-        if (!user)
-            throw new CustomError('0071', 'NoUser', userData.languages);
-        if (!validatePassword(input.password, user, userData.languages))
-            throw new CustomError('0072', 'BadCredentials', userData.languages);
-        // Delete user. User's created objects are deleted separately, with explicit confirmation 
-        // given by the user. This is to minimize the chance of deleting objects which other users rely on. TODO
-        await prisma.user.delete({
-            where: { id: userData.id }
-        })
-        return { success: true };
+        return { success: false }
+        // // Check for correct password
+        // let user = await prisma.user.findUnique({ where: { id: userData.id } });
+        // if (!user)
+        //     throw new CustomError('0071', 'NoUser', userData.languages);
+        // if (!validatePassword(input.password, user, userData.languages))
+        //     throw new CustomError('0072', 'BadCredentials', userData.languages);
+        // // Delete user. User's created objects are deleted separately, with explicit confirmation 
+        // // given by the user. This is to minimize the chance of deleting objects which other users rely on. TODO
+        // await prisma.user.delete({
+        //     where: { id: userData.id }
+        // })
+        // return { success: true };
     },
 })
 
 
 export const ProfileModel = ({
     delegate: (prisma: PrismaType) => prisma.user,
-    display: displayer(),
+    display: {} as any,//displayer(),
     format: formatter(),
     mutate: mutater(),
     port: porter(),
