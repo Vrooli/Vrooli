@@ -18,8 +18,6 @@ import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { DeleteIcon } from '@shared/icons';
 
-const titleAria = 'delete-object-dialog-title';
-
 export const DeleteDialog = ({
     handleClose,
     isOpen,
@@ -45,12 +43,12 @@ export const DeleteDialog = ({
             mutation: deleteOne,
             input: { id: objectId, objectType },
             successCondition: (data) => data.success,
-            successMessage: () => `${objectName} deleted.`,
+            successMessage: () => ({ key: 'ObjectDeleted', variables: { objectName } }),
             onSuccess: () => {
                 setLocation(APP_LINKS.Home);
                 close(true);
             },
-            errorMessage: () => `Failed to delete ${objectName}.`,
+            errorMessage: () => ({ key: 'FailedToDelete' }),
             onError: () => {
                 close(false);
             }
@@ -61,14 +59,13 @@ export const DeleteDialog = ({
         <Dialog
             open={isOpen}
             onClose={() => { close(); }}
-            aria-labelledby={titleAria}
             sx={{
                 zIndex
             }}
         >
             <DialogTitle
-                ariaLabel={titleAria}
-                title={`Delete "${objectName}"`}
+                ariaLabel=''
+                title=''
                 onClose={() => { close() }}
             />
             <DialogContent>

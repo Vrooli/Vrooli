@@ -1,15 +1,13 @@
 import { gql } from 'apollo-server-express';
-import { CODE, StarSortBy } from '@shared/consts';
-import { CustomError } from '../error';
+import { StarSortBy } from '@shared/consts';
 import { StarFor, StarInput, StarSearchInput, StarSearchResult, Success } from './types';
 import { IWrap } from '../types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { getUserId, readManyHelper, StarModel } from '../models';
-import { rateLimit } from '../rateLimit';
-import { genErrorCode } from '../logger';
+import { StarModel } from '../models';
 import { resolveStarTo } from './resolvers';
-import { assertRequestFrom } from '../auth/auth';
+import { assertRequestFrom } from '../auth/request';
+import { readManyHelper } from '../actions';
 
 export const typeDef = gql`
     enum StarSortBy {
@@ -67,6 +65,7 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Star';
 export const resolvers = {
     StarSortBy: StarSortBy,
     StarFor: StarFor,
@@ -75,11 +74,9 @@ export const resolvers = {
     },
     Query: {
         stars: async (_parent: undefined, { input }: IWrap<StarSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StarSearchResult> => {
-            assertRequestFrom(req, { isUser: true });
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            const userId = getUserId(req);
-            if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to view stars.', { code: genErrorCode('0274') });
-            return readManyHelper({ info, input, model: StarModel, prisma, req, additionalQueries: { userId } });
+            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
         },
     },
     Mutation: {
@@ -88,9 +85,9 @@ export const resolvers = {
          * @returns 
          */
         star: async (_parent: undefined, { input }: IWrap<StarInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            assertRequestFrom(req, { isUser: true });
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
-            const success = await StarModel.mutate(prisma).star(getUserId(req) as string, input);
+            const success = await StarModel.star(prisma, userData, input);
             return { success };
         },
     }

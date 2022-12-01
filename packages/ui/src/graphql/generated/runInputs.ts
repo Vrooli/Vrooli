@@ -56,8 +56,6 @@ export interface runInputs_runInputs_edges_node_input_standard {
   yup: string | null;
   tags: runInputs_runInputs_edges_node_input_standard_tags[];
   translations: runInputs_runInputs_edges_node_input_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface runInputs_runInputs_edges_node_input {

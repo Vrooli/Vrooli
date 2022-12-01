@@ -67,6 +67,8 @@ export const profileUpdateSchema = yup.object().shape({
     translationsUpdate: userTranslationsUpdate.notRequired().default(undefined),
 });
 
+export const profilesUpdate = yup.array().of(profileUpdateSchema.required(requiredErrorMessage))
+
 /**
  * Schema for traditional email/password log in FORM.
  */

@@ -72,8 +72,8 @@ const titleMap: { [key in ObjectType]?: string } = {
 const createMap: { [key in ObjectType]?: (props: CreatePageProps) => JSX.Element } = {
     [ObjectType.Organization]: OrganizationCreate,
     [ObjectType.Project]: ProjectCreate,
-    [ObjectType.Routine]: RoutineCreate,
-    [ObjectType.Standard]: StandardCreate,
+    [ObjectType.Routine]: RoutineCreate as any, //TODO
+    [ObjectType.Standard]: StandardCreate as any, //TODO
 }
 
 /**
@@ -82,8 +82,8 @@ const createMap: { [key in ObjectType]?: (props: CreatePageProps) => JSX.Element
 const updateMap: { [key in ObjectType]?: (props: UpdatePageProps) => JSX.Element } = {
     [ObjectType.Organization]: OrganizationUpdate,
     [ObjectType.Project]: ProjectUpdate,
-    [ObjectType.Routine]: RoutineUpdate,
-    [ObjectType.Standard]: StandardUpdate,
+    [ObjectType.Routine]: RoutineUpdate as any, //TODO
+    [ObjectType.Standard]: StandardUpdate as any, //TODO
 }
 
 /**
@@ -92,8 +92,8 @@ const updateMap: { [key in ObjectType]?: (props: UpdatePageProps) => JSX.Element
 const viewMap: { [key in ObjectType]?: (props: ViewPageProps) => JSX.Element } = {
     [ObjectType.Organization]: OrganizationView,
     [ObjectType.Project]: ProjectView,
-    [ObjectType.Routine]: RoutineView,
-    [ObjectType.Standard]: StandardView,
+    [ObjectType.Routine]: RoutineView as any, //TODO
+    [ObjectType.Standard]: StandardView as any, //TODO
 }
 
 /**
@@ -139,7 +139,7 @@ export const ObjectPage = ({
                     severity: SnackSeverity.Success,
                     buttonText: 'Create another',
                     buttonClicked: () => { setLocation(`add`); },
-                })
+                } as any) //TODO
                 break;
             case ObjectDialogAction.Cancel:
             case ObjectDialogAction.Close:

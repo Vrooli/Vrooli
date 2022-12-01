@@ -1,5 +1,5 @@
 import { BoxProps, TypographyProps } from "@mui/material";
-import { Session } from "types";
+import { Project, Routine, Session, Standard } from "types";
 import { ObjectType } from "utils";
 
 export interface DateDisplayProps extends BoxProps {
@@ -7,6 +7,16 @@ export interface DateDisplayProps extends BoxProps {
     showIcon?: boolean;
     textBeforeDate?: string;
     timestamp?: number;
+}
+
+export interface ObjectTitleProps extends BoxProps {
+    language: string;
+    loading: boolean;
+    session: Session;
+    setLanguage: (language: string) => void;
+    translations: { language: string }[];
+    title: string | undefined;
+    zIndex: number;
 }
 
 export interface OwnerLabelProps {
@@ -29,6 +39,14 @@ export interface PageTitleProps {
     }
 }
 
+export type StatsCompactPropsObject = Project | Routine | Standard;
+export interface StatsCompactProps<T extends StatsCompactPropsObject> {
+    handleObjectUpdate: (object: T) => void;
+    loading: boolean;
+    object: T | null;
+    session: Session;
+}
+
 export interface TextShrinkProps extends TypographyProps {
     id: string;
     minFontSize?: string | number;
@@ -40,4 +58,8 @@ export interface VersionDisplayProps extends BoxProps {
     loading?: boolean;
     prefix?: string;
     versions?: string[];
+}
+
+export interface ViewsDisplayProps {
+    views: number | null;
 }

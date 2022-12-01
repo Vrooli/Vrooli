@@ -1,5 +1,5 @@
 import { EndNodeDialogProps } from '../types';
-import { Checkbox, Dialog, FormControlLabel, Grid, TextField, Tooltip, Typography } from '@mui/material';
+import { Checkbox, Dialog, FormControlLabel, Grid, TextField, Tooltip, Typography, useTheme } from '@mui/material';
 import { getTranslation, updateTranslationFields } from 'utils';
 import { nodeEndForm as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -9,6 +9,7 @@ import { useCallback } from 'react';
 import { Node } from 'types';
 import { uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
+import { linkColors } from 'styles';
 
 const titleAria = 'end-node-dialog-title';
 
@@ -20,6 +21,8 @@ export const EndNodeDialog = ({
     language,
     zIndex,
 }: EndNodeDialogProps) => {
+    const { palette } = useTheme();
+
     const formik = useFormik({
         initialValues: {
             title: !getTranslation(node, [language], false).title ? 'End' : getTranslation(node, [language], false).title as string,
@@ -68,7 +71,7 @@ export const EndNodeDialog = ({
                 title={isEditing ? "Edit End Node" : 'End Node Information'}
             />
             <form onSubmit={formik.handleSubmit}>
-                <Grid container spacing={2} sx={{ padding: 2 }}>
+                <Grid container spacing={2} sx={{ padding: 2, ...linkColors(palette) }}>
                     <Grid item xs={12}>
                         <Typography variant="h6">Label</Typography>
                         {

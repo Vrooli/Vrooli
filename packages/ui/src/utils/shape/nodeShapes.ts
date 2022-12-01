@@ -73,7 +73,7 @@ export const shapeNodeRoutineListItemCreate = (item: NodeRoutineListItemShape): 
     id: item.id,
     index: item.index,
     isOptional: item.isOptional ?? false,
-    routineConnect: item.routine.id,
+    routineVersionConnect: {} as any ,//TODO item.routine.id,
     ...shapeCreateList(item, 'translations', shapeNodeRoutineListItemTranslationCreate),
 })
 
@@ -128,7 +128,8 @@ export const shapeNodeCreate = (item: NodeShape): NodeCreateInput => ({
     id: item.id,
     columnIndex: item.columnIndex,
     rowIndex: item.rowIndex,
-    type: item.type,
+    type: {} as any,//TODO item.type,
+    routineVersionId: {} as any,//TODO
     // loopCreate: shapeNodeLoopCreate(node.loop),
     nodeEndCreate: item.data?.__typename === 'NodeEnd' ? shapeNodeEndCreate(item.data as NodeEndShape) : undefined,
     nodeRoutineListCreate: item.data?.__typename === 'NodeRoutineList' ? shapeNodeRoutineListCreate(item.data as NodeRoutineListShape) : undefined,

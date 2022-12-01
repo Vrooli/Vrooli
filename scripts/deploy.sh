@@ -73,27 +73,37 @@ fi
 # Copy current database and build to a safe location, under a temporary directory.
 cd ${HERE}/..
 DB_TMP="/var/tmp/${VERSION}/postgres"
+DB_CURR="${HERE}/../data/postgres"
 BUILD_TMP="/var/tmp/${VERSION}/old-build"
-# Don't copy database if it already exists in /var/tmp
-if [ ! -d "${DB_TMP}" ]; then
+BUILD_CURR="${HERE}/../packages/ui/build"
+# Don't copy database if it already exists in /var/tmp, or it doesn't exist in DB_CURR
+if [ -d "${DB_TMP}" ]; then
+    info "Old database already exists at ${DB_TMP}, so not copying it"
+elif [ ! -d "${DB_CURR}" ]; then
+    warning "Current database does not exist at ${DB_CURR}, so not copying it"
+else
     info "Copying old database to ${DB_TMP}"
     cp -rp ${HERE}/../data/postgres "${DB_TMP}"
     if [ $? -ne 0 ]; then
         error "Could not copy database to ${DB_TMP}"
         exit 1
     fi
-else 
-    info "Old database already exists at ${DB_TMP}, so not copying it"
 fi
-if [ ! -d "${BUILD_TMP}" ]; then
+
+# Don't copy build if it already exists in /var/tmp. 
+# Throw an error if current build doesn't exist
+if [ -d "${BUILD_TMP}" ]; then
+    info "Old build already exists at ${BUILD_TMP}, so not moving it"
+elif [ ! -d "${BUILD_CURR}" ]; then
+    error "Current build does not exist at ${BUILD_CURR}. This may mean that you haven't run build.sh on your development server, or that you did not send the build to this server"
+    exit 1
+else
     info "Moving old build to ${BUILD_TMP}"
-    mv -f ${HERE}/../packages/ui/build "${BUILD_TMP}"
+    mv -f "${BUILD_CURR}" "${BUILD_TMP}"
     if [ $? -ne 0 ]; then
         error "Could not move build to ${BUILD_TMP}"
         exit 1
     fi
-else
-    info "Old build already exists at ${BUILD_TMP}, so not moving it"
 fi
 
 # Stop docker containers

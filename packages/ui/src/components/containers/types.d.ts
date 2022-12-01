@@ -1,18 +1,16 @@
-import { BuildRunState } from "utils";
-import { Routine, Run, Session } from "types";
+import { Session } from "types";
 import { CommentFor } from "graphql/generated/globalTypes";
 import { TextFieldProps } from "@mui/material";
 import { MarkdownInputProps } from "components/inputs/types";
-import { GridSubmitButtonsProps } from "components/buttons/types";
 
 export interface CommentContainerProps {
+    forceAddCommentOpen?: boolean;
+    isOpen?: boolean;
     language: string;
     objectId: string;
     objectType: CommentFor;
+    onAddCommentClose?: () => void;
     session: Session;
-    sxs?: {
-        root: any;
-    }
     zIndex: number;
 }
 
@@ -36,26 +34,6 @@ export interface ListTitleContainerProps extends TitleContainerProps {
 // label, Icon, disabled, isSubmit, onClick
 export type DialogActionItem = [string, any, boolean, boolean, () => void,]
 
-export interface BuildBottomContainerProps {
-    canSubmitMutate: boolean;
-    canCancelMutate: boolean;
-    errors: GridSubmitButtonsProps['errors'];
-    handleCancel: () => void;
-    handleSubmit: () => void;
-    handleRunDelete: (run: Run) => void;
-    handleRunAdd: (run: Run) => void;
-    hasNext: boolean;
-    hasPrevious: boolean;
-    isAdding: boolean;
-    isEditing: boolean;
-    loading: boolean;
-    session: Session;
-    sliderColor: string;
-    routine: Routine | null;
-    runState: BuildRunState
-    zIndex: number;
-}
-
 export interface ContentCollapseProps {
     helpText?: string;
     id?: string;
@@ -73,8 +51,9 @@ export interface ContentCollapseProps {
 export interface TextCollapseProps {
     helpText?: string;
     isOpen?: boolean;
+    loading?: boolean;
+    loadingLines?: number;
     onOpenChange?: (isOpen: boolean) => void;
-    showOnNoText?: boolean;
     title?: string | null;
     text?: string | null;
 }

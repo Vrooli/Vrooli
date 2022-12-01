@@ -12,6 +12,7 @@ import { generateInputComponent } from 'forms/generators';
 import { uuid } from '@shared/uuid';
 import Markdown from 'markdown-to-jsx';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared/icons';
+import { linkColors } from 'styles';
 
 const defaultStandard = (item: InputOutputListItemProps['item'], generatedSchema?: FieldData | null): StandardShape => ({
     __typename: 'Standard',
@@ -76,18 +77,16 @@ export const InputOutputListItem = ({
         setGeneratedSchema(schema);
     }, [canEditStandard]);
 
-    const handleInputTypeSelect = useCallback((event: any) => {
-        if (event.target.value !== item.standard?.type) {
-            const newType = event.target.value?.value ?? InputTypeOptions[0].value;
-            const existingStandard = item.standard ?? defaultStandard(item);
-            setGeneratedSchema(toFieldData(schemaKey, {
-                ...item,
-                standard: {
-                    ...existingStandard,
-                    type: newType,
-                }
-            }, language));
-        }
+    const handleInputTypeSelect = useCallback((selected: InputTypeOption) => {
+        if (selected.value === item.standard?.type) return;
+        const existingStandard = item.standard ?? defaultStandard(item);
+        setGeneratedSchema(toFieldData(schemaKey, {
+            ...item,
+            standard: {
+                ...existingStandard,
+                type: (selected ?? InputTypeOptions[0]).value,
+            }
+        }, language));
     }, [item, language, schemaKey]);
 
     type Translation = InputTranslationShape | OutputTranslationShape;
@@ -151,7 +150,7 @@ export const InputOutputListItem = ({
     const openReorderDialog = useCallback((e: any) => {
         e.stopPropagation();
         handleReorder(index);
-    } , [index, handleReorder]);
+    }, [index, handleReorder]);
 
     return (
         <Box
@@ -246,7 +245,7 @@ export const InputOutputListItem = ({
                 background: palette.background.paper,
                 color: palette.background.textPrimary,
             }}>
-                <Grid container spacing={2} sx={{ padding: 1 }}>
+                <Grid container spacing={2} sx={{ padding: 1, ...linkColors(palette) }}>
                     <Grid item xs={12}>
                         {isEditing ? <TextField
                             fullWidth

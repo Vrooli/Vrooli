@@ -7,12 +7,13 @@ import { useFormik } from 'formik';
 import { profileUpdateMutation } from "graphql/mutation";
 import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, usePromptBeforeUnload } from "utils";
 import { SettingsDisplayProps } from "../types";
-import { GridSubmitButtons, HelpButton, SnackSeverity, TagSelector } from "components";
+import { GridSubmitButtons, HelpButton, PageTitle, SnackSeverity, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
 import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
+import { SettingsFormData } from "pages";
 
 const helpText =
     `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
@@ -77,14 +78,14 @@ export const SettingsDisplay = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) return;
             // If any tags are in both starredTags and hiddenTags, remove them from hidden. Also give warning to user.
             const filteredHiddenTags = hiddenTags.filter(t => !starredTags.some(st => st.tag === t.tag.tag));
             if (filteredHiddenTags.length !== hiddenTags.length) {
-                PubSub.get().publishSnack({ message: 'Found topics in both favorites and hidden. These have been removed from hidden.', severity: SnackSeverity.Warning });
+                PubSub.get().publishSnack({ messageKey: 'FoundTopicsInFavAndHidden', severity: SnackSeverity.Warning });
             }
             const input = shapeProfileUpdate(profile, {
                 id: profile.id,
@@ -93,14 +94,14 @@ export const SettingsDisplay = ({
                 hiddenTags: filteredHiddenTags,
             })
             if (!input || Object.keys(input).length === 0) {
-                PubSub.get().publishSnack({ message: 'No changes made.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Error });
                 formik.setSubmitting(false);
                 return;
             }
             mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
                 mutation,
                 input,
-                successMessage: () => 'Display preferences updated.',
+                successMessage: () => ({ key: 'DisplayPreferencesUpdated' }),
                 onSuccess: (data) => {
                     onUpdated(data);
                     formik.setSubmitting(false);
@@ -123,17 +124,8 @@ export const SettingsDisplay = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            {/* Title */}
-            <Stack direction="row" justifyContent="center" alignItems="center" sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                padding: 0.5,
-                marginBottom: 2,
-            }}>
-                <Typography component="h1" variant="h4">Display Preferences</Typography>
-                <HelpButton markdown={helpText} />
-            </Stack>
-            <Box sx={{ margin: 2, marginBottom: 5 }}>
+            <PageTitle title="Display Preferences" helpText={helpText} />
+            <Box id="theme-switch-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <ThemeSwitch
                     theme={formik.values.theme as 'light' | 'dark'}
                     onChange={(t) => formik.setFieldValue('theme', t)}
@@ -144,7 +136,7 @@ export const SettingsDisplay = ({
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Favorite Topics</Typography>
                 <HelpButton markdown={interestsHelpText} />
             </Stack>
-            <Box sx={{ margin: 2, marginBottom: 5 }}>
+            <Box id="favorite-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
                     handleTagsUpdate={handleStarredTagsUpdate}
                     session={session}
@@ -157,7 +149,7 @@ export const SettingsDisplay = ({
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Hidden Topics</Typography>
                 <HelpButton markdown={hiddenHelpText} />
             </Stack>
-            <Box sx={{ margin: 2, marginBottom: 5 }}>
+            <Box id="hidden-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
                     handleTagsUpdate={handleHiddenTagsUpdate}
                     session={session}
@@ -166,7 +158,7 @@ export const SettingsDisplay = ({
                 />
             </Box>
             <Box sx={{ margin: 2, marginBottom: 5, display: 'flex' }}>
-                <Button color="secondary" startIcon={<SearchIcon />} onClick={() => { clearSearchHistory(session) }} sx={{
+                <Button id="clear-search-history-button" color="secondary" startIcon={<SearchIcon />} onClick={() => { clearSearchHistory(session) }} sx={{
                     marginLeft: 'auto',
                     marginRight: 'auto',
                 }}>Clear Search History</Button>
@@ -183,4 +175,14 @@ export const SettingsDisplay = ({
             </Grid>
         </form>
     )
+}
+
+export const settingsDisplayFormData: SettingsFormData = {
+    labels: ['Display Preferences', 'Appearance', 'Customization', 'Customize'],
+    items: [
+        { id: 'theme-switch-box', labels: ['Theme', 'Dark Mode', 'Light Mode', 'Color Scheme'] },
+        { id: 'favorite-topics-box', labels: ['Favorite Topics', 'Favorite Interests', 'Favorite Tags', 'Favorite Categories'] },
+        { id: 'hidden-topics-box', labels: ['Hidden Topics', 'Hidden Interests', 'Hidden Tags', 'Hidden Categories'] },
+        { id: 'clear-search-history-button', labels: ['Clear Search History', 'Erase Search History', 'Delete Search History'] },
+    ],
 }

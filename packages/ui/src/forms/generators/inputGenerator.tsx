@@ -265,7 +265,7 @@ export const toSelector = ({
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = fieldData.props as SelectorProps;
+    const props = fieldData.props as SelectorProps<any>;
     return (
         <Selector
             key={`field-${fieldData.fieldName}-${index}`}
@@ -276,7 +276,6 @@ export const toSelector = ({
             onBlur={formik.handleBlur}
             handleChange={formik.handleChange}
             fullWidth
-            multiple={props.multiple}
             inputAriaLabel={`select-input-${fieldData.fieldName}`}
             noneOption={props.noneOption}
             label={fieldData.label}

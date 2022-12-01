@@ -117,8 +117,6 @@ export interface developPage_developPage_completed_Routine {
   permissionsRoutine: developPage_developPage_completed_Routine_permissionsRoutine;
   tags: developPage_developPage_completed_Routine_tags[];
   translations: developPage_developPage_completed_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export type developPage_developPage_completed = developPage_developPage_completed_Project | developPage_developPage_completed_Routine;
@@ -233,8 +231,6 @@ export interface developPage_developPage_inProgress_Routine {
   permissionsRoutine: developPage_developPage_inProgress_Routine_permissionsRoutine;
   tags: developPage_developPage_inProgress_Routine_tags[];
   translations: developPage_developPage_inProgress_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export type developPage_developPage_inProgress = developPage_developPage_inProgress_Project | developPage_developPage_inProgress_Routine;
@@ -349,8 +345,6 @@ export interface developPage_developPage_recent_Routine {
   permissionsRoutine: developPage_developPage_recent_Routine_permissionsRoutine;
   tags: developPage_developPage_recent_Routine_tags[];
   translations: developPage_developPage_recent_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export type developPage_developPage_recent = developPage_developPage_recent_Project | developPage_developPage_recent_Routine;

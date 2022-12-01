@@ -32,17 +32,17 @@ export const ResetPasswordForm = ({
         onSubmit: (values) => {
             // Check for valid userId and code
             if (!userId || !code) {
-                PubSub.get().publishSnack({ message: 'Invalid reset password URL.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'InvalidResetPasswordUrl', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper<emailResetPassword_emailResetPassword, emailResetPasswordVariables>({
                 mutation: emailResetPassword,
                 input: { id: userId, code, newPassword: values.newPassword },
-                onSuccess: (data) => { 
-                    PubSub.get().publishSession(data); 
-                    setLocation(APP_LINKS.Home) 
+                onSuccess: (data) => {
+                    PubSub.get().publishSession(data);
+                    setLocation(APP_LINKS.Home)
                 },
-                successMessage: () => 'Password reset.',
+                successMessage: () => ({ key: 'PasswordReset' }),
                 onError: () => { formik.setSubmitting(false) },
             })
         },

@@ -51,7 +51,7 @@ export const shapeStandardCreate = (item: StandardShape): StandardCreateInput =>
     props: item.props,
     yup: item.yup,
     type: item.type,
-    version: item.version,
+    // version: item.version,TODO
     // parentId: u.parent?.id, TODO
     createdByUserId: item.creator?.__typename === ObjectType.User ? item.creator.id : undefined,
     createdByOrganizationId: item.creator?.__typename === ObjectType.Organization ? item.creator.id : undefined,
@@ -70,4 +70,4 @@ export const shapeStandardUpdate = (
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeStandardTranslationCreate, shapeStandardTranslationUpdate, 'id'),
         ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
         ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
-    }), 'id')
+    }), 'id') as any //TODO

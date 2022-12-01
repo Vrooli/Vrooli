@@ -1,9 +1,13 @@
 import { PubSub } from "utils";
 import { DocumentNode } from '@apollo/client';
-import { errorToMessage } from './errorParser';
+import { errorToCode } from './errorParser';
 import { ApolloError } from 'types';
 import { SnackSeverity } from "components";
 import { initializeApollo } from "./initialize";
+import { TFuncKey } from "i18next";
+
+type ErrKey = TFuncKey<'error', undefined>
+type CommonKey = TFuncKey<'common', undefined>
 
 // Input type wrapped with 'input' key, as all GraphQL inputs follow this pattern. 
 // If you're wondering why, it prevents us from having to define the input fields in 
@@ -14,11 +18,17 @@ interface BaseWrapperProps<Output extends object> {
     // Callback to determine if mutation was a success, using mutation's return data
     successCondition?: (data: Output) => boolean;
     // Message displayed on success
-    successMessage?: (data: Output) => string;
+    successMessage?: (data: Output) => {
+        key: CommonKey;
+        variables?: { [key: string]: string | number };
+    }
     // Callback triggered on success
     onSuccess?: (data: Output) => any;
     // Message displayed on error
-    errorMessage?: (response?: ApolloError | Output) => string;
+    errorMessage?: (response?: ApolloError | Output) => {
+        key: ErrKey | CommonKey;
+        variables?: { [key: string]: string | number };
+    }
     // If true, display default error snack. Will not display if error message or data is set
     showDefaultErrorSnack?: boolean;
     // Callback triggered on error
@@ -74,15 +84,8 @@ export const graphqlWrapperHelper = <Output extends object>({
         // Determine if error caused by bad response, or caught error
         const isApolloError: boolean = data !== undefined && data !== null && data.hasOwnProperty('graphQLErrors');
         // Determine message to display, if any
-        const message: string | undefined = typeof errorMessage === 'function' ? 
-            errorMessage(data) :
-            showDefaultErrorSnack ?
-                isApolloError ?
-                    errorToMessage(data as ApolloError) :
-                    errorToMessage({ message: 'Unknown error occurred' }) :
-                undefined;
-        if (message) {
-            PubSub.get().publishSnack({ message, severity: SnackSeverity.Error, data });
+        if (typeof errorMessage === 'function') {
+            PubSub.get().publishSnack({ messageKey: errorToCode(data as ApolloError), severity: SnackSeverity.Error, data });
         }
         // Determine if error callback should be called
         if (typeof onError === 'function') {
@@ -95,9 +98,9 @@ export const graphqlWrapperHelper = <Output extends object>({
     call().then((response: { data?: Output | null | undefined }) => {
         // We need to go one layer deeper to get the actual data. 
         // If this doesn't exist, then there must be an error
-        if (!response.data || 
-            typeof response.data !== 'object' || 
-            Array.isArray(response.data) || 
+        if (!response.data ||
+            typeof response.data !== 'object' ||
+            Array.isArray(response.data) ||
             Object.keys(response.data).length === 0) {
             handleError();
             return;
@@ -110,7 +113,11 @@ export const graphqlWrapperHelper = <Output extends object>({
             return;
         }
         if (successCondition(data)) {
-            if (successMessage) PubSub.get().publishSnack({ message: successMessage && successMessage(data), severity: SnackSeverity.Success });
+            if (successMessage) PubSub.get().publishSnack({
+                messageKey: successMessage(data).key,
+                messageVariables: successMessage(data).variables,
+                severity: SnackSeverity.Success
+            });
             if (spinnerDelay) PubSub.get().publishLoading(false);
             if (onSuccess && typeof onSuccess === 'function') onSuccess(data);
         } else {

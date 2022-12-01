@@ -1,6 +1,6 @@
-import { Grid, Stack, Theme } from '@mui/material';
+import { Grid, GridSpacing, Stack, Theme } from '@mui/material';
 import { ContentCollapse } from 'components';
-import { FieldData, GridContainer, GridContainerBase, GridItemSpacing } from 'forms/types';
+import { FieldData, GridContainer, GridContainerBase } from 'forms/types';
 import { Session } from 'types';
 import { generateInputComponent } from '.';
 
@@ -11,8 +11,8 @@ import { generateInputComponent } from '.';
  * @param index The index of the grid
  * @returns Grid item component
  */
-export const generateGridItem = (component: React.ReactElement, sizes: GridItemSpacing | undefined, index: number): React.ReactElement => (
-    <Grid item key={`grid-${index}`} spacing={sizes as any}>
+export const generateGridItem = (component: React.ReactElement, index: number): React.ReactElement => (
+    <Grid item key={`grid-${index}`}>
         {component}
     </Grid>
 );
@@ -25,7 +25,7 @@ export const generateGridItem = (component: React.ReactElement, sizes: GridItemS
  * 4+ items is { xs: 12, sm: 6, md: 4, lg: 3 }
  * @returns Size of grid item
  */
-export const calculateGridItemSize = (numItems: number): GridItemSpacing => {
+export const calculateGridItemSize = (numItems: number): { [key: string]: GridSpacing } => {
     switch (numItems) {
         case 1:
             return { xs: 12 };
@@ -87,6 +87,7 @@ export const generateGrid = ({
     }
     // Generate grid for each container
     let grids: React.ReactElement[] = [];
+    console.log('split fields', splitFields);
     for (let i = 0; i < splitFields.length; i++) {
         const currFields: FieldData[] = splitFields[i];
         const currLayout: GridContainer = containers[i];
@@ -100,13 +101,13 @@ export const generateGrid = ({
                 session,
                 zIndex,
             });
-            return inputComponent ? generateGridItem(inputComponent, currLayout?.itemSpacing ?? calculateGridItemSize(currFields.length), index) : null;
+            return inputComponent ? generateGridItem(inputComponent, index) : null;
         });
         const itemsContainer = <Grid
             container
             direction={currLayout?.direction ?? 'row'}
             key={`form-container-${i}`}
-            spacing={currLayout?.spacing}
+            spacing={currLayout?.spacing ?? calculateGridItemSize(currFields.length)}
             columnSpacing={currLayout?.columnSpacing}
             rowSpacing={currLayout?.rowSpacing}
         >

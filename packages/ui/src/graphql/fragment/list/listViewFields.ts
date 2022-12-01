@@ -94,8 +94,6 @@ export const listViewFields = gql`
             description
             title
         }
-        version
-        versionGroupId
     }
     fragment listViewStandardFields on Standard {
         id
@@ -122,8 +120,6 @@ export const listViewFields = gql`
             description
             jsonVariable
         }
-        version
-        versionGroupId
     }
     fragment listViewUserFields on User {
         id

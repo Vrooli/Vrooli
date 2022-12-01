@@ -6,7 +6,15 @@ Prisma can sometimes delete comments in the schema.prisma file, so this document
 - `citext` - Provides case-insensitive text search. Especially useful for emails.
 - `stars`/`views` - Stars and views are stored as integers, so we don't have to count the number of relationships every time we want these common fields.
 - `lanugage` - Languages are stored using their ISO 639-2 language code
+- `forks` - Forks are used to suggest changes to a versioned object. When a fork is created, it initializes new root (i.e. not versioned) data, and copies the parent version's data
 
+## api
+- Stores information about external APIs, such as their name, description, details (like description but longer and supports markdown), version, link, type (GraphQL, OpenAPIv2, etc.), tags, link, schema, and more.
+- Unique to link
+- Schema stored as a stringified JSON object, either in GraphQL schema documentation or OpenAPIv3 format (or maybe more types)
+
+## api_key
+API keys for accessing Vrooli's API. Not to be confused with the api table, which specifies information about external APIs listed on Vrooli.
 
 ## comment
 Comments can be submitted by either a user or an organization. They can be associated with a project, routine, or standard.  

@@ -1,10 +1,10 @@
 import { Box, ListItemText, Stack, useTheme } from '@mui/material';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { ReportsButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useLocation } from '@shared/route';
 import { ReportIcon } from '@shared/icons';
-import { getObjectUrlBase, getObjectSlug } from 'utils';
+import { getObjectReportUrl } from 'utils';
 
 export const ReportsButton = ({
     reportsCount = 0,
@@ -13,13 +13,15 @@ export const ReportsButton = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    // When clicked, navigate to reports page
+    const link = useMemo(() => object ? getObjectReportUrl(object) : '', [object]);
     const handleClick = useCallback((event) => {
-        if (!object) return;
-        // Do not want the click to propogate to the routine list item, which would cause the routine page to open.
+        // Stop propagation to prevent list item from being selected
         event.stopPropagation();
-        setLocation(`${getObjectUrlBase(object)}/reports/${getObjectSlug(object)}`)
-    }, [object, setLocation]);
+        // Prevent default to stop href from being used
+        event.preventDefault();
+        if (link.length === 0) return;
+        setLocation(link);
+    }, [link, setLocation]);
 
     return (
         <Stack
@@ -30,11 +32,16 @@ export const ReportsButton = ({
                 pointerEvents: 'none',
             }}
         >
-            <Box onClick={handleClick} sx={{
-                display: 'contents',
-                cursor: 'pointer',
-                pointerEvents: 'all',
-            }}>
+            <Box
+                component="a"
+                href={link}
+                onClick={handleClick}
+                sx={{
+                    display: 'contents',
+                    cursor: 'pointer',
+                    pointerEvents: 'all',
+                }}
+            >
                 <ReportIcon fill={palette.secondary.main} />
             </Box>
             <ListItemText

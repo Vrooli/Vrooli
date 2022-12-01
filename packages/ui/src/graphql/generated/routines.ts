@@ -73,8 +73,6 @@ export interface routines_routines_edges_node {
   permissionsRoutine: routines_routines_edges_node_permissionsRoutine;
   tags: routines_routines_edges_node_tags[];
   translations: routines_routines_edges_node_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface routines_routines_edges {

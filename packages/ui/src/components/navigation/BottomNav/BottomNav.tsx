@@ -1,6 +1,6 @@
 import { useLocation } from '@shared/route';
 import { BottomNavigation, useTheme } from '@mui/material';
-import { actionsToBottomNav, ACTION_TAGS, getUserActions, useKeyboardOpen } from 'utils';
+import { actionsToBottomNav, getUserActions, useKeyboardOpen } from 'utils';
 import { BottomNavProps } from '../types';
 
 export const BottomNav = ({
@@ -11,7 +11,7 @@ export const BottomNav = ({
     const { palette } = useTheme();
 
     let actions = actionsToBottomNav({
-        actions: getUserActions({ session, exclude: [ACTION_TAGS.Profile, ACTION_TAGS.LogIn] }),
+        actions: getUserActions({ session }),
         setLocation,
     });
 

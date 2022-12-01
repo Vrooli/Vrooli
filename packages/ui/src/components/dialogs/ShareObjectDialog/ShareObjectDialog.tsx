@@ -1,14 +1,14 @@
 /**
  * Dialog for sharing an object
  */
-import { Box, Dialog, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
+import { Box, Dialog, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { useMemo, useState } from 'react';
-import { getObjectSearchParams, getObjectSlug, getObjectUrlBase, ObjectType, usePress } from 'utils';
+import { useMemo } from 'react';
+import { getObjectUrl, ObjectType, PubSub, usePress } from 'utils';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
-import { ColorIconButton } from 'components/buttons';
+import { ColorIconButton, SnackSeverity } from 'components';
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -38,13 +38,15 @@ export const ShareObjectDialog = ({
     const { palette } = useTheme();
 
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : 'Check out this object on Vrooli', [object]);
-    const url = useMemo(() => object ? `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}` : window.location.href.split('?')[0].split('#')[0], [object]);
+    const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split('?')[0].split('#')[0], [object]);
 
-    const [copied, setCopied] = useState<boolean>(false);
-    const copyInviteLink = () => {
+    const emailUrl = useMemo(() => `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`, [title, url]);
+    const twitterUrl = useMemo(() => `https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`, [url]);
+    const linkedInUrl = useMemo(() => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`, [title, url]);
+
+    const copyLink = () => {
         navigator.clipboard.writeText(url);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 5000);
+        PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
     }
 
     /**
@@ -53,11 +55,11 @@ export const ShareObjectDialog = ({
     const shareNative = () => { navigator.share({ title, url }) }
 
     /**
-    * When QR code is long-pressed in PWA, open copy/save photo dialog
+    * When QR code is long-pressed in standalone mode (i.e. app is downloaded), open copy/save photo dialog
     */
     const handleQRCodeLongPress = () => {
-        const isPWA = window.matchMedia('(display-mode: standalone)').matches;
-        if (!isPWA) return;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        if (!isStandalone) return;
         // Find image using parent element's ID
         const qrCode = document.getElementById('qr-code-box')?.firstChild as HTMLImageElement;
         if (!qrCode) return;
@@ -104,7 +106,7 @@ export const ShareObjectDialog = ({
                 <Stack direction="row" spacing={1} mb={2} display="flex" justifyContent="center" alignItems="center">
                     <Tooltip title="Copy invite link">
                         <ColorIconButton
-                            onClick={copyInviteLink}
+                            onClick={copyLink}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
@@ -113,7 +115,8 @@ export const ShareObjectDialog = ({
                     </Tooltip>
                     <Tooltip title="Share by email">
                         <ColorIconButton
-                            onClick={() => openLink(`mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`)}
+                            href={emailUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(emailUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
@@ -122,7 +125,8 @@ export const ShareObjectDialog = ({
                     </Tooltip>
                     <Tooltip title="Tweet about us">
                         <ColorIconButton
-                            onClick={() => openLink(`https://twitter.com/intent/tweet?text=${encodeURIComponent(url)}`)}
+                            href={twitterUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(twitterUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
@@ -131,7 +135,8 @@ export const ShareObjectDialog = ({
                     </Tooltip>
                     <Tooltip title="Post on LinkedIn">
                         <ColorIconButton
-                            onClick={() => openLink(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(url)}`)}
+                            href={linkedInUrl}
+                            onClick={(e) => { e.preventDefault(); openLink(linkedInUrl); }}
                             background={palette.secondary.main}
                             sx={buttonProps(palette)}
                         >
@@ -166,7 +171,6 @@ export const ShareObjectDialog = ({
                         value={window.location.href}
                     />
                 </Box>
-                {copied ? <Typography variant="h6" component="h4" textAlign="center" mb={1} mt={2}>🎉 Copied! 🎉</Typography> : null}
             </Box>
         </Dialog>
     )

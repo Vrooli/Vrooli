@@ -70,8 +70,6 @@ export interface runs_runs_edges_node_routine {
   permissionsRoutine: runs_runs_edges_node_routine_permissionsRoutine;
   tags: runs_runs_edges_node_routine_tags[];
   translations: runs_runs_edges_node_routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface runs_runs_edges_node {

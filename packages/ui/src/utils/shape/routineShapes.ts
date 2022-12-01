@@ -56,7 +56,7 @@ export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
     isComplete: item.isComplete,
     isInternal: item.isInternal,
     isPrivate: item.isPrivate,
-    version: item.version,
+    // version: item.version,TODO
     parentId: item.parent?.id,
     projectId: item.project?.id,
     createdByUserId: item.owner?.__typename === ObjectType.User ? item.owner.id : undefined,
@@ -81,7 +81,7 @@ export const shapeRoutineUpdate = (
     isComplete: u.isComplete !== o.isComplete ? u.isComplete : undefined,
     isInternal: u.isInternal !== o.isInternal ? u.isInternal : undefined,
     isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
-    version: u.version !== o.version ? u.version : undefined,
+    // version: u.version !== o.version ? u.version : undefined, TODO
     parentId: u.parent?.id !== o.parent?.id ? u.parent?.id : undefined,
     projectId: u.project?.id !== o.project?.id ? u.project?.id : undefined,
     userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,

@@ -1,10 +1,10 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
-import { DeleteOneInput, FindByIdInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy, FindByVersionInput } from './types';
-import { Context } from '../context';
+import { DeleteOneInput, Routine, RoutineCountInput, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, Success, RoutineSearchResult, RoutineSortBy, FindByVersionInput } from './types';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, RoutineModel, updateHelper, visibilityBuilder } from '../models';
-import { rateLimit } from '../rateLimit';
+import { countHelper, createHelper, deleteOneHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { RoutineModel } from '../models';
 
 export const typeDef = gql`
     enum RoutineSortBy {
@@ -30,7 +30,7 @@ export const typeDef = gql`
         isComplete: Boolean
         isInternal: Boolean
         isPrivate: Boolean
-        version: String
+        versionLabel: String
         parentId: ID
         projectId: ID
         createdByUserId: ID
@@ -45,12 +45,12 @@ export const typeDef = gql`
         translationsCreate: [RoutineTranslationCreateInput!]
     }
     input RoutineUpdateInput {
-        id: ID!
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
         isPrivate: Boolean
-        version: String
+        versionId: ID # If versionId passed, then we're updating an existing version
+        versionLabel: String # If version label passed, then we're creating a new version
         userId: ID
         organizationId: ID
         projectId: ID
@@ -94,9 +94,9 @@ export const typeDef = gql`
         simplicity: Int!
         stars: Int!
         views: Int!
-        version: String!
-        versionGroupId: ID!
-        versions: [String!]!
+        versionLabel: String!
+        rootId: ID!
+        # versions: [Version!]!
         comments: [Comment!]!
         commentsCount: Int!
         creator: Contributor
@@ -158,7 +158,7 @@ export const typeDef = gql`
         id: ID!
         isRequired: Boolean
         name: String
-        standardConnect: ID
+        standardVersionConnect: ID
         standardCreate: StandardCreateInput
         translationsDelete: [ID!]
         translationsCreate: [InputItemTranslationCreateInput!]
@@ -205,14 +205,14 @@ export const typeDef = gql`
     input OutputItemCreateInput {
         id: ID!
         name: String
-        standardConnect: ID
+        standardVersionConnect: ID
         standardCreate: StandardCreateInput
         translationsCreate: [OutputItemTranslationCreateInput!]
     }
     input OutputItemUpdateInput {
         id: ID!
         name: String
-        standardConnect: ID
+        standardVersionConnect: ID
         standardCreate: StandardCreateInput
         translationsDelete: [ID!]
         translationsCreate: [OutputItemTranslationCreateInput!]
@@ -310,34 +310,35 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Routine';
 export const resolvers = {
     RoutineSortBy: RoutineSortBy,
     Query: {
         routine: async (_parent: undefined, { input }: IWrap<FindByVersionInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, model: RoutineModel, prisma, req });
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         routines: async (_parent: undefined, { input }: IWrap<RoutineSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RoutineSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, model: RoutineModel, prisma, req });
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
         routinesCount: async (_parent: undefined, { input }: IWrap<RoutineCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return countHelper({ input, model: RoutineModel, prisma, req });
+            return countHelper({ input, objectType, prisma, req });
         },
     },
     Mutation: {
         routineCreate: async (_parent: undefined, { input }: IWrap<RoutineCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, model: RoutineModel, prisma, req });
+            return createHelper({ info, input, objectType, prisma, req });
         },
         routineUpdate: async (_parent: undefined, { input }: IWrap<RoutineUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Routine>> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, model: RoutineModel, prisma, req });
+            return updateHelper({ info, input, objectType, prisma, req });
         },
         routineDeleteOne: async (_parent: undefined, { input }: IWrap<DeleteOneInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
             await rateLimit({ info, maxUser: 250, req });
-            return deleteOneHelper({ input, model: RoutineModel, prisma, req });
+            return deleteOneHelper({ input, objectType, prisma, req });
         },
     }
 }

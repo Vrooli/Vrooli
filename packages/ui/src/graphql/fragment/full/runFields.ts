@@ -37,8 +37,6 @@ export const runFields = gql`
                 language
                 description
             }
-            version
-            versionGroupId
         }
     }
     fragment runOutputFields on OutputItem {
@@ -68,8 +66,6 @@ export const runFields = gql`
                 language
                 description
             }
-            version
-            versionGroupId
         }
     }
     fragment runNodeFields on Node {
@@ -92,7 +88,7 @@ export const runFields = gql`
                     id
                     index
                     isOptional
-                    routine {
+                    routineVersion {
                         id
                         complexity
                         inputs {
@@ -145,8 +141,6 @@ export const runFields = gql`
                             description
                             instructions
                         }
-                        version
-                        versionGroupId
                     }
                     translations {
                         id
@@ -296,8 +290,6 @@ export const runFields = gql`
             title
         }
         updated_at
-        version
-        versionGroupId
     }
     fragment runStepFields on RunStep {
         id

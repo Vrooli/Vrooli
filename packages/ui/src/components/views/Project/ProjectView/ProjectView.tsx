@@ -6,14 +6,13 @@ import { useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
 import { projectQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton, SelectRoutineTypeMenu } from "components";
+import { ObjectActionMenu, DateDisplay, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { ProjectViewProps } from "../types";
 import { Project, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, openObject, SearchType, uuidToBase36 } from "utils";
+import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, SearchType, uuidToBase36 } from "utils";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
-import { ObjectAction, ObjectActionComplete } from "components/dialogs/types";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { VisibilityType } from "graphql/generated/globalTypes";
 
@@ -152,19 +151,8 @@ export const ProjectView = ({
                 openObject(data.project, setLocation);
                 window.location.reload();
                 break;
-            case ObjectActionComplete.Copy:
-                openObject(data.project, setLocation);
-                window.location.reload();
-                break;
         }
     }, [project, setLocation]);
-
-    // Menu for picking which routine type to add
-    const [addRoutineAnchor, setAddRoutineAnchor] = useState<any>(null);
-    const openAddRoutine = useCallback((ev: React.MouseEvent<HTMLElement>) => {
-        setAddRoutineAnchor(ev.currentTarget)
-    }, []);
-    const closeAddRoutine = useCallback(() => setAddRoutineAnchor(null), []);
 
     // Create search data
     const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
@@ -314,13 +302,13 @@ export const ProjectView = ({
     const toAddNew = useCallback((event: any) => {
         switch (currTabType) {
             case TabOptions.Routines:
-                openAddRoutine(event);
+                setLocation(`${APP_LINKS.Routine}/add`);
                 break;
             case TabOptions.Standards:
                 setLocation(`${APP_LINKS.Standard}/add`);
                 break;
         }
-    }, [currTabType, openAddRoutine, setLocation]);
+    }, [currTabType, setLocation]);
 
     return (
         <>
@@ -331,14 +319,6 @@ export const ProjectView = ({
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
-                session={session}
-                title='Project Options'
-                zIndex={zIndex + 1}
-            />
-            {/* Add menu for selecting between single-step and multi-step routines */}
-            <SelectRoutineTypeMenu
-                anchorEl={addRoutineAnchor}
-                handleClose={closeAddRoutine}
                 session={session}
                 zIndex={zIndex + 1}
             />

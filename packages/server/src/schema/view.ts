@@ -1,14 +1,12 @@
-import { CODE, ViewSortBy } from '@shared/consts';
+import { ViewSortBy } from '@shared/consts';
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from 'graphql';
-import { assertRequestFrom } from '../auth/auth';
-import { Context } from '../context';
-import { CustomError } from '../error';
-import { genErrorCode } from '../logger';
-import { getUserId, readManyHelper, ViewModel } from '../models';
-import { rateLimit } from '../rateLimit';
+import { assertRequestFrom } from '../auth/request';
+import { Context, rateLimit } from '../middleware';
+import { ViewModel } from '../models';
 import { IWrap } from '../types';
 import { ViewSearchInput, ViewSearchResult } from './types';
+import { readManyHelper } from '../actions';
 
 export const typeDef = gql`
     enum ViewSortBy {
@@ -48,15 +46,14 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'View';
 export const resolvers = {
     ViewSortBy: ViewSortBy,
     Query: {
         views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
-            assertRequestFrom(req, { isUser: true });
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 2000, req });
-            const userId = getUserId(req);
-            if (!userId) throw new CustomError(CODE.Unauthorized, 'Must be logged in to view views.', { code: genErrorCode('0275') });
-            return readManyHelper({ info, input, model: ViewModel, prisma, req, additionalQueries: { userId } });
+            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
         },
     },
 }

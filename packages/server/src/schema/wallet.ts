@@ -1,15 +1,14 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
 import { Wallet, WalletUpdateInput } from './types';
-import { Context } from '../context';
-import { getUserId, onlyValidIds, updateHelper, WalletModel } from '../models';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { CustomError } from '../error';
-import { CODE } from '@shared/consts';
-import { serializedAddressToBech32 } from '../auth/walletAuth';
+import { CustomError } from '../events/error';
+import { serializedAddressToBech32 } from '../auth/wallet';
 import { BlockFrostAPI } from '@blockfrost/blockfrost-js';
-import { rateLimit } from '../rateLimit';
-import { genErrorCode } from '../logger';
+import { getUser } from '../auth';
+import { onlyValidIds } from '../builders';
+import { updateHelper } from '../actions';
 
 export const typeDef = gql`
 
@@ -48,6 +47,7 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Wallet';
 export const resolvers = {
     Query: {
         /**
@@ -76,9 +76,9 @@ export const resolvers = {
                 })
             }
             else {
-                const userId = getUserId(req);
+                const userId = getUser(req)?.id;
                 if (!userId) 
-                    throw new CustomError(CODE.Unauthorized, 'Must be logged in to query your wallets', { code: genErrorCode('0166') })
+                    throw new CustomError('0166', 'NotLoggedIn', req.languages);
                 wallets = await prisma.wallet.findMany({
                     where: { userId },
                     select: walletFields
@@ -111,7 +111,7 @@ export const resolvers = {
                     // If code is 404, then resource does not exist. This means that the wallet has no transactions.
                     // In this case, we shouldn't throw an error
                     if (err.status_code !== 404) {
-                        throw new CustomError(CODE.ErrorUnknown, 'Failed to query Blockfrost', { code: genErrorCode('0167') });
+                        throw new CustomError('0167', 'ExternalServiceError', req.languages);
                     }
                 } finally {
                     return handles;
@@ -132,7 +132,6 @@ export const resolvers = {
                                 id: true,
                                 userId: true,
                                 organizationId: true,
-                                projectId: true,
                             }
                         }
                     }
@@ -144,7 +143,7 @@ export const resolvers = {
                         where: { id: { in: badLinks.map(({ id }) => id) } },
                         data: { walletId: currWallet.id }
                     })
-                    // Remove the handle from the user, organization, or project linked to a wallet with one of the bad handles
+                    // Remove the handle from the user or organization linked to a wallet with one of the bad handles
                     const userIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.userId));
                     await prisma.user.updateMany({
                         where: { id: { in: userIds } },
@@ -153,11 +152,6 @@ export const resolvers = {
                     const organizationIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.organizationId));
                     await prisma.organization.updateMany({
                         where: { id: { in: organizationIds } },
-                        data: { handle: null }
-                    });
-                    const projectIds = onlyValidIds(badLinks.map(({ wallet }) => wallet?.projectId));
-                    await prisma.project.updateMany({
-                        where: { id: { in: projectIds } },
                         data: { handle: null }
                     });
                 }
@@ -180,7 +174,7 @@ export const resolvers = {
     Mutation: {
         walletUpdate: async (_parent: undefined, { input }: IWrap<WalletUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Wallet>> => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, model: WalletModel, prisma: prisma, req })
+            return updateHelper({ info, input, objectType, prisma: prisma, req })
         },
     }
 }

@@ -61,7 +61,7 @@ export const Navbar = () => {
                                 position: 'relative',
                                 cursor: 'pointer',
                                 fontSize: '3.5em',
-                                fontFamily: `Lato`,
+                                fontFamily: `SakBunderan`,
                                 color: palette.primary.contrastText,
                                 [breakpoints.down(400)]: {
                                     fontSize: '3em',

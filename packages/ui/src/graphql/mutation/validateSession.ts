@@ -3,8 +3,8 @@ import { sessionFields } from 'graphql/fragment';
 
 export const validateSessionMutation = gql`
     ${sessionFields}
-    mutation validateSession {
-        validateSession {
+    mutation validateSession($input: ValidateSessionInput!) {
+        validateSession(input: $input) {
             ...sessionFields
         }
     }

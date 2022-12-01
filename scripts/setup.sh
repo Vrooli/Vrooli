@@ -21,7 +21,7 @@ header "Installing Yarn"
 npm install -g yarn
 
 header "Installing global dependencies"
-yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@3.14.0 react-scripts serve
+yarn global add apollo@2.34.0 typescript ts-node nodemon prisma@4.7.0 react-scripts serve
 
 header "Installing local dependencies"
 cd "${HERE}/.." && yarn cache clean && yarn

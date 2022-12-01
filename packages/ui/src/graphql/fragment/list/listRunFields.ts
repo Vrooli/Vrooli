@@ -46,8 +46,6 @@ export const listRunFields = gql`
             description
             title
         }
-        version
-        versionGroupId
     }
     fragment listRunFields on Run {
         id

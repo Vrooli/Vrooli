@@ -1,4 +1,4 @@
-import { Autocomplete, Box, Container, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
+import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
@@ -10,14 +10,15 @@ import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationDat
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
-import { ColorIconButton, GridSubmitButtons, HelpButton } from "components/buttons";
+import { ColorIconButton, GridSubmitButtons } from "components/buttons";
 import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
 import { findHandlesQuery } from "graphql/query";
 import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
-import { SnackSeverity } from "components";
+import { PageTitle, SnackSeverity } from "components";
+import { SettingsFormData } from "pages";
 
 const helpText =
     `This page allows you to update your profile, including your name, handle, and bio.
@@ -48,7 +49,7 @@ export const SettingsProfile = ({
         if (verifiedWallets.length > 0) {
             findHandles({ variables: { input: {} } }); // Intentionally empty
         } else {
-            PubSub.get().publishSnack({ message: 'No verified wallets associated with account', severity: SnackSeverity.Error })
+            PubSub.get().publishSnack({ messageKey: 'NoVerifiedWallets', severity: SnackSeverity.Error })
         }
     }, [profile, findHandles]);
     useEffect(() => {
@@ -85,11 +86,11 @@ export const SettingsProfile = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) {
-                PubSub.get().publishSnack({ message: 'Please fix errors before submitting.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: SnackSeverity.Error });
                 return;
             }
             const input = shapeProfileUpdate(profile, {
@@ -102,7 +103,7 @@ export const SettingsProfile = ({
                 })),
             })
             if (!input || Object.keys(input).length === 0) {
-                PubSub.get().publishSnack({ message: 'No changes made.', severity: SnackSeverity.Info });
+                PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });
                 return;
             }
             mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
@@ -161,19 +162,7 @@ export const SettingsProfile = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            {/* Title */}
-            <Box sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                padding: 0.5,
-                marginBottom: 2,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-            }}>
-                <Typography component="h1" variant="h4" textAlign="center">Update Profile</Typography>
-                <HelpButton markdown={helpText} />
-            </Box>
+            <PageTitle title="Update Profile" helpText={helpText} />
             <Container sx={{ paddingBottom: 2 }}>
                 <Grid container spacing={2}>
                     <Grid item xs={12}>
@@ -262,4 +251,13 @@ export const SettingsProfile = ({
             </Grid>
         </form>
     )
+}
+
+export const settingsProfileFormData: SettingsFormData = {
+    labels: ['Update Profile', 'Profile Update', 'Update Account', 'Account Update'],
+    items: [
+        { id: 'ada-handle-select', labels: ['(ADA) Handle', 'ADA Handle', 'Cardano Handle', 'Account Handle', 'Profile Handle'] },
+        { id: 'name', labels: ['Name', 'Full Name', 'Display Name'] },
+        { id: 'bio', labels: ['Bio', 'Biography', 'About Me', 'About You', 'About'] },
+    ],
 }

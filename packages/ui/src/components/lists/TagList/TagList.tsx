@@ -3,6 +3,7 @@ import { TagListProps } from '../types';
 import { Chip, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 
 export const TagList = ({
+    maxCharacters,
     session,
     parentId,
     sx,
@@ -11,7 +12,7 @@ export const TagList = ({
     const { palette } = useTheme();
 
     const [chips, numTagsCutOff] = useMemo(() => {
-        let charactersBeforeCutoff = 50;
+        let charactersBeforeCutoff = maxCharacters ?? 50;
         let chipResult: JSX.Element[] = [];
         for (let i = 0; i < tags.length; i++) {
             const tag = tags[i];
@@ -33,7 +34,18 @@ export const TagList = ({
         // Check if any tags were cut off
         const numTagsCutOff = tags.length - chipResult.length;
         return [chipResult, numTagsCutOff];
-    }, [palette.mode, tags]);
+    }, [maxCharacters, palette.mode, tags]);
+
+    // TODO: When you can press a chip to search for similar objects, this will be for a ListMenu popup 
+    // so you can press cut off chips too
+    // const [cutOffAnchorEl, setCutOffAnchorEl] = useState<any | null>(null);
+    // const openCutOff = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+    //     ev.preventDefault();
+    //     setCutOffAnchorEl(ev.currentTarget ?? ev.target)
+    // }, []);
+    // const closeCutOff = useCallback(() => {
+    //     setCutOffAnchorEl(null);
+    // }, []);
 
     return (
         <Tooltip title={tags.map(t => t.tag).join(', ')} placement="top">
@@ -42,7 +54,7 @@ export const TagList = ({
                 spacing={1}
                 justifyContent="left"
                 alignItems="center"
-                sx={{...(sx ?? {})}}
+                sx={{ ...(sx ?? {}) }}
             >
                 {chips}
                 {numTagsCutOff > 0 && <Typography variant="body1">+{numTagsCutOff}</Typography>}

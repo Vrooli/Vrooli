@@ -41,7 +41,7 @@ export const shapeInputCreate = (item: InputShape): InputItemCreateInput => {
         id: item.id,
         isRequired: item.isRequired,
         name: item.name,
-        standardConnect: shouldConnectToStandard ? item.standard?.id as string : undefined,
+        standardVersionConnect: {} as any,//TODO shouldConnectToStandard ? item.standard?.id as string : undefined,
         standardCreate: item.standard && !shouldConnectToStandard ? shapeStandardCreate(item.standard) : undefined,
         ...shapeCreateList(item, 'translations', shapeInputTranslationCreate),
     }

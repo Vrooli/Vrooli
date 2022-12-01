@@ -5,7 +5,6 @@ export * from './findHandles';
 export * from './historyPage';
 export * from './homePage';
 export * from './learnPage';
-export * from './logs';
 export * from './organization';
 export * from './organizations';
 export * from './organizationsCount';

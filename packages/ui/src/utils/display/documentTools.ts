@@ -4,7 +4,7 @@
  * @param element The element to remove the highlight spans from. If not given, the entire document is used.
  */
 export const removeHighlights = (highlightClass: string, element?: HTMLElement) => {
-    const root = element || document.getElementById('content-wrap');
+    const root = element || document.body; //document.getElementById('content-wrap');
     if (!root) return;
     const highlightedElements = root.querySelectorAll(`.${highlightClass}`);
     highlightedElements.forEach((root) => {
@@ -18,18 +18,22 @@ export const removeHighlights = (highlightClass: string, element?: HTMLElement) 
 }
 
 /**
- * Finds all text nodes in the given element
+ * Finds all text nodes in the given element that are not hidden by another element on top of them.
  * @param element The element to find the text nodes in. If not given, the entire document is used.
  * @returns An array of text nodes.
  */
 export const getTextNodes = (element?: HTMLElement) => {
     const textNodes: Text[] = [];
-    const root = element || document.getElementById('content-wrap');
+    const root = element || document.body; //document.getElementById('content-wrap');
     if (!root) return textNodes;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     let node = walker.nextNode();
     while (node) {
-        textNodes.push(node as Text);
+        // Check if text is hidden by another element
+        const hasOffsetParent = node.parentElement?.offsetParent !== null;
+        if (hasOffsetParent) {
+            textNodes.push(node as Text);
+        }
         node = walker.nextNode();
     }
     return textNodes;

@@ -1,17 +1,21 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
 import { DeleteOneType } from '@shared/consts';
-import { NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, ResourceList, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
+import { Comment, NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
-import { ListObjectType, SearchType, TagShape } from 'utils';
-import { SvgComponent, SvgProps } from '@shared/icons';
-import { RelationshipsObject } from 'components/inputs/types';
-import { SnackSeverity } from './Snack/Snack';
+import { ListObjectType, SearchType } from 'utils';
+import { SvgComponent } from '@shared/icons';
+import { ObjectAction, ObjectActionComplete } from 'utils/actions/objectActions';
+import { CookiePreferences } from 'utils/cookies';
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
     onClose: () => void;
     session: Session;
+}
+
+export interface AlertDialogProps {
+    languages: string[];
 }
 
 export interface BaseObjectDialogProps extends DialogProps {
@@ -23,6 +27,24 @@ export interface BaseObjectDialogProps extends DialogProps {
     open: boolean;
     title?: string;
     zIndex: number;
+};
+
+export interface CommentDialogProps {
+    errorText: string;
+    handleSubmit: () => void;
+    handleClose: () => void;
+    isAdding: boolean;
+    isOpen: boolean;
+    language: string;
+    onTranslationChange: (e: { target: { name: string; value: string; }; }) => void;
+    parent: Comment | null;
+    text: string;
+    zIndex: number;
+}
+
+export interface CookieSettingsDialogProps {
+    handleClose: (preferences?: CookiePreferences) => void;
+    isOpen: boolean;
 };
 
 export interface DeleteAccountDialogProps {
@@ -183,44 +205,9 @@ export interface UserDialogProps {
     zIndex: number;
 };
 
-/**
- * All available actions an object can possibly have
- */
-export enum ObjectAction {
-    Copy = 'Copy',
-    Delete = "Delete",
-    Donate = "Donate",
-    Edit = "Edit",
-    FindInPage = "FindInPage",
-    Fork = "Fork",
-    Report = "Report",
-    Share = "Share",
-    Star = "Star",
-    StarUndo = "StarUndo",
-    Stats = "Stats",
-    VoteDown = "VoteDown",
-    VoteUp = "VoteUp",
-}
-
-/**
- * Indicates that a ObjectAction has been completed. 
- * Basically any action that requires updating state or navigating to a new page.
- */
-export enum ObjectActionComplete {
-    Copy = 'Copy',
-    Delete = "Delete",
-    EditComplete = "EditComplete",
-    EditCancel = "EditCanel",
-    Fork = "Fork",
-    Report = "Report",
-    Star = "Star",
-    StarUndo = "StarUndo",
-    VoteDown = "VoteDown",
-    VoteUp = "VoteUp",
-}
-
 export interface ObjectActionMenuProps {
     anchorEl: HTMLElement | null;
+    exclude?: ObjectAction[];
     object: ListObjectType | null | undefined;
     /**
      * Completed actions, which may require updating state or navigating to a new page
@@ -232,7 +219,6 @@ export interface ObjectActionMenuProps {
     onActionStart: (action: ObjectAction.Edit | ObjectAction.Stats) => any;
     onClose: () => any;
     session: Session;
-    title: string;
     zIndex: number;
 }
 
@@ -245,26 +231,7 @@ export interface LinkDialogProps {
     link?: NodeLink; // Link to display on open, if editing
     nodeFrom?: Node | null; // Initial "from" node
     nodeTo?: Node | null; // Initial "to" node
-    routine: Routine;
-    zIndex: number;
-}
-
-export interface BuildInfoDialogProps {
-    formik: any,
-    handleAction: (action: ObjectAction, data: any) => any;
-    handleLanguageChange: (newLanguage: string) => any;
-    handleRelationshipsChange: (newRelationshipsObject: Partial<RelationshipsObject>) => void;
-    handleResourcesUpdate: (updatedList: ResourceList) => void;
-    handleTagsUpdate: (tags: TagShape[]) => any;
-    handleUpdate: (routine: Routine) => any;
-    isEditing: boolean;
-    language: string;
-    loading: boolean;
-    relationships: RelationshipsObject;
-    routine: Routine | null;
-    session: Session;
-    sxs?: { icon: SvgProps, iconButton: any };
-    tags: TagShape[];
+    routine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>;
     zIndex: number;
 }
 
@@ -330,13 +297,6 @@ export interface SelectLanguageMenuProps {
     zIndex: number;
 }
 
-export interface SelectRoutineTypeMenuProps {
-    anchorEl: HTMLElement | null;
-    handleClose: () => any;
-    session: Session;
-    zIndex: number;
-}
-
 export interface AdvancedSearchDialogProps {
     handleClose: () => any;
     handleSearch: (searchQuery: { [x: string]: any }) => any;
@@ -377,17 +337,4 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, 'open' | 'sx'>
         root?: { [x: string]: any };
         content?: { [x: string]: any };
     }
-}
-
-export interface SnackProps {
-    buttonClicked?: (event?: any) => any;
-    buttonText?: string;
-    /**
-     * Anything you'd like to log in development mode
-     */
-    data?: any;
-    handleClose: () => any;
-    id: string;
-    message?: string;
-    severity?: SnackSeverity;
 }

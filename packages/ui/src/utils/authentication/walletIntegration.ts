@@ -5,7 +5,7 @@
 import { SnackSeverity } from 'components';
 import { walletComplete_walletComplete as WalletCompleteResult } from 'graphql/generated/walletComplete';
 import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
-import { errorToMessage } from 'graphql/utils/errorParser';
+import { errorToCode } from 'graphql/utils/errorParser';
 import { initializeApollo } from 'graphql/utils/initialize';
 import { ApolloError } from 'types';
 import { PubSub } from 'utils';
@@ -114,7 +114,7 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
         mutation: walletInitMutation,
         variables: { input: { stakingAddress } }
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error });
+        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error });
     })
     PubSub.get().publishLoading(false);
     return data?.data?.walletInit;
@@ -133,7 +133,7 @@ const walletComplete = async (stakingAddress: string, signedPayload: string): Pr
         mutation: walletCompleteMutation,
         variables: { input: { stakingAddress, signedPayload } }
     }).catch((error: ApolloError) => {
-        PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error });
+        PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error });
     })
     PubSub.get().publishLoading(false);
     return data?.data?.walletComplete;
@@ -184,8 +184,8 @@ export const validateWallet = async (key: string): Promise<WalletCompleteResult 
     } catch (error: any) {
         console.error('Caught error completing wallet validation', error);
         PubSub.get().publishAlertDialog({
-            message: 'Unknown error occurred. Please check that the extension you chose is connected to a DApp-enabled wallet',
-            buttons: [{ text: 'OK' }]
+            messageKey: 'WalletErrorUnknown',
+            buttons: [{ labelKey: 'Ok' }],
         });
     } finally {
         return result;

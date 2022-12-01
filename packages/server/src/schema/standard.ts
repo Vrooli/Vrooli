@@ -1,10 +1,9 @@
 import { gql } from 'apollo-server-express';
-import { countHelper, createHelper, readManyHelper, readOneHelper, StandardModel, updateHelper, visibilityBuilder } from '../models';
 import { IWrap, RecursivePartial } from '../types';
-import { FindByIdInput, Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSearchResult, StandardSortBy, FindByVersionInput } from './types';
-import { Context } from '../context';
+import { Standard, StandardCountInput, StandardCreateInput, StandardUpdateInput, StandardSearchInput, StandardSearchResult, StandardSortBy, FindByVersionInput } from './types';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { rateLimit } from '../rateLimit';
+import { countHelper, createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
 export const typeDef = gql`
     enum StandardSortBy {
@@ -29,7 +28,7 @@ export const typeDef = gql`
         type: String!
         props: String!
         yup: String
-        version: String
+        versionLabel: String
         createdByUserId: ID
         createdByOrganizationId: ID
         resourceListsCreate: [ResourceListCreateInput!]
@@ -41,6 +40,12 @@ export const typeDef = gql`
         id: ID!
         makeAnonymous: Boolean
         isPrivate: Boolean
+        userId: ID
+        default: String
+        type: String!
+        props: String!
+        yup: String
+        organizationId: ID
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]
@@ -50,6 +55,8 @@ export const typeDef = gql`
         translationsDelete: [ID!]
         translationsCreate: [StandardTranslationCreateInput!]
         translationsUpdate: [StandardTranslationUpdateInput!]
+        versionId: ID # If versionId passed, then we're updating an existing version. NOTE: This will throw an error if you try to update a completed version
+        versionLabel: String # If version label passed, then we're creating a new version
     }
     type Standard {
         id: ID!
@@ -66,9 +73,9 @@ export const typeDef = gql`
         type: String!
         props: String!
         yup: String
-        version: String!
-        versionGroupId: ID!
-        versions: [String!]!
+        versionLabel: String!
+        rootId: ID!
+        # versions: [Version!]!
         score: Int!
         stars: Int!
         views: Int!
@@ -165,41 +172,31 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Standard';
 export const resolvers = {
     StandardSortBy: StandardSortBy,
     Query: {
         standard: async (_parent: undefined, { input }: IWrap<FindByVersionInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard> | null> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, model: StandardModel, prisma, req });
+            return readOneHelper({ info, input, objectType, prisma, req });
         },
         standards: async (_parent: undefined, { input }: IWrap<StandardSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<StandardSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, model: StandardModel, prisma, req });
+            return readManyHelper({ info, input, objectType, prisma, req });
         },
         standardsCount: async (_parent: undefined, { input }: IWrap<StandardCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return countHelper({ input, model: StandardModel, prisma, req });
+            return countHelper({ input, objectType, prisma, req });
         },
     },
     Mutation: {
-        /**
-         * Create a new standard
-         * @returns Standard object if successful
-         */
         standardCreate: async (_parent: undefined, { input }: IWrap<StandardCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             await rateLimit({ info, maxUser: 250, req });
-            return createHelper({ info, input, model: StandardModel, prisma, req });
+            return createHelper({ info, input, objectType, prisma, req });
         },
-        /**
-         * Update a standard you created.
-         * NOTE: You can only update the description and tags. If you need to update 
-         * the other fields, you must either create a new standard (could be the same but with an updated
-         * version number) or delete the old one and create a new one.
-         * @returns Standard object if successful
-         */
         standardUpdate: async (_parent: undefined, { input }: IWrap<StandardUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Standard>> => {
             await rateLimit({ info, maxUser: 500, req });
-            return updateHelper({ info, input, model: StandardModel, prisma, req });
+            return updateHelper({ info, input, objectType, prisma, req });
         },
     }
 }

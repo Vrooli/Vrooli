@@ -61,7 +61,5 @@ export interface listStandardFields {
   tags: listStandardFields_tags[];
   translations: listStandardFields_translations[];
   type: string;
-  version: string;
-  versionGroupId: string;
   yup: string | null;
 }

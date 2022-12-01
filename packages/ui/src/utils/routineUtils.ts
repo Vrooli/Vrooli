@@ -233,7 +233,7 @@ export const getRoutineStatus = (routine?: Partial<Routine> | null): GetRoutineS
  * @param language The language of the routine
  * @returns Initial data for a new routine
  */
-export const initializeRoutine = (language: string): Routine => {
+export const initializeRoutineGraph = (language: string): { nodes: Routine['nodes'], nodeLinks: Routine['nodeLinks'] } => {
     const startNode: Node = {
         id: uuid(),
         type: NodeType.Start,
@@ -283,18 +283,7 @@ export const initializeRoutine = (language: string): Routine => {
         operation: null,
     }
     return {
-        id: uuid(),
-        inputs: [],
-        outputs: [],
         nodes: [startNode, routineListNode, endNode],
         nodeLinks: [link1, link2],
-        translations: [{
-            __typename: 'RoutineTranslation',
-            id: uuid(),
-            language,
-            title: 'New Routine',
-            instructions: 'Enter instructions here',
-            description: '',
-        }]
-    } as any
+    };
 }

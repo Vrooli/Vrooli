@@ -66,7 +66,7 @@ export const LinkDialog = ({
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
-            PubSub.get().publishSnack({ message: 'Please select both from and to nodes', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'SelectFromAndToNodes', severity: SnackSeverity.Error });
             return;
         }
         handleClose({

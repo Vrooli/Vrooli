@@ -6,7 +6,6 @@ import * as DeleteOne from './deleteOne';
 import * as Duplicate from './duplicate';
 import * as Email from './email';
 import * as Feedback from './feedback';
-import * as Log from './log';
 import * as Node from './node';
 import * as Organization from './organization';
 import * as Pages from './pages';
@@ -24,6 +23,7 @@ import * as Tag from './tag';
 import * as Translate from './translate';
 import * as Unions from './unions';
 import * as User from './user';
+import * as Version from './version';
 import * as View from './view';
 import * as Vote from './vote';
 import * as Wallet from './wallet';
@@ -31,9 +31,9 @@ import pkg from 'lodash';
 const { merge } = pkg;
 
 const models = [
-    Root, Auth, Comment, DeleteOne, Duplicate, Email, Feedback, Log, Node,
+    Root, Auth, Comment, DeleteOne, Duplicate, Email, Feedback, Node,
     Organization, Pages, Project, Report, Resource, ResourceList, Role,
-    Routine, Run, RunInput, Standard, Star, Tag, Translate, Unions, User, View, Vote, Wallet
+    Routine, Run, RunInput, Standard, Star, Tag, Translate, Unions, User, Version, View, Vote, Wallet
 ]
 
 export const schema = makeExecutableSchema({

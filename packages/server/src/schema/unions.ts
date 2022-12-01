@@ -4,14 +4,14 @@
 import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from "graphql";
 import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutinePageInfo, ProjectOrRoutineEdge, ProjectOrOrganizationEdge, ProjectOrOrganizationPageInfo, ProjectOrRoutine, ProjectOrOrganization } from './types';
-import { CODE } from '@shared/consts';
 import { IWrap } from '../types';
-import { Context } from '../context';
-import { addSupplementalFieldsMultiTypes, getUserId, OrganizationModel, PartialGraphQLInfo, ProjectModel, readManyAsFeed, RoutineModel, toPartialGraphQLInfo } from '../models';
-import { CustomError } from '../error';
-import { rateLimit } from '../rateLimit';
+import { Context, rateLimit } from '../middleware';
+import { OrganizationModel, ProjectModel, RoutineModel } from '../models';
 import { resolveProjectOrOrganization, resolveProjectOrOrganizationOrRoutineOrStandardOrUser, resolveProjectOrRoutine } from './resolvers';
-import { genErrorCode } from '../logger';
+import { addSupplementalFieldsMultiTypes, toPartialGraphQLInfo } from '../builders';
+import { PartialGraphQLInfo } from '../builders/types';
+import { readManyAsFeedHelper } from '../actions';
+import { getUser } from '../auth';
 
 export const typeDef = gql`
     enum ProjectOrRoutineSortBy {
@@ -166,13 +166,13 @@ export const resolvers = {
                 '__typename': 'ProjectOrRoutineSearchResult',
                 'Project': 'Project',
                 'Routine': 'Routine',
-            }) as PartialGraphQLInfo;
+            }, req.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req }
             // Query projects
             let projects;
             if (input.objectType === undefined || input.objectType === 'Project') {
-                projects = await readManyAsFeed({
+                projects = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Project,
                     input: {
@@ -196,16 +196,16 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUserId(req) ?? undefined,
+                        userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    model: ProjectModel,
+                    objectType: 'Project',
                 });
             }
             // Query routines
             let routines;
             if (input.objectType === undefined || input.objectType === 'Routine') {
-                routines = await readManyAsFeed({
+                routines = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Routine,
                     input: {
@@ -237,10 +237,10 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUserId(req) ?? undefined,
+                        userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    model: RoutineModel,
+                    objectType: 'Routine',
                 });
             }
             // Add supplemental fields to every result
@@ -248,7 +248,7 @@ export const resolvers = {
                 [projects?.nodes ?? [], routines?.nodes ?? []],
                 [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Routine', ...(partial as any).Routine }] as PartialGraphQLInfo[],
                 ['p', 'r'],
-                getUserId(req),
+                getUser(req),
                 prisma,
             )
             // Combine nodes, alternating between projects and routines
@@ -278,13 +278,13 @@ export const resolvers = {
                 '__typename': 'ProjectOrOrganizationSearchResult',
                 'Project': 'Project',
                 'Organization': 'Organization',
-            }) as PartialGraphQLInfo;
+            }, req.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req }
             // Query projects
             let projects;
             if (input.objectType === undefined || input.objectType === 'Project') {
-                projects = await readManyAsFeed({
+                projects = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Project,
                     input: {
@@ -308,16 +308,16 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUserId(req) ?? undefined,
+                        userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    model: ProjectModel,
+                    objectType: 'Project',
                 });
             }
             // Query organizations
             let organizations;
             if (input.objectType === undefined || input.objectType === 'Organization') {
-                organizations = await readManyAsFeed({
+                organizations = await readManyAsFeedHelper({
                     ...commonReadParams,
                     info: (partial as any).Organization,
                     input: {
@@ -339,10 +339,10 @@ export const resolvers = {
                         tags: input.tags,
                         take,
                         updatedTimeFrame: input.updatedTimeFrame,
-                        userId: getUserId(req) ?? undefined,
+                        userId: getUser(req)?.id,
                         visibility: input.visibility,
                     },
-                    model: OrganizationModel,
+                    objectType: 'Organization',
                 });
             }
             // Add supplemental fields to every result
@@ -350,7 +350,7 @@ export const resolvers = {
                 [projects?.nodes ?? [], organizations?.nodes ?? []],
                 [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
                 ['p', 'o'],
-                getUserId(req),
+                getUser(req),
                 prisma,
             )
             // Combine nodes, alternating between projects and organizations

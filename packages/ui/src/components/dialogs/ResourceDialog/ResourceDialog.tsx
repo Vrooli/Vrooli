@@ -5,7 +5,7 @@ import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ResourceDialogProps } from '../types';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectSlug, getObjectUrlBase, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectUrl, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
 import { resourceCreateVariables, resourceCreate_resourceCreate } from 'graphql/generated/resourceCreate';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { resourceUpdateVariables, resourceUpdate_resourceUpdate } from 'graphql/generated/resourceUpdate';
@@ -110,7 +110,7 @@ export const ResourceDialog = ({
                     mutationWrapper<resourceCreate_resourceCreate, resourceCreateVariables>({
                         mutation: addMutation,
                         input: shapeResourceCreate(input),
-                        successMessage: () => 'Resource created.',
+                        successMessage: () => ({ key: 'ResourceCreated' }),
                         successCondition: (data) => data !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },
@@ -119,13 +119,13 @@ export const ResourceDialog = ({
                 // Otherwise, update
                 else {
                     if (!partialData || !partialData.id || !listId) {
-                        PubSub.get().publishSnack({ message: 'Could not find resource to update.', severity: SnackSeverity.Error });
+                        PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: SnackSeverity.Error });
                         return;
                     }
                     mutationWrapper<resourceUpdate_resourceUpdate, resourceUpdateVariables>({
                         mutation: updateMutation,
                         input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
-                        successMessage: () => 'Resource updated.',
+                        successMessage: () => ({ key: 'ResourceUpdated' }),
                         successCondition: (data) => data !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },
@@ -205,7 +205,7 @@ export const ResourceDialog = ({
         // Clear search string and close command palette
         closeSearch();
         // Create URL
-        const newLocation = `${getObjectUrlBase(newValue)}/${getObjectSlug(newValue)}`
+        const newLocation = getObjectUrl(newValue);
         // Update link
         formik.setFieldValue('link', `${window.location.origin}${newLocation}`);
     }, [closeSearch, formik]);

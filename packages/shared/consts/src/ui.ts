@@ -2,6 +2,7 @@ import { ValueOf } from '.';
 
 export const APP_LINKS = {
     Comment: '/comment',
+    Create: '/create', // Portal for creating new content
     Develop: '/develop', // Develop dashboard
     DevelopSearch: '/develop-search', // Search page for develop objects
     Example: '/routine/5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9', // Links to example routine that is designed to showcase the UI. See ID of routine set in init seed file
@@ -12,6 +13,7 @@ export const APP_LINKS = {
     Home: '/', // Main dashboard for logged in users
     Learn: '/learn', // Learn dashboard
     Organization: '/organization', // View or update specific organization
+    Notifications: '/notifications', // Your notifications
     Profile: '/profile', // View profile
     Project: '/project', // View or update specific project
     Report: '/report', // Reports view
@@ -31,10 +33,10 @@ export const APP_LINKS = {
 export type APP_LINKS = ValueOf<typeof APP_LINKS>;
 
 export const LANDING_LINKS = {
-    About: '/about', // Overview of project, the vision, and the team
-    Benefits: '/#understand-your-workflow', // Start of slides overviewing benefits of using Vrooli
-    Home: '/', // Default page when not logged in. Similar to the about page, but more project details and less vision
-    Mission: '/mission', // More details about the project's overall vision
+    AboutUs: '/about',
+    Contribute: '/contribute',
+    Features: '/features',
+    Home: '/',
     PrivacyPolicy: '/privacy-policy', // Privacy policy
     Roadmap: '/mission#roadmap', // Start of roadmap slide
     Terms: '/terms-and-conditions', // Terms and conditions

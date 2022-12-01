@@ -121,9 +121,6 @@ export interface standardCreate_standardCreate {
   isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
-  version: string;
-  versionGroupId: string;
-  versions: string[];
 }
 
 export interface standardCreate {

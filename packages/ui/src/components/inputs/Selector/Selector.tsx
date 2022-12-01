@@ -1,14 +1,13 @@
 import { useCallback, useMemo } from 'react';
-import { Box, Chip, FormControl, InputLabel, MenuItem, Select, Theme, useTheme } from '@mui/material';
+import { FormControl, InputLabel, MenuItem, Select, useTheme } from '@mui/material';
 import { SelectorProps } from '../types';
 
-export const Selector = ({
+export function Selector<T extends string | number | { [x: string]: any }>({
     options,
-    getOptionLabel,
     selected,
+    getOptionLabel,
     handleChange,
     fullWidth = false,
-    multiple = false,
     inputAriaLabel = 'select-label',
     noneOption = false,
     label = 'Select',
@@ -17,27 +16,27 @@ export const Selector = ({
     color,
     sx,
     ...props
-}: SelectorProps) => {
-    const { palette } = useTheme();
+}: SelectorProps<T>) {
+    const { palette, typography } = useTheme();
 
-    const getOptionStyle = useCallback((theme: Theme, option: any) => {
-        const label = getOptionLabel ? getOptionLabel(option) : option;
+    // Render all labels
+    const labels = useMemo(() => options.map((option) => getOptionLabel(option)), [options, getOptionLabel]);
+    // Find option from label
+    const findOption = useCallback((label: string) => options.find((option) => getOptionLabel(option) === label), [options, getOptionLabel]);
+
+    const getOptionStyle = useCallback((label: string) => {
+        const isSelected = selected && getOptionLabel(selected) === label;
         return {
-            fontWeight:
-                options.find(o => (getOptionLabel ? getOptionLabel(o) : o) === label)
-                    ? theme.typography.fontWeightRegular
-                    : theme.typography.fontWeightMedium,
+            fontWeight: isSelected ? typography.fontWeightMedium : typography.fontWeightRegular,
         };
-    }, [options, getOptionLabel]);
+    }, [getOptionLabel, selected, typography.fontWeightMedium, typography.fontWeightRegular]);
 
     /**
      * Determines if label should be shrunk
      */
     const shrinkLabel = useMemo(() => {
         if (!selected) return false;
-        if (typeof selected === 'string') return selected.length > 0;
-        if (getOptionLabel && selected) return getOptionLabel(selected).length > 0;
-        return false; 
+        return getOptionLabel(selected).length > 0;
     }, [selected, getOptionLabel]);
 
     return (
@@ -54,35 +53,12 @@ export const Selector = ({
             </InputLabel>
             <Select
                 labelId={inputAriaLabel}
-                value={selected}
-                onChange={handleChange}
+                value={selected ? getOptionLabel(selected) : ''}
+                onChange={(e) => handleChange(findOption(e.target.value as string) as T, e)}
                 label={label}
                 required={required}
                 disabled={disabled}
-                multiple={multiple}
-                renderValue={() => {
-                    // If nothing is selected, don't display anything
-                    if (!selected || (Array.isArray(selected) && selected.length === 0)) {
-                        return '';
-                    }
-                    // If not multiple, just display the selected option
-                    if (!multiple) {
-                        return getOptionLabel ? getOptionLabel(selected) : selected;
-                    }
-                    // If multiple, display all selected options as chips
-                    return (
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                            }}
-                        >
-                            {selected.map((o) => (
-                                <Chip label={getOptionLabel ? getOptionLabel(o) : o} key={o} />
-                            ))}
-                        </Box>
-                    )
-                }}
+                variant="filled"
                 {...props}
                 sx={{
                     ...sx,
@@ -97,13 +73,13 @@ export const Selector = ({
                     ) : null
                 }
                 {
-                    options.map((o, index) => (
+                    labels.map((label) => (
                         <MenuItem
-                            key={`select-option-${index}`}
-                            value={o}
-                            sx={(t) => getOptionStyle(t, o)}
+                            key={label}
+                            value={label}
+                            style={getOptionStyle(label)}
                         >
-                            {getOptionLabel ? getOptionLabel(o) : o}
+                            {label}
                         </MenuItem>
                     ))
                 }

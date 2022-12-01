@@ -1,10 +1,10 @@
 import { gql } from 'apollo-server-express';
 import { IWrap, RecursivePartial } from '../types';
-import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, Success, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
-import { Context } from '../context';
-import { countHelper, createHelper, ProjectModel, readManyHelper, readOneHelper, updateHelper, visibilityBuilder } from '../models';
+import { FindByIdOrHandleInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectSearchInput, ProjectCountInput, ProjectSearchResult, ProjectSortBy } from './types';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { rateLimit } from '../rateLimit';
+import { countHelper, createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { ProjectModel } from '../models';
 
 export const typeDef = gql`
     enum ProjectSortBy {
@@ -168,30 +168,31 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Project';
 export const resolvers = {
     ProjectSortBy: ProjectSortBy,
     Query: {
-        project: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
+        project: async (_parent: undefined, { input }: IWrap<FindByIdOrHandleInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project> | null> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, model: ProjectModel, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req })
         },
-        projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
+        projects: async (_parent: undefined, { input }: IWrap<ProjectSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ProjectSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, model: ProjectModel, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req })
         },
-        projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<number> => {
+        projectsCount: async (_parent: undefined, { input }: IWrap<ProjectCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return countHelper({ input, model: ProjectModel, prisma, req })
+            return countHelper({ input, objectType, prisma, req })
         },
     },
     Mutation: {
-        projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
+        projectCreate: async (_parent: undefined, { input }: IWrap<ProjectCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             await rateLimit({ info, maxUser: 100, req });
-            return createHelper({ info, input, model: ProjectModel, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req })
         },
-        projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
+        projectUpdate: async (_parent: undefined, { input }: IWrap<ProjectUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Project>> => {
             await rateLimit({ info, maxUser: 250, req });
-            return updateHelper({ info, input, model: ProjectModel, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req })
         },
     }
 }

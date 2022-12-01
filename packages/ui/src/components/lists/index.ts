@@ -1,6 +1,7 @@
 export * from './DateRangeMenu/DateRangeMenu';
 export * from './email';
 export * from './inputOutput';
+export * from './ObjectActionsRow/ObjectActionsRow';
 export * from './ObjectListItem/ObjectListItem';
 export * from './resource';
 export * from './SearchList/SearchList';

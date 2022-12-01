@@ -30,7 +30,7 @@ export const NavList = ({
 
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn, ACTION_TAGS.Profile] }), [session]);
+    const nav_actions = useMemo<Action[]>(() => getUserActions({ session, exclude: [ACTION_TAGS.Home, ACTION_TAGS.LogIn] }), [session]);
 
     // Handle account menu
     const [accountMenuAnchor, setAccountMenuAnchor] = useState<any>(null);
@@ -71,7 +71,8 @@ export const NavList = ({
             {/* Enter button displayed when not logged in */}
             {sessionChecked && session?.isLoggedIn !== true && (
                 <Button
-                    onClick={() => openLink(setLocation, APP_LINKS.Start)}
+                    href={APP_LINKS.Start}
+                    onClick={(e) => { e.preventDefault(); openLink(setLocation, APP_LINKS.Start) }}
                     startIcon={<LogInIcon />}
                     sx={{
                         background: '#387e30',

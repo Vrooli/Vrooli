@@ -3,6 +3,7 @@ import { ObjectSchema, ValidationError } from 'yup';
 import { Session } from "types";
 import { uuid } from '@shared/uuid';
 import { getCurrentUser } from "utils/authentication";
+import i18next, { TFuncKey } from 'i18next';
 
 export type TranslationObject = {
     id: string,
@@ -650,3 +651,60 @@ export const removeTranslation = <
     // Set new translations
     formik.setFieldValue(translationField, translations);
 }
+
+type ErrKey = TFuncKey<'error', undefined>
+type CommonKey = TFuncKey<'common', undefined>
+
+/**
+ * Converts a common key to a translated string. 
+ * @param key The key to convert
+ * @param variables The variables to use for translation
+ * @param languages User's preferred languages
+ * @returns The translated string
+ */
+ export const translateCommonKey = (
+    key:  CommonKey,
+    variables: { [x: string]: number | string } | undefined,
+    languages: string[]
+): string  => {
+    const lng = languages.length > 0 ? languages[0] : 'en';
+    return i18next.t(`common:${key}`, { lng, ...(variables ?? {}) }) ?? '';
+};
+
+/**
+ * Converts an error key to a translated string. 
+ * @param key The key to convert
+ * @param variables The variables to use for translation
+ * @param languages User's preferred languages
+ * @returns The translated string
+ */
+ export const translateErrorKey = (
+    key:  ErrKey,
+    variables: { [x: string]: number | string } | undefined,
+    languages: string[]
+): string => {
+    const lng = languages.length > 0 ? languages[0] : 'en';
+    return i18next.t(`error:${key}`, { lng, ...(variables ?? {}) }) ?? '';
+};
+
+/**
+ * Converts a snack message code into a snack message and details. 
+ * For now, details are only used for some errors
+ * @param key The key to convert
+ * @param variables The variables to use for translation
+ * @param languages User's preferred languages
+ * @returns Object with message and details
+ */
+ export const translateSnackMessage = (
+    key: ErrKey | CommonKey,
+    variables: { [x: string]: number | string } | undefined,
+    languages: string[]
+): { message: string, details: string | undefined } => {
+    const lng = languages.length > 0 ? languages[0] : 'en';
+    const messageAsError = translateErrorKey(key as ErrKey, variables, languages);
+    const messageAsCommon = translateCommonKey(key as CommonKey, variables, languages);
+    if (messageAsError.length > 0) {
+        return { message: messageAsError, details: i18next.t(`error:${key}Details` as any, { lng }) };
+    }
+    return { message: messageAsCommon, details: undefined };
+};

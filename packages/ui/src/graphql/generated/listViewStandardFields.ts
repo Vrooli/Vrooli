@@ -53,6 +53,4 @@ export interface listViewStandardFields {
   permissionsStandard: listViewStandardFields_permissionsStandard;
   tags: listViewStandardFields_tags[];
   translations: listViewStandardFields_translations[];
-  version: string;
-  versionGroupId: string;
 }

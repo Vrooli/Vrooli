@@ -121,9 +121,6 @@ export interface standard_standard {
   isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
-  version: string;
-  versionGroupId: string;
-  versions: string[];
 }
 
 export interface standard {

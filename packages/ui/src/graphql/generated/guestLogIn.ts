@@ -11,7 +11,7 @@ export interface guestLogIn_guestLogIn_users {
   __typename: "SessionUser";
   handle: string | null;
   id: string;
-  languages: (string | null)[] | null;
+  languages: string[];
   name: string | null;
   theme: string | null;
 }

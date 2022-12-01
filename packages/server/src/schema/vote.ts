@@ -1,15 +1,11 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@shared/consts';
-import { CustomError } from '../error';
 import { VoteInput, Success, VoteFor } from './types';
 import { IWrap } from '../types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { getUserId, VoteModel } from '../models';
-import { rateLimit } from '../rateLimit';
-import { genErrorCode } from '../logger';
+import { VoteModel } from '../models';
 import { resolveVoteTo } from './resolvers';
-import { assertRequestFrom } from '../auth/auth';
+import { assertRequestFrom } from '../auth/request';
 
 export const typeDef = gql`
     enum VoteFor {
@@ -50,9 +46,9 @@ export const resolvers = {
          * @returns 
          */
         vote: async (_parent: undefined, { input }: IWrap<VoteInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Success> => {
-            assertRequestFrom(req, { isUser: true });
+            const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
-            const success = await VoteModel.mutate(prisma).vote(getUserId(req) as string, input);
+            const success = await VoteModel.vote(prisma, userData, input);
             return { success };
         },
     }

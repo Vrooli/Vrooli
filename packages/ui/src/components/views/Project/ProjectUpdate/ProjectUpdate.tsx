@@ -82,7 +82,7 @@ export const ProjectUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!project) {
-                PubSub.get().publishSnack({ message: 'Could not find existing project data.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper<projectUpdate_projectUpdate, projectUpdateVariables>({
@@ -142,8 +142,9 @@ export const ProjectUpdate = ({
             <Grid item xs={12}>
                 <PageTitle title="Update Project" />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} mb={4}>
                 <RelationshipButtons
+                    isEditing={true}
                     objectType={ObjectType.Project}
                     onRelationshipsChange={onRelationshipsChange}
                     relationships={relationships}
@@ -175,7 +176,7 @@ export const ProjectUpdate = ({
                     helperText={touchedName && errorName}
                 />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} mb={4}>
                 <TextField
                     fullWidth
                     id="description"
@@ -202,7 +203,7 @@ export const ProjectUpdate = ({
                     zIndex={zIndex}
                 />
             </Grid>
-            <Grid item xs={12}>
+            <Grid item xs={12} mb={4}>
                 <TagSelector
                     handleTagsUpdate={handleTagsUpdate}
                     session={session}

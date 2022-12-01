@@ -14,6 +14,7 @@ COPY --chown=node:node packages/shared/route/package.json packages/shared/route/
 COPY --chown=node:node packages/shared/utils/package.json packages/shared/utils/
 COPY --chown=node:node packages/shared/uuid/package.json packages/shared/uuid/
 COPY --chown=node:node packages/shared/validation/package.json packages/shared/validation/
+COPY --chown=node:node packages/shared/translations/package.json packages/shared/translations/
 
 # Copy all files from packages/server/src, and every directory's src in packages/shared
 COPY --chown=node:node packages/server/src packages/server/
@@ -22,6 +23,7 @@ COPY --chown=node:node packages/shared/route/src packages/shared/route/
 COPY --chown=node:node packages/shared/utils/src packages/shared/utils/
 COPY --chown=node:node packages/shared/uuid/src packages/shared/uuid/
 COPY --chown=node:node packages/shared/validation/src packages/shared/validation/
+COPY --chown=node:node packages/shared/translations/src packages/shared/translations/
 
 # Copy required script files
 COPY --chown=node:node scripts/* scripts/
@@ -43,7 +45,7 @@ COPY --from=stage0 ${PROJECT_DIR} ./
 RUN yarn install
 
 # Install global packages
-RUN yarn global add typescript ts-node nodemon prisma@4.0.0
+RUN yarn global add typescript ts-node nodemon prisma@4.6.1
 
 # Stage 2. Copy files from stage 1, and install required unix tools
 FROM node:16-alpine as stage2

@@ -1,10 +1,9 @@
 import { gql } from 'apollo-server-express';
 import { FindByIdInput, Report, ReportCountInput, ReportCreateInput, ReportFor, ReportSearchInput, ReportSearchResult, ReportSortBy, ReportUpdateInput } from './types';
 import { IWrap, RecursivePartial } from '../types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { countHelper, createHelper, readManyHelper, readOneHelper, ReportModel, updateHelper } from '../models';
-import { rateLimit } from '../rateLimit';
+import { countHelper, createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
 export const typeDef = gql`
     enum ReportFor {
@@ -20,8 +19,6 @@ export const typeDef = gql`
     enum ReportSortBy {
         DateCreatedAsc
         DateCreatedDesc
-        DateUpdatedAsc
-        DateUpdatedDesc
     }
 
     input ReportCreateInput {
@@ -94,31 +91,32 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Report';
 export const resolvers = {
     ReportFor: ReportFor,
     ReportSortBy: ReportSortBy,
     Query: {
         report: async (_parent: undefined, { input }: IWrap<FindByIdInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report> | null> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readOneHelper({ info, input, model: ReportModel, prisma, req })
+            return readOneHelper({ info, input, objectType, prisma, req })
         },
         reports: async (_parent: undefined, { input }: IWrap<ReportSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ReportSearchResult> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return readManyHelper({ info, input, model: ReportModel, prisma, req })
+            return readManyHelper({ info, input, objectType, prisma, req })
         },
         reportsCount: async (_parent: undefined, { input }: IWrap<ReportCountInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<number> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return countHelper({ input, model: ReportModel, prisma, req })
+            return countHelper({ input, objectType, prisma, req })
         },
     },
     Mutation: {
         reportCreate: async (_parent: undefined, { input }: IWrap<ReportCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report>> => {
             await rateLimit({ info, maxUser: 500, req });
-            return createHelper({ info, input, model: ReportModel, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req })
         },
         reportUpdate: async (_parent: undefined, { input }: IWrap<ReportUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Report>> => {
             await rateLimit({ info, maxUser: 1000, req });
-            return updateHelper({ info, input, model: ReportModel, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req })
         },
     }
 }

@@ -2,7 +2,7 @@ import { APP_LINKS } from "@shared/consts";
 import { SnackSeverity } from "components";
 import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { profileUpdateMutation } from "graphql/mutation";
-import { documentNodeWrapper, errorToMessage } from "graphql/utils";
+import { documentNodeWrapper, errorToCode } from "graphql/utils";
 import { ActionOption, Session, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
@@ -32,12 +32,8 @@ export const shortcuts: ShortcutItem[] = [
         link: `${APP_LINKS.Project}/add`,
     },
     {
-        label: 'Create new single-step routine',
+        label: 'Create new routine',
         link: `${APP_LINKS.Routine}/add`,
-    },
-    {
-        label: 'Create new multi-step routine',
-        link: `${APP_LINKS.Routine}/add?build=true`,
     },
     {
         label: 'Create new standard',
@@ -58,6 +54,14 @@ export const shortcuts: ShortcutItem[] = [
     {
         label: 'View history page',
         link: `${APP_LINKS.History}`,
+    },
+    {
+        label: 'View profile page',
+        link: `${APP_LINKS.Profile}`,
+    },
+    {
+        label: 'View settings page',
+        link: `${APP_LINKS.Settings}`,
     },
     {
         label: 'Search organizations',
@@ -147,6 +151,10 @@ export const shortcuts: ShortcutItem[] = [
         label: 'FAQ',
         link: `${APP_LINKS.FAQ}`,
     },
+    {
+        label: 'Tutorial',
+        link: `${APP_LINKS.Tutorial}`,
+    },
 ]
 
 /**
@@ -204,7 +212,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
                 node: profileUpdateMutation,
                 input: { theme: 'dark' },
                 onSuccess: () => { PubSub.get().publishTheme('dark'); },
-                onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error }); }
+                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
             })
             break;
         case 'activate-light-mode':
@@ -212,7 +220,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
                 node: profileUpdateMutation,
                 input: { theme: 'light' },
                 onSuccess: () => { PubSub.get().publishTheme('light'); },
-                onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error }); }
+                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
             })
             break;
     }

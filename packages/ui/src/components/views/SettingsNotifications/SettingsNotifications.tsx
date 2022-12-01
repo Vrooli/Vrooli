@@ -1,6 +1,7 @@
-import { Box, Stack, Typography, useTheme } from "@mui/material"
+import { Box } from "@mui/material"
 import { SettingsNotificationsProps } from "../types";
-import { HelpButton } from "components/buttons";
+import { PageTitle } from "components/text";
+import { SettingsFormData } from "pages";
 
 const helpText =
     `Notification preferences set the types and frequency of notifcations you receive. More customizations will be available in the near future.  
@@ -10,23 +11,17 @@ export const SettingsNotifications = ({
     profile,
     onUpdated,
 }: SettingsNotificationsProps) => {
-    const { palette } = useTheme();
-
     return (
         <form style={{ overflow: 'hidden' }}>
-            {/* Title */}
-            <Stack direction="row" justifyContent="center" alignItems="center" sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                marginBottom: 2,
-                padding: 0.5,
-            }}>
-                <Typography component="h1" variant="h4">Notifications</Typography>
-                <HelpButton markdown={helpText} />
-            </Stack>
+            <PageTitle title="Notifications" helpText={helpText} />
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 Coming soon
             </Box>
         </form>
     )
+}
+
+export const settingsNotificationsFormData: SettingsFormData = {
+    labels: ['Notifications', 'Notification Preferences', 'Alerts', 'Alert Preferences', 'Push Notifications'],
+    items: [],
 }

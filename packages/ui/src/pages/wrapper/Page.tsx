@@ -23,7 +23,7 @@ export const Page = ({
     if (mustBeLoggedIn) {
         if (session.isLoggedIn) return children;
         if (sessionChecked && location !== redirect) { 
-            PubSub.get().publishSnack({ message: 'Page restricted. Please log in', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'PageRestricted', severity: SnackSeverity.Error });
             return <Redirect to={redirect} />
         }
         return null;

@@ -8,25 +8,23 @@ import {
 } from '@mui/material';
 import { openLink } from 'utils';
 import { Session, SetLocation } from 'types';
-import { CreateAccountIcon, DevelopIcon, HomeIcon, LearnIcon, ProfileIcon, ResearchIcon, SearchIcon, SvgComponent } from '@shared/icons';
+import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
 import { getCurrentUser, guestSession } from 'utils/authentication';
 
 export enum ACTION_TAGS {
     Home = 'Home',
     Search = 'Search',
-    Learn = 'Learn',
-    Research = 'Research',
-    Develop = 'Develop',
-    Profile = 'Profile',
+    Create = 'Create',
+    Notifications = 'Notifications',
+    Settings = 'Settings',
     LogIn = 'LogIn',
 }
 
-export type ActionArray = [string, any, string, (() => any) | null, any, number];
+export type ActionArray = [string, any, string, any, number];
 export interface Action {
     label: string;
     value: ACTION_TAGS;
     link: string;
-    onClick: (() => any) | null;
     Icon: SvgComponent;
     numNotifications: number;
 }
@@ -40,28 +38,25 @@ export function getUserActions({ session = guestSession, exclude = [] }: GetUser
     const { id: userId } = getCurrentUser(session);
     // Home action always available
     let actions: ActionArray[] = [
-        ['Home', ACTION_TAGS.Home, LINKS.Home, null, HomeIcon, 0],
-        ['Search', ACTION_TAGS.Search, LINKS.Search, null, SearchIcon, 0],
+        ['Home', ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+        ['Search', ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
     ];
-    // Available for all users
-    actions.push(
-        ['Learn', ACTION_TAGS.Learn, LINKS.Learn, null, LearnIcon, 0],
-        ['Research', ACTION_TAGS.Research, LINKS.Research, null, ResearchIcon, 0],
-        ['Develop', ACTION_TAGS.Develop, LINKS.Develop, null, DevelopIcon, 0],
-    );
-    // Log in/out
+    // Actions for logged in users
     if (userId) {
-        actions.push(['Profile', ACTION_TAGS.Profile, LINKS.Profile, null, ProfileIcon, 0])
+        actions.push(
+            ['Create', ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
+            ['Notifications', ACTION_TAGS.Notifications, LINKS.Notifications, NotificationsAllIcon, 0],
+            ['Settings', ACTION_TAGS.Settings, LINKS.Settings, SettingsIcon, 0],
+        )
     } else {
-        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, null, CreateAccountIcon, 0]);
+        actions.push(['Log In', ACTION_TAGS.LogIn, LINKS.Start, CreateAccountIcon, 0]);
     }
-
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
 }
 
 // Factory for creating action objects
 const createAction = (action: ActionArray): Action => {
-    const keys = ['label', 'value', 'link', 'onClick', 'Icon', 'numNotifications'];
+    const keys = ['label', 'value', 'link', 'Icon', 'numNotifications'];
     return action.reduce((obj: {}, val: any, i: number) => { obj[keys[i]] = val; return obj }, {}) as Action;
 }
 
@@ -75,12 +70,13 @@ interface ActionsToMenuProps {
     sx?: { [key: string]: any };
 }
 export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuProps) => {
-    return actions.map(({ label, value, link, onClick }) => (
+    return actions.map(({ label, value, link }) => (
         <Button
             key={value}
             variant="text"
             size="large"
-            onClick={() => { openLink(setLocation, link); if (onClick) onClick() }}
+            href={link}
+            onClick={(e) => { e.preventDefault(); openLink(setLocation, link) }}
             sx={sx}
         >
             {label}
@@ -94,19 +90,20 @@ interface ActionsToBottomNavProps {
     setLocation: SetLocation;
 }
 export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavProps) => {
-    return actions.map(({ label, value, link, onClick, Icon, numNotifications }) => (
+    return actions.map(({ label, value, link, Icon, numNotifications }) => (
         <BottomNavigationAction
             key={value}
             label={label}
             value={value}
-            onClick={() => {
+            href={link}
+            onClick={(e: any) => {
+                e.preventDefault();
                 // Check if link is different from current location
                 const shouldScroll = link === window.location.pathname;
                 // If same, scroll to top of page instead of navigating
                 if (shouldScroll) window.scrollTo({ top: 0, behavior: 'smooth' });
                 // Otherwise, navigate to link
                 else openLink(setLocation, link);
-                if (onClick) onClick()
             }}
             icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
             sx={{ color: 'white' }}

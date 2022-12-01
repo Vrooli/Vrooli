@@ -65,8 +65,6 @@ export interface researchPage_researchPage_processes {
   permissionsRoutine: researchPage_researchPage_processes_permissionsRoutine;
   tags: researchPage_researchPage_processes_tags[];
   translations: researchPage_researchPage_processes_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface researchPage_researchPage_newlyCompleted_Project_permissionsProject {
@@ -179,8 +177,6 @@ export interface researchPage_researchPage_newlyCompleted_Routine {
   permissionsRoutine: researchPage_researchPage_newlyCompleted_Routine_permissionsRoutine;
   tags: researchPage_researchPage_newlyCompleted_Routine_tags[];
   translations: researchPage_researchPage_newlyCompleted_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export type researchPage_researchPage_newlyCompleted = researchPage_researchPage_newlyCompleted_Project | researchPage_researchPage_newlyCompleted_Routine;

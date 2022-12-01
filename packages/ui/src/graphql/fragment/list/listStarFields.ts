@@ -155,8 +155,6 @@ export const listStarFields = gql`
             description
             title
         }
-        version
-        versionGroupId
     }
     fragment listStarStandardFields on Standard {
         id
@@ -182,8 +180,6 @@ export const listStarFields = gql`
             language
             description
         }
-        version
-        versionGroupId
     }
     fragment listStarUserFields on User {
         id

@@ -1,17 +1,19 @@
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import * as auth from './auth/auth';
+import * as auth from './auth/request';
 import cors from "cors";
 import { ApolloServer } from 'apollo-server-express';
-import { depthLimit } from './depthLimit';
+import { context, depthLimit } from './middleware';
 import { graphqlUploadExpress } from 'graphql-upload';
 import { schema } from './schema';
-import { context } from './context';
 import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
-import mongoose from 'mongoose';
-import { genErrorCode, logger, LogLevel } from './logger';
+import { logger } from './events/logger';
 import { initializeRedis } from './redisConn';
+import { i18nConfig } from '@shared/translations';
+import i18next from 'i18next';
+
+const debug = process.env.NODE_ENV === 'development';
 
 const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
     `http://localhost:5329/api` :
@@ -20,38 +22,30 @@ const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
         `http://${process.env.SITE_IP}:5329/api`;
 
 const main = async () => {
-    logger.log(LogLevel.info, 'Starting server...');
+    logger.info('Starting server...');
 
     // Check for required .env variables
-    const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET'];
+    const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'PUSH_NOTIFICATIONS_PUBLIC_KEY', 'PUSH_NOTIFICATIONS_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
         if (!process.env[env]) {
             console.error('uh oh', process.env[env]);
-            logger.log(LogLevel.error, `🚨 ${env} not in environment variables. Stopping server`, { code: genErrorCode('0007') });
+            logger.error(`🚨 ${env} not in environment variables. Stopping server`, { trace: '0007' });
             process.exit(1);
         }
     }
 
+    // Initialize translations
+    await i18next.init(i18nConfig(debug));
+
     // Setup databases
     // Prisma
     await setupDatabase();
-    // MongoDB
-    try {
-        mongoose.set('debug', process.env.NODE_ENV === 'development');
-        await mongoose.connect(process.env.MONGO_CONN ?? '', {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        } as mongoose.ConnectOptions);
-        logger.log(LogLevel.info, '✅ Connected to MongoDB');
-    } catch (error) {
-        logger.log(LogLevel.error, '🚨 Failed to connect to MongoDB', { code: genErrorCode('0191'), error });
-    }
     // Redis 
     try {
         await initializeRedis();
-        logger.log(LogLevel.info, '✅ Connected to Redis');
+        logger.info('✅ Connected to Redis');
     } catch (error) {
-        logger.log(LogLevel.error, '🚨 Failed to connect to Redis', { code: genErrorCode('0207'), error });
+        logger.error('🚨 Failed to connect to Redis', { trace: '0207', error });
     }
 
     const app = express();
@@ -60,6 +54,7 @@ const main = async () => {
     // app.use(express.json());
     // // For parsing application/xwww-
     // app.use(express.urlencoded({ extended: false }));
+    // For parsing cookies
     app.use(cookieParser(process.env.JWT_SECRET));
 
     // For authentication
@@ -77,33 +72,48 @@ const main = async () => {
     // app.use(`/api/images`, express.static(`${process.env.PROJECT_DIR}/data/images`));
 
     // Set up image uploading
-    app.use(`/api/v1`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }))
+    app.use(`/api/v2`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }))
 
-    /**
-     * Apollo Server for GraphQL
-     */
-    const apollo_options = new ApolloServer({
+    // Apollo server for latest API version
+    const apollo_options_latest = new ApolloServer({
         cache: 'bounded' as any,
-        introspection: process.env.NODE_ENV === 'development',
+        introspection: debug,
         schema: schema,
         context: (c) => context(c), // Allows request and response to be included in the context
         validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
     });
     // Start server
-    await apollo_options.start();
+    await apollo_options_latest.start();
     // Configure server with ExpressJS settings and path
-    apollo_options.applyMiddleware({
+    apollo_options_latest.applyMiddleware({
         app,
-        path: `/api/v1`,
+        path: `/api/v2`,
         cors: false
     });
+    // Additional Apollo server that wraps the latest version. Uses previous endpoint, and transforms the schema
+    // to be compatible with the latest version.
+    // const apollo_options_previous = new ApolloServer({
+    //     cache: 'bounded' as any,
+    //     introspection: debug,
+    //     schema: schema,
+    //     context: (c) => context(c), // Allows request and response to be included in the context
+    //     validationRules: [depthLimit(10)] // Prevents DoS attack from arbitrarily-nested query
+    // });
+    // // Start server
+    // await apollo_options_previous.start();
+    // // Configure server with ExpressJS settings and path
+    // apollo_options_previous.applyMiddleware({
+    //     app,
+    //     path: `/api/v2`,
+    //     cors: false
+    // });
     // Start Express server
     app.listen(5329);
 
     // Start cron jobs for calculating site statistics
     initStatsCronJobs();
 
-    logger.log(LogLevel.info, `🚀 Server running at ${SERVER_URL}`);
+    logger.info( `🚀 Server running at ${SERVER_URL}`);
 }
 
 main();

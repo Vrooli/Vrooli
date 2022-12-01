@@ -84,6 +84,21 @@ export const getListItemSubtitle = (
 };
 
 /**
+ * All possible permissions any object can have
+ */
+export type PermissionsInflated = {
+    canComment: boolean;
+    canDelete: boolean;
+    canEdit: boolean;
+    canFork: boolean;
+    canReport: boolean;
+    canShare: boolean;
+    canStar: boolean;
+    canView: boolean;
+    canVote: boolean;
+}
+
+/**
  * Gets the permissions of a list object
  * @param object A list object
  * @param session The current session
@@ -91,17 +106,8 @@ export const getListItemSubtitle = (
 export const getListItemPermissions = (
     object: ListObjectType | null | undefined,
     session: Session,
-): {
-    canComment: boolean;
-    canDelete: boolean;
-    canEdit: boolean;
-    canFork: boolean;
-    canReport: boolean;
-    canStar: boolean;
-    canView: boolean;
-    canVote: boolean;
-} => {
-    const defaultPermissions = { canComment: false, canDelete: false, canEdit: false, canFork: false, canReport: false, canStar: false, canView: false, canVote: false };
+): PermissionsInflated => {
+    const defaultPermissions = { canComment: false, canDelete: false, canEdit: false, canFork: false, canReport: false, canShare: false, canStar: false, canView: false, canVote: false };
     if (!object) return defaultPermissions;
     // Helper function to convert every field in an object to boolean
     const toBoolean = <T extends { [key: string]: any }>(obj: T | null | undefined): { [K in keyof T]?: boolean } => {
@@ -114,20 +120,20 @@ export const getListItemPermissions = (
     };
     switch (object.__typename) {
         case 'Organization':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsOrganization) };
+            return { ...defaultPermissions, ...toBoolean(object.permissionsOrganization), canShare: object.isPrivate !== true };
         case 'Project':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsProject) };
+            return { ...defaultPermissions, ...toBoolean(object.permissionsProject), canShare: object.isPrivate !== true };
         case 'Routine':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsRoutine) };
+            return { ...defaultPermissions, ...toBoolean(object.permissionsRoutine), canShare: object.isPrivate !== true };
         case 'Run':
-            return { ...defaultPermissions, ...toBoolean(object.routine?.permissionsRoutine) };
+            return { ...defaultPermissions, ...toBoolean(object.routine?.permissionsRoutine), canShare: object.routine?.isPrivate !== true };
         case 'Standard':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsStandard) };
+            return { ...defaultPermissions, ...toBoolean(object.permissionsStandard), canShare: object.isPrivate !== true };
         case 'Star':
             return getListItemPermissions(object.to as any, session);
         case 'User':
             const isOwn = object.id === getCurrentUser(session).id;
-            return { canComment: false, canDelete: isOwn, canEdit: isOwn, canFork: false, canReport: !isOwn, canStar: !isOwn, canView: true, canVote: false };
+            return { canComment: false, canDelete: isOwn, canEdit: isOwn, canFork: false, canReport: !isOwn, canShare: true, canStar: !isOwn, canView: true, canVote: false };
         case 'View':
             return getListItemPermissions(object.to as any, session);
         default:
@@ -279,7 +285,7 @@ export function listToAutocomplete(
         routine: o.__typename === 'Run' ? o.routine : undefined,
         stars: getListItemStars(o),
         to: o.__typename === 'View' || o.__typename === 'Star' ? o.to : undefined,
-        versionGroupId: o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,
+        versionGroupId: undefined// TODO o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,
     }));
 }
 

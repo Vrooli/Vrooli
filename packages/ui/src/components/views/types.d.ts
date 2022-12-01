@@ -1,3 +1,4 @@
+import { RelationshipsObject } from "components/inputs/types";
 import React from "react";
 import { DecisionStep, Node, Profile, Routine, Run, Session, User } from "types";
 
@@ -68,11 +69,20 @@ export interface RunViewProps extends ViewProps<Routine> {
 }
 
 export interface BuildViewProps extends ViewProps<Routine> {
+    handleCancel: () => void;
     handleClose: () => void;
+    handleSubmit: (updatedRoutine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>) => void;
+    isEditing: boolean;
     loading: boolean;
-    onChange: (routine: Routine) => void;
-    routine: Routine | null;
-    zIndex: number;
+    owner: RelationshipsObject['owner'] | null;
+    routine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>;
+    translationData: {
+        language: string;
+        setLanguage: (language: string) => void;
+        handleAddLanguage: (language: string) => void;
+        handleDeleteLanguage: (language: string) => void;
+        translations: Routine['translations'];
+    };
 }
 
 export interface ErrorBoundaryProps {

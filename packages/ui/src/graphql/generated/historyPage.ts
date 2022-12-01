@@ -64,8 +64,6 @@ export interface historyPage_historyPage_activeRuns_routine {
   permissionsRoutine: historyPage_historyPage_activeRuns_routine_permissionsRoutine;
   tags: historyPage_historyPage_activeRuns_routine_tags[];
   translations: historyPage_historyPage_activeRuns_routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_activeRuns {
@@ -137,8 +135,6 @@ export interface historyPage_historyPage_completedRuns_routine {
   permissionsRoutine: historyPage_historyPage_completedRuns_routine_permissionsRoutine;
   tags: historyPage_historyPage_completedRuns_routine_tags[];
   translations: historyPage_historyPage_completedRuns_routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_completedRuns {
@@ -302,8 +298,6 @@ export interface historyPage_historyPage_recentlyViewed_to_Routine {
   permissionsRoutine: historyPage_historyPage_recentlyViewed_to_Routine_permissionsRoutine;
   tags: historyPage_historyPage_recentlyViewed_to_Routine_tags[];
   translations: historyPage_historyPage_recentlyViewed_to_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_recentlyViewed_to_Standard_permissionsStandard {
@@ -352,8 +346,6 @@ export interface historyPage_historyPage_recentlyViewed_to_Standard {
   permissionsStandard: historyPage_historyPage_recentlyViewed_to_Standard_permissionsStandard;
   tags: historyPage_historyPage_recentlyViewed_to_Standard_tags[];
   translations: historyPage_historyPage_recentlyViewed_to_Standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_recentlyViewed_to_User {
@@ -614,8 +606,6 @@ export interface historyPage_historyPage_recentlyStarred_to_Routine {
   permissionsRoutine: historyPage_historyPage_recentlyStarred_to_Routine_permissionsRoutine;
   tags: historyPage_historyPage_recentlyStarred_to_Routine_tags[];
   translations: historyPage_historyPage_recentlyStarred_to_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_recentlyStarred_to_Standard_permissionsStandard {
@@ -664,8 +654,6 @@ export interface historyPage_historyPage_recentlyStarred_to_Standard {
   permissionsStandard: historyPage_historyPage_recentlyStarred_to_Standard_permissionsStandard;
   tags: historyPage_historyPage_recentlyStarred_to_Standard_tags[];
   translations: historyPage_historyPage_recentlyStarred_to_Standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface historyPage_historyPage_recentlyStarred_to_User {

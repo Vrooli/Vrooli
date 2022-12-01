@@ -162,8 +162,6 @@ export interface views_views_edges_node_to_Routine {
   permissionsRoutine: views_views_edges_node_to_Routine_permissionsRoutine;
   tags: views_views_edges_node_to_Routine_tags[];
   translations: views_views_edges_node_to_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface views_views_edges_node_to_Standard_permissionsStandard {
@@ -212,8 +210,6 @@ export interface views_views_edges_node_to_Standard {
   permissionsStandard: views_views_edges_node_to_Standard_permissionsStandard;
   tags: views_views_edges_node_to_Standard_tags[];
   translations: views_views_edges_node_to_Standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface views_views_edges_node_to_User {

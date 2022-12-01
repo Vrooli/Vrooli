@@ -1,20 +1,10 @@
-import { SxProps } from "@mui/material"
+import { Palette, SxProps } from "@mui/material"
 
-//==============================================================
-/* #region Centering */
-//==============================================================
 export const centeredDiv: SxProps = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center'
 };
-//==============================================================
-/* #endregion Centering */
-//==============================================================
-
-//==============================================================
-/* #region Shadows */
-//==============================================================
 
 export const textShadow: SxProps = {
     textShadow:
@@ -23,13 +13,7 @@ export const textShadow: SxProps = {
         -0.5px 0.5px 0 black,
         0.5px 0.5px 0 black`
 };
-//==============================================================
-/* #endregion Shadows*/
-//==============================================================
 
-//==============================================================
-/* #region Sizing */
-//==============================================================
 /**
  * Lighthouse recommended size for clickable elements, to improve SEO
  */
@@ -44,13 +28,7 @@ export const multiLineEllipsis = (lines: number): SxProps => ({
     overflow: 'hidden',
     textOverflow: 'ellipsis',
 });
-//==============================================================
-/* #endregion Sizing */
-//==============================================================
 
-//==============================================================
-/* #region Actions */
-//==============================================================
 /**
  * Disables text highlighting
  */
@@ -62,9 +40,20 @@ export const noSelect: SxProps = {
     userSelect: 'none', /* Non-prefixed version, currently
     supported by Chrome, Edge, Opera and Firefox */
 };
-/**
- * 
- */
-//==============================================================
-/* #endregion Actions */
-//==============================================================
+
+export const linkColors = (palette: Palette) => ({
+    a: {
+        color: palette.mode === 'light' ? '#001cd3' : '#dd86db',
+        '&:visited': {
+            color: palette.mode === 'light' ? '#001cd3' : '#f551ef',
+        },
+        '&:active': {
+            color: palette.mode === 'light' ? '#001cd3' : '#f551ef',
+        },
+        '&:hover': {
+            color: palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
+        },
+        // Remove underline on links
+        textDecoration: 'none',
+    },
+})

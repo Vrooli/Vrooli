@@ -3,10 +3,8 @@ import { GraphQLResolveInfo, GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 // import ogs from 'open-graph-scraper';
-import { CODE } from '@shared/consts';
-import { Context } from '../context';
-import { CustomError } from '../error';
-import { rateLimit } from '../rateLimit';
+import { Context, rateLimit } from '../middleware';
+import { CustomError } from '../events/error';
 import { resolveContributor } from './resolvers';
 import { VisibilityType } from './types';
 
@@ -131,7 +129,7 @@ export const resolvers = {
     Mutation: {
         writeAssets: async (_parent: undefined, { input }: any, { req }: Context, info: GraphQLResolveInfo): Promise<boolean> => {
             await rateLimit({ info, maxUser: 500, req });
-            throw new CustomError(CODE.NotImplemented); // TODO add safety checks before allowing uploads
+            throw new CustomError('0327', 'NotImplemented', req.languages); // TODO add safety checks before allowing uploads
             const data = await saveFiles(input.files);
             // Any failed writes will return null
             return !data.some(d => d === null)

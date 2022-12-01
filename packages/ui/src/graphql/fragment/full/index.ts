@@ -1,7 +1,6 @@
 // NOTE: Nested fragments are not supported, so there is duplicate code
 export * from './commentFields';
 export * from './emailFields';
-export * from './logFields';
 export * from './nodeFields';
 export * from './organizationFields';
 export * from './profileFields';

@@ -18,16 +18,16 @@ import {
 } from '@shared/icons';
 
 const allOptionsMap: { [index in Exclude<BuildAction, BuildAction.AddSubroutine>]?: [string, SvgComponent] } = {
-    [BuildAction.AddIncomingLink]: ['Add incoming link', AddIncomingLinkIcon],
-    [BuildAction.AddOutgoingLink]: ['Add outgoing link', AddOutgoingLinkIcon],
-    [BuildAction.AddListBeforeNode]: ['Add routine list before', AddRoutineListBeforeIcon],
-    [BuildAction.AddListAfterNode]: ['Add routine list after', AddRoutineListAfterIcon],
-    [BuildAction.AddEndAfterNode]: ['Add end node after', AddEndNodeAfterIcon],
-    [BuildAction.DeleteNode]: ['Delete node', DeleteNodeIcon],
-    [BuildAction.MoveNode]: ['Move node', MoveNodeIcon],
-    [BuildAction.UnlinkNode]: ['Unlink node', UnlinkNodeIcon],
-    [BuildAction.EditSubroutine]: ['Edit subroutine', EditIcon],
-    [BuildAction.DeleteSubroutine]: ['Delete subroutine', DeleteIcon],
+    AddIncomingLink: ['Add incoming link', AddIncomingLinkIcon],
+    AddOutgoingLink: ['Add outgoing link', AddOutgoingLinkIcon],
+    AddListBeforeNode: ['Add routine list before', AddRoutineListBeforeIcon],
+    AddListAfterNode: ['Add routine list after', AddRoutineListAfterIcon],
+    AddEndAfterNode: ['Add end node after', AddEndNodeAfterIcon],
+    DeleteNode: ['Delete node', DeleteNodeIcon],
+    MoveNode: ['Move node', MoveNodeIcon],
+    UnlinkNode: ['Unlink node', UnlinkNodeIcon],
+    EditSubroutine: ['Edit subroutine', EditIcon],
+    DeleteSubroutine: ['Delete subroutine', DeleteIcon],
 }
 
 const listOptions: ListMenuItemData<BuildAction>[] = Object.keys(allOptionsMap).map(o => ({
@@ -51,7 +51,6 @@ export const NodeContextMenu = ({
         <ListMenu
             id={id}
             anchorEl={anchorEl}
-            title='Node Options'
             data={availableOptions}
             onSelect={handleSelect}
             onClose={handleClose}

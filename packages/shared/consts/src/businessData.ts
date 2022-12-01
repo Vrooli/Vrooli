@@ -14,3 +14,4 @@ export const SOCIALS = {
 }
 export const LANDING_URL = 'https://vrooli.com';
 export const APP_URL = 'https://app.vrooli.com';
+export const WHITE_PAPER_URL = 'https://docs.google.com/document/d/1zHYdjAyy01SSFZX0O-YnZicef7t6sr1leOFnynQQOx4/edit?usp=sharing';

@@ -254,8 +254,6 @@ export interface stars_stars_edges_node_to_Routine {
   permissionsRoutine: stars_stars_edges_node_to_Routine_permissionsRoutine;
   tags: stars_stars_edges_node_to_Routine_tags[];
   translations: stars_stars_edges_node_to_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface stars_stars_edges_node_to_Standard_permissionsStandard {
@@ -304,8 +302,6 @@ export interface stars_stars_edges_node_to_Standard {
   permissionsStandard: stars_stars_edges_node_to_Standard_permissionsStandard;
   tags: stars_stars_edges_node_to_Standard_tags[];
   translations: stars_stars_edges_node_to_Standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface stars_stars_edges_node_to_User {

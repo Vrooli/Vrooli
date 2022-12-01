@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, IconButton, Popover, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { MarkdownInputProps } from '../types';
 import Markdown from 'markdown-to-jsx';
-import { noSelect } from 'styles';
+import { linkColors, noSelect } from 'styles';
 import { PubSub, useDebounce } from 'utils';
 import { BoldIcon, Header1Icon, Header2Icon, Header3Icon, HeaderIcon, InvisibleIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListIcon, ListNumberIcon, RedoIcon, StrikethroughIcon, UndoIcon, VisibleIcon } from '@shared/icons';
 import { SnackSeverity } from 'components';
@@ -55,7 +55,6 @@ const getLineEnd = (text: string, selectionStart: number) => {
     if (selectionStart < 0 || selectionStart > text.length) return text.length;
     return text.substring(selectionStart).indexOf('\n') + selectionStart;
 }
-
 
 /**
  * Determines line the specified index is on.
@@ -113,9 +112,11 @@ export const MarkdownInput = ({
     error = false,
     helperText,
     minRows = 4,
+    onBlur,
     onChange,
     placeholder = '',
     value,
+    sxs,
 }: MarkdownInputProps) => {
     const { palette } = useTheme();
 
@@ -213,7 +214,7 @@ export const MarkdownInput = ({
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${id}`);
         // If no selection, return
         if (selectionStart === selectionEnd) {
-            PubSub.get().publishSnack({ message: 'No text selected', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'NoTextSelected', severity: SnackSeverity.Error });
             return;
         }
         // Insert ~~ before the selection, and ~~ after the selection
@@ -383,6 +384,7 @@ export const MarkdownInput = ({
                 background: palette.primary.light,
                 color: palette.primary.contrastText,
                 borderRadius: '0.5rem 0.5rem 0 0',
+                ...(sxs?.bar ?? {})
             }}>
                 {/* To the left is a stack for inserting titles, italics/bold, lists, and links */}
                 <Stack
@@ -577,6 +579,7 @@ export const MarkdownInput = ({
                             borderTop: 'none',
                             padding: '12px',
                             ...noSelect,
+                            ...linkColors(palette),
                         }}>
                             <Markdown>{internalValue}</Markdown>
                         </Box>
@@ -588,6 +591,7 @@ export const MarkdownInput = ({
                             placeholder={placeholder}
                             rows={minRows}
                             value={internalValue}
+                            onBlur={onBlur}
                             onChange={(e) => { handleChange(e.target.value) }}
                             style={{
                                 padding: '16.5px 14px',
@@ -601,7 +605,8 @@ export const MarkdownInput = ({
                                 borderTop: 'none',
                                 fontFamily: 'inherit',
                                 fontSize: 'inherit',
-                                color: palette.text.primary
+                                color: palette.text.primary,
+                                ...(sxs?.textArea ?? {}),
                             }}
                         />
                     )
@@ -609,7 +614,7 @@ export const MarkdownInput = ({
             {/* Helper text label */}
             {
                 helperText &&
-                <Typography variant="body1" sx={{ color: 'red' }}>
+                <Typography variant="body1" sx={{ color: 'red', paddingTop: 1 }}>
                     {helperText}
                 </Typography>
             }

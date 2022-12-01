@@ -1,11 +1,10 @@
 import { gql } from 'apollo-server-express';
-import { createHelper, NodeModel, updateHelper } from '../models';
+import { createHelper, updateHelper } from '../actions';
 import { IWrap, RecursivePartial } from '../types';
 import { Node, NodeCreateInput, NodeUpdateInput } from './types';
-import { Context } from '../context';
+import { Context, rateLimit } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
 import pkg from '@prisma/client';
-import { rateLimit } from '../rateLimit';
 import { resolveNodeData } from './resolvers';
 const { NodeType } = pkg;
 
@@ -23,11 +22,11 @@ export const typeDef = gql`
         id: ID!
         columnIndex: Int
         rowIndex: Int
-        type: NodeType
+        type: NodeType!
         loopCreate: LoopCreateInput
         nodeEndCreate: NodeEndCreateInput
         nodeRoutineListCreate: NodeRoutineListCreateInput
-        routineId: ID
+        routineVersionId: ID!
         translationsCreate: [NodeTranslationCreateInput!]
     }
     input NodeUpdateInput {
@@ -42,7 +41,7 @@ export const typeDef = gql`
         nodeEndUpdate: NodeEndUpdateInput
         nodeRoutineListCreate: NodeRoutineListCreateInput
         nodeRoutineListUpdate: NodeRoutineListUpdateInput
-        routineId: ID
+        routineVersionId: ID
         translationsDelete: [ID!]
         translationsCreate: [NodeTranslationCreateInput!]
         translationsUpdate: [NodeTranslationUpdateInput!]
@@ -182,7 +181,7 @@ export const typeDef = gql`
         id: ID!
         index: Int!
         isOptional: Boolean
-        routineConnect: ID!
+        routineVersionConnect: ID!
         translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
     }
     input NodeRoutineListItemUpdateInput {
@@ -198,7 +197,7 @@ export const typeDef = gql`
         id: ID!
         index: Int!
         isOptional: Boolean!
-        routine: Routine!
+        routineVersion: Routine!
         translations: [NodeRoutineListItemTranslation!]!
     }
 
@@ -289,7 +288,7 @@ export const typeDef = gql`
         nodeUpdate(input: NodeUpdateInput!): Node!
     }
 `
-
+const objectType = 'Node';
 export const resolvers = {
     NodeType: NodeType,
     NodeData: {
@@ -303,11 +302,11 @@ export const resolvers = {
          */
         nodeCreate: async (_parent: undefined, { input }: IWrap<NodeCreateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             await rateLimit({ info, maxUser: 2000, req });
-            return createHelper({ info, input, model: NodeModel, prisma, req })
+            return createHelper({ info, input, objectType, prisma, req })
         },
         nodeUpdate: async (_parent: undefined, { input }: IWrap<NodeUpdateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<RecursivePartial<Node>> => {
             await rateLimit({ info, maxUser: 2000, req });
-            return updateHelper({ info, input, model: NodeModel, prisma, req })
+            return updateHelper({ info, input, objectType, prisma, req })
         },
     }
 }

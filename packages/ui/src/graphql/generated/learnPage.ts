@@ -117,8 +117,6 @@ export interface learnPage_learnPage_tutorials {
   permissionsRoutine: learnPage_learnPage_tutorials_permissionsRoutine;
   tags: learnPage_learnPage_tutorials_tags[];
   translations: learnPage_learnPage_tutorials_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface learnPage_learnPage {

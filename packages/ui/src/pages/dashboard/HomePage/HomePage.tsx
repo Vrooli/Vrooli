@@ -1,6 +1,6 @@
-import { Box, Button, Grid, Stack, Tab, Tabs, Typography } from '@mui/material';
+import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { centeredDiv } from 'styles';
+import { centeredDiv, linkColors } from 'styles';
 import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
 import { homePageQuery } from 'graphql/query';
@@ -72,8 +72,7 @@ const advancedSearchPopupOptions: ListMenuItemData<string>[] = [
 const createNewPopupOptions: ListMenuItemData<string>[] = [
     { label: 'Organization', Icon: OrganizationIcon, value: `${APP_LINKS.Organization}/add` },
     { label: 'Project', Icon: ProjectIcon, value: `${APP_LINKS.Project}/add` },
-    { label: 'Routine (Single Step)', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add` },
-    { label: 'Routine (Multi Step)', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add?build=true` },
+    { label: 'Routine', Icon: RoutineIcon, value: `${APP_LINKS.Routine}/add` },
     { label: 'Standard', Icon: StandardIcon, value: `${APP_LINKS.Standard}/add` },
 ]
 
@@ -94,6 +93,7 @@ const zIndex = 200;
 export const HomePage = ({
     session
 }: HomePageProps) => {
+    const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [searchString, setSearchString] = useState<string>('');
     const searchParams = useReactSearch();
@@ -110,7 +110,8 @@ export const HomePage = ({
         if (window.location.pathname === APP_LINKS.History) return 1;
         return 0;
     }, []);
-    const handleTabChange = (_e, newIndex) => {
+    const handleTabChange = (e, newIndex) => {
+        e.preventDefault();
         setLocation(tabOptions[newIndex][1], { replace: true });
     };
 
@@ -315,6 +316,8 @@ export const HomePage = ({
                                 }}
                                 label={option[0]}
                                 color={index === 0 ? '#ce6c12' : 'default'}
+                                component='a'
+                                href={option[1]}
                             />
                         ))}
                     </Tabs>
@@ -324,7 +327,6 @@ export const HomePage = ({
             <ListMenu
                 id={`open-advanced-search-menu`}
                 anchorEl={advancedSearchAnchor}
-                title='Select Object Type'
                 data={advancedSearchPopupOptions}
                 onSelect={handleAdvancedSearchSelect}
                 onClose={closeAdvancedSearch}
@@ -334,7 +336,6 @@ export const HomePage = ({
             <ListMenu
                 id={`create-new-object-menu`}
                 anchorEl={createNewAnchor}
-                title='Create New...'
                 data={createNewPopupOptions}
                 onSelect={handleCreateNewSelect}
                 onClose={closeCreateNew}
@@ -385,6 +386,7 @@ export const HomePage = ({
                             fontWeight: '500',
                             textAlign: 'center',
                         },
+                        ...linkColors(palette)
                     }}
                 >
                     <Box pl={2} pr={2}><Markdown>{faqText}</Markdown></Box>

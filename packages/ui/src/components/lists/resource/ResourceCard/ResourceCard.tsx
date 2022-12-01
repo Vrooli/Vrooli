@@ -5,29 +5,16 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { firstString, getTranslation, getUserLanguages, openLink, PubSub, ResourceType, usePress } from 'utils';
+import { firstString, getResourceType, getResourceUrl, getTranslation, getUserLanguages, openLink, PubSub, usePress } from 'utils';
 import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
 import { multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from '..';
 import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { urlRegex, walletAddressRegex, adaHandleRegex } from '@shared/validation';
 import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
 import { DeleteIcon, EditIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
-
-/**
- * Determines if a resource is a URL, wallet payment address, or an ADA handle
- * @param link String to check
- * @returns ResourceType if type found, or null if not
- */
-const getResourceType = (link: string): ResourceType | null => {
-    if (urlRegex.test(link)) return ResourceType.Url;
-    if (walletAddressRegex.test(link)) return ResourceType.Wallet;
-    if (adaHandleRegex.test(link)) return ResourceType.Handle;
-    return null;
-}
 
 export const ResourceCard = ({
     canEdit,
@@ -56,6 +43,7 @@ export const ResourceCard = ({
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
     }, [data]);
 
+    const href = useMemo(() => getResourceUrl(data.link), [data]);
     const handleClick = useCallback((target: EventTarget) => {
         // Check if edit or delete button was clicked
         const targetId: string | undefined = target.id;
@@ -66,36 +54,18 @@ export const ResourceCard = ({
             onDelete?.(index);
         }
         else {
-            // Find the resource type
+            // If no resource type or link, show error
             const resourceType = getResourceType(data.link);
-            // If null, show error
-            if (!resourceType) {
-                PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
+            if (!resourceType || !href) {
+                PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: SnackSeverity.Error });
                 return;
             }
-            // If URL, open in new tab
-            if (resourceType === ResourceType.Url) openLink(setLocation, data.link);
-            // If wallet address, open dialog to copy to clipboard
-            else if (resourceType === ResourceType.Wallet) {
-                PubSub.get().publishAlertDialog({
-                    message: `Wallet address: ${data.link}`,
-                    buttons: [
-                        {
-                            text: 'Copy', onClick: () => {
-                                navigator.clipboard.writeText(data.link);
-                                PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
-                            }
-                        },
-                        { text: 'Close' }
-                    ]
-                });
-            }
-            // If handle, open ADA Handle payment site
-            else if (resourceType === ResourceType.Handle) openLink(setLocation, `https://handle.me/${data.link}`);
+            // Open link
+            else openLink(setLocation, href);
         }
-    }, [data.link, index, onDelete, onEdit, setLocation]);
+    }, [data.link, href, index, onDelete, onEdit, setLocation]);
     const handleContextMenu = useCallback((target: EventTarget) => {
-        if (onContextMenu) onContextMenu(target, index);
+        onContextMenu(target, index);
     }, [onContextMenu, index]);
 
     const handleHover = useCallback(() => {
@@ -119,22 +89,25 @@ export const ResourceCard = ({
         <Tooltip placement="top" title={`${description ? description + ' - ' : ''}${data.link}`}>
             <Box
                 {...pressEvents}
+                component="a"
+                href={href}
+                onClick={(e) => e.preventDefault()}
                 sx={{
                     ...noSelect,
-                    boxShadow: 12,
+                    boxShadow: 8,
                     background: (t: any) => t.palette.primary.light,
                     color: (t: any) => t.palette.primary.contrastText,
                     borderRadius: '16px',
                     margin: 0,
                     padding: 1,
-                    cursor: canEdit ? 'pointer' : 'default',
+                    cursor: 'pointer',
                     width: '120px',
                     minWidth: '120px',
                     minHeight: '120px',
                     height: '120px',
                     position: 'relative',
                     '&:hover': {
-                        filter: canEdit ? `brightness(120%)` : 'none',
+                        filter: `brightness(120%)`,
                         transition: 'filter 0.2s',
                     },
                 } as any}

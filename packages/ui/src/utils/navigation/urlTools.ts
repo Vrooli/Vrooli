@@ -153,7 +153,7 @@ export const uuidToBase36 = (uuid: string): string => {
         const base36 = toBigInt(uuid.replace(/-/g, ''), 16).toString(36);
         return base36 === '0' ? '' : base36;
     } catch (error) {
-        PubSub.get().publishSnack({ message: 'Could not convert ID', severity: SnackSeverity.Error, data: { uuid } });
+        PubSub.get().publishSnack({ messageKey: 'CouldNotConvertId', severity: SnackSeverity.Error, data: { uuid } });
         return '';
     }
 }
@@ -171,7 +171,23 @@ export const base36ToUuid = (base36: string, showError = true): string => {
         const uuid = toBigInt(base36, 36).toString(16).padStart(32, '0').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
         return uuid === '0' ? '' : uuid;
     } catch (error) {
-        if (showError) PubSub.get().publishSnack({ message: 'Could not parse ID in URL', severity: SnackSeverity.Error, data: { base36 } });
+        if (showError) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error, data: { base36 } });
         return '';
     }
 }
+
+/**
+ * Opens link using routing or a new tab, depending on the link
+ * @param setLocation Function to set location in the router
+ * @param link Link to open
+ */
+ export const openLink = (setLocation: SetLocation, link: string) => {
+    // If link is external, open new tab
+    if ((link.includes('http:') || link.includes('https:')) && !link.startsWith(window.location.origin)) {
+        window.open(link, '_blank', 'noopener,noreferrer');
+    } 
+    // Otherwise, push to history
+    else {
+        setLocation(link);
+    }
+};

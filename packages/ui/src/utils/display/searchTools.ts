@@ -992,5 +992,5 @@ export const clearSearchHistory = (session: Session) => {
     searchHistoryKeys.forEach(key => {
         localStorage.removeItem(key);
     });
-    PubSub.get().publishSnack({ message: 'Search history cleared.', severity: SnackSeverity.Success });
+    PubSub.get().publishSnack({ messageKey: 'SearchHistoryCleared', severity: SnackSeverity.Success });
 }

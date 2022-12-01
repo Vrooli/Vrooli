@@ -173,7 +173,7 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            PubSub.get().publishSnack({ message: `Dropped node ${nodeId} not found`, severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: SnackSeverity.Error });
             return;
         }
         // Next, check if the node was dropped into "Unlinked" container. 
@@ -195,7 +195,7 @@ export const NodeGraph = ({
         }
         // If columnIndex is start node or earlier, return
         if (columnIndex < 0 || columnIndex >= columns.length) {
-            PubSub.get().publishSnack({ message: 'Cannot drop node here', severity: SnackSeverity.Error })
+            PubSub.get().publishSnack({ messageKey: 'CannotDropNodeHere', severity: SnackSeverity.Error })
             return;
         }
         // Get the drop row
@@ -331,7 +331,6 @@ export const NodeGraph = ({
             key={`node-column-${index}`}
             id={`node-column-${index}`}
             columnIndex={index}
-            dragId={dragId}
             handleAction={handleAction}
             handleNodeUpdate={handleNodeUpdate}
             isEditing={isEditing}
@@ -342,7 +341,7 @@ export const NodeGraph = ({
             scale={scale}
             zIndex={zIndex}
         />)
-    }, [columns, dragId, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
+    }, [columns, handleAction, handleNodeUpdate, isEditing, labelVisible, language, links, scale, zIndex]);
 
     // Positive modulo function
     const mod = (n: number, m: number) => ((n % m) + m) % m;
@@ -360,10 +359,8 @@ export const NodeGraph = ({
             WebkitTouchCallout: 'none',
             KhtmlUserSelect: 'none',
             minWidth: '100%',
-            // Graph fills remaining space that is not taken up by other elements. 
-            // These are: routine title (64px), other top build icons (48px). This makes the size: 
-            // 100vh - (64 + 48) = calc(100vh - 112px).
-            height: 'calc(100vh - 112px)',
+            // Graph fills remaining space that is not taken up by other elements (i.e. navbar). 
+            height: 'calc(100vh - 48px)',
             margin: 0,
             padding: 0,
             overflowX: 'auto',

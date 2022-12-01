@@ -1,7 +1,8 @@
-import { BoxProps, InputProps, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
+import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
+import { CommentFor } from 'graphql/generated/globalTypes';
 import { ChangeEvent } from 'react';
-import { AutocompleteOption, Organization, Project, Routine, Session, Standard, Tag } from 'types';
+import { AutocompleteOption, Comment, Organization, Project, Routine, Session, Standard, Tag } from 'types';
 import { ObjectType, TagShape } from 'utils';
 import { StringSchema } from 'yup';
 
@@ -17,6 +18,29 @@ export interface AutocompleteSearchBarProps extends Omit<SearchBarProps, 'sx'> {
     showSecondaryLabel?: boolean;
     value: string;
     sxs?: { paper?: { [x: string]: any }, root?: { [x: string]: any } };
+}
+
+export interface CommentCreateInputProps {
+    handleClose: () => void;
+    language: string;
+    objectId: string;
+    objectType: CommentFor;
+    onCommentAdd: (comment: Comment) => any;
+    parent: Comment | null;
+    session: Session;
+    zIndex: number;
+}
+
+export interface CommentUpdateInputProps {
+    comment: Comment;
+    handleClose: () => void;
+    language: string;
+    objectId: string;
+    objectType: CommentFor;
+    onCommentUpdate: (comment: Comment) => any;
+    parent: Comment | null;
+    session: Session;
+    zIndex: number;
 }
 
 export interface DropzoneProps {
@@ -197,9 +221,11 @@ export interface MarkdownInputProps extends TextFieldProps {
     error?: boolean;
     helperText?: string | null | undefined;
     minRows?: number;
+    onBlur?: (event: React.FocusEvent<HTMLTextAreaElement>) => void;
     onChange: (newText: string) => any;
     placeholder?: string;
     value: string;
+    sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
 }
 
 export interface PasswordTextFieldProps extends TextFieldProps {
@@ -260,7 +286,7 @@ export type RelationshipsObject = {
 }
 
 export interface RelationshipButtonsProps {
-    disabled?: boolean;
+    isEditing: boolean;
     isFormDirty?: boolean;
     objectType: ObjectType;
     onRelationshipsChange: (relationships: Partial<RelationshipsObject>) => void;
@@ -277,19 +303,19 @@ export interface SearchBarProps extends InputProps {
     onChange: (updatedText: string) => any;
 }
 
-export interface SelectorProps extends SelectProps {
-    options: any[];
-    getOptionLabel?: (option: any) => string;
-    selected: any;
-    handleChange: (change: any) => any;
-    fullWidth?: boolean;
-    multiple?: boolean;
-    inputAriaLabel?: string;
-    noneOption?: boolean;
-    label?: string;
-    required?: boolean;
-    disabled?: boolean;
+export interface SelectorProps<T extends string | number | { [x: string]: any }> extends SelectProps {
     color?: string;
+    disabled?: boolean;
+    fullWidth?: boolean;
+    getOptionLabel: (option: T) => string;
+    handleChange: (selected: T, event: SelectChangeEvent<any>) => any;
+    inputAriaLabel?: string;
+    label?: string;
+    multiple?: false;
+    noneOption?: boolean;
+    options: T[];
+    required?: boolean;
+    selected: T | null | undefined;
     sx?: { [x: string]: any };
 }
 

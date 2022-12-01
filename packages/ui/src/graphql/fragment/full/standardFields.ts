@@ -87,8 +87,5 @@ export const standardFields = gql`
         isStarred
         score
         isUpvoted
-        version
-        versionGroupId
-        versions
     }
 `

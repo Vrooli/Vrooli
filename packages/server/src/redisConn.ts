@@ -1,7 +1,7 @@
 /**
  * Redis connection, so we don't have to keep creating new connections
  */
- import { genErrorCode, logger, LogLevel } from './logger';
+ import { logger } from './events/logger';
 import { createClient, RedisClientType } from 'redis';
 
 const split = (process.env.REDIS_CONN || 'redis:6379').split(':');
@@ -12,13 +12,13 @@ let redisClient: RedisClientType;
 
 const createRedisClient = async () => {
     const url = `redis://${HOST}:${PORT}`;
-    logger.log(LogLevel.info, 'Creating Redis client.', { code: genErrorCode('0184'), url });
+    logger.info('Creating Redis client.', { trace: '0184', url });
     const redisClient = createClient({ url });
     redisClient.on('error', (error) => {
-        logger.log(LogLevel.error, 'Error occured while connecting or accessing redis server', { code: genErrorCode('0002'), error });
+        logger.error('Error occured while connecting or accessing redis server', { trace: '0002', error });
     });
     redisClient.on('end', () => {
-        logger.log(LogLevel.info, 'Redis client closed.', { code: genErrorCode('0208'), url });
+        logger.info('Redis client closed.', { trace: '0208', url });
     });
     await redisClient.connect();
     return redisClient;

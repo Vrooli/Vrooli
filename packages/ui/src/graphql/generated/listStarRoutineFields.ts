@@ -62,6 +62,4 @@ export interface listStarRoutineFields {
   permissionsRoutine: listStarRoutineFields_permissionsRoutine;
   tags: listStarRoutineFields_tags[];
   translations: listStarRoutineFields_translations[];
-  version: string;
-  versionGroupId: string;
 }

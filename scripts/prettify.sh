@@ -42,3 +42,8 @@ success() {
 error() {
     echo "${RED}${1}${RESET}"
 }
+
+# Print warning message
+warning() {
+    echo "${YELLOW}${1}${RESET}"
+}

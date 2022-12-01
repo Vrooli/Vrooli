@@ -13,11 +13,12 @@ import { logOutMutation } from 'graphql/mutation';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
-import { DeleteAccountDialog, PasswordTextField, SnackSeverity } from "components";
+import { DeleteAccountDialog, PageTitle, PasswordTextField, SnackSeverity } from "components";
 import { profileEmailUpdateVariables, profileEmailUpdate_profileEmailUpdate } from "graphql/generated/profileEmailUpdate";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { logOutVariables, logOut_logOut } from "graphql/generated/logOut";
+import { SettingsFormData } from "pages";
 
 const helpText =
     `This page allows you to manage your wallets, emails, and other authentication settings.`;
@@ -60,7 +61,7 @@ export const SettingsAuthentication = ({
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
             return;
         }
         onUpdated({
@@ -72,7 +73,7 @@ export const SettingsAuthentication = ({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
             return;
         }
         onUpdated({
@@ -94,7 +95,7 @@ export const SettingsAuthentication = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) return;
@@ -124,19 +125,7 @@ export const SettingsAuthentication = ({
                 session={session}
                 zIndex={100}
             />
-            {/* Title */}
-            <Box sx={{
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                padding: 0.5,
-                marginBottom: 2,
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-            }}>
-                <Typography component="h1" variant="h4" textAlign="center">Authentication</Typography>
-                <HelpButton markdown={helpText} />
-            </Box>
+            <PageTitle title="Authentication" helpText={helpText} />
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <WalletIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Connected Wallets</Typography>
@@ -253,4 +242,14 @@ export const SettingsAuthentication = ({
             >Delete Account</Button>
         </Box>
     )
+}
+
+export const settingsAuthenticationFormData: SettingsFormData = {
+    labels: ['Authentication', 'Authentication Update', 'Update Authentication'],
+    items: [
+        { id: 'wallet-list', labels: ['Connected Wallets', 'Wallet List', 'Wallets List'] },
+        { id: 'add-wallet-button', labels: ['Add Wallet', 'Wallet Add', 'Connect Wallet', 'Wallet Connect', 'New Wallet', 'Wallet New'] },
+        { id: 'email-list', labels: ['Connected Emails', 'Email List', 'Emails List'] },
+        { id: 'emailAddress', labels: ['Add Email', 'Email Add', 'Connect Email', 'Email Connect', 'New Email', 'Email New'] },
+    ],
 }

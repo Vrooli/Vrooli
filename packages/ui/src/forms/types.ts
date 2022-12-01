@@ -100,7 +100,7 @@ export interface RadioProps {
 /**
  * Props for rendering a Selector input component
  */
-export interface SelectorProps extends Omit<SP, 'selected' | 'handleChange' | 'zIndex'> {
+export interface SelectorProps<T extends string | number | { [x: string]: any; }> extends Omit<SP<T>, 'selected' | 'handleChange' | 'zIndex'> {
     defaultValue?: any; // Ignored for now
 }
 
@@ -278,7 +278,7 @@ export interface FieldDataSelector extends FieldDataBase {
     /**
      * Extra props for the input component, depending on the type
      */
-    props: SelectorProps;
+    props: SelectorProps<any>;
 }
 
 /**
@@ -471,11 +471,11 @@ export interface YupSchema {
  * on the width of the screen.
  */
 export type GridItemSpacing = number | string | {
-    xs?: number | 'auto' | boolean;
-    sm?: number | 'auto' | boolean;
-    md?: number | 'auto' | boolean;
-    lg?: number | 'auto' | boolean;
-    xl?: number | 'auto' | boolean;
+    xs?: number | 'auto';
+    sm?: number | 'auto';
+    md?: number | 'auto';
+    lg?: number | 'auto';
+    xl?: number | 'auto';
 }
 
 /**

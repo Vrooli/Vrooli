@@ -1,13 +1,9 @@
 import { gql } from 'apollo-server-express';
-import { CODE } from '@shared/consts';
-import { CustomError } from '../error';
-import { StarInput, Success, Translate, TranslateInput } from './types';
+import { CustomError } from '../events/error';
+import { Translate, TranslateInput } from './types';
 import { IWrap } from '../types';
-import { Context } from '../context';
+import { Context } from '../middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { StarModel } from '../models';
-import { rateLimit } from '../rateLimit';
-import { genErrorCode } from '../logger';
 import fetch from 'node-fetch';
 
 export const typeDef = gql`
@@ -31,7 +27,7 @@ export const typeDef = gql`
 export const resolvers = {
     Query: {
         translate: async (_parent: undefined, { input }: IWrap<TranslateInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<Translate> => {
-            throw new CustomError(CODE.NotImplemented, 'Translations are disabled for now');
+            throw new CustomError('0328', 'NotImplemented', req.languages);
             // Get IETF subtags for source and target languages
             const sourceTag = input.languageSource.split('-')[0];
             const targetTag = input.languageTarget.split('-')[0];
@@ -40,7 +36,7 @@ export const resolvers = {
             try {
                 fields = JSON.parse(input.fields);
             } catch (e) {
-                throw new CustomError(CODE.InvalidArgs, 'Translation fields must be a stringified object', { code: genErrorCode('0264') });
+                throw new CustomError('0329', 'InvalidArgs', req.languages);
             }
             // Grab translatable values from input
             const filteredFields = Object.entries(fields).filter(([key, value]) => !['__typename', 'id', 'language'].includes(key) && typeof value === 'string' && value.trim().length > 0);

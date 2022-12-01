@@ -15,7 +15,7 @@ export interface nodeCreate_nodeCreate_data_NodeEnd {
   wasSuccessful: boolean;
 }
 
-export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_permissionsRoutine {
+export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion_permissionsRoutine {
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
@@ -26,20 +26,20 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_per
   canVote: boolean;
 }
 
-export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags_translations {
+export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion_tags_translations {
   __typename: "TagTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags {
+export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion_tags {
   __typename: "Tag";
   tag: string;
-  translations: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags_translations[];
+  translations: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion_tags_translations[];
 }
 
-export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_translations {
+export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion_translations {
   __typename: "RoutineTranslation";
   id: string;
   language: string;
@@ -48,18 +48,17 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tra
   title: string;
 }
 
-export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine {
+export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion {
   __typename: "Routine";
   id: string;
   complexity: number;
-  version: string;
   created_at: any;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
   simplicity: number;
-  permissionsRoutine: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_permissionsRoutine;
-  tags: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_tags[];
-  translations: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine_translations[];
+  permissionsRoutine: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion_permissionsRoutine;
+  tags: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion_tags[];
+  translations: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion_translations[];
 }
 
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_translations {
@@ -75,7 +74,7 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines {
   id: string;
   index: number;
   isOptional: boolean;
-  routine: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routine;
+  routineVersion: nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion;
   translations: nodeCreate_nodeCreate_data_NodeRoutineList_routines_translations[];
 }
 

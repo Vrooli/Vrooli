@@ -1,0 +1,17 @@
+{
+    "name": "@shared/translations",
+    "author": "Vrooli",
+    "license": "GPL-3.0",
+    "version": "1.3.2",
+    "private": true,
+    "description": "Translations for error messages, labels, etc.",
+    "main": "dist/index.js",
+    "typings": "src/types.d.ts",
+    "type": "commonjs",
+    "scripts": {
+        "build": "yarn tsc"
+    },
+    "dependencies": {
+        "@types/node": "^17.0.35"
+    }
+}

@@ -162,3 +162,4 @@ export const routineUpdate = ({ minVersion }: RoutineUpdateValidationProps) => y
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
 
 export const routinesCreate = yup.array().of(routineCreate.required(requiredErrorMessage))
+export const routinesUpdate = yup.array().of(routineUpdate({}).required(requiredErrorMessage))

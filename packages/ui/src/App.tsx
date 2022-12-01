@@ -10,17 +10,32 @@ import {
     SnackSeverity,
     SnackStack,
 } from 'components';
-import { PubSub, themes, useReactHash } from 'utils';
+import { getUserLanguages, PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { ApolloError, useMutation } from '@apollo/client';
+import { useMutation } from '@apollo/client';
 import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
 import Confetti from 'react-confetti';
-import { CODE } from '@shared/consts';
 import { guestSession } from 'utils/authentication';
+import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
+import { hasErrorCode, mutationWrapper } from 'graphql/utils';
+import { validateSessionVariables, validateSession_validateSession } from 'graphql/generated/validateSession';
+
+/**
+ * Attempts to find theme without using session, defaulting to light
+ */
+const findThemeWithoutSession = (): Theme => {
+    // First, try getting theme from local storage
+    const cookieTheme = getCookieTheme();
+    if (cookieTheme) return themes[cookieTheme];
+    // If not found or invalid, try getting theme from window
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Default to light if not found
+    return prefersDark ? themes.dark : themes.light;
+}
 
 const useStyles = makeStyles(() => ({
     "@global": {
@@ -53,21 +68,10 @@ const useStyles = makeStyles(() => ({
             color: '#000',
         },
         '@font-face': {
-            fontFamily: 'Lato',
-            src: `local('Lato'), url(${SakBunderan}) format('truetype')`,
+            fontFamily: 'SakBunderan',
+            src: `local('SakBunderan'), url(${SakBunderan}) format('truetype')`,
             fontDisplay: 'swap',
         },
-        '@keyframes gradient': {
-            '0%': {
-                backgroundPosition: '0% 50%',
-            },
-            '50%': {
-                backgroundPosition: '100% 50%',
-            },
-            '100%': {
-                backgroundPosition: '0% 50%',
-            },
-        }
 
     },
 }));
@@ -77,11 +81,26 @@ export function App() {
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
-    const [theme, setTheme] = useState(themes.light);
+    const [languages, setLanguages] = useState<string[]>(['en']);
+    const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useMutation<any>(validateSessionMutation);
+
+    /**
+     * Sets theme state and meta tags. Meta tags allow standalone apps to
+     * use the theme color as the status bar color.
+     */
+    const setThemeAndMeta = useCallback((theme: Theme) => {
+        // Update state
+        setTheme(theme);
+        // Update meta tags, for theme-color and apple-mobile-web-app-status-bar-style
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.palette.primary.dark);
+        document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')?.setAttribute('content', theme.palette.primary.dark);
+        // Also store in local storage
+        setCookieTheme(theme.palette.mode);
+    }, [setTheme]);
 
     // If anchor tag in url, scroll to element
     const hash = useReactHash();
@@ -139,25 +158,29 @@ export function App() {
 
     useEffect(() => {
         // Determine theme
-        let theme: Theme | undefined;
+        let theme: Theme | null | undefined;
         // Try getting theme from session
         if (Array.isArray(session?.users) && session?.users[0]?.theme) theme = themes[session?.users[0]?.theme];
-        // If not found or invalid, try getting theme from window
-        if (!theme) {
-            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            theme = prefersDark ? themes.dark : themes.light;
-        }
-        setTheme(theme);
-    }, [session])
+        // If not found, try alternative methods
+        if (!theme) theme = findThemeWithoutSession();
+        // Update theme state, meta tags, and local storage
+        setThemeAndMeta(theme);
+    }, [session, setThemeAndMeta])
 
-    // Detect online/offline status
+    // Detect online/offline status, as well as "This site uses cookies" banner
     useEffect(() => {
         window.addEventListener('online', () => {
-            PubSub.get().publishSnack({ message: 'You are now online', severity: SnackSeverity.Success });
+            PubSub.get().publishSnack({ id: 'online-status', messageKey: 'NowOnline', severity: SnackSeverity.Success });
         });
         window.addEventListener('offline', () => {
-            PubSub.get().publishSnack({ message: 'No internet connection', severity: SnackSeverity.Error });
+            // ID is the same so there is ever only one online/offline snack displayed at a time
+            PubSub.get().publishSnack({ autoHideDuration: 'persist', id: 'online-status', messageKey: 'NoInternet', severity: SnackSeverity.Error });
         });
+        // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
+        const cookiePreferences = getCookiePreferences();
+        if (!window.matchMedia('(display-mode: standalone)').matches && !cookiePreferences) {
+            PubSub.get().publishCookies();
+        }
     }, []);
 
     // Handle site-wide keyboard shortcuts
@@ -183,36 +206,43 @@ export function App() {
         };
     }, []);
 
-    const checkSession = useCallback((session?: any) => {
+    const checkSession = useCallback((session?: Session) => {
         if (session) {
             setSession(session);
+            setLanguages(getUserLanguages(session));
             return;
         }
         // Check if previous log in exists
-        validateSession().then(({ data }) => {
-            setSession(data?.validateSession);
-        }).catch((response: ApolloError) => {
-            // Check if error is expired/invalid session
-            let isInvalidSession = false;
-            if (response.graphQLErrors && response.graphQLErrors.length > 0) {
-                const error = response.graphQLErrors[0];
-                if (error.extensions.code === CODE.SessionExpired.code) {
+        mutationWrapper<validateSession_validateSession, validateSessionVariables>({
+            mutation: validateSession,
+            input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+            onSuccess: (data) => { 
+                setSession(data);
+                setLanguages(getUserLanguages(data));
+            },
+            onError: (error: any) => {
+                let isInvalidSession = false;
+                // Check if error is expired/invalid session
+                if (hasErrorCode(error, 'SessionExpired')) {
                     isInvalidSession = true;
                     // Log in development mode
-                    if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', response);
+                    if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', error);
                 }
-            }
-            // If error is something else, notify user
-            if (!isInvalidSession) {
-                PubSub.get().publishSnack({
-                    message: 'Failed to connect to server.',
-                    severity: SnackSeverity.Error,
-                    buttonText: 'Reload',
-                    buttonClicked: () => window.location.reload(),
-                });
-            }
-            // If not logged in as guest and failed to log in as user, set guest session
-            if (!session) setSession(guestSession)
+                // If error is something else, notify user
+                if (!isInvalidSession) {
+                    PubSub.get().publishSnack({
+                        messageKey: 'CannotConnectToServer',
+                        severity: SnackSeverity.Error,
+                        buttonKey: 'Reload',
+                        buttonClicked: () => window.location.reload(),
+                    });
+                }
+                // If not logged in as guest and failed to log in as user, set guest session
+                if (!session) {
+                    setSession(guestSession)
+                    setLanguages(getUserLanguages(guestSession));
+                }
+            },
         })
     }, [validateSession])
 
@@ -248,14 +278,17 @@ export function App() {
                 setSession(s => ({ ...s, ...session }));
             }
         });
-        let themeSub = PubSub.get().subscribeTheme((data) => setTheme(themes[data] ?? themes.light));
+        let themeSub = PubSub.get().subscribeTheme((data) => {
+            const newTheme = themes[data] ?? themes.light
+            setThemeAndMeta(newTheme);
+        });
         return (() => {
             PubSub.get().unsubscribe(loadingSub);
             PubSub.get().unsubscribe(celebrationSub);
             PubSub.get().unsubscribe(sessionSub);
             PubSub.get().unsubscribe(themeSub);
         })
-    }, [checkSession]);
+    }, [checkSession, setThemeAndMeta]);
 
     return (
         <StyledEngineProvider injectFirst>
@@ -265,20 +298,20 @@ export function App() {
                     background: theme.palette.background.default,
                     color: theme.palette.background.textPrimary,
                     // Style visited, active, and hovered links differently
-                    a: {
-                        color: theme.palette.mode === 'light' ? '#001cd3' : '#dd86db',
-                        '&:visited': {
-                            color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
-                        },
-                        '&:active': {
-                            color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
-                        },
-                        '&:hover': {
-                            color: theme.palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
-                        },
-                        // Remove underline on links
-                        textDecoration: 'none',
-                    },
+                    // a: {
+                    //     color: theme.palette.mode === 'light' ? '#001cd3' : '#dd86db',
+                    //     '&:visited': {
+                    //         color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
+                    //     },
+                    //     '&:active': {
+                    //         color: theme.palette.mode === 'light' ? '#001cd3' : '#f551ef',
+                    //     },
+                    //     '&:hover': {
+                    //         color: theme.palette.mode === 'light' ? '#5a6ff6' : '#f3d4f2',
+                    //     },
+                    //     // Remove underline on links
+                    //     textDecoration: 'none',
+                    // },
                 }}>
                     {/* Pull-to-refresh for PWAs */}
                     <PullToRefresh />
@@ -299,8 +332,8 @@ export function App() {
                             }}
                         />
                     }
-                    <AlertDialog />
-                    <SnackStack />
+                    <AlertDialog languages={languages} />
+                    <SnackStack languages={languages} />
                     <Box id="content-wrap" sx={{
                         background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
                         minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },

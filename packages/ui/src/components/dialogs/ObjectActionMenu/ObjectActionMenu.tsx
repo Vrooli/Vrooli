@@ -1,57 +1,34 @@
 import { useMutation } from "@apollo/client";
-import { copyVariables, copy_copy } from 'graphql/generated/copy';
 import { forkVariables, fork_fork } from 'graphql/generated/fork';
 import { starVariables, star_star } from 'graphql/generated/star';
 import { voteVariables, vote_vote } from 'graphql/generated/vote';
-import { copyMutation, forkMutation, starMutation, voteMutation } from "graphql/mutation";
+import { forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
-import { ObjectActionMenuProps, ListMenuItemData, ObjectActionComplete, ObjectAction } from "../types";
+import { ObjectActionMenuProps } from "../types";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
-import { getListItemIsStarred, getListItemIsUpvoted, getListItemPermissions, getListItemTitle, getUserLanguages, ObjectType, PubSub } from "utils";
-import { CopyType, DeleteOneType, ForkType } from "graphql/generated/globalTypes";
-import { BranchIcon, CopyIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
+import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, PubSub } from "utils";
+import { DeleteOneType, ForkType } from "graphql/generated/globalTypes";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
-
-/**
- * [label, Icon, iconColor, preview]
- */
-const allOptionsMap: { [key in ObjectAction]: [string, SvgComponent, string, boolean] } = ({
-    [ObjectAction.Copy]: ['Copy', CopyIcon, 'default', false],
-    [ObjectAction.Delete]: ['Delete', DeleteIcon, "default", false],
-    [ObjectAction.Donate]: ['Donate', DonateIcon, "default", true],
-    [ObjectAction.Edit]: ['Edit', EditIcon, "default", false],
-    [ObjectAction.FindInPage]: ['Find...', SearchIcon, "default", false],
-    [ObjectAction.Fork]: ['Fork', BranchIcon, "default", false],
-    [ObjectAction.Report]: ['Report', ReportIcon, "default", false],
-    [ObjectAction.Share]: ['Share', ShareIcon, "default", false],
-    [ObjectAction.Star]: ['Star', StarOutlineIcon, "#cbae30", false],
-    [ObjectAction.StarUndo]: ['Unstar', StarFilledIcon, "#cbae30", false],
-    [ObjectAction.Stats]: ['Stats', StatsIcon, "default", true],
-    [ObjectAction.VoteDown]: ['Downvote', DownvoteWideIcon, "default", false],
-    [ObjectAction.VoteUp]: ['Upvote', UpvoteWideIcon, "default", false],
-})
 
 export const ObjectActionMenu = ({
     anchorEl,
+    exclude,
     object,
     onActionComplete,
     onActionStart,
     onClose,
     session,
-    title,
     zIndex,
 }: ObjectActionMenuProps) => {
 
-    const { id, isStarred, isUpvoted, name, objectType, permissions } = useMemo(() => ({
+    const { availableActions, id, name, objectType } = useMemo(() => ({
+        availableActions: getAvailableActions(object, session, exclude),
         id: object?.id,
-        isStarred: getListItemIsStarred(object),
-        isUpvoted: getListItemIsUpvoted(object),
         name: getListItemTitle(object, getUserLanguages(session)),
         objectType: object?.__typename as ObjectType,
-        permissions: getListItemPermissions(object, session),
-    }), [object, session]);
+    }), [exclude, object, session]);
 
     // States
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
@@ -72,39 +49,22 @@ export const ObjectActionMenu = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [copy] = useMutation(copyMutation);
     const [fork] = useMutation(forkMutation);
     const [star] = useMutation(starMutation);
     const [vote] = useMutation(voteMutation);
-
-    const handleCopy = useCallback(() => {
-        if (!id) return;
-        // Check if objectType can be converted to CopyType
-        const copyType = CopyType[objectType];
-        if (!copyType) {
-            PubSub.get().publishSnack({ message: 'Copy not supported on this object type.', severity: SnackSeverity.Error });
-            return;
-        }
-        mutationWrapper<copy_copy, copyVariables>({
-            mutation: copy,
-            input: { id, objectType: copyType },
-            successMessage: () => `${name} copied.`,
-            onSuccess: (data) => { onActionComplete(ObjectActionComplete.Copy, data) },
-        })
-    }, [copy, id, name, objectType, onActionComplete]);
 
     const handleFork = useCallback(() => {
         if (!id) return;
         // Check if objectType can be converted to ForkType
         const forkType = ForkType[objectType];
         if (!forkType) {
-            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
-            input: { id, objectType: forkType },
-            successMessage: () => `${name} forked.`,
+            input: { id, intendToPullRequest: true, objectType: forkType },
+            successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
     }, [fork, id, name, objectType, onActionComplete]);
@@ -129,9 +89,6 @@ export const ObjectActionMenu = ({
 
     const onSelect = useCallback((action: ObjectAction) => {
         switch (action) {
-            case ObjectAction.Copy:
-                handleCopy();
-                break;
             case ObjectAction.Delete:
                 openDelete();
                 break;
@@ -165,49 +122,9 @@ export const ObjectActionMenu = ({
                 handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
         }
         onClose();
-    }, [handleCopy, handleFork, handleStar, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
+    }, [handleFork, handleStar, handleVote, objectType, onActionStart, onClose, openDelete, openDonate, openReport, openShare]);
 
-    /**
-     * Actions that are available for the object, from top to bottom
-     */
-    const availableActions: ObjectAction[] = useMemo(() => {
-        if (!permissions) return [];
-        const isLoggedIn = session?.isLoggedIn === true;
-        let options: ObjectAction[] = [];
-        if (isLoggedIn && permissions.canVote) {
-            options.push(isUpvoted ? ObjectAction.VoteDown : ObjectAction.VoteUp);
-        }
-        if (isLoggedIn && permissions.canStar) {
-            options.push(isStarred ? ObjectAction.StarUndo : ObjectAction.Star);
-        }
-        if (isLoggedIn && permissions.canFork) {
-            options.push(ObjectAction.Copy);
-            options.push(ObjectAction.Fork);
-        }
-        options.push(ObjectAction.Stats, ObjectAction.Donate, ObjectAction.Share, ObjectAction.FindInPage);
-        if (isLoggedIn && permissions.canReport) {
-            options.push(ObjectAction.Report);
-        }
-        if (isLoggedIn && permissions.canDelete) {
-            options.push(ObjectAction.Delete);
-        }
-        return options;
-    }, [isStarred, isUpvoted, permissions, session?.isLoggedIn]);
-
-    const data: ListMenuItemData<ObjectAction>[] = useMemo(() => {
-        // Convert options to ListMenuItemData
-        return availableActions
-            .map(option => {
-                const [label, Icon, iconColor, preview] = allOptionsMap[option];
-                return {
-                    label,
-                    value: option,
-                    Icon,
-                    iconColor,
-                    preview,
-                }
-            })
-    }, [availableActions]);
+    const data = useMemo(() => getActionsDisplayData(availableActions), [availableActions]);
 
     return (
         <>
@@ -243,7 +160,6 @@ export const ObjectActionMenu = ({
                 id={`${objectType}-options-menu-${id}`}
                 onClose={onClose}
                 onSelect={onSelect}
-                title={title}
                 zIndex={zIndex}
             />
         </>

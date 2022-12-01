@@ -1,5 +1,6 @@
 /* tslint:disable */
 /* eslint-disable */
+// @ts-nocheck
 export const memory: WebAssembly.Memory;
 export function __wbg_protectedheadermap_free(a: number): void;
 export function protectedheadermap_to_bytes(a: number, b: number): void;
