@@ -173,7 +173,7 @@ export const NodeGraph = ({
         // First, find the node being dropped
         const node: Node = nodesById[nodeId];
         if (!node) {
-            PubSub.get().publishSnack({ message: `Dropped node ${nodeId} not found`, severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: SnackSeverity.Error });
             return;
         }
         // Next, check if the node was dropped into "Unlinked" container. 
@@ -195,7 +195,7 @@ export const NodeGraph = ({
         }
         // If columnIndex is start node or earlier, return
         if (columnIndex < 0 || columnIndex >= columns.length) {
-            PubSub.get().publishSnack({ message: 'Cannot drop node here', severity: SnackSeverity.Error })
+            PubSub.get().publishSnack({ messageKey: 'CannotDropNodeHere', severity: SnackSeverity.Error })
             return;
         }
         // Get the drop row

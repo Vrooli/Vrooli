@@ -53,6 +53,4 @@ export interface listStarStandardFields {
   permissionsStandard: listStarStandardFields_permissionsStandard;
   tags: listStarStandardFields_tags[];
   translations: listStarStandardFields_translations[];
-  version: string;
-  versionGroupId: string;
 }

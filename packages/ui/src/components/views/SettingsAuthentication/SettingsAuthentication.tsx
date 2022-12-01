@@ -61,7 +61,7 @@ export const SettingsAuthentication = ({
 
     const updateWallets = useCallback((updatedList: Wallet[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
             return;
         }
         onUpdated({
@@ -73,7 +73,7 @@ export const SettingsAuthentication = ({
 
     const updateEmails = useCallback((updatedList: Email[]) => {
         if (!profile) {
-            PubSub.get().publishSnack({ message: 'Profile not loaded.', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
             return;
         }
         onUpdated({
@@ -95,7 +95,7 @@ export const SettingsAuthentication = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) return;

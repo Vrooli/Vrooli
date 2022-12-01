@@ -170,8 +170,6 @@ export interface homePage_homePage_routines {
   permissionsRoutine: homePage_homePage_routines_permissionsRoutine;
   tags: homePage_homePage_routines_tags[];
   translations: homePage_homePage_routines_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface homePage_homePage_standards_permissionsStandard {
@@ -228,8 +226,6 @@ export interface homePage_homePage_standards {
   tags: homePage_homePage_standards_tags[];
   translations: homePage_homePage_standards_translations[];
   type: string;
-  version: string;
-  versionGroupId: string;
   yup: string | null;
 }
 

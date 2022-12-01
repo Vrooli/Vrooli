@@ -47,23 +47,23 @@ export function CommentThreadItem({
         if (!data) return;
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            message: `Are you sure you want to delete this comment? This action cannot be undone.`,
+            messageKey: 'DeleteCommentConfirm',
             buttons: [
                 {
-                    text: 'Yes', onClick: () => {
+                    labelKey: 'Yes', onClick: () => {
                         mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
                             mutation: deleteMutation,
                             input: { id: data.id, objectType: DeleteOneType.Comment },
                             successCondition: (data) => data.success,
-                            successMessage: () => 'Comment deleted.',
+                            successMessage: () => ({ key: 'CommentDeleted' }),
                             onSuccess: () => {
                                 handleCommentRemove(data);
                             },
-                            errorMessage: () => 'Failed to delete comment.',
+                            errorMessage: () => ({ key: 'DeleteCommentFailed' }),
                         })
                     }
                 },
-                { text: 'Cancel', onClick: () => { } },
+                { labelKey: 'Cancel' },
             ]
         });
     }, [data, deleteMutation, handleCommentRemove]);

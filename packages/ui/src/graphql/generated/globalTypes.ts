@@ -116,8 +116,6 @@ export enum ReportFor {
 export enum ReportSortBy {
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
-  DateUpdatedAsc = "DateUpdatedAsc",
-  DateUpdatedDesc = "DateUpdatedDesc",
 }
 
 export enum ResourceFor {
@@ -403,7 +401,7 @@ export interface InputItemCreateInput {
   id: string;
   isRequired?: boolean | null;
   name?: string | null;
-  standardConnect?: string | null;
+  standardVersionConnect?: string | null;
   standardCreate?: StandardCreateInput | null;
   translationsDelete?: string[] | null;
   translationsCreate?: InputItemTranslationCreateInput[] | null;
@@ -491,11 +489,11 @@ export interface NodeCreateInput {
   id: string;
   columnIndex?: number | null;
   rowIndex?: number | null;
-  type?: NodeType | null;
+  type: NodeType;
   loopCreate?: LoopCreateInput | null;
   nodeEndCreate?: NodeEndCreateInput | null;
   nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
-  routineId?: string | null;
+  routineVersionId: string;
   translationsCreate?: NodeTranslationCreateInput[] | null;
 }
 
@@ -568,7 +566,7 @@ export interface NodeRoutineListItemCreateInput {
   id: string;
   index: number;
   isOptional?: boolean | null;
-  routineConnect: string;
+  routineVersionConnect: string;
   translationsCreate?: NodeRoutineListItemTranslationCreateInput[] | null;
 }
 
@@ -631,7 +629,7 @@ export interface NodeUpdateInput {
   nodeEndUpdate?: NodeEndUpdateInput | null;
   nodeRoutineListCreate?: NodeRoutineListCreateInput | null;
   nodeRoutineListUpdate?: NodeRoutineListUpdateInput | null;
-  routineId?: string | null;
+  routineVersionId?: string | null;
   translationsDelete?: string[] | null;
   translationsCreate?: NodeTranslationCreateInput[] | null;
   translationsUpdate?: NodeTranslationUpdateInput[] | null;
@@ -715,7 +713,7 @@ export interface OrganizationUpdateInput {
 export interface OutputItemCreateInput {
   id: string;
   name?: string | null;
-  standardConnect?: string | null;
+  standardVersionConnect?: string | null;
   standardCreate?: StandardCreateInput | null;
   translationsCreate?: OutputItemTranslationCreateInput[] | null;
 }
@@ -737,7 +735,7 @@ export interface OutputItemTranslationUpdateInput {
 export interface OutputItemUpdateInput {
   id: string;
   name?: string | null;
-  standardConnect?: string | null;
+  standardVersionConnect?: string | null;
   standardCreate?: StandardCreateInput | null;
   translationsDelete?: string[] | null;
   translationsCreate?: OutputItemTranslationCreateInput[] | null;
@@ -1077,7 +1075,7 @@ export interface RoutineCreateInput {
   isComplete?: boolean | null;
   isInternal?: boolean | null;
   isPrivate?: boolean | null;
-  version?: string | null;
+  versionLabel?: string | null;
   parentId?: string | null;
   projectId?: string | null;
   createdByUserId?: string | null;
@@ -1143,12 +1141,12 @@ export interface RoutineTranslationUpdateInput {
 }
 
 export interface RoutineUpdateInput {
-  id: string;
   isAutomatable?: boolean | null;
   isComplete?: boolean | null;
   isInternal?: boolean | null;
   isPrivate?: boolean | null;
-  version?: string | null;
+  versionId?: string | null;
+  versionLabel?: string | null;
   userId?: string | null;
   organizationId?: string | null;
   projectId?: string | null;
@@ -1189,7 +1187,6 @@ export interface RunCompleteInput {
   inputsDelete?: string[] | null;
   inputsCreate?: RunInputCreateInput[] | null;
   inputsUpdate?: RunInputUpdateInput[] | null;
-  version: string;
   wasSuccessful?: boolean | null;
 }
 
@@ -1201,9 +1198,8 @@ export interface RunCountInput {
 export interface RunCreateInput {
   id: string;
   isPrivate?: boolean | null;
-  routineId: string;
+  routineVersionId: string;
   title: string;
-  version: string;
   stepsCreate?: RunStepCreateInput[] | null;
   inputsCreate?: RunInputCreateInput[] | null;
 }
@@ -1250,7 +1246,7 @@ export interface RunStepCreateInput {
   id: string;
   nodeId?: string | null;
   contextSwitches?: number | null;
-  subroutineId?: string | null;
+  subroutineVersionId?: string | null;
   order: number;
   step: number[];
   timeElapsed?: number | null;
@@ -1301,7 +1297,7 @@ export interface StandardCreateInput {
   type: string;
   props: string;
   yup?: string | null;
-  version?: string | null;
+  versionLabel?: string | null;
   createdByUserId?: string | null;
   createdByOrganizationId?: string | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
@@ -1350,6 +1346,12 @@ export interface StandardUpdateInput {
   id: string;
   makeAnonymous?: boolean | null;
   isPrivate?: boolean | null;
+  userId?: string | null;
+  default?: string | null;
+  type: string;
+  props: string;
+  yup?: string | null;
+  organizationId?: string | null;
   resourceListsDelete?: string[] | null;
   resourceListsCreate?: ResourceListCreateInput[] | null;
   resourceListsUpdate?: ResourceListUpdateInput[] | null;
@@ -1359,6 +1361,8 @@ export interface StandardUpdateInput {
   translationsDelete?: string[] | null;
   translationsCreate?: StandardTranslationCreateInput[] | null;
   translationsUpdate?: StandardTranslationUpdateInput[] | null;
+  versionId?: string | null;
+  versionLabel?: string | null;
 }
 
 export interface StarInput {

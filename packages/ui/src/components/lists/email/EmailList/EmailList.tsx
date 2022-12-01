@@ -46,7 +46,7 @@ export const EmailList = ({
                     receivesBusinessUpdates: true,
                 },
                 onSuccess: (data) => {
-                    PubSub.get().publishSnack({ message: 'Please check your email to complete verification.', severity: SnackSeverity.Info });
+                    PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: SnackSeverity.Info });
                     handleUpdate([...list, data]);
                     formik.resetForm();
                 },
@@ -77,15 +77,17 @@ export const EmailList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other email or one other wallet)
         if (list.length <= 1 && numVerifiedWallets === 0) {
-            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'MustLeaveVerificationMethod', severity: SnackSeverity.Error });
             return;
         }
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            message: `Are you sure you want to delete email ${email.emailAddress}?`,
+            messageKey: 'EmailDeleteConfirm',
+            messageVariables: { emailAddress: email.emailAddress },
             buttons: [
                 {
-                    text: 'Yes', onClick: () => {
+                    labelKey: 'Yes', 
+                    onClick: () => {
                         mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
                             mutation: deleteMutation,
                             input: { id: email.id, objectType: DeleteOneType.Email },
@@ -95,7 +97,7 @@ export const EmailList = ({
                         })
                     }
                 },
-                { text: 'Cancel', onClick: () => { } },
+                { labelKey: 'Cancel', onClick: () => { } },
             ]
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
@@ -107,7 +109,7 @@ export const EmailList = ({
             mutation: verifyMutation,
             input: { emailAddress: email.emailAddress },
             onSuccess: () => {
-                PubSub.get().publishSnack({ message: 'Please check your email to complete verification.', severity: SnackSeverity.Info });
+                PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: SnackSeverity.Info });
             },
         })
     }, [loadingVerifyEmail, verifyMutation]);

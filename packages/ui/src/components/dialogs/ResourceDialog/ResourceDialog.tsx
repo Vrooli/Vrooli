@@ -110,7 +110,7 @@ export const ResourceDialog = ({
                     mutationWrapper<resourceCreate_resourceCreate, resourceCreateVariables>({
                         mutation: addMutation,
                         input: shapeResourceCreate(input),
-                        successMessage: () => 'Resource created.',
+                        successMessage: () => ({ key: 'ResourceCreated' }),
                         successCondition: (data) => data !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },
@@ -119,13 +119,13 @@ export const ResourceDialog = ({
                 // Otherwise, update
                 else {
                     if (!partialData || !partialData.id || !listId) {
-                        PubSub.get().publishSnack({ message: 'Could not find resource to update.', severity: SnackSeverity.Error });
+                        PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: SnackSeverity.Error });
                         return;
                     }
                     mutationWrapper<resourceUpdate_resourceUpdate, resourceUpdateVariables>({
                         mutation: updateMutation,
                         input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
-                        successMessage: () => 'Resource updated.',
+                        successMessage: () => ({ key: 'ResourceUpdated' }),
                         successCondition: (data) => data !== null,
                         onSuccess,
                         onError: () => { formik.setSubmitting(false) },

@@ -44,15 +44,17 @@ export const WalletList = ({
         // Make sure that the user has at least one other authentication method 
         // (i.e. one other wallet or one other email)
         if (list.length <= 1 && numVerifiedEmails === 0) {
-            PubSub.get().publishSnack({ message: 'Cannot delete your only authentication method!', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'MustLeaveVerificationMethod', severity: SnackSeverity.Error });
             return;
         }
         // Confirmation dialog
         PubSub.get().publishAlertDialog({
-            message: `Are you sure you want to delete wallet ${wallet.name ?? wallet.stakingAddress}?`,
+            messageKey: 'WalletDeleteConfirm',
+            messageVariables: { walletName: wallet.name ?? wallet.stakingAddress },
             buttons: [
                 {
-                    text: 'Yes', onClick: () => {
+                    labelKey: 'Yes',
+                    onClick: () => {
                         mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
                             mutation: deleteMutation,
                             input: { id: wallet.id, objectType: DeleteOneType.Wallet },
@@ -62,7 +64,7 @@ export const WalletList = ({
                         })
                     }
                 },
-                { text: 'Cancel', onClick: () => { } },
+                { labelKey: 'Cancel', onClick: () => { } },
             ]
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedEmails]);
@@ -71,9 +73,9 @@ export const WalletList = ({
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const [connectOpen, setConnectOpen] = useState(false);
     const [installOpen, setInstallOpen] = useState(false);
-    const openWalletAddDialog = useCallback(() => { 
+    const openWalletAddDialog = useCallback(() => {
         setSelectedIndex(null);
-        setConnectOpen(true) 
+        setConnectOpen(true)
     }, []);
     const openWalletVerifyDialog = useCallback((wallet: Wallet) => {
         const index = list.findIndex(w => w.id === wallet.id);
@@ -89,10 +91,10 @@ export const WalletList = ({
         // Check if wallet extension installed
         if (!hasWalletExtension(providerKey)) {
             PubSub.get().publishAlertDialog({
-                message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave) that supports extensions, and that your wallet extension is enabled.',
+                messageKey: 'WalletProviderNotFoundDetails',
                 buttons: [
-                    { text: 'Try Again', onClick: () => { addWallet(providerKey); } },
-                    { text: 'Install Wallet', onClick: openWalletInstallDialog },
+                    { labelKey: 'TryAgain', onClick: () => { addWallet(providerKey); } },
+                    { labelKey: 'InstallWallet', onClick: openWalletInstallDialog },
                 ]
             });
             return;
@@ -103,10 +105,10 @@ export const WalletList = ({
             // Check if wallet is already in list (i.e. user has already added this wallet)
             const existingWallet = list.find(w => w.stakingAddress === walletCompleteResult.wallet?.stakingAddress);
             if (existingWallet) {
-                PubSub.get().publishSnack({ message: 'Wallet already connected.', severity: SnackSeverity.Warning })
+                PubSub.get().publishSnack({ messageKey: 'WalletAlreadyConnected', severity: SnackSeverity.Warning })
             }
             else {
-                PubSub.get().publishSnack({ message: 'Wallet verified.', severity: SnackSeverity.Success });
+                PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: SnackSeverity.Success });
                 // Update list
                 handleUpdate([...list, walletCompleteResult.wallet]);
             }
@@ -121,10 +123,10 @@ export const WalletList = ({
         // Check if wallet extension installed
         if (!hasWalletExtension(providerKey)) {
             PubSub.get().publishAlertDialog({
-                message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave) that supports extensions, and that your wallet extension is enabled.',
+                messageKey: 'WalletProviderNotFoundDetails',
                 buttons: [
-                    { text: 'Try Again', onClick: () => { verifyWallet(providerKey); } },
-                    { text: 'Install Wallet', onClick: openWalletInstallDialog },
+                    { labelKey: 'TryAgain', onClick: () => { verifyWallet(providerKey); } },
+                    { labelKey: 'InstallWallet', onClick: openWalletInstallDialog },
                 ]
             });
             return;
@@ -132,7 +134,7 @@ export const WalletList = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult) {
-            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: SnackSeverity.Success })
+            PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: SnackSeverity.Success })
             // Update list
             handleUpdate(updateArray(list, selectedIndex, {
                 ...list[selectedIndex],
@@ -141,7 +143,7 @@ export const WalletList = ({
         }
     }, [handleUpdate, list, openWalletInstallDialog, selectedIndex]);
 
-    const closeWalletConnectDialog = useCallback((providerKey: string | null) => { 
+    const closeWalletConnectDialog = useCallback((providerKey: string | null) => {
         setConnectOpen(false);
         const index = selectedIndex;
         setSelectedIndex(null);

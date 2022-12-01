@@ -37,8 +37,6 @@ export interface routineFields_inputs_standard {
   props: string;
   yup: string | null;
   translations: routineFields_inputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface routineFields_inputs {
@@ -80,7 +78,7 @@ export interface routineFields_nodes_data_NodeEnd {
   wasSuccessful: boolean;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_inputs_translations {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_inputs_translations {
   __typename: "InputItemTranslation";
   id: string;
   language: string;
@@ -88,7 +86,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_input
   helpText: string | null;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
   language: string;
@@ -96,7 +94,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_input
   jsonVariable: string | null;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
@@ -107,21 +105,19 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_input
   type: string;
   props: string;
   yup: string | null;
-  translations: routineFields_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
+  translations: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_translations[];
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_inputs {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_inputs {
   __typename: "InputItem";
   id: string;
   isRequired: boolean | null;
   name: string | null;
-  translations: routineFields_nodes_data_NodeRoutineList_routines_routine_inputs_translations[];
-  standard: routineFields_nodes_data_NodeRoutineList_routines_routine_inputs_standard | null;
+  translations: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_inputs_translations[];
+  standard: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard | null;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outputs_translations {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_outputs_translations {
   __typename: "OutputItemTranslation";
   id: string;
   language: string;
@@ -129,7 +125,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outpu
   helpText: string | null;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
   language: string;
@@ -137,7 +133,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outpu
   jsonVariable: string | null;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
@@ -148,43 +144,41 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outpu
   type: string;
   props: string;
   yup: string | null;
-  translations: routineFields_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
+  translations: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_translations[];
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_outputs {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_outputs {
   __typename: "OutputItem";
   id: string;
   name: string | null;
-  translations: routineFields_nodes_data_NodeRoutineList_routines_routine_outputs_translations[];
-  standard: routineFields_nodes_data_NodeRoutineList_routines_routine_outputs_standard | null;
+  translations: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_outputs_translations[];
+  standard: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard | null;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization_translations {
   __typename: "OrganizationTranslation";
   id: string;
   language: string;
   name: string;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_owner_Organization {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization {
   __typename: "Organization";
   id: string;
   handle: string | null;
-  translations: routineFields_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
+  translations: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization_translations[];
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_owner_User {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_owner_User {
   __typename: "User";
   id: string;
   name: string;
   handle: string | null;
 }
 
-export type routineFields_nodes_data_NodeRoutineList_routines_routine_owner = routineFields_nodes_data_NodeRoutineList_routines_routine_owner_Organization | routineFields_nodes_data_NodeRoutineList_routines_routine_owner_User;
+export type routineFields_nodes_data_NodeRoutineList_routines_routineVersion_owner = routineFields_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization | routineFields_nodes_data_NodeRoutineList_routines_routineVersion_owner_User;
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_permissionsRoutine {
   __typename: "RoutinePermission";
   canComment: boolean;
   canDelete: boolean;
@@ -196,7 +190,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_permi
   canVote: boolean;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_translations {
   __typename: "ResourceListTranslation";
   id: string;
   language: string;
@@ -204,7 +198,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_resou
   title: string | null;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources_translations {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -212,7 +206,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_resou
   title: string | null;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -220,33 +214,33 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_resou
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: routineFields_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources_translations[];
+  translations: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources_translations[];
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_resourceLists {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists {
   __typename: "ResourceList";
   id: string;
   created_at: any;
   index: number | null;
   usedFor: ResourceListUsedFor | null;
-  translations: routineFields_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations[];
-  resources: routineFields_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources[];
+  translations: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_translations[];
+  resources: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources[];
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_tags_translations {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_tags_translations {
   __typename: "TagTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_tags {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_tags {
   __typename: "Tag";
   tag: string;
-  translations: routineFields_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
+  translations: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_tags_translations[];
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine_translations {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_translations {
   __typename: "RoutineTranslation";
   id: string;
   language: string;
@@ -255,7 +249,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine_trans
   instructions: string;
 }
 
-export interface routineFields_nodes_data_NodeRoutineList_routines_routine {
+export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion {
   __typename: "Routine";
   id: string;
   complexity: number;
@@ -263,17 +257,15 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routine {
   isDeleted: boolean;
   isInternal: boolean | null;
   isPrivate: boolean;
-  inputs: routineFields_nodes_data_NodeRoutineList_routines_routine_inputs[];
+  inputs: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_inputs[];
   nodesCount: number | null;
-  outputs: routineFields_nodes_data_NodeRoutineList_routines_routine_outputs[];
-  owner: routineFields_nodes_data_NodeRoutineList_routines_routine_owner | null;
-  permissionsRoutine: routineFields_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine;
-  resourceLists: routineFields_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
+  outputs: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_outputs[];
+  owner: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_owner | null;
+  permissionsRoutine: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_permissionsRoutine;
+  resourceLists: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists[];
   simplicity: number;
-  tags: routineFields_nodes_data_NodeRoutineList_routines_routine_tags[];
-  translations: routineFields_nodes_data_NodeRoutineList_routines_routine_translations[];
-  version: string;
-  versionGroupId: string;
+  tags: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_tags[];
+  translations: routineFields_nodes_data_NodeRoutineList_routines_routineVersion_translations[];
 }
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_translations {
@@ -289,7 +281,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines {
   id: string;
   index: number;
   isOptional: boolean;
-  routine: routineFields_nodes_data_NodeRoutineList_routines_routine;
+  routineVersion: routineFields_nodes_data_NodeRoutineList_routines_routineVersion;
   translations: routineFields_nodes_data_NodeRoutineList_routines_translations[];
 }
 
@@ -376,8 +368,6 @@ export interface routineFields_outputs_standard {
   props: string;
   yup: string | null;
   translations: routineFields_outputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface routineFields_outputs {
@@ -569,7 +559,4 @@ export interface routineFields {
   tags: routineFields_tags[];
   translations: routineFields_translations[];
   updated_at: any;
-  version: string;
-  versionGroupId: string;
-  versions: string[];
 }

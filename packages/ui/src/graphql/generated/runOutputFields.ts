@@ -48,8 +48,6 @@ export interface runOutputFields_standard {
   yup: string | null;
   tags: runOutputFields_standard_tags[];
   translations: runOutputFields_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface runOutputFields {

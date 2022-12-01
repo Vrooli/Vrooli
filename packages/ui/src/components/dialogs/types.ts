@@ -14,6 +14,10 @@ export interface AccountMenuProps {
     session: Session;
 }
 
+export interface AlertDialogProps {
+    languages: string[];
+}
+
 export interface BaseObjectDialogProps extends DialogProps {
     children: JSX.Element | JSX.Element[];
     /**

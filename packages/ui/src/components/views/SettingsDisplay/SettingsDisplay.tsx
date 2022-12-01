@@ -78,14 +78,14 @@ export const SettingsDisplay = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) return;
             // If any tags are in both starredTags and hiddenTags, remove them from hidden. Also give warning to user.
             const filteredHiddenTags = hiddenTags.filter(t => !starredTags.some(st => st.tag === t.tag.tag));
             if (filteredHiddenTags.length !== hiddenTags.length) {
-                PubSub.get().publishSnack({ message: 'Found topics in both favorites and hidden. These have been removed from hidden.', severity: SnackSeverity.Warning });
+                PubSub.get().publishSnack({ messageKey: 'FoundTopicsInFavAndHidden', severity: SnackSeverity.Warning });
             }
             const input = shapeProfileUpdate(profile, {
                 id: profile.id,
@@ -94,14 +94,14 @@ export const SettingsDisplay = ({
                 hiddenTags: filteredHiddenTags,
             })
             if (!input || Object.keys(input).length === 0) {
-                PubSub.get().publishSnack({ message: 'No changes made.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Error });
                 formik.setSubmitting(false);
                 return;
             }
             mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
                 mutation,
                 input,
-                successMessage: () => 'Display preferences updated.',
+                successMessage: () => ({ key: 'DisplayPreferencesUpdated' }),
                 onSuccess: (data) => {
                     onUpdated(data);
                     formik.setSubmitting(false);

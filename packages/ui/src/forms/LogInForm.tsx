@@ -1,7 +1,7 @@
 import { useLocation } from '@shared/route';
 import { emailLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { APP_LINKS, CODE } from '@shared/consts';
+import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -21,7 +21,7 @@ import { clickSize } from 'styles';
 import { PasswordTextField, SnackSeverity } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
-import { errorToMessage, hasErrorCode } from 'graphql/utils';
+import { errorToCode, hasErrorCode } from 'graphql/utils';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -50,30 +50,30 @@ export const LogInForm = ({
                 input: { ...values, verificationCode },
                 successCondition: (data) => data !== null,
                 onSuccess: (data) => { 
-                    if (verificationCode) PubSub.get().publishSnack({ message: 'Email verified!', severity: SnackSeverity.Success });
+                    if (verificationCode) PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: SnackSeverity.Success });
                     PubSub.get().publishSession(data); setLocation(redirect ?? APP_LINKS.Home) 
                 },
                 showDefaultErrorSnack: false,
                 onError: (response) => {
                     // Custom dialog for changing password
-                    if (hasErrorCode(response, CODE.MustResetPassword)) {
+                    if (hasErrorCode(response, 'MustResetPassword')) {
                         PubSub.get().publishAlertDialog({
-                            message: 'Before signing in, please follow the link sent to your email to change your password.',
+                            messageKey: 'ChangePasswordBeforeLogin',
                             buttons: [
-                                { text: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
+                                { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
                             ]
                         });
                     }
                     // Custom snack for invalid email, that has sign up link
-                    else if (hasErrorCode(response, CODE.EmailNotFound)) {
+                    else if (hasErrorCode(response, 'EmailNotFound')) {
                         PubSub.get().publishSnack({ 
-                            message: CODE.EmailNotFound.message, 
+                            messageKey: 'EmailNotFound', 
                             severity: SnackSeverity.Error, 
-                            buttonText: 'Sign Up',
+                            buttonKey: 'SignUp',
                             buttonClicked: () => { toSignUp() }
                         });
                     } else {
-                        PubSub.get().publishSnack({ message: errorToMessage(response), severity: SnackSeverity.Error, data: response });
+                        PubSub.get().publishSnack({ messageKey: errorToCode(response), severity: SnackSeverity.Error, data: response });
                     }
                     formik.setSubmitting(false);
                 }

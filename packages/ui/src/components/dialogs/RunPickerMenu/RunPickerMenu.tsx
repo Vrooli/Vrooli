@@ -50,24 +50,24 @@ export const RunPickerMenu = ({
     const [runCreate] = useMutation(runCreateMutation);
     const createNewRun = useCallback(() => {
         if (!routine) {
-            PubSub.get().publishSnack({ message: 'Could not read routine data.', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper<runCreate_runCreate, runCreateVariables>({
             mutation: runCreate,
             input: {
-                id: uuid(),
-                routineId: routine.id,
-                version: routine.version ?? '',
-                title: getTranslation(routine, getUserLanguages(session)).title ?? 'Unnamed Routine',
-            },
+                // id: uuid(),
+                // routineId: routine.id,
+                // version: routine.version ?? '',
+                // title: getTranslation(routine, getUserLanguages(session)).title ?? 'Unnamed Routine',
+            } as any, //TODO will break
             successCondition: (data) => data !== null,
             onSuccess: (data) => {
                 onAdd(data);
                 onSelect(data);
                 handleClose();
             },
-            errorMessage: () => 'Failed to create run.',
+            errorMessage: () => ({ key: 'FailedToCreateRun' }),
         })
     }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
 
@@ -77,11 +77,11 @@ export const RunPickerMenu = ({
             mutation: deleteOne,
             input: { id: run.id, objectType: DeleteOneType.Run },
             successCondition: (data) => data.success,
-            successMessage: () => `Run ${displayDate(run.timeStarted)} deleted.`,
+            successMessage: () => ({ key: 'RunDeleted', variables: { runName: displayDate(run.timeStarted) } }),
             onSuccess: (data) => {
                 onDelete(run);
             },
-            errorMessage: () => `Failed to delete run ${displayDate(run.timeStarted)}.`,
+            errorMessage: () => ({ key: 'RunDeleteFailed', variables: { runName: displayDate(run.timeStarted) } }),
         })
     }, [deleteOne, onDelete])
 
@@ -115,14 +115,11 @@ export const RunPickerMenu = ({
         // If run has some progress, show confirmation dialog
         if (run.completedComplexity > 0) {
             PubSub.get().publishAlertDialog({
-                message: `Are you sure you want to delete this run from ${displayDate(run.timeStarted)} with ${getRunPercentComplete(run.completedComplexity, routine.complexity)}% completed?`,
+                messageKey: 'RunDeleteConfirm',
+                messageVariables: { startDate: displayDate(run.timeStarted), percentComplete: getRunPercentComplete(run.completedComplexity, routine.complexity) },
                 buttons: [
-                    {
-                        text: 'Yes', onClick: () => {
-                            deleteRun(run);
-                        }
-                    },
-                    { text: 'Cancel', onClick: () => { } },
+                    { labelKey: 'Yes', onClick: () => { deleteRun(run) } },
+                    { labelKey: 'Cancel', onClick: () => { } },
                 ]
             });
         } else {

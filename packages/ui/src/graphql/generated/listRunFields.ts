@@ -64,8 +64,6 @@ export interface listRunFields_routine {
   permissionsRoutine: listRunFields_routine_permissionsRoutine;
   tags: listRunFields_routine_tags[];
   translations: listRunFields_routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface listRunFields {

@@ -38,7 +38,7 @@ export const ForgotPasswordForm = ({
                 successCondition: (data) => data.success === true,
                 onSuccess: () => setLocation(APP_LINKS.Home),
                 onError: () => { formik.setSubmitting(false) },
-                successMessage: () => 'Request sent. Please check email.',
+                successMessage: () => ({ key: 'RequestSentCheckEmail' }),
             })
         },
     });

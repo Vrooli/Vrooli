@@ -45,8 +45,6 @@ export const listStandardFields = gql`
             jsonVariable
         }
         type
-        version
-        versionGroupId
         yup
     }
 `

@@ -49,7 +49,5 @@ export const listRoutineFields = gql`
             description
             title
         }
-        version
-        versionGroupId
     }
 `

@@ -246,8 +246,6 @@ export interface listStarFields_to_Routine {
   permissionsRoutine: listStarFields_to_Routine_permissionsRoutine;
   tags: listStarFields_to_Routine_tags[];
   translations: listStarFields_to_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface listStarFields_to_Standard_permissionsStandard {
@@ -296,8 +294,6 @@ export interface listStarFields_to_Standard {
   permissionsStandard: listStarFields_to_Standard_permissionsStandard;
   tags: listStarFields_to_Standard_tags[];
   translations: listStarFields_to_Standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface listStarFields_to_User {

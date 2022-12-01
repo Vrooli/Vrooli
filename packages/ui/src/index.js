@@ -6,6 +6,7 @@ import { initializeApollo } from 'graphql/utils/initialize';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import reportWebVitals from './reportWebVitals';
 import { ErrorBoundary } from 'components';
+import './i18n'; // Must import for translations to work
 
 const client = initializeApollo();
 

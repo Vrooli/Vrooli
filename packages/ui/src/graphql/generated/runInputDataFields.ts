@@ -48,8 +48,6 @@ export interface runInputDataFields_input_standard {
   yup: string | null;
   tags: runInputDataFields_input_standard_tags[];
   translations: runInputDataFields_input_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface runInputDataFields_input {

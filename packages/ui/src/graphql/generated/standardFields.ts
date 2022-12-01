@@ -121,7 +121,4 @@ export interface standardFields {
   isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
-  version: string;
-  versionGroupId: string;
-  versions: string[];
 }

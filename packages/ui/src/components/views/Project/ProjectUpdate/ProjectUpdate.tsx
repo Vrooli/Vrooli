@@ -82,7 +82,7 @@ export const ProjectUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!project) {
-                PubSub.get().publishSnack({ message: 'Could not find existing project data.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper<projectUpdate_projectUpdate, projectUpdateVariables>({

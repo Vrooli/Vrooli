@@ -39,7 +39,7 @@ export const ShareSiteDialog = ({
 
     const copyInviteLink = () => {
         navigator.clipboard.writeText(inviteLink);
-        PubSub.get().publishSnack({ message: 'Copied to clipboard', severity: SnackSeverity.Success });
+        PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
     }
 
     /**

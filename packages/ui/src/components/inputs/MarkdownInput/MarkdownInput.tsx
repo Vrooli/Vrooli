@@ -214,7 +214,7 @@ export const MarkdownInput = ({
         const { selectionStart, selectionEnd, textArea } = getSelection(`markdown-input-${id}`);
         // If no selection, return
         if (selectionStart === selectionEnd) {
-            PubSub.get().publishSnack({ message: 'No text selected', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'NoTextSelected', severity: SnackSeverity.Error });
             return;
         }
         // Insert ~~ before the selection, and ~~ after the selection

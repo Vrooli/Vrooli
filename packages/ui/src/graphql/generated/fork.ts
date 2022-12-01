@@ -259,8 +259,6 @@ export interface fork_fork_routine_inputs_standard {
   props: string;
   yup: string | null;
   translations: fork_fork_routine_inputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface fork_fork_routine_inputs {
@@ -302,7 +300,7 @@ export interface fork_fork_routine_nodes_data_NodeEnd {
   wasSuccessful: boolean;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs_translations {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_translations {
   __typename: "InputItemTranslation";
   id: string;
   language: string;
@@ -310,7 +308,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_i
   helpText: string | null;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
   language: string;
@@ -318,7 +316,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_i
   jsonVariable: string | null;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
@@ -329,21 +327,19 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_i
   type: string;
   props: string;
   yup: string | null;
-  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
+  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_translations[];
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs {
   __typename: "InputItem";
   id: string;
   isRequired: boolean | null;
   name: string | null;
-  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs_translations[];
-  standard: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard | null;
+  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_translations[];
+  standard: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard | null;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs_translations {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_translations {
   __typename: "OutputItemTranslation";
   id: string;
   language: string;
@@ -351,7 +347,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_o
   helpText: string | null;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
   language: string;
@@ -359,7 +355,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_o
   jsonVariable: string | null;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
@@ -370,43 +366,41 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_o
   type: string;
   props: string;
   yup: string | null;
-  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
+  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_translations[];
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs {
   __typename: "OutputItem";
   id: string;
   name: string | null;
-  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs_translations[];
-  standard: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard | null;
+  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_translations[];
+  standard: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard | null;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization_translations {
   __typename: "OrganizationTranslation";
   id: string;
   language: string;
   name: string;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization {
   __typename: "Organization";
   id: string;
   handle: string | null;
-  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
+  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization_translations[];
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner_User {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_User {
   __typename: "User";
   id: string;
   name: string;
   handle: string | null;
 }
 
-export type fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner = fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization | fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner_User;
+export type fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner = fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization | fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_User;
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_permissionsRoutine {
   __typename: "RoutinePermission";
   canComment: boolean;
   canDelete: boolean;
@@ -418,7 +412,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_p
   canVote: boolean;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_translations {
   __typename: "ResourceListTranslation";
   id: string;
   language: string;
@@ -426,7 +420,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_r
   title: string | null;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources_translations {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -434,7 +428,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_r
   title: string | null;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -442,33 +436,33 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_r
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources_translations[];
+  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources_translations[];
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists {
   __typename: "ResourceList";
   id: string;
   created_at: any;
   index: number | null;
   usedFor: ResourceListUsedFor | null;
-  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations[];
-  resources: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources[];
+  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_translations[];
+  resources: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources[];
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_tags_translations {
   __typename: "TagTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_tags {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_tags {
   __typename: "Tag";
   tag: string;
-  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
+  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_tags_translations[];
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_translations {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_translations {
   __typename: "RoutineTranslation";
   id: string;
   language: string;
@@ -477,7 +471,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_t
   instructions: string;
 }
 
-export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine {
+export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion {
   __typename: "Routine";
   id: string;
   complexity: number;
@@ -485,17 +479,15 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_routine {
   isDeleted: boolean;
   isInternal: boolean | null;
   isPrivate: boolean;
-  inputs: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_inputs[];
+  inputs: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs[];
   nodesCount: number | null;
-  outputs: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_outputs[];
-  owner: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_owner | null;
-  permissionsRoutine: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine;
-  resourceLists: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
+  outputs: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs[];
+  owner: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner | null;
+  permissionsRoutine: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_permissionsRoutine;
+  resourceLists: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists[];
   simplicity: number;
-  tags: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
-  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine_translations[];
-  version: string;
-  versionGroupId: string;
+  tags: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_tags[];
+  translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion_translations[];
 }
 
 export interface fork_fork_routine_nodes_data_NodeRoutineList_routines_translations {
@@ -511,7 +503,7 @@ export interface fork_fork_routine_nodes_data_NodeRoutineList_routines {
   id: string;
   index: number;
   isOptional: boolean;
-  routine: fork_fork_routine_nodes_data_NodeRoutineList_routines_routine;
+  routineVersion: fork_fork_routine_nodes_data_NodeRoutineList_routines_routineVersion;
   translations: fork_fork_routine_nodes_data_NodeRoutineList_routines_translations[];
 }
 
@@ -598,8 +590,6 @@ export interface fork_fork_routine_outputs_standard {
   props: string;
   yup: string | null;
   translations: fork_fork_routine_outputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface fork_fork_routine_outputs {
@@ -791,9 +781,6 @@ export interface fork_fork_routine {
   tags: fork_fork_routine_tags[];
   translations: fork_fork_routine_translations[];
   updated_at: any;
-  version: string;
-  versionGroupId: string;
-  versions: string[];
 }
 
 export interface fork_fork_standard_permissionsStandard {
@@ -908,9 +895,6 @@ export interface fork_fork_standard {
   isStarred: boolean;
   score: number;
   isUpvoted: boolean | null;
-  version: string;
-  versionGroupId: string;
-  versions: string[];
 }
 
 export interface fork_fork {

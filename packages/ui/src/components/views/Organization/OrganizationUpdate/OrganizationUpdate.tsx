@@ -69,7 +69,7 @@ export const OrganizationUpdate = ({
         validationSchema,
         onSubmit: (values) => {
             if (!organization) {
-                PubSub.get().publishSnack({ message: 'Could not find existing organization data.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadOrganization', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper<organizationUpdate_organizationUpdate, organizationUpdateVariables>({

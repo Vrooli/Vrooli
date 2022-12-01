@@ -1,23 +1,15 @@
 /**
  * Simple pub/sub implementation, with typescript support. 
  * Uses a singleton instance to publish and subscribe to events.
- * example:
- *      import { PubSub } from 'utils';
- *      PubSub.get().publishSnack({ message: 'Hello World' });
  */
-import { COOKIE, ValueOf } from '@shared/consts';
 import { AlertDialogState } from 'components';
 
-export const Pubs = {
-    ...COOKIE,
-    Celebration: "celebration",
-    Loading: "loading",
-    AlertDialog: "alertDialog",
-    Theme: "theme",
-    NodeDrag: "NodeDrag",
-    NodeDrop: "NodeDrop",
-}
-export type Pubs = ValueOf<typeof Pubs>;
+export type Pubs = 'Celebration' | 
+    'Loading' | 
+    'AlertDialog' |
+    'Theme' | 
+    'NodeDrag' | 
+    'NodeDrop';
 
 export class PubSub {
     private static instance: PubSub;
@@ -36,25 +28,25 @@ export class PubSub {
         }
     }
     publishCelebration(duration?: number) {
-        this.publish(Pubs.Celebration, duration);
+        this.publish('Celebration', duration);
     }
     /**
      * Pass delay to show spinner if turning on, or false to turn off.
      */
     publishLoading(spinnerDelay: number | false) {
-        this.publish(Pubs.Loading, spinnerDelay);
+        this.publish('Loading', spinnerDelay);
     }
     publishAlertDialog(data: AlertDialogState) {
-        this.publish(Pubs.AlertDialog, data);
+        this.publish('AlertDialog', data);
     }
     publishTheme(theme: 'light' | 'dark') {
-        this.publish(Pubs.Theme, theme);
+        this.publish('Theme', theme);
     }
     publishNodeDrag(data: { nodeId: string }) {
-        this.publish(Pubs.NodeDrag, data);
+        this.publish('NodeDrag', data);
     }
     publishNodeDrop(data: { nodeId: string, position: { x: number, y: number } }) {
-        this.publish(Pubs.NodeDrop, data);
+        this.publish('NodeDrop', data);
     }
 
     subscribe(key: Pubs, subscriber: Function): symbol {
@@ -67,19 +59,19 @@ export class PubSub {
         return token;
     }
     subscribeCelebration(subscriber: (duration?: number) => void) {
-        return this.subscribe(Pubs.Celebration, subscriber);
+        return this.subscribe('Celebration', subscriber);
     }
     subscribeLoading(subscriber: (spinnerDelay: number | false) => void) {
-        return this.subscribe(Pubs.Loading, subscriber);
+        return this.subscribe('Loading', subscriber);
     }
     subscribeAlertDialog(subscriber: (data: AlertDialogState) => void) {
-        return this.subscribe(Pubs.AlertDialog, subscriber);
+        return this.subscribe('AlertDialog', subscriber);
     }
     subscribeNodeDrag(subscriber: (data: { nodeId: string }) => void) {
-        return this.subscribe(Pubs.NodeDrag, subscriber);
+        return this.subscribe('NodeDrag', subscriber);
     }
     subscribeNodeDrop(subscriber: (data: { nodeId: string, position: { x: number, y: number } }) => void) {
-        return this.subscribe(Pubs.NodeDrop, subscriber);
+        return this.subscribe('NodeDrop', subscriber);
     }
 
     unsubscribe(token: symbol) {

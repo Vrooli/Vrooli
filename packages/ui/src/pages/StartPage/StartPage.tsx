@@ -14,7 +14,7 @@ import {
     Typography,
 } from '@mui/material';
 import { Forms, PubSub, useReactSearch } from 'utils';
-import { APP_LINKS, CODE } from '@shared/consts';
+import { APP_LINKS } from '@shared/consts';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { DialogTitle, HelpButton, SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
@@ -92,16 +92,16 @@ export const StartPage = ({
                     mutation: emailLogIn,
                     input: { verificationCode },
                     onSuccess: (data) => {
-                        PubSub.get().publishSnack({ message: 'Email verified!', severity: SnackSeverity.Success });
+                        PubSub.get().publishSnack({ messageKey: 'EmailVerified', severity: SnackSeverity.Success });
                         PubSub.get().publishSession(data);
                         setLocation(redirect ?? APP_LINKS.Home)
                     },
                     onError: (response) => {
-                        if (hasErrorCode(response, CODE.MustResetPassword)) {
+                        if (hasErrorCode(response, 'MustResetPassword')) {
                             PubSub.get().publishAlertDialog({
-                                message: 'Before signing in, please follow the link sent to your email to change your password.',
+                                messageKey: 'ChangePasswordBeforeLogin',
                                 buttons: [
-                                    { text: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
+                                    { labelKey: 'Ok', onClick: () => { setLocation(redirect ?? APP_LINKS.Home) } },
                                 ]
                             });
                         }
@@ -140,11 +140,11 @@ export const StartPage = ({
         // Check if wallet extension installed
         if (!hasWalletExtension(providerKey)) {
             PubSub.get().publishAlertDialog({
-                message: 'Wallet provider not found. Please verify that you are using a Chromium browser (e.g. Chrome, Brave), and that the Nami wallet extension is installed.',
+                messageKey: 'WalletProviderNotFoundDetails',
                 buttons: [
-                    { text: 'Try Again', onClick: openWalletConnectDialog },
-                    { text: 'Install Wallet', onClick: openWalletInstallDialog },
-                    { text: 'Email Login', onClick: toEmailLogIn },
+                    { labelKey: 'TryAgain', onClick: openWalletConnectDialog },
+                    { labelKey: 'InstallWallet', onClick: openWalletInstallDialog },
+                    { labelKey: 'EmailLogin', onClick: toEmailLogIn },
                 ]
             });
             return;
@@ -152,7 +152,7 @@ export const StartPage = ({
         // Validate wallet
         const walletCompleteResult = await validateWallet(providerKey);
         if (walletCompleteResult?.session) {
-            PubSub.get().publishSnack({ message: 'Wallet verified.', severity: SnackSeverity.Success })
+            PubSub.get().publishSnack({ messageKey: 'WalletVerified', severity: SnackSeverity.Success })
             // Set actor role
             PubSub.get().publishSession(walletCompleteResult.session)
             // Redirect to main dashboard

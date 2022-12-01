@@ -57,7 +57,7 @@ export const ResourceListItemContextMenu = ({
                 break;
             case ResourceContextMenuOption.Copy:
                 navigator.clipboard.writeText(resource?.link ?? '');
-                PubSub.get().publishSnack({ message: 'Copied.', severity: SnackSeverity.Success });
+                PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
                 break;
             case ResourceContextMenuOption.Delete:
                 onDelete(index);

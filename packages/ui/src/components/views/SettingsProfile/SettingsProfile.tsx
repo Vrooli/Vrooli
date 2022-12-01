@@ -49,7 +49,7 @@ export const SettingsProfile = ({
         if (verifiedWallets.length > 0) {
             findHandles({ variables: { input: {} } }); // Intentionally empty
         } else {
-            PubSub.get().publishSnack({ message: 'No verified wallets associated with account', severity: SnackSeverity.Error })
+            PubSub.get().publishSnack({ messageKey: 'NoVerifiedWallets', severity: SnackSeverity.Error })
         }
     }, [profile, findHandles]);
     useEffect(() => {
@@ -86,11 +86,11 @@ export const SettingsProfile = ({
         validationSchema,
         onSubmit: (values) => {
             if (!profile) {
-                PubSub.get().publishSnack({ message: 'Could not find existing data.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) {
-                PubSub.get().publishSnack({ message: 'Please fix errors before submitting.', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: SnackSeverity.Error });
                 return;
             }
             const input = shapeProfileUpdate(profile, {
@@ -103,7 +103,7 @@ export const SettingsProfile = ({
                 })),
             })
             if (!input || Object.keys(input).length === 0) {
-                PubSub.get().publishSnack({ message: 'No changes made.', severity: SnackSeverity.Info });
+                PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });
                 return;
             }
             mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({

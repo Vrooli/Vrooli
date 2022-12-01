@@ -220,7 +220,7 @@ const validator = (): Validator<
             // }
         }),
     }
-    // createMany.forEach(input => lineBreaksCheck(input, ['description'], CODE.LineBreaksDescription));
+    // createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksDescription'));
     // for (const input of updateMany) {
 })
 

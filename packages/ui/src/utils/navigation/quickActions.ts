@@ -2,7 +2,7 @@ import { APP_LINKS } from "@shared/consts";
 import { SnackSeverity } from "components";
 import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { profileUpdateMutation } from "graphql/mutation";
-import { documentNodeWrapper, errorToMessage } from "graphql/utils";
+import { documentNodeWrapper, errorToCode } from "graphql/utils";
 import { ActionOption, Session, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
@@ -212,7 +212,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
                 node: profileUpdateMutation,
                 input: { theme: 'dark' },
                 onSuccess: () => { PubSub.get().publishTheme('dark'); },
-                onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error }); }
+                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
             })
             break;
         case 'activate-light-mode':
@@ -220,7 +220,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
                 node: profileUpdateMutation,
                 input: { theme: 'light' },
                 onSuccess: () => { PubSub.get().publishTheme('light'); },
-                onError: (error) => { PubSub.get().publishSnack({ message: errorToMessage(error), severity: SnackSeverity.Error, data: error }); }
+                onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
             })
             break;
     }

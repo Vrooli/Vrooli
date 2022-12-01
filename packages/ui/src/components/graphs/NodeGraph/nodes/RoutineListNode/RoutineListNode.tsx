@@ -151,10 +151,10 @@ export const RoutineListNode = ({
 
     const confirmDelete = useCallback((event: any) => {
         PubSub.get().publishAlertDialog({
-            message: 'What would you like to do?',
+            messageKey: 'WhatWouldYouLikeToDo',
             buttons: [
-                { text: 'Unlink', onClick: handleNodeUnlink },
-                { text: 'Remove', onClick: handleNodeDelete },
+                { labelKey: 'Unlink', onClick: handleNodeUnlink },
+                { labelKey: 'Remove', onClick: handleNodeDelete },
             ]
         });
     }, [handleNodeDelete, handleNodeUnlink])

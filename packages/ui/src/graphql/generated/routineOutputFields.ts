@@ -35,8 +35,6 @@ export interface routineOutputFields_standard {
   props: string;
   yup: string | null;
   translations: routineOutputFields_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface routineOutputFields {

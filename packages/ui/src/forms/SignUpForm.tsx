@@ -1,6 +1,6 @@
 import { emailSignUpMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { APP_LINKS, BUSINESS_NAME, CODE } from '@shared/consts';
+import { APP_LINKS, BUSINESS_NAME } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -23,7 +23,7 @@ import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
-import { errorToMessage, hasErrorCode } from 'graphql/utils';
+import { hasErrorCode } from 'graphql/utils';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
 
 export const SignUpForm = ({
@@ -53,9 +53,10 @@ export const SignUpForm = ({
                 onSuccess: (data) => {
                     PubSub.get().publishSession(data)
                     PubSub.get().publishAlertDialog({
-                        message: `Welcome to ${BUSINESS_NAME}. Please verify your email within 48 hours.`,
+                        messageKey: 'WelcomeVerifyEmail',
+                        messageVariables: { appName: BUSINESS_NAME },
                         buttons: [{
-                            text: 'OK', onClick: () => {
+                            labelKey: 'Ok', onClick: () => {
                                 setLocation(APP_LINKS.Welcome);
                                 // Request user to enable notifications
                                 subscribeUserToPush();
@@ -64,12 +65,12 @@ export const SignUpForm = ({
                     });
                 },
                 onError: (response) => {
-                    if (hasErrorCode(response, CODE.EmailInUse)) {
+                    if (hasErrorCode(response, 'EmailInUse')) {
                         PubSub.get().publishAlertDialog({
-                            message: `${errorToMessage(response)}. Did you forget your password?`,
+                            messageKey: 'EmailInUseWrongPassword',
                             buttons: [
-                                { text: 'Yes', onClick: () => onFormChange(Forms.ForgotPassword) },
-                                { text: 'No' }
+                                { labelKey: 'Yes', onClick: () => onFormChange(Forms.ForgotPassword) },
+                                { labelKey: 'No' }
                             ]
                         });
                     }

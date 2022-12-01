@@ -50,19 +50,19 @@ export const DeleteAccountDialog = ({
         validationSchema,
         onSubmit: (values) => {
             if (!id) {
-                PubSub.get().publishSnack({ message: 'No user ID found', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'NoUserIdFound', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper<userDeleteOne_userDeleteOne, userDeleteOneVariables>({
                 mutation: deleteAccount,
                 input: values,
                 successCondition: (data) => data.success,
-                successMessage: () => `Account deleted.`,
+                successMessage: () => ({ key: 'AccountDeleteSuccess' }),
                 onSuccess: () => {
                     setLocation(APP_LINKS.Home);
                     close(true);
                 },
-                errorMessage: () => `Failed to delete account.`,
+                errorMessage: () => ({ key: 'AccountDeleteFail' }),
                 onError: () => {
                     close(false);
                 }

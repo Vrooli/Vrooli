@@ -6,7 +6,7 @@ import { logger } from './logger';
 /**
  * Keys for internationalized error messages
  */
-type MsgKey = TFuncKey<'error', undefined>
+type ErrKey = TFuncKey<'error', undefined>
 
 /**
  * Generates unique erro code by appending 
@@ -22,7 +22,7 @@ function genTrace(locationCode: string): string {
 }
 
 export class CustomError extends ApolloError {
-    constructor(traceBase: string, errorCode: MsgKey, languages: string[], data?: { [key: string]: any }) {
+    constructor(traceBase: string, errorCode: ErrKey, languages: string[], data?: { [key: string]: any }) {
         // Find message in user's language
         const lng = languages.length > 0 ? languages[0] : 'en';
         const message = i18next.t(`error:${errorCode}`, { lng }) ?? errorCode

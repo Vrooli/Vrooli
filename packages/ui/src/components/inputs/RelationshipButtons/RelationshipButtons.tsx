@@ -168,14 +168,10 @@ export function RelationshipButtons({
                 // If form is dirty, prompt to confirm (since data will be lost)
                 if (isFormDirty) {
                     PubSub.get().publishAlertDialog({
-                        message: 'Selecting a parent to copy will override existing data. Continue?',
+                        messageKey: 'ParentOverrideConfirm',
                         buttons: [
-                            {
-                                text: 'Yes', onClick: () => { setParentDialogOpen(true); }
-                            },
-                            {
-                                text: "No", onClick: () => { }
-                            },
+                            { labelKey: 'Yes', onClick: () => { setParentDialogOpen(true); } },
+                            { labelKey: "No", onClick: () => { } },
                         ]
                     });
                 }

@@ -126,8 +126,6 @@ export interface projectOrRoutines_projectOrRoutines_edges_node_Routine {
   permissionsRoutine: projectOrRoutines_projectOrRoutines_edges_node_Routine_permissionsRoutine;
   tags: projectOrRoutines_projectOrRoutines_edges_node_Routine_tags[];
   translations: projectOrRoutines_projectOrRoutines_edges_node_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export type projectOrRoutines_projectOrRoutines_edges_node = projectOrRoutines_projectOrRoutines_edges_node_Project | projectOrRoutines_projectOrRoutines_edges_node_Routine;

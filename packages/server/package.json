@@ -28,6 +28,7 @@
         "@graphql-tools/schema": "^8.2.0",
         "@prisma/client": "4.7.0",
         "@shared/consts": "*",
+        "@shared/translations": "*",
         "@shared/utils": "*",
         "@shared/uuid": "*",
         "@shared/validation": "*",

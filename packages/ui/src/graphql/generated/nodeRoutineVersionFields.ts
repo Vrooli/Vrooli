@@ -4,10 +4,10 @@
 // This file was automatically generated and should not be edited.
 
 // ====================================================
-// GraphQL fragment: nodeRoutineFields
+// GraphQL fragment: nodeRoutineVersionFields
 // ====================================================
 
-export interface nodeRoutineFields_permissionsRoutine {
+export interface nodeRoutineVersionFields_permissionsRoutine {
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
@@ -18,20 +18,20 @@ export interface nodeRoutineFields_permissionsRoutine {
   canVote: boolean;
 }
 
-export interface nodeRoutineFields_tags_translations {
+export interface nodeRoutineVersionFields_tags_translations {
   __typename: "TagTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface nodeRoutineFields_tags {
+export interface nodeRoutineVersionFields_tags {
   __typename: "Tag";
   tag: string;
-  translations: nodeRoutineFields_tags_translations[];
+  translations: nodeRoutineVersionFields_tags_translations[];
 }
 
-export interface nodeRoutineFields_translations {
+export interface nodeRoutineVersionFields_translations {
   __typename: "RoutineTranslation";
   id: string;
   language: string;
@@ -40,16 +40,15 @@ export interface nodeRoutineFields_translations {
   title: string;
 }
 
-export interface nodeRoutineFields {
+export interface nodeRoutineVersionFields {
   __typename: "Routine";
   id: string;
   complexity: number;
-  version: string;
   created_at: any;
   isAutomatable: boolean | null;
   isInternal: boolean | null;
   simplicity: number;
-  permissionsRoutine: nodeRoutineFields_permissionsRoutine;
-  tags: nodeRoutineFields_tags[];
-  translations: nodeRoutineFields_translations[];
+  permissionsRoutine: nodeRoutineVersionFields_permissionsRoutine;
+  tags: nodeRoutineVersionFields_tags[];
+  translations: nodeRoutineVersionFields_translations[];
 }

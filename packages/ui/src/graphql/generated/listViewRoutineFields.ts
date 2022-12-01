@@ -61,6 +61,4 @@ export interface listViewRoutineFields {
   permissionsRoutine: listViewRoutineFields_permissionsRoutine;
   tags: listViewRoutineFields_tags[];
   translations: listViewRoutineFields_translations[];
-  version: string;
-  versionGroupId: string;
 }

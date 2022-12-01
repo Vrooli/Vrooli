@@ -72,7 +72,7 @@ export const ReportDialog = ({
                     reason: Boolean(values.otherReason) ? values.otherReason : values.reason,
                 },
                 successCondition: (data) => data !== null,
-                successMessage: () => 'Report submitted.',
+                successMessage: () => ({ key: 'ReportSubmitted' }),
                 onSuccess: () => {
                     formik.resetForm();
                     onClose()

@@ -37,8 +37,6 @@ export const runInputFields = gql`
                 language
                 description
             }
-            version
-            versionGroupId
         }
     }
     fragment runInputFields on RunInput {

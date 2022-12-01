@@ -160,12 +160,12 @@ const validator = (): Validator<
     }
     // if (!createMany && !updateMany && !deleteMany) return;
     // if (createMany) {
-    //     createMany.forEach(input => lineBreaksCheck(input, ['bio'], CODE.LineBreaksBio));
+    //     createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
     // }
     // if (updateMany) {
     //     for (const input of updateMany) {
     //         await WalletModel.verify(prisma).verifyHandle('Organization', input.where.id, input.data.handle);
-    //         lineBreaksCheck(input.data, ['bio'], CODE.LineBreaksBio);
+    //         lineBreaksCheck(input.data, ['bio'], 'LineBreaksBio');
     //     }
     // }
 })

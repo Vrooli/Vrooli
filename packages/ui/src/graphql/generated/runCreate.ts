@@ -50,8 +50,6 @@ export interface runCreate_runCreate_inputs_input_standard {
   yup: string | null;
   tags: runCreate_runCreate_inputs_input_standard_tags[];
   translations: runCreate_runCreate_inputs_input_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface runCreate_runCreate_inputs_input {
@@ -111,8 +109,6 @@ export interface runCreate_runCreate_routine_inputs_standard {
   yup: string | null;
   tags: runCreate_runCreate_routine_inputs_standard_tags[];
   translations: runCreate_runCreate_routine_inputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface runCreate_runCreate_routine_inputs {
@@ -154,7 +150,7 @@ export interface runCreate_runCreate_routine_nodes_data_NodeEnd {
   wasSuccessful: boolean;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_translations {
   __typename: "InputItemTranslation";
   id: string;
   language: string;
@@ -162,27 +158,27 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   helpText: string | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_tags_translations {
   __typename: "TagTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_tags {
   __typename: "Tag";
   tag: string;
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags_translations[];
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_tags_translations[];
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
@@ -193,22 +189,20 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   type: string;
   props: string;
   yup: string | null;
-  tags: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_tags[];
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
+  tags: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_tags[];
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard_translations[];
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs {
   __typename: "InputItem";
   id: string;
   isRequired: boolean | null;
   name: string | null;
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_translations[];
-  standard: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs_standard | null;
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_translations[];
+  standard: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs_standard | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_translations {
   __typename: "OutputItemTranslation";
   id: string;
   language: string;
@@ -216,27 +210,27 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   helpText: string | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_tags_translations {
   __typename: "TagTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_tags {
   __typename: "Tag";
   tag: string;
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags_translations[];
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_tags_translations[];
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_translations {
   __typename: "StandardTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard {
   __typename: "Standard";
   id: string;
   default: string | null;
@@ -247,44 +241,42 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   type: string;
   props: string;
   yup: string | null;
-  tags: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_tags[];
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
+  tags: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_tags[];
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard_translations[];
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs {
   __typename: "OutputItem";
   id: string;
   name: string | null;
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_translations[];
-  standard: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs_standard | null;
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_translations[];
+  standard: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs_standard | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization_translations {
   __typename: "OrganizationTranslation";
   id: string;
   language: string;
   name: string;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization {
   __typename: "Organization";
   id: string;
   handle: string | null;
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization_translations[];
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization_translations[];
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_owner_User {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_User {
   __typename: "User";
   id: string;
   name: string;
   handle: string | null;
 }
 
-export type runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_owner = runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_owner_Organization | runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_owner_User;
+export type runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner = runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_Organization | runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner_User;
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_permissionsRoutine {
   __typename: "RoutinePermission";
   canDelete: boolean;
   canEdit: boolean;
@@ -295,7 +287,7 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   canVote: boolean;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_translations {
   __typename: "ResourceListTranslation";
   id: string;
   language: string;
@@ -303,7 +295,7 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   title: string | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources_translations {
   __typename: "ResourceTranslation";
   id: string;
   language: string;
@@ -311,7 +303,7 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   title: string | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources {
   __typename: "Resource";
   id: string;
   created_at: any;
@@ -319,33 +311,33 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   link: string;
   updated_at: any;
   usedFor: ResourceUsedFor | null;
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources_translations[];
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources_translations[];
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists {
   __typename: "ResourceList";
   id: string;
   created_at: any;
   index: number | null;
   usedFor: ResourceListUsedFor | null;
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_translations[];
-  resources: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists_resources[];
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_translations[];
+  resources: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources[];
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_tags_translations {
   __typename: "TagTranslation";
   id: string;
   language: string;
   description: string | null;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_tags {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_tags {
   __typename: "Tag";
   tag: string;
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_tags_translations[];
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_tags_translations[];
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_translations {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_translations {
   __typename: "RoutineTranslation";
   id: string;
   language: string;
@@ -354,25 +346,23 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   instructions: string;
 }
 
-export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine {
+export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion {
   __typename: "Routine";
   id: string;
   complexity: number;
-  inputs: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_inputs[];
+  inputs: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_inputs[];
   isComplete: boolean;
   isDeleted: boolean;
   isInternal: boolean | null;
   isPrivate: boolean;
   nodesCount: number | null;
-  outputs: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_outputs[];
-  owner: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_owner | null;
-  permissionsRoutine: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_permissionsRoutine;
-  resourceLists: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_resourceLists[];
+  outputs: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_outputs[];
+  owner: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_owner | null;
+  permissionsRoutine: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_permissionsRoutine;
+  resourceLists: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists[];
   simplicity: number;
-  tags: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_tags[];
-  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine_translations[];
-  version: string;
-  versionGroupId: string;
+  tags: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_tags[];
+  translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion_translations[];
 }
 
 export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_translations {
@@ -388,7 +378,7 @@ export interface runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines
   id: string;
   index: number;
   isOptional: boolean;
-  routine: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routine;
+  routineVersion: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_routineVersion;
   translations: runCreate_runCreate_routine_nodes_data_NodeRoutineList_routines_translations[];
 }
 
@@ -488,8 +478,6 @@ export interface runCreate_runCreate_routine_outputs_standard {
   yup: string | null;
   tags: runCreate_runCreate_routine_outputs_standard_tags[];
   translations: runCreate_runCreate_routine_outputs_standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface runCreate_runCreate_routine_outputs {
@@ -633,8 +621,6 @@ export interface runCreate_runCreate_routine {
   tags: runCreate_runCreate_routine_tags[];
   translations: runCreate_runCreate_routine_translations[];
   updated_at: any;
-  version: string;
-  versionGroupId: string;
 }
 
 export interface runCreate_runCreate_steps_node {

@@ -53,7 +53,7 @@ export const StarButton = ({
             input: { isStar, starFor, forId: objectId },
             onSuccess: () => { 
                 if (onChange) onChange(isStar, event) 
-                PubSub.get().publishSnack({ message: isStar ? 'Added to favorites' : 'Removed from favorites', severity: SnackSeverity.Success });
+                PubSub.get().publishSnack({ messageKey: isStar ? 'FavoritesAdded' : 'FavoritesRemoved', severity: SnackSeverity.Success });
             },
         })
     }, [userId, internalIsStar, starFor, objectId, onChange]);

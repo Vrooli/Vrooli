@@ -17,3 +17,7 @@ export interface BasicSnackProps {
 export interface CookiesSnackProps {
     handleClose: () => any;
 }
+
+export interface SnackStackProps {
+    languages: string[];
+}

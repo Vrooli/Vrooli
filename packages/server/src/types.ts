@@ -1,10 +1,5 @@
 import pkg from '@prisma/client';
 import { SessionUser } from './schema/types';
-import awardLocale from './locales/en/award.json' assert { type: 'json' };
-import commonLocale from './locales/en/common.json' assert { type: 'json' };
-import errorLocale from './locales/en/error.json' assert { type: 'json' };
-import notifyLocale from './locales/en/notify.json' assert { type: 'json' };
-import validateLocale from './locales/en/validate.json' assert { type: 'json' };
 
 // Request type
 declare global {
@@ -37,20 +32,6 @@ declare global {
             users?: SessionUser[];
             validToken?: boolean;
         }
-    }
-}
-
-// Internationlization
-declare module "i18next" {
-    interface CustomTypeOptions {
-        defaultNS: 'common';
-        resources: {
-            award: typeof awardLocale;
-            common: typeof commonLocale;
-            validate: typeof validateLocale;
-            error: typeof errorLocale;
-            notify: typeof notifyLocale;
-        };
     }
 }
 

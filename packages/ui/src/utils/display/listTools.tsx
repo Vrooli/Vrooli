@@ -285,7 +285,7 @@ export function listToAutocomplete(
         routine: o.__typename === 'Run' ? o.routine : undefined,
         stars: getListItemStars(o),
         to: o.__typename === 'View' || o.__typename === 'Star' ? o.to : undefined,
-        versionGroupId: o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,
+        versionGroupId: undefined// TODO o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,
     }));
 }
 

@@ -58,7 +58,7 @@ export const CommentCreateInput = ({
                     translations: values.translationsCreate,
                 }, values.parentId),
                 successCondition: (data) => data !== null,
-                successMessage: () => 'Comment created',
+                successMessage: () => ({ key: 'CommentCreated' }),
                 onSuccess: (data) => {
                     formik.resetForm();
                     onCommentAdd(data);

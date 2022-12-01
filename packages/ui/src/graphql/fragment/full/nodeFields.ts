@@ -9,10 +9,9 @@ export const nodeFields = gql`
             description
         }
     }
-    fragment nodeRoutineFields on Routine {
+    fragment nodeRoutineVersionFields on Routine {
         id
         complexity
-        version
         created_at
         isAutomatable
         isInternal
@@ -57,8 +56,8 @@ export const nodeFields = gql`
                     id
                     index
                     isOptional
-                    routine {
-                        ...nodeRoutineFields
+                    routineVersion {
+                        ...nodeRoutineVersionFields
                     }
                     translations {
                         id

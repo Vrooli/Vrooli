@@ -65,6 +65,4 @@ export interface listRoutineFields {
   permissionsRoutine: listRoutineFields_permissionsRoutine;
   tags: listRoutineFields_tags[];
   translations: listRoutineFields_translations[];
-  version: string;
-  versionGroupId: string;
 }

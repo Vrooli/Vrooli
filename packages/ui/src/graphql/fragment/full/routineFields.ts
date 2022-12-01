@@ -35,8 +35,6 @@ export const routineFields = gql`
                 description
                 jsonVariable
             }
-            version
-            versionGroupId
         }
     }
     fragment routineOutputFields on OutputItem {
@@ -64,8 +62,6 @@ export const routineFields = gql`
                 description
                 jsonVariable
             }
-            version
-            versionGroupId
         }
     }
     fragment routineNodeFields on Node {
@@ -88,7 +84,7 @@ export const routineFields = gql`
                     id
                     index
                     isOptional
-                    routine {
+                    routineVersion {
                         id
                         complexity
                         isComplete
@@ -142,8 +138,6 @@ export const routineFields = gql`
                             description
                             instructions
                         }
-                        version
-                        versionGroupId
                     }
                     translations {
                         id
@@ -332,8 +326,5 @@ export const routineFields = gql`
             title
         }
         updated_at
-        version
-        versionGroupId
-        versions
     }
 `

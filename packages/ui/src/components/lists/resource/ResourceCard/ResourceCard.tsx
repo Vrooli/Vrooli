@@ -57,7 +57,7 @@ export const ResourceCard = ({
             // If no resource type or link, show error
             const resourceType = getResourceType(data.link);
             if (!resourceType || !href) {
-                PubSub.get().publishSnack({ message: 'Unable to open link', severity: SnackSeverity.Error });
+                PubSub.get().publishSnack({ messageKey: 'CannotOpenLink', severity: SnackSeverity.Error });
                 return;
             }
             // Open link

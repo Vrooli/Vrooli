@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Stack } from '@mui/material';
-import { PubSub } from 'utils';
+import { PubSub, translateCommonKey, translateSnackMessage } from 'utils';
 import { uuid } from '@shared/uuid';
 import { BasicSnack } from '../BasicSnack/BasicSnack';
-import { BasicSnackProps } from '../types';
+import { BasicSnackProps, SnackStackProps } from '../types';
 import { CookiesSnack } from '../CookiesSnack/CookiesSnack';
 
 /**
@@ -11,7 +11,9 @@ import { CookiesSnack } from '../CookiesSnack/CookiesSnack';
  * Most messages disappear after a few seconds, but some are persistent (e.g. No Internet Connection).
  * No more than 3 ephemeral messages are displayed at once.
  */
-export const SnackStack = () => {
+export const SnackStack = ({
+    languages,
+}: SnackStackProps) => {
 
     // FIFO queue of basic snackbars
     const [snacks, setSnacks] = useState<BasicSnackProps[]>([]);
@@ -33,11 +35,11 @@ export const SnackStack = () => {
                 const id = o.id ?? uuid();
                 let newSnacks = [...snacks, {
                     buttonClicked: o.buttonClicked,
-                    buttonText: o.buttonText,
+                    buttonText: o.buttonKey ? translateCommonKey(o.buttonKey, o.buttonVariables, languages) : undefined,
                     data: o.data,
                     handleClose: () => handleClose(id),
                     id,
-                    message: o.message,
+                    message: translateSnackMessage(o.messageKey, o.messageVariables, languages).message,
                     severity: o.severity,
                 }];
                 // Filter out same ids
@@ -55,11 +57,11 @@ export const SnackStack = () => {
             if (window.matchMedia('(display-mode: standalone)').matches) return;
             setIsCookieSnackOpen(true);
         });
-        return () => { 
-            PubSub.get().unsubscribe(snackSub) 
+        return () => {
+            PubSub.get().unsubscribe(snackSub)
             PubSub.get().unsubscribe(cookiesSub)
         };
-    }, [])
+    }, [languages])
 
     let visible = useMemo(() => snacks.length > 0 || isCookieSnackOpen, [snacks, isCookieSnackOpen]);
 

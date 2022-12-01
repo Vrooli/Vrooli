@@ -91,10 +91,10 @@ export const RunButton = ({
         // If incomplete, confirm user wants to run
         else if (status === Status.Incomplete) {
             PubSub.get().publishAlertDialog({
-                message: `This routine is incomplete. Are you sure you want to run it?`,
+                messageKey: 'RunInvalidRoutineConfirm',
                 buttons: [
-                    { text: 'Yes', onClick: () => { startRun(e) } },
-                    { text: 'Cancel', onClick: () => { } },
+                    { labelKey: 'Yes', onClick: () => { startRun(e) } },
+                    { labelKey: 'Cancel', onClick: () => { } },
                 ]
             });
         }

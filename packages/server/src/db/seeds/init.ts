@@ -63,7 +63,6 @@ export async function init(prisma: PrismaType) {
         update: {},
         create: { tag: 'Research' },
     })
-    console.log('d');
     //==============================================================
     /* #endregion Create Tags */
     //==============================================================
@@ -337,7 +336,6 @@ export async function init(prisma: PrismaType) {
     let mintNft: any = await prisma.routine.findFirst({
         where: { id: mintNftId }
     })
-    console.log('n');
     if (!mintNft) {
         logger.info('📚 Creating NFT Minting routine');
         mintNft = await prisma.routine_version.create({
@@ -398,7 +396,6 @@ export async function init(prisma: PrismaType) {
             }
         })
     }
-    console.log('o');
 
     //==============================================================
     /* #endregion Create Routines */

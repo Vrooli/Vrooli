@@ -154,8 +154,6 @@ export interface listViewFields_to_Routine {
   permissionsRoutine: listViewFields_to_Routine_permissionsRoutine;
   tags: listViewFields_to_Routine_tags[];
   translations: listViewFields_to_Routine_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface listViewFields_to_Standard_permissionsStandard {
@@ -204,8 +202,6 @@ export interface listViewFields_to_Standard {
   permissionsStandard: listViewFields_to_Standard_permissionsStandard;
   tags: listViewFields_to_Standard_tags[];
   translations: listViewFields_to_Standard_translations[];
-  version: string;
-  versionGroupId: string;
 }
 
 export interface listViewFields_to_User {

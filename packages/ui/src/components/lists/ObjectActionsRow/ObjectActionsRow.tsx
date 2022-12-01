@@ -89,13 +89,13 @@ export const ObjectActionsRow = ({
         // Check if objectType can be converted to ForkType
         const forkType = ForkType[objectType];
         if (!forkType) {
-            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
-            input: { id, objectType: forkType },
-            successMessage: () => `${name} forked.`,
+            input: { id, intendToPullRequest: true, objectType: forkType },
+            successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
     }, [fork, id, name, objectType, onActionComplete]);
@@ -189,17 +189,17 @@ export const ObjectActionsRow = ({
     }, [actionsDisplayed, actionsExtra.length, onSelect, openOverflowMenu, palette]);
 
     return (
-        <Stack 
-        direction="row" 
-        spacing={1} 
-        sx={{ 
-            marginTop: 1, 
-            marginBottom: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+        <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+                marginTop: 1,
+                marginBottom: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
             }}
-            >
+        >
             {/* Delete routine confirmation dialog */}
             {id && objectType in DeleteOneType && <DeleteDialog
                 isOpen={deleteOpen}

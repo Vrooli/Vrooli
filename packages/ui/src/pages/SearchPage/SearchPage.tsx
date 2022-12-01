@@ -113,7 +113,7 @@ export function SearchPage({
         const addUrl = `${getObjectUrlBase({ __typename: searchType as string })}/add`
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
-            PubSub.get().publishSnack({ message: 'Must be logged in.', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: SnackSeverity.Error });
             setLocation(`${APP_LINKS.Start}${stringifySearchParams({
                 redirect: addUrl
             })}`);

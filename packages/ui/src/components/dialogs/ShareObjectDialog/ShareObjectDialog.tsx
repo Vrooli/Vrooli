@@ -46,7 +46,7 @@ export const ShareObjectDialog = ({
 
     const copyLink = () => {
         navigator.clipboard.writeText(url);
-        PubSub.get().publishSnack({ message: 'Copied to clipboard', severity: SnackSeverity.Success });
+        PubSub.get().publishSnack({ messageKey: 'CopiedToClipboard', severity: SnackSeverity.Success });
     }
 
     /**

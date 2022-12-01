@@ -58,13 +58,13 @@ export const ObjectActionMenu = ({
         // Check if objectType can be converted to ForkType
         const forkType = ForkType[objectType];
         if (!forkType) {
-            PubSub.get().publishSnack({ message: 'Fork not supported on this object type.', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
-            input: { id, objectType: forkType },
-            successMessage: () => `${name} forked.`,
+            input: { id, intendToPullRequest: true, objectType: forkType },
+            successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
     }, [fork, id, name, objectType, onActionComplete]);

@@ -70,7 +70,7 @@ export const SelectLanguageMenu = ({
         // Get source translation
         const sourceTranslation = translations.find(t => t.language === source);
         if (!sourceTranslation) {
-            PubSub.get().publishSnack({ message: 'Could not find translation.', severity: SnackSeverity.Error })
+            PubSub.get().publishSnack({ messageKey: 'CouldNotFindTranslation', severity: SnackSeverity.Error })
             return;
         }
         queryWrapper<translate_translate, translateVariables>({
@@ -82,10 +82,10 @@ export const SelectLanguageMenu = ({
                 if (data) {
                     console.log('TODO')
                 } else {
-                    PubSub.get().publishSnack({ message: 'Could not translate.', severity: SnackSeverity.Error });
+                    PubSub.get().publishSnack({ messageKey: 'FailedToTranslate', severity: SnackSeverity.Error });
                 }
             },
-            errorMessage: () => 'Could not translate.',
+            errorMessage: () => ({ key: 'FailedToTranslate' }),
         })
     }, [getAutoTranslation, translations]);
 

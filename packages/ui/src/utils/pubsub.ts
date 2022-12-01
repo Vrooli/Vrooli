@@ -3,41 +3,54 @@
  * Uses a singleton instance to publish and subscribe to events.
  * example:
  *      import { PubSub } from 'utils';
- *      PubSub.get().publishSnack({ message: 'Hello World' });
+ *      PubSub.get().publishSnack({ messageKey: 'HelloWorld' });
  */
-import { COOKIE, ValueOf } from '@shared/consts';
-import { AlertDialogState, SnackSeverity } from 'components';
+import { SnackSeverity } from 'components';
 import { Session } from 'types';
+import { TFuncKey } from 'i18next';
 
-export const Pubs = {
-    ...COOKIE,
-    Celebration: "celebration",
-    CommandPalette: "commandPalette",
-    Cookies: "cookies", // For cookie consent dialog
-    FastUpdate: "fastUpdate",
-    FindInPage: "findInPage",
-    Loading: "loading",
-    LogOut: "logout",
-    AlertDialog: "alertDialog",
-    Session: "session",
-    Snack: "snack",
-    Theme: "theme",
-    NodeDrag: "NodeDrag",
-    NodeDrop: "NodeDrop",
-}
-export type Pubs = ValueOf<typeof Pubs>;
+export type Pubs = 'Celebration' | 
+    'CommandPalette' |
+    'Cookies' | // For cookie consent dialog
+    'FastUpdate' |
+    'FindInPage' |
+    'Loading' |
+    'LogOut' |
+    'AlertDialog' |
+    'Session' |
+    'Snack' |
+    'Theme' |
+    'NodeDrag' |
+    'NodeDrop';
+
+type ErrKey = TFuncKey<'error', undefined>
+type CommonKey = TFuncKey<'common', undefined>
 
 export type SnackPub = {
     autoHideDuration?: number | 'persist';
     buttonClicked?: (event?: any) => any;
-    buttonText?: string;
+    buttonKey?: CommonKey;
+    buttonVariables?: { [key: string]: string | number };
     data?: any;
     /**
      * If ID is set, a snack with the same ID will be replaced
      */
     id?: string;
-    message?: string;
+    messageKey: ErrKey | CommonKey;
+    messageVariables?: { [key: string]: string | number };
     severity: SnackSeverity;
+}
+
+export type AlertDialogPub = {
+    titleKey?: CommonKey;
+    titleVariables?: { [key: string]: string | number };
+    messageKey?: ErrKey | CommonKey;
+    messageVariables?: { [key: string]: string | number };
+    buttons: {
+        labelKey: CommonKey;
+        labelVariables?: { [key: string]: string | number };
+        onClick?: (() => void);
+    }[];
 }
 
 export class PubSub {
@@ -57,49 +70,49 @@ export class PubSub {
         }
     }
     publishCelebration(duration?: number) {
-        this.publish(Pubs.Celebration, duration);
+        this.publish('Celebration', duration);
     }
     publishCommandPalette() {
-        this.publish(Pubs.CommandPalette);
+        this.publish('CommandPalette');
     }
     publishCookies() {
-        this.publish(Pubs.Cookies);
+        this.publish('Cookies');
     }
     publishFindInPage() {
-        this.publish(Pubs.FindInPage);
+        this.publish('FindInPage');
     }
     /**
      * Notifies graph links to re-render quickly for a period of time
      */
     publishFastUpdate({ on = true, duration = 1000 }: { on?: boolean, duration?: number }) {
-        this.publish(Pubs.FastUpdate, { on, duration });
+        this.publish('FastUpdate', { on, duration });
     }
     /**
      * Pass delay to show spinner if turning on, or false to turn off.
      */
     publishLoading(spinnerDelay: number | false) {
-        this.publish(Pubs.Loading, spinnerDelay);
+        this.publish('Loading', spinnerDelay);
     }
     publishLogOut() {
-        this.publish(Pubs.LogOut);
+        this.publish('LogOut');
     }
-    publishAlertDialog(data: AlertDialogState) {
-        this.publish(Pubs.AlertDialog, data);
+    publishAlertDialog(data: AlertDialogPub) {
+        this.publish('AlertDialog', data);
     }
     publishSession(session: Session | undefined) {
-        this.publish(Pubs.Session, session);
+        this.publish('Session', session);
     }
     publishSnack(data: SnackPub) {
-        this.publish(Pubs.Snack, data);
+        this.publish('Snack', data);
     }
     publishTheme(theme: 'light' | 'dark') {
-        this.publish(Pubs.Theme, theme);
+        this.publish('Theme', theme);
     }
     publishNodeDrag(data: { nodeId: string }) {
-        this.publish(Pubs.NodeDrag, data);
+        this.publish('NodeDrag', data);
     }
     publishNodeDrop(data: { nodeId: string, position: { x: number, y: number } }) {
-        this.publish(Pubs.NodeDrop, data);
+        this.publish('NodeDrop', data);
     }
 
     subscribe(key: Pubs, subscriber: Function): symbol {
@@ -112,43 +125,43 @@ export class PubSub {
         return token;
     }
     subscribeCelebration(subscriber: (duration?: number) => void) {
-        return this.subscribe(Pubs.Celebration, subscriber);
+        return this.subscribe('Celebration', subscriber);
     }
     subscribeCommandPalette(subscriber: () => void) {
-        return this.subscribe(Pubs.CommandPalette, subscriber);
+        return this.subscribe('CommandPalette', subscriber);
     }
     subscribeCookies(subscriber: () => void) {
-        return this.subscribe(Pubs.Cookies, subscriber);
+        return this.subscribe('Cookies', subscriber);
     }
     subscribeFindInPage(subscriber: () => void) {
-        return this.subscribe(Pubs.FindInPage, subscriber);
+        return this.subscribe('FindInPage', subscriber);
     }
     subscribeFastUpdate(subscriber: ({ on, duration }: { on: boolean, duration: number }) => void) {
-        return this.subscribe(Pubs.FastUpdate, subscriber);
+        return this.subscribe('FastUpdate', subscriber);
     }
     subscribeLoading(subscriber: (spinnerDelay: number | false) => void) {
-        return this.subscribe(Pubs.Loading, subscriber);
+        return this.subscribe('Loading', subscriber);
     }
     subscribeLogOut(subscriber: () => void) {
-        return this.subscribe(Pubs.LogOut, subscriber);
+        return this.subscribe('LogOut', subscriber);
     }
-    subscribeAlertDialog(subscriber: (data: AlertDialogState) => void) {
-        return this.subscribe(Pubs.AlertDialog, subscriber);
+    subscribeAlertDialog(subscriber: (data: AlertDialogPub) => void) {
+        return this.subscribe('AlertDialog', subscriber);
     }
     subscribeSession(subscriber: (session: Session | undefined) => void) {
-        return this.subscribe(Pubs.Session, subscriber);
+        return this.subscribe('Session', subscriber);
     }
     subscribeSnack(subscriber: (data: SnackPub) => void) {
-        return this.subscribe(Pubs.Snack, subscriber);
+        return this.subscribe('Snack', subscriber);
     }
     subscribeTheme(subscriber: (theme: 'light' | 'dark') => void) {
-        return this.subscribe(Pubs.Theme, subscriber);
+        return this.subscribe('Theme', subscriber);
     }
     subscribeNodeDrag(subscriber: (data: { nodeId: string }) => void) {
-        return this.subscribe(Pubs.NodeDrag, subscriber);
+        return this.subscribe('NodeDrag', subscriber);
     }
     subscribeNodeDrop(subscriber: (data: { nodeId: string, position: { x: number, y: number } }) => void) {
-        return this.subscribe(Pubs.NodeDrop, subscriber);
+        return this.subscribe('NodeDrop', subscriber);
     }
 
     unsubscribe(token: symbol) {

@@ -10,12 +10,8 @@ import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
 import { logger } from './events/logger';
 import { initializeRedis } from './redisConn';
+import { i18nConfig } from '@shared/translations';
 import i18next from 'i18next';
-import awardLocale from './locales/en/award.json' assert { type: 'json' };
-import commonLocale from './locales/en/common.json' assert { type: 'json' };
-import errorLocale from './locales/en/error.json' assert { type: 'json' };
-import notifyLocale from './locales/en/notify.json' assert { type: 'json' };
-import validateLocale from './locales/en/validate.json' assert { type: 'json' };
 
 const debug = process.env.NODE_ENV === 'development';
 
@@ -28,29 +24,6 @@ const SERVER_URL = process.env.REACT_APP_SERVER_LOCATION === 'local' ?
 const main = async () => {
     logger.info('Starting server...');
 
-    // Setup internationization
-    const defaultNS = 'common';
-    const resources = {
-        en: {
-            award: awardLocale,
-            common: commonLocale,
-            validate: validateLocale,
-            error: errorLocale,
-            notify: notifyLocale,
-        },
-    } as const;
-    await i18next.init({
-        debug,
-        partialBundledLanguages: true,
-        defaultNS,
-        ns: ['common', 'validation', 'errors', 'notifications'],
-        fallbackLng: 'en',
-        resources,
-        backend: {
-            loadPath: './locales/{{lng}}/{{ns}}.json',
-        }
-    });
-
     // Check for required .env variables
     const requiredEnvs = ['REACT_APP_SERVER_LOCATION', 'JWT_SECRET', 'LETSENCRYPT_EMAIL', 'PUSH_NOTIFICATIONS_PUBLIC_KEY', 'PUSH_NOTIFICATIONS_PRIVATE_KEY'];
     for (const env of requiredEnvs) {
@@ -60,6 +33,9 @@ const main = async () => {
             process.exit(1);
         }
     }
+
+    // Initialize translations
+    await i18next.init(i18nConfig(debug));
 
     // Setup databases
     // Prisma

@@ -69,8 +69,6 @@ export interface standards_standards_edges_node {
   tags: standards_standards_edges_node_tags[];
   translations: standards_standards_edges_node_translations[];
   type: string;
-  version: string;
-  versionGroupId: string;
   yup: string | null;
 }
 

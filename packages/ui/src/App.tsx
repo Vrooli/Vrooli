@@ -10,7 +10,7 @@ import {
     SnackSeverity,
     SnackStack,
 } from 'components';
-import { PubSub, themes, useReactHash } from 'utils';
+import { getUserLanguages, PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
@@ -19,7 +19,6 @@ import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import { Session } from 'types';
 import Confetti from 'react-confetti';
-import { CODE } from '@shared/consts';
 import { guestSession } from 'utils/authentication';
 import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
 import { hasErrorCode, mutationWrapper } from 'graphql/utils';
@@ -82,6 +81,7 @@ export function App() {
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
+    const [languages, setLanguages] = useState<string[]>(['en']);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
@@ -170,11 +170,11 @@ export function App() {
     // Detect online/offline status, as well as "This site uses cookies" banner
     useEffect(() => {
         window.addEventListener('online', () => {
-            PubSub.get().publishSnack({ id: 'online-status', message: 'You are now online', severity: SnackSeverity.Success });
+            PubSub.get().publishSnack({ id: 'online-status', messageKey: 'NowOnline', severity: SnackSeverity.Success });
         });
         window.addEventListener('offline', () => {
             // ID is the same so there is ever only one online/offline snack displayed at a time
-            PubSub.get().publishSnack({ autoHideDuration: 'persist', id: 'online-status', message: 'No internet connection', severity: SnackSeverity.Error });
+            PubSub.get().publishSnack({ autoHideDuration: 'persist', id: 'online-status', messageKey: 'NoInternet', severity: SnackSeverity.Error });
         });
         // Check if cookie banner should be shown. This is only a requirement for websites, not standalone apps.
         const cookiePreferences = getCookiePreferences();
@@ -206,20 +206,24 @@ export function App() {
         };
     }, []);
 
-    const checkSession = useCallback((session?: any) => {
+    const checkSession = useCallback((session?: Session) => {
         if (session) {
             setSession(session);
+            setLanguages(getUserLanguages(session));
             return;
         }
         // Check if previous log in exists
         mutationWrapper<validateSession_validateSession, validateSessionVariables>({
             mutation: validateSession,
             input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-            onSuccess: (data) => { setSession(data) },
+            onSuccess: (data) => { 
+                setSession(data);
+                setLanguages(getUserLanguages(data));
+            },
             onError: (error: any) => {
                 let isInvalidSession = false;
                 // Check if error is expired/invalid session
-                if (hasErrorCode(error, CODE.SessionExpired)) {
+                if (hasErrorCode(error, 'SessionExpired')) {
                     isInvalidSession = true;
                     // Log in development mode
                     if (process.env.NODE_ENV === 'development') console.error('Error: failed to verify session', error);
@@ -227,14 +231,17 @@ export function App() {
                 // If error is something else, notify user
                 if (!isInvalidSession) {
                     PubSub.get().publishSnack({
-                        message: 'Failed to connect to server.',
+                        messageKey: 'CannotConnectToServer',
                         severity: SnackSeverity.Error,
-                        buttonText: 'Reload',
+                        buttonKey: 'Reload',
                         buttonClicked: () => window.location.reload(),
                     });
                 }
                 // If not logged in as guest and failed to log in as user, set guest session
-                if (!session) setSession(guestSession)
+                if (!session) {
+                    setSession(guestSession)
+                    setLanguages(getUserLanguages(guestSession));
+                }
             },
         })
     }, [validateSession])
@@ -325,8 +332,8 @@ export function App() {
                             }}
                         />
                     }
-                    <AlertDialog />
-                    <SnackStack />
+                    <AlertDialog languages={languages} />
+                    <SnackStack languages={languages} />
                     <Box id="content-wrap" sx={{
                         background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
                         minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },

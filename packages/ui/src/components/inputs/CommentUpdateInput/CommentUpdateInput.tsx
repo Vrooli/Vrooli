@@ -58,7 +58,7 @@ export const CommentUpdateInput = ({
                     translations: values.translationsUpdate,
                 } as any),
                 successCondition: (data) => data !== null,
-                successMessage: () => 'Comment updated',
+                successMessage: () => ({ key: 'CommentUpdated' }),
                 onSuccess: (data) => {
                     formik.resetForm();
                     onCommentUpdate(data);
