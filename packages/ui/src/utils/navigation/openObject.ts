@@ -8,18 +8,16 @@ import { NavigableObject, SetLocation } from "types";
 import { ResourceType } from "utils/consts";
 import { stringifySearchParams, uuidToBase36 } from "./urlTools";
 
-export enum ObjectType {
-    Comment = 'Comment',
-    Organization = 'Organization',
-    Project = 'Project',
-    Routine = 'Routine',
-    Run = 'Run',
-    Standard = 'Standard',
-    Star = 'Star',
-    Tag = 'Tag',
-    User = 'User',
-    View = 'View',
-}
+export type ObjectType = 'Comment' |
+    'Organization' |
+    'Project' |
+    'Routine' |
+    'Run' |
+    'Standard' |
+    'Star' |
+    'Tag' |
+    'User' |
+    'View';
 
 /**
  * Gets URL base for object type
@@ -28,22 +26,22 @@ export enum ObjectType {
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
     switch (object.__typename) {
-        case ObjectType.Organization:
+        case 'Organization':
             return APP_LINKS.Organization;
-        case ObjectType.Project:
+        case 'Project':
             return APP_LINKS.Project;
-        case ObjectType.Routine:
+        case 'Routine':
             return APP_LINKS.Routine;
-        case ObjectType.Standard:
+        case 'Standard':
             return APP_LINKS.Standard;
-        case ObjectType.User:
+        case 'User':
             return APP_LINKS.Profile;
-        case ObjectType.Star:
-        case ObjectType.View:
+        case 'Star':
+        case 'View':
             return getObjectUrlBase(object.to as any);
-        case ObjectType.Run:
+        case 'Run':
             return getObjectUrlBase({
-                __typename: ObjectType.Routine,
+                __typename: 'Routine',
                 id: object.routine?.id,
             } as any);
         default:
@@ -78,7 +76,7 @@ export const getObjectSlug = (object: NavigableObject): string => {
  */
 export const getObjectSearchParams = (object: any) => {
     // If object is a run
-    if (object.__typename === ObjectType.Run) return stringifySearchParams({ run: uuidToBase36(object.id) });
+    if (object.__typename === 'Run') return stringifySearchParams({ run: uuidToBase36(object.id) });
     return '';
 }
 

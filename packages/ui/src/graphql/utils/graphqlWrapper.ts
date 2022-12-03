@@ -1,13 +1,9 @@
 import { PubSub } from "utils";
 import { DocumentNode } from '@apollo/client';
 import { errorToCode } from './errorParser';
-import { ApolloError } from 'types';
+import { ApolloError, CommonKey, ErrorKey } from 'types';
 import { SnackSeverity } from "components";
 import { initializeApollo } from "./initialize";
-import { TFuncKey } from "i18next";
-
-type ErrKey = TFuncKey<'error', undefined>
-type CommonKey = TFuncKey<'common', undefined>
 
 // Input type wrapped with 'input' key, as all GraphQL inputs follow this pattern. 
 // If you're wondering why, it prevents us from having to define the input fields in 
@@ -26,10 +22,10 @@ interface BaseWrapperProps<Output extends object> {
     onSuccess?: (data: Output) => any;
     // Message displayed on error
     errorMessage?: (response?: ApolloError | Output) => {
-        key: ErrKey | CommonKey;
+        key: ErrorKey | CommonKey;
         variables?: { [key: string]: string | number };
     }
-    // If true, display default error snack. Will not display if error message or data is set
+    // If true, display default error snack. Will not display if error message is set
     showDefaultErrorSnack?: boolean;
     // Callback triggered on error
     onError?: (response: ApolloError) => any;
@@ -83,12 +79,21 @@ export const graphqlWrapperHelper = <Output extends object>({
         if (spinnerDelay) PubSub.get().publishLoading(false);
         // Determine if error caused by bad response, or caught error
         const isApolloError: boolean = data !== undefined && data !== null && data.hasOwnProperty('graphQLErrors');
-        // Determine message to display, if any
+        console.log('wrapper handleerror', JSON.stringify(data), isApolloError)
+        // If specific error message is set, display it
         if (typeof errorMessage === 'function') {
-            PubSub.get().publishSnack({ messageKey: errorToCode(data as ApolloError), severity: SnackSeverity.Error, data });
+            console.log('aaaaaaa')
+            const { key, variables } = errorMessage(data);
+            PubSub.get().publishSnack({ messageKey: key, messageVariables: variables, severity: SnackSeverity.Error, data });
         }
-        // Determine if error callback should be called
+        // Otherwise, if show default error snack is set, display it
+        else if (showDefaultErrorSnack) {
+            console.log('ccccccc')
+            PubSub.get().publishSnack({ messageKey: isApolloError ? errorToCode(data as ApolloError) : 'ErrorUnknown', severity: SnackSeverity.Error, data });
+        }
+        // If error callback is set, call it
         if (typeof onError === 'function') {
+            console.log('bbbbbbb')
             onError(isApolloError ? data as ApolloError : { message: 'Unknown error occurred' });
         }
     }

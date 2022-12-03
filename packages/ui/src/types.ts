@@ -1,5 +1,4 @@
 // Defines common props
-import { findHandles_findHandles } from 'graphql/generated/findHandles';
 import { historyPage_historyPage_activeRuns, historyPage_historyPage_recentlyStarred, historyPage_historyPage_recentlyViewed } from 'graphql/generated/historyPage';
 import { homePage_homePage_organizations, homePage_homePage_projects, homePage_homePage_routines, homePage_homePage_standards, homePage_homePage_users } from 'graphql/generated/homePage';
 import { organization_organization, organization_organization_translations } from 'graphql/generated/organization';
@@ -7,7 +6,7 @@ import { profile_profile, profile_profile_translations, profile_profile_emails, 
 import { project_project, project_project_translations } from 'graphql/generated/project';
 import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { resource_resource, resource_resource_translations } from 'graphql/generated/resource';
-import { routine_routine, routine_routine_inputs, routine_routine_inputs_translations, routine_routine_nodeLinks, routine_routine_nodeLinks_whens, routine_routine_nodeLinks_whens_translations, routine_routine_nodes, routine_routine_nodes_data_NodeEnd, routine_routine_nodes_data_NodeLoop, routine_routine_nodes_data_NodeRoutineList, routine_routine_nodes_data_NodeRoutineList_routines, routine_routine_nodes_data_NodeRoutineList_routines_translations, routine_routine_nodes_translations, routine_routine_outputs, routine_routine_outputs_translations, routine_routine_runs, routine_routine_translations } from 'graphql/generated/routine';
+import { routine_routine, routine_routine_inputs, routine_routine_inputs_translations, routine_routine_nodeLinks, routine_routine_nodeLinks_whens, routine_routine_nodeLinks_whens_translations, routine_routine_nodes, routine_routine_nodes_data_NodeEnd, routine_routine_nodes_data_NodeRoutineList, routine_routine_nodes_data_NodeRoutineList_routines, routine_routine_nodes_data_NodeRoutineList_routines_translations, routine_routine_nodes_translations, routine_routine_outputs, routine_routine_outputs_translations, routine_routine_runs, routine_routine_translations } from 'graphql/generated/routine';
 import { standard_standard, standard_standard_translations } from 'graphql/generated/standard';
 import { tag_tag, tag_tag_translations } from 'graphql/generated/tag';
 import { user_user } from 'graphql/generated/user';
@@ -18,6 +17,8 @@ import { comments_comments_threads } from 'graphql/generated/comments';
 import { run_run_inputs, run_run_steps } from 'graphql/generated/run';
 import { SearchException } from 'graphql/generated/globalTypes';
 import { validateSession_validateSession, validateSession_validateSession_users } from 'graphql/generated/validateSession';
+import { Path } from '@shared/route/src/useLocation';
+import { TFuncKey } from 'i18next';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -52,7 +53,7 @@ export type Comment = comment_comment;
 export type CommentThread = comments_comments_threads;
 export type CommentTranslation = comment_comment_translations;
 export type Email = profile_profile_emails;
-export type Handle = findHandles_findHandles;
+export type Handle = string;
 export type ListOrganization = homePage_homePage_organizations;
 export type ListProject = homePage_homePage_projects;
 export type ListRoutine = homePage_homePage_routines;
@@ -65,7 +66,7 @@ export type Node = routine_routine_nodes;
 export type NodeTranslation = routine_routine_nodes_translations;
 export type NodeDataEnd = routine_routine_nodes_data_NodeEnd;
 export type NodeEnd = Node & { data: NodeDataEnd | null };
-export type NodeDataLoop = routine_routine_nodes_data_NodeLoop;
+export type NodeDataLoop = any;//routine_routine_nodes_data_NodeLoop;
 export type NodeLoop = Node & { data: NodeDataLoop | null };
 export type NodeDataRoutineList = routine_routine_nodes_data_NodeRoutineList;
 export type NodeRoutineList = Node & { data: NodeDataRoutineList | null };
@@ -142,7 +143,6 @@ export interface SubroutineStep extends BaseStep {
     routine: Routine
 }
 export interface RoutineListStep extends BaseStep {
-    routineId: string,
     /**
      * Node's ID if object was created from a node
      */
@@ -215,6 +215,10 @@ export type ApolloError = {
         };
     }[];
 }
+
+// Translations
+export type ErrorKey = TFuncKey<'error', undefined>
+export type CommonKey = TFuncKey<'common', undefined>
 
 // Miscellaneous types
 export type SetLocation = (to: Path, options?: { replace?: boolean }) => void;

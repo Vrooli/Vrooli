@@ -1,5 +1,5 @@
 import { BoxProps, TypographyProps } from "@mui/material";
-import { Project, Routine, Session, Standard } from "types";
+import { CommonKey, Project, Routine, Session, Standard } from "types";
 import { ObjectType } from "utils";
 
 export interface DateDisplayProps extends BoxProps {
@@ -31,8 +31,11 @@ export interface OwnerLabelProps {
 }
 
 export interface PageTitleProps {
-    helpText?: string;
-    title: string;
+    helpKey?: CommonKey;
+    helpVariables?: { [x: string]: string | number };
+    titleKey: CommonKey;
+    titleVariables?: { [x: string]: string | number };
+    session: Session;
     sxs?: { 
         stack?: { [x: string]: any; };
         text?: { [x: string]: any; };

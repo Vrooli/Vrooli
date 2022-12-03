@@ -4,7 +4,7 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { projectCreate as validationSchema, projectTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, parseSearchParams, removeTranslation, shapeProjectCreate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeProjectCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
@@ -132,12 +132,12 @@ export const ProjectCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <PageTitle title="Create Project" />
+                    <PageTitle titleKey='CreateProject' session={session} />
                 </Grid>
                 <Grid item xs={12} mb={4}>
                     <RelationshipButtons
                         isEditing={true}
-                        objectType={ObjectType.Project}
+                        objectType={'Project'}
                         onRelationshipsChange={onRelationshipsChange}
                         relationships={relationships}
                         session={session}

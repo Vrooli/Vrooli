@@ -24,7 +24,6 @@ export type CookiePreferences = {
 
 export const getCookie = <T>(name: Cookies, typeCheck: (value: any) => value is T): T | null => {
     const cookie = localStorage.getItem(name);
-    console.log('get cookie start', name, cookie);
     // Try to parse
     try {
         const parsed = JSON.parse(cookie ?? '');
@@ -51,9 +50,7 @@ export const getCookiePreferences = (): CookiePreferences | null => {
             targeting: true,
         }
     }
-    console.log('get cookie preferences start')
     const cookie = getCookie(Cookies.Preferences, (value: any): value is CookiePreferences => typeof value === 'object');
-    console.log('get cookie preferences cookie', cookie)
     if (!cookie) return null;
     return {
         strictlyNecessary: cookie.strictlyNecessary || true,

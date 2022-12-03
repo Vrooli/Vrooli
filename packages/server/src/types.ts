@@ -1,5 +1,6 @@
 import pkg from '@prisma/client';
 import { SessionUser } from './schema/types';
+import { TFuncKey } from 'i18next';
 
 // Request type
 declare global {
@@ -34,6 +35,10 @@ declare global {
         }
     }
 }
+
+// Translations
+export type ErrorKey = TFuncKey<'error', undefined>
+export type NotifyKey = TFuncKey<'notify', undefined>
 
 /**
  * Prisma type shorthand

@@ -1,173 +1,45 @@
 import { useQuery } from "@apollo/client";
-import { reports, reportsVariables } from "graphql/generated/reports";
+import { reports, reportsVariables, reports_reports_edges_node } from "graphql/generated/reports";
 import { reportsQuery } from "graphql/query";
-import { APP_LINKS } from "@shared/consts";
 import { useMemo } from "react";
 import { Box, useTheme } from "@mui/material";
 import { base36ToUuid, getLastUrlPart } from "utils";
 import { PageTitle } from "components/text";
+import { ReportsViewPageProps } from "pages/view/types";
 
-const helpText =
-    `This page shows all reports for a given object. 
-
-Soon, you will be able to contribute to the discussion by voting and commenting on reports. Once a report receives enough agreement, the object will be updated/deleted.
-
-Currently, only admins have the ability to delete objects. In the future, this will be handled by the community.`;
-
-export const CommentReportsView = (): JSX.Element => {
-    const { loading, error, data } = useReportsQuery(APP_LINKS.Comment, 'commentId');
-
-    if (loading) {
-        return <p>Loading reports...</p>
-    }
-    if (error) {
-        console.error(error);
-        return <p>Error</p>;
-    }
-    if (!data || !data.reports) {
-        return <></>
-    }
-
-    return <>
-        <BaseReportsView data={data} />
-    </>
+/**
+ * Maps object types to the correct id fields
+ */
+const objectTypeToIdField = {
+    'Comment': 'commentId',
+    'Organization': 'organizationId',
+    'Project': 'projectId',
+    'Routine': 'routineId',
+    'Standard': 'standardId',
+    'Tag': 'tagId',
+    'User': 'userId',
 }
 
-export const OrganizationReportsView = (): JSX.Element => {
-    const { loading, error, data } = useReportsQuery(APP_LINKS.Organization, 'organizationId');
-
-    if (loading) {
-        return <p>Loading reports...</p>
-    }
-    if (error) {
-        console.error(error);
-        return <p>Error</p>;
-    }
-    if (!data || !data.reports) {
-        return <></>
-    }
-
-    return <>
-        <BaseReportsView data={data} />
-    </>
-}
-
-export const ProjectReportsView = (): JSX.Element => {
-    const { loading, error, data } = useReportsQuery(APP_LINKS.Project, 'projectId');
-
-    if (loading) {
-        return <p>Loading reports...</p>
-    }
-    if (error) {
-        console.error(error);
-        return <p>Error</p>;
-    }
-    if (!data || !data.reports) {
-        return <></>
-    }
-
-    return <>
-        <BaseReportsView data={data} />
-    </>
-}
-
-export const RoutineReportsView = (): JSX.Element => {
-    const { loading, error, data } = useReportsQuery(APP_LINKS.Routine, 'routineId');
-
-    if (loading) {
-        return <p>Loading reports...</p>
-    }
-    if (error) {
-        console.error(error);
-        return <p>Error</p>;
-    }
-    if (!data || !data.reports) {
-        return <></>
-    }
-
-    return <>
-        <BaseReportsView data={data} />
-    </>
-}
-
-export const StandardReportsView = (): JSX.Element => {
-    const { loading, error, data } = useReportsQuery(APP_LINKS.Standard, 'standardId');
-
-    if (loading) {
-        return <p>Loading reports...</p>
-    }
-    if (error) {
-        console.error(error);
-        return <p>Error</p>;
-    }
-    if (!data || !data.reports) {
-        return <></>
-    }
-
-    return <>
-        <BaseReportsView data={data} />
-    </>
-}
-
-export const TagReportsView = (): JSX.Element => {
-    const { loading, error, data } = useReportsQuery(APP_LINKS.Tag, 'tagId');
-
-    if (loading) {
-        return <p>Loading reports...</p>
-    }
-    if (error) {
-        console.error(error);
-        return <p>Error</p>;
-    }
-    if (!data || !data.reports) {
-        return <></>
-    }
-
-    return <>
-        <BaseReportsView data={data} />
-    </>
-}
-
-export const UserReportsView = (): JSX.Element => {
-    const { loading, error, data } = useReportsQuery(APP_LINKS.User, 'userId');
-
-    if (loading) {
-        return <p>Loading reports...</p>
-    }
-    if (error) {
-        console.error(error);
-        return <p>Error</p>;
-    }
-    if (!data || !data.reports) {
-        return <></>
-    }
-
-    return <>
-        <BaseReportsView data={data} />
-    </>
-}
-
-function useReportsQuery(appLink: string, queryField: string) {
-    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-
-    return useQuery<reports, reportsVariables>(
-        reportsQuery,
-        {
-            variables: {
-                input: { [queryField]: id },
-            },
-        },
-    );
-}
-
-const BaseReportsView = (props: { data: reports }): JSX.Element => {
+export const ReportsView = ({
+    session
+}: ReportsViewPageProps): JSX.Element => {
     const { palette } = useTheme();
-    const edges = props.data.reports.edges;
+    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
+    const objectType = useMemo(() => getLastUrlPart(1), []);
+
+    const { data } = useQuery<reports, reportsVariables>(
+        reportsQuery,
+        { variables: { input: { [objectTypeToIdField[objectType]]: id } } },
+    );
+    const reports = useMemo<reports_reports_edges_node[]>(() => {
+        if (!data) return []
+        return data.reports.edges.map(edge => edge.node);
+    }, [data]);
+
     return (
         <>
-            <PageTitle title='Reports' helpText={helpText} />
-            {edges.map((edge, i) => {
-                const report = edge.node;
+            <PageTitle titleKey='Reports' helpKey='ReportsHelp' session={session} />
+            {reports.map((report, i) => {
                 return <Box
                     key={i}
                     sx={{

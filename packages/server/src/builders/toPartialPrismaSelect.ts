@@ -32,9 +32,11 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     // Handle base case
     const type: GraphQLModelType | undefined = partial?.__typename;
     const formatter: Formatter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
-    if (formatter) {
-        result = removeSupplementalFields(type as GraphQLModelType, result);
+    if (type && formatter) {
+        result = removeSupplementalFields(type, result);
+        console.log('before deconstruct', JSON.stringify(result), '\n\n');
         result = deconstructRelationships(result, formatter.relationshipMap);
+        console.log('after deconstruct', JSON.stringify(result), '\n\n');
         result = addJoinTables(result, formatter.joinMap);
         result = addCountFields(result, formatter.countMap);
     }

@@ -85,6 +85,7 @@ type PrismaUpdateInside = {
 }
 
 export type PrismaUpdate = {
+    id: string;
     [x: string]: boolean | string | number | PrismaUpdateInside
 }
 

@@ -94,7 +94,6 @@ export type AniedModelLogic<GQLObject extends { [x: string]: any }> = ModelLogic
  * a nested ValidateMap
  */
 export type ValidateMap<T> = {
-    // TODO allows too many fields. Should only allow relationships
     [K in keyof T]?: GraphQLModelType | ValidateMap<T[K]>
 };
 

@@ -1,4 +1,4 @@
-import { getTranslation, getUserLanguages, ObjectType, getObjectUrl } from "utils";
+import { getTranslation, getUserLanguages, getObjectUrl } from "utils";
 import { Tooltip, Typography, useTheme } from "@mui/material"
 import { OwnerLabelProps } from "../types";
 import { Comment, Project, Routine, Standard, User } from "types";
@@ -62,7 +62,7 @@ export const OwnerLabel = ({
                 padding: 0,
             }}
         >
-            <Tooltip title={`Press to view ${objectType === ObjectType.Standard ? 'creator' : 'owner'}`}>
+            <Tooltip title={`Press to view ${objectType === 'Standard' ? 'creator' : 'owner'}`}>
                 <Typography
                     variant="body1"
                     sx={{

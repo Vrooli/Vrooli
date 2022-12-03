@@ -1,8 +1,8 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
 import { ReportFor, StarFor } from '@shared/consts';
-import { SvgProps } from 'assets/img/types';
+import { SvgProps } from '@shared/icons';
 import React from 'react';
-import { NavigableObject, Routine, Session } from 'types';
+import { NavigableObject, Routine, Run, Session } from 'types';
 import { Status } from 'utils';
 
 export interface BuildEditButtonsProps {

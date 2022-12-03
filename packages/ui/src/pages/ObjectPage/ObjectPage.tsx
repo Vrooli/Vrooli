@@ -6,7 +6,7 @@ import { APP_LINKS } from "@shared/consts";
 import { lazily } from "react-lazily";
 import { ObjectType, parseSearchParams, PubSub, uuidToBase36 } from "utils";
 import { Organization, Project, Routine, Session, Standard, User } from "types";
-import { CommentReportsView, OrganizationReportsView, PageContainer, ProjectReportsView, RoutineReportsView, SnackSeverity, StandardReportsView, TagReportsView, UserReportsView } from "components";
+import { PageContainer, ReportsView, SnackSeverity } from "components";
 
 const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('../../components/views/Organization'));
 const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('../../components/views/Project'));
@@ -50,63 +50,50 @@ enum PageType {
  * Maps links to object types
  */
 const typeMap: { [key in APP_LINKS]?: ObjectType } = {
-    [APP_LINKS.Organization]: ObjectType.Organization,
-    [APP_LINKS.Project]: ObjectType.Project,
-    [APP_LINKS.Routine]: ObjectType.Routine,
-    [APP_LINKS.Standard]: ObjectType.Standard,
+    [APP_LINKS.Organization]: 'Organization',
+    [APP_LINKS.Project]: 'Project',
+    [APP_LINKS.Routine]: 'Routine',
+    [APP_LINKS.Standard]: 'Standard',
 }
 
 /**
  * Maps object types to dialog titles
  */
 const titleMap: { [key in ObjectType]?: string } = {
-    [ObjectType.Organization]: 'Organization',
-    [ObjectType.Project]: 'Project',
-    [ObjectType.Routine]: 'Routine',
-    [ObjectType.Standard]: 'Standard',
+    'Organization': 'Organization',
+    'Project': 'Project',
+    'Routine': 'Routine',
+    'Standard': 'Standard',
 }
 
 /**
  * Maps object types to create components
  */
 const createMap: { [key in ObjectType]?: (props: CreatePageProps) => JSX.Element } = {
-    [ObjectType.Organization]: OrganizationCreate,
-    [ObjectType.Project]: ProjectCreate,
-    [ObjectType.Routine]: RoutineCreate as any, //TODO
-    [ObjectType.Standard]: StandardCreate as any, //TODO
+    'Organization': OrganizationCreate,
+    'Project': ProjectCreate,
+    'Routine': RoutineCreate as any, //TODO
+    'Standard': StandardCreate as any, //TODO
 }
 
 /**
  * Maps object types to update components
  */
 const updateMap: { [key in ObjectType]?: (props: UpdatePageProps) => JSX.Element } = {
-    [ObjectType.Organization]: OrganizationUpdate,
-    [ObjectType.Project]: ProjectUpdate,
-    [ObjectType.Routine]: RoutineUpdate as any, //TODO
-    [ObjectType.Standard]: StandardUpdate as any, //TODO
+    'Organization': OrganizationUpdate,
+    'Project': ProjectUpdate,
+    'Routine': RoutineUpdate as any, //TODO
+    'Standard': StandardUpdate as any, //TODO
 }
 
 /**
  * Maps object types to view components
  */
 const viewMap: { [key in ObjectType]?: (props: ViewPageProps) => JSX.Element } = {
-    [ObjectType.Organization]: OrganizationView,
-    [ObjectType.Project]: ProjectView,
-    [ObjectType.Routine]: RoutineView as any, //TODO
-    [ObjectType.Standard]: StandardView as any, //TODO
-}
-
-/**
- * Maps object types to reports view components
- */
-const reportsMap: { [key in ObjectType]?: (props: ReportsPageProps) => JSX.Element } = {
-    [ObjectType.Comment]: CommentReportsView,
-    [ObjectType.Organization]: OrganizationReportsView,
-    [ObjectType.Project]: ProjectReportsView,
-    [ObjectType.Routine]: RoutineReportsView,
-    [ObjectType.Standard]: StandardReportsView,
-    [ObjectType.Tag]: TagReportsView,
-    [ObjectType.User]: UserReportsView,
+    'Organization': OrganizationView,
+    'Project': ProjectView,
+    'Routine': RoutineView as any, //TODO
+    'Standard': StandardView as any, //TODO
 }
 
 export const ObjectPage = ({
@@ -187,9 +174,8 @@ export const ObjectPage = ({
             />)
         }
         if (pageType === PageType.Reports) {
-            const Reports = reportsMap[objectType];
             document.title = `Reports | ${titleMap[objectType]}`;
-            return (Reports && <Reports />)
+            return <ReportsView session={session} />
         }
         const View = viewMap[objectType];
         document.title = `View ${titleMap[objectType]}`;

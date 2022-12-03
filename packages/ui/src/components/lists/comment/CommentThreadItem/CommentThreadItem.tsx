@@ -2,7 +2,7 @@ import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@m
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getTranslation, getUserLanguages, ObjectType, PubSub } from 'utils';
+import { displayDate, getTranslation, getUserLanguages, PubSub } from 'utils';
 import { CommentCreateInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
@@ -15,6 +15,7 @@ import { ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { CommentFor } from 'graphql/generated/globalTypes';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
+import { getCurrentUser } from 'utils/authentication';
 
 export function CommentThreadItem({
     data,
@@ -102,7 +103,7 @@ export function CommentThreadItem({
                                 overflow: 'auto',
                             }}>
                                 {objectType && <OwnerLabel
-                                    objectType={objectType as any as ObjectType}
+                                    objectType={objectType}
                                     owner={data?.creator}
                                     session={session}
                                     sxs={{
@@ -111,7 +112,7 @@ export function CommentThreadItem({
                                             fontWeight: 'bold',
                                         }
                                     }} />}
-                                {canEdit && !(data?.creator?.id && data.creator.id === session?.id) && <ListItemText
+                                {canEdit && !(data?.creator?.id && data.creator.id === getCurrentUser(session).id) && <ListItemText
                                     primary={`(Can Edit)`}
                                     sx={{
                                         display: 'flex',
@@ -119,7 +120,7 @@ export function CommentThreadItem({
                                         color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
                                     }}
                                 />}
-                                {data?.creator?.id && data.creator.id === session?.id && <ListItemText
+                                {data?.creator?.id && data.creator.id === getCurrentUser(session).id && <ListItemText
                                     primary={`(You)`}
                                     sx={{
                                         display: 'flex',

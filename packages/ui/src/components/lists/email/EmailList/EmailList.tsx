@@ -12,7 +12,6 @@ import { emailCreateMutation, deleteOneMutation, emailUpdateMutation, sendVerifi
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
 import { emailCreateButton as validationSchema } from '@shared/validation';
-import { DeleteOneType } from '@shared/consts';
 import { emailCreateVariables, emailCreate_emailCreate } from 'graphql/generated/emailCreate';
 import { emailUpdateVariables, emailUpdate_emailUpdate } from 'graphql/generated/emailUpdate';
 import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
@@ -20,6 +19,7 @@ import { sendVerificationEmailVariables, sendVerificationEmail_sendVerificationE
 import { AddIcon } from '@shared/icons';
 import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
+import { DeleteOneType } from '@shared/consts';
 
 export const EmailList = ({
     handleUpdate,

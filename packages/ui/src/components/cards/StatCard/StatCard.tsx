@@ -3,10 +3,12 @@ import {
     CardContent,
     Typography
 } from '@mui/material';
-import { BarGraph, Dimensions } from 'components';
+import { BarGraph } from 'components';
 import { useEffect, useRef, useState } from 'react';
 import { cardRoot } from '../styles';
 import { StatCardProps } from '../types';
+
+type Dimensions = { width: number | undefined, height: number | undefined };
 
 export const StatCard = ({
     title = 'Daily active users',

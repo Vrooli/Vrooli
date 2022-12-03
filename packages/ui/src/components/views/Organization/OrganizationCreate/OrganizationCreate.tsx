@@ -4,7 +4,7 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { organizationCreate as validationSchema, organizationTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { organizationCreateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, parseSearchParams, removeTranslation, shapeOrganizationCreate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeOrganizationCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
@@ -129,12 +129,12 @@ export const OrganizationCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <PageTitle title="Create Organization" />
+                    <PageTitle titleKey='CreateOrganization' session={session} />
                 </Grid>
                 <Grid item xs={12} mb={4}>
                     <RelationshipButtons
                         isEditing={true}
-                        objectType={ObjectType.Organization}
+                        objectType={'Organization'}
                         onRelationshipsChange={onRelationshipsChange}
                         relationships={relationships}
                         session={session}

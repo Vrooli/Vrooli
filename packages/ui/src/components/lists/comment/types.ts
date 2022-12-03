@@ -1,9 +1,8 @@
-import { Comment, CommentThread, NavigableObject } from "types";
-import { ObjectType } from "utils";
+import { Comment, CommentThread, NavigableObject, Session } from "types";
 
 export interface CommentConnectorProps {
     isOpen: boolean;
-    objectType: ObjectType['Project'] | ObjectType['Routine'] | ObjectType['Standard'];
+    parentType: 'Organization' | 'User';
     onToggle: () => void;
 }
 

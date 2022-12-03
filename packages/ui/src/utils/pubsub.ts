@@ -6,8 +6,7 @@
  *      PubSub.get().publishSnack({ messageKey: 'HelloWorld' });
  */
 import { SnackSeverity } from 'components';
-import { Session } from 'types';
-import { TFuncKey } from 'i18next';
+import { CommonKey, ErrorKey, Session } from 'types';
 
 export type Pubs = 'Celebration' | 
     'CommandPalette' |
@@ -23,8 +22,6 @@ export type Pubs = 'Celebration' |
     'NodeDrag' |
     'NodeDrop';
 
-type ErrKey = TFuncKey<'error', undefined>
-type CommonKey = TFuncKey<'common', undefined>
 
 export type SnackPub = {
     autoHideDuration?: number | 'persist';
@@ -36,7 +33,7 @@ export type SnackPub = {
      * If ID is set, a snack with the same ID will be replaced
      */
     id?: string;
-    messageKey: ErrKey | CommonKey;
+    messageKey: ErrorKey | CommonKey;
     messageVariables?: { [key: string]: string | number };
     severity: SnackSeverity;
 }
@@ -44,7 +41,7 @@ export type SnackPub = {
 export type AlertDialogPub = {
     titleKey?: CommonKey;
     titleVariables?: { [key: string]: string | number };
-    messageKey?: ErrKey | CommonKey;
+    messageKey?: ErrorKey | CommonKey;
     messageVariables?: { [key: string]: string | number };
     buttons: {
         labelKey: CommonKey;

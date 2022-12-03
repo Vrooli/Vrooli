@@ -1,7 +1,7 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
 import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, PubSub, runInputsToFormik, standardToFieldData, TagShape, uuidToBase36 } from "utils";
+import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, runInputsToFormik, standardToFieldData, TagShape, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -300,7 +300,7 @@ export const SubroutineView = ({
     //                 {/* Relationships */}
     //                 <RelationshipButtons
     //                     isEditing={false}
-    //                     objectType={ObjectType.Routine}
+    //                     objectType={'Routine'}
     //                     onRelationshipsChange={onRelationshipsChange}
     //                     relationships={relationships}
     //                     session={session}

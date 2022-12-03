@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl } from 'utils';
+import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
@@ -67,7 +67,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
     const handleClick = useCallback((target: EventTarget) => {
         if (!target.id || !target.id.startsWith('list-item-')) return;
         // If data not supplied, don't open
-        if (link.length === 0) return;
+        if (data === null || link.length === 0) return;
         // If beforeNavigation is supplied, call it
         if (beforeNavigation) {
             const shouldContinue = beforeNavigation(data);
@@ -104,12 +104,12 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
-        if (isMobile && ![ObjectType.Organization, ObjectType.User].includes(object?.__typename as any)) return null;
+        if (isMobile && !['Organization', 'User'].includes(object?.__typename as any)) return null;
         // Show icons for organizations and users
         switch (object?.__typename) {
-            case ObjectType.Organization:
-            case ObjectType.User:
-                const Icon: SvgComponent = object?.__typename === ObjectType.Organization ? OrganizationIcon : UserIcon;
+            case 'Organization':
+            case 'User':
+                const Icon: SvgComponent = object?.__typename === 'Organization' ? OrganizationIcon : UserIcon;
                 return (
                     <Box
                         width={isMobile ? '40px' : '50px'}
@@ -132,9 +132,9 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         />
                     </Box>
                 )
-            case ObjectType.Project:
-            case ObjectType.Routine:
-            case ObjectType.Standard:
+            case 'Project':
+            case 'Routine':
+            case 'Standard':
                 return (
                     <UpvoteDownvote
                         disabled={!permissions.canVote}
@@ -157,7 +157,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * the star, comments, and reports buttons.
      */
     const actionButtons = useMemo(() => {
-        const commentableObjects: string[] = [ObjectType.Project, ObjectType.Routine, ObjectType.Standard];
+        const commentableObjects: string[] = ['Project', 'Routine', 'Standard'];
         const reportsCount: number = getListItemReportsCount(object);
         const starFor: StarFor | null = getListItemStarFor(object);
         return (
@@ -187,7 +187,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
                     </Box>}
                 {/* Add upvote/downvote if mobile */}
-                {isMobile && [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(object?.__typename as any) && (
+                {isMobile && ['Project', 'Routine', 'Standard'].includes(object?.__typename as any) && (
                     <UpvoteDownvote
                         direction='row'
                         disabled={!permissions.canVote}
@@ -212,7 +212,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     disabled={!permissions.canComment}
                     object={object}
                 />)}
-                {object?.__typename !== ObjectType.Run && reportsCount > 0 && <ReportsButton
+                {object?.__typename !== 'Run' && reportsCount > 0 && <ReportsButton
                     reportsCount={reportsCount}
                     object={object}
                 />}
@@ -224,7 +224,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * Run list items may get a progress bar
      */
     const progressBar = useMemo(() => {
-        if (!object || object.__typename !== ObjectType.Run) return null;
+        if (!object || object.__typename !== 'Run') return null;
         const completedComplexity = object?.completedComplexity ?? null;
         const totalComplexity = object?.routine?.complexity ?? null;
         const percentComplete = object?.status === RunStatus.Completed ? 100 :

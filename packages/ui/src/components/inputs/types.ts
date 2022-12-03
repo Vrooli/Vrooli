@@ -1,12 +1,12 @@
-import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, UseSwitchProps } from '@mui/material';
+import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
 import { CommentFor } from 'graphql/generated/globalTypes';
-import { ChangeEvent } from 'react';
-import { AutocompleteOption, Comment, Organization, Project, Routine, Session, Standard, Tag } from 'types';
+import { ChangeEvent, FocusEventHandler } from 'react';
+import { AutocompleteOption, Comment, Organization, Project, Routine, Session, Standard, Tag, User } from 'types';
 import { ObjectType, TagShape } from 'utils';
 import { StringSchema } from 'yup';
 
-export interface AutocompleteSearchBarProps extends Omit<SearchBarProps, 'sx'> {
+export type AutocompleteSearchBarProps = Omit<SearchBarProps, 'sx' | 'onChange' | 'onInputChange'> & {
     debounce?: number;
     id?: string;
     loading?: boolean;
@@ -215,7 +215,7 @@ export interface LanguageInputProps {
     zIndex: number;
 }
 
-export interface MarkdownInputProps extends TextFieldProps {
+export type MarkdownInputProps = Omit<TextFieldProps, 'onChange'> & {
     id: string;
     disabled?: boolean;
     error?: boolean;
@@ -228,7 +228,7 @@ export interface MarkdownInputProps extends TextFieldProps {
     sxs?: { bar?: { [x: string]: any }; textArea?: { [x: string]: any } };
 }
 
-export interface PasswordTextFieldProps extends TextFieldProps {
+export type PasswordTextFieldProps = TextFieldProps & {
     autoComplete?: string;
     autoFocus?: boolean;
     error?: boolean;
@@ -242,7 +242,7 @@ export interface PasswordTextFieldProps extends TextFieldProps {
     value: string;
 }
 
-export interface PreviewSwitchProps extends BoxProps {
+export type PreviewSwitchProps = Omit<BoxProps, 'onChange'> & {
     disabled?: boolean;
     isPreviewOn: boolean;
     onChange: (isPreviewOn: boolean) => void;
@@ -295,7 +295,7 @@ export interface RelationshipButtonsProps {
     zIndex: number;
 }
 
-export interface SearchBarProps extends InputProps {
+export type SearchBarProps = InputProps & {
     debounce?: number;
     id?: string;
     placeholder?: string;
@@ -303,7 +303,7 @@ export interface SearchBarProps extends InputProps {
     onChange: (updatedText: string) => any;
 }
 
-export interface SelectorProps<T extends string | number | { [x: string]: any }> extends SelectProps {
+export type SelectorProps<T extends string | number | { [x: string]: any }> = SelectProps & {
     color?: string;
     disabled?: boolean;
     fullWidth?: boolean;
@@ -319,7 +319,7 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     sx?: { [x: string]: any };
 }
 
-export interface StandardSelectSwitchProps extends UseSwitchProps {
+export type StandardSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
     session: Session;
     selected: {
         name: Standard['name']
@@ -343,7 +343,7 @@ export interface ThemeSwitchProps {
     onChange: (theme: 'light' | 'dark') => any;
 }
 
-export interface VersionInputProps extends TextFieldProps {
+export type VersionInputProps = TextFieldProps & {
     autoFocus?: boolean;
     error?: boolean;
     helperText?: string | null | undefined;

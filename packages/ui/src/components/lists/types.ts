@@ -1,10 +1,9 @@
 import { VoteFor } from '@shared/consts';
-import { SearchType } from 'components/dialogs';
-import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, Project, Routine, Session, Standard, Tag } from 'types';
-import { ObjectAction } from 'utils';
+import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, NavigableObject, Session, Tag } from 'types';
+import { ObjectAction, ObjectActionComplete, SearchType } from 'utils';
 
-export type ObjectActionsRowPropsObject = Project | Routine | Standard;
-export interface ObjectActionsRowProps {
+export type ObjectActionsRowObject = ListProject | ListRoutine | ListStandard;
+export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     exclude?: ObjectAction[];
     /**
      * Completed actions, which may require updating state or navigating to a new page

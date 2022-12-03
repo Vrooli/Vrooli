@@ -6,12 +6,7 @@ import React, { useMemo } from 'react';
 // import { AxisLeft, AxisBottom } from '@visx/axis'
 import { BarGraphProps } from '../types';
 
-export interface Dimensions {
-    width: number | undefined;
-    height: number | undefined;
-}
-
-export interface Margins {
+interface Margins {
     top: number;
     bottom: number;
     left: number;
@@ -27,7 +22,6 @@ export const BarGraph = ({
     className,
     data = [],
     dimensions,
-    margins = DEFAULT_MARGINS,
     style,
 }: BarGraphProps) => {
 

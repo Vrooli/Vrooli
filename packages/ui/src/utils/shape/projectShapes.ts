@@ -1,6 +1,6 @@
 import { ProjectCreateInput, ProjectTranslationCreateInput, ProjectTranslationUpdateInput, ProjectUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Project, ProjectTranslation } from "types";
-import { hasObjectChanged, ObjectType, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
+import { hasObjectChanged, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
 import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type ProjectTranslationShape = Omit<ShapeWrapper<ProjectTranslation>, 'language' | 'name'> & {
@@ -47,8 +47,8 @@ export const shapeProjectCreate = (item: ProjectShape): ProjectCreateInput => ({
     isComplete: item.isComplete,
     isPrivate: item.isPrivate,
     parentId: item.parent?.id,
-    createdByUserId: item.owner?.__typename === ObjectType.User ? item.owner.id : undefined,
-    createdByOrganizationId: item.owner?.__typename === ObjectType.Organization ? item.owner.id : undefined,
+    createdByUserId: item.owner?.__typename === 'User' ? item.owner.id : undefined,
+    createdByOrganizationId: item.owner?.__typename === 'Organization' ? item.owner.id : undefined,
     ...shapeCreateList(item, 'translations', shapeProjectTranslationCreate),
     ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
     ...shapeCreateList(item, 'tags', shapeTagCreate),
@@ -63,8 +63,8 @@ export const shapeProjectUpdate = (
         //TODO handle
         isComplete: u.isComplete !== o.isComplete ? u.isComplete : undefined,
         isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
-        userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
-        organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
+        userId: u.owner?.__typename === 'User' ? u.owner.id : undefined,
+        organizationId: u.owner?.__typename === 'Organization' ? u.owner.id : undefined,
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProjectTranslationCreate, shapeProjectTranslationUpdate, 'id'),
         ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
         ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true),

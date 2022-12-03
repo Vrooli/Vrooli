@@ -15,9 +15,6 @@ import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { SettingsFormData } from "pages";
 
-const helpText =
-    `Display preferences customize the look and feel of Vrooli. More customizations will be available in the near future.`
-
 const interestsHelpText =
     `Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.
 
@@ -124,7 +121,7 @@ export const SettingsDisplay = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            <PageTitle title="Display Preferences" helpText={helpText} />
+            <PageTitle titleKey='DisplayPreferences' helpKey='DisplayPreferencesHelp' session={session} />
             <Box id="theme-switch-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <ThemeSwitch
                     theme={formik.values.theme as 'light' | 'dark'}

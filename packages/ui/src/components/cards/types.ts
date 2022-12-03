@@ -1,4 +1,4 @@
-import { Resource } from 'types';
+import { Resource, Session } from 'types';
 
 export interface ResourceCardProps {
     canEdit: boolean;

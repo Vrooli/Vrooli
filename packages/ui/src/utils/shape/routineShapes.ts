@@ -1,6 +1,6 @@
 import { RoutineCreateInput, RoutineTranslationCreateInput, RoutineTranslationUpdateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
 import { Routine, RoutineTranslation, ShapeWrapper } from "types";
-import { hasObjectChanged, InputShape, NodeLinkShape, NodeShape, ObjectType, OutputShape, ResourceListShape, shapeInputCreate, shapeInputUpdate, shapeNodeCreate, shapeNodeUpdate, shapeNodeLinkCreate, shapeNodeLinkUpdate, shapeOutputCreate, shapeOutputUpdate, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
+import { hasObjectChanged, InputShape, NodeLinkShape, NodeShape, OutputShape, ResourceListShape, shapeInputCreate, shapeInputUpdate, shapeNodeCreate, shapeNodeUpdate, shapeNodeLinkCreate, shapeNodeLinkUpdate, shapeOutputCreate, shapeOutputUpdate, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
 import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type RoutineTranslationShape = Omit<ShapeWrapper<RoutineTranslation>, 'language' | 'instructions' | 'title'> & {
@@ -59,8 +59,8 @@ export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
     // version: item.version,TODO
     parentId: item.parent?.id,
     projectId: item.project?.id,
-    createdByUserId: item.owner?.__typename === ObjectType.User ? item.owner.id : undefined,
-    createdByOrganizationId: item.owner?.__typename === ObjectType.Organization ? item.owner.id : undefined,
+    createdByUserId: item.owner?.__typename === 'User' ? item.owner.id : undefined,
+    createdByOrganizationId: item.owner?.__typename === 'Organization' ? item.owner.id : undefined,
     ...shapeCreateList({
         nodes: item.nodes?.map(n => ({ ...n, routineId: item.id }))
     }, 'nodes', shapeNodeCreate),
@@ -84,8 +84,8 @@ export const shapeRoutineUpdate = (
     // version: u.version !== o.version ? u.version : undefined, TODO
     parentId: u.parent?.id !== o.parent?.id ? u.parent?.id : undefined,
     projectId: u.project?.id !== o.project?.id ? u.project?.id : undefined,
-    userId: u.owner?.__typename === ObjectType.User ? u.owner.id : undefined,
-    organizationId: u.owner?.__typename === ObjectType.Organization ? u.owner.id : undefined,
+    userId: u.owner?.__typename === 'User' ? u.owner.id : undefined,
+    organizationId: u.owner?.__typename === 'Organization' ? u.owner.id : undefined,
     ...shapeUpdateList({
         nodes: o.nodes?.map(n => ({ ...n, routineId: o.id }))
     }, {

@@ -1,4 +1,4 @@
-import { Resource, ResourceList } from "types";
+import { Resource, ResourceList, Session } from "types";
 
 export interface ResourceListHorizontalProps {
     title?: string;
@@ -17,7 +17,7 @@ export interface ResourceListVerticalProps {
     handleUpdate?: (updatedList: ResourceList) => void;
     list: ResourceList | null | undefined;
     loading: boolean;
-    session: session
+    session: Session
     mutate: boolean;
     zIndex: number;
 }

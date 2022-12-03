@@ -81,7 +81,6 @@ export function App() {
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
-    const [languages, setLanguages] = useState<string[]>(['en']);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
@@ -209,17 +208,13 @@ export function App() {
     const checkSession = useCallback((session?: Session) => {
         if (session) {
             setSession(session);
-            setLanguages(getUserLanguages(session));
             return;
         }
         // Check if previous log in exists
         mutationWrapper<validateSession_validateSession, validateSessionVariables>({
             mutation: validateSession,
             input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-            onSuccess: (data) => { 
-                setSession(data);
-                setLanguages(getUserLanguages(data));
-            },
+            onSuccess: (data) => { setSession(data) },
             onError: (error: any) => {
                 let isInvalidSession = false;
                 // Check if error is expired/invalid session
@@ -240,7 +235,6 @@ export function App() {
                 // If not logged in as guest and failed to log in as user, set guest session
                 if (!session) {
                     setSession(guestSession)
-                    setLanguages(getUserLanguages(guestSession));
                 }
             },
         })
@@ -332,8 +326,8 @@ export function App() {
                             }}
                         />
                     }
-                    <AlertDialog languages={languages} />
-                    <SnackStack languages={languages} />
+                    <AlertDialog session={session} />
+                    <SnackStack session={session} />
                     <Box id="content-wrap" sx={{
                         background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
                         minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },

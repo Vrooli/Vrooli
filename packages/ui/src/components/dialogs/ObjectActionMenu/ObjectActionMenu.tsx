@@ -8,7 +8,7 @@ import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
-import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, PubSub } from "utils";
+import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { DeleteOneType, ForkType } from "graphql/generated/globalTypes";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
@@ -27,7 +27,7 @@ export const ObjectActionMenu = ({
         availableActions: getAvailableActions(object, session, exclude),
         id: object?.id,
         name: getListItemTitle(object, getUserLanguages(session)),
-        objectType: object?.__typename as ObjectType,
+        objectType: object?.__typename,
     }), [exclude, object, session]);
 
     // States
@@ -56,14 +56,13 @@ export const ObjectActionMenu = ({
     const handleFork = useCallback(() => {
         if (!id) return;
         // Check if objectType can be converted to ForkType
-        const forkType = ForkType[objectType];
-        if (!forkType) {
+        if(!Object.values(ForkType).includes(objectType as ForkType)) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
-            input: { id, intendToPullRequest: true, objectType: forkType },
+            input: { id, intendToPullRequest: true, objectType: objectType as ForkType },
             successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
@@ -129,20 +128,20 @@ export const ObjectActionMenu = ({
     return (
         <>
             {/* Delete routine confirmation dialog */}
-            {id && objectType in DeleteOneType && <DeleteDialog
+            {id && Object.values(DeleteOneType).includes(objectType as DeleteOneType) && <DeleteDialog
                 isOpen={deleteOpen}
                 objectId={id}
-                objectType={objectType as any}
+                objectType={objectType as DeleteOneType}
                 objectName={name}
                 handleClose={closeDelete}
                 zIndex={zIndex + 1}
             />}
             {/* Report dialog */}
-            {id && objectType in ReportFor && <ReportDialog
+            {id && Object.values(ReportFor).includes(objectType as ReportFor) && <ReportDialog
                 forId={id}
                 onClose={closeReport}
                 open={reportOpen}
-                reportFor={objectType as any}
+                reportFor={objectType as ReportFor}
                 session={session}
                 zIndex={zIndex + 1}
             />}

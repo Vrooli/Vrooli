@@ -20,18 +20,6 @@ import { DUMMY_ID, uuid } from '@shared/uuid';
 import { PageTitle, SnackSeverity } from "components";
 import { SettingsFormData } from "pages";
 
-const helpText =
-    `This page allows you to update your profile, including your name, handle, and bio.
-    
-Handles are unique, and handled (pun intended) by the [ADA Handle Protocol](https://adahandle.com/). This allows for handle to be 
-used across many Cardano applications, and exchanged with others on an open market.
-
-To use an ADA Handle, make sure it is in a wallet which is authenticated with your account.
-
-If you set a handle, your Vrooli profile will be accessible via https://app.vrooli.com/profile/{handle}.
-
-Your bio is displayed on your profile page. You may add multiple translations if you'd like.`;
-
 export const SettingsProfile = ({
     onUpdated,
     profile,
@@ -162,7 +150,7 @@ export const SettingsProfile = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            <PageTitle title="Update Profile" helpText={helpText} />
+            <PageTitle titleKey='UpdateProfile' helpKey='UpdateProfileHelp' session={session} />
             <Container sx={{ paddingBottom: 2 }}>
                 <Grid container spacing={2}>
                     <Grid item xs={12}>

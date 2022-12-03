@@ -16,7 +16,7 @@ import { CloseIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, LogOutIcon, PlusIc
 import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
-import { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { profileUpdateVariables, profileUpdate_profileUpdate } from 'graphql/generated/profileUpdate';
 import { useMutation } from '@apollo/client';
@@ -85,16 +85,16 @@ export const AccountMenu = ({
         },
     });
 
-    const handleClose = useCallback(() => {
+    const handleClose = useCallback((event: React.MouseEvent<HTMLElement>) => {
         formik.handleSubmit();
-        onClose();
+        onClose(event);
         closeAdditionalResources();
     }, [closeAdditionalResources, formik, onClose]);
 
     const [switchCurrentAccount] = useMutation(switchCurrentAccountMutation);
-    const handleUserClick = useCallback((user: SessionUser) => {
+    const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
         // Close menu
-        handleClose();
+        handleClose(event);
         // If already selected, go to profile page
         if (userId === user.id) {
             setLocation(APP_LINKS.Profile);
@@ -110,14 +110,14 @@ export const AccountMenu = ({
         }
     }, [handleClose, userId, setLocation, switchCurrentAccount]);
 
-    const handleAddAccount = useCallback(() => {
+    const handleAddAccount = useCallback((event: React.MouseEvent<HTMLElement>) => {
         setLocation(APP_LINKS.Start);
-        handleClose();
+        handleClose(event);
     }, [handleClose, setLocation]);
 
     const [logOut] = useMutation(logOutMutation);
-    const handleLogOut = useCallback(() => {
-        handleClose();
+    const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        handleClose(event);
         const user = getCurrentUser(session);
         mutationWrapper<logOut_logOut, logOutVariables>({
             mutation: logOut,
@@ -130,9 +130,9 @@ export const AccountMenu = ({
         setLocation(APP_LINKS.Home);
     }, [handleClose, session, logOut, setLocation]);
 
-    const handleOpenSettings = useCallback(() => {
+    const handleOpenSettings = useCallback((event: React.MouseEvent<HTMLElement>) => {
         setLocation(APP_LINKS.Settings);
-        handleClose();
+        handleClose(event);
     }, [handleClose, setLocation]);
 
 
@@ -141,7 +141,7 @@ export const AccountMenu = ({
         <ListItem
             button
             key={account.id}
-            onClick={() => handleUserClick(account)}
+            onClick={(event) => handleUserClick(event, account)}
             sx={{
                 background: account.id === userId ? palette.secondary.light : palette.background.default,
             }}
@@ -158,7 +158,7 @@ export const AccountMenu = ({
             anchor="right"
             open={open}
             onOpen={() => { }}
-            onClose={(e) => { handleClose() }}
+            onClose={handleClose}
             sx={{
                 zIndex: 20000,
                 '& .MuiDrawer-paper': {

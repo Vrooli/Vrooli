@@ -16,6 +16,7 @@ import { PartialGraphQLInfo } from "./types";
  * @returns Valid GraphQL object
  */
 export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): GraphQLModel {
+    console.log('modeltographql start');
     // Remove top-level union from partialInfo, if necessary
     // If every key starts with a capital letter, it's a union. 
     // There's a catch-22 here which we must account for. Since "data" has not 

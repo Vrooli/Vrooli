@@ -9,8 +9,8 @@ import { voteVariables, vote_vote } from "graphql/generated/vote";
 import { forkMutation, starMutation, voteMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
 import React, { useCallback, useMemo, useState } from "react";
-import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, PubSub } from "utils";
-import { ObjectActionsRowProps } from "../types";
+import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
+import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
 
 const commonButtonSx = (palette: Palette) => ({
     color: 'inherit',
@@ -28,14 +28,14 @@ const commonIconProps = (palette: Palette) => ({
  * Available icons are same as ObjectActionMenu. Actions that are not available are hidden.
  * If there are more than 5 actions, rest are hidden in an overflow menu (i.e. ObjectActionMenu).
  */
-export const ObjectActionsRow = ({
+export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
     exclude,
     onActionComplete,
     onActionStart,
     object,
     session,
     zIndex,
-}: ObjectActionsRowProps) => {
+}: ObjectActionsRowProps<T>) => {
     const { palette } = useTheme();
 
     const { actionsDisplayed, actionsExtra, id, name, objectType } = useMemo(() => {
@@ -57,7 +57,7 @@ export const ObjectActionsRow = ({
             actionsExtra,
             id: object?.id,
             name: getListItemTitle(object, getUserLanguages(session)),
-            objectType: object?.__typename as ObjectType,
+            objectType: object?.__typename,
         }
     }, [exclude, object, session]);
 
@@ -87,7 +87,7 @@ export const ObjectActionsRow = ({
     const handleFork = useCallback(() => {
         if (!id) return;
         // Check if objectType can be converted to ForkType
-        const forkType = ForkType[objectType];
+        const forkType = objectType ? ForkType[objectType] : undefined;
         if (!forkType) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
@@ -201,20 +201,20 @@ export const ObjectActionsRow = ({
             }}
         >
             {/* Delete routine confirmation dialog */}
-            {id && objectType in DeleteOneType && <DeleteDialog
+            {id && objectType !== undefined && objectType in DeleteOneType && <DeleteDialog
                 isOpen={deleteOpen}
                 objectId={id}
-                objectType={objectType as any}
+                objectType={objectType as DeleteOneType}
                 objectName={name}
                 handleClose={closeDelete}
                 zIndex={zIndex + 1}
             />}
             {/* Report dialog */}
-            {id && objectType in ReportFor && <ReportDialog
+            {id && objectType !== undefined && objectType in ReportFor && <ReportDialog
                 forId={id}
                 onClose={closeReport}
                 open={reportOpen}
-                reportFor={objectType as any}
+                reportFor={objectType as ReportFor}
                 session={session}
                 zIndex={zIndex + 1}
             />}

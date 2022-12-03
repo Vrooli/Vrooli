@@ -18,9 +18,18 @@ export const removeSupplementalFields = (objectType: GraphQLModelType, partial: 
     const supplementer: SupplementalConverter<any, any> | undefined = ObjectMap[objectType]?.format?.supplemental;
     if (!supplementer) return partial;
     // Remove graphQL supplemental fields
+    console.log('before removeSupplementalFields omit', supplementer.graphqlFields, JSON.stringify(partial), '\n\n');
     const withoutGqlSupp = omit(partial, supplementer.graphqlFields);
+    console.log('after removeSupplementalFields omit', JSON.stringify(withoutGqlSupp), '\n\n');
     // Add db supplemental fields
-    const withDbSupp = merge(withoutGqlSupp, supplementer.dbFields);
-    // Return result
-    return withDbSupp;
+    if (supplementer.dbFields) {
+        // For each db supplemental field, add it to the select object with value true
+        const dbSupp = supplementer.dbFields.reduce((acc, curr) => {
+            acc[curr] = true;
+            return acc;
+        }, {} as PartialPrismaSelect);
+        // Merge db supplemental fields with select object
+        return merge(withoutGqlSupp, dbSupp);
+    }
+    return withoutGqlSupp;
 }

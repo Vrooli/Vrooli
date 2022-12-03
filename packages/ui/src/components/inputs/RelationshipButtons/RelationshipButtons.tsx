@@ -5,7 +5,7 @@
 import { Box, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
-import { firstString, getTranslation, getUserLanguages, ObjectType, openObject, PubSub } from 'utils';
+import { firstString, getTranslation, getUserLanguages, openObject, PubSub } from 'utils';
 import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog, RoutineSelectOrCreateDialog, UserSelectDialog } from 'components/dialogs';
 import { Session } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
@@ -23,7 +23,7 @@ import { noSelect } from 'styles';
  */
 export const userFromSession = (session: Session): RelationshipOwner => ({
     __typename: 'User',
-    id: getCurrentUser(session).id,
+    id: getCurrentUser(session).id as string,
     handle: null,
     name: 'Self',
 })
@@ -76,19 +76,19 @@ export function RelationshipButtons({
     // when in edit mode
     const { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable } = useMemo(() => {
         // isComplete available for projects and routines
-        const isCompleteAvailable = [ObjectType.Project, ObjectType.Routine].includes(objectType);
+        const isCompleteAvailable = ['Project', 'Routine'].includes(objectType);
         // Owner available for projects, routines, and standards
-        const isOwnerAvailable = [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(objectType);
+        const isOwnerAvailable = ['Project', 'Routine', 'Standard'].includes(objectType);
         // Roles available for organizations
         //TODO
         // isPrivate always available for now
         const isPrivateAvailable = true;
         // Project available for projects, routines, and standards
-        const isProjectAvailable = [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(objectType);
+        const isProjectAvailable = ['Project', 'Routine', 'Standard'].includes(objectType);
         // Projects (i.e. setting projects assigned to object instead of project object is assigned to) available for organizations and projects
         //TODO
         // Parent available for routines TODO
-        const isParentAvailable = false;//[ObjectType.Routine].includes(objectType);
+        const isParentAvailable = false;//['Routine'].includes(objectType);
         return { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable }
     }, [objectType])
 
@@ -329,14 +329,14 @@ export function RelationshipButtons({
                 zIndex={zIndex + 1}
             />
             {/* Popups for selecting a parent (yours or another) */}
-            {objectType === ObjectType.Routine && <RoutineSelectOrCreateDialog
+            {objectType === 'Routine' && <RoutineSelectOrCreateDialog
                 isOpen={isParentDialogOpen}
                 handleAdd={handleParentRoutineSelect}
                 handleClose={closeParentDialog}
                 session={session}
                 zIndex={zIndex + 1}
             />}
-            {objectType === ObjectType.Project && <ProjectSelectOrCreateDialog
+            {objectType === 'Project' && <ProjectSelectOrCreateDialog
                 isOpen={isParentDialogOpen}
                 handleAdd={handleParentProjectSelect}
                 handleClose={closeParentDialog}

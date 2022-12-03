@@ -70,7 +70,7 @@ export const CommentThread = ({
             {/* Comment connector */}
             <CommentConnector
                 isOpen={isOpen}
-                objectType={data.comment.commentedOn.__typename}
+                parentType={data.comment.creator?.__typename ?? 'User'}
                 onToggle={() => setIsOpen(!isOpen)}
             />
             {/* Comment and child comments */}

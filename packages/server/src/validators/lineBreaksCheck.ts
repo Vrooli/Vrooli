@@ -1,7 +1,6 @@
 import { TFuncKey } from "i18next";
 import { CustomError } from "../events";
-
-type ErrKey = TFuncKey<'error', undefined>
+import { ErrorKey } from "../types";
 
 /**
  * Makes sure there are no more than k line breaks in the specified fields
@@ -11,7 +10,7 @@ type ErrKey = TFuncKey<'error', undefined>
  * @param languages The languages to use for error messages
  * @param k - The maximum number of line breaks allowed
  */
-export const lineBreaksCheck = (input: any, fields: string[], error: ErrKey, languages: string[], k: number = 2): void => {
+export const lineBreaksCheck = (input: any, fields: string[], error: ErrorKey, languages: string[], k: number = 2): void => {
     // First, check translations
     const checkTranslations = (translations: any[], fields: string[]): void => {
         translations.forEach((x: any) => {

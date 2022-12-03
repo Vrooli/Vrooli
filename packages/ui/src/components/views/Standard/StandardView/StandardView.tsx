@@ -7,7 +7,7 @@ import { standardQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, SnackSeverity, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
-import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, PubSub, standardToFieldData, TagShape } from "utils";
+import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, standardToFieldData, TagShape } from "utils";
 import { ResourceList, Standard } from "types";
 import { CommentFor } from "graphql/generated/globalTypes";
 import { uuid, uuidValidate } from '@shared/uuid';
@@ -226,7 +226,7 @@ export const StandardView = ({
     //         {/* Relationships */}
     //         <RelationshipButtons
     //             isEditing={false}
-    //             objectType={ObjectType.Routine}
+    //             objectType={'Routine'}
     //             onRelationshipsChange={onRelationshipsChange}
     //             relationships={relationships}
     //             session={session}

@@ -10,12 +10,12 @@ import { CookiePreferences } from 'utils/cookies';
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
-    onClose: () => void;
+    onClose: (event: React.MouseEvent<HTMLElement>) => void;
     session: Session;
 }
 
 export interface AlertDialogProps {
-    languages: string[];
+    session: Session | undefined;
 }
 
 export interface BaseObjectDialogProps extends DialogProps {

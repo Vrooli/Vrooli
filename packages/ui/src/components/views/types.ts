@@ -2,19 +2,19 @@ import { RelationshipsObject } from "components/inputs/types";
 import React from "react";
 import { DecisionStep, Node, Profile, Routine, Run, Session, User } from "types";
 
-interface CreateProps<T> {
+export interface CreateProps<T> {
     onCancel: () => void;
     onCreated: (item: T) => void;
     session: Session;
     zIndex: number;
 }
-interface UpdateProps<T> {
+export interface UpdateProps<T> {
     onCancel: () => void;
     onUpdated: (item: T) => void;
     session: Session;
     zIndex: number;
 }
-interface ViewProps<T> {
+export interface ViewProps<T> {
     /**
      * Any data about the object which is already known, 
      * such as its name. Can be displayed while fetching the full object

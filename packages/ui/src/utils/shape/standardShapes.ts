@@ -1,6 +1,6 @@
 import { StandardCreateInput, StandardTranslationCreateInput, StandardTranslationUpdateInput, StandardUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Standard, StandardTranslation } from "types";
-import { hasObjectChanged, ObjectType, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
+import { hasObjectChanged, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
 import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type StandardTranslationShape = Omit<ShapeWrapper<StandardTranslation>, 'language' | 'jsonVariable'> & {
@@ -53,8 +53,8 @@ export const shapeStandardCreate = (item: StandardShape): StandardCreateInput =>
     type: item.type,
     // version: item.version,TODO
     // parentId: u.parent?.id, TODO
-    createdByUserId: item.creator?.__typename === ObjectType.User ? item.creator.id : undefined,
-    createdByOrganizationId: item.creator?.__typename === ObjectType.Organization ? item.creator.id : undefined,
+    createdByUserId: item.creator?.__typename === 'User' ? item.creator.id : undefined,
+    createdByOrganizationId: item.creator?.__typename === 'Organization' ? item.creator.id : undefined,
     ...shapeCreateList(item, 'translations', shapeStandardTranslationCreate),
     ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
     ...shapeCreateList(item, 'tags', shapeTagCreate),

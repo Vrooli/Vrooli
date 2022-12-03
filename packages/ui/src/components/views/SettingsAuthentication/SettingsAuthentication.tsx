@@ -20,9 +20,6 @@ import { getCurrentUser, guestSession } from "utils/authentication";
 import { logOutVariables, logOut_logOut } from "graphql/generated/logOut";
 import { SettingsFormData } from "pages";
 
-const helpText =
-    `This page allows you to manage your wallets, emails, and other authentication settings.`;
-
 const walletHelpText =
     `This list contains all of your connected wallets. If a custom name has not been set, 
 the wallet's reward address will be displayed.
@@ -125,7 +122,7 @@ export const SettingsAuthentication = ({
                 session={session}
                 zIndex={100}
             />
-            <PageTitle title="Authentication" helpText={helpText} />
+            <PageTitle titleKey='Authentication' helpKey='AuthenticationHelp' session={session} />
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <WalletIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Connected Wallets</Typography>

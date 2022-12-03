@@ -16,5 +16,6 @@ export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect):
     modified = removeTypenames(modified);
     // Pad every relationship with "select"
     modified = padSelect(modified);
+    console.log('selectHelper end', JSON.stringify(modified), '\n\n');
     return modified as PrismaSelect;
 }

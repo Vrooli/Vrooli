@@ -4,7 +4,7 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { standardCreate as validationSchema, standardTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { standardCreateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, ObjectType, parseSearchParams, removeTranslation, shapeStandardCreate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
@@ -166,12 +166,12 @@ export const StandardCreate = ({
     //     >
     //         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
     //             <Grid item xs={12}>
-    //                 <PageTitle title="Create Standard" />
+    //                 <PageTitle titleKey='CreateStandard' session={session} />
     //             </Grid>
     //             <Grid item xs={12} mb={4}>
     //                 <RelationshipButtons
     //                     isEditing={true}
-    //                     objectType={ObjectType.Standard}
+    //                     objectType={'Standard'}
     //                     onRelationshipsChange={onRelationshipsChange}
     //                     relationships={relationships}
     //                     session={session}

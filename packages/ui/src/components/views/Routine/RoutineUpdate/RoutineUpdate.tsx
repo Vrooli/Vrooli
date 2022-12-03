@@ -8,7 +8,7 @@ import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { routineUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, ObjectType, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceList, Routine } from "types";
@@ -246,13 +246,13 @@ export const RoutineUpdate = ({
     // const formInput = useMemo(() => (
     //     <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
     //         <Grid item xs={12}>
-    //             <PageTitle title="Update Routine" />
+    //             <PageTitle titleKey='UpdateRoutine' session={session} />
     //         </Grid>
     //         <Grid item xs={12} mb={4}>
     //             <RelationshipButtons
     //                 isEditing={true}
     //                 isFormDirty={formik.dirty}
-    //                 objectType={ObjectType.Routine}
+    //                 objectType={'Routine'}
     //                 onRelationshipsChange={onRelationshipsChange}
     //                 relationships={relationships}
     //                 session={session}

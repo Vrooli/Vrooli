@@ -11,6 +11,7 @@ export const getAuthenticatedData = async (
     prisma: PrismaType,
     userData: SessionUser | null,
 ): Promise<{ [id: string]: { __typename: GraphQLModelType, [x: string]: any } }> => {
+    console.log('getAuthenticatedData start', JSON.stringify(idsByType), '\n\n');
     // Initialize the return object
     const authDataById: { [id: string]: { __typename: GraphQLModelType, [x: string]: any } } = {};
     // For every type of object which needs to be authenticated, query for all data required to perform authentication
@@ -31,6 +32,7 @@ export const getAuthenticatedData = async (
             }
         }
     }
+    console.log('getAuthenticatedData end', JSON.stringify(authDataById), '\n\n');
     // Return the data
     return authDataById;
 }

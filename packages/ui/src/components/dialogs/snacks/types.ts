@@ -1,3 +1,4 @@
+import { Session } from 'types';
 import { SnackSeverity } from './BasicSnack/BasicSnack';
 
 export interface BasicSnackProps {
@@ -19,5 +20,5 @@ export interface CookiesSnackProps {
 }
 
 export interface SnackStackProps {
-    languages: string[];
+    session: Session | undefined;
 }

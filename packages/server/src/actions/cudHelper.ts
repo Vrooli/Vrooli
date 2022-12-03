@@ -68,12 +68,16 @@ export async function cudHelper<
     const authDataById = await getAuthenticatedData(idsByType, prisma, userData);
     // Validate permissions
     permissionsCheck(authDataById, idsByAction, userData);
+    console.log("finished permissions check");
     // Max objects check
     maxObjectsCheck(authDataById, idsByAction, prisma, userData);
+    console.log("finished max objects check");
     if (shapedCreate.length > 0) {
         // Perform custom validation
         const deltaAdding = shapedCreate.length - (deleteMany ? deleteMany.length : 0);
+        console.log('going to validate create')
         validator?.validations?.create && await validator.validations.create({ createMany: shapedCreate, languages: userData.languages, prisma, userData, deltaAdding });
+        console.log('validated create');
         for (const data of shapedCreate) {
             // Create
             const select = await prismaDelegate.create({
@@ -81,6 +85,7 @@ export async function cudHelper<
                 ...selectHelper(partialInfo)
             });
             // Convert
+            console.log('created', JSON.stringify(select));
             const converted = modelToGraphQL<GQLObject>(select, partialInfo);
             created.push(converted as any);
         }
@@ -117,6 +122,7 @@ export async function cudHelper<
         // Call onDeleted
         mutater.trigger?.onDeleted && await mutater.trigger.onDeleted({ deleted, prisma, userData });
     }
+    console.log('finished cudHelper');
     return {
         created: createMany ? created : undefined,
         updated: updateMany ? updated : undefined,

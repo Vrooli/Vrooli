@@ -104,6 +104,7 @@ export const RoutineSelectOrCreateDialog = ({
                     background: palette.background.default,
                     margin: { xs: 0, sm: 2, md: 4 },
                     maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    minHeight: { xs: '100vh', sm: 'auto' },
                     display: { xs: 'block', sm: 'inline-block' },
                 },
                 // Remove ::after element that is added to the dialog

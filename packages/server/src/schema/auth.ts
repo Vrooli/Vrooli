@@ -421,7 +421,7 @@ export const resolvers = {
         },
         // Verify that signed message from user wallet has been signed by the correct public address
         walletComplete: async (_parent: undefined, { input }: IWrap<WalletCompleteInput>, { prisma, req, res }: Context, info: GraphQLResolveInfo): Promise<WalletComplete> => {
-            await rateLimit({ info, maxUser: 100, req });;
+            await rateLimit({ info, maxUser: 100, req });
             // Find wallet with public address
             const walletData = await prisma.wallet.findUnique({
                 where: { stakingAddress: input.stakingAddress },
@@ -439,22 +439,23 @@ export const resolvers = {
             if (!walletData)
                 throw new CustomError('0150', 'WalletNotFound', req.languages);
             // If nonce expired, throw error
-            if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION) 
+            if (!walletData.nonce || !walletData.nonceCreationTime || Date.now() - new Date(walletData.nonceCreationTime).getTime() > NONCE_VALID_DURATION)
                 throw new CustomError('0314', 'NonceExpired', req.languages)
             // Verify that message was signed by wallet address
             const walletVerified = verifySignedMessage(input.stakingAddress, walletData.nonce, input.signedPayload);
             if (!walletVerified)
                 throw new CustomError('0151', 'CannotVerifyWallet', req.languages);
             let userId: string | undefined = walletData.user?.id;
-            // If wallet is verified and assigned to another user, throw error
-            // Otherwise, we can take ownership of wallet
-            if (walletData.verified && userId && !req.users?.find(u => u.id === userId)) {
-                throw new CustomError('0152', 'NotYourWallet', req.languages);
-            }
-            // If there are no users in the session, create a new user
             let firstLogIn: boolean = false;
-            if (!Array.isArray(req.users) || req.users.length === 0) {
+            // If you are not signed in
+            if (!req.isLoggedIn) {
+                console.log('wlalet dta', walletData)
+                // Wallet must be verified
+                if (!walletData.verified) {
+                    throw new CustomError('0152', 'NotYourWallet', req.languages);
+                }
                 firstLogIn = true;
+                // Create new user
                 const userData = await prisma.user.create({
                     data: {
                         name: `user${randomString(8)}`,
@@ -466,17 +467,20 @@ export const resolvers = {
                 });
                 userId = userData.id;
             }
-            // Otherwise, connect wallet to first user in session
+            // If you are signed in
             else {
-                userId = req.users[0].id;
-                await prisma.wallet.update({
-                    where: { id: walletData.id },
-                    data: {
-                        user: {
-                            connect: { id: userId }
+                console.log('wwwwalet data', walletData)
+                // If wallet is not verified, link it to your account
+                if (!walletData.verified) {
+                    await prisma.user.update({
+                        where: { id: req.users?.[0].id as string },
+                        data: {
+                            wallets: {
+                                connect: { id: walletData.id }
+                            }
                         }
-                    }
-                })
+                    });
+                }
             }
             // Update wallet and remove nonce data
             const wallet = await prisma.wallet.update({
