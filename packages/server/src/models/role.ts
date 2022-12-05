@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { Role } from "../schema/types";
+import { Role } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { Displayer, Formatter, GraphQLModelType } from "./types";

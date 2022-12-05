@@ -1,0 +1,311 @@
+import { gql } from 'apollo-server-express';
+import { createHelper, updateHelper } from '../actions';
+import { CreateOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
+import { Node, NodeCreateInput, NodeUpdateInput } from './types';
+import { rateLimit } from '../middleware';
+import pkg from '@prisma/client';
+import { resolveUnion } from './resolvers';
+const { NodeType } = pkg;
+
+export const typeDef = gql`
+    enum NodeType {
+        End
+        Redirect
+        RoutineList
+        Start
+    }
+
+    union NodeData = NodeEnd | NodeRoutineList
+
+    input NodeCreateInput {
+        id: ID!
+        columnIndex: Int
+        rowIndex: Int
+        type: NodeType!
+        loopCreate: LoopCreateInput
+        nodeEndCreate: NodeEndCreateInput
+        nodeRoutineListCreate: NodeRoutineListCreateInput
+        routineVersionId: ID!
+        translationsCreate: [NodeTranslationCreateInput!]
+    }
+    input NodeUpdateInput {
+        id: ID!
+        columnIndex: Int
+        rowIndex: Int
+        type: NodeType
+        loopDelete: ID
+        loopCreate: LoopCreateInput
+        loopUpdate: LoopUpdateInput
+        nodeEndCreate: NodeEndCreateInput
+        nodeEndUpdate: NodeEndUpdateInput
+        nodeRoutineListCreate: NodeRoutineListCreateInput
+        nodeRoutineListUpdate: NodeRoutineListUpdateInput
+        routineVersionId: ID
+        translationsDelete: [ID!]
+        translationsCreate: [NodeTranslationCreateInput!]
+        translationsUpdate: [NodeTranslationUpdateInput!]
+    }
+    type Node {
+        id: ID!
+        created_at: Date!
+        updated_at: Date!
+        columnIndex: Int
+        routineId: ID!
+        rowIndex: Int
+        type: NodeType!
+        loop: Loop
+        data: NodeData
+        routine: Routine!
+        translations: [NodeTranslation!]!
+    }
+
+    input NodeTranslationCreateInput {
+        id: ID!
+        language: String!
+        title: String!
+        description: String
+    }
+    input NodeTranslationUpdateInput {
+        id: ID!
+        language: String
+        title: String
+        description: String
+    }
+    type NodeTranslation {
+        id: ID!
+        language: String!
+        title: String!
+        description: String
+    }
+
+    input NodeEndCreateInput {
+        id: ID!
+        wasSuccessful: Boolean
+    }
+    input NodeEndUpdateInput {
+        id: ID!
+        wasSuccessful: Boolean
+    }
+    type NodeEnd {
+        id: ID!
+        wasSuccessful: Boolean!
+    }
+
+    input LoopCreateInput {
+        id: ID!
+        loops: Int
+        maxLoops: Int
+        operation: String
+        whilesCreate: [LoopWhileCreateInput!]!
+    }
+    input LoopUpdateInput {
+        id: ID!
+        loops: Int
+        maxLoops: Int
+        operation: String
+        whilesCreate: [LoopWhileCreateInput!]!
+        whilesUpdate: [LoopWhileUpdateInput!]!
+        whilesDelete: [ID!]
+    }
+    type Loop {
+        id: ID!
+        loops: Int
+        operation: String
+        maxLoops: Int
+        whiles: [LoopWhile!]!
+    }
+
+    input LoopWhileCreateInput {
+        id: ID!
+        translationsCreate: [LoopWhileTranslationCreateInput!]
+        condition: String!
+        toId: ID
+    }
+    input LoopWhileUpdateInput {
+        id: ID!
+        toId: ID
+        translationsDelete: [ID!]
+        translationsCreate: [LoopWhileTranslationCreateInput!]
+        translationsUpdate: [LoopWhileTranslationUpdateInput!]
+        condition: String
+    }
+    type LoopWhile {
+        id: ID!
+        toId: ID
+        translations: [LoopWhileTranslation!]!
+        condition: String!
+    } 
+
+    input LoopWhileTranslationCreateInput {
+        id: ID!
+        language: String!
+        description: String
+        title: String!
+    }
+    input LoopWhileTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+        title: String
+    }
+    type LoopWhileTranslation {
+        id: ID!
+        language: String!
+        description: String
+        title: String!
+    }
+
+    input NodeRoutineListCreateInput {
+        id: ID!
+        isOrdered: Boolean
+        isOptional: Boolean
+        routinesCreate: [NodeRoutineListItemCreateInput!]
+    }
+    input NodeRoutineListUpdateInput {
+        id: ID!
+        isOrdered: Boolean
+        isOptional: Boolean
+        routinesDelete: [ID!]
+        routinesCreate: [NodeRoutineListItemCreateInput!]
+        routinesUpdate: [NodeRoutineListItemUpdateInput!]
+    }
+    type NodeRoutineList {
+        id: ID!
+        isOrdered: Boolean!
+        isOptional: Boolean!
+        routines: [NodeRoutineListItem!]!
+    }
+
+    input NodeRoutineListItemCreateInput {
+        id: ID!
+        index: Int!
+        isOptional: Boolean
+        routineVersionConnect: ID!
+        translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
+    }
+    input NodeRoutineListItemUpdateInput {
+        id: ID!
+        index: Int
+        isOptional: Boolean
+        routineUpdate: RoutineUpdateInput
+        translationsDelete: [ID!]
+        translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
+        translationsUpdate: [NodeRoutineListItemTranslationUpdateInput!]
+    }
+    type NodeRoutineListItem {
+        id: ID!
+        index: Int!
+        isOptional: Boolean!
+        routineVersion: Routine!
+        translations: [NodeRoutineListItemTranslation!]!
+    }
+
+    input NodeRoutineListItemTranslationCreateInput {
+        id: ID!
+        language: String!
+        description: String
+        title: String
+    }
+    input NodeRoutineListItemTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+        title: String
+    }
+    type NodeRoutineListItemTranslation {
+        id: ID!
+        language: String!
+        description: String
+        title: String
+    }
+
+    input NodeLinkCreateInput {
+        id: ID!
+        whens: [NodeLinkWhenCreateInput!]
+        operation: String
+        fromId: ID!
+        toId: ID!
+    }
+    input NodeLinkUpdateInput {
+        id: ID!
+        whensCreate: [NodeLinkWhenCreateInput!]
+        whensUpdate: [NodeLinkWhenUpdateInput!]
+        whensDelete: [ID!]
+        operation: String
+        fromId: ID
+        toId: ID
+    }
+    type NodeLink{
+        id: ID!
+        whens: [NodeLinkWhen!]!
+        operation: String
+        fromId: ID!
+        toId: ID!
+    }
+
+    input NodeLinkWhenCreateInput {
+        id: ID!
+        linkId: ID
+        translationsCreate: [NodeLinkWhenTranslationCreateInput!]
+        condition: String!
+    }
+    input NodeLinkWhenUpdateInput {
+        id: ID!
+        linkId: ID
+        translationsDelete: [ID!]
+        translationsCreate: [NodeLinkWhenTranslationCreateInput!]
+        translationsUpdate: [NodeLinkWhenTranslationUpdateInput!]
+        condition: String
+    }
+    type NodeLinkWhen {
+        id: ID!
+        translations: [NodeLinkWhenTranslation!]!
+        condition: String!
+    } 
+
+    input NodeLinkWhenTranslationCreateInput {
+        id: ID!
+        language: String!
+        description: String
+        title: String!
+    }
+    input NodeLinkWhenTranslationUpdateInput {
+        id: ID!
+        language: String
+        description: String
+        title: String
+    }
+    type NodeLinkWhenTranslation {
+        id: ID!
+        language: String!
+        description: String
+        title: String!
+    }
+
+    extend type Mutation {
+        nodeCreate(input: NodeCreateInput!): Node!
+        nodeUpdate(input: NodeUpdateInput!): Node!
+    }
+`
+const objectType = 'Node';
+export const resolvers: {
+    NodeType: typeof NodeType;
+    NodeData: UnionResolver,
+    Mutation: {
+        nodeCreate: GQLEndpoint<NodeCreateInput, CreateOneResult<Node>>;
+        nodeUpdate: GQLEndpoint<NodeUpdateInput, UpdateOneResult<Node>>;
+    }
+} = {
+    NodeType: NodeType,
+    NodeData: { __resolveType(obj: any) { return resolveUnion(obj) } },
+    Mutation: {
+        nodeCreate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 2000, req });
+            return createHelper({ info, input, objectType, prisma, req })
+        },
+        nodeUpdate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 2000, req });
+            return updateHelper({ info, input, objectType, prisma, req })
+        },
+    }
+}

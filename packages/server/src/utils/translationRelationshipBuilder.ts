@@ -1,6 +1,6 @@
 import { relationshipBuilderHelper } from "../builders";
 import { BuiltRelationship } from "../builders/types";
-import { SessionUser } from "../schema/types";
+import { SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 
 /**

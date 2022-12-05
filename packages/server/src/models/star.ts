@@ -7,8 +7,8 @@ import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
 import { CustomError, Trigger } from "../events";
-import { resolveStarTo } from "../schema/resolvers";
-import { Star, StarSearchInput, StarInput, SessionUser } from "../schema/types";
+import { resolveUnion } from "../endpoints/resolvers";
+import { Star, StarSearchInput, StarInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { readManyHelper } from "../actions";
 import { Displayer, Formatter, GraphQLModelType, Searcher } from "./types";
@@ -39,7 +39,7 @@ const formatter = (): Formatter<Star, 'to'> => ({
                 if (!userData) return new Array(objects.length).fill([]);
                 // Query for data that star is applied to
                 if (isObject(partial.to)) {
-                    const toTypes: GraphQLModelType[] = objects.map(o => resolveStarTo(o.to)).filter(t => t);
+                    const toTypes: GraphQLModelType[] = objects.map(o => resolveUnion(o.to)).filter(t => t);
                     const toIds = objects.map(x => x.to?.id ?? '') as string[];
                     // Group ids by types
                     const toIdsByType: { [x: string]: string[] } = {};

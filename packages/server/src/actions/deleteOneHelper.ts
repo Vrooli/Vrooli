@@ -1,5 +1,5 @@
 import { assertRequestFrom } from "../auth/request";
-import { Success } from "../schema/types";
+import { Success } from "../endpoints/types";
 import { cudHelper } from "./cudHelper";
 import { DeleteOneHelperProps } from "./types";
 

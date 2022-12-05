@@ -10,11 +10,11 @@ import { APP_LINKS } from '@shared/consts';
 import { AutocompleteOption } from 'types';
 import { useLazyQuery } from '@apollo/client';
 import { CommandPaletteProps } from '../types';
-import { homePage, homePageVariables } from 'graphql/generated/homePage';
-import { homePageQuery } from 'graphql/query';
+import { popularQuery } from 'graphql/query';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { uuidValidate } from '@shared/uuid';
+import { popular, popularVariables } from 'graphql/generated/popular';
 
 const helpText =
     `Use this dialog to quickly navigate to other pages.
@@ -65,7 +65,7 @@ export const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const [refetch, { data, loading }] = useLazyQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const [refetch, { data, loading }] = useLazyQuery<popular, popularVariables>(popularQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { open && refetch() }, [open, refetch, searchString]);
 
 
@@ -84,7 +84,7 @@ export const CommandPalette = ({
             });
         }
         // Group all query results and sort by number of stars
-        const flattened = (Object.values(data?.homePage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        const flattened = (Object.values(data?.popular ?? [])).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });

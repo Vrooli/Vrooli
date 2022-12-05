@@ -1,5 +1,5 @@
 import { runInputsCreate, runInputsUpdate } from "@shared/validation";
-import { RunInput, RunInputCreateInput, RunInputUpdateInput } from "../schema/types";
+import { RunInput, RunInputCreateInput, RunInputUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Displayer, Formatter, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";

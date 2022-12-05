@@ -1,4 +1,4 @@
-import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../schema/types";
+import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";

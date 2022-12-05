@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { OutputItem, OutputItemCreateInput, OutputItemUpdateInput } from "../schema/types";
+import { OutputItem, OutputItemCreateInput, OutputItemUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { relBuilderHelper } from "../actions";
 import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";

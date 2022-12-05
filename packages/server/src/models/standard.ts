@@ -7,7 +7,7 @@ import { ViewModel } from "./view";
 import { Displayer, Formatter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from "../schema/types";
+import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
@@ -16,6 +16,7 @@ import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { combineQueries, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { StandardVersionModel } from "./standardVersion";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsStandard' | 'versions';
 const formatter = (): Formatter<Standard, SupplementalFields> => ({
@@ -59,22 +60,22 @@ const formatter = (): Formatter<Standard, SupplementalFields> => ({
 const searcher = (): Searcher<
     StandardSearchInput,
     StandardSortBy,
-    Prisma.standard_versionOrderByWithRelationInput,
-    Prisma.standard_versionWhereInput
+    Prisma.standardOrderByWithRelationInput,
+    Prisma.standardWhereInput
 > => ({
     defaultSort: StandardSortBy.VotesDesc,
     sortMap: {
-        CommentsAsc: { comments: { _count: 'asc' } },
-        CommentsDesc: { comments: { _count: 'desc' } },
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { root: { stars: 'asc' } },
-        StarsDesc: { root: { stars: 'desc' } },
-        VotesAsc: { root: { votes: 'asc' } },
-        VotesDesc: { root: { votes: 'desc' } },
-    },
+        // CommentsAsc: { comments: { _count: 'asc' } },
+        // CommentsDesc: { comments: { _count: 'desc' } },
+        // DateCreatedAsc: { created_at: 'asc' },
+        // DateCreatedDesc: { created_at: 'desc' },
+        // DateUpdatedAsc: { updated_at: 'asc' },
+        // DateUpdatedDesc: { updated_at: 'desc' },
+        // StarsAsc: { root: { stars: 'asc' } },
+        // StarsDesc: { root: { stars: 'desc' } },
+        // VotesAsc: { root: { votes: 'asc' } },
+        // VotesDesc: { root: { votes: 'desc' } },
+    } as any,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
@@ -530,15 +531,24 @@ const mutater = (): Mutater<
 })
 
 const displayer = (): Displayer<
-    Prisma.standard_versionSelect,
-    Prisma.standard_versionGetPayload<{ select: { [K in keyof Required<Prisma.standard_versionSelect>]: true } }>
+    Prisma.standardSelect,
+    Prisma.standardGetPayload<{ select: { [K in keyof Required<Prisma.standardSelect>]: true } }>
 > => ({
-    select: () => ({ id: true, root: { select: { name: true } } }),
-    label: (select) => select.root.name ?? '',
+    select: () => ({ 
+        id: true,
+        versions: {
+            where: { isPrivate: false },
+            orderBy: { versionIndex: 'desc' },
+            take: 1,
+            select: StandardVersionModel.display.select(),
+        }
+    }),
+    label: (select, languages) => select.versions.length > 0 ? 
+        StandardVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 
 export const StandardModel = ({
-    delegate: (prisma: PrismaType) => prisma.standard_version,
+    delegate: (prisma: PrismaType) => prisma.standard,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),

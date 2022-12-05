@@ -1,6 +1,6 @@
 import { GraphQLResolveInfo } from "graphql";
 import { GraphQLModelType, Mutater } from "../models/types";
-import { PageInfo, SessionUser, TimeFrame, VisibilityType } from "../schema/types";
+import { PageInfo, SessionUser, TimeFrame, VisibilityType } from "../endpoints/types";
 import { PrismaType, SingleOrArray } from "../types";
 
 /**

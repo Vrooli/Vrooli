@@ -1,0 +1,122 @@
+import { gql } from 'apollo-server-express';
+import { FindByIdInput, Report, ReportCreateInput, ReportFor, ReportSearchInput, ReportSortBy, ReportUpdateInput } from './types';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { rateLimit } from '../middleware';
+import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+
+export const typeDef = gql`
+    enum ReportFor {
+        ApiVersion
+        Comment
+        Issue
+        Organization
+        Post
+        ProjectVersion
+        RoutineVersion
+        StandardVersion
+        Tag
+        User
+    }   
+
+    enum ReportSortBy {
+        DateCreatedAsc
+        DateCreatedDesc
+    }
+
+    input ReportCreateInput {
+        id: ID!
+        createdFor: ReportFor!
+        createdForId: ID!
+        details: String
+        language: String!
+        reason: String!
+    }
+    input ReportUpdateInput {
+        id: ID!
+        details: String
+        language: String
+        reason: String
+    }
+
+    type Report {
+        id: ID
+        isOwn: Boolean!
+        details: String
+        language: String!
+        reason: String!
+    }
+
+    input ReportSearchInput {
+        userId: ID
+        organizationId: ID
+        projectId: ID
+        routineId: ID
+        standardId: ID
+        tagId: ID
+        ids: [ID!]
+        languages: [String!]
+        sortBy: ReportSortBy
+        createdTimeFrame: TimeFrame
+        updatedTimeFrame: TimeFrame
+        searchString: String
+        after: String
+        take: Int
+    }
+
+    type ReportSearchResult {
+        pageInfo: PageInfo!
+        edges: [ReportEdge!]!
+    }
+
+    type ReportEdge {
+        cursor: String!
+        node: Report!
+    }
+
+    extend type Query {
+        report(input: FindByIdInput!): Report
+        reports(input: ReportSearchInput!): ReportSearchResult!
+    }
+
+    extend type Mutation {
+        reportCreate(input: ReportCreateInput!): Report!
+        reportUpdate(input: ReportUpdateInput!): Report!
+    }
+`
+
+const objectType = 'Report';
+export const resolvers: {
+    ReportFor: typeof ReportFor;
+    ReportSortBy: typeof ReportSortBy;
+    Query: {
+        report: GQLEndpoint<FindByIdInput, FindOneResult<Report>>;
+        reports: GQLEndpoint<ReportSearchInput, FindManyResult<Report>>;
+    },
+    Mutation: {
+        reportCreate: GQLEndpoint<ReportCreateInput, CreateOneResult<Report>>;
+        reportUpdate: GQLEndpoint<ReportUpdateInput, UpdateOneResult<Report>>;
+    }
+} = {
+    ReportFor,
+    ReportSortBy,
+    Query: {
+        report: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return readOneHelper({ info, input, objectType, prisma, req })
+        },
+        reports: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return readManyHelper({ info, input, objectType, prisma, req })
+        },
+    },
+    Mutation: {
+        reportCreate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 500, req });
+            return createHelper({ info, input, objectType, prisma, req })
+        },
+        reportUpdate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return updateHelper({ info, input, objectType, prisma, req })
+        },
+    }
+}

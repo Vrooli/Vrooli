@@ -8,13 +8,13 @@
                 * [migrations](./packages/server/src/db/migrations) - Database version control
                 * [seeds](./packages/server/src/db/seeds) - For populating database with real or "mock" data
                 * [schema.prisma](./packages/server/src/db/schema.prisma) - Defines the database structure
+            * [endpoints](./packages/server/src/schema) - GraphQL schema
+                * [index.ts](./packages/server/src/endpoints/index.ts) - Merges schema files into one executable schema
+                * [root.ts](./packages/server/src/endpoints/root.ts) - Contains core type definitions and resolvers
             * [events](./packages/server/src/events) - Handles tracking awards, triggering notifications, and other event-based actions
             * [middleware](./packages/server/src/middleware) - Express middleware
             * [models](./packages/server/src/models) - Compositional components representing objects in the database
             * [notify](./packages/server/src/notify) - Everything related to notifications. Emailing, push, etc.
-            * [schema](./packages/server/src/schema) - GraphQL schema
-                * [index.ts](./packages/server/src/schema/index.ts) - Merges schema files into one executable schema
-                * [root.ts](./packages/server/src/schema/root.ts) - Contains core type definitions and resolvers
             * [utils](./packages/server/src/utils) - Miscellaneous utility functions
         * [package.json](./packages/server/package.json) - Dependencies and useful scripts
     * [shared](./packages/shared) - Data shared between packages  

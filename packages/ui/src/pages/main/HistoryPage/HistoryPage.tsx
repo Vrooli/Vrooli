@@ -1,8 +1,7 @@
 import { Box, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { historyPage, historyPageVariables } from 'graphql/generated/historyPage';
 import { useQuery } from '@apollo/client';
-import { historyPageQuery } from 'graphql/query';
+import { historyQuery } from 'graphql/query';
 import { AutocompleteSearchBar, ListTitleContainer, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
@@ -11,6 +10,7 @@ import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listT
 import { AutocompleteOption } from 'types';
 import { centeredDiv } from 'styles';
 import { RunStatus } from 'graphql/generated/globalTypes';
+import { history, historyVariables } from 'graphql/generated/history';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 
@@ -46,7 +46,7 @@ export const HistoryPage = ({
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
 
-    const { data, refetch, loading } = useQuery<historyPage, historyPageVariables>(historyPageQuery, { variables: { input: { searchString } }, errorPolicy: 'all' });
+    const { data, refetch, loading } = useQuery<history, historyVariables>(historyQuery, { variables: { input: { searchString } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch]);
 
     // Handle tabs
@@ -60,46 +60,46 @@ export const HistoryPage = ({
 
     const activeRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),
-        items: data?.historyPage?.activeRuns,
+        items: data?.history?.activeRuns,
         keyPrefix: 'active-runs-list-item',
         loading,
         session,
         zIndex,
-    }), [data?.historyPage?.activeRuns, loading, session])
+    }), [data?.history?.activeRuns, loading, session])
 
     const completedRuns = useMemo(() => listToListItems({
         dummyItems: new Array(5).fill('Run'),
-        items: data?.historyPage?.completedRuns,
+        items: data?.history?.completedRuns,
         keyPrefix: 'completed-runs-list-item',
         loading,
         session,
         zIndex,
-    }), [data?.historyPage?.completedRuns, loading, session])
+    }), [data?.history?.completedRuns, loading, session])
 
     const recent = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
-        items: data?.historyPage?.recentlyViewed,
+        items: data?.history?.recentlyViewed,
         keyPrefix: 'recent-list-item',
         loading,
         session,
         zIndex,
-    }), [data?.historyPage?.recentlyViewed, loading, session])
+    }), [data?.history?.recentlyViewed, loading, session])
 
     const starred = useMemo(() => listToListItems({
         dummyItems: ['Organization', 'Project', 'Routine', 'Standard', 'User'],
-        items: data?.historyPage?.recentlyStarred,
+        items: data?.history?.recentlyStarred,
         keyPrefix: 'starred-list-item',
         loading,
         session,
         zIndex,
-    }), [data?.historyPage?.recentlyStarred, loading, session])
+    }), [data?.history?.recentlyStarred, loading, session])
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
-        const flattened = (Object.values(data?.historyPage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        const flattened = (Object.values(data?.history ?? [])).reduce((acc, curr) => acc.concat(curr), []);
         return listToAutocomplete(flattened, languages);
-    }, [data?.historyPage, languages]);
+    }, [data?.history, languages]);
 
     /**
      * When an autocomplete item is selected, navigate to object

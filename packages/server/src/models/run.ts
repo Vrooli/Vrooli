@@ -2,7 +2,7 @@ import { runsCreate, runsUpdate } from "@shared/validation";
 import { RunSortBy } from "@shared/consts";
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
-import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput, SessionUser } from "../schema/types";
+import { Run, RunSearchInput, RunCreateInput, RunUpdateInput, RunPermission, Count, RunCompleteInput, RunCancelInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { OrganizationModel } from "./organization";

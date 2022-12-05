@@ -1,6 +1,6 @@
 import { Request } from "express";
 import { CustomError } from "../events";
-import { Session, SessionUser } from "../schema/types";
+import { Session, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 
 /**

@@ -1,5 +1,5 @@
 import { PrismaType } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission, SessionUser } from "../schema/types";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission, SessionUser } from "../endpoints/types";
 import { organizationsCreate, organizationsUpdate } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { TagModel } from "./tag";

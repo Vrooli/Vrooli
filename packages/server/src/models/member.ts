@@ -1,5 +1,5 @@
 import { PrismaType } from "../types";
-import { Member } from "../schema/types";
+import { Member } from "../endpoints/types";
 import { Displayer, Formatter, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
@@ -26,6 +26,7 @@ const displayer = (): Displayer<
 
 export const MemberModel = ({
     delegate: (prisma: PrismaType) => prisma.member,
+    // TODO needs searcher
     display: displayer(),
     format: formatter(),
     type: 'Member' as GraphQLModelType,

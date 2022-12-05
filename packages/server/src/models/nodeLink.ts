@@ -1,4 +1,4 @@
-import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from "../schema/types";
+import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";

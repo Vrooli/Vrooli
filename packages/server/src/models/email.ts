@@ -1,5 +1,5 @@
 import { emailsCreate, emailsUpdate } from "@shared/validation";
-import { Email, EmailCreateInput, EmailUpdateInput } from "../schema/types";
+import { Email, EmailCreateInput, EmailUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { CustomError, Trigger } from "../events";
 import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";

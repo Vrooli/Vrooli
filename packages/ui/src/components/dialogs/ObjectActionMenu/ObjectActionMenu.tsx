@@ -2,14 +2,14 @@ import { useMutation } from "@apollo/client";
 import { forkVariables, fork_fork } from 'graphql/generated/fork';
 import { starVariables, star_star } from 'graphql/generated/star';
 import { voteVariables, vote_vote } from 'graphql/generated/vote';
-import { forkMutation, starMutation, voteMutation } from "graphql/mutation";
+import { copyMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
 import { mutationWrapper } from "graphql/utils/graphqlWrapper";
 import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
-import { DeleteOneType, ForkType } from "graphql/generated/globalTypes";
+import { DeleteType, CopyType } from "graphql/generated/globalTypes";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
 export const ObjectActionMenu = ({
@@ -49,20 +49,20 @@ export const ObjectActionMenu = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [fork] = useMutation(forkMutation);
+    const [fork] = useMutation(copyMutation);
     const [star] = useMutation(starMutation);
     const [vote] = useMutation(voteMutation);
 
     const handleFork = useCallback(() => {
         if (!id) return;
-        // Check if objectType can be converted to ForkType
-        if(!Object.values(ForkType).includes(objectType as ForkType)) {
+        // Check if objectType can be converted to CopyType
+        if(!Object.values(CopyType).includes(objectType as CopyType)) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper<fork_fork, forkVariables>({
             mutation: fork,
-            input: { id, intendToPullRequest: true, objectType: objectType as ForkType },
+            input: { id, intendToPullRequest: true, objectType: objectType as CopyType },
             successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
@@ -128,10 +128,10 @@ export const ObjectActionMenu = ({
     return (
         <>
             {/* Delete routine confirmation dialog */}
-            {id && Object.values(DeleteOneType).includes(objectType as DeleteOneType) && <DeleteDialog
+            {id && Object.values(DeleteType).includes(objectType as DeleteType) && <DeleteDialog
                 isOpen={deleteOpen}
                 objectId={id}
-                objectType={objectType as DeleteOneType}
+                objectType={objectType as DeleteType}
                 objectName={name}
                 handleClose={closeDelete}
                 zIndex={zIndex + 1}

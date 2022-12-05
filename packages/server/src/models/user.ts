@@ -1,7 +1,7 @@
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
-import { ProfileUpdateInput, User, UserSearchInput } from "../schema/types";
+import { ProfileUpdateInput, User, UserSearchInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Displayer, Mutater } from "./types";
 import { Prisma } from "@prisma/client";

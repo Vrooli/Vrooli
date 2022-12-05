@@ -1,4 +1,4 @@
-import { Node, NodeCreateInput, NodeUpdateInput, SessionUser } from "../schema/types";
+import { Node, NodeCreateInput, NodeUpdateInput, SessionUser } from "../endpoints/types";
 import { nodesCreate, nodesUpdate } from "@shared/validation";
 import { PrismaType } from "../types";
 import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";

@@ -1,5 +1,5 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { DeleteOneType, ForkType, StarFor, VoteFor } from "@shared/consts";
+import { DeleteType, CopyType, StarFor, VoteFor } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
 import { getDelegator, getDisplayer, getLabels, getValidator } from "../getters";
 import { ObjectMap, OrganizationModel } from "../models";
@@ -173,14 +173,14 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     /**
      * NOTE: Unless the object is soft-deleted, this must be called BEFORE the object is deleted.
      */
-    objectDelete: async (owner: Owner, deletedByUserId: string, objectType: DeleteOneType, objectId: string) => {
+    objectDelete: async (owner: Owner, deletedByUserId: string, objectType: DeleteType, objectId: string) => {
         // const notification = Notify(prisma, languages).pushObjectDelete();
         // // Send notification to owner(s) (except for who deleted it)
         // notification.toOwner(owner, deletedByUserId);
         // // Send notification to anyone subscribed to the object
         // notification.toSubscribers(objectType, objectId, deletedByUserId);
     },
-    objectFork: async (owner: Owner, forkedByUserId: string, objectType: ForkType, parentId: string) => {
+    objectCopy: async (owner: Owner, forkedByUserId: string, objectType: CopyType, parentId: string) => {
         // const notification = Notify(prisma, languages).pushObjectFork();
         // // Send notification to owner(s), depending on how many forks the object already has
         // fdfdafdsaf

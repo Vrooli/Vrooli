@@ -19,7 +19,7 @@ import { sendVerificationEmailVariables, sendVerificationEmail_sendVerificationE
 import { AddIcon } from '@shared/icons';
 import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
-import { DeleteOneType } from '@shared/consts';
+import { DeleteType } from '@shared/consts';
 
 export const EmailList = ({
     handleUpdate,
@@ -90,7 +90,7 @@ export const EmailList = ({
                     onClick: () => {
                         mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
                             mutation: deleteMutation,
-                            input: { id: email.id, objectType: DeleteOneType.Email },
+                            input: { id: email.id, objectType: DeleteType.Email },
                             onSuccess: () => {
                                 handleUpdate([...list.filter(w => w.id !== email.id)])
                             },

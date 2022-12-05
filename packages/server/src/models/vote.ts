@@ -1,12 +1,12 @@
 import { VoteFor } from "@shared/consts";
 import { isObject } from "@shared/utils";
 import { CustomError, Trigger } from "../events";
-import { resolveVoteTo } from "../schema/resolvers";
-import { SessionUser, Vote, VoteInput } from "../schema/types";
+import { resolveUnion } from "../endpoints/resolvers";
+import { SessionUser, Vote, VoteInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { readManyHelper } from "../actions";
-import { AniedModelLogic, Displayer, Formatter, GraphQLModelType, ModelLogic } from "./types";
-import { CommentModel, ObjectMap, ProjectModel, RoutineModel, StandardModel } from ".";
+import { Displayer, Formatter, GraphQLModelType } from "./types";
+import { CommentModel, ProjectModel, RoutineModel, StandardModel } from ".";
 import { PartialGraphQLInfo } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
 import { Prisma } from "@prisma/client";
@@ -30,7 +30,7 @@ const formatter = (): Formatter<Vote, 'to'> => ({
                 if (!userData) return new Array(objects.length).fill([]);
                 // Query for data that star is applied to
                 if (isObject(partial.to)) {
-                    const toTypes: GraphQLModelType[] = objects.map(o => resolveVoteTo(o.to)).filter(t => t);
+                    const toTypes: GraphQLModelType[] = objects.map(o => resolveUnion(o.to)).filter(t => t);
                     const toIds = objects.map(x => x.to?.id ?? '') as string[];
                     // Group ids by types
                     const toIdsByType: { [x: string]: string[] } = {};

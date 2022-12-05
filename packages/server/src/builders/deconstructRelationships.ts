@@ -1,6 +1,6 @@
 import { RelationshipMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
-// TODO error in here somewhere. Not deconstructing unions properly
+
 /**
  * Deconstructs a GraphQL object's relationship fields into database fields. It's the opposite of constructRelationships
  * @param data - GraphQL-shaped object

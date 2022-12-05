@@ -1,6 +1,6 @@
 import { CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate } from "@shared/validation";
-import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../schema/types";
+import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";

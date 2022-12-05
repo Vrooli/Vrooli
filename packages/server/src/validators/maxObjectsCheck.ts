@@ -14,7 +14,7 @@
 import { CustomError } from "../events";
 import { getDelegator, getValidator } from "../getters";
 import { GraphQLModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitVisibility } from "../models/types";
-import { SessionUser } from "../schema/types";
+import { SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { QueryAction } from "../utils/types";
 

@@ -7,13 +7,12 @@ import { UserModel } from "./user";
 import { StandardModel } from "./standard";
 import { CustomError } from "../events";
 import { initializeRedis } from "../redisConn";
-import { resolveProjectOrOrganizationOrRoutineOrStandardOrUser } from "../schema/resolvers";
-import { User, ViewSearchInput, Count, SessionUser } from "../schema/types";
+import { resolveUnion } from "../endpoints/resolvers";
+import { User, ViewSearchInput, Count, SessionUser } from "../endpoints/types";
 import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "../actions";
-import { AniedModelLogic, Displayer, Formatter, GraphQLModelType, ModelLogic, Searcher } from "./types";
+import { Displayer, Formatter, GraphQLModelType, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
-import { ObjectMap } from ".";
 import { PartialGraphQLInfo } from "../builders/types";
 import { combineQueries, lowercaseFirstLetter, onlyValidIds, padSelect, timeFrameToPrisma } from "../builders";
 import { getLabels } from "../getters";
@@ -43,7 +42,7 @@ const formatter = (): Formatter<View, 'to'> => ({
                 if (!userData) return new Array(objects.length).fill([]);
                 // Query for data that view is applied to
                 if (isObject(partial.to)) {
-                    const toTypes: GraphQLModelType[] = objects.map(o => resolveProjectOrOrganizationOrRoutineOrStandardOrUser(o.to))
+                    const toTypes: GraphQLModelType[] = objects.map(o => resolveUnion(o.to))
                     const toIds = objects.map(x => x.to?.id ?? '') as string[];
                     // Group ids by types
                     const toIdsByType: { [x: string]: string[] } = {};

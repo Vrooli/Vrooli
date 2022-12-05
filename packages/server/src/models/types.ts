@@ -1,19 +1,23 @@
-import { Count, SessionUser } from "../schema/types";
+import { Count, SessionUser } from "../endpoints/types";
 import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
 import { ArraySchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 
 export type GraphQLModelType =
+    'Api' |
+    'ApiKey' |
+    'ApiVersion' |
     'Comment' |
     'Copy' |
-    'DevelopPageResult' |
+    'DevelopResult' |
     'Email' |
     'Fork' |
     'Handle' |
-    'HistoryPageResult' |
-    'HomePageResult' |
+    'HistoryResult' |
     'InputItem' |
-    'LearnPageResult' |
+    'Issue' |
+    'Label' |
+    'LearnResult' |
     'Member' |
     'Node' |
     'NodeEnd' |
@@ -22,15 +26,24 @@ export type GraphQLModelType =
     'NodeLoop' |
     'NodeRoutineList' |
     'NodeRoutineListItem' |
+    'Note' |
+    'NoteVersion' |
     'Organization' |
     'OutputItem' |
+    'Phone' |
+    'PopularResult' |
+    'Post' |
     'Profile' |
     'Project' |
     'ProjectVersion' |
     'ProjectOrRoutineSearchResult' |
     'ProjectOrOrganizationSearchResult' |
+    'Question' |
+    'QuestionAnswer' |
+    'Reminder' |
+    'ReminderList' |
     'Report' |
-    'ResearchPageResult' |
+    'ResearchResult' |
     'Resource' |
     'ResourceList' |
     'Role' |
@@ -39,6 +52,8 @@ export type GraphQLModelType =
     'RunRoutine' |
     'RunInput' |
     'RunStep' |
+    'SmartContract' |
+    'SmartContractVersion' |
     'Standard' |
     'StandardVersion' |
     'Star' |

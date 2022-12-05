@@ -1,6 +1,6 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { DeleteOneType } from '@shared/consts';
+import { DeleteType } from '@shared/consts';
 import { Comment, NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
 import { ReportFor } from 'graphql/generated/globalTypes';
 import { ListObjectType, SearchType } from 'utils';
@@ -59,7 +59,7 @@ export interface DeleteDialogProps {
     isOpen: boolean;
     objectId: string;
     objectName: string;
-    objectType: DeleteOneType;
+    objectType: DeleteType;
     zIndex: number;
 }
 

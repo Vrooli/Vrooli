@@ -1,4 +1,4 @@
-import { VisibilityType } from "../schema/types";
+import { VisibilityType } from "../endpoints/types";
 import { CountHelperProps } from "./types";
 import { CountInputBase } from "../builders/types";
 import { getUser } from "../auth";

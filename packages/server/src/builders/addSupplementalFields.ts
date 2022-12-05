@@ -1,6 +1,6 @@
 import { ObjectMap } from "../models";
 import { Formatter, GraphQLModelType } from "../models/types";
-import { SessionUser } from "../schema/types";
+import { SessionUser } from "../endpoints/types";
 import { PrismaType, SingleOrArray } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
@@ -60,6 +60,9 @@ export const addSupplementalFields = async (
         // Add each value to objectsById
         for (const v of valuesWithSupplements) {
             objectsById[v.id] = v;
+            // Also add the type to the object, which can be used 
+            // by our union resolver to determine which __typename to use
+            objectsById[v.id].type = type;
         }
     }
     // Convert objectsById dictionary back into shape of data

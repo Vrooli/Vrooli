@@ -1,4 +1,4 @@
-import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from "../schema/types";
+import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";

@@ -1,16 +1,8 @@
 import { Request } from "express";
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, SessionUser, VisibilityType } from "../schema/types";
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, CopyInput, SessionUser, VisibilityType } from "../endpoints/types";
 import { PrismaType, RecursivePartial } from "../types";
 import { AniedModelLogic, GraphQLModelType } from "../models/types";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-
-export type CopyHelperProps<GraphQLModel extends { [x: string]: any}> = {
-    info: GraphQLInfo | PartialGraphQLInfo;
-    input: ForkInput;
-    model: AniedModelLogic<GraphQLModel>;
-    prisma: PrismaType;
-    req: Request;
-}
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
@@ -53,15 +45,15 @@ export type DeleteManyHelperProps = {
 }
 
 export type DeleteOneHelperProps = {
-    input: DeleteOneInput;
+    input: Pick<DeleteOneInput, 'id'>;
     objectType: GraphQLModelType;
     prisma: PrismaType;
     req: Request;
 }
 
-export type ForkHelperProps = {
+export type CopyHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo,
-    input: ForkInput,
+    input: CopyInput,
     objectType: GraphQLModelType,
     prisma: PrismaType,
     req: Request;

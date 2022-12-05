@@ -1,4 +1,4 @@
-import { Count } from "../schema/types";
+import { Count } from "../endpoints/types";
 import { Mutater } from "../models/types";
 import { getAuthenticatedData, getAuthenticatedIds } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";

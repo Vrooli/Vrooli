@@ -8,11 +8,11 @@ import { Resource } from 'types';
 import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
-import { resourceDeleteManyMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { resourceDeleteManyVariables, resourceDeleteMany_resourceDeleteMany } from 'graphql/generated/resourceDeleteMany';
 import { AddIcon } from '@shared/icons';
+import { deleteManyMutation } from 'graphql/mutation';
+import { deleteManyVariables, deleteMany_deleteMany } from 'graphql/generated/deleteMany';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
@@ -46,14 +46,14 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation(deleteManyMutation);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
-            mutationWrapper<resourceDeleteMany_resourceDeleteMany, resourceDeleteManyVariables>({
+            mutationWrapper<deleteMany_deleteMany, deleteManyVariables>({
                 mutation: deleteMutation,
-                input: { ids: [resource.id] },
+                input: { ids: [resource.id], objectType: 'Resource' as any },
                 onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({

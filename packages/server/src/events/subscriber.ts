@@ -1,5 +1,5 @@
 import { getDelegator, getValidator } from "../getters";
-import { SessionUser } from "../schema/types";
+import { SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { CustomError } from "./error";
 

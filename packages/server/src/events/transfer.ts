@@ -1,6 +1,6 @@
 import { getDelegator, getLabels, getValidator } from "../getters";
 import { Notify } from "../notify";
-import { SessionUser } from "../schema/types";
+import { SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { isOwnerAdminCheck } from "../validators";
 import { CustomError } from "./error";

@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { walletsUpdate } from '@shared/validation';
 import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
-import { Wallet, WalletUpdateInput } from "../schema/types";
+import { Wallet, WalletUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { oneIsPublic } from "../utils";
 import { hasProfanity } from "../utils/censor";

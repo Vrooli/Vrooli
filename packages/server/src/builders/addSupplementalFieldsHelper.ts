@@ -1,6 +1,6 @@
 import { ObjectMap } from "../models";
 import { GraphQLModelType, SupplementalConverter } from "../models/types";
-import { SessionUser } from "../schema/types";
+import { SessionUser } from "../endpoints/types";
 import { PrismaType, RecursivePartial } from "../types";
 import { PartialGraphQLInfo } from "./types";
 

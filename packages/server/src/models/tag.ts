@@ -1,7 +1,7 @@
 import { tagsCreate, tagsUpdate } from "@shared/validation";
 import { TagSortBy } from "@shared/consts";
 import { StarModel } from "./star";
-import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, SessionUser } from "../schema/types";
+import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";

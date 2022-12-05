@@ -5,7 +5,7 @@ import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { CustomError, Trigger } from "../events";
-import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy, SessionUser } from "../schema/types";
+import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer, Duplicator } from "./types";
 import { Prisma } from "@prisma/client";
@@ -16,6 +16,7 @@ import { RunModel } from "./run";
 import { PartialGraphQLInfo } from "../builders/types";
 import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { RoutineVersionModel } from "./routineVersion";
 
 type NodeWeightData = {
     simplicity: number,
@@ -862,15 +863,24 @@ const mutater = (): Mutater<
 })
 
 const displayer = (): Displayer<
-    Prisma.routine_versionSelect,
-    Prisma.routine_versionGetPayload<{ select: { [K in keyof Required<Prisma.routine_versionSelect>]: true } }>
+    Prisma.routineSelect,
+    Prisma.routineGetPayload<{ select: { [K in keyof Required<Prisma.routineSelect>]: true } }>
 > => ({
-    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'title', languages),
+    select: () => ({ 
+        id: true,
+        versions: {
+            where: { isPrivate: false },
+            orderBy: { versionIndex: 'desc' },
+            take: 1,
+            select: RoutineVersionModel.display.select(),
+        }
+    }),
+    label: (select, languages) => select.versions.length > 0 ? 
+        RoutineVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 
 export const RoutineModel = ({
-    delegate: (prisma: PrismaType) => prisma.routine_version,
+    delegate: (prisma: PrismaType) => prisma.routine,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),

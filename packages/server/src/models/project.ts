@@ -3,7 +3,7 @@ import { ResourceListUsedFor } from "@shared/consts";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser } from "../schema/types";
+import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
@@ -12,7 +12,8 @@ import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { combineQueries, exceptionsBuilder, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
-import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { ProjectVersionModel } from "./projectVersion";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsProject';
 const formatter = (): Formatter<Project, SupplementalFields> => ({
@@ -280,15 +281,24 @@ const mutater = (): Mutater<
 });
 
 const displayer = (): Displayer<
-    Prisma.project_versionSelect,
-    Prisma.project_versionGetPayload<{ select: { [K in keyof Required<Prisma.project_versionSelect>]: true } }>
+    Prisma.projectSelect,
+    Prisma.projectGetPayload<{ select: { [K in keyof Required<Prisma.projectSelect>]: true } }>
 > => ({
-    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'name', languages),
+    select: () => ({ 
+        id: true,
+        versions: {
+            where: { isPrivate: false },
+            orderBy: { versionIndex: 'desc' },
+            take: 1,
+            select: ProjectVersionModel.display.select(),
+        }
+    }),
+    label: (select, languages) => select.versions.length > 0 ? 
+        ProjectVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 
 export const ProjectModel = ({
-    delegate: (prisma: PrismaType) => prisma.project_version,
+    delegate: (prisma: PrismaType) => prisma.project,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),

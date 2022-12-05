@@ -1,4 +1,4 @@
-import { SessionUser } from "../schema/types";
+import { SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { addSupplementalFields } from "./addSupplementalFields";
 import { PartialGraphQLInfo } from "./types";

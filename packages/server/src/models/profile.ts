@@ -1,5 +1,5 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { Profile, ProfileEmailUpdateInput, SessionUser, Success, UserDeleteInput } from "../schema/types";
+import { Profile, ProfileEmailUpdateInput, SessionUser, Success, UserDeleteInput } from "../endpoints/types";
 import { EmailModel } from "./email";
 import { Request } from "express";
 import { CustomError } from "../events";

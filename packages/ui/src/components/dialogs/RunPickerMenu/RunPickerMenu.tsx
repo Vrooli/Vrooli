@@ -13,7 +13,7 @@ import { runCreateVariables, runCreate_runCreate } from "graphql/generated/runCr
 import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
 import { Run } from "types";
 import { deleteOneVariables, deleteOne_deleteOne } from "graphql/generated/deleteOne";
-import { DeleteOneType } from "@shared/consts";
+import { DeleteType } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStatus } from "graphql/generated/globalTypes";
@@ -75,7 +75,7 @@ export const RunPickerMenu = ({
     const deleteRun = useCallback((run: Run) => {
         mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
             mutation: deleteOne,
-            input: { id: run.id, objectType: DeleteOneType.Run },
+            input: { id: run.id, objectType: DeleteType.Run },
             successCondition: (data) => data.success,
             successMessage: () => ({ key: 'RunDeleted', variables: { runName: displayDate(run.timeStarted) } }),
             onSuccess: (data) => {

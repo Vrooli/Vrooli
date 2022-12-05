@@ -1,9 +1,8 @@
 import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv, linkColors } from 'styles';
-import { homePage, homePageVariables } from 'graphql/generated/homePage';
 import { useQuery } from '@apollo/client';
-import { homePageQuery } from 'graphql/query';
+import { popularQuery } from 'graphql/query';
 import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
@@ -14,6 +13,7 @@ import { AutocompleteOption, NavigableObject } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
+import { popular, popularVariables } from 'graphql/generated/popular';
 
 const faqText =
     `## What is This?
@@ -101,7 +101,7 @@ export const HomePage = ({
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-    const { data, refetch, loading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const { data, refetch, loading } = useQuery<popular, popularVariables>(popularQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch, searchString]);
     const showHistoryTab = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
@@ -132,7 +132,7 @@ export const HomePage = ({
             });
         }
         // Group all query results and sort by number of stars
-        const flattened = (Object.values(data?.homePage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        const flattened = (Object.values(data?.popular ?? [])).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
@@ -215,23 +215,23 @@ export const HomePage = ({
             let dummyType: string = '';
             switch (tab) {
                 case SearchPageTabOption.Organizations:
-                    currentList = data?.homePage?.organizations ?? [];
+                    currentList = data?.popular?.organizations ?? [];
                     dummyType = 'Organization';
                     break;
                 case SearchPageTabOption.Projects:
-                    currentList = data?.homePage?.projects ?? [];
+                    currentList = data?.popular?.projects ?? [];
                     dummyType = 'Project';
                     break;
                 case SearchPageTabOption.Routines:
-                    currentList = data?.homePage?.routines ?? [];
+                    currentList = data?.popular?.routines ?? [];
                     dummyType = 'Routine';
                     break;
                 case SearchPageTabOption.Standards:
-                    currentList = data?.homePage?.standards ?? [];
+                    currentList = data?.popular?.standards ?? [];
                     dummyType = 'Standard';
                     break;
                 case SearchPageTabOption.Users:
-                    currentList = data?.homePage?.users ?? [];
+                    currentList = data?.popular?.users ?? [];
                     dummyType = 'User';
                     break;
             }

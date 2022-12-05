@@ -11,7 +11,7 @@ import { PubSub, updateArray } from 'utils';
 import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
-import { DeleteOneType } from '@shared/consts';
+import { DeleteType } from '@shared/consts';
 import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
 import { walletUpdateVariables, walletUpdate_walletUpdate } from 'graphql/generated/walletUpdate';
 import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
@@ -57,7 +57,7 @@ export const WalletList = ({
                     onClick: () => {
                         mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
                             mutation: deleteMutation,
-                            input: { id: wallet.id, objectType: DeleteOneType.Wallet },
+                            input: { id: wallet.id, objectType: DeleteType.Wallet },
                             onSuccess: () => {
                                 handleUpdate([...list.filter(w => w.id !== wallet.id)])
                             },

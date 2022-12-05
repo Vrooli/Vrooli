@@ -1,6 +1,6 @@
 import { resourceListsCreate, resourceListsUpdate } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
-import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from "../schema/types";
+import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";

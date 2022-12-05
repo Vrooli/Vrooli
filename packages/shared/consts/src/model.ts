@@ -11,7 +11,7 @@
  * If more specific types are needed (e.g. URLs, email addresses, etc.), these 
  * are set using Yup validation checks.
  */
- export enum InputType {
+export enum InputType {
     Checkbox = 'Checkbox',
     Dropzone = 'Dropzone',
     JSON = 'JSON',
@@ -48,24 +48,36 @@ export enum CommentSortBy {
     DateUpdatedAsc = "DateUpdatedAsc",
 }
 
-export enum DeleteOneType {
+export enum DeleteType {
+    Api = "Api",
+    ApiVersion = "ApiVersion",
     Comment = "Comment",
     Email = "Email",
     Node = "Node",
     Organization = "Organization",
     Project = "Project",
+    ProjectVersion = "ProjectVersion",
+    Reminder = "Reminder",
+    ReminderList = "ReminderList",
     Report = "Report",
     Routine = "Routine",
+    RoutineVersion = "RoutineVersion",
     Run = "Run",
+    SmartContract = "SmartContract",
+    SmartContractVersion = "SmartContractVersion",
     Standard = "Standard",
+    StandardVersion = "StandardVersion",
     Wallet = "Wallet",
-} 
+}
 
-export enum ForkType {
+export enum CopyType {
+    ApiVersion = "ApiVersion",
+    NoteVersion = "NoteVersion",
     Organization = "Organization",
-    Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard",
+    ProjectVersion = "ProjectVersion",
+    RoutineVersion = "RoutineVersion",
+    SmartContractVersion = "SmartContractVersion",
+    StandardVersion = "StandardVersion",
 }
 
 export enum OrganizationSortBy {

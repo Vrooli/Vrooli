@@ -1,6 +1,6 @@
 import { stepsCreate, stepsUpdate } from "@shared/validation";
 import { RunStepStatus } from "@shared/consts";
-import { RunStep, RunStepCreateInput, RunStepUpdateInput } from "../schema/types";
+import { RunStep, RunStepCreateInput, RunStepUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Displayer, Formatter, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";

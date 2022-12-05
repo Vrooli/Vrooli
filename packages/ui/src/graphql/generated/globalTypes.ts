@@ -24,24 +24,36 @@ export enum CommentSortBy {
   VotesDesc = "VotesDesc",
 }
 
-export enum DeleteOneType {
+export enum CopyType {
+  ApiVersion = "ApiVersion",
+  NoteVersion = "NoteVersion",
+  Organization = "Organization",
+  ProjectVersion = "ProjectVersion",
+  RoutineVersion = "RoutineVersion",
+  SmartContractVersion = "SmartContractVersion",
+  StandardVersion = "StandardVersion",
+}
+
+export enum DeleteType {
+  Api = "Api",
+  ApiVersion = "ApiVersion",
   Comment = "Comment",
   Email = "Email",
   Node = "Node",
   Organization = "Organization",
   Project = "Project",
+  ProjectVersion = "ProjectVersion",
+  Reminder = "Reminder",
+  ReminderList = "ReminderList",
   Report = "Report",
   Routine = "Routine",
+  RoutineVersion = "RoutineVersion",
   Run = "Run",
+  SmartContract = "SmartContract",
+  SmartContractVersion = "SmartContractVersion",
   Standard = "Standard",
+  StandardVersion = "StandardVersion",
   Wallet = "Wallet",
-}
-
-export enum ForkType {
-  Organization = "Organization",
-  Project = "Project",
-  Routine = "Routine",
-  Standard = "Standard",
 }
 
 export enum NodeType {
@@ -104,11 +116,14 @@ export enum ProjectSortBy {
 }
 
 export enum ReportFor {
+  ApiVersion = "ApiVersion",
   Comment = "Comment",
+  Issue = "Issue",
   Organization = "Organization",
-  Project = "Project",
-  Routine = "Routine",
-  Standard = "Standard",
+  Post = "Post",
+  ProjectVersion = "ProjectVersion",
+  RoutineVersion = "RoutineVersion",
+  StandardVersion = "StandardVersion",
   Tag = "Tag",
   User = "User",
 }
@@ -312,13 +327,20 @@ export interface CommentUpdateInput {
   translationsUpdate?: CommentTranslationUpdateInput[] | null;
 }
 
+export interface CopyInput {
+  id: string;
+  intendToPullRequest: boolean;
+  objectType: CopyType;
+}
+
 export interface DeleteManyInput {
   ids: string[];
+  objectType: DeleteType;
 }
 
 export interface DeleteOneInput {
   id: string;
-  objectType: DeleteOneType;
+  objectType: DeleteType;
 }
 
 export interface EmailCreateInput {
@@ -381,18 +403,7 @@ export interface FindHandlesInput {
   organizationId?: string | null;
 }
 
-export interface ForkInput {
-  id: string;
-  intendToPullRequest: boolean;
-  objectType: ForkType;
-}
-
-export interface HistoryPageInput {
-  searchString: string;
-  take?: number | null;
-}
-
-export interface HomePageInput {
+export interface HistoryInput {
   searchString: string;
   take?: number | null;
 }
@@ -635,11 +646,6 @@ export interface NodeUpdateInput {
   translationsUpdate?: NodeTranslationUpdateInput[] | null;
 }
 
-export interface OrganizationCountInput {
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-}
-
 export interface OrganizationCreateInput {
   id: string;
   handle?: string | null;
@@ -742,6 +748,11 @@ export interface OutputItemUpdateInput {
   translationsUpdate?: OutputItemTranslationUpdateInput[] | null;
 }
 
+export interface PopularInput {
+  searchString: string;
+  take?: number | null;
+}
+
 export interface ProfileEmailUpdateInput {
   emailsCreate?: EmailCreateInput[] | null;
   emailsUpdate?: EmailUpdateInput[] | null;
@@ -766,11 +777,6 @@ export interface ProfileUpdateInput {
   translationsDelete?: string[] | null;
   translationsCreate?: UserTranslationCreateInput[] | null;
   translationsUpdate?: UserTranslationUpdateInput[] | null;
-}
-
-export interface ProjectCountInput {
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface ProjectCreateInput {
@@ -945,11 +951,6 @@ export interface ReportUpdateInput {
   reason?: string | null;
 }
 
-export interface ResourceCountInput {
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-}
-
 export interface ResourceCreateInput {
   id: string;
   listId: string;
@@ -1062,11 +1063,6 @@ export interface RoleUpdateInput {
   translationsDelete?: string[] | null;
   translationsCreate?: RoleTranslationCreateInput[] | null;
   translationsUpdate?: RoleTranslationUpdateInput[] | null;
-}
-
-export interface RoutineCountInput {
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface RoutineCreateInput {
@@ -1190,11 +1186,6 @@ export interface RunCompleteInput {
   wasSuccessful?: boolean | null;
 }
 
-export interface RunCountInput {
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-}
-
 export interface RunCreateInput {
   id: string;
   isPrivate?: boolean | null;
@@ -1281,11 +1272,6 @@ export interface SearchException {
 
 export interface SendVerificationEmailInput {
   emailAddress: string;
-}
-
-export interface StandardCountInput {
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
 }
 
 export interface StandardCreateInput {
@@ -1384,11 +1370,6 @@ export interface SwitchCurrentAccountInput {
   id: string;
 }
 
-export interface TagCountInput {
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-}
-
 export interface TagCreateInput {
   anonymous?: boolean | null;
   tag: string;
@@ -1453,11 +1434,6 @@ export interface TranslateInput {
   languageTarget: string;
 }
 
-export interface UserCountInput {
-  createdTimeFrame?: TimeFrame | null;
-  updatedTimeFrame?: TimeFrame | null;
-}
-
 export interface UserDeleteInput {
   password: string;
   deletePublicData: boolean;
@@ -1496,7 +1472,7 @@ export interface UserTranslationUpdateInput {
 }
 
 export interface ValidateSessionInput {
-  timeZone?: string | null;
+  timeZone: string;
 }
 
 export interface ViewSearchInput {

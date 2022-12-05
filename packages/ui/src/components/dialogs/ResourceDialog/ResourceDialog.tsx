@@ -15,8 +15,8 @@ import { AutocompleteOption, Resource } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
-import { homePage, homePageVariables } from 'graphql/generated/homePage';
-import { homePageQuery } from 'graphql/query';
+import { popularQuery } from 'graphql/query';
+import { popular, popularVariables } from 'graphql/generated/popular';
 
 const helpText =
     `## What are resources?
@@ -185,12 +185,12 @@ export const ResourceDialog = ({
     const closeSearch = useCallback(() => {
         setSearchOpen(false)
     }, []);
-    const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<popular, popularVariables>(popularQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { open && refetchSearch() }, [open, refetchSearch, searchString]);
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
         // Group all query results and sort by number of stars
-        const flattened = (Object.values(searchData?.homePage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        const flattened = (Object.values(searchData?.popular ?? [])).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });

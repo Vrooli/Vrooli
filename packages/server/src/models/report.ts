@@ -1,6 +1,6 @@
 import { reportsCreate, reportsUpdate } from "@shared/validation";
 import { ReportFor, ReportSortBy } from '@shared/consts';
-import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
+import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";

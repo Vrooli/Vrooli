@@ -6,7 +6,7 @@ import { displayDate, getTranslation, getUserLanguages, PubSub } from 'utils';
 import { CommentCreateInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
-import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@shared/consts';
+import { DeleteType, ReportFor, StarFor, VoteFor } from '@shared/consts';
 import { deleteOneMutation } from 'graphql/mutation';
 import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
 import { OwnerLabel } from 'components/text';
@@ -54,7 +54,7 @@ export function CommentThreadItem({
                     labelKey: 'Yes', onClick: () => {
                         mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
                             mutation: deleteMutation,
-                            input: { id: data.id, objectType: DeleteOneType.Comment },
+                            input: { id: data.id, objectType: DeleteType.Comment },
                             successCondition: (data) => data.success,
                             successMessage: () => ({ key: 'CommentDeleted' }),
                             onSuccess: () => {

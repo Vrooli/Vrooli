@@ -20,7 +20,7 @@
         "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "start-production": "yarn build && node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
-        "graphql-generate": "graphql-codegen && mv generatedTypes.ts src/schema/types.ts"
+        "graphql-generate": "graphql-codegen && mv generatedTypes.ts src/endpoints/types.ts"
     },
     "dependencies": {
         "@blockfrost/blockfrost-js": "^4.1.0",

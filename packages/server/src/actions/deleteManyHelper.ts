@@ -1,6 +1,6 @@
 import { assertRequestFrom } from "../auth/request";
 import { CustomError } from "../events";
-import { Count } from "../schema/types";
+import { Count } from "../endpoints/types";
 import { cudHelper } from "./cudHelper";
 import { DeleteManyHelperProps } from "./types";
 
