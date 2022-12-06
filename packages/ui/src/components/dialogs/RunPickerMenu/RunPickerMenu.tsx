@@ -9,8 +9,8 @@ import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
 import { base36ToUuid, getRunPercentComplete, parseSearchParams, PubSub } from "utils";
 import { useMutation } from "@apollo/client";
-import { runCreateVariables, runCreate_runCreate } from "graphql/generated/runCreate";
-import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
+import { runRoutineCreateVariables, runRoutineCreate_runRoutineCreate } from "graphql/generated/runRoutineCreate";
+import { deleteOneMutation, runRoutineCreateMutation } from "graphql/mutation";
 import { Run } from "types";
 import { deleteOneVariables, deleteOne_deleteOne } from "graphql/generated/deleteOne";
 import { DeleteType } from "@shared/consts";
@@ -47,13 +47,13 @@ export const RunPickerMenu = ({
         }
     }, [routine, onSelect, handleClose]);
 
-    const [runCreate] = useMutation(runCreateMutation);
+    const [runCreate] = useMutation(runRoutineCreateMutation);
     const createNewRun = useCallback(() => {
         if (!routine) {
             PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper<runCreate_runCreate, runCreateVariables>({
+        mutationWrapper<runRoutineCreate_runRoutineCreate, runRoutineCreateVariables>({
             mutation: runCreate,
             input: {
                 // id: uuid(),

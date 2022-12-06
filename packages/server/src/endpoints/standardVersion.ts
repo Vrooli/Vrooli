@@ -8,14 +8,16 @@ export const typeDef = gql`
     enum StandardVersionSortBy {
         CommentsAsc
         CommentsDesc
+        DirectoryListingsAsc
+        DirectoryListingsDesc
+        ForksAsc
+        ForksDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
-        VotesAsc
-        VotesDesc
+        ReportsAsc
+        ReportsDesc
     }
 
     input StandardVersionCreateInput {

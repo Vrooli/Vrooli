@@ -6,12 +6,16 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum QuestionAnswerSortBy {
+        CommentsAsc
+        CommentsDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
         StarsAsc
         StarsDesc
+        VotesAsc
+        VotesDesc
     }
 
     input QuestionAnswerCreateInput {

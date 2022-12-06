@@ -10,11 +10,13 @@ import { profileQuery } from 'graphql/query';
 import { SettingsAuthentication } from 'components/views/SettingsAuthentication/SettingsAuthentication';
 import { SettingsDisplay } from 'components/views/SettingsDisplay/SettingsDisplay';
 import { SettingsNotifications } from 'components/views/SettingsNotifications/SettingsNotifications';
-import { useReactSearch, useWindowSize } from 'utils';
+import { getUserLanguages, useReactSearch, useWindowSize } from 'utils';
 import { ExpandLessIcon, ExpandMoreIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ProfileIcon, SvgComponent } from '@shared/icons';
 import { PageContainer, SearchBar } from 'components';
 import { getCurrentUser } from 'utils/authentication';
 import { noSelect } from 'styles';
+import { CommonKey } from 'types';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Describes a settings page button
@@ -27,7 +29,7 @@ export interface SettingsFormItemData {
 /**
  * Describes a settings page form for the search bar
  */
-export interface SettingsFormData { 
+export interface SettingsFormData {
     labels: string[];
     items: SettingsFormItemData[];
 }
@@ -35,29 +37,26 @@ export interface SettingsFormData {
 /**
  * All settings forms. Same as their route names.
  */
-enum SettingsForm {
-    Profile = 'profile',
-    Display = 'display',
-    Notifications = 'notifications',
-    Authentication = 'authentication',
-}
+type SettingsForm = 'profile' | 'display' | 'notifications' | 'authentication';
 
-const settingPages: { [x: string]: [SettingsForm, string, SvgComponent] } = {
-    [SettingsForm.Profile]: [SettingsForm.Profile, 'Profile', ProfileIcon],
-    [SettingsForm.Display]: [SettingsForm.Display, 'Display', LightModeIcon],
-    [SettingsForm.Notifications]: [SettingsForm.Notifications, 'Notifications', NotificationsCustomizedIcon],
-    [SettingsForm.Authentication]: [SettingsForm.Authentication, 'Authentication', LockIcon],
+const pageDisplayData: { [key in SettingsForm]: [CommonKey, SvgComponent] } = {
+    'profile': ['Profile', ProfileIcon],
+    'display': ['Display', LightModeIcon],
+    'notifications': ['Notifications', NotificationsCustomizedIcon],
+    'authentication': ['Authentication', LockIcon],
 }
 
 export function SettingsPage({
     session,
 }: SettingsPageProps) {
+    const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const lng = useMemo(() => getUserLanguages(session)[0], [session]);
     const [, setLocation] = useLocation();
     const searchParams = useReactSearch();
     const { selectedPage } = useMemo(() => ({
-        selectedPage: searchParams.page as unknown as SettingsForm ?? SettingsForm.Profile,
+        selectedPage: searchParams.page as unknown as SettingsForm ?? 'profile',
     }), [searchParams]);
 
     // Fetch profile data
@@ -78,13 +77,13 @@ export function SettingsPage({
     const closeList = useCallback(() => { setIsListOpen(false) }, [setIsListOpen]);
 
     const listItems = useMemo(() => {
-        return Object.values(settingPages).map(([link, label, Icon]: [SettingsForm, string, SvgComponent], index) => {
+        return Object.entries(pageDisplayData).map(([link, [label, Icon]], index) => {
             const selected = link === selectedPage;
             return (
                 <ListItem
                     key={index}
                     button
-                    onClick={() => { 
+                    onClick={() => {
                         setLocation(`${APP_LINKS.Settings}?page="${link}"`, { replace: true });
                         closeList();
                     }}
@@ -98,21 +97,21 @@ export function SettingsPage({
                     <ListItemIcon>
                         <Icon fill={selected ? palette.primary.contrastText : palette.background.textSecondary} />
                     </ListItemIcon>
-                    <ListItemText primary={label} />
+                    <ListItemText primary={t(`common:${label}`, { lng })} />
                 </ListItem>
             )
         });
-    }, [closeList, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, selectedPage, setLocation]);
+    }, [closeList, lng, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText, palette.primary.main, selectedPage, setLocation, t]);
 
     const mainContent: JSX.Element = useMemo(() => {
         switch (selectedPage) {
-            case SettingsForm.Profile:
+            case 'profile':
                 return <SettingsProfile session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
-            case SettingsForm.Display:
+            case 'display':
                 return <SettingsDisplay session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
-            case SettingsForm.Notifications:
+            case 'notifications':
                 return <SettingsNotifications session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
-            case SettingsForm.Authentication:
+            default:
                 return <SettingsAuthentication session={session} profile={profile} onUpdated={onUpdated} zIndex={200} />
         }
     }, [selectedPage, session, profile, onUpdated]);

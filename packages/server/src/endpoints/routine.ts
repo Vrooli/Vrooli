@@ -6,18 +6,26 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum RoutineSortBy {
-        CommentsAsc
-        CommentsDesc
-        ForksAsc
-        ForksDesc
         DateCompletedAsc
         DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        IssuesAsc
+        IssuesDesc
+        PullRequestsAsc
+        PullRequestsDesc
+        QuestionsAsc
+        QuestionsDesc
+        QuizzesAsc
+        QuizzesDesc
         StarsAsc
         StarsDesc
+        VersionsAsc
+        VersionsDesc
+        ViewsAsc
+        ViewsDesc
         VotesAsc
         VotesDesc
     }
@@ -112,7 +120,7 @@ export const typeDef = gql`
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]!
-        runs: [Run!]!
+        runs: [RunRoutine!]!
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [RoutineTranslation!]!
@@ -310,7 +318,7 @@ export const resolvers: {
         routineUpdate: GQLEndpoint<RoutineUpdateInput, UpdateOneResult<Routine>>;
     }
 } = {
-    RoutineSortBy: RoutineSortBy,
+    RoutineSortBy,
     Query: {
         routine: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

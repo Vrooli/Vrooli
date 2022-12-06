@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RunStatus, RunStepStatus } from "./globalTypes";
+import { RunStatus, RunRoutineStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: routineRunFields
@@ -15,7 +15,7 @@ export interface routineRunFields_inputs_input {
 }
 
 export interface routineRunFields_inputs {
-  __typename: "RunInput";
+  __typename: "RunRoutineInput";
   id: string;
   data: string;
   input: routineRunFields_inputs_input;
@@ -27,7 +27,7 @@ export interface routineRunFields_steps_node {
 }
 
 export interface routineRunFields_steps {
-  __typename: "RunStep";
+  __typename: "RunRoutineStep";
   id: string;
   order: number;
   contextSwitches: number;
@@ -35,13 +35,13 @@ export interface routineRunFields_steps {
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
-  status: RunStepStatus;
+  status: RunRoutineStepStatus;
   step: number[];
   node: routineRunFields_steps_node | null;
 }
 
 export interface routineRunFields {
-  __typename: "Run";
+  __typename: "RunRoutine";
   id: string;
   completedComplexity: number;
   contextSwitches: number;

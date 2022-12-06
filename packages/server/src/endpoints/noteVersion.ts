@@ -8,18 +8,16 @@ export const typeDef = gql`
     enum NoteVersionSortBy {
         CommentsAsc
         CommentsDesc
+        DirectoryListingsAsc
+        DirectoryListingsDesc
         ForksAsc
         ForksDesc
-        DateCompletedAsc
-        DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
-        VotesAsc
-        VotesDesc
+        ReportsAsc
+        ReportsDesc
     }
 
     input NoteVersionCreateInput {
@@ -168,7 +166,7 @@ export const resolvers: {
         noteVersionUpdate: GQLEndpoint<NoteVersionUpdateInput, UpdateOneResult<NoteVersion>>;
     }
 } = {
-    NoteVersionSortBy: NoteVersionSortBy,
+    NoteVersionSortBy,
     Query: {
         noteVersion: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

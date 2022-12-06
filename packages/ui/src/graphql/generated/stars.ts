@@ -15,6 +15,10 @@ export interface stars_stars_pageInfo {
   hasNextPage: boolean;
 }
 
+export interface stars_stars_edges_node_to_Api {
+  __typename: "Api" | "Issue" | "Note" | "Post" | "Question" | "QuestionAnswer" | "Quiz" | "SmartContract";
+}
+
 export interface stars_stars_edges_node_to_Comment_commentedOn_Project_translations {
   __typename: "ProjectTranslation";
   id: string;
@@ -330,7 +334,7 @@ export interface stars_stars_edges_node_to_Tag {
   translations: stars_stars_edges_node_to_Tag_translations[];
 }
 
-export type stars_stars_edges_node_to = stars_stars_edges_node_to_Comment | stars_stars_edges_node_to_Organization | stars_stars_edges_node_to_Project | stars_stars_edges_node_to_Routine | stars_stars_edges_node_to_Standard | stars_stars_edges_node_to_User | stars_stars_edges_node_to_Tag;
+export type stars_stars_edges_node_to = stars_stars_edges_node_to_Api | stars_stars_edges_node_to_Comment | stars_stars_edges_node_to_Organization | stars_stars_edges_node_to_Project | stars_stars_edges_node_to_Routine | stars_stars_edges_node_to_Standard | stars_stars_edges_node_to_User | stars_stars_edges_node_to_Tag;
 
 export interface stars_stars_edges_node {
   __typename: "Star";

@@ -8,6 +8,10 @@ export const typeDef = gql`
     enum RoutineVersionSortBy {
         CommentsAsc
         CommentsDesc
+        ComplexityAsc
+        ComplexityDesc
+        DirectoryListingsAsc
+        DirectoryListingsDesc
         ForksAsc
         ForksDesc
         DateCompletedAsc
@@ -16,10 +20,10 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
-        VotesAsc
-        VotesDesc
+        RunRoutinesAsc
+        RunRoutinesDesc
+        SimplicityAsc
+        SimplicityDesc
     }
 
     input RoutineVersionCreateInput {
@@ -112,7 +116,7 @@ export const typeDef = gql`
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]!
-        runs: [Run!]!
+        runs: [RunRoutine!]!
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [RoutineTranslation!]!

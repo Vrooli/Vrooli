@@ -15,16 +15,24 @@ export const typeDef = gql`
     }
     
     enum StarFor {
+        Api
         Comment
+        Issue
+        Note
         Organization
+        Post
         Project
+        Question
+        QuestionAnswer
+        Quiz
         Routine
+        SmartContract
         Standard
         Tag
         User
     }   
 
-    union StarTo = Comment | Organization | Project | Routine | Standard | Tag | User
+    union StarTo = Api | Comment | Issue | Note | Organization | Project | Post | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard | Tag | User
 
     input StarInput {
         isStar: Boolean!

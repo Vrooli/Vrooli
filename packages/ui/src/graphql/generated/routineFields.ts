@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { NodeType, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunStepStatus } from "./globalTypes";
+import { NodeType, ResourceListUsedFor, ResourceUsedFor, RunStatus, RunRoutineStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: routineFields
@@ -457,7 +457,7 @@ export interface routineFields_runs_inputs_input {
 }
 
 export interface routineFields_runs_inputs {
-  __typename: "RunInput";
+  __typename: "RunRoutineInput";
   id: string;
   data: string;
   input: routineFields_runs_inputs_input;
@@ -469,7 +469,7 @@ export interface routineFields_runs_steps_node {
 }
 
 export interface routineFields_runs_steps {
-  __typename: "RunStep";
+  __typename: "RunRoutineStep";
   id: string;
   order: number;
   contextSwitches: number;
@@ -477,13 +477,13 @@ export interface routineFields_runs_steps {
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
-  status: RunStepStatus;
+  status: RunRoutineStepStatus;
   step: number[];
   node: routineFields_runs_steps_node | null;
 }
 
 export interface routineFields_runs {
-  __typename: "Run";
+  __typename: "RunRoutine";
   id: string;
   completedComplexity: number;
   contextSwitches: number;

@@ -56,32 +56,42 @@ const formatter = (): Formatter<Project, SupplementalFields> => ({
 const searcher = (): Searcher<
     ProjectSearchInput,
     ProjectSortBy,
-    Prisma.project_versionOrderByWithRelationInput,
-    Prisma.project_versionWhereInput
+    Prisma.projectOrderByWithRelationInput,
+    Prisma.projectWhereInput
 > => ({
     defaultSort: ProjectSortBy.VotesDesc,
     sortMap: {
-        CommentsAsc: { comments: { _count: 'asc' } },
-        CommentsDesc: { comments: { _count: 'desc' } },
-        ForksAsc: { forks: { _count: 'asc' } },
-        ForksDesc: { forks: { _count: 'desc' } },
         DateCompletedAsc: { completedAt: 'asc' },
         DateCompletedDesc: { completedAt: 'desc' },
         DateCreatedAsc: { created_at: 'asc' },
         DateCreatedDesc: { created_at: 'desc' },
         DateUpdatedAsc: { updated_at: 'asc' },
         DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { root: { stars: 'asc' } },
-        StarsDesc: { root: { stars: 'desc' } },
-        VotesAsc: { root: { votes: 'asc' } },
-        VotesDesc: { root: { votes: 'desc' } },
+        IssuesAsc: { issues: { _count: 'asc' } },
+        IssuesDesc: { issues: { _count: 'desc' } },
+        PullRequestsAsc: { pullRequests: { _count: 'asc' } },
+        PullRequestsDesc: { pullRequests: { _count: 'desc' } },
+        QuestionsAsc: { questions: { _count: 'asc' } },
+        QuestionsDesc: { questions: { _count: 'desc' } },
+        StarsAsc: { starredBy: { _count: 'asc' } },
+        StarsDesc: { starredBy: { _count: 'desc' } },
+        VersionsAsc: { versions: { _count: 'asc' } },
+        VersionsDesc: { versions: { _count: 'desc' } },
+        ViewsAsc: { viewedBy: { _count: 'asc' } },
+        ViewsDesc: { viewedBy: { _count: 'desc' } },
+        VotesAsc: { votedBy: { _count: 'asc' } },
+        VotesDesc: { votedBy: { _count: 'desc' } },
     },
     searchStringQuery: ({ insensitive, languages }) => ({
-        OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-            { tags: { some: { tag: { tag: { ...insensitive } } } } },
-        ]
+        versions: {
+            some: {
+                OR: [
+                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+                    { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
+                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
+                ]
+            }
+        }
     }),
     customQueries(input, userData) {
         const isComplete = exceptionsBuilder({
@@ -284,7 +294,7 @@ const displayer = (): Displayer<
     Prisma.projectSelect,
     Prisma.projectGetPayload<{ select: { [K in keyof Required<Prisma.projectSelect>]: true } }>
 > => ({
-    select: () => ({ 
+    select: () => ({
         id: true,
         versions: {
             where: { isPrivate: false },
@@ -293,7 +303,7 @@ const displayer = (): Displayer<
             select: ProjectVersionModel.display.select(),
         }
     }),
-    label: (select, languages) => select.versions.length > 0 ? 
+    label: (select, languages) => select.versions.length > 0 ?
         ProjectVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 

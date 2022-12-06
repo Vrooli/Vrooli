@@ -213,7 +213,7 @@ export const routineFields = gql`
             }
         }
     }
-    fragment routineStepFields on RunStep {
+    fragment routineStepFields on RunRoutineStep {
         id
         order
         contextSwitches
@@ -227,7 +227,7 @@ export const routineFields = gql`
             id
         }
     }
-    fragment routineRunFields on Run {
+    fragment routineRunFields on RunRoutine {
         id
         completedComplexity
         contextSwitches

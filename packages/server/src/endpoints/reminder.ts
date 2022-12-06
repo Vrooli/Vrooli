@@ -6,12 +6,10 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum ReminderSortBy {
-        DateCreatedAsc
-        DateCreatedDesc
-        DateUpdatedAsc
-        DateUpdatedDesc
-        IndexAsc
-        IndexDesc
+        NameAsc
+        NameDesc
+        DueDateAsc
+        DueDateDesc
     }
 
     input ReminderCreateInput {

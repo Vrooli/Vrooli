@@ -13,18 +13,24 @@ import { getUser } from '../auth';
 
 export const typeDef = gql`
     enum ProjectOrRoutineSortBy {
-        CommentsAsc
-        CommentsDesc
-        ForksAsc
-        ForksDesc
         DateCompletedAsc
         DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        IssuesAsc
+        IssuesDesc
+        PullRequestsAsc
+        PullRequestsDesc
+        QuestionsAsc
+        QuestionsDesc
         StarsAsc
         StarsDesc
+        VersionsAsc
+        VersionsDesc
+        ViewsAsc
+        ViewsDesc
         VotesAsc
         VotesDesc
     }

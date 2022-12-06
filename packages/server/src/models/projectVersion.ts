@@ -3,7 +3,7 @@ import { ResourceListUsedFor } from "@shared/consts";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser } from "../endpoints/types";
+import { Project, ProjectPermission, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
@@ -54,14 +54,18 @@ const formatter = (): Formatter<Project, SupplementalFields> => ({
 
 const searcher = (): Searcher<
     ProjectSearchInput,
-    ProjectSortBy,
+    ProjectVersionSortBy,
     Prisma.project_versionOrderByWithRelationInput,
     Prisma.project_versionWhereInput
 > => ({
-    defaultSort: ProjectSortBy.VotesDesc,
+    defaultSort: ProjectVersionSortBy.DateCompletedDesc,
     sortMap: {
         CommentsAsc: { comments: { _count: 'asc' } },
         CommentsDesc: { comments: { _count: 'desc' } },
+        ComplexityAsc: { complexity: 'asc' },
+        ComplexityDesc: { complexity: 'desc' },
+        DirectoryListingsAsc: { directoryListings: { _count: 'asc' } },
+        DirectoryListingsDesc: { directoryListings: { _count: 'desc' } },
         ForksAsc: { forks: { _count: 'asc' } },
         ForksDesc: { forks: { _count: 'desc' } },
         DateCompletedAsc: { completedAt: 'asc' },
@@ -70,10 +74,10 @@ const searcher = (): Searcher<
         DateCreatedDesc: { created_at: 'desc' },
         DateUpdatedAsc: { updated_at: 'asc' },
         DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { root: { stars: 'asc' } },
-        StarsDesc: { root: { stars: 'desc' } },
-        VotesAsc: { root: { votes: 'asc' } },
-        VotesDesc: { root: { votes: 'desc' } },
+        RunProjectsAsc: { runProjects: { _count: 'asc' } },
+        RunProjectsDesc: { runProjects: { _count: 'desc' } },
+        SimplicityAsc: { simplicity: 'asc' },
+        SimplicityDesc: { simplicity: 'desc' },
     },
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [

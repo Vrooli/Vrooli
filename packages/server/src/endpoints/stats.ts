@@ -1,12 +1,11 @@
 import { gql } from 'apollo-server-express';
-import { StatisticsPageInput, StatisticsPageResult } from './types';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { CustomError } from '../events/error';
+import { StatsSiteSearchInput, StatsSiteSearchResult } from './types';
 
 export const typeDef = gql`
-
-    input StatisticsPageInput {
+    input StatsSiteSearchInput {
         searchString: String!
         take: Int
     }
@@ -19,26 +18,58 @@ export const typeDef = gql`
         users: [Int!]!
     }
 
-    type StatisticsPageResult {
+    type StatsSiteSearchResult {
         daily: StatisticsTimeFrame!
         weekly: StatisticsTimeFrame!
         monthly: StatisticsTimeFrame!
         yearly: StatisticsTimeFrame!
         allTime: StatisticsTimeFrame!
     }
- 
+
+    type StatsApi {
+        id: ID!
+    }
+
+    type StatsOrganization {
+        id: ID!
+    }
+
+    type StatsProject {
+        id: ID!
+    }
+
+    type StatsQuiz {
+        id: ID!
+    }
+
+    type StatsRoutine {
+        id: ID!
+    }
+
+    type StatsSmartContract {
+        id: ID!
+    }
+
+    type StatsStandard {
+        id: ID!
+    }
+    
+    type StatsUser {
+        id: ID!
+    }
+
     type Query {
-        statisticsPage(input: StatisticsPageInput!): StatisticsPageResult!
+        statsSite(input: StatsSiteSearchInput!): StatsSiteSearchResult!
     }
  `
 
 export const resolvers: {
     Query: {
-        statisticsPage: GQLEndpoint<StatisticsPageInput, StatisticsPageResult>;
+        statsSite: GQLEndpoint<StatsSiteSearchInput, StatsSiteSearchResult>;
     },
 } = {
     Query: {
-        statisticsPage: async (_, { input }, { prisma, req, res }, info) => {
+        statsSite: async (_, { input }, { prisma, req, res }, info) => {
             await rateLimit({ info, maxUser: 500, req });
             // Query current stats
             // Read historical stats from file

@@ -19,6 +19,8 @@ export type GraphQLModelType =
     'Label' |
     'LearnResult' |
     'Member' |
+    'Meeting' |
+    'MeetingInvite' |
     'Node' |
     'NodeEnd' |
     'NodeLink' |
@@ -28,6 +30,8 @@ export type GraphQLModelType =
     'NodeRoutineListItem' |
     'Note' |
     'NoteVersion' |
+    'Notification' |
+    'NotificationSubscription' |
     'Organization' |
     'OutputItem' |
     'Phone' |
@@ -38,28 +42,38 @@ export type GraphQLModelType =
     'ProjectVersion' |
     'ProjectOrRoutineSearchResult' |
     'ProjectOrOrganizationSearchResult' |
+    'PullRequest' |
+    'PushDevice' |
     'Question' |
     'QuestionAnswer' |
+    'Quiz' |
     'Reminder' |
     'ReminderList' |
     'Report' |
+    'ReportResponse' |
+    'ReputationHistory' |
     'ResearchResult' |
     'Resource' |
     'ResourceList' |
     'Role' |
     'Routine' |
     'RoutineVersion' |
+    'RunProject' |
+    'RunProjectSchedule' |
+    'RunProjectStep' |
     'RunRoutine' |
-    'RunInput' |
-    'RunStep' |
+    'RunRoutineInput' |
+    'RunRoutineSchedule' |
+    'RunRoutineStep' |
     'SmartContract' |
     'SmartContractVersion' |
     'Standard' |
     'StandardVersion' |
     'Star' |
     'Tag' |
-    'TagHidden' |
+    'Transfer' |
     'User' |
+    'UserSchedule' |
     'View' |
     'Vote' |
     'Wallet';
@@ -201,7 +215,7 @@ export interface Formatter<GraphQLModel, GQLFields extends string> {
  */
 export type Searcher<SearchInput, SortBy extends string, OrderBy extends { [x: string]: any }, Where extends { [x: string]: any }> = {
     defaultSort: SortBy;
-    sortMap: { [key in SortBy]: OrderBy };
+    sortMap: Record<SortBy, OrderBy>;
     searchStringQuery: ({ insensitive, languages, searchString }: {
         insensitive: { contains: string; mode: 'default' | 'insensitive'; },
         languages?: string[],

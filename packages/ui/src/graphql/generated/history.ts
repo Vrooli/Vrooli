@@ -67,7 +67,7 @@ export interface history_history_activeRuns_routine {
 }
 
 export interface history_history_activeRuns {
-  __typename: "Run";
+  __typename: "RunRoutine";
   id: string;
   completedComplexity: number;
   contextSwitches: number;
@@ -138,7 +138,7 @@ export interface history_history_completedRuns_routine {
 }
 
 export interface history_history_completedRuns {
-  __typename: "Run";
+  __typename: "RunRoutine";
   id: string;
   completedComplexity: number;
   contextSwitches: number;
@@ -365,6 +365,10 @@ export interface history_history_recentlyViewed {
   lastViewed: any;
   title: string;
   to: history_history_recentlyViewed_to;
+}
+
+export interface history_history_recentlyStarred_to_Api {
+  __typename: "Api" | "Issue" | "Note" | "Post" | "Question" | "QuestionAnswer" | "Quiz" | "SmartContract";
 }
 
 export interface history_history_recentlyStarred_to_Comment_commentedOn_Project_translations {
@@ -682,7 +686,7 @@ export interface history_history_recentlyStarred_to_Tag {
   translations: history_history_recentlyStarred_to_Tag_translations[];
 }
 
-export type history_history_recentlyStarred_to = history_history_recentlyStarred_to_Comment | history_history_recentlyStarred_to_Organization | history_history_recentlyStarred_to_Project | history_history_recentlyStarred_to_Routine | history_history_recentlyStarred_to_Standard | history_history_recentlyStarred_to_User | history_history_recentlyStarred_to_Tag;
+export type history_history_recentlyStarred_to = history_history_recentlyStarred_to_Api | history_history_recentlyStarred_to_Comment | history_history_recentlyStarred_to_Organization | history_history_recentlyStarred_to_Project | history_history_recentlyStarred_to_Routine | history_history_recentlyStarred_to_Standard | history_history_recentlyStarred_to_User | history_history_recentlyStarred_to_Tag;
 
 export interface history_history_recentlyStarred {
   __typename: "Star";

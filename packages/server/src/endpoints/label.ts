@@ -6,143 +6,124 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum LabelSortBy {
-        CommentsAsc
-        CommentsDesc
-        ForksAsc
-        ForksDesc
-        DateCompletedAsc
-        DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input LabelCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
+        label: String!
+        color: String
+        createdByUserId: ID
+        createdByOrganizationId: ID
+        apisConnect: [ID!]
+        issuesConnect: [ID!]
+        notesConnect: [ID!]
+        projectsConnect: [ID!]
+        routinesConnect: [ID!]
+        smartContractsConnect: [ID!]
+        standardsConnect: [ID!]
+        meetingsConnect: [ID!]
+        runProjectSchedulesConnect: [ID!]
+        runRoutineSchedulesConnect: [ID!]
+        userSchedulesConnect: [ID!]
+        translationsCreate: [LabelTranslationCreateInput!]
     }
     input LabelUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        label: String
+        color: String
+        apisConnect: [ID!]
+        apisDisconnect: [ID!]
+        issuesConnect: [ID!]
+        issuesDisconnect: [ID!]
+        notesConnect: [ID!]
+        notesDisconnect: [ID!]
+        projectsConnect: [ID!]
+        projectsDisconnect: [ID!]
+        routinesConnect: [ID!]
+        routinesDisconnect: [ID!]
+        smartContractsConnect: [ID!]
+        smartContractsDisconnect: [ID!]
+        standardsConnect: [ID!]
+        standardsDisconnect: [ID!]
+        meetingsConnect: [ID!]
+        meetingsDisconnect: [ID!]
+        runProjectSchedulesConnect: [ID!]
+        runProjectSchedulesDisconnect: [ID!]
+        runRoutineSchedulesConnect: [ID!]
+        runRoutineSchedulesDisconnect: [ID!]
+        userSchedulesConnect: [ID!]
+        userSchedulesDisconnect: [ID!]
         translationsDelete: [ID!]
         translationsCreate: [ProjectTranslationCreateInput!]
         translationsUpdate: [ProjectTranslationUpdateInput!]
     }
     type Label {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        creator: Contributor
-        forks: [Project!]!
-        owner: Contributor
-        parent: Project
-        permissionsProject: ProjectPermission!
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        translations: [ProjectTranslation!]!
-        wallets: [Wallet!]
+        label: String!
+        color: String
+        apis: [Api!]
+        issues: [Issue!]
+        notes: [Note!]
+        projects: [Project!]
+        routines: [Routine!]
+        smartContracts: [SmartContract!]
+        standards: [Standard!]
+        meetings: [Meeting!]
+        runProjectSchedules: [RunProjectSchedule!]
+        runRoutineSchedules: [RunRoutineSchedule!]
+        userSchedules: [UserSchedule!]
+        translations: [LabelTranslation!]!
     }
 
     type LabelPermission {
-        canComment: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
     }
 
     input LabelTranslationCreateInput {
         id: ID!
         language: String!
-        description: String
-        name: String!
+        description: String!
     }
     input LabelTranslationUpdateInput {
         id: ID!
         language: String
         description: String
-        name: String
     }
     type LabelTranslation {
         id: ID!
         language: String!
-        description: String
-        name: String!
+        description: String!
     }
 
     input LabelSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
         languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        createdByOrganizationId: ID
+        createdByUserId: ID
         searchString: String
-        sortBy: ProjectSortBy
-        tags: [String!]
+        sortBy: LabelSortBy
         take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
     type LabelSearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [LabelEdge!]!
     }
 
     type LabelEdge {
         cursor: String!
-        node: Api!
+        node: Label!
     }
 
     extend type Query {

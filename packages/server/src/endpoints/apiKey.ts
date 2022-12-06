@@ -9,14 +9,15 @@ import { CustomError } from '../events';
 
 export const typeDef = gql`
     input ApiKeyCreateInput {
-        emailAddress: String!
-        receivesAccountUpdates: Boolean
-        receivesBusinessUpdates: Boolean
+        creditsUsedBeforeLimit: Int!
+        stopAtLimit: Boolean!
+        absoluteMax: Int!
     }
     input ApiKeyUpdateInput {
         id: ID!
-        receivesAccountUpdates: Boolean
-        receivesBusinessUpdates: Boolean
+        creditsUsedBeforeLimit: Int
+        stopAtLimit: Boolean
+        absoluteMax: Int
     }
     input ApiKeyDeleteOneInput {
         id: ID!
@@ -29,9 +30,10 @@ export const typeDef = gql`
     type ApiKey {
         id: ID!
         creditsUsed: Int!
-        creditsTotal: Int!
-        locksWhenCreditsUsed: Boolean!
-        nextResetAt: Date!
+        creditsUsedBeforeLimit: Int!
+        stopAtLimit: Boolean!
+        absoluteMax: Int!
+        resetsAt: Date!
     }
 
     extend type Mutation {

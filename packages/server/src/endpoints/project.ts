@@ -6,18 +6,24 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum ProjectSortBy {
-        CommentsAsc
-        CommentsDesc
-        ForksAsc
-        ForksDesc
         DateCompletedAsc
         DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        IssuesAsc
+        IssuesDesc
+        PullRequestsAsc
+        PullRequestsDesc
+        QuestionsAsc
+        QuestionsDesc
         StarsAsc
         StarsDesc
+        VersionsAsc
+        VersionsDesc
+        ViewsAsc
+        ViewsDesc
         VotesAsc
         VotesDesc
     }

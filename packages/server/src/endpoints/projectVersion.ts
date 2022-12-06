@@ -8,6 +8,10 @@ export const typeDef = gql`
     enum ProjectVersionSortBy {
         CommentsAsc
         CommentsDesc
+        ComplexityAsc
+        ComplexityDesc
+        DirectoryListingsAsc
+        DirectoryListingsDesc
         ForksAsc
         ForksDesc
         DateCompletedAsc
@@ -16,10 +20,10 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
-        VotesAsc
-        VotesDesc
+        RunProjectsAsc
+        RunProjectsDesc
+        SimplicityAsc
+        SimplicityDesc
     }
 
     input ProjectVersionCreateInput {

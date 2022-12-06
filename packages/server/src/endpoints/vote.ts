@@ -8,14 +8,21 @@ import { assertRequestFrom } from '../auth/request';
 
 export const typeDef = gql`
     enum VoteFor {
+        Api
         Comment
+        Issue
+        Note
+        Post
         Project
+        Question
+        QuestionAnswer
+        Quiz
         Routine
+        SmartContract
         Standard
-        Tag
     }   
 
-    union VoteTo = Comment | Project | Routine | Standard | Tag
+    union VoteTo = Api | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard
 
     input VoteInput {
         isUpvote: Boolean

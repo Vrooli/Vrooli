@@ -5,7 +5,6 @@ import { GQLEndpoint } from '../types';
 import fetch from 'node-fetch';
 
 export const typeDef = gql`
-
     input TranslateInput {
         fields: String!
         languageSource: String!

@@ -19,6 +19,8 @@ export const typeDef = gql`
         DateUpdatedDesc
         IndexAsc
         IndexDesc
+        UsedForAsc
+        UsedForDesc
     }
 
     enum ResourceUsedFor {

@@ -1,5 +1,5 @@
 export * from './DateRangeMenu/DateRangeMenu';
-export * from './email';
+export * from './devices';
 export * from './inputOutput';
 export * from './ObjectActionsRow/ObjectActionsRow';
 export * from './ObjectListItem/ObjectListItem';
@@ -11,4 +11,3 @@ export * from './TagList/TagList';
 export * from './TextLoading/TextLoading';
 export * from './TimeMenu/TimeMenu';
 export * from './UpvoteDownvote/UpvoteDownvote';
-export * from './wallet';

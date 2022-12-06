@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { RunStepStatus } from "./globalTypes";
+import { RunRoutineStepStatus } from "./globalTypes";
 
 // ====================================================
 // GraphQL fragment: routineStepFields
@@ -15,7 +15,7 @@ export interface routineStepFields_node {
 }
 
 export interface routineStepFields {
-  __typename: "RunStep";
+  __typename: "RunRoutineStep";
   id: string;
   order: number;
   contextSwitches: number;
@@ -23,7 +23,7 @@ export interface routineStepFields {
   timeElapsed: number | null;
   timeCompleted: any | null;
   title: string;
-  status: RunStepStatus;
+  status: RunRoutineStepStatus;
   step: number[];
   node: routineStepFields_node | null;
 }

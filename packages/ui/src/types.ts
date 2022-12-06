@@ -2,7 +2,7 @@
 import { historyPage_historyPage_activeRuns, historyPage_historyPage_recentlyStarred, historyPage_historyPage_recentlyViewed } from 'graphql/generated/historyPage';
 import { homePage_homePage_organizations, homePage_homePage_projects, homePage_homePage_routines, homePage_homePage_standards, homePage_homePage_users } from 'graphql/generated/homePage';
 import { organization_organization, organization_organization_translations } from 'graphql/generated/organization';
-import { profile_profile, profile_profile_translations, profile_profile_emails, profile_profile_resourceLists, profile_profile_resourceLists_translations, profile_profile_wallets, profile_profile_hiddenTags } from 'graphql/generated/profile';
+import { profile_profile, profile_profile_translations, profile_profile_emails, profile_profile_resourceLists, profile_profile_resourceLists_translations, profile_profile_wallets, profile_profile_hiddenTags, profile_profile_pushDevices } from 'graphql/generated/profile';
 import { project_project, project_project_translations } from 'graphql/generated/project';
 import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { resource_resource, resource_resource_translations } from 'graphql/generated/resource';
@@ -81,6 +81,7 @@ export type Profile = profile_profile;
 export type ProfileTranslation = profile_profile_translations;
 export type Project = project_project;
 export type ProjectTranslation = project_project_translations;
+export type PushDevice = profile_profile_pushDevices;
 export type Report = reportCreate_reportCreate;
 export type Resource = resource_resource;
 export type ResourceTranslation = resource_resource_translations;

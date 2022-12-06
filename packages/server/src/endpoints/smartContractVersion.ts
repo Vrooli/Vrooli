@@ -8,18 +8,16 @@ export const typeDef = gql`
     enum SmartContractVersionSortBy {
         CommentsAsc
         CommentsDesc
+        DirectoryListingsAsc
+        DirectoryListingsDesc
         ForksAsc
         ForksDesc
-        DateCompletedAsc
-        DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        StarsAsc
-        StarsDesc
-        VotesAsc
-        VotesDesc
+        ReportsAsc
+        ReportsDesc
     }
 
     input SmartContractVersionCreateInput {

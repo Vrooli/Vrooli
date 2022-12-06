@@ -12,10 +12,10 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { RunModel } from "./run";
+import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo } from "../builders/types";
 import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
-import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 
 type NodeWeightData = {
@@ -68,7 +68,7 @@ const formatter = (): Formatter<Routine, SupplementalFields> => ({
                 // Find requested fields of runs. Also add routineId, so we 
                 // can associate runs with their routine
                 const runPartial: PartialGraphQLInfo = {
-                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunModel.format.relationshipMap, userData.languages, true),
+                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.relationshipMap, userData.languages, true),
                     routineVersionId: true
                 }
                 // Query runs made by user
@@ -103,25 +103,33 @@ const formatter = (): Formatter<Routine, SupplementalFields> => ({
 const searcher = (): Searcher<
     RoutineSearchInput,
     RoutineSortBy,
-    Prisma.routine_versionOrderByWithRelationInput,
-    Prisma.routine_versionWhereInput
+    Prisma.routineOrderByWithRelationInput,
+    Prisma.routineWhereInput
 > => ({
     defaultSort: RoutineSortBy.VotesDesc,
     sortMap: {
-        CommentsAsc: { comments: { _count: 'asc' } },
-        CommentsDesc: { comments: { _count: 'desc' } },
-        ForksAsc: { forks: { _count: 'asc' } },
-        ForksDesc: { forks: { _count: 'desc' } },
         DateCompletedAsc: { completedAt: 'asc' },
         DateCompletedDesc: { completedAt: 'desc' },
         DateCreatedAsc: { created_at: 'asc' },
         DateCreatedDesc: { created_at: 'desc' },
         DateUpdatedAsc: { updated_at: 'asc' },
         DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { root: { stars: 'asc' } },
-        StarsDesc: { root: { stars: 'desc' } },
-        VotesAsc: { root: { votes: 'asc' } },
-        VotesDesc: { root: { votes: 'desc' } },
+        IssuesAsc: { issues: { _count: 'asc' } },
+        IssuesDesc: { issues: { _count: 'desc' } },
+        PullRequestsAsc: { pullRequests: { _count: 'asc' } },
+        PullRequestsDesc: { pullRequests: { _count: 'desc' } },
+        QuestionsAsc: { questions: { _count: 'asc' } },
+        QuestionsDesc: { questions: { _count: 'desc' } },
+        QuizzesAsc: { quizzes: { _count: 'asc' } },
+        QuizzesDesc: { quizzes: { _count: 'desc' } },
+        StarsAsc: { starredBy: { _count: 'asc' } },
+        StarsDesc: { starredBy: { _count: 'desc' } },
+        VersionsAsc: { versions: { _count: 'asc' } },
+        VersionsDesc: { versions: { _count: 'desc' } },
+        ViewsAsc: { viewedBy: { _count: 'asc' } },
+        ViewsDesc: { viewedBy: { _count: 'desc' } },
+        VotesAsc: { votedBy: { _count: 'asc' } },
+        VotesDesc: { votedBy: { _count: 'desc' } },
     },
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [

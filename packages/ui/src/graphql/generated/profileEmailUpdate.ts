@@ -3,7 +3,7 @@
 // @generated
 // This file was automatically generated and should not be edited.
 
-import { ProfileEmailUpdateInput, ResourceListUsedFor, ResourceUsedFor } from "./globalTypes";
+import { ProfileEmailUpdateInput } from "./globalTypes";
 
 // ====================================================
 // GraphQL mutation operation: profileEmailUpdate
@@ -16,6 +16,13 @@ export interface profileEmailUpdate_profileEmailUpdate_emails {
   receivesAccountUpdates: boolean;
   receivesBusinessUpdates: boolean;
   verified: boolean;
+}
+
+export interface profileEmailUpdate_profileEmailUpdate_pushDevices {
+  __typename: "PushDevice";
+  id: string;
+  expires: any | null;
+  name: string | null;
 }
 
 export interface profileEmailUpdate_profileEmailUpdate_wallets_handles {
@@ -41,94 +48,41 @@ export interface profileEmailUpdate_profileEmailUpdate_translations {
   bio: string | null;
 }
 
-export interface profileEmailUpdate_profileEmailUpdate_starredTags_translations {
-  __typename: "TagTranslation";
+export interface profileEmailUpdate_profileEmailUpdate_schedules {
+  __typename: "UserSchedule";
   id: string;
-  language: string;
-  description: string | null;
-}
-
-export interface profileEmailUpdate_profileEmailUpdate_starredTags {
-  __typename: "Tag";
-  tag: string;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
-  translations: profileEmailUpdate_profileEmailUpdate_starredTags_translations[];
-}
-
-export interface profileEmailUpdate_profileEmailUpdate_hiddenTags_tag_translations {
-  __typename: "TagTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-}
-
-export interface profileEmailUpdate_profileEmailUpdate_hiddenTags_tag {
-  __typename: "Tag";
-  tag: string;
-  created_at: any;
-  stars: number;
-  isStarred: boolean;
-  translations: profileEmailUpdate_profileEmailUpdate_hiddenTags_tag_translations[];
-}
-
-export interface profileEmailUpdate_profileEmailUpdate_hiddenTags {
-  __typename: "TagHidden";
-  id: string;
-  isBlur: boolean;
-  tag: profileEmailUpdate_profileEmailUpdate_hiddenTags_tag;
-}
-
-export interface profileEmailUpdate_profileEmailUpdate_resourceLists_translations {
-  __typename: "ResourceListTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string | null;
-}
-
-export interface profileEmailUpdate_profileEmailUpdate_resourceLists_resources_translations {
-  __typename: "ResourceTranslation";
-  id: string;
-  language: string;
-  description: string | null;
-  title: string | null;
-}
-
-export interface profileEmailUpdate_profileEmailUpdate_resourceLists_resources {
-  __typename: "Resource";
-  id: string;
-  created_at: any;
-  index: number | null;
-  link: string;
-  updated_at: any;
-  usedFor: ResourceUsedFor | null;
-  translations: profileEmailUpdate_profileEmailUpdate_resourceLists_resources_translations[];
-}
-
-export interface profileEmailUpdate_profileEmailUpdate_resourceLists {
-  __typename: "ResourceList";
-  id: string;
-  created_at: any;
-  index: number | null;
-  usedFor: ResourceListUsedFor | null;
-  translations: profileEmailUpdate_profileEmailUpdate_resourceLists_translations[];
-  resources: profileEmailUpdate_profileEmailUpdate_resourceLists_resources[];
 }
 
 export interface profileEmailUpdate_profileEmailUpdate {
-  __typename: "Profile";
+  __typename: "User";
   id: string;
   handle: string | null;
+  isPrivate: boolean;
+  isPrivateApis: boolean;
+  isPrivateApisCreated: boolean;
+  isPrivateMemberships: boolean;
+  isPrivateOrganizationsCreated: boolean;
+  isPrivateProjects: boolean;
+  isPrivateProjectsCreated: boolean;
+  isPrivatePullRequests: boolean;
+  isPrivateQuestionsAnswered: boolean;
+  isPrivateQuestionsAsked: boolean;
+  isPrivateQuizzesCreated: boolean;
+  isPrivateRoles: boolean;
+  isPrivateRoutines: boolean;
+  isPrivateRoutinesCreated: boolean;
+  isPrivateSmartContracts: boolean;
+  isPrivateStandards: boolean;
+  isPrivateStandardsCreated: boolean;
+  isPrivateStars: boolean;
+  isPrivateVotes: boolean;
   name: string;
-  emails: profileEmailUpdate_profileEmailUpdate_emails[];
-  wallets: profileEmailUpdate_profileEmailUpdate_wallets[];
-  theme: string;
+  emails: profileEmailUpdate_profileEmailUpdate_emails[] | null;
+  pushDevices: profileEmailUpdate_profileEmailUpdate_pushDevices[] | null;
+  wallets: profileEmailUpdate_profileEmailUpdate_wallets[] | null;
+  theme: string | null;
   translations: profileEmailUpdate_profileEmailUpdate_translations[];
-  starredTags: profileEmailUpdate_profileEmailUpdate_starredTags[] | null;
-  hiddenTags: profileEmailUpdate_profileEmailUpdate_hiddenTags[] | null;
-  resourceLists: profileEmailUpdate_profileEmailUpdate_resourceLists[];
+  schedules: profileEmailUpdate_profileEmailUpdate_schedules[] | null;
 }
 
 export interface profileEmailUpdate {

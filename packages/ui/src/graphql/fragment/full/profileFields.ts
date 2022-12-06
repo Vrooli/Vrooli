@@ -1,35 +1,28 @@
 import { gql } from 'graphql-tag';
 
 export const profileFields = gql`
-    fragment profileResourceListFields on ResourceList {
-        id
-        created_at
-        index
-        usedFor
-        translations {
-            id
-            language
-            description
-            title
-        }
-        resources {
-            id
-            created_at
-            index
-            link
-            updated_at
-            usedFor
-            translations {
-                id
-                language
-                description
-                title
-            }
-        }
-    }
-    fragment profileFields on Profile {
+    fragment profileFields on User {
         id
         handle
+        isPrivate
+        isPrivateApis
+        isPrivateApisCreated
+        isPrivateMemberships
+        isPrivateOrganizationsCreated
+        isPrivateProjects
+        isPrivateProjectsCreated
+        isPrivatePullRequests
+        isPrivateQuestionsAnswered
+        isPrivateQuestionsAsked
+        isPrivateQuizzesCreated
+        isPrivateRoles
+        isPrivateRoutines
+        isPrivateRoutinesCreated
+        isPrivateSmartContracts
+        isPrivateStandards
+        isPrivateStandardsCreated
+        isPrivateStars
+        isPrivateVotes
         name
         emails {
             id
@@ -37,6 +30,11 @@ export const profileFields = gql`
             receivesAccountUpdates
             receivesBusinessUpdates
             verified
+        }
+        pushDevices {
+            id
+            expires
+            name
         }
         wallets {
             id
@@ -55,34 +53,8 @@ export const profileFields = gql`
             language
             bio
         }
-        starredTags {
-            tag
-            created_at
-            stars
-            isStarred
-            translations {
-                id
-                language
-                description
-            }
-        }
-        hiddenTags {
+        schedules {
             id
-            isBlur
-            tag {
-                tag
-                created_at
-                stars
-                isStarred
-                translations {
-                    id
-                    language
-                    description
-                }
-            }
-        }
-        resourceLists {
-            ...profileResourceListFields
         }
     }
 `

@@ -57,6 +57,7 @@ export enum DeleteType {
     Organization = "Organization",
     Project = "Project",
     ProjectVersion = "ProjectVersion",
+    PushDevice = "PushDevice",
     Reminder = "Reminder",
     ReminderList = "ReminderList",
     Report = "Report",
@@ -225,11 +226,15 @@ export enum ViewSortBy {
 //==============================================================
 
 export enum ReportFor {
+    ApiVersion = "ApiVersion",
     Comment = "Comment",
+    Issue = "Issue",
     Organization = "Organization",
-    Project = "Project",
-    Routine = "Routine",
-    Standard = "Standard",
+    NoteVersion = "NoteVersion",
+    Post = "Post",
+    ProjectVersion = "ProjectVersion",
+    RoutineVersion = "RoutineVersion",
+    StandardVersion = "StandardVersion",
     Tag = "Tag",
     User = "User",
 }
@@ -275,18 +280,33 @@ export enum RunStepStatus {
 }
 
 export enum VoteFor {
+    Api = "Api",
     Comment = "Comment",
+    Issue = "Issue",
+    Note = "Note",
+    Post = "Post",
     Project = "Project",
+    Question = "Question",
+    QuestionAnswer = "QuestionAnswer",
+    Quiz = "Quiz",
     Routine = "Routine",
+    SmartContract = "SmartContract",
     Standard = "Standard",
-    Tag = "Tag",
 }
 
 export enum StarFor {
+    Api = "Api",
     Comment = "Comment",
+    Issue = "Issue",
+    Note = "Note",
     Organization = "Organization",
+    Post = "Post",
     Project = "Project",
+    Question = "Question",
+    QuestionAnswer = "QuestionAnswer",
+    Quiz = "Quiz",
     Routine = "Routine",
+    SmartContract = "SmartContract",
     Standard = "Standard",
     Tag = "Tag",
     User = "User",

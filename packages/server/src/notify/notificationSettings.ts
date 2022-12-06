@@ -29,7 +29,7 @@ export type NotificationSettings = {
 }
 
 type NotificationRecipients = {
-    pushDevices: Prisma.notification_deviceGetPayload<{ select: { [K in keyof Required<Omit<Prisma.notification_deviceSelect, 'user'>>]: true } }>[],
+    pushDevices: Prisma.push_deviceGetPayload<{ select: { [K in keyof Required<Omit<Prisma.push_deviceSelect, 'user'>>]: true } }>[],
     emails: Prisma.emailGetPayload<{ select: { [K in keyof Required<Omit<Prisma.emailSelect, 'user'>>]: true } }>[],
     phoneNumbers: any,
 }
@@ -67,7 +67,7 @@ export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, u
         select: {
             id: true,
             notificationSettings: true,
-            notificationDevices: true,
+            pushDevices: true,
             emails: true,
         }
     });
@@ -87,7 +87,7 @@ export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, u
         // Add to results array
         results.push({
             settings,
-            pushDevices: user.notificationDevices,
+            pushDevices: user.pushDevices,
             emails: user.emails,
             phoneNumbers: [],
         });

@@ -1,5 +1,5 @@
 import { useMutation } from "@apollo/client";
-import { forkVariables, fork_fork } from 'graphql/generated/fork';
+import { copyVariables, copy_copy } from 'graphql/generated/copy';
 import { starVariables, star_star } from 'graphql/generated/star';
 import { voteVariables, vote_vote } from 'graphql/generated/vote';
 import { copyMutation, starMutation, voteMutation } from "graphql/mutation";
@@ -60,7 +60,7 @@ export const ObjectActionMenu = ({
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper<fork_fork, forkVariables>({
+        mutationWrapper<copy_copy, copyVariables>({
             mutation: fork,
             input: { id, intendToPullRequest: true, objectType: objectType as CopyType },
             successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),

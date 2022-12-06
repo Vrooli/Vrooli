@@ -6,12 +6,22 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum PostSortBy {
+        CommentsAsc
+        CommentsDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        ReportsAsc
+        ReportsDesc
+        RepostsAsc
+        RepostsDesc
         StarsAsc
         StarsDesc
+        ViewsAsc
+        ViewsDesc
+        VotesAsc
+        VotesDesc
     }
 
     input PostCreateInput {
@@ -123,7 +133,7 @@ export const resolvers: {
         postUpdate: GQLEndpoint<PostUpdateInput, UpdateOneResult<Post>>;
     }
 } = {
-    PostSortBy: PostSortBy,
+    PostSortBy,
     Query: {
         post: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

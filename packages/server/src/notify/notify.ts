@@ -356,19 +356,19 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         userId: string,
     }) => {
         // Check if the device is already registered
-        const device = await prisma.notification_device.findUnique({
+        const device = await prisma.push_device.findUnique({
             where: { endpoint },
             select: { id: true }
         })
         // If it is, update the auth and p256dh keys
         if (device) {
-            await prisma.notification_device.update({
+            await prisma.push_device.update({
                 where: { id: device.id },
                 data: { auth, p256dh, expires }
             })
         }
         // If it isn't, create a new device
-        await prisma.notification_device.create({
+        await prisma.push_device.create({
             data: {
                 endpoint,
                 auth,
@@ -385,14 +385,14 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
      */
     unregisterPushDevice: async (deviceId: string, userId: string) => {
         // Check if the device is registered to the user
-        const device = await prisma.notification_device.findUnique({
+        const device = await prisma.push_device.findUnique({
             where: { id: deviceId },
             select: { userId: true }
         })
         if (!device || device.userId !== userId)
             throw new CustomError('0307', 'PushDeviceNotFound', languages);
         // If it is, delete it  
-        await prisma.notification_device.delete({ where: { id: deviceId } })
+        await prisma.push_device.delete({ where: { id: deviceId } })
     },
     /**
      * Updates a user's notification settings

@@ -10,8 +10,6 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        IndexAsc
-        IndexDesc
     }
 
     input ReminderListCreateInput {

@@ -9,6 +9,7 @@ export const typeDef = gql`
         ApiVersion
         Comment
         Issue
+        NoteVersion
         Organization
         Post
         ProjectVersion
@@ -21,6 +22,8 @@ export const typeDef = gql`
     enum ReportSortBy {
         DateCreatedAsc
         DateCreatedDesc
+        ResponsesAsc
+        ResponsesDesc
     }
 
     input ReportCreateInput {

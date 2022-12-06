@@ -5,14 +5,14 @@ import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { CustomError, Trigger } from "../events";
-import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy, SessionUser } from "../endpoints/types";
+import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer, Duplicator } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { RunModel } from "./run";
+import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo } from "../builders/types";
 import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
@@ -67,7 +67,7 @@ const formatter = (): Formatter<Routine, SupplementalFields> => ({
                 // Find requested fields of runs. Also add routineId, so we 
                 // can associate runs with their routine
                 const runPartial: PartialGraphQLInfo = {
-                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunModel.format.relationshipMap, userData.languages, true),
+                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.relationshipMap, userData.languages, true),
                     routineVersionId: true
                 }
                 // Query runs made by user
@@ -101,14 +101,18 @@ const formatter = (): Formatter<Routine, SupplementalFields> => ({
 
 const searcher = (): Searcher<
     RoutineSearchInput,
-    RoutineSortBy,
+    RoutineVersionSortBy,
     Prisma.routine_versionOrderByWithRelationInput,
     Prisma.routine_versionWhereInput
 > => ({
-    defaultSort: RoutineSortBy.VotesDesc,
+    defaultSort: RoutineVersionSortBy.DateCompletedDesc,
     sortMap: {
         CommentsAsc: { comments: { _count: 'asc' } },
         CommentsDesc: { comments: { _count: 'desc' } },
+        ComplexityAsc: { complexity: 'asc' },
+        ComplexityDesc: { complexity: 'desc' },
+        DirectoryListingsAsc: { directoryListings: { _count: 'asc' } },
+        DirectoryListingsDesc: { directoryListings: { _count: 'desc' } },
         ForksAsc: { forks: { _count: 'asc' } },
         ForksDesc: { forks: { _count: 'desc' } },
         DateCompletedAsc: { completedAt: 'asc' },
@@ -117,10 +121,10 @@ const searcher = (): Searcher<
         DateCreatedDesc: { created_at: 'desc' },
         DateUpdatedAsc: { updated_at: 'asc' },
         DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { root: { stars: 'asc' } },
-        StarsDesc: { root: { stars: 'desc' } },
-        VotesAsc: { root: { votes: 'asc' } },
-        VotesDesc: { root: { votes: 'desc' } },
+        RunRoutinesAsc: { runRoutines: { _count: 'asc' } },
+        RunRoutinesDesc: { runRoutines: { _count: 'desc' } },
+        SimplicityAsc: { simplicity: 'asc' },
+        SimplicityDesc: { simplicity: 'desc' },
     },
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [

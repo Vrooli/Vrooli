@@ -58,13 +58,17 @@ const searcher = (): Searcher<
 })
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] } = {
-    Comment: 'comment',
-    Organization: 'organization',
-    Project: 'projectVersion',
-    Routine: 'routineVersion',
-    Standard: 'standardVersion',
-    Tag: 'tag',
-    User: 'user',
+    ApiVersion: "apiVersion",
+    Comment: "comment",
+    Issue: "issue",
+    Organization: "organization",
+    NoteVersion: "noteVersion",
+    Post: "post",
+    ProjectVersion: "projectVersion",
+    RoutineVersion: "routineVersion",
+    StandardVersion: "standardVersion",
+    Tag: "tag",
+    User: "user",
 }
 
 const validator = (): Validator<

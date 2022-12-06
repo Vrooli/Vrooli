@@ -43,6 +43,7 @@ export enum DeleteType {
   Organization = "Organization",
   Project = "Project",
   ProjectVersion = "ProjectVersion",
+  PushDevice = "PushDevice",
   Reminder = "Reminder",
   ReminderList = "ReminderList",
   Report = "Report",
@@ -61,6 +62,17 @@ export enum NodeType {
   Redirect = "Redirect",
   RoutineList = "RoutineList",
   Start = "Start",
+}
+
+export enum NotificationSortBy {
+  CategoryAsc = "CategoryAsc",
+  CategoryDesc = "CategoryDesc",
+  DateCreatedAsc = "DateCreatedAsc",
+  DateCreatedDesc = "DateCreatedDesc",
+  DateUpdatedAsc = "DateUpdatedAsc",
+  DateUpdatedDesc = "DateUpdatedDesc",
+  TitleAsc = "TitleAsc",
+  TitleDesc = "TitleDesc",
 }
 
 export enum OrganizationSortBy {
@@ -82,35 +94,47 @@ export enum ProjectOrOrganizationSortBy {
 }
 
 export enum ProjectOrRoutineSortBy {
-  CommentsAsc = "CommentsAsc",
-  CommentsDesc = "CommentsDesc",
   DateCompletedAsc = "DateCompletedAsc",
   DateCompletedDesc = "DateCompletedDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
-  ForksAsc = "ForksAsc",
-  ForksDesc = "ForksDesc",
+  IssuesAsc = "IssuesAsc",
+  IssuesDesc = "IssuesDesc",
+  PullRequestsAsc = "PullRequestsAsc",
+  PullRequestsDesc = "PullRequestsDesc",
+  QuestionsAsc = "QuestionsAsc",
+  QuestionsDesc = "QuestionsDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
+  VersionsAsc = "VersionsAsc",
+  VersionsDesc = "VersionsDesc",
+  ViewsAsc = "ViewsAsc",
+  ViewsDesc = "ViewsDesc",
   VotesAsc = "VotesAsc",
   VotesDesc = "VotesDesc",
 }
 
 export enum ProjectSortBy {
-  CommentsAsc = "CommentsAsc",
-  CommentsDesc = "CommentsDesc",
   DateCompletedAsc = "DateCompletedAsc",
   DateCompletedDesc = "DateCompletedDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
-  ForksAsc = "ForksAsc",
-  ForksDesc = "ForksDesc",
+  IssuesAsc = "IssuesAsc",
+  IssuesDesc = "IssuesDesc",
+  PullRequestsAsc = "PullRequestsAsc",
+  PullRequestsDesc = "PullRequestsDesc",
+  QuestionsAsc = "QuestionsAsc",
+  QuestionsDesc = "QuestionsDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
+  VersionsAsc = "VersionsAsc",
+  VersionsDesc = "VersionsDesc",
+  ViewsAsc = "ViewsAsc",
+  ViewsDesc = "ViewsDesc",
   VotesAsc = "VotesAsc",
   VotesDesc = "VotesDesc",
 }
@@ -119,6 +143,7 @@ export enum ReportFor {
   ApiVersion = "ApiVersion",
   Comment = "Comment",
   Issue = "Issue",
+  NoteVersion = "NoteVersion",
   Organization = "Organization",
   Post = "Post",
   ProjectVersion = "ProjectVersion",
@@ -131,6 +156,8 @@ export enum ReportFor {
 export enum ReportSortBy {
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
+  ResponsesAsc = "ResponsesAsc",
+  ResponsesDesc = "ResponsesDesc",
 }
 
 export enum ResourceFor {
@@ -155,6 +182,8 @@ export enum ResourceSortBy {
   DateUpdatedDesc = "DateUpdatedDesc",
   IndexAsc = "IndexAsc",
   IndexDesc = "IndexDesc",
+  UsedForAsc = "UsedForAsc",
+  UsedForDesc = "UsedForDesc",
 }
 
 export enum ResourceUsedFor {
@@ -177,23 +206,33 @@ export enum ResourceUsedFor {
 }
 
 export enum RoutineSortBy {
-  CommentsAsc = "CommentsAsc",
-  CommentsDesc = "CommentsDesc",
   DateCompletedAsc = "DateCompletedAsc",
   DateCompletedDesc = "DateCompletedDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
-  ForksAsc = "ForksAsc",
-  ForksDesc = "ForksDesc",
+  IssuesAsc = "IssuesAsc",
+  IssuesDesc = "IssuesDesc",
+  PullRequestsAsc = "PullRequestsAsc",
+  PullRequestsDesc = "PullRequestsDesc",
+  QuestionsAsc = "QuestionsAsc",
+  QuestionsDesc = "QuestionsDesc",
+  QuizzesAsc = "QuizzesAsc",
+  QuizzesDesc = "QuizzesDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
+  VersionsAsc = "VersionsAsc",
+  VersionsDesc = "VersionsDesc",
+  ViewsAsc = "ViewsAsc",
+  ViewsDesc = "ViewsDesc",
   VotesAsc = "VotesAsc",
   VotesDesc = "VotesDesc",
 }
 
-export enum RunSortBy {
+export enum RunRoutineSortBy {
+  ContextSwitchesAsc = "ContextSwitchesAsc",
+  ContextSwitchesDesc = "ContextSwitchesDesc",
   DateCompletedAsc = "DateCompletedAsc",
   DateCompletedDesc = "DateCompletedDesc",
   DateCreatedAsc = "DateCreatedAsc",
@@ -202,6 +241,16 @@ export enum RunSortBy {
   DateStartedDesc = "DateStartedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
+  RunRoutinesAsc = "RunRoutinesAsc",
+  RunRoutinesDesc = "RunRoutinesDesc",
+  StepsAsc = "StepsAsc",
+  StepsDesc = "StepsDesc",
+}
+
+export enum RunRoutineStepStatus {
+  Completed = "Completed",
+  InProgress = "InProgress",
+  Skipped = "Skipped",
 }
 
 export enum RunStatus {
@@ -212,30 +261,42 @@ export enum RunStatus {
   Scheduled = "Scheduled",
 }
 
-export enum RunStepStatus {
-  Completed = "Completed",
-  InProgress = "InProgress",
-  Skipped = "Skipped",
-}
-
 export enum StandardSortBy {
-  CommentsAsc = "CommentsAsc",
-  CommentsDesc = "CommentsDesc",
+  DateCompletedAsc = "DateCompletedAsc",
+  DateCompletedDesc = "DateCompletedDesc",
   DateCreatedAsc = "DateCreatedAsc",
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
+  IssuesAsc = "IssuesAsc",
+  IssuesDesc = "IssuesDesc",
+  PullRequestsAsc = "PullRequestsAsc",
+  PullRequestsDesc = "PullRequestsDesc",
+  QuestionsAsc = "QuestionsAsc",
+  QuestionsDesc = "QuestionsDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
+  VersionsAsc = "VersionsAsc",
+  VersionsDesc = "VersionsDesc",
+  ViewsAsc = "ViewsAsc",
+  ViewsDesc = "ViewsDesc",
   VotesAsc = "VotesAsc",
   VotesDesc = "VotesDesc",
 }
 
 export enum StarFor {
+  Api = "Api",
   Comment = "Comment",
+  Issue = "Issue",
+  Note = "Note",
   Organization = "Organization",
+  Post = "Post",
   Project = "Project",
+  Question = "Question",
+  QuestionAnswer = "QuestionAnswer",
+  Quiz = "Quiz",
   Routine = "Routine",
+  SmartContract = "SmartContract",
   Standard = "Standard",
   Tag = "Tag",
   User = "User",
@@ -276,11 +337,18 @@ export enum VisibilityType {
 }
 
 export enum VoteFor {
+  Api = "Api",
   Comment = "Comment",
+  Issue = "Issue",
+  Note = "Note",
+  Post = "Post",
   Project = "Project",
+  Question = "Question",
+  QuestionAnswer = "QuestionAnswer",
+  Quiz = "Quiz",
   Routine = "Routine",
+  SmartContract = "SmartContract",
   Standard = "Standard",
-  Tag = "Tag",
 }
 
 export interface CommentCreateInput {
@@ -646,6 +714,16 @@ export interface NodeUpdateInput {
   translationsUpdate?: NodeTranslationUpdateInput[] | null;
 }
 
+export interface NotificationSearchInput {
+  after?: string | null;
+  createdTimeFrame?: TimeFrame | null;
+  ids?: string[] | null;
+  searchString?: string | null;
+  sortBy?: NotificationSortBy | null;
+  take?: number | null;
+  visibility?: VisibilityType | null;
+}
+
 export interface OrganizationCreateInput {
   id: string;
   handle?: string | null;
@@ -914,6 +992,23 @@ export interface ProjectUpdateInput {
   translationsUpdate?: ProjectTranslationUpdateInput[] | null;
 }
 
+export interface PushDeviceCreateInput {
+  endpoint: string;
+  expires?: any | null;
+  keys: PushDeviceKeysInput;
+  name?: string | null;
+}
+
+export interface PushDeviceKeysInput {
+  auth: string;
+  p256dh: string;
+}
+
+export interface PushDeviceUpdateInput {
+  id: string;
+  name?: string | null;
+}
+
 export interface ReadAssetsInput {
   files: string[];
 }
@@ -1169,39 +1264,39 @@ export interface RoutineUpdateInput {
   translationsUpdate?: RoutineTranslationUpdateInput[] | null;
 }
 
-export interface RunCancelInput {
+export interface RunRoutineCancelInput {
   id: string;
 }
 
-export interface RunCompleteInput {
+export interface RunRoutineCompleteInput {
   id: string;
   completedComplexity?: number | null;
   exists?: boolean | null;
   title: string;
-  finalStepCreate?: RunStepCreateInput | null;
-  finalStepUpdate?: RunStepUpdateInput | null;
+  finalStepCreate?: RunRoutineStepCreateInput | null;
+  finalStepUpdate?: RunRoutineStepUpdateInput | null;
   inputsDelete?: string[] | null;
-  inputsCreate?: RunInputCreateInput[] | null;
-  inputsUpdate?: RunInputUpdateInput[] | null;
+  inputsCreate?: RunRoutineInputCreateInput[] | null;
+  inputsUpdate?: RunRoutineInputUpdateInput[] | null;
   wasSuccessful?: boolean | null;
 }
 
-export interface RunCreateInput {
+export interface RunRoutineCreateInput {
   id: string;
   isPrivate?: boolean | null;
   routineVersionId: string;
   title: string;
-  stepsCreate?: RunStepCreateInput[] | null;
-  inputsCreate?: RunInputCreateInput[] | null;
+  stepsCreate?: RunRoutineStepCreateInput[] | null;
+  inputsCreate?: RunRoutineInputCreateInput[] | null;
 }
 
-export interface RunInputCreateInput {
+export interface RunRoutineInputCreateInput {
   id: string;
   data: string;
   inputId: string;
 }
 
-export interface RunInputSearchInput {
+export interface RunRoutineInputSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   excludeIds?: string[] | null;
@@ -1212,12 +1307,12 @@ export interface RunInputSearchInput {
   updatedTimeFrame?: TimeFrame | null;
 }
 
-export interface RunInputUpdateInput {
+export interface RunRoutineInputUpdateInput {
   id: string;
   data: string;
 }
 
-export interface RunSearchInput {
+export interface RunRoutineSearchInput {
   after?: string | null;
   createdTimeFrame?: TimeFrame | null;
   startedTimeFrame?: TimeFrame | null;
@@ -1227,13 +1322,13 @@ export interface RunSearchInput {
   status?: RunStatus | null;
   routineId?: string | null;
   searchString?: string | null;
-  sortBy?: RunSortBy | null;
+  sortBy?: RunRoutineSortBy | null;
   take?: number | null;
   updatedTimeFrame?: TimeFrame | null;
   visibility?: VisibilityType | null;
 }
 
-export interface RunStepCreateInput {
+export interface RunRoutineStepCreateInput {
   id: string;
   nodeId?: string | null;
   contextSwitches?: number | null;
@@ -1244,25 +1339,25 @@ export interface RunStepCreateInput {
   title: string;
 }
 
-export interface RunStepUpdateInput {
+export interface RunRoutineStepUpdateInput {
   id: string;
   contextSwitches?: number | null;
-  status?: RunStepStatus | null;
+  status?: RunRoutineStepStatus | null;
   timeElapsed?: number | null;
 }
 
-export interface RunUpdateInput {
+export interface RunRoutineUpdateInput {
   id: string;
   completedComplexity?: number | null;
   contextSwitches?: number | null;
   isPrivate?: boolean | null;
   timeElapsed?: number | null;
   stepsDelete?: string[] | null;
-  stepsCreate?: RunStepCreateInput[] | null;
-  stepsUpdate?: RunStepUpdateInput[] | null;
+  stepsCreate?: RunRoutineStepCreateInput[] | null;
+  stepsUpdate?: RunRoutineStepUpdateInput[] | null;
   inputsDelete?: string[] | null;
-  inputsCreate?: RunInputCreateInput[] | null;
-  inputsUpdate?: RunInputUpdateInput[] | null;
+  inputsCreate?: RunRoutineInputCreateInput[] | null;
+  inputsUpdate?: RunRoutineInputUpdateInput[] | null;
 }
 
 export interface SearchException {

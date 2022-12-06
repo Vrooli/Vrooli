@@ -1,17 +1,17 @@
 import { gql } from 'graphql-tag';
-import { listRunFields, listStarFields, listViewFields } from 'graphql/fragment';
+import { listRunRoutineFields, listStarFields, listViewFields } from 'graphql/fragment';
 
 export const historyQuery = gql`
-    ${listRunFields}
+    ${listRunRoutineFields}
     ${listStarFields}
     ${listViewFields}
     query history($input: HistoryInput!) {
         history(input: $input) {
             activeRuns {
-                ...listRunFields
+                ...listRunRoutineFields
             }
             completedRuns {
-                ...listRunFields
+                ...listRunRoutineFields
             }
             recentlyViewed {
                 ...listViewFields

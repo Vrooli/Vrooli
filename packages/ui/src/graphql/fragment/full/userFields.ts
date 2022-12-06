@@ -9,32 +9,6 @@ export const userFields = gql`
         stars
         isStarred
         reportsCount
-        resourceLists{
-            id
-            created_at
-            index
-            usedFor
-            translations {
-                id
-                language
-                description
-                title
-            }
-            resources {
-                id
-                created_at
-                index
-                link
-                updated_at
-                usedFor
-                translations {
-                    id
-                    language
-                    description
-                    title
-                }
-            }
-        }
         translations {
             id
             language

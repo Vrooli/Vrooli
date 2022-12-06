@@ -16,11 +16,18 @@ const formatter = (): Formatter<Vote, 'to'> => ({
         __typename: 'Vote',
         from: 'User',
         to: {
+            Api: 'Api',
             Comment: 'Comment',
+            Issue: 'Issue',
+            Note: 'Note',
+            Post: 'Post',
             Project: 'Project',
+            Question: 'Question',
+            QuestionAnswer: 'QuestionAnswer',
+            Quiz: 'Quiz',
             Routine: 'Routine',
+            SmartContract: 'SmartContract',
             Standard: 'Standard',
-            Tag: 'Tag',
         }
     },
     supplemental: {
@@ -76,11 +83,18 @@ const formatter = (): Formatter<Vote, 'to'> => ({
 })
 
 const forMapper: { [key in VoteFor]: string } = {
+    Api: 'api',
     Comment: 'comment',
+    Issue: 'issue',
+    Note: 'note',
+    Post: 'post',
     Project: 'project',
+    Question: 'question',
+    QuestionAnswer: 'questionAnswer',
+    Quiz: 'quiz',
     Routine: 'routine',
+    SmartContract: 'smartContract',
     Standard: 'standard',
-    Tag: 'tag',
 }
 
 /**

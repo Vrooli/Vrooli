@@ -30,9 +30,11 @@ model api {
     createdById           String?           @db.Uuid
     ownedByUserId         String?           @db.Uuid
     ownedByOrganizationId String?           @db.Uuid
+    parentId              String?           @db.Uuid
     createdBy             user?             @relation("api_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
     ownedByUser           user?             @relation("api_ownedByUser", fields: [ownedByUserId], references: [id])
     ownedByOrganization   organization?     @relation("api_ownedByOrganization", fields: [ownedByOrganizationId], references: [id])
+    parent                api_version?      @relation("api_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     tags                  api_tags[]
     calledByRoutines      routine_version[]
     issues                issue[]
@@ -42,7 +44,7 @@ model api {
     pullRequests          pull_request[]
     versions              api_version[]
     labels                api_labels[]
-    stats                 data_api[]
+    stats                 stats_api[]
     questions             question[]
     transfers             transfer[]        @relation("transfer_api")
 }
@@ -72,7 +74,8 @@ model api_version {
     pullRequestId       String?                     @unique @db.Uuid
     comments            comment[]
     reports             report[]
-    root                api                         @relation(fields: [rootId], references: [id])
+    root                api                         @relation(fields: [rootId], references: [id], onDelete: Cascade)
+    forks               api[]                       @relation("api_version_fork")
     intendToPullRequest Boolean                     @default(false)
     resourceList        resource_list?              @relation("resource_list_api_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     pullRequest         pull_request?               @relation("pull_request_from_api_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
@@ -102,15 +105,15 @@ model api_tags {
 }
 
 model api_key {
-    id               String   @id @default(uuid()) @db.Uuid
-    created_at       DateTime @default(now()) @db.Timestamptz(6)
-    updated_at       DateTime @default(now()) @db.Timestamptz(6)
-    key              String   @unique @db.VarChar(255)
-    countBeforeLimit Int      @default(20000)
-    stopAtLimit      Boolean  @default(true)
-    absoluteMax      Int?     @default(1000000)
-    userId           String   @db.Uuid
-    user             user     @relation(fields: [userId], references: [id])
+    id                     String   @id @default(uuid()) @db.Uuid
+    created_at             DateTime @default(now()) @db.Timestamptz(6)
+    updated_at             DateTime @default(now()) @db.Timestamptz(6)
+    key                    String   @unique @db.VarChar(255)
+    creditsUsedBeforeLimit Int      @default(20000)
+    stopAtLimit            Boolean  @default(true)
+    absoluteMax            Int?     @default(1000000)
+    userId                 String   @db.Uuid
+    user                   user     @relation(fields: [userId], references: [id])
 }
 
 model comment {
@@ -121,6 +124,7 @@ model comment {
     ownedByOrganizationId  String?                 @db.Uuid
     apiVersionId           String?                 @db.Uuid
     issueId                String?                 @db.Uuid
+    noteVersionId          String?                 @db.Uuid
     parentId               String?                 @db.Uuid
     postId                 String?                 @db.Uuid
     projectVersionId       String?                 @db.Uuid
@@ -135,6 +139,7 @@ model comment {
     apiVersion             api_version?            @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
     issue                  issue?                  @relation(fields: [issueId], references: [id], onDelete: Cascade)
     ownedByOrganization    organization?           @relation("comment_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
+    noteVersion            note_version?           @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
     parent                 comment?                @relation("comment_parent", fields: [parentId], references: [id], onDelete: Cascade)
     post                   post?                   @relation(fields: [postId], references: [id], onDelete: Cascade)
     projectVersion         project_version?        @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
@@ -160,154 +165,6 @@ model comment_translation {
     comment   comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
     @@unique([commentId, language])
-}
-
-model data_site {
-    id                                          String     @id @default(uuid()) @db.Uuid
-    created_at                                  DateTime   @default(now()) @db.Timestamptz(6)
-    periodStart                                 DateTime   @db.Timestamptz(6)
-    periodEnd                                   DateTime   @db.Timestamptz(6)
-    periodType                                  PeriodType
-    activeUsers                                 Int
-    apiCallsPeriod                              Int
-    apis                                        Int
-    organizations                               Int
-    projects                                    Int
-    projectsCompleted                           Int
-    projectsCompletionTimeAverageInPeriod       Float
-    quizzes                                     Int
-    quizzesCompleted                            Int
-    quizScoreAverageInPeriod                    Float
-    routines                                    Int
-    routinesCompleted                           Int
-    routinesCompletionTimeAverageInPeriod       Float
-    routinesSimplicityAverage                   Int
-    routinesComplexityAverage                   Int
-    runsStarted                                 Int
-    runsCompleted                               Int
-    runsCompletionTimeAverageInPeriod           Float
-    smartContractsCreated                       Int
-    smartContractsCompleted                     Int
-    smartContractsCompletionTimeAverageInPeriod Float
-    smartContractCalls                          Int
-    standardsCreated                            Int
-    standardsCompleted                          Int
-    standardsCompletionTimeAverageInPeriod      Float
-    verifiedEmails                              Int
-    verifiedWallets                             Int
-}
-
-model data_api {
-    id          String     @id @default(uuid()) @db.Uuid
-    apiId       String     @db.Uuid
-    periodStart DateTime   @db.Timestamptz(6)
-    periodEnd   DateTime   @db.Timestamptz(6)
-    periodType  PeriodType
-    calls       Int
-    api         api        @relation(fields: [apiId], references: [id], onDelete: Cascade)
-}
-
-model data_organization {
-    id             String       @id @default(uuid()) @db.Uuid
-    organizationId String       @db.Uuid
-    periodStarrt   DateTime     @db.Timestamptz(6)
-    periodEnd      DateTime     @db.Timestamptz(6)
-    periodType     PeriodType
-    apis           Int
-    members        Int
-    projects       Int
-    routines       Int
-    smartContracts Int
-    standards      Int
-    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-}
-
-model data_project {
-    id             String     @id @default(uuid()) @db.Uuid
-    projectId      String     @db.Uuid
-    periodStart    DateTime   @db.Timestamptz(6)
-    periodEnd      DateTime   @db.Timestamptz(6)
-    periodType     PeriodType
-    routines       Int
-    smartContracts Int
-    standards      Int
-    subProjects    Int
-    project        project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-}
-
-model data_quiz {
-    id           String     @id @default(uuid()) @db.Uuid
-    quizId       String     @db.Uuid
-    periodStart  DateTime   @db.Timestamptz(6)
-    periodEnd    DateTime   @db.Timestamptz(6)
-    periodType   PeriodType
-    timesStarted Int
-    timesPassed  Int
-    timesFailed  Int
-    scoreAverage Float
-    quiz         quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
-}
-
-model data_routine {
-    id                               String     @id @default(uuid()) @db.Uuid
-    routineId                        String     @db.Uuid
-    periodStart                      DateTime   @db.Timestamptz(6)
-    periodEnd                        DateTime   @db.Timestamptz(6)
-    periodType                       PeriodType
-    runsStarted                      Int
-    runsCompleted                    Int
-    runCompletionTimeAverageInPeriod Float
-    routine                          routine    @relation(fields: [routineId], references: [id], onDelete: Cascade)
-}
-
-model data_smart_contract {
-    id              String         @id @default(uuid()) @db.Uuid
-    smartContractId String         @db.Uuid
-    periodStart     DateTime       @db.Timestamptz(6)
-    periodEnd       DateTime       @db.Timestamptz(6)
-    periodType      PeriodType
-    calls           Int
-    smartContract   smart_contract @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
-}
-
-model data_standard {
-    id                           String     @id @default(uuid()) @db.Uuid
-    standardId                   String     @db.Uuid
-    periodStart                  DateTime   @db.Timestamptz(6)
-    periodEnd                    DateTime   @db.Timestamptz(6)
-    periodType                   PeriodType
-    linksToInputs                Int
-    linksToOutputs               Int
-    timesUsedInCompletedRoutines Int
-    standard                     standard   @relation(fields: [standardId], references: [id], onDelete: Cascade)
-}
-
-model data_user {
-    id                                          String     @id @default(uuid()) @db.Uuid
-    userId                                      String     @db.Uuid
-    periodStart                                 DateTime   @db.Timestamptz(6)
-    periodEnd                                   DateTime   @db.Timestamptz(6)
-    periodType                                  PeriodType
-    apis                                        Int
-    organizations                               Int
-    projects                                    Int
-    projectsCompleted                           Int
-    projectsCompletionTimeAverageInPeriod       Float
-    quizzesPassed                               Int
-    quizzesFailed                               Int
-    routines                                    Int
-    routinesCompleted                           Int
-    routinesCompletionTimeAverageInPeriod       Float
-    runsStarted                                 Int
-    runsCompleted                               Int
-    runsCompletionTimeAverageInPeriod           Float
-    smartContractsCreated                       Int
-    smartContractsCompleted                     Int
-    smartContractsCompletionTimeAverageInPeriod Float
-    standardsCreated                            Int
-    standardsCompleted                          Int
-    standardsCompletionTimeAverageInPeriod      Float
-    user                                        user       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model email {
@@ -336,6 +193,7 @@ model issue {
     closedAt            DateTime?           @db.Timestamptz(6)
     apiId               String?             @db.Uuid
     organizationId      String?             @db.Uuid
+    noteId              String?             @db.Uuid
     projectId           String?             @db.Uuid
     routineId           String?             @db.Uuid
     smartContractId     String?             @db.Uuid
@@ -345,6 +203,7 @@ model issue {
     referencedVersionId String?             @db.Uuid
     api                 api?                @relation(fields: [apiId], references: [id], onDelete: Cascade)
     organization        organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    note                note?               @relation(fields: [noteId], references: [id], onDelete: Cascade)
     project             project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
     routine             routine?            @relation(fields: [routineId], references: [id], onDelete: Cascade)
     smartContract       smart_contract?     @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
@@ -381,13 +240,13 @@ model issue_translation {
 }
 
 model label {
-    id                      String                         @id @default(uuid()) @db.Uuid
-    created_at              DateTime                       @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime                       @default(now()) @db.Timestamptz(6)
-    label                   String                         @unique @db.VarChar(128)
-    color                   String?                        @db.VarChar(7)
-    createdByUserId         String?                        @db.Uuid
-    createdByOrganizationId String?                        @db.Uuid
+    id                      String                        @id @default(uuid()) @db.Uuid
+    created_at              DateTime                      @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime                      @default(now()) @db.Timestamptz(6)
+    label                   String                        @unique @db.VarChar(128)
+    color                   String?                       @db.VarChar(7)
+    createdByUserId         String?                       @db.Uuid
+    createdByOrganizationId String?                       @db.Uuid
     apis                    api_labels[]
     issues                  issue_labels[]
     notes                   note_labels[]
@@ -395,23 +254,23 @@ model label {
     routines                routine_labels[]
     smartContracts          smart_contract_labels[]
     standards               standard_labels[]
-    schedulesOrganization   organization_schedule_labels[]
-    schedulesRunProject     run_project_schedule_labels[]
-    schedulesRunRoutine     run_routine_schedule_labels[]
+    meetings                meeting_labels[]
+    runProjectSchedules     run_project_schedule_labels[]
+    runRoutineSchedules     run_routine_schedule_labels[]
     schedulesUser           user_schedule_labels[]
-    createdByUser           user?                          @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
-    createdByOrganization   organization?                  @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
+    createdByUser           user?                         @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+    createdByOrganization   organization?                 @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
     translations            label_translation[]
 
     @@unique([label, createdByUserId, createdByOrganizationId])
 }
 
 model label_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
-    labelId     String  @db.Uuid
-    language    String  @db.VarChar(3)
-    label       label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
+    id          String @id @default(uuid()) @db.Uuid
+    description String @db.VarChar(2048)
+    labelId     String @db.Uuid
+    language    String @db.VarChar(3)
+    label       label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
     @@unique([labelId, language])
 }
@@ -560,16 +419,25 @@ model note {
     created_at              DateTime       @default(now()) @db.Timestamptz(6)
     updated_at              DateTime       @default(now()) @db.Timestamptz(6)
     isPrivate               Boolean        @default(false)
+    stars                   Int            @default(0)
+    views                   Int            @default(0)
+    votes                   Int            @default(0)
+    parentId                String?        @db.Uuid
     createdById             String?        @db.Uuid
     ownedByUserId           String?        @db.Uuid
     ownedByOrganizationId   String?        @db.Uuid
     createdByOrganizationId String?        @db.Uuid
+    parent                  note_version?  @relation("note_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     createdBy               user?          @relation("note_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
     ownedByUser             user?          @relation("note_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: Cascade)
     ownedByOrganization     organization?  @relation("note_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
     versions                note_version[]
     pullRequests            pull_request[]
     labels                  note_labels[]
+    issues                  issue[]
+    starredBy               star[]         @relation("star_note")
+    viewedBy                view[]         @relation("view_note")
+    votedBy                 vote[]         @relation("vote_note")
     transfers               transfer[]     @relation("transfer_note")
 }
 
@@ -596,7 +464,10 @@ model note_version {
     versionLabel        String                      @default("1.0.0") @db.VarChar(16)
     versionNotes        String?                     @db.VarChar(4096)
     root                note                        @relation(fields: [rootId], references: [id], onDelete: Cascade)
+    forks               note[]                      @relation("note_version_fork")
     pullRequest         pull_request?               @relation("pull_request_from_note_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
+    comments            comment[]
+    reports             report[]
     translations        note_version_translation[]
     directoryListings   project_version_directory[]
 
@@ -625,12 +496,13 @@ model notification {
     user        user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model notification_device {
+model push_device {
     id       String    @id @default(uuid()) @db.Uuid
     endpoint String    @unique @db.VarChar(1024)
     p256dh   String    @db.VarChar(1024)
     auth     String    @db.VarChar(1024)
     expires  DateTime? @db.Timestamptz(6)
+    name     String?   @db.VarChar(128)
     userId   String    @db.Uuid
     user     user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -658,14 +530,14 @@ model organization {
     permissions        String                      @db.VarChar(4096)
     premiumId          String?                     @unique @db.Uuid
     resourceListId     String?                     @unique @db.Uuid
-    createdById        String?                      @db.Uuid
-    createdBy          user?                        @relation("organization_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    createdById        String?                     @db.Uuid
+    createdBy          user?                       @relation("organization_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     issues             issue[]
     labels             label[]
     notes              note[]                      @relation("note_ownedByOrganization")
     apis               api[]                       @relation("api_ownedByOrganization")
     comments           comment[]                   @relation("comment_ownedByOrganization")
-    schedules          organization_schedule[]
+    schedules          meeting[]
     paymentHistory     payment[]
     posts              post[]
     premium            premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
@@ -686,7 +558,7 @@ model organization {
     languages          organization_language[]
     transfersIncoming  transfer[]                  @relation("transfer_to_organization")
     transfersOutgoing  transfer[]                  @relation("transfer_from_organization")
-    stats              data_organization[]
+    stats              stats_organization[]
     questions          question[]
     directoryListings  project_version_directory[]
 }
@@ -700,77 +572,79 @@ model organization_language {
     @@unique([organizationId, language])
 }
 
-model organization_schedule {
-    id                        String                              @id @default(uuid()) @db.Uuid
-    inviteId                  String?                             @db.Uuid
-    openToAnyoneWithInvite    Boolean                             @default(false)
-    showOnOrganizationProfile Boolean                             @default(false)
-    timezone                  String?                             @db.VarChar(128)
-    eventStart                DateTime?                           @db.Timestamptz(6)
-    eventEnd                  DateTime?                           @db.Timestamptz(6)
-    recurring                 Boolean                             @default(false)
-    recurrStart               DateTime?                           @db.Timestamptz(6)
-    recurrEnd                 DateTime?                           @db.Timestamptz(6)
-    organizationId            String                              @db.Uuid
-    organization              organization                        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    restrictedToRoles         organization_schedule_roles[]
-    attendees                 organization_schedule_attendees[]
-    invites                   organization_schedule_invites[]
-    labels                    organization_schedule_labels[]
-    translations              organization_schedule_translation[]
+model meeting {
+    id                        String                @id @default(uuid()) @db.Uuid
+    inviteId                  String?               @db.Uuid
+    openToAnyoneWithInvite    Boolean               @default(false)
+    showOnOrganizationProfile Boolean               @default(false)
+    timezone                  String?               @db.VarChar(128)
+    eventStart                DateTime?             @db.Timestamptz(6)
+    eventEnd                  DateTime?             @db.Timestamptz(6)
+    recurring                 Boolean               @default(false)
+    recurrStart               DateTime?             @db.Timestamptz(6)
+    recurrEnd                 DateTime?             @db.Timestamptz(6)
+    organizationId            String                @db.Uuid
+    organization              organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    restrictedToRoles         meeting_roles[]
+    attendees                 meeting_attendees[]
+    invites                   meeting_invite[]
+    labels                    meeting_labels[]
+    translations              meeting_translation[]
 }
 
-model organization_schedule_attendees {
-    id         String                @id @default(uuid()) @db.Uuid
-    scheduleId String                @db.Uuid
-    schedule   organization_schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-    userId     String                @db.Uuid
-    user       user                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+model meeting_attendees {
+    id         String  @id @default(uuid()) @db.Uuid
+    scheduleId String  @db.Uuid
+    schedule   meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    userId     String  @db.Uuid
+    user       user    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([scheduleId, userId])
 }
 
-model organization_schedule_invites {
-    id         String                @id @default(uuid()) @db.Uuid
-    status     MeetingInviteStatus   @default(Pending)
-    scheduleId String                @db.Uuid
-    schedule   organization_schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-    userId     String                @db.Uuid
-    user       user                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+model meeting_invite {
+    id         String              @id @default(uuid()) @db.Uuid
+    created_at DateTime            @default(now()) @db.Timestamptz(6)
+    updated_at DateTime            @default(now()) @db.Timestamptz(6)
+    status     MeetingInviteStatus @default(Pending)
+    scheduleId String              @db.Uuid
+    schedule   meeting             @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    userId     String              @db.Uuid
+    user       user                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([scheduleId, userId])
 }
 
-model organization_schedule_labels {
-    id         String                @id @default(uuid()) @db.Uuid
-    labelledId String                @db.Uuid
-    labelId    String                @db.Uuid
-    labelled   organization_schedule @relation(fields: [labelledId], references: [id], onDelete: Cascade)
-    label      label                 @relation(fields: [labelId], references: [id], onDelete: Cascade)
+model meeting_labels {
+    id         String  @id @default(uuid()) @db.Uuid
+    labelledId String  @db.Uuid
+    labelId    String  @db.Uuid
+    labelled   meeting @relation(fields: [labelledId], references: [id], onDelete: Cascade)
+    label      label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
-    @@unique([labelledId, labelId], name: "organization_schedule_labels_labelledid_labelid_unique")
+    @@unique([labelledId, labelId], name: "meeting_labels_labelledid_labelid_unique")
 }
 
-model organization_schedule_roles {
-    id         String                @id @default(uuid()) @db.Uuid
-    scheduleId String                @db.Uuid
-    schedule   organization_schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-    roleId     String                @db.Uuid
-    role       role                  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+model meeting_roles {
+    id         String  @id @default(uuid()) @db.Uuid
+    scheduleId String  @db.Uuid
+    schedule   meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    roleId     String  @db.Uuid
+    role       role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
     @@unique([scheduleId, roleId])
 }
 
-model organization_schedule_translation {
-    id          String                @id @default(uuid()) @db.Uuid
-    scheduleId  String                @db.Uuid
-    schedule    organization_schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
-    language    String                @db.VarChar(3)
-    title       String?               @db.VarChar(128)
-    description String?               @db.VarChar(2048)
-    link        String?               @db.VarChar(2048)
+model meeting_translation {
+    id          String  @id @default(uuid()) @db.Uuid
+    scheduleId  String  @db.Uuid
+    schedule    meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    language    String  @db.VarChar(3)
+    title       String? @db.VarChar(128)
+    description String? @db.VarChar(2048)
+    link        String? @db.VarChar(2048)
 
-    @@unique([scheduleId, language], name: "organization_schedule_translation_scheduleid_language_unique")
+    @@unique([scheduleId, language], name: "meeting_translation_scheduleid_language_unique")
 }
 
 model organization_translation {
@@ -808,29 +682,28 @@ model member {
 }
 
 model post {
-    id             String         @id @default(uuid()) @db.Uuid
-    created_at     DateTime       @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime       @default(now()) @db.Timestamptz(6)
-    title          String?        @db.VarChar(128)
-    description    String?        @db.VarChar(2048)
-    repostedFromId String?        @db.Uuid
-    resourceListId String?        @unique @db.Uuid
-    isPinned       Boolean        @default(false)
-    isPublic       Boolean        @default(false)
-    isDeleted      Boolean        @default(false)
-    organizationId String?        @db.Uuid
-    userId         String?        @db.Uuid
-    organization   organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    user           user?          @relation(fields: [userId], references: [id], onDelete: Cascade)
-    repostedFrom   post?          @relation("repost", fields: [repostedFromId], references: [id], onDelete: SetNull)
-    reposts        post[]         @relation("repost")
-    resourceList   resource_list? @relation("resource_list_post", fields: [resourceListId], references: [id], onDelete: SetNull)
+    id             String             @id @default(uuid()) @db.Uuid
+    created_at     DateTime           @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime           @default(now()) @db.Timestamptz(6)
+    repostedFromId String?            @db.Uuid
+    resourceListId String?            @unique @db.Uuid
+    isPinned       Boolean            @default(false)
+    isPublic       Boolean            @default(false)
+    isDeleted      Boolean            @default(false)
+    organizationId String?            @db.Uuid
+    userId         String?            @db.Uuid
+    organization   organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user           user?              @relation(fields: [userId], references: [id], onDelete: Cascade)
+    repostedFrom   post?              @relation("repost", fields: [repostedFromId], references: [id], onDelete: SetNull)
+    reposts        post[]             @relation("repost")
+    resourceList   resource_list?     @relation("resource_list_post", fields: [resourceListId], references: [id], onDelete: SetNull)
     comments       comment[]
-    viewedBy       view[]         @relation("view_post")
-    votedBy        vote[]         @relation("vote_post")
-    starredBy      star[]         @relation("star_post")
+    viewedBy       view[]             @relation("view_post")
+    votedBy        vote[]             @relation("vote_post")
+    starredBy      star[]             @relation("star_post")
     reports        report[]
     tags           post_tags[]
+    translations   post_translation[]
 }
 
 model post_tags {
@@ -841,6 +714,17 @@ model post_tags {
     tagged   post   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
 
     @@unique([taggedId, tagTag], name: "post_tags_taggedid_tagTag_unique")
+}
+
+model post_translation {
+    id          String  @id @default(uuid()) @db.Uuid
+    description String? @db.VarChar(2048)
+    title       String  @db.VarChar(128)
+    language    String  @db.VarChar(3)
+    postId      String  @db.Uuid
+    post        post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+    @@unique([postId, language])
 }
 
 model phone {
@@ -886,7 +770,7 @@ model project {
     id                    String            @id @default(uuid()) @db.Uuid
     created_at            DateTime          @default(now()) @db.Timestamptz(6)
     updated_at            DateTime          @default(now()) @db.Timestamptz(6)
-    hasCompleteVersion    Boolean                  @default(false)
+    hasCompleteVersion    Boolean           @default(false)
     isDeleted             Boolean           @default(false)
     isPrivate             Boolean           @default(false)
     completedAt           DateTime?         @db.Timestamptz(6)
@@ -911,7 +795,7 @@ model project {
     viewedBy              view[]            @relation("view_project")
     votedBy               vote[]            @relation("vote_project")
     pullRequests          pull_request[]
-    stats                 data_project[]
+    stats                 stats_project[]
     questions             question[]
     transfers             transfer[]        @relation("transfer_project")
     quizzes               quiz[]
@@ -1021,14 +905,14 @@ model pull_request {
     updated_at               DateTime                @default(now()) @db.Timestamptz(6)
     status                   PullRequestStatus       @default(Open)
     mergedOrRejectedAt       DateTime?               @db.Timestamptz(6)
-    createdById              String?                  @db.Uuid
+    createdById              String?                 @db.Uuid
     toApiId                  String?                 @db.Uuid
     toNoteId                 String?                 @db.Uuid
     toProjectId              String?                 @db.Uuid
     toRoutineId              String?                 @db.Uuid
     toSmartContractId        String?                 @db.Uuid
     toStandardId             String?                 @db.Uuid
-    createdBy                user?                    @relation("pull_request_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    createdBy                user?                   @relation("pull_request_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     toApi                    api?                    @relation(fields: [toApiId], references: [id], onDelete: Cascade)
     fromApiVersion           api_version?            @relation("pull_request_from_api_version")
     note                     note?                   @relation(fields: [toNoteId], references: [id], onDelete: Cascade)
@@ -1134,7 +1018,7 @@ model quiz {
     starredBy              star[]             @relation("star_quiz")
     votedBy                vote[]             @relation("vote_quiz")
     translations           quiz_translation[]
-    stats                  data_quiz[]
+    stats                  stats_quiz[]
     attempts               quiz_attempt[]
 }
 
@@ -1233,6 +1117,7 @@ model report {
     apiVersionId           String?                 @db.Uuid
     commentId              String?                 @db.Uuid
     issueId                String?                 @db.Uuid
+    noteVersionId          String?                 @db.Uuid
     organizationId         String?                 @db.Uuid
     postId                 String?                 @db.Uuid
     projectVersionId       String?                 @db.Uuid
@@ -1245,6 +1130,7 @@ model report {
     apiVersion             api_version?            @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
     comment                comment?                @relation(fields: [commentId], references: [id], onDelete: Cascade)
     issue                  issue?                  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+    noteVersion            note_version?           @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
     from                   user                    @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
     organization           organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     post                   post?                   @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -1332,15 +1218,15 @@ model resource_list_translation {
 }
 
 model role {
-    id                    String                        @id @default(uuid()) @db.Uuid
-    created_at            DateTime                      @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime                      @default(now()) @db.Timestamptz(6)
-    title                 String                        @db.VarChar(128)
-    permissions           String                        @db.VarChar(4096)
-    organizationId        String                        @db.Uuid
-    organization          organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    id                    String             @id @default(uuid()) @db.Uuid
+    created_at            DateTime           @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime           @default(now()) @db.Timestamptz(6)
+    title                 String             @db.VarChar(128)
+    permissions           String             @db.VarChar(4096)
+    organizationId        String             @db.Uuid
+    organization          organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     assignees             member[]
-    organizationSchedules organization_schedule_roles[]
+    organizationSchedules meeting_roles[]
     translations          role_translation[]
 
     @@unique([organizationId, title], name: "role_organizationId_title_unique")
@@ -1387,7 +1273,7 @@ model routine {
     viewedBy              view[]            @relation("view_routine")
     votedBy               vote[]            @relation("vote_routine")
     pullRequests          pull_request[]
-    stats                 data_routine[]
+    stats                 stats_routine[]
     questions             question[]
     transfers             transfer[]        @relation("transfer_routine")
 }
@@ -1632,6 +1518,8 @@ model run_routine {
 
 model run_routine_input {
     id           String                @id @default(uuid()) @db.Uuid
+    created_at          DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime              @default(now()) @db.Timestamptz(6)
     data         String                @db.VarChar(8192)
     inputId      String                @db.Uuid
     runRoutineId String                @db.Uuid
@@ -1722,7 +1610,7 @@ model smart_contract {
     viewedBy              view[]                   @relation("view_smart_contract")
     votedBy               vote[]                   @relation("vote_smart_contract")
     pullRequests          pull_request[]
-    stats                 data_smart_contract[]
+    stats                 stats_smart_contract[]
     questions             question[]
     transfers             transfer[]               @relation("transfer_smart_contract")
 }
@@ -1819,7 +1707,7 @@ model standard {
     viewedBy              view[]             @relation("view_standard")
     votedBy               vote[]             @relation("vote_standard")
     pullRequests          pull_request[]
-    stats                 data_standard[]
+    stats                 stats_standard[]
     questions             question[]
     transfers             transfer[]         @relation("transfer_standard")
     quizQuestions         quiz_question[]
@@ -1901,6 +1789,7 @@ model star {
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
+    noteId           String?          @db.Uuid
     organizationId   String?          @db.Uuid
     postId           String?          @db.Uuid
     projectId        String?          @db.Uuid
@@ -1916,6 +1805,7 @@ model star {
     api              api?             @relation("star_api", fields: [apiId], references: [id], onDelete: Cascade)
     comment          comment?         @relation("star_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue            issue?           @relation("star_issue", fields: [issueId], references: [id], onDelete: Cascade)
+    note             note?            @relation("star_note", fields: [noteId], references: [id], onDelete: Cascade)
     organization     organization?    @relation("star_organization", fields: [organizationId], references: [id], onDelete: Cascade)
     post             post?            @relation("star_post", fields: [postId], references: [id], onDelete: Cascade)
     project          project?         @relation("star_project", fields: [projectId], references: [id], onDelete: Cascade)
@@ -1927,6 +1817,154 @@ model star {
     standard         standard?        @relation("star_standard", fields: [standardId], references: [id], onDelete: Cascade)
     tag              tag?             @relation("star_tag", fields: [tagId], references: [id], onDelete: Cascade)
     user             user?            @relation("star_user", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model stats_site {
+    id                                          String     @id @default(uuid()) @db.Uuid
+    created_at                                  DateTime   @default(now()) @db.Timestamptz(6)
+    periodStart                                 DateTime   @db.Timestamptz(6)
+    periodEnd                                   DateTime   @db.Timestamptz(6)
+    periodType                                  PeriodType
+    activeUsers                                 Int
+    apiCallsPeriod                              Int
+    apis                                        Int
+    organizations                               Int
+    projects                                    Int
+    projectsCompleted                           Int
+    projectsCompletionTimeAverageInPeriod       Float
+    quizzes                                     Int
+    quizzesCompleted                            Int
+    quizScoreAverageInPeriod                    Float
+    routines                                    Int
+    routinesCompleted                           Int
+    routinesCompletionTimeAverageInPeriod       Float
+    routinesSimplicityAverage                   Int
+    routinesComplexityAverage                   Int
+    runsStarted                                 Int
+    runsCompleted                               Int
+    runsCompletionTimeAverageInPeriod           Float
+    smartContractsCreated                       Int
+    smartContractsCompleted                     Int
+    smartContractsCompletionTimeAverageInPeriod Float
+    smartContractCalls                          Int
+    standardsCreated                            Int
+    standardsCompleted                          Int
+    standardsCompletionTimeAverageInPeriod      Float
+    verifiedEmails                              Int
+    verifiedWallets                             Int
+}
+
+model stats_api {
+    id          String     @id @default(uuid()) @db.Uuid
+    apiId       String     @db.Uuid
+    periodStart DateTime   @db.Timestamptz(6)
+    periodEnd   DateTime   @db.Timestamptz(6)
+    periodType  PeriodType
+    calls       Int
+    api         api        @relation(fields: [apiId], references: [id], onDelete: Cascade)
+}
+
+model stats_organization {
+    id             String       @id @default(uuid()) @db.Uuid
+    organizationId String       @db.Uuid
+    periodStarrt   DateTime     @db.Timestamptz(6)
+    periodEnd      DateTime     @db.Timestamptz(6)
+    periodType     PeriodType
+    apis           Int
+    members        Int
+    projects       Int
+    routines       Int
+    smartContracts Int
+    standards      Int
+    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model stats_project {
+    id             String     @id @default(uuid()) @db.Uuid
+    projectId      String     @db.Uuid
+    periodStart    DateTime   @db.Timestamptz(6)
+    periodEnd      DateTime   @db.Timestamptz(6)
+    periodType     PeriodType
+    routines       Int
+    smartContracts Int
+    standards      Int
+    subProjects    Int
+    project        project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model stats_quiz {
+    id           String     @id @default(uuid()) @db.Uuid
+    quizId       String     @db.Uuid
+    periodStart  DateTime   @db.Timestamptz(6)
+    periodEnd    DateTime   @db.Timestamptz(6)
+    periodType   PeriodType
+    timesStarted Int
+    timesPassed  Int
+    timesFailed  Int
+    scoreAverage Float
+    quiz         quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model stats_routine {
+    id                               String     @id @default(uuid()) @db.Uuid
+    routineId                        String     @db.Uuid
+    periodStart                      DateTime   @db.Timestamptz(6)
+    periodEnd                        DateTime   @db.Timestamptz(6)
+    periodType                       PeriodType
+    runsStarted                      Int
+    runsCompleted                    Int
+    runCompletionTimeAverageInPeriod Float
+    routine                          routine    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+}
+
+model stats_smart_contract {
+    id              String         @id @default(uuid()) @db.Uuid
+    smartContractId String         @db.Uuid
+    periodStart     DateTime       @db.Timestamptz(6)
+    periodEnd       DateTime       @db.Timestamptz(6)
+    periodType      PeriodType
+    calls           Int
+    smartContract   smart_contract @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
+}
+
+model stats_standard {
+    id                           String     @id @default(uuid()) @db.Uuid
+    standardId                   String     @db.Uuid
+    periodStart                  DateTime   @db.Timestamptz(6)
+    periodEnd                    DateTime   @db.Timestamptz(6)
+    periodType                   PeriodType
+    linksToInputs                Int
+    linksToOutputs               Int
+    timesUsedInCompletedRoutines Int
+    standard                     standard   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+}
+
+model stats_user {
+    id                                          String     @id @default(uuid()) @db.Uuid
+    userId                                      String     @db.Uuid
+    periodStart                                 DateTime   @db.Timestamptz(6)
+    periodEnd                                   DateTime   @db.Timestamptz(6)
+    periodType                                  PeriodType
+    apis                                        Int
+    organizations                               Int
+    projects                                    Int
+    projectsCompleted                           Int
+    projectsCompletionTimeAverageInPeriod       Float
+    quizzesPassed                               Int
+    quizzesFailed                               Int
+    routines                                    Int
+    routinesCompleted                           Int
+    routinesCompletionTimeAverageInPeriod       Float
+    runsStarted                                 Int
+    runsCompleted                               Int
+    runsCompletionTimeAverageInPeriod           Float
+    smartContractsCreated                       Int
+    smartContractsCompleted                     Int
+    smartContractsCompletionTimeAverageInPeriod Float
+    standardsCreated                            Int
+    standardsCompleted                          Int
+    standardsCompletionTimeAverageInPeriod      Float
+    user                                        user       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model tag {
@@ -1991,90 +2029,109 @@ model transfer {
 }
 
 model user {
-    id                             String                            @id @default(uuid()) @db.Uuid
-    created_at                     DateTime                          @default(now()) @db.Timestamptz(6)
-    updated_at                     DateTime                          @default(now()) @db.Timestamptz(6)
-    confirmationCode               String?                           @unique @db.VarChar(256)
-    confirmationCodeDate           DateTime?                         @db.Timestamptz(6)
-    invitedByUserId                String?                           @db.Uuid
-    isPrivate                      Boolean                           @default(false)
-    lastExport                     DateTime?                         @db.Timestamptz(6)
-    lastLoginAttempt               DateTime                          @default(now()) @db.Timestamptz(6)
-    lastResetPasswordReqestAttempt DateTime?                         @db.Timestamptz(6)
-    logInAttempts                  Int                               @default(0)
-    lastSessionVerified            DateTime?                         @db.Timestamptz(6)
-    numExports                     Int                               @default(0)
-    password                       String?                           @db.VarChar(256)
-    resetPasswordCode              String?                           @unique @db.VarChar(256)
-    sessionToken                   String?                           @db.VarChar(1024)
-    name                           String                            @db.VarChar(128)
-    theme                          String                            @default("light") @db.VarChar(255)
-    handle                         String?                           @unique @db.VarChar(16)
-    currentStreak                  Int                               @default(0)
-    longestStreak                  Int                               @default(0)
-    accountTabsOrder               String?                           @db.VarChar(255)
-    stars                          Int                               @default(0)
-    views                          Int                               @default(0)
-    notificationSettings           String?                           @db.VarChar(2048)
-    premiumId                      String?                           @unique @db.Uuid
-    status                         AccountStatus                     @default(Unlocked)
-    answers                        question_answer[]                 @relation("question_answer_createdBy")
-    apisCreated                    api[]                             @relation("api_createdBy")
-    apis                           api[]                             @relation("api_ownedByUser")
+    id                             String                      @id @default(uuid()) @db.Uuid
+    created_at                     DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at                     DateTime                    @default(now()) @db.Timestamptz(6)
+    confirmationCode               String?                     @unique @db.VarChar(256)
+    confirmationCodeDate           DateTime?                   @db.Timestamptz(6)
+    invitedByUserId                String?                     @db.Uuid
+    isPrivate                      Boolean                     @default(false)
+    isPrivateApis                  Boolean                     @default(false)
+    isPrivateApisCreated           Boolean                     @default(false)
+    isPrivateMemberships           Boolean                     @default(false)
+    isPrivateOrganizationsCreated  Boolean                     @default(false)
+    isPrivateProjects              Boolean                     @default(false)
+    isPrivateProjectsCreated       Boolean                     @default(false)
+    isPrivatePullRequests          Boolean                     @default(false)
+    isPrivateQuestionsAnswered     Boolean                     @default(false)
+    isPrivateQuestionsAsked        Boolean                     @default(false)
+    isPrivateQuizzesCreated        Boolean                     @default(false)
+    isPrivateRoles                 Boolean                     @default(false)
+    isPrivateRoutines              Boolean                     @default(false)
+    isPrivateRoutinesCreated       Boolean                     @default(false)
+    isPrivateSmartContracts        Boolean                     @default(false)
+    isPrivateSmartContractsCreated Boolean                     @default(false)
+    isPrivateStandards             Boolean                     @default(false)
+    isPrivateStandardsCreated      Boolean                     @default(false)
+    isPrivateStars                 Boolean                     @default(false)
+    isPrivateVotes                 Boolean                     @default(false)
+    lastExport                     DateTime?                   @db.Timestamptz(6)
+    lastLoginAttempt               DateTime                    @default(now()) @db.Timestamptz(6)
+    lastResetPasswordReqestAttempt DateTime?                   @db.Timestamptz(6)
+    logInAttempts                  Int                         @default(0)
+    lastSessionVerified            DateTime?                   @db.Timestamptz(6)
+    numExports                     Int                         @default(0)
+    password                       String?                     @db.VarChar(256)
+    resetPasswordCode              String?                     @unique @db.VarChar(256)
+    sessionToken                   String?                     @db.VarChar(1024)
+    name                           String                      @db.VarChar(128)
+    theme                          String                      @default("light") @db.VarChar(255)
+    handle                         String?                     @unique @db.VarChar(16)
+    currentStreak                  Int                         @default(0)
+    longestStreak                  Int                         @default(0)
+    accountTabsOrder               String?                     @db.VarChar(255)
+    stars                          Int                         @default(0)
+    views                          Int                         @default(0)
+    notificationSettings           String?                     @db.VarChar(2048)
+    premiumId                      String?                     @unique @db.Uuid
+    status                         AccountStatus               @default(Unlocked)
+    apisCreated                    api[]                       @relation("api_createdBy")
+    apis                           api[]                       @relation("api_ownedByUser")
     apiKeys                        api_key[]
     awards                         award[]
-    comments                       comment[]                         @relation("comment_ownedByUser")
+    comments                       comment[]                   @relation("comment_ownedByUser")
     emails                         email[]
-    organizationsCreated           organization[]                    @relation("organization_createdBy")
+    organizationsCreated           organization[]              @relation("organization_createdBy")
     phones                         phone[]
     posts                          post[]
-    premium                        premium?                          @relation(fields: [premiumId], references: [id], onDelete: SetNull)
-    invitedByUser                  user?                             @relation("user_invitedByUser", fields: [invitedByUserId], references: [id], onDelete: SetNull)
-    invitedUsers                   user[]                            @relation("user_invitedByUser")
-    issuesCreated                  issue[]                           @relation("issue_createdBy")
-    issuesClosed                   issue[]                           @relation("issue_closedBy")
-    meetingsAttending              organization_schedule_attendees[]
-    meetingsInvited                organization_schedule_invites[]
+    invitedByUser                  user?                       @relation("user_invitedByUser", fields: [invitedByUserId], references: [id], onDelete: SetNull)
+    invitedUsers                   user[]                      @relation("user_invitedByUser")
+    issuesCreated                  issue[]                     @relation("issue_createdBy")
+    issuesClosed                   issue[]                     @relation("issue_closedBy")
+    labels                         label[]
+    languages                      user_language[]
+    meetingsAttending              meeting_attendees[]
+    meetingsInvited                meeting_invite[]
     paymentHistory                 payment[]
-    notificationDevices            notification_device[]
+    pushDevices                    push_device[]
     notifications                  notification[]
     notificationSubscriptions      notification_subscription[]
     memberships                    member[]
-    projectsCreated                project[]                         @relation("project_createdBy")
-    projects                       project[]                         @relation("project_ownedByUser")
+    premium                        premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
+    projectsCreated                project[]                   @relation("project_createdBy")
+    projects                       project[]                   @relation("project_ownedByUser")
+    pullRequests                   pull_request[]              @relation("pull_request_createdBy")
+    questionAnswered               question_answer[]           @relation("question_answer_createdBy")
+    questionsAsked                 question[]                  @relation("question_createdBy")
     quizzesCreated                 quiz[]
     quizzesTaken                   quiz_attempt[]
-    sentReports                    report[]                          @relation("report_from")
-    reportsReceived                report[]                          @relation("report_user")
-    reportsCreated                 report[]                          @relation("report_createdBy")
-    reportResponses                report_response[]                 @relation("report_response_createdBy")
+    sentReports                    report[]                    @relation("report_from")
+    reportsReceived                report[]                    @relation("report_user")
+    reportsCreated                 report[]                    @relation("report_createdBy")
+    reportResponses                report_response[]           @relation("report_response_createdBy")
     reputationHistory              reputation_history[]
-    routinesCreated                routine[]                         @relation("routine_createdBy")
-    routines                       routine[]                         @relation("routine_ownedByUser")
-    runProjects                    run_project[]                     @relation("run_project_user")
-    runRoutines                    run_routine[]                     @relation("run_routine_user")
+    routinesCreated                routine[]                   @relation("routine_createdBy")
+    routines                       routine[]                   @relation("routine_ownedByUser")
+    runProjects                    run_project[]               @relation("run_project_user")
+    runRoutines                    run_routine[]               @relation("run_routine_user")
     schedules                      user_schedule[]
-    smartContractsCreated          smart_contract[]                  @relation("smart_contract_createdBy")
-    smartContracts                 smart_contract[]                  @relation("smart_contract_ownedByUser")
-    standardsCreated               standard[]                        @relation("standard_createdBy")
-    standards                      standard[]                        @relation("standard_ownedByUser")
-    starred                        star[]                            @relation("star_by")
-    starredBy                      star[]                            @relation("star_user")
-    tags                           tag[]                             @relation("tag_createdBy")
-    transfersIncoming              transfer[]                        @relation("transfer_to_user")
-    transfersOutgoing              transfer[]                        @relation("transfer_from_user")
-    labels                         label[]
-    notesCreated                   note[]                            @relation("note_createdBy")
-    notes                          note[]                            @relation("note_ownedByUser")
-    languages                      user_language[]
+    smartContractsCreated          smart_contract[]            @relation("smart_contract_createdBy")
+    smartContracts                 smart_contract[]            @relation("smart_contract_ownedByUser")
+    standardsCreated               standard[]                  @relation("standard_createdBy")
+    standards                      standard[]                  @relation("standard_ownedByUser")
+    starred                        star[]                      @relation("star_by")
+    starredBy                      star[]                      @relation("star_user")
+    tags                           tag[]                       @relation("tag_createdBy")
+    transfersIncoming              transfer[]                  @relation("transfer_to_user")
+    transfersOutgoing              transfer[]                  @relation("transfer_from_user")
+    notesCreated                   note[]                      @relation("note_createdBy")
+    notes                          note[]                      @relation("note_ownedByUser")
     translations                   user_translation[]
-    viewed                         view[]                            @relation("view_by")
-    viewedBy                       view[]                            @relation("view_user")
-    voted                          vote[]                            @relation("vote_by")
+    viewed                         view[]                      @relation("view_by")
+    viewedBy                       view[]                      @relation("view_user")
+    voted                          vote[]                      @relation("vote_by")
     wallets                        wallet[]
-    pullRequests                   pull_request[]                    @relation("pull_request_createdBy")
-    stats                          data_user[]
-    questionsAsked                 question[]                        @relation("question_createdBy")
+    stats                          stats_user[]
 }
 
 model user_translation {
@@ -2155,6 +2212,7 @@ model view {
     byId            String          @db.Uuid
     apiId           String?         @db.Uuid
     organizationId  String?         @db.Uuid
+    noteId          String?         @db.Uuid
     postId          String?         @db.Uuid
     projectId       String?         @db.Uuid
     routineId       String?         @db.Uuid
@@ -2164,6 +2222,7 @@ model view {
     by              user            @relation("view_by", fields: [byId], references: [id], onDelete: Cascade)
     api             api?            @relation("view_api", fields: [apiId], references: [id], onDelete: Cascade)
     organization    organization?   @relation("view_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    note            note?           @relation("view_note", fields: [noteId], references: [id], onDelete: Cascade)
     post            post?           @relation("view_post", fields: [postId], references: [id], onDelete: Cascade)
     project         project?        @relation("view_project", fields: [projectId], references: [id], onDelete: Cascade)
     routine         routine?        @relation("view_routine", fields: [routineId], references: [id], onDelete: Cascade)
@@ -2181,6 +2240,7 @@ model vote {
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
+    noteId           String?          @db.Uuid
     postId           String?          @db.Uuid
     projectId        String?          @db.Uuid
     questionId       String?          @db.Uuid
@@ -2193,6 +2253,7 @@ model vote {
     api              api?             @relation("vote_api", fields: [apiId], references: [id], onDelete: Cascade)
     comment          comment?         @relation("vote_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue            issue?           @relation("vote_issue", fields: [issueId], references: [id], onDelete: Cascade)
+    note             note?            @relation("vote_note", fields: [noteId], references: [id], onDelete: Cascade)
     post             post?            @relation("vote_post", fields: [postId], references: [id], onDelete: Cascade)
     project          project?         @relation("vote_project", fields: [projectId], references: [id], onDelete: Cascade)
     question         question?        @relation("vote_question", fields: [questionId], references: [id], onDelete: Cascade)

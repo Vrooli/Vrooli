@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { UserSortBy, RunStatus, RunSortBy, ViewSortBy, HistoryResult, HistoryInput } from './types';
+import { UserSortBy, RunStatus, ViewSortBy, HistoryResult, HistoryInput, RunRoutineSortBy } from './types';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { assertRequestFrom, getUser } from '../auth/request';
@@ -14,8 +14,8 @@ export const typeDef = gql`
     }
 
     type HistoryResult {
-        activeRuns: [Run!]!
-        completedRuns: [Run!]!
+        activeRuns: [RunRoutine!]!
+        completedRuns: [RunRoutine!]!
         recentlyViewed: [View!]!
         recentlyStarred: [Star!]!
     }
@@ -49,7 +49,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { userId },
                 info: partial.activeRuns as PartialGraphQLInfo,
-                input: { take, ...input, status: RunStatus.InProgress, sortBy: RunSortBy.DateUpdatedDesc },
+                input: { take, ...input, status: RunStatus.InProgress, sortBy: RunRoutineSortBy.DateUpdatedDesc },
                 objectType: 'RunRoutine',
             });
             // Query for complete runs
@@ -57,7 +57,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { userId },
                 info: partial.completedRuns as PartialGraphQLInfo,
-                input: { take, ...input, status: RunStatus.Completed, sortBy: RunSortBy.DateUpdatedDesc },
+                input: { take, ...input, status: RunStatus.Completed, sortBy: RunRoutineSortBy.DateUpdatedDesc },
                 objectType: 'RunRoutine',
             });
             // Query recently viewed objects (of any type)

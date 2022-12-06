@@ -6,132 +6,54 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum ApiSortBy {
-        CommentsAsc
-        CommentsDesc
-        ForksAsc
-        ForksDesc
-        DateCompletedAsc
-        DateCompletedDesc
+        CalledByRoutinesAsc
+        CalledByRoutinesDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        IssuesAsc
+        IssuesDesc
+        PullRequestsAsc
+        PullRequestsDesc
+        QuestionsAsc
+        QuestionsDesc
         StarsAsc
         StarsDesc
+        VersionsAsc
+        VersionsDesc
+        ViewsAsc
+        ViewsDesc
         VotesAsc
         VotesDesc
     }
 
     input ApiCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
     }
     input ApiUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
     }
     type Api {
         id: ID!
-        completedAt: Date
-        created_at: Date!
-        updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        creator: Contributor
-        forks: [Project!]!
-        owner: Contributor
-        parent: Project
-        permissionsProject: ProjectPermission!
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        translations: [ProjectTranslation!]!
-        wallets: [Wallet!]
     }
 
     type ApiPermission {
-        canComment: Boolean!
+        canCopy: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!
-        canReport: Boolean!
         canView: Boolean!
         canVote: Boolean!
-    }
-
-    input ApiTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
-    }
-    input ApiTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type ApiTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
     }
 
     input ApiSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
         searchString: String
-        sortBy: ProjectSortBy
-        tags: [String!]
-        take: Int
+        sortBy: ApiSortBy
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 

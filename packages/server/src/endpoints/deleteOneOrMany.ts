@@ -16,6 +16,7 @@ export const typeDef = gql`
         Organization
         Project
         ProjectVersion
+        PushDevice
         Reminder
         ReminderList
         Report

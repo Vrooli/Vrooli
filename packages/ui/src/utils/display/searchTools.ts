@@ -1,7 +1,7 @@
 import { CommentSortBy, InputType, OrganizationSortBy, ProjectOrOrganizationSortBy, ProjectOrRoutineSortBy, ProjectSortBy, RoutineSortBy, RunSortBy, StandardSortBy, StarSortBy, UserSortBy, ViewSortBy } from '@shared/consts';
 import { Session, Tag } from 'types';
 import { FormSchema } from 'forms/types';
-import { commentsQuery, organizationsQuery, projectOrOrganizationsQuery, projectsQuery, routinesQuery, runsQuery, standardsQuery, starsQuery, usersQuery, viewsQuery } from 'graphql/query';
+import { commentsQuery, organizationsQuery, projectOrOrganizationsQuery, projectsQuery, routinesQuery, runRoutinesQuery, standardsQuery, starsQuery, usersQuery, viewsQuery } from 'graphql/query';
 import { DocumentNode } from 'graphql';
 import { projectOrRoutinesQuery } from 'graphql/query/projectOrRoutines';
 import { RunStatus } from 'graphql/generated/globalTypes';
@@ -616,9 +616,9 @@ export const routineSearchSchema: FormSchema = {
     ]
 }
 
-export const runSearchSchema: FormSchema = {
+export const runRoutineSearchSchema: FormSchema = {
     formLayout: {
-        title: "Search Runs",
+        title: "Search Routine Runs",
         direction: "column",
         spacing: 4,
     },
@@ -751,13 +751,21 @@ export const userSearchSchema: FormSchema = {
 }
 
 export enum SearchType {
+    Api = 'Api',
     Comment = 'Comment',
+    Issue = 'Issue',
+    Note = 'Note',
     Organization = 'Organization',
     Project = 'Project',
     ProjectOrOrganization = 'ProjectOrOrganization',
     ProjectOrRoutine = 'ProjectOrRoutine',
+    PullRequest = 'PullRequest',
+    Question = 'Question',
+    QuestionAnswer = 'QuestionAnswer',
     Routine = 'Routine',
-    Run = 'Run',
+    RunProject = 'RunProject',
+    RunRoutine = 'RunRoutine',
+    SmartContract = 'SmartContract',
     Standard = 'Standard',
     Star = 'Star',
     User = 'User',
@@ -795,11 +803,29 @@ export type SearchParams = {
  * Maps search types to values needed to query and display results
  */
 export const searchTypeToParams: { [key in SearchType]: SearchParams } = {
+    [SearchType.Api]: {
+        advancedSearchSchema: apiSearchSchema,
+        defaultSortBy: ApiSortBy.VotesDesc,
+        sortByOptions: ApiSortBy,
+        query: apisQuery,
+    },
     [SearchType.Comment]: {
         advancedSearchSchema: commentSearchSchema,
         defaultSortBy: CommentSortBy.VotesDesc,
         sortByOptions: CommentSortBy,
         query: commentsQuery,
+    },
+    [SearchType.Issue]: {
+        advancedSearchSchema: issueSearchSchema,
+        defaultSortBy: IssueSortBy.VotesDesc,
+        sortByOptions: IssueSortBy,
+        query: issuesQuery,
+    },
+    [SearchType.Note]: {
+        advancedSearchSchema: noteSearchSchema,
+        defaultSortBy: NoteSortBy.VotesDesc,
+        sortByOptions: NoteSortBy,
+        query: notesQuery,
     },
     [SearchType.Organization]: {
         advancedSearchSchema: organizationSearchSchema,
@@ -825,17 +851,47 @@ export const searchTypeToParams: { [key in SearchType]: SearchParams } = {
         sortByOptions: ProjectOrRoutineSortBy,
         query: projectOrRoutinesQuery,
     },
+    [SearchType.PullRequest]: {
+        advancedSearchSchema: pullRequestSearchSchema,
+        defaultSortBy: PullRequestSortBy.VotesDesc,
+        sortByOptions: PullRequestSortBy,
+        query: pullRequestsQuery,
+    },
+    [SearchType.Question]: {
+        advancedSearchSchema: questionSearchSchema,
+        defaultSortBy: QuestionSortBy.VotesDesc,
+        sortByOptions: QuestionSortBy,
+        query: questionsQuery,
+    },
+    [SearchType.QuestionAnswer]: {
+        advancedSearchSchema: questionAnswerSearchSchema,
+        defaultSortBy: QuestionAnswerSortBy.VotesDesc,
+        sortByOptions: QuestionAnswerSortBy,
+        query: questionAnswersQuery,
+    },
     [SearchType.Routine]: {
         advancedSearchSchema: routineSearchSchema,
         defaultSortBy: RoutineSortBy.VotesDesc,
         sortByOptions: RoutineSortBy,
         query: routinesQuery,
     },
-    [SearchType.Run]: {
-        advancedSearchSchema: runSearchSchema,
+    [SearchType.RunProject]: {
+        advancedSearchSchema: runProjectSearchSchema,
         defaultSortBy: RunSortBy.DateStartedAsc,
         sortByOptions: RunSortBy,
-        query: runsQuery,
+        query: runProjectsQuery,
+    },
+    [SearchType.RunRoutine]: {
+        advancedSearchSchema: runRoutineSearchSchema,
+        defaultSortBy: RunSortBy.DateStartedAsc,
+        sortByOptions: RunSortBy,
+        query: runRoutinesQuery,
+    },
+    [SearchType.SmartContract]: {
+        advancedSearchSchema: smartContractSearchSchema,
+        defaultSortBy: SmartContractSortBy.VotesDesc,
+        sortByOptions: SmartContractSortBy,
+        query: smartContractsQuery,
     },
     [SearchType.Standard]: {
         advancedSearchSchema: standardSearchSchema,

@@ -78,7 +78,6 @@ export const CreatePage = ({
 
     return (
         <PageContainer>
-            <PageTitle titleKey='Create' session={session} sxs={{ text: { marginTop: 2 } }} />
             <Box sx={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
