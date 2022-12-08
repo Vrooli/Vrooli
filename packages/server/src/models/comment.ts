@@ -11,7 +11,7 @@ import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
 import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
-import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
+import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchString } from "../getters";
 import { getUser } from "../auth";
 
@@ -19,7 +19,7 @@ type SupplementalFields = 'isStarred' | 'isUpvoted' | 'permissionsComment';
 const formatter = (): Formatter<Comment, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Comment',
-        creator: {
+        owner: {
             User: 'User',
             Organization: 'Organization',
         },
@@ -80,7 +80,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     CommentCreateInput,
     CommentUpdateInput,
-    Prisma.commentGetPayload<{ select: { [K in keyof Required<Prisma.commentSelect>]: true } }>,
+    Prisma.commentGetPayload<SelectWrap<Prisma.commentSelect>>,
     CommentPermission,
     Prisma.commentSelect,
     Prisma.commentWhereInput,
@@ -355,7 +355,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.commentSelect,
-    Prisma.commentGetPayload<{ select: { [K in keyof Required<Prisma.commentSelect>]: true } }>
+    Prisma.commentGetPayload<SelectWrap<Prisma.commentSelect>>
 > => ({
     select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'text', languages),

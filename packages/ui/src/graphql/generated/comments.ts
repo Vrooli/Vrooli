@@ -27,7 +27,7 @@ export interface comments_comments_threads_childThreads_childThreads_comment_com
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
 }
 
 export interface comments_comments_threads_childThreads_childThreads_comment_commentedOn_Routine {
@@ -125,7 +125,7 @@ export interface comments_comments_threads_childThreads_comment_commentedOn_Rout
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
 }
 
 export interface comments_comments_threads_childThreads_comment_commentedOn_Routine {
@@ -224,7 +224,7 @@ export interface comments_comments_threads_comment_commentedOn_Routine_translati
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
 }
 
 export interface comments_comments_threads_comment_commentedOn_Routine {

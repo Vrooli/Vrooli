@@ -1,4 +1,4 @@
-import { blankToUndefined, description, id, idArray, language, maxStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, title } from './base';
+import { blankToUndefined, description, id, idArray, language, maxStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, name } from './base';
 import * as yup from 'yup';
 import { ResourceUsedFor } from '@shared/consts';
 
@@ -25,13 +25,13 @@ export const resourceTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
 });
 export const resourceTranslationUpdate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
 });
 export const resourceTranslationsCreate = yup.array().of(resourceTranslationCreate.required(requiredErrorMessage))
 export const resourceTranslationsUpdate = yup.array().of(resourceTranslationUpdate.required(requiredErrorMessage))

@@ -1,4 +1,4 @@
-import { id, idArray, minNumberErrorMessage, requiredErrorMessage, title, version } from './base';
+import { id, idArray, minNumberErrorMessage, requiredErrorMessage, name, version } from './base';
 import { runInputsCreate, runInputsUpdate } from './runInputs';
 import { stepsCreate, stepsUpdate } from './step';
 import * as yup from 'yup';
@@ -12,7 +12,7 @@ export const runCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     isPrivate: isPrivate.notRequired().default(undefined),
     routineId: id.required(requiredErrorMessage),
-    title: title.required(requiredErrorMessage),
+    name: name.required(requiredErrorMessage),
     version: version().required(requiredErrorMessage),
 })
 

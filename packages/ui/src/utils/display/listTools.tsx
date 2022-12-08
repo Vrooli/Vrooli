@@ -9,10 +9,10 @@ import { StarFor } from "@shared/consts";
 export type ListObjectType = ObjectListItemType | ListStar | ListView;
 
 /**
- * Gets the title of a list object
+ * Gets the name (title) of a list object
  * @param object A list object
  * @param languages User languages
- * @returns The title of the object
+ * @returns The name of the object
  */
 export const getListItemTitle = (
     object: ListObjectType | null | undefined,
@@ -26,20 +26,20 @@ export const getListItemTitle = (
         case 'Project':
             return firstString(getTranslation(object, langs, true).name, object.handle);
         case 'Routine':
-            return firstString(getTranslation(object, langs, true).title);
-        case 'Run':
-            const title = firstString(object.title, getTranslation(object.routine, langs, true).title);
+            return firstString(getTranslation(object, langs, true).name);
+        case 'RunRoutine':
+            const name = firstString(object.name, getTranslation(object.routine, langs, true).name);
             const date = object.timeStarted ? (new Date(object.timeStarted)) : null;
-            if (date) return `${title} (${date.toLocaleDateString()} ${date.toLocaleTimeString()})`;
-            return title;
+            if (date) return `${name} (${date.toLocaleDateString()} ${date.toLocaleTimeString()})`;
+            return name;
         case 'Standard':
-            return firstString(object.name);
+            return firstString(getTranslation(object, langs, true).name, object.name);
         case 'Star':
             return getListItemTitle(object.to as any, langs);
         case 'User':
             return firstString(object.name, object.handle);
         case 'View':
-            return firstString(object.title).length > 0 ? object.title : getListItemTitle(object.to as any, langs);
+            return firstString(object.name).length > 0 ? object.name : getListItemTitle(object.to as any, langs);
         default:
             return '';
     }
@@ -63,7 +63,7 @@ export const getListItemSubtitle = (
             return firstString(getTranslation(object, langs, true).description);
         case 'Routine':
             return firstString(getTranslation(object, langs, true).description);
-        case 'Run':
+        case 'RunRoutine':
             // Subtitle for a run is the time started/completed, or nothing (depending on status)
             const startedAt: string | null = object?.timeStarted ? displayDate(object.timeStarted) : null;
             const completedAt: string | null = object?.timeCompleted ? displayDate(object.timeCompleted) : null;
@@ -125,7 +125,7 @@ export const getListItemPermissions = (
             return { ...defaultPermissions, ...toBoolean(object.permissionsProject), canShare: object.isPrivate !== true };
         case 'Routine':
             return { ...defaultPermissions, ...toBoolean(object.permissionsRoutine), canShare: object.isPrivate !== true };
-        case 'Run':
+        case 'RunRoutine':
             return { ...defaultPermissions, ...toBoolean(object.routine?.permissionsRoutine), canShare: object.routine?.isPrivate !== true };
         case 'Standard':
             return { ...defaultPermissions, ...toBoolean(object.permissionsStandard), canShare: object.isPrivate !== true };
@@ -157,7 +157,7 @@ export const getListItemStars = (
         case 'Standard':
         case 'User':
             return object.stars;
-        case 'Run':
+        case 'RunRoutine':
             return object.routine?.stars ?? 0;
         case 'Star':
         case 'View':
@@ -178,7 +178,7 @@ export const getListItemStarFor = (
         case 'Standard':
         case 'User':
             return object.__typename as StarFor;
-        case 'Run':
+        case 'RunRoutine':
             return StarFor.Routine;
         case 'Star':
         case 'View':
@@ -204,7 +204,7 @@ export const getListItemIsStarred = (
         case 'Standard':
         case 'User':
             return object.isStarred;
-        case 'Run':
+        case 'RunRoutine':
             return object.routine?.isStarred ?? false;
         case 'Star':
         case 'View':
@@ -228,7 +228,7 @@ export const getListItemIsUpvoted = (
         case 'Routine':
         case 'Standard':
             return object.isUpvoted;
-        case 'Run':
+        case 'RunRoutine':
             return object.routine?.isUpvoted ?? null;
         case 'Star':
         case 'View':    
@@ -282,7 +282,7 @@ export function listToAutocomplete(
         id: o.id,
         isStarred: getListItemIsStarred(o),
         label: getListItemSubtitle(o, languages),
-        routine: o.__typename === 'Run' ? o.routine : undefined,
+        routine: o.__typename === 'RunRoutine' ? o.routine : undefined,
         stars: getListItemStars(o),
         to: o.__typename === 'View' || o.__typename === 'Star' ? o.to : undefined,
         versionGroupId: undefined// TODO o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,

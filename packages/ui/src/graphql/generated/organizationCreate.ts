@@ -24,7 +24,7 @@ export interface organizationCreate_organizationCreate_resourceLists_translation
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface organizationCreate_organizationCreate_resourceLists_resources_translations {
@@ -32,7 +32,7 @@ export interface organizationCreate_organizationCreate_resourceLists_resources_t
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface organizationCreate_organizationCreate_resourceLists_resources {
@@ -68,7 +68,7 @@ export interface organizationCreate_organizationCreate_roles {
   id: string;
   created_at: any;
   updated_at: any;
-  title: string;
+  name: string;
   translations: organizationCreate_organizationCreate_roles_translations[];
 }
 

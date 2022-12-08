@@ -13,7 +13,7 @@ import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { RunRoutineModel } from "./runRoutine";
-import { PartialGraphQLInfo } from "../builders/types";
+import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
@@ -30,22 +30,15 @@ const formatter = (): Formatter<Routine, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Routine',
         comments: 'Comment',
-        creator: {
-            root: {
-                User: 'User',
-                Organization: 'Organization',
-            }
+        createdBy: 'User',
+        owner: {
+            User: 'User',
+            Organization: 'Organization',
         },
         forks: 'Routine',
         inputs: 'InputItem',
         nodes: 'Node',
         outputs: 'OutputItem',
-        owner: {
-            root: {
-                User: 'User',
-                Organization: 'Organization',
-            }
-        },
         parent: 'Routine',
         project: 'Project',
         reports: 'Report',
@@ -134,7 +127,7 @@ const searcher = (): Searcher<
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
@@ -168,7 +161,7 @@ const searcher = (): Searcher<
             (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
             (input.minTimesCompleted !== undefined ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
             (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
             (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
             (input.userId !== undefined ? { userId: input.userId } : {}),
             (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
@@ -183,7 +176,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     RoutineCreateInput,
     RoutineUpdateInput,
-    Prisma.routineGetPayload<{ select: { [K in keyof Required<Prisma.routineSelect>]: true } }>,
+    Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
     RoutinePermission,
     Prisma.routineSelect,
     Prisma.routineWhereInput,
@@ -438,7 +431,7 @@ const calculateShortestLongestWeightedPath = (
 //                                 translations: {
 //                                     select: {
 //                                         description: true,
-//                                         title: true,
+//                                         name: true,
 //                                         language: true,
 //                                     }
 //                                 }
@@ -468,7 +461,7 @@ const calculateShortestLongestWeightedPath = (
 //                                 translations: {
 //                                     select: {
 //                                         description: true,
-//                                         title: true,
+//                                         name: true,
 //                                         language: true,
 //                                     }
 //                                 }
@@ -479,7 +472,7 @@ const calculateShortestLongestWeightedPath = (
 //                 translations: {
 //                     select: {
 //                         description: true,
-//                         title: true,
+//                         name: true,
 //                         language: true,
 //                     }
 //                 }
@@ -495,7 +488,7 @@ const calculateShortestLongestWeightedPath = (
 //                         translations: {
 //                             select: {
 //                                 description: true,
-//                                 title: true,
+//                                 name: true,
 //                                 language: true,
 //                             }
 //                         }
@@ -514,7 +507,7 @@ const calculateShortestLongestWeightedPath = (
 //                         translations: {
 //                             select: {
 //                                 description: true,
-//                                 title: true,
+//                                 name: true,
 //                                 language: true,
 //                             }
 //                         }
@@ -523,7 +516,7 @@ const calculateShortestLongestWeightedPath = (
 //                 translations: {
 //                     select: {
 //                         description: true,
-//                         title: true,
+//                         name: true,
 //                         language: true,
 //                     }
 //                 }
@@ -558,7 +551,7 @@ const calculateShortestLongestWeightedPath = (
 //             select: {
 //                 description: true,
 //                 instructions: true,
-//                 title: true,
+//                 name: true,
 //                 language: true,
 //             }
 //         }
@@ -608,7 +601,7 @@ const calculateComplexity = async (
                         id: true, // Needed to associate with links
                         nodeRoutineList: {
                             select: {
-                                routines: {
+                                items: {
                                     select: {
                                         routineVersion: { select: { id: true, complexity: true, simplicity: true } }
                                     }
@@ -872,9 +865,9 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.routineSelect,
-    Prisma.routineGetPayload<{ select: { [K in keyof Required<Prisma.routineSelect>]: true } }>
+    Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>
 > => ({
-    select: () => ({ 
+    select: () => ({
         id: true,
         versions: {
             where: { isPrivate: false },
@@ -883,7 +876,7 @@ const displayer = (): Displayer<
             select: RoutineVersionModel.display.select(),
         }
     }),
-    label: (select, languages) => select.versions.length > 0 ? 
+    label: (select, languages) => select.versions.length > 0 ?
         RoutineVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 

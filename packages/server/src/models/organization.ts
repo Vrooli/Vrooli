@@ -11,6 +11,7 @@ import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { combineQueries, onlyValidIds, visibilityBuilder } from "../builders";
 import { bestLabel, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
 type SupplementalFields = 'isStarred' | 'isViewed' | 'permissionsOrganization';
 const formatter = (): Formatter<Organization, SupplementalFields> => ({
@@ -68,7 +69,7 @@ const searcher = (): Searcher<
             (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
             (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
             (input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
             (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
             (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
             (input.userId !== undefined ? { members: { some: { userId: input.userId } } } : {}),
@@ -82,7 +83,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     OrganizationCreateInput,
     OrganizationUpdateInput,
-    Prisma.organizationGetPayload<{ select: { [K in keyof Required<Prisma.organizationSelect>]: true } }>,
+    Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>,
     OrganizationPermission,
     Prisma.organizationSelect,
     Prisma.organizationWhereInput,
@@ -174,11 +175,11 @@ const querier = () => ({
     /**
      * Query for checking if a user has a specific role in an organization
      */
-    hasRoleQuery: (userId: string, titles: string[] = []) => {
-        // If no titles are provided, query by members (in case user was not assigned a role)
-        if (titles.length === 0) return { members: { some: { user: { id: userId } } } };
-        // Otherwise, query for roles with one of the provided titles
-        return { roles: { some: { title: { in: titles }, assignees: { some: { user: { id: userId } } } } } };
+    hasRoleQuery: (userId: string, names: string[] = []) => {
+        // If no names are provided, query by members (in case user was not assigned a role)
+        if (names.length === 0) return { members: { some: { user: { id: userId } } } };
+        // Otherwise, query for roles with one of the provided names
+        return { roles: { some: { name: { in: names }, assignees: { some: { user: { id: userId } } } } } };
     },
     /**
      * Query for checking if a user is a member of an organization
@@ -190,17 +191,17 @@ const querier = () => ({
      * Determines if a user has a role of a list of organizations
      * @param userId The user's ID
      * @param organizationIds The list of organization IDs
-     * @param title The name of the role
+     * @param name The name of the role
      * @returns Array in the same order as the ids, with either admin/owner role data or undefined
      */
-    async hasRole(prisma: PrismaType, userId: string, organizationIds: (string | null | undefined)[], title: string = 'Admin'): Promise<Array<role | undefined>> {
+    async hasRole(prisma: PrismaType, userId: string, organizationIds: (string | null | undefined)[], name: string = 'Admin'): Promise<Array<role | undefined>> {
         if (organizationIds.length === 0) return [];
         // Take out nulls
         const idsToQuery = onlyValidIds(organizationIds);
         // Query roles data for each organization ID
         const roles = await prisma.role.findMany({
             where: {
-                title,
+                name,
                 organization: { id: { in: idsToQuery } },
                 assignees: { some: { user: { id: userId } } }
             }
@@ -276,7 +277,7 @@ const mutater = (): Mutater<
                 // Give yourself an Admin role
                 roles: {
                     create: {
-                        title: 'Admin',
+                        name: 'Admin',
                         permissions: JSON.stringify({}), //TODO
                         assignees: {
                             create: {
@@ -301,7 +302,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.organizationSelect,
-    Prisma.organizationGetPayload<{ select: { [K in keyof Required<Prisma.organizationSelect>]: true } }>
+    Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>
 > => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),

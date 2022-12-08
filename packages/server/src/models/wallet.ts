@@ -8,6 +8,7 @@ import { oneIsPublic } from "../utils";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
 import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<Wallet, any> => ({
     relationshipMap: {
@@ -66,7 +67,7 @@ export const verifyHandle = async (
 const validator = (): Validator<
     any,
     WalletUpdateInput,
-    Prisma.walletGetPayload<{ select: { [K in keyof Required<Prisma.walletSelect>]: true } }>,
+    Prisma.walletGetPayload<SelectWrap<Prisma.walletSelect>>,
     any,
     Prisma.walletSelect,
     Prisma.walletWhereInput,
@@ -152,7 +153,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.walletSelect,
-    Prisma.walletGetPayload<{ select: { [K in keyof Required<Prisma.walletSelect>]: true } }>
+    Prisma.walletGetPayload<SelectWrap<Prisma.walletSelect>>
 > => ({
     select: () => ({ id: true, name: true }),
     label: (select) => select.name ?? '',

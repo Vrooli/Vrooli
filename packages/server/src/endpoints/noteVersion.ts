@@ -22,66 +22,47 @@ export const typeDef = gql`
 
     input NoteVersionCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
+        translationsCreate: [NoteVersionTranslationCreateInput!]
+        directoryListingsConnect: [ID!]
     }
     input NoteVersionUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        versionIndex: Int
+        versionLabel: String
+        versionNotes: String
+        translationsCreate: [NoteVersionTranslationCreateInput!]
+        translationsUpdate: [NoteVersionTranslationUpdateInput!]
         translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
+        directoryListingsConnect: [ID!]
+        directoryListingsDisconnect: [ID!]
     }
     type NoteVersion {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
+        isLatest: Boolean!
         isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        creator: Contributor
-        forks: [Project!]!
-        owner: Contributor
-        parent: Project
-        permissionsProject: ProjectPermission!
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
+        translations: [NoteVersionTranslation!]!
+        directoryListings: [ProjectVersionDirectory!]!
         reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        translations: [ProjectTranslation!]!
-        wallets: [Wallet!]
+        root: Note!
+        forks: [Note!]!
+        comments: [Comment!]!
     }
 
     type NoteVersionPermission {
         canComment: Boolean!
+        canCopy: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!
@@ -93,54 +74,49 @@ export const typeDef = gql`
     input NoteVersionTranslationCreateInput {
         id: ID!
         language: String!
+        text: String!
         description: String
-        name: String!
     }
     input NoteVersionTranslationUpdateInput {
         id: ID!
         language: String
+        text: String
         description: String
-        name: String
     }
     type NoteVersionTranslation {
         id: ID!
         language: String!
+        text: String!
         description: String
-        name: String!
     }
 
     input NoteVersionSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
         languages: [String!]
         minScore: Int
         minStars: Int
         minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        createdById: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         searchString: String
-        sortBy: ProjectSortBy
+        sortBy: NoteVersionSortBy
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
     type NoteVersionSearchResult {
         pageInfo: PageInfo!
-        edges: [SmartContractEdge!]!
+        edges: [NoteVersionEdge!]!
     }
 
     type NoteVersionEdge {
         cursor: String!
-        node: SmartContract!
+        node: NoteVersion!
     }
 
     extend type Query {

@@ -5,6 +5,7 @@ import { CustomError, Trigger } from "../events";
 import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<Email, any> => ({
     relationshipMap: {
@@ -16,7 +17,7 @@ const formatter = (): Formatter<Email, any> => ({
 const validator = (): Validator<
     EmailCreateInput,
     EmailUpdateInput,
-    Prisma.emailGetPayload<{ select: { [K in keyof Required<Prisma.emailSelect>]: true } }>,
+    Prisma.emailGetPayload<SelectWrap<Prisma.emailSelect>>,
     any,
     Prisma.emailSelect,
     Prisma.emailWhereInput,
@@ -107,7 +108,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.emailSelect,
-    Prisma.emailGetPayload<{ select: { [K in keyof Required<Prisma.emailSelect>]: true } }>
+    Prisma.emailGetPayload<SelectWrap<Prisma.emailSelect>>
 > => ({
     select: () => ({ id: true, emailAddress: true }),
     label: (select) => select.emailAddress,

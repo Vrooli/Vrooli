@@ -1,7 +1,7 @@
 import { StandardCreateInput, StandardTranslationCreateInput, StandardTranslationUpdateInput, StandardUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Standard, StandardTranslation } from "types";
 import { hasObjectChanged, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type StandardTranslationShape = Omit<ShapeWrapper<StandardTranslation>, 'language' | 'jsonVariable'> & {
     id: string;
@@ -38,8 +38,8 @@ export const shapeStandardTranslationUpdate = (
 ): StandardTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        description: u.description !== o.description ? u.description : undefined,
-        jsonVariable: u.jsonVariable !== o.jsonVariable ? u.jsonVariable : undefined,
+        ...shapePrim(o, u, 'description'),
+        ...shapePrim(o, u, 'jsonVariable'),
     }), 'id')
 
 export const shapeStandardCreate = (item: StandardShape): StandardCreateInput => ({
@@ -66,7 +66,7 @@ export const shapeStandardUpdate = (
 ): StandardUpdateInput | undefined => 
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
-        isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
+        ...shapePrim(o, u, 'isPrivate'),
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeStandardTranslationCreate, shapeStandardTranslationUpdate, 'id'),
         ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
         ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),

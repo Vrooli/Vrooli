@@ -290,3 +290,17 @@ export const shapeUpdate = <
     // Return result if it is not empty
     return result && Object.keys(result).length > 0 ? result : undefined;
 }
+
+/**
+ * Helper function for settings a primitive field of an update 
+ * shape. If updated is different from original, return updated,
+ * otherwise return undefined
+ */
+export const shapePrim = <T, K extends keyof T>(
+    original: T | null | undefined,
+    updated: T | null | undefined,
+    field: K
+): { [F in K]: T[K] | undefined } => {
+    if (!updated || !original) return { [field]: undefined } as { [F in K]: undefined };
+    return { [field]: updated[field] !== original[field] ? updated[field] : undefined } as { [F in K]: T[K] | undefined };
+}

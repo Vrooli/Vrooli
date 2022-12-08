@@ -64,7 +64,7 @@ model api_version {
     created_at          DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at          DateTime                    @default(now()) @db.Timestamptz(6)
     callLink            String                      @unique @db.VarChar(1024)
-    documentationLink   String                      @db.VarChar(1024)
+    documentationLink   String?                     @db.VarChar(1024)
     isLatest            Boolean                     @default(false)
     rootId              String                      @db.Uuid
     resourceListId      String?                     @unique @db.Uuid
@@ -87,6 +87,7 @@ model api_version {
 
 model api_version_translation {
     id           String      @id @default(uuid()) @db.Uuid
+    name         String?     @db.VarChar(128)
     summary      String?     @db.VarChar(1024)
     details      String?     @db.VarChar(8096)
     language     String      @db.VarChar(3)
@@ -231,7 +232,7 @@ model issue_labels {
 model issue_translation {
     id          String  @id @default(uuid()) @db.Uuid
     description String? @db.VarChar(2048)
-    title       String? @db.VarChar(128)
+    name        String? @db.VarChar(128)
     issueId     String  @db.Uuid
     language    String  @db.VarChar(3)
     issue       issue   @relation(fields: [issueId], references: [id], onDelete: Cascade)
@@ -240,29 +241,29 @@ model issue_translation {
 }
 
 model label {
-    id                      String                        @id @default(uuid()) @db.Uuid
-    created_at              DateTime                      @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime                      @default(now()) @db.Timestamptz(6)
-    label                   String                        @unique @db.VarChar(128)
-    color                   String?                       @db.VarChar(7)
-    createdByUserId         String?                       @db.Uuid
-    createdByOrganizationId String?                       @db.Uuid
-    apis                    api_labels[]
-    issues                  issue_labels[]
-    notes                   note_labels[]
-    projects                project_labels[]
-    routines                routine_labels[]
-    smartContracts          smart_contract_labels[]
-    standards               standard_labels[]
-    meetings                meeting_labels[]
-    runProjectSchedules     run_project_schedule_labels[]
-    runRoutineSchedules     run_routine_schedule_labels[]
-    schedulesUser           user_schedule_labels[]
-    createdByUser           user?                         @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
-    createdByOrganization   organization?                 @relation(fields: [createdByOrganizationId], references: [id], onDelete: Cascade)
-    translations            label_translation[]
+    id                    String                        @id @default(uuid()) @db.Uuid
+    created_at            DateTime                      @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime                      @default(now()) @db.Timestamptz(6)
+    label                 String                        @unique @db.VarChar(128)
+    color                 String?                       @db.VarChar(7)
+    ownedByUserId         String?                       @db.Uuid
+    ownedByOrganizationId String?                       @db.Uuid
+    apis                  api_labels[]
+    issues                issue_labels[]
+    notes                 note_labels[]
+    projects              project_labels[]
+    routines              routine_labels[]
+    smartContracts        smart_contract_labels[]
+    standards             standard_labels[]
+    meetings              meeting_labels[]
+    runProjectSchedules   run_project_schedule_labels[]
+    runRoutineSchedules   run_routine_schedule_labels[]
+    schedulesUser         user_schedule_labels[]
+    ownedByUser           user?                         @relation(fields: [ownedByUserId], references: [id], onDelete: Cascade)
+    ownedByOrganization   organization?                 @relation(fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
+    translations          label_translation[]
 
-    @@unique([label, createdByUserId, createdByOrganizationId])
+    @@unique([label, ownedByUserId, ownedByOrganizationId])
 }
 
 model label_translation {
@@ -298,7 +299,7 @@ model node {
 model node_translation {
     id          String  @id @default(uuid()) @db.Uuid
     description String? @db.VarChar(2048)
-    title       String  @default("Name Me") @db.VarChar(128)
+    name        String  @default("Name Me") @db.VarChar(128)
     language    String  @db.VarChar(3)
     nodeId      String  @db.Uuid
     node        node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
@@ -346,7 +347,7 @@ model node_link_when {
 model node_link_when_translation {
     id          String         @id @default(uuid()) @db.Uuid
     description String?        @db.VarChar(2048)
-    title       String         @db.VarChar(128)
+    name        String         @db.VarChar(128)
     language    String         @db.VarChar(3)
     whenId      String         @db.Uuid
     when        node_link_when @relation(fields: [whenId], references: [id], onDelete: Cascade)
@@ -375,7 +376,7 @@ model node_loop_while {
 model node_loop_while_translation {
     id          String          @id @default(uuid()) @db.Uuid
     description String          @db.VarChar(2048)
-    title       String          @db.VarChar(128)
+    name        String          @db.VarChar(128)
     language    String          @db.VarChar(3)
     whileId     String          @db.Uuid
     while       node_loop_while @relation(fields: [whileId], references: [id], onDelete: Cascade)
@@ -387,7 +388,7 @@ model node_routine_list {
     isOptional Boolean                  @default(false)
     nodeId     String                   @unique @db.Uuid
     node       node                     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-    routines   node_routine_list_item[]
+    items      node_routine_list_item[]
 }
 
 model node_routine_list_item {
@@ -406,7 +407,7 @@ model node_routine_list_item {
 model node_routine_list_item_translation {
     id          String                 @id @default(uuid()) @db.Uuid
     description String?                @db.VarChar(2048)
-    title       String?                @db.VarChar(128)
+    name        String?                @db.VarChar(128)
     language    String                 @db.VarChar(3)
     itemId      String                 @db.Uuid
     item        node_routine_list_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
@@ -435,6 +436,7 @@ model note {
     pullRequests            pull_request[]
     labels                  note_labels[]
     issues                  issue[]
+    tags                    note_tags[]
     starredBy               star[]         @relation("star_note")
     viewedBy                view[]         @relation("view_note")
     votedBy                 vote[]         @relation("vote_note")
@@ -449,6 +451,16 @@ model note_labels {
     label      label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
     @@unique([labelledId, labelId], name: "note_labels_labelledid_labelid_unique")
+}
+
+model note_tags {
+    id       String @id @default(uuid()) @db.Uuid
+    taggedId String @db.Uuid
+    tagTag   String @db.VarChar(128)
+    tag      tag    @relation(fields: [tagTag], references: [tag], onDelete: Cascade)
+    tagged   note   @relation(fields: [taggedId], references: [id], onDelete: Cascade)
+
+    @@unique([taggedId, tagTag], name: "note_tags_taggedid_tagTag_unique")
 }
 
 model note_version {
@@ -476,6 +488,7 @@ model note_version {
 
 model note_version_translation {
     id            String       @id @default(uuid()) @db.Uuid
+    name          String       @db.VarChar(128)
     text          String       @db.VarChar(65536)
     description   String?      @db.VarChar(2048)
     language      String       @db.VarChar(3)
@@ -508,12 +521,13 @@ model push_device {
 }
 
 model notification_subscription {
-    id         String  @id @default(uuid()) @db.Uuid
-    objectType String  @db.VarChar(64)
-    objectId   String  @db.Uuid
-    userId     String  @db.Uuid
-    silent     Boolean @default(false)
-    user       user    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id         String   @id @default(uuid()) @db.Uuid
+    created_at DateTime @default(now()) @db.Timestamptz(6)
+    objectType String   @db.VarChar(64)
+    objectId   String   @db.Uuid
+    userId     String   @db.Uuid
+    silent     Boolean  @default(false)
+    user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
     @@unique([objectType, objectId, userId], name: "notification_subscription_objecttype_objectid_userid_unique")
 }
@@ -545,6 +559,7 @@ model organization {
     tags               organization_tags[]
     translations       organization_translation[]
     members            member[]
+    memberInvites      member_invite[]
     projects           project[]                   @relation("project_ownedByOrganization")
     reports            report[]
     resourceList       resource_list?              @relation("resource_list_organization", fields: [resourceListId], references: [id], onDelete: SetNull)
@@ -574,6 +589,8 @@ model organization_language {
 
 model meeting {
     id                        String                @id @default(uuid()) @db.Uuid
+    created_at                DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at                DateTime              @default(now()) @db.Timestamptz(6)
     inviteId                  String?               @db.Uuid
     openToAnyoneWithInvite    Boolean               @default(false)
     showOnOrganizationProfile Boolean               @default(false)
@@ -607,12 +624,13 @@ model meeting_invite {
     created_at DateTime            @default(now()) @db.Timestamptz(6)
     updated_at DateTime            @default(now()) @db.Timestamptz(6)
     status     MeetingInviteStatus @default(Pending)
-    scheduleId String              @db.Uuid
-    schedule   meeting             @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+    message    String?             @db.VarChar(4096)
+    meetingId  String              @db.Uuid
+    meeting    meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
     userId     String              @db.Uuid
     user       user                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([scheduleId, userId])
+    @@unique([meetingId, userId])
 }
 
 model meeting_labels {
@@ -640,7 +658,7 @@ model meeting_translation {
     scheduleId  String  @db.Uuid
     schedule    meeting @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
     language    String  @db.VarChar(3)
-    title       String? @db.VarChar(128)
+    name        String? @db.VarChar(128)
     description String? @db.VarChar(2048)
     link        String? @db.VarChar(2048)
 
@@ -669,16 +687,35 @@ model organization_tags {
 }
 
 model member {
-    id             String       @id @default(uuid()) @db.Uuid
-    isAdmin        Boolean      @default(false)
-    permissions    String       @db.VarChar(4096)
-    organizationId String       @db.Uuid
-    userId         String       @db.Uuid
-    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    user           user         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id             String         @id @default(uuid()) @db.Uuid
+    created_at     DateTime       @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime       @default(now()) @db.Timestamptz(6)
+    isAdmin        Boolean        @default(false)
+    permissions    String         @db.VarChar(4096)
+    organizationId String         @db.Uuid
+    userId         String         @db.Uuid
+    organization   organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user           user           @relation(fields: [userId], references: [id], onDelete: Cascade)
     roles          role[]
+    invite         member_invite?
 
     @@unique([organizationId, userId], name: "member_organizationid_userid_unique")
+}
+
+model member_invite {
+    id                  String             @id @default(uuid()) @db.Uuid
+    created_at          DateTime           @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime           @default(now()) @db.Timestamptz(6)
+    status              MemberInviteStatus @default(Pending)
+    message             String?            @db.VarChar(4096)
+    willBeAdmin         Boolean            @default(false)
+    willHavePermissions String?            @db.VarChar(4096)
+    organizationId      String             @db.Uuid
+    memberId            String             @unique @db.Uuid
+    organization        organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    member              member             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+    @@unique([memberId, organizationId])
 }
 
 model post {
@@ -719,7 +756,7 @@ model post_tags {
 model post_translation {
     id          String  @id @default(uuid()) @db.Uuid
     description String? @db.VarChar(2048)
-    title       String  @db.VarChar(128)
+    name        String  @db.VarChar(128)
     language    String  @db.VarChar(3)
     postId      String  @db.Uuid
     post        post    @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -1102,8 +1139,24 @@ model reminder {
     name           String        @db.VarChar(128)
     description    String?       @db.VarChar(2048)
     dueDate        DateTime?     @db.Timestamptz(6)
+    completed      Boolean       @default(false)
+    index          Int
     reminderListId String        @db.Uuid
+    reminderItems  reminder_item[]
     reminderList   reminder_list @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
+}
+
+model reminder_item {
+    id          String     @id @default(uuid()) @db.Uuid
+    created_at  DateTime   @default(now()) @db.Timestamptz(6)
+    updated_at  DateTime   @default(now()) @db.Timestamptz(6)
+    name        String     @db.VarChar(128)
+    description String?    @db.VarChar(2048)
+    dueDate     DateTime?  @db.Timestamptz(6)
+    index       Int
+    reminderId  String     @db.Uuid
+    reminder    reminder   @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+    completed   Boolean    @default(false)
 }
 
 model report {
@@ -1181,7 +1234,7 @@ model resource {
 model resource_translation {
     id          String   @id @default(uuid()) @db.Uuid
     description String?  @db.VarChar(2048)
-    title       String?  @db.VarChar(128)
+    name        String?  @db.VarChar(128)
     language    String   @db.VarChar(3)
     resourceId  String   @db.Uuid
     resource    resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
@@ -1209,7 +1262,7 @@ model resource_list {
 model resource_list_translation {
     id          String        @id @default(uuid()) @db.Uuid
     description String?       @db.VarChar(512)
-    title       String?       @db.VarChar(128)
+    name        String?       @db.VarChar(128)
     language    String        @db.VarChar(3)
     listId      String        @db.Uuid
     list        resource_list @relation(fields: [listId], references: [id], onDelete: Cascade)
@@ -1221,7 +1274,7 @@ model role {
     id                    String             @id @default(uuid()) @db.Uuid
     created_at            DateTime           @default(now()) @db.Timestamptz(6)
     updated_at            DateTime           @default(now()) @db.Timestamptz(6)
-    title                 String             @db.VarChar(128)
+    name                  String             @db.VarChar(128)
     permissions           String             @db.VarChar(4096)
     organizationId        String             @db.Uuid
     organization          organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1229,13 +1282,13 @@ model role {
     organizationSchedules meeting_roles[]
     translations          role_translation[]
 
-    @@unique([organizationId, title], name: "role_organizationId_title_unique")
+    @@unique([organizationId, name], name: "role_organizationId_name_unique")
 }
 
 model role_translation {
     id          String  @id @default(uuid()) @db.Uuid
     description String? @db.VarChar(2048)
-    title       String  @db.VarChar(128)
+    name        String  @db.VarChar(128)
     language    String  @db.VarChar(3)
     roleId      String  @db.Uuid
     role        role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
@@ -1331,7 +1384,7 @@ model routine_version_translation {
     id               String          @id @default(uuid()) @db.Uuid
     description      String?         @db.VarChar(2048)
     instructions     String          @db.VarChar(8192)
-    title            String          @db.VarChar(128)
+    name             String          @db.VarChar(128)
     language         String          @db.VarChar(3)
     routineVersionId String          @db.Uuid
     routineVersion   routine_version @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
@@ -1427,7 +1480,7 @@ model run_project {
     timeStarted         DateTime?             @db.Timestamptz(6)
     timeElapsed         Int?
     timeCompleted       DateTime?             @db.Timestamptz(6)
-    title               String                @db.VarChar(128)
+    name                String                @db.VarChar(128)
     status              RunStatus             @default(Scheduled)
     projectVersionId    String?               @db.Uuid
     userId              String?               @db.Uuid
@@ -1449,7 +1502,7 @@ model run_project_step {
     timeCompleted   DateTime?                  @db.Timestamptz(6)
     step            Int[]
     status          RunStepStatus              @default(InProgress)
-    title           String                     @db.VarChar(128)
+    name            String                     @db.VarChar(128)
     directory       project_version_directory? @relation("run_project_step_directory", fields: [directoryId], references: [id], onDelete: SetNull)
     runProject      run_project                @relation("run_project_step_run", fields: [runProjectId], references: [id], onDelete: Cascade)
 }
@@ -1480,7 +1533,7 @@ model run_project_schedule_labels {
 model run_project_schedule_translation {
     id                   String               @id @default(uuid()) @db.Uuid
     description          String?              @db.VarChar(2048)
-    title                String               @db.VarChar(128)
+    name                 String               @db.VarChar(128)
     language             String               @db.VarChar(3)
     runProjectScheduleId String               @db.Uuid
     runProjectSchedule   run_project_schedule @relation(fields: [runProjectScheduleId], references: [id], onDelete: Cascade)
@@ -1501,7 +1554,7 @@ model run_routine {
     timeStarted         DateTime?             @db.Timestamptz(6)
     timeElapsed         Int?
     timeCompleted       DateTime?             @db.Timestamptz(6)
-    title               String                @db.VarChar(128)
+    name                String                @db.VarChar(128)
     status              RunStatus             @default(Scheduled)
     routineVersionId    String?               @db.Uuid
     userId              String?               @db.Uuid
@@ -1518,8 +1571,8 @@ model run_routine {
 
 model run_routine_input {
     id           String                @id @default(uuid()) @db.Uuid
-    created_at          DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+    created_at   DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at   DateTime              @default(now()) @db.Timestamptz(6)
     data         String                @db.VarChar(8192)
     inputId      String                @db.Uuid
     runRoutineId String                @db.Uuid
@@ -1539,7 +1592,7 @@ model run_routine_step {
     timeCompleted       DateTime?        @db.Timestamptz(6)
     step                Int[]
     status              RunStepStatus    @default(InProgress)
-    title               String           @db.VarChar(128)
+    name                String           @db.VarChar(128)
     node                node?            @relation("run_routine_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
     runRoutine          run_routine      @relation("run_routine_step_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
     subroutine          routine_version? @relation("run_routine_step_subroutine", fields: [subroutineVersionId], references: [id])
@@ -1573,7 +1626,7 @@ model run_routine_schedule_labels {
 model run_routine_schedule_translation {
     id                   String               @id @default(uuid()) @db.Uuid
     description          String?              @db.VarChar(2048)
-    title                String               @db.VarChar(128)
+    name                 String               @db.VarChar(128)
     language             String               @db.VarChar(3)
     runRoutineScheduleId String               @db.Uuid
     runRoutineSchedule   run_routine_schedule @relation(fields: [runRoutineScheduleId], references: [id], onDelete: Cascade)
@@ -1648,6 +1701,7 @@ model smart_contract_version {
 
 model smart_contract_version_translation {
     id                     String                 @id @default(uuid()) @db.Uuid
+    name                   String                 @db.VarChar(128)
     description            String?                @db.VarChar(2048)
     jsonVariable           String?                @db.VarChar(8192)
     smartContractVersionId String                 @db.Uuid
@@ -1976,6 +2030,7 @@ model tag {
     stars           Int                    @default(0)
     createdBy       user?                  @relation("tag_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     apis            api_tags[]
+    notes           note_tags[]
     organizations   organization_tags[]
     posts           post_tags[]
     projects        project_tags[]
@@ -2155,7 +2210,7 @@ model user_language {
 
 model user_schedule {
     id             String                      @id @default(uuid()) @db.Uuid
-    title          String                      @db.VarChar(128)
+    name           String                      @db.VarChar(128)
     timezone       String?                     @db.VarChar(128)
     eventStart     DateTime?                   @db.Timestamptz(6)
     eventEnd       DateTime?                   @db.Timestamptz(6)
@@ -2186,7 +2241,7 @@ model user_schedule_labels {
 model user_schedule_translation {
     id             String        @id @default(uuid()) @db.Uuid
     description    String?       @db.VarChar(2048)
-    title          String        @db.VarChar(128)
+    name           String        @db.VarChar(128)
     language       String        @db.VarChar(3)
     userScheduleId String        @db.Uuid
     userSchedule   user_schedule @relation(fields: [userScheduleId], references: [id], onDelete: Cascade)
@@ -2208,7 +2263,7 @@ model user_schedule_filter {
 model view {
     id              String          @id @default(uuid()) @db.Uuid
     lastViewed      DateTime        @default(now()) @db.Timestamptz(6)
-    title           String          @db.VarChar(128)
+    name            String          @db.VarChar(128)
     byId            String          @db.Uuid
     apiId           String?         @db.Uuid
     organizationId  String?         @db.Uuid
@@ -2327,10 +2382,16 @@ enum IssueStatus {
     Rejected
 }
 
+enum MemberInviteStatus {
+    Pending
+    Accepted
+    Declined
+}
+
 enum MeetingInviteStatus {
     Pending
     Accepted
-    Rejected
+    Declined
 }
 
 enum NodeType {

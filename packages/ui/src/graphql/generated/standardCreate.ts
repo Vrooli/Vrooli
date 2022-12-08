@@ -24,7 +24,7 @@ export interface standardCreate_standardCreate_resourceLists_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface standardCreate_standardCreate_resourceLists_resources_translations {
@@ -32,7 +32,7 @@ export interface standardCreate_standardCreate_resourceLists_resources_translati
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface standardCreate_standardCreate_resourceLists_resources {

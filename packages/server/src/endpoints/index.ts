@@ -10,13 +10,21 @@ import * as DeleteOneOrMany from './deleteOneOrMany';
 import * as Duplicate from './copy';
 import * as Email from './email';
 import * as Feed from './feed';
-import * as Feedback from './feedback';
 import * as History from './history';
 import * as Issue from './issue';
 import * as Label from './label';
 import * as Meeting from './meeting';
 import * as MeetingInvite from './meetingInvite';
+import * as Member from './member';
+import * as MemberInvite from './memberInvite';
 import * as Node from './node';
+import * as NodeEnd from './nodeEnd';
+import * as NodeLink from './nodeLink';
+import * as NodeLinkWhen from './nodeLinkWhen';
+import * as NodeLoop from './nodeLoop';
+import * as NodeLoopWhile from './nodeLoopWhile';
+import * as NodeRoutineList from './nodeRoutineList';
+import * as NodeRoutineListItem from './nodeRoutineListItem';
 import * as Note from './note';
 import * as NoteVersion from './noteVersion';
 import * as Notification from './notification';
@@ -28,12 +36,14 @@ import * as Phone from './phone';
 import * as Premium from './premium';
 import * as Project from './project';
 import * as ProjectVersion from './projectVersion';
+import * as ProjectVersionDirectory from './projectVersionDirectory';
 import * as PullRequest from './pullRequest';
 import * as PushDevice from './pushDevice';
 import * as Question from './question';
 import * as QuestionAnswer from './questionAnswer';
 import * as Quiz from './quiz';
 import * as Reminder from './reminder';
+import * as ReminderItem from './reminderItem';
 import * as ReminderList from './reminderList';
 import * as Report from './report';
 import * as ReportResponse from './reportResponse';
@@ -86,13 +96,21 @@ const schemas: SchemaType[] = [
     Duplicate,
     Email,
     Feed,
-    Feedback,
     History,
     Issue,
     Label,
     Meeting,
     MeetingInvite,
+    Member,
+    MemberInvite,
     Node,
+    NodeEnd,
+    NodeLink,
+    NodeLinkWhen,
+    NodeLoop,
+    NodeLoopWhile,
+    NodeRoutineList,
+    NodeRoutineListItem,
     Note,
     NoteVersion,
     Notification,
@@ -104,12 +122,14 @@ const schemas: SchemaType[] = [
     Premium,
     Project,
     ProjectVersion,
+    ProjectVersionDirectory,
     PullRequest,
     PushDevice,
     Question,
     QuestionAnswer,
     Quiz,
     Reminder,
+    ReminderItem,
     ReminderList,
     Report,
     ReportResponse,

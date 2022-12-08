@@ -17,6 +17,7 @@ export * from './nodeCreate';
 export * from './nodeUpdate';
 export * from './notificationMarkAllAsRead';
 export * from './notificationMarkAsRead';
+export * from './notificationSettingsUpdate';
 export * from './organizationCreate';
 export * from './organizationUpdate';
 export * from './profileEmailUpdate';

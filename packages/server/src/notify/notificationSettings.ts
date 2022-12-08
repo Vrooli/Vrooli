@@ -1,32 +1,8 @@
 import { Prisma } from "@prisma/client";
+import { NotificationSettings, NotificationSettingsUpdateInput } from "../endpoints/types";
 import { logger } from "../events";
-import { PrismaType, RecursivePartial } from "../types";
+import { PrismaType } from "../types";
 import { NotificationCategory } from "./notify";
-
-type NotificationSettingsField = {
-    enabled: boolean;
-    dailyLimit: number;
-    toEmails?: boolean;
-    toSms?: boolean;
-    toPush?: boolean;
-}
-
-export type NotificationSettings = {
-    includedEmails?: string[];
-    includedSms?: string[];
-    includedDeviceIds?: string[];
-    // Add disabled indiicators for each recipient type, 
-    // to allow us to disable and reenable notifications
-    // without forgetting the previous recipients
-    toEmails?: boolean;
-    toSms?: boolean;
-    toPush?: boolean;
-    dailyLimit?: number;
-    enabled: boolean;
-    categories?: {
-        [key in NotificationCategory]: NotificationSettingsField;
-    }
-}
 
 type NotificationRecipients = {
     pushDevices: Prisma.push_deviceGetPayload<{ select: { [K in keyof Required<Omit<Prisma.push_deviceSelect, 'user'>>]: true } }>[],
@@ -103,7 +79,7 @@ export const getNotificationSettingsAndRecipients = async (prisma: PrismaType, u
  * @returns The updated notification settings
  */
 export const updateNotificationSettings = async (
-    settings: RecursivePartial<NotificationSettings>,
+    settings: NotificationSettingsUpdateInput,
     prisma: PrismaType,
     userId: string): Promise<NotificationSettings> => {
     // Get the current notification settings
@@ -121,12 +97,12 @@ export const updateNotificationSettings = async (
         }
     }
     // Update the user's notification settings
-    await prisma.user.update({
+    const updated = await prisma.user.update({
         where: { id: userId },
-        data: { notificationSettings: JSON.stringify(newSettings) }
+        data: { notificationSettings: JSON.stringify(newSettings) },
+        select: { notificationSettings: true }
     });
-    return newSettings;
-
+    return parseNotificationSettings(updated.notificationSettings);
 }
 
 /**
@@ -163,8 +139,8 @@ export const findRecipientsAndLimit = async (
             continue;
         }
         // Add included devices, emails, and numbers to the return object
-        if (settings.includedDeviceIds && settings.toPush !== false) {
-            userResult.pushDevices = pushDevices.filter(device => settings.includedDeviceIds?.includes(device.id));
+        if (settings.includedPush && settings.toPush !== false) {
+            userResult.pushDevices = pushDevices.filter(device => settings.includedPush?.includes(device.id));
         } else {
             userResult.pushDevices = pushDevices;
         }

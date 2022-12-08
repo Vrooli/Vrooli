@@ -27,7 +27,7 @@ export interface comment_comment_commentedOn_Routine_translations {
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
 }
 
 export interface comment_comment_commentedOn_Routine {

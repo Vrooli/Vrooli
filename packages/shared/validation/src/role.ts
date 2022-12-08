@@ -1,4 +1,4 @@
-import { description, idArray, id, language, title, requiredErrorMessage } from './base';
+import { description, idArray, id, language, name, requiredErrorMessage } from './base';
 import * as yup from 'yup';
 
 export const roleTranslationCreate = yup.object().shape({
@@ -16,13 +16,13 @@ export const roleTranslationsUpdate = yup.array().of(roleTranslationUpdate.requi
 
 export const roleCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
-    title: title.required(requiredErrorMessage),
+    name: name.required(requiredErrorMessage),
     translationsCreate: roleTranslationsCreate.notRequired().default(undefined),
 })
 
 export const roleUpdate = yup.object().shape({
     id: id.required(requiredErrorMessage),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
     translationsDelete: idArray.notRequired().default(undefined),
     translationsCreate: roleTranslationsCreate.notRequired().default(undefined),
     translationsUpdate: roleTranslationsUpdate.notRequired().default(undefined),

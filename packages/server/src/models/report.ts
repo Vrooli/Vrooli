@@ -13,6 +13,7 @@ import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
+import { SelectWrap } from "../builders/types";
 
 type SupplementalFields = 'isOwn';
 const formatter = (): Formatter<Report, SupplementalFields> => ({
@@ -74,7 +75,7 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] }
 const validator = (): Validator<
     ReportCreateInput,
     ReportUpdateInput,
-    Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>,
+    Prisma.reportGetPayload<SelectWrap<Prisma.reportSelect>>,
     any,
     Prisma.reportSelect,
     Prisma.reportWhereInput,
@@ -163,7 +164,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.reportSelect,
-    Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>
+    Prisma.reportGetPayload<SelectWrap<Prisma.reportSelect>>
 > => ({
     select: () => ({
         id: true,

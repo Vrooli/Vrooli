@@ -93,7 +93,7 @@ export interface learn_learn_tutorials_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface learn_learn_tutorials {

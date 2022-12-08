@@ -1,9 +1,11 @@
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, LabelSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, NotificationSortBy, Notification, NotificationSearchInput, Success, Count } from './types';
+import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
+import { FindByIdInput, NotificationSortBy, Notification, NotificationSearchInput, Success, Count, NotificationSettingsUpdateInput, NotificationSettings } from './types';
 import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { readManyHelper, readOneHelper } from '../actions';
 import { CustomError } from '../events';
+import { assertRequestFrom } from '../auth';
+import { updateNotificationSettings } from '../notify';
 
 export const typeDef = gql`
     enum NotificationSortBy {
@@ -26,6 +28,48 @@ export const typeDef = gql`
         description: String
         link: String
         imgLink: String
+    }
+
+    input NotificationSettingsCategoryUpdateInput {
+        category: String!
+        enabled: Boolean
+        dailyLimit: Int
+        toEmails: Boolean
+        toSms: Boolean
+        toPush: Boolean
+    }
+
+    input NotificationSettingsUpdateInput {
+        includedEmails: [ID!]
+        includedSms: [ID!]
+        includedPush: [ID!]
+        toEmails: Boolean
+        toSms: Boolean
+        toPush: Boolean
+        dailyLimit: Int
+        enabled: Boolean
+        categories: [NotificationSettingsCategoryUpdateInput!]
+    }
+
+    type NotificationSettingsCategory {
+        category: String!
+        enabled: Boolean!
+        dailyLimit: Int
+        toEmails: Boolean
+        toSms: Boolean
+        toPush: Boolean
+    }
+
+    type NotificationSettings {
+        includedEmails: [ID!]
+        includedSms: [ID!]
+        includedPush: [ID!]
+        toEmails: Boolean
+        toSms: Boolean
+        toPush: Boolean
+        dailyLimit: Int
+        enabled: Boolean!
+        categories: [NotificationSettingsCategory!]
     }
 
     input NotificationSearchInput {
@@ -56,6 +100,7 @@ export const typeDef = gql`
     extend type Mutation {
         notificationMarkAsRead(input: FindByIdInput!): Success!
         notificationMarkAllAsRead: Count!
+        notificationSettingsUpdate(input: NotificationSettingsUpdateInput!): NotificationSettings!
     }
 `
 
@@ -69,6 +114,7 @@ export const resolvers: {
     Mutation: {
         notificationMarkAsRead: GQLEndpoint<FindByIdInput, Success>;
         notificationMarkAllAsRead: GQLEndpoint<undefined, Count>;
+        notificationSettingsUpdate: GQLEndpoint<NotificationSettingsUpdateInput, NotificationSettings>;
     }
 } = {
     NotificationSortBy,
@@ -90,6 +136,11 @@ export const resolvers: {
         notificationMarkAllAsRead: async (_, __, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 100, req });
             throw new CustomError('0366', 'NotImplemented', ['en'])
+        },
+        notificationSettingsUpdate: async (_, { input }, { prisma, req }, info) => {
+            const { id } = assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 100, req });
+            return updateNotificationSettings(input, prisma, id);
         }
     },
 }

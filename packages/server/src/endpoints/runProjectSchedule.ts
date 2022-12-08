@@ -61,9 +61,9 @@ export const typeDef = gql`
         views: Int!
         comments: [Comment!]!
         commentsCount: Int!
-        creator: Contributor
+        createdBy: User
         forks: [Project!]!
-        owner: Contributor
+        owner: Owner
         parent: Project
         permissionsProject: ProjectPermission!
         reports: [Report!]!

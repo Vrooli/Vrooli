@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { padSelect } from "../builders";
 import { InputItemModel } from "./inputItem";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<RunRoutineInput, any> => ({
     relationshipMap: {
@@ -17,7 +18,7 @@ const formatter = (): Formatter<RunRoutineInput, any> => ({
 const validator = (): Validator<
     RunRoutineInputCreateInput,
     RunRoutineInputUpdateInput,
-    Prisma.run_routine_inputGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_inputSelect>]: true } }>,
+    Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>,
     any,
     Prisma.run_routine_inputSelect,
     Prisma.run_routine_inputWhereInput,
@@ -73,10 +74,10 @@ const validator = (): Validator<
 //                 },
 //                 {
 //                     routine: {
-//                         translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } },
+//                         translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } },
 //                     }
 //                 },
-//                 { title: { ...insensitive } }
+//                 { name: { ...insensitive } }
 //             ]
 //         })
 //     },
@@ -119,7 +120,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.run_routine_inputSelect,
-    Prisma.run_routine_inputGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_inputSelect>]: true } }>
+    Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>
 > => ({
     select: () => ({
         id: true,

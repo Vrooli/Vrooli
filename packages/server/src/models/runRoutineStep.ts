@@ -5,6 +5,7 @@ import { PrismaType } from "../types";
 import { Displayer, Formatter, GraphQLModelType, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<RunRoutineStep, any> => ({
     relationshipMap: {
@@ -18,7 +19,7 @@ const formatter = (): Formatter<RunRoutineStep, any> => ({
 const validator = (): Validator<
     RunRoutineStepCreateInput,
     RunRoutineStepUpdateInput,
-    Prisma.run_routine_stepGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_stepSelect>]: true } }>,
+    Prisma.run_routine_stepGetPayload<SelectWrap<Prisma.run_routine_stepSelect>>,
     any,
     Prisma.run_routine_stepSelect,
     Prisma.run_routine_stepWhereInput,
@@ -41,7 +42,7 @@ const validator = (): Validator<
         ['canEdit', async () => isAdmin],
         ['canView', async () => isPublic],
     ]),
-    profanityFields: ['title'],
+    profanityFields: ['name'],
     owner: (data) => RunRoutineModel.validate.owner(data.runRoutine as any),
     isDeleted: () => false,
     isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as any, languages),
@@ -79,7 +80,7 @@ const mutater = (): Mutater<
                 order: data.order,
                 status: RunStepStatus.InProgress,
                 step: data.step,
-                title: data.title,
+                name: data.name,
             }
         },
         relUpdate: async ({ data, userData }) => {
@@ -94,10 +95,10 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.run_routine_stepSelect,
-    Prisma.run_routine_stepGetPayload<{ select: { [K in keyof Required<Prisma.run_routine_stepSelect>]: true } }>
+    Prisma.run_routine_stepGetPayload<SelectWrap<Prisma.run_routine_stepSelect>>
 > => ({
-    select: () => ({ id: true, title: true }),
-    label: (select) => select.title,
+    select: () => ({ id: true, name: true }),
+    label: (select) => select.name,
 })
 
 export const RunRoutineStepModel = ({

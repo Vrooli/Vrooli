@@ -1,9 +1,19 @@
+import { Prisma } from "@prisma/client";
+import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
-import { GraphQLModelType } from "./types";
+import { Displayer, GraphQLModelType } from "./types";
+
+const displayer = (): Displayer<
+    Prisma.reminderSelect,
+    Prisma.reminderGetPayload<SelectWrap<Prisma.reminderSelect>>
+> => ({
+    select: () => ({ id: true, name: true }),
+    label: (select) => select.name
+})
 
 export const ReminderModel = ({
     delegate: (prisma: PrismaType) => prisma.reminder,
-    display: {} as any,
+    display: displayer(),
     format: {} as any,
     mutate: {} as any,
     search: {} as any,

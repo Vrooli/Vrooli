@@ -1,7 +1,7 @@
 import { ProjectCreateInput, ProjectTranslationCreateInput, ProjectTranslationUpdateInput, ProjectUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Project, ProjectTranslation } from "types";
 import { hasObjectChanged, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type ProjectTranslationShape = Omit<ShapeWrapper<ProjectTranslation>, 'language' | 'name'> & {
     id: string;
@@ -37,8 +37,8 @@ export const shapeProjectTranslationUpdate = (
 ): ProjectTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        name: u.name !== o.name ? u.name : undefined,
-        description: u.description !== o.description ? u.description : undefined,
+        ...shapePrim(o, u, 'name'),
+        ...shapePrim(o, u, 'description'),
     }), 'id')
 
 export const shapeProjectCreate = (item: ProjectShape): ProjectCreateInput => ({
@@ -60,9 +60,9 @@ export const shapeProjectUpdate = (
 ): ProjectUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
-        //TODO handle
-        isComplete: u.isComplete !== o.isComplete ? u.isComplete : undefined,
-        isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
+        ...shapePrim(o, u, 'isComplete'),
+        ...shapePrim(o, u, 'isPrivate'),
+        ...shapePrim(o, u, 'handle'),
         userId: u.owner?.__typename === 'User' ? u.owner.id : undefined,
         organizationId: u.owner?.__typename === 'Organization' ? u.owner.id : undefined,
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProjectTranslationCreate, shapeProjectTranslationUpdate, 'id'),

@@ -102,7 +102,7 @@ export interface projectOrRoutines_projectOrRoutines_edges_node_Routine_translat
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface projectOrRoutines_projectOrRoutines_edges_node_Routine {

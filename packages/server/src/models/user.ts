@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import { profilesUpdate } from "@shared/validation";
 import { combineQueries } from "../builders";
 import { translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
 type SupplementalFields = 'isStarred' | 'isViewed';
 const formatter = (): Formatter<User, SupplementalFields> => ({
@@ -62,7 +63,7 @@ export const searcher = (): Searcher<
             (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
             (input.organizationId !== undefined ? { organizations: { some: { organizationId: input.organizationId } } } : {}),
             (input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
             (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
             (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
             (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
@@ -74,7 +75,7 @@ export const searcher = (): Searcher<
 const validator = (): Validator<
     any,
     any,
-    Prisma.userGetPayload<{ select: { [K in keyof Required<Prisma.userSelect>]: true } }>,
+    Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>,
     any,
     Prisma.userSelect,
     Prisma.userWhereInput,
@@ -135,7 +136,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.userSelect,
-    Prisma.userGetPayload<{ select: { [K in keyof Required<Prisma.userSelect>]: true } }>
+    Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>
 > => ({
     select: () => ({ id: true, name: true }),
     label: (select) => select.name ?? '',

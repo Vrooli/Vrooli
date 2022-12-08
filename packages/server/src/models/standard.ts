@@ -17,17 +17,17 @@ import { getSingleTypePermissions } from "../validators";
 import { combineQueries, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
+import { SelectWrap } from "../builders/types";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsStandard' | 'versions';
 const formatter = (): Formatter<Standard, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Standard',
         comments: 'Comment',
-        creator: {
-            root: {
-                User: 'User',
-                Organization: 'Organization',
-            }
+        createdBy: 'User',
+        owner: {
+            User: 'User',
+            Organization: 'Organization',
         },
         reports: 'Report',
         resourceLists: 'ResourceList',
@@ -119,7 +119,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     StandardCreateInput,
     StandardUpdateInput,
-    Prisma.standardGetPayload<{ select: { [K in keyof Required<Prisma.standardSelect>]: true } }>,
+    Prisma.standardGetPayload<SelectWrap<Prisma.standardSelect>>,
     StandardPermission,
     Prisma.standardSelect,
     Prisma.standardWhereInput,
@@ -532,9 +532,9 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.standardSelect,
-    Prisma.standardGetPayload<{ select: { [K in keyof Required<Prisma.standardSelect>]: true } }>
+    Prisma.standardGetPayload<SelectWrap<Prisma.standardSelect>>
 > => ({
-    select: () => ({ 
+    select: () => ({
         id: true,
         versions: {
             where: { isPrivate: false },
@@ -543,7 +543,7 @@ const displayer = (): Displayer<
             select: StandardVersionModel.display.select(),
         }
     }),
-    label: (select, languages) => select.versions.length > 0 ? 
+    label: (select, languages) => select.versions.length > 0 ?
         StandardVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 

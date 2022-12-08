@@ -9,7 +9,7 @@ import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
 import { oneIsPublic } from "../utils";
-import { GraphQLInfo } from "../builders/types";
+import { GraphQLInfo, SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<RunRoutine, ''> => ({
     relationshipMap: {
@@ -21,7 +21,7 @@ const formatter = (): Formatter<RunRoutine, ''> => ({
     },
     supplemental: {
         // Add fields needed for notifications when a run is started/completed
-        dbFields: ['title'],
+        dbFields: ['name'],
         graphqlFields: [],
         toGraphQL: () => [],
     },
@@ -53,10 +53,10 @@ const searcher = (): Searcher<
             },
             {
                 routine: {
-                    translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } },
+                    translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } },
                 }
             },
-            { title: { ...insensitive } }
+            { name: { ...insensitive } }
         ]
     }),
     customQueries(input) {
@@ -72,7 +72,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     RunRoutineCreateInput,
     RunRoutineUpdateInput,
-    Prisma.run_routineGetPayload<{ select: { [K in keyof Required<Prisma.run_routineSelect>]: true } }>,
+    Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>,
     RunRoutinePermission,
     Prisma.run_routineSelect,
     Prisma.run_routineWhereInput,
@@ -124,7 +124,7 @@ const validator = (): Validator<
         }),
     },
     // profanityCheck(data: (RunCreateInput | RunUpdateInput)[]): void {
-    //     validateProfanity(data.map((d: any) => d.title));
+    //     validateProfanity(data.map((d: any) => d.name));
     // },
 
     // TODO if status passed in for update, make sure it's not the same 
@@ -167,7 +167,7 @@ const runner = () => ({
                     steps: {
                         create: input.finalStepCreate ? {
                             order: input.finalStepCreate.order ?? 1,
-                            title: input.finalStepCreate.title ?? '',
+                            name: input.finalStepCreate.name ?? '',
                             contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
                             timeElapsed: input.finalStepCreate.timeElapsed,
                             status: input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed,
@@ -197,12 +197,12 @@ const runner = () => ({
                     contextSwitches: input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0,
                     routineVersionId: input.id,
                     status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
-                    title: input.title,
+                    name: input.name,
                     userId: userData.id,
                     steps: {
                         create: input.finalStepCreate ? {
                             order: input.finalStepCreate.order ?? 1,
-                            title: input.finalStepCreate.title ?? '',
+                            name: input.finalStepCreate.name ?? '',
                             contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
                             timeElapsed: input.finalStepCreate.timeElapsed,
                             status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
@@ -277,7 +277,7 @@ const mutater = (): Mutater<
                 routineVersionId: data.routineVersionId,
                 status: RunStatus.InProgress,
                 steps: await relBuilderHelper({ data, isAdd: true, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),
-                title: data.title,
+                name: data.name,
                 userId: userData.id,
             }
         },
@@ -355,10 +355,10 @@ const danger = () => ({
 
 const displayer = (): Displayer<
     Prisma.run_routineSelect,
-    Prisma.run_routineGetPayload<{ select: { [K in keyof Required<Prisma.run_routineSelect>]: true } }>
+    Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>
 > => ({
-    select: () => ({ id: true, title: true }),
-    label: (select) => select.title ?? '',
+    select: () => ({ id: true, name: true }),
+    label: (select) => select.name ?? '',
 })
 
 export const RunRoutineModel = ({

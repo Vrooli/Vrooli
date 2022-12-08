@@ -53,7 +53,7 @@ export interface routineFields_nodeLinks_whens_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface routineFields_nodeLinks_whens {
@@ -195,7 +195,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersio
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources_translations {
@@ -203,7 +203,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersio
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources {
@@ -244,7 +244,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_routineVersio
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
   description: string | null;
   instructions: string;
 }
@@ -273,7 +273,7 @@ export interface routineFields_nodes_data_NodeRoutineList_routines_translations 
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface routineFields_nodes_data_NodeRoutineList_routines {
@@ -300,7 +300,7 @@ export interface routineFields_nodes_loop_whiles_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface routineFields_nodes_loop_whiles {
@@ -324,7 +324,7 @@ export interface routineFields_nodes_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface routineFields_nodes {
@@ -405,7 +405,7 @@ export interface routineFields_parent_translations {
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
 }
 
 export interface routineFields_parent {
@@ -419,7 +419,7 @@ export interface routineFields_resourceLists_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface routineFields_resourceLists_resources_translations {
@@ -427,7 +427,7 @@ export interface routineFields_resourceLists_resources_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface routineFields_resourceLists_resources {
@@ -476,7 +476,7 @@ export interface routineFields_runs_steps {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name: string;
   status: RunRoutineStepStatus;
   step: number[];
   node: routineFields_runs_steps_node | null;
@@ -491,7 +491,7 @@ export interface routineFields_runs {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name: string;
   status: RunStatus;
   steps: routineFields_runs_steps[];
 }
@@ -527,7 +527,7 @@ export interface routineFields_translations {
   language: string;
   description: string | null;
   instructions: string;
-  title: string;
+  name: string;
 }
 
 export interface routineFields {

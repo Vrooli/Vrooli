@@ -45,7 +45,7 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routineVers
   language: string;
   description: string | null;
   instructions: string;
-  title: string;
+  name: string;
 }
 
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_routineVersion {
@@ -66,7 +66,7 @@ export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines_translation
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface nodeUpdate_nodeUpdate_data_NodeRoutineList_routines {
@@ -93,7 +93,7 @@ export interface nodeUpdate_nodeUpdate_loop_whiles_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface nodeUpdate_nodeUpdate_loop_whiles {
@@ -117,7 +117,7 @@ export interface nodeUpdate_nodeUpdate_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface nodeUpdate_nodeUpdate {

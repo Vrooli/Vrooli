@@ -49,7 +49,7 @@ export interface routines_routines_edges_node_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface routines_routines_edges_node {

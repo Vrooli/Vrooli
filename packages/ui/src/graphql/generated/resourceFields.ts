@@ -14,7 +14,7 @@ export interface resourceFields_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface resourceFields {

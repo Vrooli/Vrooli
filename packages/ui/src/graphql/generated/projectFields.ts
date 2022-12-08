@@ -24,7 +24,7 @@ export interface projectFields_resourceLists_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface projectFields_resourceLists_resources_translations {
@@ -32,7 +32,7 @@ export interface projectFields_resourceLists_resources_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface projectFields_resourceLists_resources {

@@ -4,6 +4,7 @@ import { Displayer, Formatter, GraphQLModelType } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
 import { padSelect } from "../builders";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<Member, any> => ({
     relationshipMap: {
@@ -15,7 +16,7 @@ const formatter = (): Formatter<Member, any> => ({
 
 const displayer = (): Displayer<
     Prisma.memberSelect,
-    Prisma.memberGetPayload<{ select: { [K in keyof Required<Prisma.memberSelect>]: true } }>
+    Prisma.memberGetPayload<SelectWrap<Prisma.memberSelect>>
 > => ({
     select: () => ({
         id: true,

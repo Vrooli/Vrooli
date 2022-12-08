@@ -24,7 +24,7 @@ export interface organizationFields_resourceLists_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface organizationFields_resourceLists_resources_translations {
@@ -32,7 +32,7 @@ export interface organizationFields_resourceLists_resources_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface organizationFields_resourceLists_resources {
@@ -68,7 +68,7 @@ export interface organizationFields_roles {
   id: string;
   created_at: any;
   updated_at: any;
-  title: string;
+  name: string;
   translations: organizationFields_roles_translations[];
 }
 

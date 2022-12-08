@@ -90,7 +90,8 @@ export const typeDef = gql`
         views: Int!
         comments: [Comment!]!
         commentsCount: Int!
-        creator: Contributor
+        createdBy: User
+        owner: Owner
         permissionsStandard: StandardPermission!
         reports: [Report!]!
         reportsCount: Int!

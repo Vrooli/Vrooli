@@ -5,9 +5,9 @@ import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./ty
 import { Prisma } from "@prisma/client";
 import { CustomError } from "../events";
 import { RoutineModel } from "./routine";
-import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { bestLabel, translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
 const MAX_NODES_IN_ROUTINE = 100;
 
@@ -19,14 +19,14 @@ const formatter = (): Formatter<Node, any> => ({
             NodeRoutineList: 'NodeRoutineList',
         },
         loop: 'NodeLoop',
-        routine: 'Routine',
+        routineVersion: 'RoutineVersion',
     },
 })
 
 const validator = (): Validator<
     NodeCreateInput,
     NodeUpdateInput,
-    Prisma.nodeGetPayload<{ select: { [K in keyof Required<Prisma.nodeSelect>]: true } }>,
+    Prisma.nodeGetPayload<SelectWrap<Prisma.nodeSelect>>,
     any,
     Prisma.nodeSelect,
     Prisma.nodeWhereInput,
@@ -118,10 +118,10 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.nodeSelect,
-    Prisma.nodeGetPayload<{ select: { [K in keyof Required<Prisma.nodeSelect>]: true } }>
+    Prisma.nodeGetPayload<SelectWrap<Prisma.nodeSelect>>
 > => ({
-    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'title', languages),
+    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+    label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
 export const NodeModel = ({

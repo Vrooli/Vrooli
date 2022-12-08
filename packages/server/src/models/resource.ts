@@ -7,6 +7,7 @@ import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
 import { combineQueries, permissionsSelectHelper } from "../builders";
 import { bestLabel, translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<Resource, any> => ({
     relationshipMap: { __typename: 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
@@ -30,7 +31,7 @@ const searcher = (): Searcher<
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
             { link: { ...insensitive } },
         ]
     }),
@@ -45,7 +46,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     ResourceCreateInput,
     ResourceUpdateInput,
-    Prisma.resourceGetPayload<{ select: { [K in keyof Required<Prisma.resourceSelect>]: true } }>,
+    Prisma.resourceGetPayload<SelectWrap<Prisma.resourceSelect>>,
     any,
     Prisma.resourceSelect,
     Prisma.resourceWhereInput,
@@ -124,10 +125,10 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.resourceSelect,
-    Prisma.resourceGetPayload<{ select: { [K in keyof Required<Prisma.resourceSelect>]: true } }>
+    Prisma.resourceGetPayload<SelectWrap<Prisma.resourceSelect>>
 > => ({
-    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'title', languages),
+    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+    label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
 export const ResourceModel = ({

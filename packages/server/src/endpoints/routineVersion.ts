@@ -101,7 +101,7 @@ export const typeDef = gql`
         # versions: [Version!]!
         comments: [Comment!]!
         commentsCount: Int!
-        creator: Contributor
+        createdBy: User
         forks: [Routine!]!
         inputs: [InputItem!]!
         nodeLists: [NodeRoutineList!]!
@@ -109,7 +109,7 @@ export const typeDef = gql`
         nodesCount: Int
         nodeLinks: [NodeLink!]!
         outputs: [OutputItem!]!
-        owner: Contributor
+        owner: Owner
         parent: Routine
         permissionsRoutine: RoutinePermission!
         project: Project
@@ -139,21 +139,21 @@ export const typeDef = gql`
         language: String!
         description: String
         instructions: String!
-        title: String!
+        name: String!
     }
     input RoutineVersionTranslationUpdateInput {
         id: ID!
         language: String
         description: String
         instructions: String
-        title: String
+        name: String
     }
     type RoutineVersionTranslation {
         id: ID!
         language: String!
         description: String
         instructions: String!
-        title: String!
+        name: String!
     }
 
     input InputItemCreateInput {

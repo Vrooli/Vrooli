@@ -21,7 +21,7 @@ export interface notifications_notifications_edges_node {
   created_at: any;
   category: string;
   isRead: boolean;
-  title: string;
+  name: string;
   description: string | null;
   link: string | null;
   imgLink: string | null;

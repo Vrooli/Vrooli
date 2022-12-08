@@ -123,7 +123,6 @@ export const language = yup.string().transform(blankToUndefined).min(2, minStrin
 export const name = yup.string().transform(blankToUndefined).min(3, minStringErrorMessage).max(128, maxStringErrorMessage)
 export const handle = yup.string().transform(blankToUndefined).min(3, minStringErrorMessage).max(16, maxStringErrorMessage).nullable() // ADA Handle
 export const tag = yup.string().transform(blankToUndefined).min(2, minStringErrorMessage).max(64, maxStringErrorMessage)
-export const title = yup.string().transform(blankToUndefined).min(2, minStringErrorMessage).max(128, maxStringErrorMessage)
 export const version = (minVersion: string = '0.0.1') => yup.string().transform(blankToUndefined).max(16, maxStringErrorMessage).test(...minVersionTest(minVersion))
 export const idArray = yup.array().of(id.required(requiredErrorMessage))
 export const tagArray = yup.array().of(tag.required(requiredErrorMessage))

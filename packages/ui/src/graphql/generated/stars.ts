@@ -37,7 +37,7 @@ export interface stars_stars_edges_node_to_Comment_commentedOn_Routine_translati
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
 }
 
 export interface stars_stars_edges_node_to_Comment_commentedOn_Routine {
@@ -236,7 +236,7 @@ export interface stars_stars_edges_node_to_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface stars_stars_edges_node_to_Routine {

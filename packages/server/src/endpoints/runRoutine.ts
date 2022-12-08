@@ -41,7 +41,7 @@ export const typeDef = gql`
         timeStarted: Date
         timeElapsed: Int
         timeCompleted: Date
-        title: String!
+        name: String!
         status: RunStatus!
         routine: Routine
         steps: [RunRoutineStep!]!
@@ -85,7 +85,7 @@ export const typeDef = gql`
         id: ID!
         isPrivate: Boolean
         routineVersionId: ID!
-        title: String!
+        name: String!
         stepsCreate: [RunRoutineStepCreateInput!]
         inputsCreate: [RunRoutineInputCreateInput!]
         # If scheduling info provided, not starting immediately
@@ -110,7 +110,7 @@ export const typeDef = gql`
         id: ID! # Run ID if "exists" is true, or routine version ID if "exists" is false
         completedComplexity: Int # Even though the runRoutine was completed, the user may not have completed every subroutine
         exists: Boolean # If true, runRoutine ID is provided, otherwise routine ID so we can create a runRoutine
-        title: String! # Title of routine, so runRoutine name stays consistent even if routine updates/deletes
+        name: String! # Title of routine, so runRoutine name stays consistent even if routine updates/deletes
         finalStepCreate: RunRoutineStepCreateInput
         finalStepUpdate: RunRoutineStepUpdateInput
         inputsDelete: [ID!]

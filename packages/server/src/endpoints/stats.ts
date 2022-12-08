@@ -30,6 +30,10 @@ export const typeDef = gql`
         id: ID!
     }
 
+    type StatsNote {
+        id: ID!
+    }
+
     type StatsOrganization {
         id: ID!
     }

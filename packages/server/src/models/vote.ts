@@ -7,7 +7,7 @@ import { PrismaType } from "../types";
 import { readManyHelper } from "../actions";
 import { Displayer, Formatter, GraphQLModelType } from "./types";
 import { CommentModel, ProjectModel, RoutineModel, StandardModel } from ".";
-import { PartialGraphQLInfo } from "../builders/types";
+import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
 import { Prisma } from "@prisma/client";
 
@@ -199,7 +199,7 @@ const querier = () => ({
 
 const displayer = (): Displayer<
     Prisma.voteSelect,
-    Prisma.voteGetPayload<{ select: { [K in keyof Required<Prisma.voteSelect>]: true } }>
+    Prisma.voteGetPayload<SelectWrap<Prisma.voteSelect>>
 > => ({
     select: () => ({
         id: true,

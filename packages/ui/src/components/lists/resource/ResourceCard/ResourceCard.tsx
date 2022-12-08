@@ -30,12 +30,12 @@ export const ResourceCard = ({
 
     const [showIcons, setShowIcons] = useState(false);
 
-    const { description, title } = useMemo(() => {
+    const { description, name } = useMemo(() => {
         const languages = getUserLanguages(session);
-        const { description, title } = getTranslation(data, languages, true);
+        const { description, name } = getTranslation(data, languages, true);
         return {
             description: (description && description.length > 0) ? description : data.link,
-            title: (title && title.length > 0) ? title : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
+            name: (name && name.length > 0) ? name : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
         };
     }, [data, session]);
 
@@ -154,10 +154,10 @@ export const ResourceCard = ({
                         sx={{
                             ...multiLineEllipsis(3),
                             textAlign: 'center',
-                            lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
+                            lineBreak: Boolean(name) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
                         }}
                     >
-                        {firstString(title, data.link)}
+                        {firstString(name, data.link)}
                     </Typography>
                 </Stack>
             </Box>

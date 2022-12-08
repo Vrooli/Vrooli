@@ -1,7 +1,7 @@
 import { CommentCreateInput, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentFor, CommentUpdateInput } from "graphql/generated/globalTypes";
 import { Comment, CommentTranslation, ShapeWrapper } from "types";
 import { hasObjectChanged } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type CommentTranslationShape = Omit<ShapeWrapper<CommentTranslation>, 'language' | 'description'> & {
     id: string;
@@ -27,7 +27,7 @@ export const shapeCommentTranslationUpdate = (
 ): CommentTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        text: u.text !== o.text ? u.text : undefined,
+        ...shapePrim(o, u, 'text'),
     }), 'id')
 
 export const shapeCommentCreate = (item: CommentShape, threadId: string | null | undefined): CommentCreateInput => {

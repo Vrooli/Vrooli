@@ -19,9 +19,9 @@ export const typeDef = gql`
     scalar Date
     scalar Upload
 
-    # Used for Projects, Standards, and Routines, since they can be created 
+    # Used for Projects, Standards, and Routines, since they can be owned
     # by either a User or an Organization.
-    union Contributor = User | Organization
+    union Owner = User | Organization
 
     # Used for filtering by date created/updated, as well as fetching metrics (e.g. monthly active users)
     input TimeFrame {
@@ -50,17 +50,24 @@ export const typeDef = gql`
         message: String!
     }
 
-    #union SearchResultNode = Api | ApiVersion | Issue | Note | NoteVersion | Organization | Post | Project | ProjectVersion | Question | QuestionAnswer | Reminder | ReminderList | Report | Resource | Role | Routine | RoutineVersion | Run | RunInput | SmartContract | SmartContractVersion | Standard | StandardVersion | Star | Tag | User | View | Vote
-#
- #   type PaginatedSearchResult {
-  #      pageInfo: PageInfo!
-  #      edges: [SearchResultEdge!]!
-  #  }
-#
- #   type SearchResultEdge {
- #       cursor: String!
- #       node: SearchResultNote!
- #   }
+    type RootPermission {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canTransfer: Boolean!
+        canView: Boolean!
+        canVote: Boolean!
+    }
+
+    type VersionPermission {
+        canComment: Boolean!
+        canCopy: Boolean!
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canReport: Boolean!
+        canUse: Boolean! # In run, project, etc. Not always applicable
+        canView: Boolean!
+    }
 
     input ReadAssetsInput {
         files: [String!]!
@@ -129,12 +136,9 @@ export const resolvers = {
             return new Date(ast).toDateString(); // ast value is always in string format
         }
     }),
-    Contributor: {
+    Owner: {
         __resolveType(obj: any) { return resolveUnion(obj) },
     },
-    // SearchResultNode: {
-    //     __resolveType(obj: any) { return resolveUnion(obj) },
-    // },
     Query: {
         readAssets: async (_parent: undefined, { input }: any, { req }: Context, info: GraphQLResolveInfo): Promise<Array<String | null>> => {
             await rateLimit({ info, maxUser: 1000, req });

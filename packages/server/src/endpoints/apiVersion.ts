@@ -22,16 +22,55 @@ export const typeDef = gql`
 
     input ApiVersionCreateInput {
         id: ID!
+        callLink: String!
+        documentationLink: String
+        isLatest: Boolean
+        resourceListCreate: ResourceListCreateInput
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
+        translationsCreate: [ApiVersionTranslationCreateInput!]
+        directoryListingsConnect: [ID!]
     }
     input ApiVersionUpdateInput {
         id: ID!
+        callLink: String
+        documentationLink: String
+        isLatest: Boolean
+        resourceListCreate: ResourceListCreateInput
+        resourceListUpdate: ResourceListUpdateInput
+        versionIndex: Int
+        versionLabel: String
+        versionNotes: String
+        translationsCreate: [ApiVersionTranslationCreateInput!]
+        translationsUpdate: [ApiVersionTranslationUpdateInput!]
+        translationsDelete: [ID!]
+        directoryListingsConnect: [ID!]
+        directoryListingsDisconnect: [ID!]
     }
     type ApiVersion {
         id: ID!
+        created_at: Date!
+        updated_at: Date!
+        callLink: String!
+        documentationLink: String
+        isLatest: Boolean!
+        resourceList: ResourceList
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
+        translations: [ApiVersionTranslation!]!
+        directoryListings: [ProjectVersionDirectory!]!
+        permissionsVersion: VersionPermission!
+        reports: [Report!]!
+        root: Api!
+        forks: [Api!]!
+        comments: [Comment!]!
     }
 
     type ApiVersionPermission {
         canComment: Boolean!
+        canCopy: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!
@@ -43,54 +82,49 @@ export const typeDef = gql`
     input ApiVersionTranslationCreateInput {
         id: ID!
         language: String!
-        description: String
-        name: String!
+        summary: String
+        details: String!
     }
     input ApiVersionTranslationUpdateInput {
         id: ID!
         language: String
-        description: String
-        name: String
+        summary: String
+        details: String
     }
     type ApiVersionTranslation {
         id: ID!
         language: String!
-        description: String
-        name: String!
+        summary: String
+        details: String
     }
 
     input ApiVersionSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
         languages: [String!]
         minScore: Int
         minStars: Int
         minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        createdById: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         searchString: String
-        sortBy: ProjectSortBy
+        sortBy: ApiVersionSortBy
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
     type ApiVersionSearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [ApiVersionEdge!]!
     }
 
     type ApiVersionEdge {
         cursor: String!
-        node: Api!
+        node: ApiVersion!
     }
 
     extend type Query {

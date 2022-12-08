@@ -1,4 +1,4 @@
-import { description, idArray, id, name, title, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage, version, blankToUndefined } from './base';
+import { description, idArray, id, name, name, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage, version, blankToUndefined } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';
@@ -85,14 +85,14 @@ export const routineTranslationCreate = yup.object().shape({
     language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
     instructions: instructions.required(requiredErrorMessage),
-    title: title.required(requiredErrorMessage),
+    name: name.required(requiredErrorMessage),
 });
 export const routineTranslationUpdate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
     instructions: instructions.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
 });
 export const routineTranslationsCreate = yup.array().of(routineTranslationCreate.required(requiredErrorMessage))
 export const routineTranslationsUpdate = yup.array().of(routineTranslationUpdate.required(requiredErrorMessage))

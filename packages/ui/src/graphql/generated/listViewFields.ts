@@ -132,7 +132,7 @@ export interface listViewFields_to_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface listViewFields_to_Routine {
@@ -219,6 +219,6 @@ export interface listViewFields {
   __typename: "View";
   id: string;
   lastViewed: any;
-  title: string;
+  name: string;
   to: listViewFields_to;
 }

@@ -125,7 +125,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_nodeLinks_whens_t
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine_nodeLinks_whens {
@@ -292,7 +292,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_nodes_data_NodeRo
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources_translations {
@@ -300,7 +300,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_nodes_data_NodeRo
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine_nodes_data_NodeRoutineList_routines_routineVersion_resourceLists_resources {
@@ -341,7 +341,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_nodes_data_NodeRo
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
   description: string | null;
   instructions: string;
 }
@@ -370,7 +370,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_nodes_data_NodeRo
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine_nodes_data_NodeRoutineList_routines {
@@ -397,7 +397,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_nodes_loop_whiles
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine_nodes_loop_whiles {
@@ -421,7 +421,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_nodes_translation
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine_nodes {
@@ -515,7 +515,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_parent_translatio
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine_parent {
@@ -529,7 +529,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_resourceLists_tra
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine_resourceLists_resources_translations {
@@ -537,7 +537,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_resourceLists_res
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine_resourceLists_resources {
@@ -591,7 +591,7 @@ export interface runRoutineComplete_runRoutineComplete_routine_translations {
   language: string;
   description: string | null;
   instructions: string;
-  title: string;
+  name: string;
 }
 
 export interface runRoutineComplete_runRoutineComplete_routine {
@@ -636,7 +636,7 @@ export interface runRoutineComplete_runRoutineComplete_steps {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name: string;
   status: RunRoutineStepStatus;
   step: number[];
   node: runRoutineComplete_runRoutineComplete_steps_node | null;
@@ -651,7 +651,7 @@ export interface runRoutineComplete_runRoutineComplete {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name: string;
   status: RunStatus;
   inputs: runRoutineComplete_runRoutineComplete_inputs[];
   routine: runRoutineComplete_runRoutineComplete_routine | null;

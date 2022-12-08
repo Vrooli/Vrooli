@@ -14,24 +14,18 @@ import { getSingleTypePermissions } from "../validators";
 import { combineQueries, exceptionsBuilder, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
+import { SelectWrap } from "../builders/types";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsProject';
 const formatter = (): Formatter<Project, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Project',
         comments: 'Comment',
-        creator: {
-            root: {
-                User: 'User',
-                Organization: 'Organization',
-            }
-        },
+        createdBy: 'User',
         forks: 'Project',
         owner: {
-            root: {
-                User: 'User',
-                Organization: 'Organization',
-            }
+            User: 'User',
+            Organization: 'Organization',
         },
         parent: 'Project',
         reports: 'Report',
@@ -107,7 +101,7 @@ const searcher = (): Searcher<
             (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
             (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
             (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
             (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
             (input.userId !== undefined ? { userId: input.userId } : {}),
             (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
@@ -121,7 +115,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     ProjectCreateInput,
     ProjectUpdateInput,
-    Prisma.projectGetPayload<{ select: { [K in keyof Required<Prisma.projectSelect>]: true } }>,
+    Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>,
     ProjectPermission,
     Prisma.projectSelect,
     Prisma.projectWhereInput,
@@ -292,7 +286,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.projectSelect,
-    Prisma.projectGetPayload<{ select: { [K in keyof Required<Prisma.projectSelect>]: true } }>
+    Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>
 > => ({
     select: () => ({
         id: true,

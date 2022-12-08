@@ -1,7 +1,7 @@
 import { NodeCreateInput, NodeEndCreateInput, NodeEndUpdateInput, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "graphql/generated/globalTypes";
 import { Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeDataRoutineListItemTranslation, NodeTranslation, ShapeWrapper } from "types";
 import { hasObjectChanged, RoutineShape, shapeRoutineUpdate } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type NodeEndShape = ShapeWrapper<NodeDataEnd> & {
     id: string;
@@ -25,10 +25,10 @@ export type NodeRoutineListShape = Omit<ShapeWrapper<NodeDataRoutineList>, 'rout
     routines: NodeRoutineListItemShape[];
 }
 
-export type NodeTranslationShape = Omit<ShapeWrapper<NodeTranslation>, 'language' | 'title'> & {
+export type NodeTranslationShape = Omit<ShapeWrapper<NodeTranslation>, 'language' | 'name'> & {
     id: string;
     language: NodeTranslationCreateInput['language'];
-    title: NodeTranslationCreateInput['title'];
+    name: NodeTranslationCreateInput['name'];
 }
 
 export type NodeShape = Omit<ShapeWrapper<Node>, 'loop' | 'data' | 'translations'> & {
@@ -49,14 +49,14 @@ export const shapeNodeEndUpdate = (
     updated: NodeEndShape
 ): NodeEndUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
     id: o.id,
-    wasSuccessful: u.wasSuccessful !== o.wasSuccessful ? u.wasSuccessful : undefined,
+    ...shapePrim(o, u, 'wasSuccessful'),
 }), 'id')
 
 export const shapeNodeRoutineListItemTranslationCreate = (item: NodeRoutineListItemTranslationShape): NodeRoutineListItemTranslationCreateInput => ({
     id: item.id,
     language: item.language,
     description: item.description,
-    title: item.title,
+    name: item.name,
 })
 
 export const shapeNodeRoutineListItemTranslationUpdate = (
@@ -65,8 +65,8 @@ export const shapeNodeRoutineListItemTranslationUpdate = (
 ): NodeRoutineListItemTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        description: u.description !== o.description ? u.description : undefined,
-        title: u.title !== o.title ? u.title : undefined,
+        ...shapePrim(o, u, 'description'),
+        ...shapePrim(o, u, 'name'),
     }), 'id')
 
 export const shapeNodeRoutineListItemCreate = (item: NodeRoutineListItemShape): NodeRoutineListItemCreateInput => ({
@@ -83,8 +83,8 @@ export const shapeNodeRoutineListItemUpdate = (
 ): NodeRoutineListItemUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
-        index: u.index !== o.index ? u.index : undefined,
-        isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
+        ...shapePrim(o, u, 'index'),
+        ...shapePrim(o, u, 'isOptional'),
         routineUpdate: shapeRoutineUpdate(o.routine, u.routine),
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeNodeRoutineListItemTranslationCreate, shapeNodeRoutineListItemTranslationUpdate, 'id'),
     }), 'id')
@@ -102,8 +102,8 @@ export const shapeNodeRoutineListUpdate = (
 ): NodeRoutineListUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
-        isOptional: u.isOptional !== o.isOptional ? u.isOptional : undefined,
-        isOrdered: u.isOrdered !== o.isOrdered ? u.isOrdered : undefined,
+        ...shapePrim(o, u, 'isOptional'),
+        ...shapePrim(o, u, 'isOrdered'),
         ...shapeUpdateList(o, u, 'routines', hasObjectChanged, shapeNodeRoutineListItemCreate, shapeNodeRoutineListItemUpdate, 'id')
     }), 'id')
 
@@ -111,7 +111,7 @@ export const shapeNodeTranslationCreate = (item: NodeTranslationShape): NodeTran
     id: item.id,
     language: item.language,
     description: item.description ?? undefined,
-    title: item.title,
+    name: item.name,
 })
 
 export const shapeNodeTranslationUpdate = (
@@ -120,8 +120,8 @@ export const shapeNodeTranslationUpdate = (
 ): NodeTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        description: u.description !== o.description ? u.description : undefined,
-        title: u.title !== o.title ? u.title : undefined,
+        ...shapePrim(o, u, 'description'),
+        ...shapePrim(o, u, 'name'),
     }), 'id')
 
 export const shapeNodeCreate = (item: NodeShape): NodeCreateInput => ({
@@ -141,9 +141,9 @@ export const shapeNodeUpdate = (
     updated: NodeShape
 ): NodeUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
     id: o.id,
-    columnIndex: u.columnIndex !== o.columnIndex ? u.columnIndex : undefined,
-    rowIndex: u.rowIndex !== o.rowIndex ? u.rowIndex : undefined,
-    type: u.type !== o.type ? u.type : undefined,
+    ...shapePrim(o, u, 'columnIndex'),
+    ...shapePrim(o, u, 'rowIndex'),
+    ...shapePrim(o, u, 'type'),
     // ...shapeNodeLoopUpdate(o.loop, u.loop),
     nodeEndCreate: u.data?.__typename === 'NodeEnd' && !o.data ? shapeNodeEndCreate(u.data as NodeEndShape) : undefined,
     nodeEndUpdate: u.data?.__typename === 'NodeEnd' && o.data ? shapeNodeEndUpdate(o.data as NodeEndShape, u.data as NodeEndShape) : undefined,

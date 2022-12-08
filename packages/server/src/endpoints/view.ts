@@ -17,7 +17,7 @@ export const typeDef = gql`
         id: ID!
         from: User!
         lastViewed: Date!
-        title: String!
+        name: String!
         to: ProjectOrOrganizationOrRoutineOrStandardOrUser!
     }
 

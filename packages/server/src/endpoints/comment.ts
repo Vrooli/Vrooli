@@ -45,7 +45,7 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         commentedOn: CommentedOn!
-        creator: Contributor
+        owner: Owner
         isStarred: Boolean!
         isUpvoted: Boolean
         permissionsComment: CommentPermission

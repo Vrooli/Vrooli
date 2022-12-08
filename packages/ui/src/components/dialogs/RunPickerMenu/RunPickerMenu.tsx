@@ -59,7 +59,7 @@ export const RunPickerMenu = ({
                 // id: uuid(),
                 // routineId: routine.id,
                 // version: routine.version ?? '',
-                // title: getTranslation(routine, getUserLanguages(session)).title ?? 'Unnamed Routine',
+                // name: getTranslation(routine, getUserLanguages(session)).title ?? 'Unnamed Routine',
             } as any, //TODO will break
             successCondition: (data) => data !== null,
             onSuccess: (data) => {

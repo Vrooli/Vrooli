@@ -42,19 +42,19 @@ export const typeDef = gql`
         id: ID!
         language: String!
         description: String
-        title: String
+        name: String
     }
     input ReminderTranslationUpdateInput {
         id: ID!
         language: String
         description: String
-        title: String
+        name: String
     }
     type ReminderTranslation {
         id: ID!
         language: String!
         description: String
-        title: String
+        name: String
     }
 
     input ReminderSearchInput {

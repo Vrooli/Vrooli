@@ -3,6 +3,7 @@ import { PrismaType } from "../types";
 import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<NodeLinkWhen, any> => ({
     relationshipMap: {
@@ -43,7 +44,7 @@ const mutater = (): Mutater<
 // Doesn't make sense to have a displayer for this model
 const displayer = (): Displayer<
     Prisma.node_link_whenSelect,
-    Prisma.node_link_whenGetPayload<{ select: { [K in keyof Required<Prisma.node_link_whenSelect>]: true } }>
+    Prisma.node_link_whenGetPayload<SelectWrap<Prisma.node_link_whenSelect>>
 > => ({
     select: () => ({ id: true }),
     label: () => ''

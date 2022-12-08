@@ -42,7 +42,7 @@ export interface listRunRoutineFields_routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface listRunRoutineFields_routine {
@@ -75,7 +75,7 @@ export interface listRunRoutineFields {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name: string;
   status: RunStatus;
   routine: listRunRoutineFields_routine | null;
 }

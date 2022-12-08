@@ -18,14 +18,16 @@ export type GraphQLModelType =
     'Issue' |
     'Label' |
     'LearnResult' |
-    'Member' |
     'Meeting' |
     'MeetingInvite' |
+    'Member' |
+    'MemberInvite' |
     'Node' |
     'NodeEnd' |
     'NodeLink' |
     'NodeLinkWhen' |
     'NodeLoop' |
+    'NodeLoopWhile' |
     'NodeRoutineList' |
     'NodeRoutineListItem' |
     'Note' |
@@ -40,6 +42,7 @@ export type GraphQLModelType =
     'Profile' |
     'Project' |
     'ProjectVersion' |
+    'ProjectVersionDirectory' |
     'ProjectOrRoutineSearchResult' |
     'ProjectOrOrganizationSearchResult' |
     'PullRequest' |
@@ -48,6 +51,7 @@ export type GraphQLModelType =
     'QuestionAnswer' |
     'Quiz' |
     'Reminder' |
+    'ReminderItem' |
     'ReminderList' |
     'Report' |
     'ReportResponse' |

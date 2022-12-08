@@ -71,9 +71,9 @@ export const typeDef = gql`
         views: Int!
         comments: [Comment!]!
         commentsCount: Int!
-        creator: Contributor
+        createdBy: User
         forks: [Project!]!
-        owner: Contributor
+        owner: Owner
         parent: Project
         permissionsProject: ProjectPermission!
         reports: [Report!]!
@@ -131,7 +131,7 @@ export const typeDef = gql`
         resourceLists: [String!]
         resourceTypes: [ResourceUsedFor!]
         searchString: String
-        sortBy: ProjectSortBy
+        sortBy: ProjectVersionSortBy
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame

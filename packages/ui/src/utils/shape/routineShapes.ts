@@ -1,13 +1,13 @@
 import { RoutineCreateInput, RoutineTranslationCreateInput, RoutineTranslationUpdateInput, RoutineUpdateInput } from "graphql/generated/globalTypes";
 import { Routine, RoutineTranslation, ShapeWrapper } from "types";
 import { hasObjectChanged, InputShape, NodeLinkShape, NodeShape, OutputShape, ResourceListShape, shapeInputCreate, shapeInputUpdate, shapeNodeCreate, shapeNodeUpdate, shapeNodeLinkCreate, shapeNodeLinkUpdate, shapeOutputCreate, shapeOutputUpdate, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
-export type RoutineTranslationShape = Omit<ShapeWrapper<RoutineTranslation>, 'language' | 'instructions' | 'title'> & {
+export type RoutineTranslationShape = Omit<ShapeWrapper<RoutineTranslation>, 'language' | 'instructions' | 'name'> & {
     id: string;
     language: RoutineTranslationCreateInput['language'];
     instructions: RoutineTranslationCreateInput['instructions'];
-    title: RoutineTranslationCreateInput['title'];
+    name: RoutineTranslationCreateInput['name'];
 }
 
 export type RoutineShape = Omit<ShapeWrapper<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'parent' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags' | 'translations'> & {
@@ -36,7 +36,7 @@ export const shapeRoutineTranslationCreate = (item: RoutineTranslationShape): Ro
     language: item.language,
     description: item.description,
     instructions: item.instructions,
-    title: item.title,
+    name: item.name,
 })
 
 export const shapeRoutineTranslationUpdate = (
@@ -45,9 +45,9 @@ export const shapeRoutineTranslationUpdate = (
 ): RoutineTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        description: u.description !== o.description ? u.description : undefined,
-        instructions: u.instructions !== o.instructions ? u.instructions : undefined,
-        title: u.title !== o.title ? u.title : undefined,
+        ...shapePrim(o, u, 'description'),
+        ...shapePrim(o, u, 'instructions'),
+        ...shapePrim(o, u, 'name'),
     }), 'id')
 
 export const shapeRoutineCreate = (item: RoutineShape): RoutineCreateInput => ({
@@ -77,13 +77,13 @@ export const shapeRoutineUpdate = (
     updated: RoutineShape
 ): RoutineUpdateInput | undefined => shapeUpdate(original, updated, (o, u) => ({
     id: o.id,
-    isAutomatable: u.isAutomatable !== o.isAutomatable ? u.isAutomatable : undefined,
-    isComplete: u.isComplete !== o.isComplete ? u.isComplete : undefined,
-    isInternal: u.isInternal !== o.isInternal ? u.isInternal : undefined,
-    isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
-    // version: u.version !== o.version ? u.version : undefined, TODO
-    parentId: u.parent?.id !== o.parent?.id ? u.parent?.id : undefined,
-    projectId: u.project?.id !== o.project?.id ? u.project?.id : undefined,
+    ...shapePrim(o, u, 'isAutomatable'),
+    ...shapePrim(o, u, 'isComplete'),
+    ...shapePrim(o, u, 'isInternal'),
+    ...shapePrim(o, u, 'isPrivate'),
+    // ...shapePrim(o, u, 'version'),TODO
+    // ...shapePrim(o, u, 'parentId'),
+    // ...shapePrim(o, u, 'projectId'),
     userId: u.owner?.__typename === 'User' ? u.owner.id : undefined,
     organizationId: u.owner?.__typename === 'Organization' ? u.owner.id : undefined,
     ...shapeUpdateList({

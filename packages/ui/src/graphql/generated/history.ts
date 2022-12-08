@@ -42,7 +42,7 @@ export interface history_history_activeRuns_routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name string;
 }
 
 export interface history_history_activeRuns_routine {
@@ -75,7 +75,7 @@ export interface history_history_activeRuns {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name string;
   status: RunStatus;
   routine: history_history_activeRuns_routine | null;
 }
@@ -113,7 +113,7 @@ export interface history_history_completedRuns_routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name string;
 }
 
 export interface history_history_completedRuns_routine {
@@ -146,7 +146,7 @@ export interface history_history_completedRuns {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name string;
   status: RunStatus;
   routine: history_history_completedRuns_routine | null;
 }
@@ -276,7 +276,7 @@ export interface history_history_recentlyViewed_to_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name string;
 }
 
 export interface history_history_recentlyViewed_to_Routine {
@@ -363,7 +363,7 @@ export interface history_history_recentlyViewed {
   __typename: "View";
   id: string;
   lastViewed: any;
-  title: string;
+  name string;
   to: history_history_recentlyViewed_to;
 }
 
@@ -389,7 +389,7 @@ export interface history_history_recentlyStarred_to_Comment_commentedOn_Routine_
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name string;
 }
 
 export interface history_history_recentlyStarred_to_Comment_commentedOn_Routine {
@@ -588,7 +588,7 @@ export interface history_history_recentlyStarred_to_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name string;
 }
 
 export interface history_history_recentlyStarred_to_Routine {

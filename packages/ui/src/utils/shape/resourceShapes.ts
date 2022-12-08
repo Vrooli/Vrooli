@@ -1,7 +1,7 @@
 import { ResourceCreateInput, ResourceListCreateInput, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput, ResourceListUsedFor, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from "graphql/generated/globalTypes";
 import { Resource, ResourceList, ResourceListTranslation, ResourceTranslation, ShapeWrapper } from "types";
 import { hasObjectChanged } from "./objectTools";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type ResourceTranslationShape = Omit<ShapeWrapper<ResourceTranslation>, 'language'> & {
     id: string;
@@ -32,7 +32,7 @@ export const shapeResourceTranslationCreate = (item: ResourceTranslationShape): 
     id: item.id,
     language: item.language,
     description: item.description,
-    title: item.title,
+    name: item.name,
 })
 
 export const shapeResourceTranslationUpdate = (
@@ -41,8 +41,8 @@ export const shapeResourceTranslationUpdate = (
 ): ResourceTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        description: u.description !== o.description ? u.description : undefined,
-        title: u.title !== o.title ? u.title : undefined,
+        ...shapePrim(o, u, 'description'),
+        ...shapePrim(o, u, 'name'),
     }), 'id')
 
 export const shapeResourceCreate = (item: ResourceShape): ResourceCreateInput => ({
@@ -60,10 +60,10 @@ export const shapeResourceUpdate = (
 ): ResourceUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
-        index: u.index !== o.index ? u.index : undefined,
-        link: u.link !== o.link ? u.link : undefined,
-        listId: u.listId !== o.listId ? u.listId : undefined,
-        usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
+        ...shapePrim(o, u, 'index'),
+        ...shapePrim(o, u, 'link'),
+        ...shapePrim(o, u, 'listId'),
+        ...shapePrim(o, u, 'usedFor'),
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceTranslationCreate, shapeResourceTranslationUpdate, 'id'),
     }), 'id')
 
@@ -71,7 +71,7 @@ export const shapeResourceListTranslationCreate = (item: ResourceListTranslation
     id: item.id,
     language: item.language,
     description: item.description,
-    title: item.title,
+    name: item.name,
 })
 
 export const shapeResourceListTranslationUpdate = (
@@ -80,8 +80,8 @@ export const shapeResourceListTranslationUpdate = (
 ): ResourceListTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        description: u.description !== o.description ? u.description : undefined,
-        title: u.title !== o.title ? u.title : undefined,
+        ...shapePrim(o, u, 'description'),
+        ...shapePrim(o, u, 'name'),
     }), 'id')
 
 export const shapeResourceListCreate = (item: ResourceListShape): ResourceListCreateInput => ({
@@ -103,8 +103,8 @@ export const shapeResourceListUpdate = (
 ): ResourceListUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
-        index: u.index !== o.index ? u.index : undefined,
-        usedFor: u.usedFor !== o.usedFor ? u.usedFor : undefined,
+        ...shapePrim(o, u, 'index'),
+        ...shapePrim(o, u, 'usedFor'),
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceListTranslationCreate, shapeResourceListTranslationUpdate, 'id'),
         ...shapeUpdateList({
             resources: o.resources?.map(r => ({

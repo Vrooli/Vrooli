@@ -13,7 +13,7 @@ import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { RunRoutineModel } from "./runRoutine";
-import { PartialGraphQLInfo } from "../builders/types";
+import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
@@ -27,28 +27,18 @@ type NodeWeightData = {
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsRoutine' | 'runs' | 'versions';
 const formatter = (): Formatter<Routine, SupplementalFields> => ({
     relationshipMap: {
-        __typename: 'Routine',
+        __typename: 'RoutineVersion',
         comments: 'Comment',
-        creator: {
-            root: {
-                User: 'User',
-                Organization: 'Organization',
-            }
-        },
+        createdBy: 'User',
         forks: 'Routine',
         inputs: 'InputItem',
         nodes: 'Node',
         outputs: 'OutputItem',
-        owner: {
-            root: {
-                User: 'User',
-                Organization: 'Organization',
-            }
-        },
         parent: 'Routine',
         project: 'Project',
         reports: 'Report',
         resourceLists: 'ResourceList',
+        // root: 'Routine',
         starredBy: 'User',
         tags: 'Tag',
     },
@@ -129,7 +119,7 @@ const searcher = (): Searcher<
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
@@ -163,7 +153,7 @@ const searcher = (): Searcher<
             (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
             (input.minTimesCompleted !== undefined ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
             (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
             (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
             (input.userId !== undefined ? { userId: input.userId } : {}),
             (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
@@ -178,7 +168,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     RoutineCreateInput,
     RoutineUpdateInput,
-    Prisma.routineGetPayload<{ select: { [K in keyof Required<Prisma.routineSelect>]: true } }>,
+    Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
     RoutinePermission,
     Prisma.routineSelect,
     Prisma.routineWhereInput,
@@ -433,7 +423,7 @@ const calculateShortestLongestWeightedPath = (
 //                                 translations: {
 //                                     select: {
 //                                         description: true,
-//                                         title: true,
+//                                         name: true,
 //                                         language: true,
 //                                     }
 //                                 }
@@ -463,7 +453,7 @@ const calculateShortestLongestWeightedPath = (
 //                                 translations: {
 //                                     select: {
 //                                         description: true,
-//                                         title: true,
+//                                         name: true,
 //                                         language: true,
 //                                     }
 //                                 }
@@ -474,7 +464,7 @@ const calculateShortestLongestWeightedPath = (
 //                 translations: {
 //                     select: {
 //                         description: true,
-//                         title: true,
+//                         name: true,
 //                         language: true,
 //                     }
 //                 }
@@ -490,7 +480,7 @@ const calculateShortestLongestWeightedPath = (
 //                         translations: {
 //                             select: {
 //                                 description: true,
-//                                 title: true,
+//                                 name: true,
 //                                 language: true,
 //                             }
 //                         }
@@ -509,7 +499,7 @@ const calculateShortestLongestWeightedPath = (
 //                         translations: {
 //                             select: {
 //                                 description: true,
-//                                 title: true,
+//                                 name: true,
 //                                 language: true,
 //                             }
 //                         }
@@ -518,7 +508,7 @@ const calculateShortestLongestWeightedPath = (
 //                 translations: {
 //                     select: {
 //                         description: true,
-//                         title: true,
+//                         name: true,
 //                         language: true,
 //                     }
 //                 }
@@ -553,7 +543,7 @@ const calculateShortestLongestWeightedPath = (
 //             select: {
 //                 description: true,
 //                 instructions: true,
-//                 title: true,
+//                 name: true,
 //                 language: true,
 //             }
 //         }
@@ -603,7 +593,7 @@ const calculateComplexity = async (
                         id: true, // Needed to associate with links
                         nodeRoutineList: {
                             select: {
-                                routines: {
+                                items: {
                                     select: {
                                         routineVersion: { select: { id: true, complexity: true, simplicity: true } }
                                     }
@@ -867,10 +857,10 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.routine_versionSelect,
-    Prisma.routine_versionGetPayload<{ select: { [K in keyof Required<Prisma.routine_versionSelect>]: true } }>
+    Prisma.routine_versionGetPayload<SelectWrap<Prisma.routine_versionSelect>>
 > => ({
-    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'title', languages),
+    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+    label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
 export const RoutineVersionModel = ({

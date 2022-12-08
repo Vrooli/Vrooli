@@ -13,18 +13,14 @@ import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { combineQueries, exceptionsBuilder, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsProject';
 const formatter = (): Formatter<Project, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Project',
         comments: 'Comment',
-        creator: {
-            root: {
-                User: 'User',
-                Organization: 'Organization',
-            }
-        },
+        createdBy: 'User',
         forks: 'Project',
         owner: {
             root: {
@@ -100,7 +96,7 @@ const searcher = (): Searcher<
             (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
             (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
             (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
+            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
             (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
             (input.userId !== undefined ? { userId: input.userId } : {}),
             (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
@@ -114,7 +110,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     ProjectCreateInput,
     ProjectUpdateInput,
-    Prisma.projectGetPayload<{ select: { [K in keyof Required<Prisma.projectSelect>]: true } }>,
+    Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>,
     ProjectPermission,
     Prisma.projectSelect,
     Prisma.projectWhereInput,
@@ -285,7 +281,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.project_versionSelect,
-    Prisma.project_versionGetPayload<{ select: { [K in keyof Required<Prisma.project_versionSelect>]: true } }>
+    Prisma.project_versionGetPayload<SelectWrap<Prisma.project_versionSelect>>
 > => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),

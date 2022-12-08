@@ -39,7 +39,7 @@ export interface listViewRoutineFields_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface listViewRoutineFields {

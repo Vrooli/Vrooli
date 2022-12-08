@@ -18,7 +18,7 @@ export const profileFields = gql`
         isPrivateRoles
         isPrivateRoutines
         isPrivateRoutinesCreated
-        isPrivateSmartContracts
+        isPrivateRoutinesCreated
         isPrivateStandards
         isPrivateStandardsCreated
         isPrivateStars

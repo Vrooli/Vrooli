@@ -45,7 +45,7 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVers
   language: string;
   description: string | null;
   instructions: string;
-  title: string;
+  name: string;
 }
 
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_routineVersion {
@@ -66,7 +66,7 @@ export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines_translation
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface nodeCreate_nodeCreate_data_NodeRoutineList_routines {
@@ -93,7 +93,7 @@ export interface nodeCreate_nodeCreate_loop_whiles_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface nodeCreate_nodeCreate_loop_whiles {
@@ -117,7 +117,7 @@ export interface nodeCreate_nodeCreate_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface nodeCreate_nodeCreate {

@@ -134,7 +134,7 @@ export async function init(prisma: PrismaType) {
                 permissions: JSON.stringify({}),
                 roles: {
                     create: {
-                        title: 'Admin',
+                        name: 'Admin',
                         permissions: JSON.stringify({}),
                         assignees: {
                             create: [
@@ -163,7 +163,7 @@ export async function init(prisma: PrismaType) {
                                     index: 0,
                                     link: 'https://vrooli.com',
                                     translations: {
-                                        create: [{ language: EN, title: "Website", description: "Vrooli's official website" }]
+                                        create: [{ language: EN, name: "Website", description: "Vrooli's official website" }]
                                     },
                                 },
                                 {
@@ -171,7 +171,7 @@ export async function init(prisma: PrismaType) {
                                     index: 1,
                                     link: 'https://twitter.com/VrooliOfficial',
                                     translations: {
-                                        create: [{ language: EN, title: "Twitter", description: "Follow us on Twitter" }]
+                                        create: [{ language: EN, name: "Twitter", description: "Follow us on Twitter" }]
                                     },
                                 },
                             ]
@@ -297,7 +297,7 @@ export async function init(prisma: PrismaType) {
                             language: EN,
                             description: 'Mint a fungible token on the Cardano blockchain.',
                             instructions: `To mint through a web interface, select the online resource and follow the instructions.\nTo mint through the command line, select the developer resource and follow the instructions.`,
-                            title: 'Mint Native Token',
+                            name: 'Mint Native Token',
                         }
                     ]
                 },
@@ -314,14 +314,14 @@ export async function init(prisma: PrismaType) {
                                     usedFor: 'ExternalService',
                                     link: 'https://minterr.io/mint-cardano-tokens/',
                                     translations: {
-                                        create: [{ language: EN, title: "minterr.io" }]
+                                        create: [{ language: EN, name: "minterr.io" }]
                                     },
                                 },
                                 {
                                     usedFor: 'Developer',
                                     link: 'https://developers.cardano.org/docs/native-tokens/minting/',
                                     translations: {
-                                        create: [{ language: EN, title: "cardano.org guide" }]
+                                        create: [{ language: EN, name: "cardano.org guide" }]
                                     },
                                 },
                             ]
@@ -355,7 +355,7 @@ export async function init(prisma: PrismaType) {
                             language: EN,
                             description: 'Mint a non-fungible token (NFT) on the Cardano blockchain.',
                             instructions: `To mint through a web interface, select one of the online resources and follow the instructions.\nTo mint through the command line, select the developer resource and follow the instructions.`,
-                            title: 'Mint NFT',
+                            name: 'Mint NFT',
                         }
                     ]
                 },
@@ -372,21 +372,21 @@ export async function init(prisma: PrismaType) {
                                     usedFor: 'ExternalService',
                                     link: 'https://minterr.io/mint-cardano-tokens/',
                                     translations: {
-                                        create: [{ language: EN, title: "minterr.io" }]
+                                        create: [{ language: EN, name: "minterr.io" }]
                                     },
                                 },
                                 {
                                     usedFor: 'ExternalService',
                                     link: 'https://cardano-tools.io/mint',
                                     translations: {
-                                        create: [{ language: EN, title: "cardano-tools.io" }]
+                                        create: [{ language: EN, name: "cardano-tools.io" }]
                                     },
                                 },
                                 {
                                     usedFor: 'Developer',
                                     link: 'https://developers.cardano.org/docs/native-tokens/minting-nfts',
                                     translations: {
-                                        create: [{ language: EN, title: "cardano.org guide" }]
+                                        create: [{ language: EN, name: "cardano.org guide" }]
                                     },
                                 },
                             ]

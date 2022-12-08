@@ -75,19 +75,19 @@ export const typeDef = gql`
         id: ID!
         language: String!
         description: String
-        title: String
+        name: String
     }
     input ResourceTranslationUpdateInput {
         id: ID!
         language: String
         description: String
-        title: String
+        name: String
     }
     type ResourceTranslation {
         id: ID!
         language: String!
         description: String
-        title: String
+        name: String
     }
 
     input ResourceSearchInput {

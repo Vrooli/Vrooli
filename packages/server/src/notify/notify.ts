@@ -2,12 +2,13 @@ import { CustomError, logger, SubscribableObject } from "../events";
 import { initializeRedis } from "../redisConn";
 import { PrismaType } from "../types";
 import { sendMail } from "./email";
-import { findRecipientsAndLimit, NotificationSettings, updateNotificationSettings } from "./notificationSettings";
+import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 import { sendPush } from "./push";
 import i18next, { TFuncKey } from 'i18next';
 import { OrganizationModel } from "../models";
 import { getDelegator, getDisplayer } from "../getters";
 import { GraphQLModelType } from "../models/types";
+import { NotificationSettings } from "../endpoints/types";
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
 

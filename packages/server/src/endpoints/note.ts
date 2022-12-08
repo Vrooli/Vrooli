@@ -28,114 +28,72 @@ export const typeDef = gql`
 
     input NoteCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
         isPrivate: Boolean
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
+        versionsCreate: [NoteVersionCreateInput!]
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
     }
     input NoteUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
+        versionsCreate: [ApiVersionCreateInput!]
+        versionsUpdate: [ApiVersionUpdateInput!]
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
     }
     type Note {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
+        createdBy: User
+        owner: Owner
+        parent: Note
+        tags: [Tag!]!
+        versions: [NoteVersion!]!
+        labels: [Label!]!
         stars: Int!
         views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        creator: Contributor
-        forks: [Project!]!
-        owner: Contributor
-        parent: Project
-        permissionsProject: ProjectPermission!
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        translations: [ProjectTranslation!]!
-        wallets: [Wallet!]
+        votes: Int!
+        isStarred: Boolean!
+        isUpvoted: Boolean
+        issues: [Issue!]!
+        pullRequests: [PullRequest!]!
+        stats: [StatsNote!]!
+        questions: [Question!]!
+        transfers: [Transfer!]!
     }
 
     type NotePermission {
-        canComment: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!
-        canReport: Boolean!
         canView: Boolean!
         canVote: Boolean!
-    }
-
-    input NoteTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
-    }
-    input NoteTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type NoteTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
     }
 
     input NoteSearchInput {
         after: String
         createdTimeFrame: TimeFrame
-        ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
+        createdById: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        languages: [String!]
+        ids: [ID!]
         searchString: String
-        sortBy: ProjectSortBy
+        sortBy: NoteSortBy
         tags: [String!]
-        take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
@@ -156,7 +114,7 @@ export const typeDef = gql`
 
     extend type Mutation {
         noteCreate(input: NoteCreateInput!): Note!
-        noteUpdate(input: NoteUpdateInput!): Api!
+        noteUpdate(input: NoteUpdateInput!): Note!
     }
 `
 

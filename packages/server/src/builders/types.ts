@@ -128,6 +128,8 @@ export interface PrismaDelegate {
     }) => Promise<any>;
 }
 
+export type SelectWrap<T extends Record<string, any>> = { select: { [K in keyof Required<T>]: true } }
+
 export type PaginatedSearchResult = {
     pageInfo: PageInfo;
     edges: Array<{

@@ -21,7 +21,7 @@ import { NodeDataRoutineList, NodeDataRoutineListItem } from 'types';
 import { getTranslation, BuildAction, updateTranslationFields, PubSub, usePress, firstString, useDebounce } from 'utils';
 import { EditableLabel } from 'components/inputs';
 import { AddIcon, CloseIcon, ExpandLessIcon, ExpandMoreIcon } from '@shared/icons';
-import { requiredErrorMessage, title as titleValidation } from '@shared/validation';
+import { requiredErrorMessage, name as nameValidation } from '@shared/validation';
 import { ColorIconButton } from 'components/buttons';
 
 /**
@@ -140,7 +140,7 @@ export const RoutineListNode = ({
 
     const { label } = useMemo(() => {
         return {
-            label: getTranslation(node, [language], true).title ?? '',
+            label: getTranslation(node, [language], true).name ?? '',
         }
     }, [language, node]);
 
@@ -192,7 +192,7 @@ export const RoutineListNode = ({
                     }
                 }}
                 text={label}
-                validationSchema={titleValidation.required(requiredErrorMessage)}
+                validationSchema={nameValidation.required(requiredErrorMessage)}
             />
         )
     }, [labelVisible, isEditing, collapseOpen, handleLabelUpdate, onLabelDialogOpen, label, node.id]);

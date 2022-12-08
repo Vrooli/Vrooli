@@ -16,8 +16,8 @@ export const typeDef = gql`
         id: ID!
         label: String!
         color: String
-        createdByUserId: ID
-        createdByOrganizationId: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         apisConnect: [ID!]
         issuesConnect: [ID!]
         notesConnect: [ID!]
@@ -58,8 +58,8 @@ export const typeDef = gql`
         userSchedulesConnect: [ID!]
         userSchedulesDisconnect: [ID!]
         translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
+        translationsCreate: [LabelTranslationCreateInput!]
+        translationsUpdate: [LabelTranslationUpdateInput!]
     }
     type Label {
         id: ID!
@@ -70,6 +70,7 @@ export const typeDef = gql`
         apis: [Api!]
         issues: [Issue!]
         notes: [Note!]
+        permissionsLabel: LabelPermission!
         projects: [Project!]
         routines: [Routine!]
         smartContracts: [SmartContract!]
@@ -106,9 +107,10 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
+        label: String
         languages: [String!]
-        createdByOrganizationId: ID
-        createdByUserId: ID
+        ownedByOrganizationId: ID
+        ownedByUserId: ID
         searchString: String
         sortBy: LabelSortBy
         take: Int

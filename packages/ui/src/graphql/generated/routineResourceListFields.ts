@@ -14,7 +14,7 @@ export interface routineResourceListFields_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface routineResourceListFields_resources_translations {
@@ -22,7 +22,7 @@ export interface routineResourceListFields_resources_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface routineResourceListFields_resources {

@@ -234,7 +234,6 @@ export {}
 
 // export const ProfileModel = ({
 //     delegate: (prisma: PrismaType) => prisma.user,
-//     display: {} as any,//displayer(),
 //     format: formatter(),
 //     mutate: mutater(),
 //     port: porter(),

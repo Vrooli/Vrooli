@@ -41,7 +41,7 @@ export interface research_research_processes_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface research_research_processes {
@@ -153,7 +153,7 @@ export interface research_research_newlyCompleted_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface research_research_newlyCompleted_Routine {

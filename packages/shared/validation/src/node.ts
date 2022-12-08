@@ -3,7 +3,7 @@
  * several variations. Nonetheless, they are handled in the same way - connect, 
  * disconnect, delete, create, and update
  */
-import { description, idArray, id, title, language, maxStringErrorMessage, minStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, blankToUndefined } from './base';
+import { description, idArray, id, name, language, maxStringErrorMessage, minStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, blankToUndefined } from './base';
 import * as yup from 'yup';
 
 const index = yup.number().integer().min(0, minNumberErrorMessage).nullable();
@@ -27,7 +27,7 @@ export const nodeEndUpdate = yup.object().shape({
 })
 export const nodeEndForm = yup.object().shape({
     wasSuccessful: wasSuccessful.notRequired().default(undefined),
-    title: title.required(requiredErrorMessage),
+    name: name.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
 });
 
@@ -35,13 +35,13 @@ export const whenTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
-    title: title.required(requiredErrorMessage),
+    name: name.required(requiredErrorMessage),
 });
 export const whenTranslationUpdate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
 });
 const whenTranslationsCreate = yup.array().of(whenTranslationCreate.required(requiredErrorMessage))
 const whenTranslationsUpdate = yup.array().of(whenTranslationUpdate.required(requiredErrorMessage))
@@ -83,13 +83,13 @@ export const whileTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
-    title: title.required(requiredErrorMessage),
+    name: name.required(requiredErrorMessage),
 });
 export const whileTranslationUpdate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
 });
 export const whileTranslationsCreate = yup.array().of(whileTranslationCreate.required(requiredErrorMessage))
 export const whileTranslationsUpdate = yup.array().of(whileTranslationUpdate.required(requiredErrorMessage))
@@ -132,13 +132,13 @@ export const nodeRoutineListItemTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
-    title: title.required(requiredErrorMessage),
+    name: name.required(requiredErrorMessage),
 });
 export const nodeRoutineListItemTranslationUpdate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
 });
 export const nodeRoutineListItemTranslationsCreate = yup.array().of(nodeRoutineListItemTranslationCreate.required(requiredErrorMessage))
 export const nodeRoutineListItemTranslationsUpdate = yup.array().of(nodeRoutineListItemTranslationUpdate.required(requiredErrorMessage))
@@ -181,13 +181,13 @@ export const nodeTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
-    title: title.required(requiredErrorMessage),
+    name: name.required(requiredErrorMessage),
 });
 export const nodeTranslationUpdate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
 });
 export const nodeTranslationsCreate = yup.array().of(nodeTranslationCreate.required(requiredErrorMessage))
 export const nodeTranslationsUpdate = yup.array().of(nodeTranslationUpdate.required(requiredErrorMessage))

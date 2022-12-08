@@ -2,7 +2,7 @@ import { ProfileUpdateInput, TagHiddenCreateInput, TagHiddenUpdateInput, UserTra
 import { Profile, ProfileTranslation, ShapeWrapper, TagHidden } from "types";
 import { hasObjectChanged } from "./objectTools";
 import { ResourceListShape } from "./resourceShapes";
-import { shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 import { shapeTagCreate, shapeTagUpdate, TagShape } from "./tagShapes";
 import { shapeResourceListCreate, shapeResourceListUpdate } from "./resourceShapes";
 
@@ -12,19 +12,10 @@ export type ProfileTranslationShape = Omit<ShapeWrapper<ProfileTranslation>, 'la
     bio: UserTranslationCreateInput['bio'];
 }
 
-export type TagHiddenShape = Omit<ShapeWrapper<TagHidden>, 'id' | 'tag'> & {
+export type ProfileShape = Omit<ShapeWrapper<Profile>, 'emails' | 'pushDevices' | 'wallets' | 'translations' | 'schedules'> & {
     id: string;
-    tag: TagShape;
-}
-
-export type TagHiddenShapeUpdate = Omit<TagHiddenShape, 'tag'>;
-
-export type ProfileShape = Omit<ShapeWrapper<Profile>, 'resourceLists' | 'hiddenTags' | 'starredTags' | 'translations' | 'owner'> & {
-    id: string;
-    resourceLists?: ResourceListShape[] | null;
-    hiddenTags?: TagHiddenShape[] | null;
-    starredTags?: TagShape[] | null;
     translations?: ProfileTranslationShape[] | null;
+    schedules?: UserScheduleShape[] | null;
 }
 
 export const shapeProfileTranslationCreate = (item: ProfileTranslationShape): UserTranslationCreateInput => ({
@@ -39,22 +30,7 @@ export const shapeProfileTranslationUpdate = (
 ): UserTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        bio: u.bio !== o.bio ? u.bio : undefined,
-    }), 'id')
-
-export const shapeTagHiddenCreate = (item: TagHiddenShape): TagHiddenCreateInput => ({
-    id: item.id,
-    isBlur: item.isBlur,
-    tagCreate: shapeTagCreate(item.tag),
-})
-
-export const shapeTagHiddenUpdate = (
-    original: TagHiddenShapeUpdate,
-    updated: TagHiddenShapeUpdate
-): TagHiddenUpdateInput | undefined =>
-    shapeUpdate(original, updated, (o, u) => ({
-        id: u.id,
-        isBlur: u.isBlur !== o.isBlur ? u.isBlur : undefined,
+        ...shapePrim(o, u, 'bio'),
     }), 'id')
 
 export const shapeProfileUpdate = (
@@ -62,11 +38,27 @@ export const shapeProfileUpdate = (
     updated: ProfileShape
 ): ProfileUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
-        handle: updated.handle !== original.handle ? updated.handle : undefined,
-        name: updated.name !== original.name ? updated.name : undefined,
-        theme: updated.theme !== original.theme ? updated.theme : undefined,
-        ...shapeUpdateList(o, u, 'hiddenTags', hasObjectChanged, shapeTagHiddenCreate, shapeTagHiddenUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'starredTags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
+        ...shapePrim(o, u, 'handle'),
+        ...shapePrim(o, u, 'isPrivate'),
+        ...shapePrim(o, u, 'isPrivateApis'),
+        ...shapePrim(o, u, 'isPrivateApisCreated'),
+        ...shapePrim(o, u, 'isPrivateMemberships'),
+        ...shapePrim(o, u, 'isPrivateOrganizationsCreated'),
+        ...shapePrim(o, u, 'isPrivateProjects'),
+        ...shapePrim(o, u, 'isPrivateProjectsCreated'),
+        ...shapePrim(o, u, 'isPrivatePullRequests'),
+        ...shapePrim(o, u, 'isPrivateQuestionsAnswered'),
+        ...shapePrim(o, u, 'isPrivateQuestionsAsked'),
+        ...shapePrim(o, u, 'isPrivateQuizzesCreated'),
+        ...shapePrim(o, u, 'isPrivateRoles'),
+        ...shapePrim(o, u, 'isPrivateRoutines'),
+        ...shapePrim(o, u, 'isPrivateRoutinesCreated'),
+        ...shapePrim(o, u, 'isPrivateStandards'),
+        ...shapePrim(o, u, 'isPrivateStandardsCreated'),
+        ...shapePrim(o, u, 'isPrivateStars'),
+        ...shapePrim(o, u, 'isPrivateVotes'),
+        ...shapePrim(o, u, 'name'),
+        ...shapePrim(o, u, 'theme'),
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeProfileTranslationCreate, shapeProfileTranslationUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
+        ...shapeUpdateList(o, u, 'schedules', hasObjectChanged, shapeUserScheduleCreate, shapeUserScheduleUpdate, 'id'),
     }), 'id')

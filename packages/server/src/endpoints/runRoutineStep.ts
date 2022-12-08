@@ -29,7 +29,7 @@ export const typeDef = gql`
         timeStarted: Date
         timeElapsed: Int
         timeCompleted: Date
-        title: String!
+        name: String!
         status: RunRoutineStepStatus!
         step: [Int!]!
         run: RunRoutine!
@@ -45,7 +45,7 @@ export const typeDef = gql`
         order: Int!
         step: [Int!]!
         timeElapsed: Int
-        title: String!
+        name: String!
     }
 
     input RunRoutineStepUpdateInput {

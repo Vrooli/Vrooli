@@ -1,7 +1,7 @@
 import { OrganizationCreateInput, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Organization, OrganizationTranslation } from "types";
 import { hasObjectChanged, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type OrganizationTranslationShape = Omit<ShapeWrapper<OrganizationTranslation>, 'language' | 'name'> & {
     id: string;
@@ -31,8 +31,8 @@ export const shapeOrganizationTranslationUpdate = (
 ): OrganizationTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        name: u.name !== o.name ? u.name : undefined,
-        bio: u.bio !== o.bio ? u.bio : undefined,
+        ...shapePrim(o, u, 'name'),
+        ...shapePrim(o, u, 'bio'),
     }), 'id')
 
 export const shapeOrganizationCreate = (item: OrganizationShape): OrganizationCreateInput => ({
@@ -51,11 +51,11 @@ export const shapeOrganizationUpdate = (
 ): OrganizationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: o.id,
-        isOpenToNewMembers: u.isOpenToNewMembers !== o.isOpenToNewMembers ? u.isOpenToNewMembers : undefined,
-        isPrivate: u.isPrivate !== o.isPrivate ? u.isPrivate : undefined,
+        ...shapePrim(o, u, 'isOpenToNewMembers'),
+        ...shapePrim(o, u, 'isPrivate'),
+        // ...shapePrim(o, u, 'handle'),
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOrganizationTranslationCreate, shapeOrganizationTranslationUpdate, 'id'),
         ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
         ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
         // TODO members
-        //TODO handl
     }), 'id')

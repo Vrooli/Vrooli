@@ -1,7 +1,7 @@
 import { TagCreateInput, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "graphql/generated/globalTypes";
 import { ShapeWrapper, Tag, TagTranslation } from "types";
 import { hasObjectChanged } from "./objectTools";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type TagTranslationShape = Omit<ShapeWrapper<TagTranslation>, 'language'> & {
     id: string;
@@ -20,7 +20,7 @@ export const shapeTagTranslationUpdate = (
 ): TagTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        description: u.description !== o.description ? u.description : undefined,
+        ...shapePrim(o, u, 'description'),
     }), 'id')
 
 export type TagShape = Omit<ShapeWrapper<Tag>, 'tag' | 'translations'> & {

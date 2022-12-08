@@ -25,7 +25,7 @@ export const EndNodeDialog = ({
 
     const formik = useFormik({
         initialValues: {
-            title: !getTranslation(node, [language], false).title ? 'End' : getTranslation(node, [language], false).title as string,
+            name: !getTranslation(node, [language], false).name ? 'End' : getTranslation(node, [language], false).name as string,
             description: getTranslation(node, [language], false).description ?? '',
             wasSuccessful: node.data?.wasSuccessful ?? true,
         },
@@ -33,7 +33,7 @@ export const EndNodeDialog = ({
         validationSchema,
         onSubmit: (values) => {
             const newTranslations = updateTranslationFields(node, language, { 
-                title: values.title,
+                name: values.name,
                 description: values.description,
             });
             handleClose({
@@ -79,18 +79,18 @@ export const EndNodeDialog = ({
                                 <TextField
                                     autoFocus
                                     fullWidth
-                                    id="title"
-                                    name="title"
-                                    value={formik.values.title}
+                                    id="name"
+                                    name="name"
+                                    value={formik.values.name}
                                     multiline
                                     maxRows={3}
                                     onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
-                                    error={formik.touched.title && Boolean(formik.errors.title)}
-                                    helperText={formik.touched.title && formik.errors.title}
+                                    error={formik.touched.name && Boolean(formik.errors.name)}
+                                    helperText={formik.touched.name && formik.errors.name}
                                 />
                             ) : (
-                                <Markdown>{formik.values.title}</Markdown>
+                                <Markdown>{formik.values.name}</Markdown>
                             )
                         }
                     </Grid>

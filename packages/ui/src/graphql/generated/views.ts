@@ -140,7 +140,7 @@ export interface views_views_edges_node_to_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface views_views_edges_node_to_Routine {
@@ -227,7 +227,7 @@ export interface views_views_edges_node {
   __typename: "View";
   id: string;
   lastViewed: any;
-  title: string;
+  name: string;
   to: views_views_edges_node_to;
 }
 

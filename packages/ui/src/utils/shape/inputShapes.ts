@@ -1,7 +1,7 @@
 import { InputItemCreateInput, InputItemTranslationCreateInput, InputItemTranslationUpdateInput, InputItemUpdateInput } from "graphql/generated/globalTypes";
 import { RoutineInput, RoutineInputTranslation, ShapeWrapper } from "types";
 import { hasObjectChanged, shapeStandardCreate, StandardShape } from "utils";
-import { shapeCreateList, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
 export type InputTranslationShape = Omit<ShapeWrapper<RoutineInputTranslation>, 'language' | 'description'> & {
     id: string;
@@ -29,8 +29,8 @@ export const shapeInputTranslationUpdate = (
 ): InputItemTranslationUpdateInput | undefined =>
     shapeUpdate(original, updated, (o, u) => ({
         id: u.id,
-        description: u.description !== o.description ? u.description : undefined,
-        helpText: u.helpText !== o.helpText ? u.helpText : undefined,
+        ...shapePrim(o, u, 'description'),
+        ...shapePrim(o, u, 'helpText'),
     }), 'id')
 
 export const shapeInputCreate = (item: InputShape): InputItemCreateInput => {

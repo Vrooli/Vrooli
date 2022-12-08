@@ -545,14 +545,14 @@ export interface LoopWhileTranslationCreateInput {
   id: string;
   language: string;
   description?: string | null;
-  title: string;
+  name: string;
 }
 
 export interface LoopWhileTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
-  title?: string | null;
+  name?: string | null;
 }
 
 export interface LoopWhileUpdateInput {
@@ -615,14 +615,14 @@ export interface NodeLinkWhenTranslationCreateInput {
   id: string;
   language: string;
   description?: string | null;
-  title: string;
+  name: string;
 }
 
 export interface NodeLinkWhenTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
-  title?: string | null;
+  name?: string | null;
 }
 
 export interface NodeLinkWhenUpdateInput {
@@ -653,14 +653,14 @@ export interface NodeRoutineListItemTranslationCreateInput {
   id: string;
   language: string;
   description?: string | null;
-  title?: string | null;
+  name?: string | null;
 }
 
 export interface NodeRoutineListItemTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
-  title?: string | null;
+  name?: string | null;
 }
 
 export interface NodeRoutineListItemUpdateInput {
@@ -685,14 +685,14 @@ export interface NodeRoutineListUpdateInput {
 export interface NodeTranslationCreateInput {
   id: string;
   language: string;
-  title: string;
+  name: string;
   description?: string | null;
 }
 
 export interface NodeTranslationUpdateInput {
   id: string;
   language?: string | null;
-  title?: string | null;
+  name?: string | null;
   description?: string | null;
 }
 
@@ -722,6 +722,27 @@ export interface NotificationSearchInput {
   sortBy?: NotificationSortBy | null;
   take?: number | null;
   visibility?: VisibilityType | null;
+}
+
+export interface NotificationSettingsCategoryUpdateInput {
+  category: string;
+  enabled?: boolean | null;
+  dailyLimit?: number | null;
+  toEmails?: boolean | null;
+  toSms?: boolean | null;
+  toPush?: boolean | null;
+}
+
+export interface NotificationSettingsUpdateInput {
+  includedEmails?: string[] | null;
+  includedSms?: string[] | null;
+  includedPush?: string[] | null;
+  toEmails?: boolean | null;
+  toSms?: boolean | null;
+  toPush?: boolean | null;
+  dailyLimit?: number | null;
+  enabled?: boolean | null;
+  categories?: NotificationSettingsCategoryUpdateInput[] | null;
 }
 
 export interface OrganizationCreateInput {
@@ -1071,14 +1092,14 @@ export interface ResourceListTranslationCreateInput {
   id: string;
   language: string;
   description?: string | null;
-  title?: string | null;
+  name?: string | null;
 }
 
 export interface ResourceListTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
-  title?: string | null;
+  name?: string | null;
 }
 
 export interface ResourceListUpdateInput {
@@ -1114,14 +1135,14 @@ export interface ResourceTranslationCreateInput {
   id: string;
   language: string;
   description?: string | null;
-  title?: string | null;
+  name?: string | null;
 }
 
 export interface ResourceTranslationUpdateInput {
   id: string;
   language?: string | null;
   description?: string | null;
-  title?: string | null;
+  name?: string | null;
 }
 
 export interface ResourceUpdateInput {
@@ -1137,7 +1158,7 @@ export interface ResourceUpdateInput {
 
 export interface RoleCreateInput {
   id: string;
-  title: string;
+  name: string;
   translationsCreate?: RoleTranslationCreateInput[] | null;
 }
 
@@ -1220,7 +1241,7 @@ export interface RoutineTranslationCreateInput {
   language: string;
   description?: string | null;
   instructions: string;
-  title: string;
+  name: string;
 }
 
 export interface RoutineTranslationUpdateInput {
@@ -1228,7 +1249,7 @@ export interface RoutineTranslationUpdateInput {
   language?: string | null;
   description?: string | null;
   instructions?: string | null;
-  title?: string | null;
+  name?: string | null;
 }
 
 export interface RoutineUpdateInput {
@@ -1272,7 +1293,7 @@ export interface RunRoutineCompleteInput {
   id: string;
   completedComplexity?: number | null;
   exists?: boolean | null;
-  title: string;
+  name: string;
   finalStepCreate?: RunRoutineStepCreateInput | null;
   finalStepUpdate?: RunRoutineStepUpdateInput | null;
   inputsDelete?: string[] | null;
@@ -1285,7 +1306,7 @@ export interface RunRoutineCreateInput {
   id: string;
   isPrivate?: boolean | null;
   routineVersionId: string;
-  title: string;
+  name: string;
   stepsCreate?: RunRoutineStepCreateInput[] | null;
   inputsCreate?: RunRoutineInputCreateInput[] | null;
 }
@@ -1336,7 +1357,7 @@ export interface RunRoutineStepCreateInput {
   order: number;
   step: number[];
   timeElapsed?: number | null;
-  title: string;
+  name: string;
 }
 
 export interface RunRoutineStepUpdateInput {

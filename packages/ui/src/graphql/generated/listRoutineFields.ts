@@ -41,7 +41,7 @@ export interface listRoutineFields_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface listRoutineFields {

@@ -30,29 +30,63 @@ export const typeDef = gql`
 
     input ApiCreateInput {
         id: ID!
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
+        parentId: ID
+        tagsConnect: [String!]
+        tagsCreate: [TagCreateInput!]
+        versionsCreate: [ApiVersionCreateInput!]
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
     }
     input ApiUpdateInput {
         id: ID!
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
+        tagsConnect: [String!]
+        tagsDisconnect: [String!]
+        tagsCreate: [TagCreateInput!]
+        versionsCreate: [ApiVersionCreateInput!]
+        versionsUpdate: [ApiVersionUpdateInput!]
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
     }
     type Api {
         id: ID!
-    }
-
-    type ApiPermission {
-        canCopy: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        created_at: Date!
+        updated_at: Date!
+        createdBy: User
+        owner: Owner
+        parent: Api
+        tags: [Tag!]!
+        versions: [ApiVersion!]!
+        labels: [Label!]!
+        stars: Int!
+        views: Int!
+        votes: Int!
+        isStarred: Boolean!
+        isUpvoted: Boolean
+        issues: [Issue!]!
+        permissionsRoot: RootPermission!
+        pullRequests: [PullRequest!]!
+        stats: [StatsApi!]!
+        questions: [Question!]!
+        transfers: [Transfer!]!
     }
 
     input ApiSearchInput {
         after: String
         createdTimeFrame: TimeFrame
+        createdById: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
+        parentId: ID
+        languages: [String!]
         ids: [ID!]
         searchString: String
         sortBy: ApiSortBy
+        tags: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

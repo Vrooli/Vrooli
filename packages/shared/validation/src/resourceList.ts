@@ -1,4 +1,4 @@
-import { bio, blankToUndefined, description, id, idArray, language, minNumberErrorMessage, requiredErrorMessage, title } from './base';
+import { bio, blankToUndefined, description, id, idArray, language, minNumberErrorMessage, requiredErrorMessage, name } from './base';
 import { resourcesCreate, resourcesUpdate } from './resource';
 import * as yup from 'yup';
 import { ResourceListUsedFor } from '@shared/consts';
@@ -10,13 +10,13 @@ export const resourceListTranslationCreate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.required(requiredErrorMessage),
     description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
 });
 export const resourceListTranslationUpdate = yup.object().shape({
     id: id.required(requiredErrorMessage),
     language: language.notRequired().default(undefined),
     description: description.notRequired().default(undefined),
-    title: title.notRequired().default(undefined),
+    name: name.notRequired().default(undefined),
 });
 export const resourceListTranslationsCreate = yup.array().of(resourceListTranslationCreate.required(requiredErrorMessage))
 export const resourceListTranslationsUpdate = yup.array().of(resourceListTranslationUpdate.required(requiredErrorMessage))

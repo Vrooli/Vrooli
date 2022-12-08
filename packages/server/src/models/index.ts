@@ -6,11 +6,16 @@ import { EmailModel } from './email';
 import { InputItemModel } from './inputItem';
 import { IssueModel } from './issue';
 import { LabelModel } from './label';
+import { MeetingModel } from './meeting';
+import { MeetingInviteModel } from './meetingInvite';
 import { MemberModel } from './member';
+import { MemberInviteModel } from './memberInvite';
 import { NodeModel } from './node';
 import { NodeEndModel } from './nodeEnd';
 import { NodeLinkModel } from './nodeLink';
 import { NodeLinkWhenModel } from './nodeLinkWhen';
+import { NodeLoopModel } from './nodeLoop';
+import { NodeLoopWhileModel } from './nodeLoopWhile';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { NodeRoutineListItemModel } from './nodeRoutineListItem';
 import { NotificationModel } from './notification';
@@ -21,12 +26,14 @@ import { PhoneModel } from './phone';
 import { PostModel } from './post';
 import { ProjectModel } from './project';
 import { ProjectVersionModel } from './projectVersion';
+import { ProjectVersionDirectoryModel } from './projectVersionDirectory';
 import { PullRequestModel } from './pullRequest';
 import { PushDeviceModel } from './pushDevice';
 import { QuestionModel } from './question';
 import { QuestionAnswerModel } from './questionAnswer';
 import { QuizModel } from './quiz';
 import { ReminderModel } from './reminder';
+import { ReminderItemModel } from './reminderItem';
 import { ReminderListModel } from './reminderList';
 import { ReportModel } from './report';
 import { ResourceModel } from './resource';
@@ -65,11 +72,16 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     InputItem: InputItemModel,
     Issue: IssueModel,
     Label: LabelModel,
+    Meeting: MeetingModel,
+    MeetingInvite: MeetingInviteModel,
     Member: MemberModel,
+    MemberInvite: MemberInviteModel,
     Node: NodeModel,
     NodeEnd: NodeEndModel,
     NodeLink: NodeLinkModel,
     NodeLinkWhen: NodeLinkWhenModel,
+    NodeLoop: NodeLoopModel,
+    NodeLoopWhile: NodeLoopWhileModel,
     NodeRoutineList: NodeRoutineListModel,
     NodeRoutineListItem: NodeRoutineListItemModel,
     Notification: NotificationModel,
@@ -80,12 +92,14 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     Post: PostModel,
     Project: ProjectModel,
     ProjectVersion: ProjectVersionModel,
+    ProjectVersionDirectory: ProjectVersionDirectoryModel,
     PullRequest: PullRequestModel,
     PushDevice: PushDeviceModel,
     Question: QuestionModel,
     QuestionAnswer: QuestionAnswerModel,
     Quiz: QuizModel,
     Reminder: ReminderModel,
+    ReminderItem: ReminderItemModel,
     ReminderList: ReminderListModel,
     Report: ReportModel,
     Resource: ResourceModel,
@@ -120,11 +134,16 @@ export * from './email';
 export * from './inputItem';
 export * from './issue';
 export * from './label';
+export * from './meeting';
+export * from './meetingInvite';
 export * from './member';
+export * from './memberInvite';
 export * from './node';
 export * from './nodeEnd';
 export * from './nodeLink';
 export * from './nodeLinkWhen';
+export * from './nodeLoop';
+export * from './nodeLoopWhile';
 export * from './nodeRoutineList';
 export * from './nodeRoutineListItem';
 export * from './notification';
@@ -136,12 +155,14 @@ export * from './post';
 export * from './profile';
 export * from './project';
 export * from './projectVersion';
+export * from './projectVersionDirectory';
 export * from './pullRequest';
 export * from './pushDevice';
 export * from './question';
 export * from './questionAnswer';
 export * from './quiz';
 export * from './reminder';
+export * from './reminderItem';
 export * from './reminderList';
 export * from './report';
 export * from './resource';

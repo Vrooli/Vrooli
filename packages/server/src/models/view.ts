@@ -13,7 +13,7 @@ import { RecursivePartial, PrismaType } from "../types";
 import { readManyHelper } from "../actions";
 import { Displayer, Formatter, GraphQLModelType, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
-import { PartialGraphQLInfo } from "../builders/types";
+import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { combineQueries, lowercaseFirstLetter, onlyValidIds, padSelect, timeFrameToPrisma } from "../builders";
 import { getLabels } from "../getters";
 
@@ -111,7 +111,7 @@ const searcher = (): Searcher<
     },
     searchStringQuery: ({ insensitive, languages, searchString }) => ({
         OR: [
-            { title: { ...insensitive } },
+            { name: { ...insensitive } },
             { organization: OrganizationModel.search.searchStringQuery({ insensitive, languages, searchString }) },
             { project: ProjectModel.search.searchStringQuery({ insensitive, languages, searchString }) },
             { routine: RoutineModel.search.searchStringQuery({ insensitive, languages, searchString }) },
@@ -185,7 +185,7 @@ const view = async (prisma: PrismaType, userData: SessionUser, input: ViewInput)
             data: {
                 byId: userData.id,
                 [`${forMapper[input.viewFor]}Id`]: input.forId,
-                title: labels[0],
+                name: labels[0],
             }
         })
     }
@@ -279,7 +279,7 @@ const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> =>
 
 const displayer = (): Displayer<
     Prisma.viewSelect,
-    Prisma.viewGetPayload<{ select: { [K in keyof Required<Prisma.viewSelect>]: true } }>
+    Prisma.viewGetPayload<SelectWrap<Prisma.viewSelect>>
 > => ({
     select: () => ({
         id: true,

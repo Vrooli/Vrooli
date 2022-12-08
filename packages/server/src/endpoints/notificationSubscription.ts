@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, LabelSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, NotificationSubscriptionSortBy } from './types';
+import { FindByIdInput, NotificationSubscriptionSortBy, SubscribableObject, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionUpdateInput, NotificationSubscriptionSearchInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -10,127 +10,63 @@ export const typeDef = gql`
         ObjectTypeDesc
     }
 
+    enum SubscribableObject {
+        Api
+        Comment
+        Issue
+        Meeting
+        Note
+        Organization
+        Project
+        PullRequest
+        Question
+        Quiz
+        Report
+        Routine
+        SmartContract
+        Standard
+    }
+
+    union SubscribedObject = Api | Comment | Issue | Meeting | Note | Organization | Project | PullRequest | Question | Quiz | Report | Routine | SmartContract | Standard
+
     input NotificationSubscriptionCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
+        objectType: SubscribableObject!
+        objectId: ID!
+        silent: Boolean
     }
     input NotificationSubscriptionUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
+        silent: Boolean
     }
     type NotificationSubscription {
         id: ID!
-        completedAt: Date
         created_at: Date!
-        updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        creator: Contributor
-        forks: [Project!]!
-        owner: Contributor
-        parent: Project
-        permissionsProject: ProjectPermission!
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        translations: [ProjectTranslation!]!
-        wallets: [Wallet!]
-    }
-
-    type NotificationSubscriptionPermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
-    }
-
-    input NotificationSubscriptionTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
-    }
-    input NotificationSubscriptionTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type NotificationSubscriptionTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
+        object: SubscribedObject!
+        silent: Boolean!
     }
 
     input NotificationSubscriptionSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
-        searchString: String
-        sortBy: ProjectSortBy
-        tags: [String!]
+        silent: Boolean
+        objectType: SubscribableObject
+        objectId: ID
+        sortBy: NotificationSubscriptionSortBy
         take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
     type NotificationSubscriptionSearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [NotificationSubscriptionEdge!]!
     }
 
     type NotificationSubscriptionEdge {
         cursor: String!
-        node: Api!
+        node: NotificationSubscription!
     }
 
     extend type Query {
@@ -147,16 +83,18 @@ export const typeDef = gql`
 const objectType = 'NotificationSubscription';
 export const resolvers: {
     NotificationSubscriptionSortBy: typeof NotificationSubscriptionSortBy;
+    SubscribableObject: typeof SubscribableObject;
     Query: {
-        notificationSubscription: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        notificationSubscriptions: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        notificationSubscription: GQLEndpoint<FindByIdInput, FindOneResult<NotificationSubscription>>;
+        notificationSubscriptions: GQLEndpoint<NotificationSubscriptionSearchInput, FindManyResult<NotificationSubscription>>;
     },
     Mutation: {
-        notificationSubscriptionCreate: GQLEndpoint<LabelCreateInput, CreateOneResult<Label>>;
-        notificationSubscriptionUpdate: GQLEndpoint<LabelUpdateInput, UpdateOneResult<Label>>;
+        notificationSubscriptionCreate: GQLEndpoint<NotificationSubscriptionCreateInput, CreateOneResult<NotificationSubscription>>;
+        notificationSubscriptionUpdate: GQLEndpoint<NotificationSubscriptionUpdateInput, UpdateOneResult<NotificationSubscription>>;
     }
 } = {
     NotificationSubscriptionSortBy,
+    SubscribableObject,
     Query: {
         notificationSubscription: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

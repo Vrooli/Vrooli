@@ -6,6 +6,7 @@ import { relBuilderHelper } from "../actions";
 import { bestLabel, translationRelationshipBuilder } from "../utils";
 import { padSelect } from "../builders";
 import { RoutineModel } from "./routine";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<NodeRoutineListItem, any> => ({
     relationshipMap: {
@@ -45,16 +46,16 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.node_routine_list_itemSelect,
-    Prisma.node_routine_list_itemGetPayload<{ select: { [K in keyof Required<Prisma.node_routine_list_itemSelect>]: true } }>
+    Prisma.node_routine_list_itemGetPayload<SelectWrap<Prisma.node_routine_list_itemSelect>>
 > => ({
     select: () => ({
         id: true,
-        translations: padSelect({ id: true, title: true }),
+        translations: padSelect({ id: true, name: true }),
         routineVersion: padSelect(RoutineModel.display.select),
     }),
     label: (select, languages) => {
         // Prefer item translations over routineVersion's
-        const itemLabel = bestLabel(select.translations, 'title', languages);
+        const itemLabel = bestLabel(select.translations, 'name', languages);
         if (itemLabel.length > 0) return itemLabel;
         return RoutineModel.display.label(select.routineVersion as any, languages);
     }

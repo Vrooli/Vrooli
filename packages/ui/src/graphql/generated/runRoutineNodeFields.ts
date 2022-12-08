@@ -157,7 +157,7 @@ export interface runRoutineNodeFields_data_NodeRoutineList_routines_routineVersi
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface runRoutineNodeFields_data_NodeRoutineList_routines_routineVersion_resourceLists_resources_translations {
@@ -165,7 +165,7 @@ export interface runRoutineNodeFields_data_NodeRoutineList_routines_routineVersi
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface runRoutineNodeFields_data_NodeRoutineList_routines_routineVersion_resourceLists_resources {
@@ -206,7 +206,7 @@ export interface runRoutineNodeFields_data_NodeRoutineList_routines_routineVersi
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
   description: string | null;
   instructions: string;
 }
@@ -235,7 +235,7 @@ export interface runRoutineNodeFields_data_NodeRoutineList_routines_translations
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface runRoutineNodeFields_data_NodeRoutineList_routines {
@@ -262,7 +262,7 @@ export interface runRoutineNodeFields_loop_whiles_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface runRoutineNodeFields_loop_whiles {
@@ -286,7 +286,7 @@ export interface runRoutineNodeFields_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface runRoutineNodeFields {

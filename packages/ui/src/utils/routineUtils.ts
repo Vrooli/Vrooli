@@ -256,7 +256,7 @@ export const initializeRoutineGraph = (language: string): { nodes: Routine['node
         translations: [{
             id: uuid(),
             language,
-            title: 'Subroutine 1',
+            name: 'Subroutine 1',
         }] as Node['translations'],
     } as Node;
     const endNode: Node = {

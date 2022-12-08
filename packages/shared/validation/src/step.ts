@@ -1,4 +1,4 @@
-import { blankToUndefined, id, minNumberErrorMessage, requiredErrorMessage, title } from './base';
+import { blankToUndefined, id, minNumberErrorMessage, requiredErrorMessage, name } from './base';
 import * as yup from 'yup';
 import { RunStepStatus } from '@shared/consts';
 
@@ -13,7 +13,7 @@ export const stepCreate = yup.object().shape({
     nodeId: id.required(requiredErrorMessage),
     order: order.required(requiredErrorMessage),
     step: step.required(requiredErrorMessage),
-    title: title.required(requiredErrorMessage),
+    name: name.required(requiredErrorMessage),
 })
 
 export const stepUpdate = yup.object().shape({

@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { SelectWrap } from "../builders/types";
 import { Role } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
@@ -15,18 +16,18 @@ const formatter = (): Formatter<Role, any> => ({
 
 const displayer = (): Displayer<
     Prisma.roleSelect,
-    Prisma.roleGetPayload<{ select: { [K in keyof Required<Prisma.roleSelect>]: true } }>
+    Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>
 > => ({
     select: () => ({ 
         id: true, 
-        title: true,
-        translations: { select: { language: true, title: true } } 
+        name: true,
+        translations: { select: { language: true, name: true } } 
     }),
     label: (select, languages) => {
-        // Prefer translated title over default title
-        const translated = bestLabel(select.translations, 'title', languages)
+        // Prefer translated name over default name
+        const translated = bestLabel(select.translations, 'name', languages)
         if (translated.length > 0) return translated;
-        return select.title;
+        return select.name;
     },
 })
 

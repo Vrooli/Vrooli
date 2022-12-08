@@ -48,7 +48,7 @@ export interface runRoutines_runRoutines_edges_node_routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface runRoutines_runRoutines_edges_node_routine {
@@ -81,7 +81,7 @@ export interface runRoutines_runRoutines_edges_node {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name: string;
   status: RunStatus;
   routine: runRoutines_runRoutines_edges_node_routine | null;
 }

@@ -16,18 +16,19 @@ import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { combineQueries, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
 type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsStandard' | 'versions';
 const formatter = (): Formatter<Standard, SupplementalFields> => ({
     relationshipMap: {
         __typename: 'Standard',
         comments: 'Comment',
-        creator: {
-            root: {
-                User: 'User',
-                Organization: 'Organization',
-            }
-        },
+        // creator: {
+        //     root: {
+        //         User: 'User',
+        //         Organization: 'Organization',
+        //     }
+        // },
         reports: 'Report',
         resourceLists: 'ResourceList',
         routineInputs: 'Routine',
@@ -118,7 +119,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     StandardCreateInput,
     StandardUpdateInput,
-    Prisma.standardGetPayload<{ select: { [K in keyof Required<Prisma.standardSelect>]: true } }>,
+    Prisma.standardGetPayload<SelectWrap<Prisma.standardSelect>>,
     StandardPermission,
     Prisma.standardSelect,
     Prisma.standardWhereInput,
@@ -531,7 +532,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.standard_versionSelect,
-    Prisma.standard_versionGetPayload<{ select: { [K in keyof Required<Prisma.standard_versionSelect>]: true } }>
+    Prisma.standard_versionGetPayload<SelectWrap<Prisma.standard_versionSelect>>
 > => ({
     select: () => ({ id: true, root: { select: { name: true } } }),
     label: (select) => select.root.name ?? '',

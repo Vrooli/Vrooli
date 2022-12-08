@@ -34,7 +34,7 @@ export interface routineRunFields_steps {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name: string;
   status: RunRoutineStepStatus;
   step: number[];
   node: routineRunFields_steps_node | null;
@@ -49,7 +49,7 @@ export interface routineRunFields {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name: string;
   status: RunStatus;
   steps: routineRunFields_steps[];
 }

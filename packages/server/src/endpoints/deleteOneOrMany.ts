@@ -12,21 +12,32 @@ export const typeDef = gql`
         ApiVersion
         Comment
         Email
+        Issue
+        Meeting
+        MeetingInvite
         Node
         Organization
+        Post
         Project
         ProjectVersion
+        PullRequest
         PushDevice
+        Question
+        QuestionAnswer
+        Quiz
         Reminder
         ReminderList
         Report
         Routine
         RoutineVersion
-        Run
+        RunProject
+        RunRoutine
         SmartContract
         SmartContractVersion
         Standard
         StandardVersion
+        Transfer
+        UserSchedule
         Wallet
     }   
 

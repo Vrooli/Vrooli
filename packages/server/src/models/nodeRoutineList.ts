@@ -5,14 +5,12 @@ import { Prisma } from "@prisma/client";
 import { relBuilderHelper } from "../actions";
 import { padSelect } from "../builders";
 import { NodeModel } from "./node";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<NodeRoutineList, any> => ({
     relationshipMap: {
         __typename: 'NodeRoutineList',
-        routines: {
-            __typename: 'NodeRoutineListItem',
-            routine: 'Routine',
-        },
+        items: 'NodeRoutineListItem',
     },
 })
 
@@ -45,7 +43,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.node_routine_listSelect,
-    Prisma.node_routine_listGetPayload<{ select: { [K in keyof Required<Prisma.node_routine_listSelect>]: true } }>
+    Prisma.node_routine_listGetPayload<SelectWrap<Prisma.node_routine_listSelect>>
 > => ({
     select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
     label: (select, languages) => NodeModel.display.label(select.node as any, languages),

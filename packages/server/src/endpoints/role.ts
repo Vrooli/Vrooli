@@ -8,12 +8,12 @@ export const typeDef = gql`
 
     input RoleCreateInput {
         id: ID!
-        title: String!
+        name: String!
         translationsCreate: [RoleTranslationCreateInput!]
     }
     input RoleUpdateInput {
         id: ID!
-        #title: String
+        #name: String
         translationsDelete: [ID!]
         translationsCreate: [RoleTranslationCreateInput!]
         translationsUpdate: [RoleTranslationUpdateInput!]
@@ -22,7 +22,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        title: String!
+        name: String!
         translations: [RoleTranslation!]!
         organization: Organization!
         assignees: [UserRole!]

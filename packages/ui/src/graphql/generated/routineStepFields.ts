@@ -22,7 +22,7 @@ export interface routineStepFields {
   timeStarted: any | null;
   timeElapsed: number | null;
   timeCompleted: any | null;
-  title: string;
+  name: string;
   status: RunRoutineStepStatus;
   step: number[];
   node: routineStepFields_node | null;

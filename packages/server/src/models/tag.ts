@@ -7,6 +7,7 @@ import { Formatter, Searcher, GraphQLModelType, Mutater, Validator, Displayer } 
 import { Prisma } from "@prisma/client";
 import { combineQueries } from "../builders";
 import { translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
 type SupplementalFields = 'isStarred' | 'isOwn';
 const formatter = (): Formatter<Tag, SupplementalFields> => ({
@@ -58,7 +59,7 @@ const searcher = (): Searcher<
 const validator = (): Validator<
     TagCreateInput,
     TagUpdateInput,
-    Prisma.tagGetPayload<{ select: { [K in keyof Required<Prisma.tagSelect>]: true } }>,
+    Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>,
     any,
     Prisma.tagSelect,
     Prisma.tagWhereInput,
@@ -108,7 +109,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.tagSelect,
-    Prisma.tagGetPayload<{ select: { [K in keyof Required<Prisma.tagSelect>]: true } }>
+    Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>
 > => ({
     select: () => ({ id: true, tag: true }),
     label: (select) => select.tag,

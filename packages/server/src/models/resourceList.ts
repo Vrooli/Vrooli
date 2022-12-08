@@ -11,6 +11,7 @@ import { StandardModel } from "./standard";
 import { relBuilderHelper } from "../actions";
 import { combineQueries, permissionsSelectHelper } from "../builders";
 import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<ResourceList, any> => ({
     relationshipMap: {
@@ -22,7 +23,7 @@ const formatter = (): Formatter<ResourceList, any> => ({
 const validator = (): Validator<
     ResourceListCreateInput,
     ResourceListUpdateInput,
-    Prisma.resource_listGetPayload<{ select: { [K in keyof Required<Prisma.resource_listSelect>]: true } }>,
+    Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>,
     any,
     Prisma.resource_listSelect,
     Prisma.resource_listWhereInput,
@@ -110,7 +111,7 @@ const searcher = (): Searcher<
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { translations: { some: { language: languages ? { in: languages } : undefined, title: { ...insensitive } } } },
+            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
         ]
     }),
     customQueries(input) {
@@ -158,10 +159,10 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.resource_listSelect,
-    Prisma.resource_listGetPayload<{ select: { [K in keyof Required<Prisma.resource_listSelect>]: true } }>
+    Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>
 > => ({
-    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'title', languages),
+    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+    label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
 export const ResourceListModel = ({

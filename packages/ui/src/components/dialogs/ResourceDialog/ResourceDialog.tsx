@@ -82,7 +82,7 @@ export const ResourceDialog = ({
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
                 description: '',
-                title: '',
+                name: '',
             }],
         },
         enableReinitialize: true,
@@ -142,15 +142,15 @@ export const ResourceDialog = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { description, title, errorDescription, errorTitle, touchedDescription, touchedTitle, errors } = useMemo(() => {
+    const { description, name, errorDescription, errorName, touchedDescription, touchedName, errors } = useMemo(() => {
         const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
         return {
             description: value?.description ?? '',
-            title: value?.title ?? '',
+            name: value?.name ?? '',
             errorDescription: error?.description ?? '',
-            errorTitle: error?.title ?? '',
+            errorName: error?.name ?? '',
             touchedDescription: touched?.description ?? false,
-            touchedTitle: touched?.title ?? false,
+            touchedName: touched?.name ?? false,
             errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', resourceTranslationUpdate),
         }
     }, [formik, language]);
@@ -363,17 +363,17 @@ export const ResourceDialog = ({
                                     })}
                                 </Select>
                             </FormControl>
-                            {/* Enter title */}
+                            {/* Enter name */}
                             <TextField
                                 fullWidth
-                                id="title"
-                                name="title"
-                                label="Title"
-                                value={title}
+                                id="name"
+                                name="name"
+                                label="Name"
+                                value={name}
                                 onBlur={onTranslationBlur}
                                 onChange={onTranslationChange}
-                                error={touchedTitle && Boolean(errorTitle)}
-                                helperText={(touchedTitle && errorTitle) ?? 'Enter title (optional)'}
+                                error={touchedName && Boolean(errorName)}
+                                helperText={(touchedName && errorName) ?? 'Enter name (optional)'}
                             />
                             {/* Enter description */}
                             <TextField

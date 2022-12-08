@@ -1,8 +1,6 @@
 // Defines common props
-import { historyPage_historyPage_activeRuns, historyPage_historyPage_recentlyStarred, historyPage_historyPage_recentlyViewed } from 'graphql/generated/historyPage';
-import { homePage_homePage_organizations, homePage_homePage_projects, homePage_homePage_routines, homePage_homePage_standards, homePage_homePage_users } from 'graphql/generated/homePage';
 import { organization_organization, organization_organization_translations } from 'graphql/generated/organization';
-import { profile_profile, profile_profile_translations, profile_profile_emails, profile_profile_resourceLists, profile_profile_resourceLists_translations, profile_profile_wallets, profile_profile_hiddenTags, profile_profile_pushDevices } from 'graphql/generated/profile';
+import { profile_profile, profile_profile_translations, profile_profile_emails, profile_profile_wallets, profile_profile_pushDevices } from 'graphql/generated/profile';
 import { project_project, project_project_translations } from 'graphql/generated/project';
 import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
 import { resource_resource, resource_resource_translations } from 'graphql/generated/resource';
@@ -14,11 +12,13 @@ import { ListObjectType, RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { comment_comment, comment_comment_translations } from 'graphql/generated/comment';
 import { comments_comments_threads } from 'graphql/generated/comments';
-import { run_run_inputs, run_run_steps } from 'graphql/generated/run';
 import { SearchException } from 'graphql/generated/globalTypes';
 import { validateSession_validateSession, validateSession_validateSession_users } from 'graphql/generated/validateSession';
 import { Path } from '@shared/route/src/useLocation';
 import { TFuncKey } from 'i18next';
+import { runRoutine_runRoutine_inputs, runRoutine_runRoutine_steps } from 'graphql/generated/runRoutine';
+import { popular_popular_organizations, popular_popular_projects, popular_popular_routines, popular_popular_standards, popular_popular_users } from 'graphql/generated/popular';
+import { history_history_activeRuns, history_history_recentlyStarred, history_history_recentlyViewed } from 'graphql/generated/history';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -48,20 +48,22 @@ export type NavigableObject = {
     }
 }
 
+// Renamed list objects
+export type ListOrganization = popular_popular_organizations;
+export type ListProject = popular_popular_projects;
+export type ListRoutine = popular_popular_routines;
+export type ListRun = history_history_activeRuns
+export type ListStandard = popular_popular_standards;
+export type ListStar = history_history_recentlyStarred;
+export type ListUser = popular_popular_users;
+export type ListView = history_history_recentlyViewed;
+
 // Rename auto-generated query objects
 export type Comment = comment_comment;
 export type CommentThread = comments_comments_threads;
 export type CommentTranslation = comment_comment_translations;
 export type Email = profile_profile_emails;
 export type Handle = string;
-export type ListOrganization = homePage_homePage_organizations;
-export type ListProject = homePage_homePage_projects;
-export type ListRoutine = homePage_homePage_routines;
-export type ListRun = historyPage_historyPage_activeRuns
-export type ListStandard = homePage_homePage_standards;
-export type ListStar = historyPage_historyPage_recentlyStarred;
-export type ListUser = homePage_homePage_users;
-export type ListView = historyPage_historyPage_recentlyViewed;
 export type Node = routine_routine_nodes;
 export type NodeTranslation = routine_routine_nodes_translations;
 export type NodeDataEnd = routine_routine_nodes_data_NodeEnd;
@@ -90,8 +92,8 @@ export type ResourceListTranslation = profile_profile_resourceLists_translations
 export type Routine = routine_routine;
 export type RoutineTranslation = routine_routine_translations;
 export type Run = routine_routine_runs;
-export type RunInput = run_run_inputs;
-export type RunStep = run_run_steps;
+export type RunRoutineInput = runRoutine_runRoutine_inputs;
+export type RunStep = runRoutine_runRoutine_steps;
 export type RoutineInput = routine_routine_inputs;
 export type RoutineInputTranslation = routine_routine_inputs_translations;
 export type RoutineInputList = RoutineInput[];
@@ -131,8 +133,8 @@ export type NoTypename<T> = T extends { __typename: string } ? Omit<T, '__typena
 
 // Routine-related props
 export interface BaseStep {
-    title: string, // Title from node
-    description: string | null, // Description from node
+    name: string, // name from node
+    description: string | null, // description from node
 }
 export interface DecisionStep extends BaseStep {
     type: RoutineStepType.Decision,

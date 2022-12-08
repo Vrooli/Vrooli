@@ -93,7 +93,7 @@ export interface develop_develop_completed_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface develop_develop_completed_Routine {
@@ -207,7 +207,7 @@ export interface develop_develop_inProgress_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface develop_develop_inProgress_Routine {
@@ -321,7 +321,7 @@ export interface develop_develop_recent_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface develop_develop_recent_Routine {

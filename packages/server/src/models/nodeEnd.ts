@@ -4,6 +4,7 @@ import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { NodeModel } from "./node";
 import { padSelect } from "../builders";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<NodeEnd, any> => ({
     relationshipMap: {
@@ -36,7 +37,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.node_endSelect,
-    Prisma.node_endGetPayload<{ select: { [K in keyof Required<Prisma.node_endSelect>]: true } }>
+    Prisma.node_endGetPayload<SelectWrap<Prisma.node_endSelect>>
 > => ({
     select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
     label: (select, languages) => NodeModel.display.label(select.node as any, languages),

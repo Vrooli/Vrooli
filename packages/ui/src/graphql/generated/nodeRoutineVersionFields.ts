@@ -37,7 +37,7 @@ export interface nodeRoutineVersionFields_translations {
   language: string;
   description: string | null;
   instructions: string;
-  title: string;
+  name: string;
 }
 
 export interface nodeRoutineVersionFields {

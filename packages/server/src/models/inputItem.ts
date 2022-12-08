@@ -6,6 +6,7 @@ import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
 import { translationRelationshipBuilder } from "../utils";
 import { RoutineModel } from "./routine";
 import { padSelect } from "../builders";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<InputItem, any> => ({
     relationshipMap: {
@@ -43,7 +44,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.routine_version_inputSelect,
-    Prisma.routine_version_inputGetPayload<{ select: { [K in keyof Required<Prisma.routine_version_inputSelect>]: true } }>
+    Prisma.routine_version_inputGetPayload<SelectWrap<Prisma.routine_version_inputSelect>>
 > => ({
     select: () => ({
         id: true,

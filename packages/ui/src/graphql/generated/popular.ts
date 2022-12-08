@@ -146,7 +146,7 @@ export interface popular_popular_routines_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface popular_popular_routines {

@@ -29,7 +29,7 @@ export interface listStarFields_to_Comment_commentedOn_Routine_translations {
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  title: string;
+  name: string;
 }
 
 export interface listStarFields_to_Comment_commentedOn_Routine {
@@ -228,7 +228,7 @@ export interface listStarFields_to_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string;
+  name: string;
 }
 
 export interface listStarFields_to_Routine {

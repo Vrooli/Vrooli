@@ -14,7 +14,7 @@ export interface resourceCreate_resourceCreate_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface resourceCreate_resourceCreate {

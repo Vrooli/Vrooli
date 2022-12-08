@@ -14,7 +14,7 @@ export interface resource_resource_translations {
   id: string;
   language: string;
   description: string | null;
-  title: string | null;
+  name: string | null;
 }
 
 export interface resource_resource {

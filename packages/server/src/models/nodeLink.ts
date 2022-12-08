@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { relBuilderHelper } from "../actions";
 import { padSelect } from "../builders";
 import { NodeModel } from "./node";
+import { SelectWrap } from "../builders/types";
 
 const formatter = (): Formatter<NodeLink, any> => ({
     relationshipMap: {
@@ -44,7 +45,7 @@ const mutater = (): Mutater<
 
 const displayer = (): Displayer<
     Prisma.node_linkSelect,
-    Prisma.node_linkGetPayload<{ select: { [K in keyof Required<Prisma.node_linkSelect>]: true } }>
+    Prisma.node_linkGetPayload<SelectWrap<Prisma.node_linkSelect>>
 > => ({
     select: () => ({ 
         id: true, 

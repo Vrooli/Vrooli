@@ -14,7 +14,7 @@ import { readManyHelper } from "../actions";
 import { Displayer, Formatter, GraphQLModelType, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from ".";
-import { PartialGraphQLInfo } from "../builders/types";
+import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { combineQueries, onlyValidIds, padSelect } from "../builders";
 import { getDelegator } from "../getters";
 
@@ -221,7 +221,7 @@ const querier = () => ({
 
 const displayer = (): Displayer<
     Prisma.starSelect,
-    Prisma.starGetPayload<{ select: { [K in keyof Required<Prisma.starSelect>]: true } }>
+    Prisma.starGetPayload<SelectWrap<Prisma.starSelect>>
 > => ({
     select: () => ({
         id: true,

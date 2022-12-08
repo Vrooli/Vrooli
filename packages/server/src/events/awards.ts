@@ -88,12 +88,12 @@ export const awardVariants: { [key in Exclude<AwardCategory, 'AccountAnniversary
 };
 
 /**
- * Determines award tier title from list of titles and count
- * @param list The list of titles to choose from, paired with 
- * the minimum count required to receive that title. Counts 
+ * Determines award tier name from list of names and count
+ * @param list The list of names to choose from, paired with 
+ * the minimum count required to receive that name. Counts 
  * should be in ascending order.
  * @param count The current count for the award
- * @returns Highest count and title that's applicable
+ * @returns Highest count and name that's applicable
  */
 const awardTier = (list: [number, AwardKey][], count: number): AwardKey | null => {
     for (let i = 0; i < list.length; i++) {
@@ -108,191 +108,191 @@ const awardTier = (list: [number, AwardKey][], count: number): AwardKey | null =
  * Maps award category/level to the award's name and description. Names should be interesting and unique.
  */
 const awardNames: { [key in AwardCategory]: (count: number) => {
-    title: AwardKey | null,
-    titleVariables?: { count: number },
+    name: AwardKey | null,
+    nameVariables?: { count: number },
     body: AwardKey | null,
     bodyVariables?: { count: number },
 } } = {
     AccountAnniversary: (years: number) => ({
-        title: 'AccountAnniversaryTitle',
-        titleVariables: { count: years },
+        name: 'AccountAnniversaryTitle',
+        nameVariables: { count: years },
         body: 'AccountAnniversaryBody',
         bodyVariables: { count: years },
     }),
-    AccountNew: () => ({ title: 'AccountNewTitle', body: 'AccountNewBody' }),
+    AccountNew: () => ({ name: 'AccountNewTitle', body: 'AccountNewBody' }),
     Streak: (days: number) => {
         const tit = <C extends number>(count: C) => `${'StreakDays'}${count}Title` as const;
-        const title = awardTier([[7, tit(7)], [30, tit(30)], [100, tit(100)], [200, tit(200)], [365, tit(365)], [500, tit(500)], [750, tit(750)], [1000, tit(1000)]], days);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'StreakDaysBody', bodyVariables: { count: days } };
+        const name = awardTier([[7, tit(7)], [30, tit(30)], [100, tit(100)], [200, tit(200)], [365, tit(365)], [500, tit(500)], [750, tit(750)], [1000, tit(1000)]], days);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'StreakDaysBody', bodyVariables: { count: days } };
     },
     QuizPass: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
         const tit = <C extends number>(count: C) => `${'QuizPass'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'QuizPassBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'QuizPassBody', bodyVariables: { count } };
     },
     Reputation: (count: number) => {
         // [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
         const tit = <C extends number>(count: C) => `${'ReputationPoints'}${count}Title` as const
-        const title = awardTier([[10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)], [2500, tit(2500)], [10000, tit(10000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'ReputationPointsBody', bodyVariables: { count } };
+        const name = awardTier([[10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)], [2500, tit(2500)], [10000, tit(10000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'ReputationPointsBody', bodyVariables: { count } };
     },
     ObjectStar: (count: number) => {
         // [1, 100, 500]
         const tit = <C extends number>(count: C) => `${'ObjectStar'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [100, tit(100)], [500, tit(500)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'ObjectStarBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [100, tit(100)], [500, tit(500)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'ObjectStarBody', bodyVariables: { count } };
     },
     ObjectVote: (count: number) => {
         // [1, 100, 1000, 10000]
         const tit = <C extends number>(count: C) => `${'ObjectVote'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [100, tit(100)], [1000, tit(1000)], [10000, tit(10000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'ObjectVoteBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [100, tit(100)], [1000, tit(1000)], [10000, tit(10000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'ObjectVoteBody', bodyVariables: { count } };
     },
     PullRequestCreate: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500]
         const tit = <C extends number>(count: C) => `${'PullRequestCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'PullRequestCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'PullRequestCreateBody', bodyVariables: { count } };
     },
     PullRequestComplete: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500]
         const tit = <C extends number>(count: C) => `${'PullRequestComplete'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'PullRequestCompleteBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'PullRequestCompleteBody', bodyVariables: { count } };
     },
     ApiCreate: (count: number) => {
         // [1, 5, 10, 25, 50]
         const tit = <C extends number>(count: C) => `${'ApiCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'ApiCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'ApiCreateBody', bodyVariables: { count } };
     },
     CommentCreate: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
         const tit = <C extends number>(count: C) => `${'CommentCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'CommentCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'CommentCreateBody', bodyVariables: { count } };
     },
     IssueCreate: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250]
         const tit = <C extends number>(count: C) => `${'IssueCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'IssueCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'IssueCreateBody', bodyVariables: { count } };
     },
     NoteCreate: (count: number) => {
         // [1, 5, 10, 25, 50, 100]
         const tit = <C extends number>(count: C) => `${'NoteCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'NoteCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'NoteCreateBody', bodyVariables: { count } };
     },
     OrganizationCreate: (count: number) => {
         // [1, 2, 5, 10]
         const tit = <C extends number>(count: C) => `${'OrganizationCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [2, tit(2)], [5, tit(5)], [10, tit(10)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'OrganizationCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [2, tit(2)], [5, tit(5)], [10, tit(10)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'OrganizationCreateBody', bodyVariables: { count } };
     },
     OrganizationJoin: (count: number) => {
         // [1, 5, 10, 25]
         const tit = <C extends number>(count: C) => `${'OrganizationJoin'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'OrganizationJoinBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'OrganizationJoinBody', bodyVariables: { count } };
     },
     PostCreate: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
         const tit = <C extends number>(count: C) => `${'PostCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'PostCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'PostCreateBody', bodyVariables: { count } };
     },
     ProjectCreate: (count: number) => {
         // [1, 5, 10, 25, 50, 100]
         const tit = <C extends number>(count: C) => `${'PostCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'PostCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'PostCreateBody', bodyVariables: { count } };
     },
     QuestionAnswer: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
         const tit = <C extends number>(count: C) => `${'QuestionAnswer'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'QuestionAnswerBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'QuestionAnswerBody', bodyVariables: { count } };
     },
     QuestionCreate: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
         const tit = <C extends number>(count: C) => `${'QuestionCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'QuestionCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'QuestionCreateBody', bodyVariables: { count } };
     },
     ReportEnd: (count: number) => {
         // [1, 5, 10, 25, 50, 100]
         const tit = <C extends number>(count: C) => `${'ReportEnd'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'ReportEndBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'ReportEndBody', bodyVariables: { count } };
     },
     ReportContribute: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
         const tit = <C extends number>(count: C) => `${'ReportContribute'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'ReportContributeBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'ReportContributeBody', bodyVariables: { count } };
     },
     RunRoutine: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
         const tit = <C extends number>(count: C) => `${'RunRoutine'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)], [2500, tit(2500)], [10000, tit(10000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'RunRoutineBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)], [2500, tit(2500)], [10000, tit(10000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'RunRoutineBody', bodyVariables: { count } };
     },
     RunProject: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
         const tit = <C extends number>(count: C) => `${'RunProject'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'RunProjectBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'RunProjectBody', bodyVariables: { count } };
     },
     RoutineCreate: (count: number) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000
         const tit = <C extends number>(count: C) => `${'RoutineCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'RoutineCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'RoutineCreateBody', bodyVariables: { count } };
     },
     SmartContractCreate: (count: number) => {
         // [1, 5, 10, 25]
         const tit = <C extends number>(count: C) => `${'SmartContractCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'SmartContractCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'SmartContractCreateBody', bodyVariables: { count } };
     },
     StandardCreate: (count: number) => {
         // [1, 5, 10, 25, 50]
         const tit = <C extends number>(count: C) => `${'StandardCreate'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'StandardCreateBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'StandardCreateBody', bodyVariables: { count } };
     },
     UserInvite: (count: number) => {
         // [1, 5, 10, 25, 50, 100]
         const tit = <C extends number>(count: C) => `${'UserInvite'}${count}Title` as const
-        const title = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count);
-        if (!title) return { title: null, body: null };
-        return { title, body: 'UserInviteBody', bodyVariables: { count } };
+        const name = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count);
+        if (!name) return { name: null, body: null };
+        return { name, body: 'UserInviteBody', bodyVariables: { count } };
     },
 }
 
@@ -327,7 +327,7 @@ export const Award = (prisma: PrismaType, userId: string, languages: string[]) =
      * the user is notified
      * @param category The category of the award
      * @param newProgress The new progress of the award
-     * @param languages Preferred languages for the award title and body
+     * @param languages Preferred languages for the award name and body
      */
     update: async (category: AwardCategory, newProgress: number) => {
         // Upsert the award into the database, with progress incremented
@@ -341,10 +341,10 @@ export const Award = (prisma: PrismaType, userId: string, languages: string[]) =
         // into a new award tier)
         const isNewTier = shouldAward(category, award.progress - newProgress, award.progress);
         if (isNewTier) {
-            // Get translated award title and body
+            // Get translated award name and body
             const lng = languages.length > 0 ? languages[0] : 'en';
-            const { title, titleVariables, body, bodyVariables } = awardNames[category](award.progress);
-            const transTitle = title ? i18next.t(`award:${title}`, { lng, ...(titleVariables ?? {}) }) : null;
+            const { name, nameVariables, body, bodyVariables } = awardNames[category](award.progress);
+            const transTitle = name ? i18next.t(`award:${name}`, { lng, ...(nameVariables ?? {}) }) : null;
             const transBody = body ? i18next.t(`award:${body}`, { lng, ...(bodyVariables ?? {}) }) : null;
             // Send a notification to the user
             if (transTitle && transBody) {
