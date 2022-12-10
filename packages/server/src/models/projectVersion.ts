@@ -49,30 +49,10 @@ const formatter = (): Formatter<Project, typeof suppFields> => ({
 const searcher = (): Searcher<
     ProjectSearchInput,
     ProjectVersionSortBy,
-    Prisma.project_versionOrderByWithRelationInput,
     Prisma.project_versionWhereInput
 > => ({
     defaultSort: ProjectVersionSortBy.DateCompletedDesc,
-    sortMap: {
-        CommentsAsc: { comments: { _count: 'asc' } },
-        CommentsDesc: { comments: { _count: 'desc' } },
-        ComplexityAsc: { complexity: 'asc' },
-        ComplexityDesc: { complexity: 'desc' },
-        DirectoryListingsAsc: { directoryListings: { _count: 'asc' } },
-        DirectoryListingsDesc: { directoryListings: { _count: 'desc' } },
-        ForksAsc: { forks: { _count: 'asc' } },
-        ForksDesc: { forks: { _count: 'desc' } },
-        DateCompletedAsc: { completedAt: 'asc' },
-        DateCompletedDesc: { completedAt: 'desc' },
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        RunProjectsAsc: { runProjects: { _count: 'asc' } },
-        RunProjectsDesc: { runProjects: { _count: 'desc' } },
-        SimplicityAsc: { simplicity: 'asc' },
-        SimplicityDesc: { simplicity: 'desc' },
-    },
+    sortBy: ProjectVersionSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },

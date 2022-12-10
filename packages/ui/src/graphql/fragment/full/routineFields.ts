@@ -217,9 +217,9 @@ export const routineFields = gql`
         id
         order
         contextSwitches
-        timeStarted
+        startedAt
         timeElapsed
-        timeCompleted
+        completedAt
         title
         status
         step
@@ -238,9 +238,9 @@ export const routineFields = gql`
                 id
             }
         }
-        timeStarted
+        startedAt
         timeElapsed
-        timeCompleted
+        completedAt
         title
         status
         steps {

@@ -633,9 +633,9 @@ export interface runRoutineComplete_runRoutineComplete_steps {
   id: string;
   order: number;
   contextSwitches: number;
-  timeStarted: any | null;
+  startedAt: any | null;
   timeElapsed: number | null;
-  timeCompleted: any | null;
+  completedAt: any | null;
   name: string;
   status: RunRoutineStepStatus;
   step: number[];
@@ -648,9 +648,9 @@ export interface runRoutineComplete_runRoutineComplete {
   completedComplexity: number;
   contextSwitches: number;
   isPrivate: boolean;
-  timeStarted: any | null;
+  startedAt: any | null;
   timeElapsed: number | null;
-  timeCompleted: any | null;
+  completedAt: any | null;
   name: string;
   status: RunStatus;
   inputs: runRoutineComplete_runRoutineComplete_inputs[];

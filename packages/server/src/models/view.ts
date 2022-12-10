@@ -100,14 +100,10 @@ interface ViewInput {
 const searcher = (): Searcher<
     ViewSearchInput,
     ViewSortBy,
-    Prisma.viewOrderByWithRelationInput,
     Prisma.viewWhereInput
 > => ({
     defaultSort: ViewSortBy.LastViewedDesc,
-    sortMap: {
-        LastViewedAsc: { lastViewed: 'asc' },
-        LastViewedDesc: { lastViewed: 'desc' },
-    },
+    sortBy: ViewSortBy,
     searchStringQuery: ({ insensitive, languages, searchString }) => ({
         OR: [
             { name: { ...insensitive } },

@@ -82,14 +82,10 @@ const formatter = (): Formatter<Star, typeof suppFields> => ({
 const searcher = (): Searcher<
     StarSearchInput,
     StarSortBy,
-    Prisma.starOrderByWithRelationInput,
     Prisma.starWhereInput
 > => ({
     defaultSort: StarSortBy.DateUpdatedDesc,
-    sortMap: {
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-    },
+    sortBy: StarSortBy,
     searchStringQuery: ({ insensitive, languages, searchString }) => ({
         OR: [
             { organization: OrganizationModel.search.searchStringQuery({ insensitive, languages, searchString }) },

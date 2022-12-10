@@ -5,6 +5,7 @@ import { CustomError } from "../events";
 import { getSearchString } from "../getters";
 import { ObjectMap } from "../models";
 import { Searcher } from "../models/types";
+import { SortMap } from "../utils/sortMap";
 import { ReadManyHelperProps } from "./types";
 
 /**
@@ -13,7 +14,7 @@ import { ReadManyHelperProps } from "./types";
  * NOTE: Permissions queries should be passed into additionalQueries
  * @returns Paginated search result
  */
-export async function readManyHelper<GraphQLModel extends { [x: string]: any }>({
+export async function readManyHelper<Input extends { [x: string]: any }>({
     additionalQueries,
     addSupplemental = true,
     info,
@@ -21,7 +22,7 @@ export async function readManyHelper<GraphQLModel extends { [x: string]: any }>(
     objectType,
     prisma,
     req,
-}: ReadManyHelperProps<GraphQLModel>): Promise<PaginatedSearchResult> {
+}: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req);
     const model = ObjectMap[objectType];
     if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
@@ -31,7 +32,7 @@ export async function readManyHelper<GraphQLModel extends { [x: string]: any }>(
     partialInfo.id = true;
     // Create query for specified ids
     const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: onlyValidIds(input.ids) } }) : undefined;
-    const searcher: Searcher<any, any, any, any> | undefined = model.search;
+    const searcher: Searcher<any, any, any> | undefined = model.search;
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchString({ objectType: model.__typename, searchString: input.searchString }) : undefined;
     // Determine createdTimeFrame query
@@ -43,7 +44,10 @@ export async function readManyHelper<GraphQLModel extends { [x: string]: any }>(
     // Combine queries
     const where = combineQueries([additionalQueries, idQuery, searchQuery, createdQuery, updatedQuery, typeQuery]);
     // Determine sort order
-    const orderBy = searcher?.sortMap ? searcher.sortMap[input.sortBy ?? searcher.defaultSort] : undefined;
+    // Make sure sort field is valid
+    const orderByField = searcher ? input.sortBy ?? searcher.defaultSort : undefined;
+    const orderByIsValid = searcher ? searcher.sortBy[orderByField] === undefined : false;
+    const orderBy = orderByIsValid ? SortMap[input.sortBy ?? searcher!.defaultSort] : undefined;
     // Find requested search array
     const searchResults = await (model.delegate(prisma) as any).findMany({
         where,

@@ -2,6 +2,7 @@ import { Count, SessionUser } from "../endpoints/types";
 import { PrismaType, PromiseOrValue, RecursivePartial, SingleOrArray } from "../types";
 import { ArraySchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
+import { SortMap } from "../utils/sortMap";
 
 export type GraphQLModelType =
     'Api' |
@@ -106,7 +107,6 @@ export type ModelLogic<
     RelationshipUpdate extends false | MutaterShapes,
     SearchInput,
     SortBy extends string,
-    OrderBy extends { [x: string]: any; },
     Where extends { [x: string]: any; },
     GQLCreate extends { [x: string]: any; },
     GQLUpdate extends { [x: string]: any; },
@@ -121,7 +121,7 @@ export type ModelLogic<
     format: Formatter<GQLObject, SuppFields>;
     display: Displayer<PermissionsSelect, PrismaObject>;
     delegate: (prisma: PrismaType) => PrismaDelegate;
-    search?: Searcher<SearchInput, SortBy, OrderBy, Where>;
+    search?: Searcher<SearchInput, SortBy, Where>;
     mutate?: Mutater<GQLObject, Create, Update, RelationshipCreate, RelationshipUpdate>;
     validate?: Validator<GQLCreate, GQLUpdate, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere, IsTransferable, IsVersioned>;
 }
@@ -129,7 +129,7 @@ export type ModelLogic<
 /**
  * Mostly unsafe type for a model logic object.
  */
-export type AniedModelLogic<GQLObject extends { [x: string]: any }> = ModelLogic<GQLObject, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any>;
+export type AniedModelLogic<GQLObject extends { [x: string]: any }> = ModelLogic<GQLObject, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any, any>;
 
 /**
  * Allows Prisma select fields to map to GraphQLModelTypes. Any field which can be 
@@ -206,7 +206,7 @@ export interface Formatter<
      * 
      * NOTE: Only allows string keys
      */
-     countFields?: (keyof GQLModel extends infer R ? R extends `${string}Count` ? R : never : never)[];
+    countFields?: (keyof GQLModel extends infer R ? R extends `${string}Count` ? R : never : never)[];
     /**
      * List of fields to always exclude from GraphQL results
      */
@@ -233,13 +233,19 @@ export interface Formatter<
     supplemental?: SupplementalConverter<SuppFields>;
 }
 
-
 /**
  * Describes shape of component that can be sorted in a specific order
  */
-export type Searcher<SearchInput, SortBy extends string, OrderBy extends { [x: string]: any }, Where extends { [x: string]: any }> = {
+export type Searcher<
+    SearchInput,
+    SortBy extends string,
+    Where extends { [x: string]: any }
+> = {
     defaultSort: SortBy;
-    sortMap: Record<SortBy, OrderBy>;
+    // Enum of all possible sort fields for this model
+    // Also ensures that each field is in the SortMap object 
+    // (i.e. SortMap is a superset of SortBy)
+    sortBy: { [x in SortBy]: keyof typeof SortMap };
     searchStringQuery: ({ insensitive, languages, searchString }: {
         insensitive: { contains: string; mode: 'default' | 'insensitive'; },
         languages?: string[],

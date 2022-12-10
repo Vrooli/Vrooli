@@ -99,18 +99,10 @@ const validator = (): Validator<
 const searcher = (): Searcher<
     ResourceListSearchInput,
     ResourceListSortBy,
-    Prisma.resource_listOrderByWithRelationInput,
     Prisma.resource_listWhereInput
 > => ({
     defaultSort: ResourceListSortBy.IndexAsc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        IndexAsc: { index: 'asc' },
-        IndexDesc: { index: 'desc' },
-    },
+    sortBy: ResourceListSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },

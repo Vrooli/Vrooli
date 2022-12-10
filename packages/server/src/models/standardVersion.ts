@@ -6,7 +6,7 @@ import { ViewModel } from "./view";
 import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from "../endpoints/types";
+import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
@@ -52,23 +52,11 @@ const formatter = (): Formatter<Standard, typeof suppFields> => ({
 
 const searcher = (): Searcher<
     StandardSearchInput,
-    StandardSortBy,
-    Prisma.standard_versionOrderByWithRelationInput,
+    StandardVersionSortBy,
     Prisma.standard_versionWhereInput
 > => ({
-    defaultSort: StandardSortBy.ScoreDesc,
-    sortMap: {
-        CommentsAsc: { comments: { _count: 'asc' } },
-        CommentsDesc: { comments: { _count: 'desc' } },
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        ScoreAsc: { root: { score: 'asc' } },
-        ScoreDesc: { root: { score: 'desc' } },
-        StarsAsc: { root: { starredBy: { _count: 'asc' } } },
-        StarsDesc: { root: { starredBy: { _count: 'desc' } } },
-    },
+    defaultSort: StandardVersionSortBy.DateCompletedDesc,
+    sortBy: StandardVersionSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },

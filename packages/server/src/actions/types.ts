@@ -31,7 +31,7 @@ export interface CUDHelperInput {
     userData: SessionUser,
 }
 
-export interface CUDResult<GraphQLObject extends { [x: string]: any}> {
+export interface CUDResult<GraphQLObject extends { [x: string]: any }> {
     created?: RecursivePartial<GraphQLObject>[],
     updated?: RecursivePartial<GraphQLObject>[],
     deleted?: Count,
@@ -59,7 +59,9 @@ export type CopyHelperProps = {
     req: Request;
 }
 
-export type ReadManyHelperProps<GQLObject extends { [x: string]: any}> = {
+export type ReadManyHelperProps<
+    Input extends { [x: string]: any }
+> = {
     additionalQueries?: { [x: string]: any };
     /**
      * Decides if queried data should be called. Defaults to true. 
@@ -68,13 +70,13 @@ export type ReadManyHelperProps<GQLObject extends { [x: string]: any}> = {
      */
     addSupplemental?: boolean;
     info: GraphQLInfo | PartialGraphQLInfo;
-    input: any;
+    input: Input;
     objectType: GraphQLModelType;
     prisma: PrismaType;
     req: { languages: string[], users?: SessionUser[] };
 }
 
-export type ReadOneHelperProps<GQLObject extends { [x: string]: any}> = {
+export type ReadOneHelperProps<GQLObject extends { [x: string]: any }> = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
     objectType: GraphQLModelType;

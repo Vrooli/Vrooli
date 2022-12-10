@@ -473,9 +473,9 @@ export interface routineUpdate_routineUpdate_runs_steps {
   id: string;
   order: number;
   contextSwitches: number;
-  timeStarted: any | null;
+  startedAt: any | null;
   timeElapsed: number | null;
-  timeCompleted: any | null;
+  completedAt: any | null;
   name: string;
   status: RunRoutineStepStatus;
   step: number[];
@@ -488,9 +488,9 @@ export interface routineUpdate_routineUpdate_runs {
   completedComplexity: number;
   contextSwitches: number;
   inputs: routineUpdate_routineUpdate_runs_inputs[];
-  timeStarted: any | null;
+  startedAt: any | null;
   timeElapsed: number | null;
-  timeCompleted: any | null;
+  completedAt: any | null;
   name: string;
   status: RunStatus;
   steps: routineUpdate_routineUpdate_runs_steps[];

@@ -52,9 +52,9 @@ export const listRunRoutineFields = gql`
         completedComplexity
         contextSwitches
         isPrivate
-        timeStarted
+        startedAt
         timeElapsed
-        timeCompleted
+        completedAt
         title
         status
         routine {

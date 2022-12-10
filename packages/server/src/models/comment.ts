@@ -14,6 +14,7 @@ import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchString } from "../getters";
 import { getUser } from "../auth";
+import { SortMap } from "../utils/sortMap";
 
 const __typename = 'Comment' as const;
 
@@ -41,20 +42,10 @@ const formatter = (): Formatter<Comment, typeof suppFields> => ({
 const searcher = (): Searcher<
     CommentSearchInput,
     CommentSortBy,
-    Prisma.commentOrderByWithRelationInput,
     Prisma.commentWhereInput
 > => ({
     defaultSort: CommentSortBy.ScoreDesc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        ScoreAsc: { score: 'asc' },
-        ScoreDesc: { score: 'desc' },
-        StarsAsc: { starredBy: { _count: 'asc' } },
-        StarsDesc: { starredBy: { _count: 'desc' } },
-    },
+    sortBy: CommentSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         translations: { some: { language: languages ? { in: languages } : undefined, text: insensitive } }
     }),
@@ -163,7 +154,10 @@ const querier = () => ({
         // Combine queries
         const where = { ...idQuery };
         // Determine sort order
-        const orderBy = searcher().sortMap[input.sortBy ?? searcher().defaultSort];
+        // Make sure sort field is valid
+        const orderByField = input.sortBy ?? searcher().defaultSort;
+        const orderByIsValid = searcher().sortBy[orderByField] === undefined
+        const orderBy = orderByIsValid ? SortMap[input.sortBy ?? searcher().defaultSort] : undefined;
         // Find requested search array
         const searchResults = await prisma.comment.findMany({
             where,
@@ -238,7 +232,7 @@ const querier = () => ({
         // Combine queries
         const where = { ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
         // Determine sort order
-        const orderBy = searcher().sortMap[input.sortBy ?? searcher().defaultSort];
+        const orderBy = SortMap[input.sortBy ?? searcher().defaultSort];
         // Find requested search array
         const searchResults = await prisma.comment.findMany({
             where,

@@ -38,9 +38,9 @@ export const typeDef = gql`
         contextSwitches: Int!
         isPrivate: Boolean!
         permissionsRun: RunRoutinePermission!
-        timeStarted: Date
+        startedAt: Date
         timeElapsed: Int
-        timeCompleted: Date
+        completedAt: Date
         name: String!
         status: RunStatus!
         routine: Routine

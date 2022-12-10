@@ -54,18 +54,9 @@ const validator = (): Validator<
     },
 })
 
-// const searcher = (): Searcher<RunSearchInput, RunSortBy, Prisma.run_routineOrderByWithRelationInput, Prisma.run_routineWhereInput> => ({
+// const searcher = (): Searcher<RunSearchInput, RunSortBy, Prisma.run_routineWhereInput> => ({
 //     defaultSort: RunSortBy.DateUpdatedDesc,
-//     sortMap:  {
-//             DateStartedAsc: { timeStarted: 'asc' },
-//             DateStartedDesc: { timeStarted: 'desc' },
-//             DateCompletedAsc: { timeCompleted: 'asc' },
-//             DateCompletedDesc: { timeCompleted: 'desc' },
-//             DateCreatedAsc: { created_at: 'asc' },
-//             DateCreatedDesc: { created_at: 'desc' },
-//             DateUpdatedAsc: { updated_at: 'asc' },
-//             DateUpdatedDesc: { updated_at: 'desc' },
-//     },
+//     sortBy: RunSortBy,
 //     getSearchStringQuery: (searchString, languages) => {
 //         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
 //         return ({
@@ -87,8 +78,8 @@ const validator = (): Validator<
 //     customQueries(input) {
 //         return combineQueries([
 //             (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-//             (input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
-//             (input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
+//             (input.completedTimeFrame !== undefined ? timeFrameToPrisma('completedAt', input.completedTimeFrame) : {}),
+//             (input.startedTimeFrame !== undefined ? timeFrameToPrisma('startedAt', input.startedTimeFrame) : {}),
 //             (input.status !== undefined ? { status: input.status } : {}),
 //         ])
 //     },

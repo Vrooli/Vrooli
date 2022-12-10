@@ -29,7 +29,7 @@ export const getListItemTitle = (
             return firstString(getTranslation(object, langs, true).name);
         case 'RunRoutine':
             const name = firstString(object.name, getTranslation(object.routine, langs, true).name);
-            const date = object.timeStarted ? (new Date(object.timeStarted)) : null;
+            const date = object.startedAt ? (new Date(object.startedAt)) : null;
             if (date) return `${name} (${date.toLocaleDateString()} ${date.toLocaleTimeString()})`;
             return name;
         case 'Standard':
@@ -65,8 +65,8 @@ export const getListItemSubtitle = (
             return firstString(getTranslation(object, langs, true).description);
         case 'RunRoutine':
             // Subtitle for a run is the time started/completed, or nothing (depending on status)
-            const startedAt: string | null = object?.timeStarted ? displayDate(object.timeStarted) : null;
-            const completedAt: string | null = object?.timeCompleted ? displayDate(object.timeCompleted) : null;
+            const startedAt: string | null = object?.startedAt ? displayDate(object.startedAt) : null;
+            const completedAt: string | null = object?.completedAt ? displayDate(object.completedAt) : null;
             if (completedAt) return `Completed: ${completedAt}`;
             if (startedAt) return `Started: ${startedAt}`;
             return '';

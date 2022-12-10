@@ -442,6 +442,7 @@ model note {
     votedBy                 vote[]                      @relation("vote_note")
     transfers               transfer[]                  @relation("transfer_note")
     subscriptions           notification_subscription[]
+    questions             question[]
 }
 
 model note_labels {
@@ -913,14 +914,14 @@ model project_version_directory {
     parentDirectory     project_version_directory?              @relation("project_version_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
     projectVersion      project_version?                        @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: SetNull)
     children            project_version_directory[]             @relation("project_version_directory_parent")
-    childApis           api_version[]
-    childNotes          note_version[]
+    childApiVersions           api_version[]
+    childNoteVersions          note_version[]
     childOrganizations  organization[]
-    childProjects       project_version[]                       @relation("project_version_directory_listing")
-    childRoutines       routine_version[]
-    childSmartContracts smart_contract_version[]
-    childStandards      standard_version[]
-    runSteps            run_project_step[]                      @relation("run_project_step_directory")
+    childProjectVersions       project_version[]                       @relation("project_version_directory_listing")
+    childRoutineVersions       routine_version[]
+    childSmartContractVersions smart_contract_version[]
+    childStandardVersions      standard_version[]
+    runProjectSteps            run_project_step[]                      @relation("run_project_step_directory")
     translations        project_version_directory_translation[]
 }
 
@@ -1014,6 +1015,7 @@ model question {
     hasAcceptedAnswer Boolean                     @default(false)
     score             Int                         @default(0)
     apiId             String?                     @db.Uuid
+    noteId            String?                     @db.Uuid
     organizationId    String?                     @db.Uuid
     projectId         String?                     @db.Uuid
     routineId         String?                     @db.Uuid
@@ -1021,6 +1023,7 @@ model question {
     standardId        String?                     @db.Uuid
     createdById       String?                     @db.Uuid
     api               api?                        @relation(fields: [apiId], references: [id], onDelete: Cascade)
+    note             note?                       @relation(fields: [noteId], references: [id], onDelete: Cascade)
     organization      organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     project           project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
     routine           routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -1517,9 +1520,9 @@ model run_project {
     isPrivate           Boolean               @default(false)
     scheduleId          String?               @db.Uuid
     suggestPublicData   Boolean               @default(false)
-    timeStarted         DateTime?             @db.Timestamptz(6)
+    startedAt         DateTime?             @db.Timestamptz(6)
     timeElapsed         Int?
-    timeCompleted       DateTime?             @db.Timestamptz(6)
+    completedAt       DateTime?             @db.Timestamptz(6)
     name                String                @db.VarChar(128)
     status              RunStatus             @default(Scheduled)
     projectVersionId    String?               @db.Uuid
@@ -1537,9 +1540,9 @@ model run_project_step {
     contextSwitches Int                        @default(0)
     runProjectId    String                     @db.Uuid
     directoryId     String?                    @db.Uuid
-    timeStarted     DateTime?                  @db.Timestamptz(6)
+    startedAt     DateTime?                  @db.Timestamptz(6)
     timeElapsed     Int?
-    timeCompleted   DateTime?                  @db.Timestamptz(6)
+    completedAt   DateTime?                  @db.Timestamptz(6)
     step            Int[]
     status          RunStepStatus              @default(InProgress)
     name            String                     @db.VarChar(128)
@@ -1591,9 +1594,9 @@ model run_routine {
     scheduleId          String?               @db.Uuid
     suggestPublicData   Boolean               @default(false)
     wasRunAutomatically Boolean               @default(false)
-    timeStarted         DateTime?             @db.Timestamptz(6)
+    startedAt         DateTime?             @db.Timestamptz(6)
     timeElapsed         Int?
-    timeCompleted       DateTime?             @db.Timestamptz(6)
+    completedAt       DateTime?             @db.Timestamptz(6)
     name                String                @db.VarChar(128)
     status              RunStatus             @default(Scheduled)
     routineVersionId    String?               @db.Uuid
@@ -1627,9 +1630,9 @@ model run_routine_step {
     runRoutineId        String           @db.Uuid
     nodeId              String?          @db.Uuid
     subroutineVersionId String?          @db.Uuid
-    timeStarted         DateTime?        @db.Timestamptz(6)
+    startedAt         DateTime?        @db.Timestamptz(6)
     timeElapsed         Int?
-    timeCompleted       DateTime?        @db.Timestamptz(6)
+    completedAt       DateTime?        @db.Timestamptz(6)
     step                Int[]
     status              RunStepStatus    @default(InProgress)
     name                String           @db.VarChar(128)

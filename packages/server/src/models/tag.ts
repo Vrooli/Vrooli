@@ -31,18 +31,10 @@ const formatter = (): Formatter<Tag, typeof suppFields> => ({
 const searcher = (): Searcher<
     TagSearchInput,
     TagSortBy,
-    Prisma.tagOrderByWithRelationInput,
     Prisma.tagWhereInput
 > => ({
     defaultSort: TagSortBy.StarsDesc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { starredBy: { _count: 'asc' } },
-        StarsDesc: { starredBy: { _count: 'desc' } },
-    },
+    sortBy: TagSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },

@@ -26,9 +26,9 @@ export const typeDef = gql`
         id: ID!
         order: Int!
         contextSwitches: Int!
-        timeStarted: Date
+        startedAt: Date
         timeElapsed: Int
-        timeCompleted: Date
+        completedAt: Date
         name: String!
         status: RunRoutineStepStatus!
         step: [Int!]!

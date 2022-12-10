@@ -72,9 +72,9 @@ export interface listRunRoutineFields {
   completedComplexity: number;
   contextSwitches: number;
   isPrivate: boolean;
-  timeStarted: any | null;
+  startedAt: any | null;
   timeElapsed: number | null;
-  timeCompleted: any | null;
+  completedAt: any | null;
   name: string;
   status: RunStatus;
   routine: listRunRoutineFields_routine | null;

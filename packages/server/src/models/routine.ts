@@ -86,34 +86,10 @@ const formatter = (): Formatter<Routine, typeof suppFields> => ({
 const searcher = (): Searcher<
     RoutineSearchInput,
     RoutineSortBy,
-    Prisma.routineOrderByWithRelationInput,
     Prisma.routineWhereInput
 > => ({
     defaultSort: RoutineSortBy.ScoreDesc,
-    sortMap: {
-        DateCompletedAsc: { completedAt: 'asc' },
-        DateCompletedDesc: { completedAt: 'desc' },
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        IssuesAsc: { issues: { _count: 'asc' } },
-        IssuesDesc: { issues: { _count: 'desc' } },
-        PullRequestsAsc: { pullRequests: { _count: 'asc' } },
-        PullRequestsDesc: { pullRequests: { _count: 'desc' } },
-        QuestionsAsc: { questions: { _count: 'asc' } },
-        QuestionsDesc: { questions: { _count: 'desc' } },
-        QuizzesAsc: { quizzes: { _count: 'asc' } },
-        QuizzesDesc: { quizzes: { _count: 'desc' } },
-        ScoreAsc: { score: 'asc' },
-        ScoreDesc: { score: 'desc' },
-        StarsAsc: { starredBy: { _count: 'asc' } },
-        StarsDesc: { starredBy: { _count: 'desc' } },
-        VersionsAsc: { versions: { _count: 'asc' } },
-        VersionsDesc: { versions: { _count: 'desc' } },
-        ViewsAsc: { viewedBy: { _count: 'asc' } },
-        ViewsDesc: { viewedBy: { _count: 'desc' } },
-    },
+    sortBy: RoutineSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },

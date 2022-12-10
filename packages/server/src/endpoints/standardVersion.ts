@@ -12,6 +12,8 @@ export const typeDef = gql`
         DirectoryListingsDesc
         ForksAsc
         ForksDesc
+        DateCompletedAsc
+        DateCompletedDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc

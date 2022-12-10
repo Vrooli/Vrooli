@@ -39,18 +39,10 @@ const formatter = (): Formatter<User, typeof suppFields> => ({
 export const searcher = (): Searcher<
     UserSearchInput,
     UserSortBy,
-    Prisma.userOrderByWithRelationInput,
     Prisma.userWhereInput
 > => ({
     defaultSort: UserSortBy.StarsDesc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { starredBy: { _count: 'asc' } },
-        StarsDesc: { starredBy: { _count: 'desc' } },
-    },
+    sortBy: UserSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },

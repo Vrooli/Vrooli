@@ -33,20 +33,10 @@ const formatter = (): Formatter<RunRoutine, typeof suppFields> => ({
 const searcher = (): Searcher<
     RunRoutineSearchInput,
     RunSortBy,
-    Prisma.run_routineOrderByWithRelationInput,
     Prisma.run_routineWhereInput
 > => ({
     defaultSort: RunSortBy.DateUpdatedDesc,
-    sortMap: {
-        DateStartedAsc: { timeStarted: 'asc' },
-        DateStartedDesc: { timeStarted: 'desc' },
-        DateCompletedAsc: { timeCompleted: 'asc' },
-        DateCompletedDesc: { timeCompleted: 'desc' },
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-    },
+    sortBy: RunSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             {
@@ -65,8 +55,8 @@ const searcher = (): Searcher<
     customQueries(input) {
         return combineQueries([
             (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            (input.completedTimeFrame !== undefined ? timeFrameToPrisma('timeCompleted', input.completedTimeFrame) : {}),
-            (input.startedTimeFrame !== undefined ? timeFrameToPrisma('timeStarted', input.startedTimeFrame) : {}),
+            (input.completedTimeFrame !== undefined ? timeFrameToPrisma('completedAt', input.completedTimeFrame) : {}),
+            (input.startedTimeFrame !== undefined ? timeFrameToPrisma('startedAt', input.startedTimeFrame) : {}),
             (input.status !== undefined ? { status: input.status } : {}),
         ])
     },
@@ -165,7 +155,7 @@ const runner = () => ({
                     completedComplexity: completedComplexity + (input.completedComplexity ?? 0),
                     contextSwitches: contextSwitches + (input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0),
                     status: input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed,
-                    timeCompleted: new Date(),
+                    completedAt: new Date(),
                     timeElapsed: (timeElapsed ?? 0) + (input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0),
                     steps: {
                         create: input.finalStepCreate ? {
@@ -194,8 +184,8 @@ const runner = () => ({
             run = await prisma.run_routine.create({
                 data: {
                     completedComplexity: input.completedComplexity ?? 0,
-                    timeStarted: new Date(),
-                    timeCompleted: new Date(),
+                    startedAt: new Date(),
+                    completedAt: new Date(),
                     timeElapsed: input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0,
                     contextSwitches: input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0,
                     routineVersionId: input.id,
@@ -276,7 +266,7 @@ const mutater = (): Mutater<
             // TODO - when scheduling added, don't assume that it is being started right away
             return {
                 id: data.id,
-                timeStarted: new Date(),
+                startedAt: new Date(),
                 routineVersionId: data.routineVersionId,
                 status: RunStatus.InProgress,
                 steps: await relBuilderHelper({ data, isAdd: true, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),

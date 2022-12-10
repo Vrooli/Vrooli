@@ -85,30 +85,10 @@ const formatter = (): Formatter<Routine, typeof suppFields> => ({
 const searcher = (): Searcher<
     RoutineSearchInput,
     RoutineVersionSortBy,
-    Prisma.routine_versionOrderByWithRelationInput,
     Prisma.routine_versionWhereInput
 > => ({
     defaultSort: RoutineVersionSortBy.DateCompletedDesc,
-    sortMap: {
-        CommentsAsc: { comments: { _count: 'asc' } },
-        CommentsDesc: { comments: { _count: 'desc' } },
-        ComplexityAsc: { complexity: 'asc' },
-        ComplexityDesc: { complexity: 'desc' },
-        DirectoryListingsAsc: { directoryListings: { _count: 'asc' } },
-        DirectoryListingsDesc: { directoryListings: { _count: 'desc' } },
-        ForksAsc: { forks: { _count: 'asc' } },
-        ForksDesc: { forks: { _count: 'desc' } },
-        DateCompletedAsc: { completedAt: 'asc' },
-        DateCompletedDesc: { completedAt: 'desc' },
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        RunRoutinesAsc: { runRoutines: { _count: 'asc' } },
-        RunRoutinesDesc: { runRoutines: { _count: 'desc' } },
-        SimplicityAsc: { simplicity: 'asc' },
-        SimplicityDesc: { simplicity: 'desc' },
-    },
+    sortBy: RoutineVersionSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },

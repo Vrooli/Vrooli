@@ -77,11 +77,11 @@ export const RunPickerMenu = ({
             mutation: deleteOne,
             input: { id: run.id, objectType: DeleteType.Run },
             successCondition: (data) => data.success,
-            successMessage: () => ({ key: 'RunDeleted', variables: { runName: displayDate(run.timeStarted) } }),
+            successMessage: () => ({ key: 'RunDeleted', variables: { runName: displayDate(run.startedAt) } }),
             onSuccess: (data) => {
                 onDelete(run);
             },
-            errorMessage: () => ({ key: 'RunDeleteFailed', variables: { runName: displayDate(run.timeStarted) } }),
+            errorMessage: () => ({ key: 'RunDeleteFailed', variables: { runName: displayDate(run.startedAt) } }),
         })
     }, [deleteOne, onDelete])
 
@@ -103,7 +103,7 @@ export const RunPickerMenu = ({
         // Find incomplete runs
         const runs = routine.runs.filter(run => run.status === RunStatus.InProgress);
         return runs.map((run) => ({
-            label: `Started: ${displayDate(run.timeStarted)} (${getRunPercentComplete(run.completedComplexity, routine.complexity)}%)`,
+            label: `Started: ${displayDate(run.startedAt)} (${getRunPercentComplete(run.completedComplexity, routine.complexity)}%)`,
             value: run as Run,
         }));
     }, [routine]);
@@ -116,7 +116,7 @@ export const RunPickerMenu = ({
         if (run.completedComplexity > 0) {
             PubSub.get().publishAlertDialog({
                 messageKey: 'RunDeleteConfirm',
-                messageVariables: { startDate: displayDate(run.timeStarted), percentComplete: getRunPercentComplete(run.completedComplexity, routine.complexity) },
+                messageVariables: { startDate: displayDate(run.startedAt), percentComplete: getRunPercentComplete(run.completedComplexity, routine.complexity) },
                 buttons: [
                     { labelKey: 'Yes', onClick: () => { deleteRun(run) } },
                     { labelKey: 'Cancel', onClick: () => { } },

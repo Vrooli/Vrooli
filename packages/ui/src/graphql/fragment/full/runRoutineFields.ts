@@ -295,9 +295,9 @@ export const runRoutineFields = gql`
         id
         order
         contextSwitches
-        timeStarted
+        startedAt
         timeElapsed
-        timeCompleted
+        completedAt
         title
         status
         step
@@ -317,9 +317,9 @@ export const runRoutineFields = gql`
         completedComplexity
         contextSwitches
         isPrivate
-        timeStarted
+        startedAt
         timeElapsed
-        timeCompleted
+        completedAt
         title
         status
         inputs {

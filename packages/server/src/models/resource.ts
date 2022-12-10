@@ -19,18 +19,10 @@ const formatter = (): Formatter<Resource, typeof suppFields> => ({
 const searcher = (): Searcher<
     ResourceSearchInput,
     ResourceSortBy,
-    Prisma.resourceOrderByWithRelationInput,
     Prisma.resourceWhereInput
 > => ({
     defaultSort: ResourceSortBy.IndexAsc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        IndexAsc: { index: 'asc' },
-        IndexDesc: { index: 'desc' },
-    },
+    sortBy: ResourceSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },

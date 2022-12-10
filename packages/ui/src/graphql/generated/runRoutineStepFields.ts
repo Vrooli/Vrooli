@@ -19,9 +19,9 @@ export interface runRoutineStepFields {
   id: string;
   order: number;
   contextSwitches: number;
-  timeStarted: any | null;
+  startedAt: any | null;
   timeElapsed: number | null;
-  timeCompleted: any | null;
+  completedAt: any | null;
   name: string;
   status: RunRoutineStepStatus;
   step: number[];

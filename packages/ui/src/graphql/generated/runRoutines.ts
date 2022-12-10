@@ -78,9 +78,9 @@ export interface runRoutines_runRoutines_edges_node {
   completedComplexity: number;
   contextSwitches: number;
   isPrivate: boolean;
-  timeStarted: any | null;
+  startedAt: any | null;
   timeElapsed: number | null;
-  timeCompleted: any | null;
+  completedAt: any | null;
   name: string;
   status: RunStatus;
   routine: runRoutines_runRoutines_edges_node_routine | null;

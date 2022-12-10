@@ -1,8 +1,9 @@
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, PullRequestSortBy } from './types';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
+import { FindByIdInput, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, PullRequestSortBy, PullRequestToObjectType, PullRequestStatus, PullRequest, PullRequestSearchInput, PullRequestCreateInput, PullRequestUpdateInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
     enum PullRequestSortBy {
@@ -14,59 +15,46 @@ export const typeDef = gql`
         DateUpdatedDesc
     }
 
+    enum PullRequestToObjectType {
+        Api
+        Note
+        Project
+        Routine
+        SmartContract
+        Standard
+    }
+
+    enum PullRequestStatus {
+        Open
+        Merged
+        Rejected
+    }
+
+    union PullRequestTo = Api | Note | Project | Routine | SmartContract | Standard
+
+    union PullRequestFrom = ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion
+
     input PullRequestCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        toObjectType: PullRequestToObjectType!
+        toId: ID!
+        fromId: ID!
     }
     input PullRequestUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
+        status: PullRequestStatus
     }
     type PullRequest {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
+        mergedOrRejectedAt: Date
+        status: PullRequestStatus!
+        from: PullRequestFrom!
+        to: PullRequestTo!
         createdBy: User
-        forks: [Project!]!
-        owner: Owner
-        parent: Project
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        wallets: [Wallet!]
+        comments: [Comment!]!
+        permissionsPullRequest: PullRequestPermission!
     }
 
     type PullRequestPermission {
@@ -79,42 +67,16 @@ export const typeDef = gql`
         canVote: Boolean!
     }
 
-    input PullRequestTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
-    }
-    input PullRequestTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type PullRequestTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
-    }
-
     input PullRequestSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
+        isMergedOrRejected: Boolean
         languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        toId: ID
+        createdById: ID
         searchString: String
-        sortBy: ProjectSortBy
+        sortBy: PullRequestSortBy
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
@@ -124,12 +86,12 @@ export const typeDef = gql`
 
     type PullRequestSearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [PullRequestEdge!]!
     }
 
     type PullRequestEdge {
         cursor: String!
-        node: Api!
+        node: PullRequest!
     }
 
     extend type Query {
@@ -148,18 +110,26 @@ export const typeDef = gql`
 const objectType = 'PullRequest';
 export const resolvers: {
     PullRequestSortBy: typeof PullRequestSortBy;
+    PullRequestToObjectType: typeof PullRequestToObjectType;
+    PullRequestStatus: typeof PullRequestStatus;
+    PullRequestTo: UnionResolver;
+    PullRequestFrom: UnionResolver;
     Query: {
-        pullRequest: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        pullRequests: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        pullRequest: GQLEndpoint<FindByIdInput, FindOneResult<PullRequest>>;
+        pullRequests: GQLEndpoint<PullRequestSearchInput, FindManyResult<PullRequest>>;
     },
     Mutation: {
-        pullRequestCreate: GQLEndpoint<LabelCreateInput, CreateOneResult<Label>>;
-        pullRequestUpdate: GQLEndpoint<LabelUpdateInput, UpdateOneResult<Label>>;
-        pullRequestAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<Label>>;
-        pullRequestReject: GQLEndpoint<FindByIdInput, UpdateOneResult<Label>>;
+        pullRequestCreate: GQLEndpoint<PullRequestCreateInput, CreateOneResult<PullRequest>>;
+        pullRequestUpdate: GQLEndpoint<PullRequestUpdateInput, UpdateOneResult<PullRequest>>;
+        pullRequestAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<PullRequest>>;
+        pullRequestReject: GQLEndpoint<FindByIdInput, UpdateOneResult<PullRequest>>;
     }
 } = {
     PullRequestSortBy,
+    PullRequestToObjectType,
+    PullRequestStatus,
+    PullRequestTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
+    PullRequestFrom: { __resolveType(obj: any) { return resolveUnion(obj) } },
     Query: {
         pullRequest: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

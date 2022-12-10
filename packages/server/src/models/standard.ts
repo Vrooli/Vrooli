@@ -51,22 +51,10 @@ const formatter = (): Formatter<Standard, typeof suppFields> => ({
 const searcher = (): Searcher<
     StandardSearchInput,
     StandardSortBy,
-    Prisma.standardOrderByWithRelationInput,
     Prisma.standardWhereInput
 > => ({
     defaultSort: StandardSortBy.ScoreDesc,
-    sortMap: {
-        CommentsAsc: { comments: { _count: 'asc' } },
-        CommentsDesc: { comments: { _count: 'desc' } },
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        ScoreAsc: { score: 'asc' },
-        ScoreDesc: { score: 'desc' },
-        StarsAsc: { starredBy: { _count: 'asc' } },
-        StarsDesc: { starredBy: { _count: 'desc' } },
-    } as any,
+    sortBy: StandardSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },

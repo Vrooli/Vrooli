@@ -33,14 +33,10 @@ const formatter = (): Formatter<Report, typeof suppFields> => ({
 const searcher = (): Searcher<
     ReportSearchInput,
     ReportSortBy,
-    Prisma.reportOrderByWithRelationInput,
     Prisma.reportWhereInput
 > => ({
     defaultSort: ReportSortBy.DateCreatedDesc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-    },
+    sortBy: ReportSortBy,
     searchStringQuery: ({ insensitive }) => ({
         OR: [
             { reason: { ...insensitive } },

@@ -42,7 +42,7 @@ export interface history_history_activeRuns_routine_translations {
   id: string;
   language: string;
   description: string | null;
-  name string;
+  title: string;
 }
 
 export interface history_history_activeRuns_routine {
@@ -72,10 +72,10 @@ export interface history_history_activeRuns {
   completedComplexity: number;
   contextSwitches: number;
   isPrivate: boolean;
-  timeStarted: any | null;
+  startedAt: any | null;
   timeElapsed: number | null;
-  timeCompleted: any | null;
-  name string;
+  completedAt: any | null;
+  title: string;
   status: RunStatus;
   routine: history_history_activeRuns_routine | null;
 }
@@ -113,7 +113,7 @@ export interface history_history_completedRuns_routine_translations {
   id: string;
   language: string;
   description: string | null;
-  name string;
+  title: string;
 }
 
 export interface history_history_completedRuns_routine {
@@ -143,10 +143,10 @@ export interface history_history_completedRuns {
   completedComplexity: number;
   contextSwitches: number;
   isPrivate: boolean;
-  timeStarted: any | null;
+  startedAt: any | null;
   timeElapsed: number | null;
-  timeCompleted: any | null;
-  name string;
+  completedAt: any | null;
+  title: string;
   status: RunStatus;
   routine: history_history_completedRuns_routine | null;
 }
@@ -276,7 +276,7 @@ export interface history_history_recentlyViewed_to_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  name string;
+  title: string;
 }
 
 export interface history_history_recentlyViewed_to_Routine {
@@ -363,7 +363,7 @@ export interface history_history_recentlyViewed {
   __typename: "View";
   id: string;
   lastViewed: any;
-  name string;
+  title: string;
   to: history_history_recentlyViewed_to;
 }
 
@@ -389,7 +389,7 @@ export interface history_history_recentlyStarred_to_Comment_commentedOn_Routine_
   __typename: "RoutineTranslation";
   id: string;
   language: string;
-  name string;
+  title: string;
 }
 
 export interface history_history_recentlyStarred_to_Comment_commentedOn_Routine {
@@ -588,7 +588,7 @@ export interface history_history_recentlyStarred_to_Routine_translations {
   id: string;
   language: string;
   description: string | null;
-  name string;
+  title: string;
 }
 
 export interface history_history_recentlyStarred_to_Routine {

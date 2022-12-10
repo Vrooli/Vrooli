@@ -60,18 +60,10 @@ const formatter = (): Formatter<Organization, typeof suppFields> => ({
 const searcher = (): Searcher<
     OrganizationSearchInput,
     OrganizationSortBy,
-    Prisma.organizationOrderByWithRelationInput,
     Prisma.organizationWhereInput
 > => ({
     defaultSort: OrganizationSortBy.StarsDesc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { starredBy: { _count: 'asc' } },
-        StarsDesc: { starredBy: { _count: 'desc' } },
-    },
+    sortBy: OrganizationSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
