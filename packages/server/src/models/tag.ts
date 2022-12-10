@@ -3,21 +3,23 @@ import { TagSortBy } from "@shared/consts";
 import { StarModel } from "./star";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
+import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { combineQueries } from "../builders";
 import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
-type SupplementalFields = 'isStarred' | 'isOwn';
-const formatter = (): Formatter<Tag, SupplementalFields> => ({
+const __typename = 'Tag' as const;
+
+const suppFields = ['isOwn', 'isStarred'] as const;
+const formatter = (): Formatter<Tag, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Tag',
+        __typename,
         starredBy: 'User',
     },
     joinMap: { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' },
     supplemental: {
-        graphqlFields: ['isStarred', 'isOwn'],
+        graphqlFields: suppFields,
         dbFields: ['createdByUserId', 'id'],
         toGraphQL: ({ ids, objects, prisma, userData }) => [
             ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Tag')],
@@ -38,8 +40,8 @@ const searcher = (): Searcher<
         DateCreatedDesc: { created_at: 'desc' },
         DateUpdatedAsc: { updated_at: 'asc' },
         DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { stars: 'asc' },
-        StarsDesc: { stars: 'desc' },
+        StarsAsc: { starredBy: { _count: 'asc' } },
+        StarsDesc: { starredBy: { _count: 'desc' } },
     },
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
@@ -116,11 +118,11 @@ const displayer = (): Displayer<
 })
 
 export const TagModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.tag,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),
-    type: 'Tag' as GraphQLModelType,
     validate: validator(),
 })

@@ -7,9 +7,12 @@ import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<RunRoutineStep, any> => ({
+const __typename = 'RunRoutineStep' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<RunRoutineStep, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'RunRoutineStep',
+        __typename,
         run: 'RunRoutine',
         node: 'Node',
         subroutine: 'Routine',
@@ -102,10 +105,10 @@ const displayer = (): Displayer<
 })
 
 export const RunRoutineStepModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_step,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    type: 'RunStep' as GraphQLModelType,
     validate: validator(),
 })

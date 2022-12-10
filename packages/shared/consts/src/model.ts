@@ -38,8 +38,8 @@ export enum InputType {
 //==============================================================
 
 export enum CommentSortBy {
-    VotesAsc = "VotesAsc",
-    VotesDesc = "VotesDesc",
+    ScoreAsc = "ScoreAsc",
+  ScoreDesc = "ScoreDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     DateCreatedDesc = "DateCreatedDesc",
@@ -102,8 +102,8 @@ export enum OrganizationSortBy {
 }
 
 export enum ProjectSortBy {
-    VotesDesc = "VotesDesc",
-    VotesAsc = "VotesAsc",
+    ScoreAsc = "ScoreAsc",
+  ScoreDesc = "ScoreDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     ForksDesc = "ForksDesc",
@@ -126,8 +126,8 @@ export enum ProjectOrOrganizationSortBy {
 }
 
 export enum ProjectOrRoutineSortBy {
-    VotesDesc = "VotesDesc",
-    VotesAsc = "VotesAsc",
+    ScoreAsc = "ScoreAsc",
+    ScoreDesc = "ScoreDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     ForksDesc = "ForksDesc",
@@ -166,8 +166,8 @@ export enum ResourceListSortBy {
 }
 
 export enum RoutineSortBy {
-    VotesDesc = "VotesDesc",
-    VotesAsc = "VotesAsc",
+    ScoreAsc = "ScoreAsc",
+    ScoreDesc = "ScoreDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     ForksDesc = "ForksDesc",
@@ -192,8 +192,8 @@ export enum RunSortBy {
 }
 
 export enum StandardSortBy {
-    VotesDesc = "VotesDesc",
-    VotesAsc = "VotesAsc",
+    ScoreAsc = "ScoreAsc",
+  ScoreDesc = "ScoreDesc",
     StarsDesc = "StarsDesc",
     StarsAsc = "StarsAsc",
     CommentsDesc = "CommentsDesc",
@@ -324,6 +324,8 @@ export enum StarFor {
 }
 
 export enum ViewFor {
+    Api = "Api",
+    Note = "Note",
     Organization = "Organization",
     Project = "Project",
     Routine = "Routine",

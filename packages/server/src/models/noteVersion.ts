@@ -1,8 +1,31 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { NoteVersion } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, GraphQLModelType } from "./types";
+import { getSingleTypePermissions } from "../validators";
+import { Displayer, Formatter } from "./types";
+
+const __typename = 'NoteVersion' as const;
+
+const suppFields = ['permissionsVersion'] as const;
+const formatter = (): Formatter<NoteVersion, typeof suppFields> => ({
+    relationshipMap: {
+        __typename,
+        comments: 'Comment',
+        directoryListings: 'ProjectVersionDirectory',
+        forks: 'NoteVersion',
+        reports: 'Report',
+        root: 'Note',
+    },
+    countFields: ['commentsCount', 'directoryListingsCount', 'forksCount', 'reportsCount'],
+    supplemental: {
+        graphqlFields: suppFields,
+        toGraphQL: ({ ids, prisma, userData }) => [
+            ['permissionsVersion', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
+        ],
+    },
+})
 
 const displayer = (): Displayer<
     Prisma.note_versionSelect,
@@ -13,11 +36,11 @@ const displayer = (): Displayer<
 })
 
 export const NoteVersionModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.note_version,
     display: displayer(),
-    format: {} as any,
+    format: formatter(),
     mutate: {} as any,
     search: {} as any,
-    type: 'NoteVersion' as GraphQLModelType,
     validate: {} as any,
 })

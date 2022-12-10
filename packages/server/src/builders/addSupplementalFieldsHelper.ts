@@ -17,7 +17,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
 }): Promise<RecursivePartial<GraphQLModel>[]> => {
     if (!objects || objects.length === 0) return [];
     // Get supplemental info for object
-    const supplementer: SupplementalConverter<GraphQLModel, any> | undefined = ObjectMap[objectType]?.format?.supplemental;
+    const supplementer: SupplementalConverter<any> | undefined = ObjectMap[objectType]?.format?.supplemental;
     if (!supplementer) return objects;
     // Get IDs from objects
     const ids = objects.map(({ id }) => id);

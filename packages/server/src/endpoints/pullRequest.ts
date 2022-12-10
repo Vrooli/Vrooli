@@ -24,7 +24,6 @@ export const typeDef = gql`
         rootId: ID!
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
     }
     input PullRequestUpdateInput {
         id: ID!
@@ -40,8 +39,6 @@ export const typeDef = gql`
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
     }
     type PullRequest {
         id: ID!
@@ -63,14 +60,12 @@ export const typeDef = gql`
         forks: [Project!]!
         owner: Owner
         parent: Project
-        permissionsProject: ProjectPermission!
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]
         routines: [Routine!]!
         starredBy: [User!]
         tags: [Tag!]!
-        translations: [ProjectTranslation!]!
         wallets: [Wallet!]
     }
 

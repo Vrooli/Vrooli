@@ -61,22 +61,16 @@ export const typeDef = gql`
         versionNotes: String
         translations: [ApiVersionTranslation!]!
         directoryListings: [ProjectVersionDirectory!]!
+        directoryListingsCount: Int!
         permissionsVersion: VersionPermission!
+        pullRequest: PullRequest
         reports: [Report!]!
+        reportsCount: Int!
         root: Api!
         forks: [Api!]!
+        forksCount: Int!
         comments: [Comment!]!
-    }
-
-    type ApiVersionPermission {
-        canComment: Boolean!
-        canCopy: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        commentsCount: Int!
     }
 
     input ApiVersionTranslationCreateInput {

@@ -2,7 +2,11 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { SmartContractVersionModel } from "./smartContractVersion";
-import { Displayer, GraphQLModelType } from "./types";
+import { Displayer } from "./types";
+
+const __typename = 'SmartContract' as const;
+
+const suppFields = [] as const;
 
 const displayer = (): Displayer<
     Prisma.smart_contractSelect,
@@ -21,11 +25,11 @@ const displayer = (): Displayer<
 })
 
 export const SmartContractModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.smart_contract,
     display: displayer(),
     format: {} as any,
     mutate: {} as any,
     search: {} as any,
-    type: 'SmartContract' as GraphQLModelType,
     validate: {} as any,
 })

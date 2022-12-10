@@ -10,8 +10,10 @@ import { combineQueries } from "../builders";
 import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
-type SupplementalFields = 'isStarred' | 'isViewed';
-const formatter = (): Formatter<User, SupplementalFields> => ({
+const __typename = 'User' as const;
+
+const suppFields = ['isStarred', 'isViewed'] as const;
+const formatter = (): Formatter<User, typeof suppFields> => ({
     relationshipMap: {
         __typename: 'User',
         comments: 'Comment',
@@ -24,9 +26,9 @@ const formatter = (): Formatter<User, SupplementalFields> => ({
         routines: 'Routine',
     },
     joinMap: { starredBy: 'user' },
-    countMap: { reportsCount: 'reports' },
+    countFields: ['reportsCount'],
     supplemental: {
-        graphqlFields: ['isStarred', 'isViewed'],
+        graphqlFields: suppFields,
         toGraphQL: ({ ids, prisma, userData }) => [
             ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'User')],
             ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'User')],
@@ -46,8 +48,8 @@ export const searcher = (): Searcher<
         DateCreatedDesc: { created_at: 'desc' },
         DateUpdatedAsc: { updated_at: 'asc' },
         DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { stars: 'asc' },
-        StarsDesc: { stars: 'desc' },
+        StarsAsc: { starredBy: { _count: 'asc' } },
+        StarsDesc: { starredBy: { _count: 'desc' } },
     },
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
@@ -143,11 +145,11 @@ const displayer = (): Displayer<
 })
 
 export const UserModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.user,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),
-    type: 'User' as GraphQLModelType,
     validate: validator(),
 })

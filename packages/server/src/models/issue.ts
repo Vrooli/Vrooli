@@ -1,8 +1,38 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { Issue } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, GraphQLModelType } from "./types";
+import { getSingleTypePermissions } from "../validators";
+import { StarModel } from "./star";
+import { Displayer, Formatter } from "./types";
+import { VoteModel } from "./vote";
+
+const __typename = 'Issue' as const;
+
+const suppFields = ['isStarred', 'isUpvoted', 'permissionsIssue'] as const;
+const formatter = (): Formatter<Issue, typeof suppFields> => ({
+    relationshipMap: {
+        __typename,
+        closedBy: 'User',
+        comments: 'Comment',
+        createdBy: 'User',
+        labels: 'Label',
+        reports: 'Report',
+        starredBy: 'User',
+        to: ['Api', 'Organization', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard'],
+    },
+    joinMap: { labels: 'label', starredBy: 'user' },
+    countFields: ['commentsCount', 'labelsCount', 'reportsCount', 'translationsCount'],
+    supplemental: {
+        graphqlFields: suppFields,
+        toGraphQL: ({ ids, prisma, userData }) => [
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
+            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
+            ['permissionsIssue', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
+        ],
+    },
+})
 
 const displayer = (): Displayer<
     Prisma.issueSelect,
@@ -13,11 +43,11 @@ const displayer = (): Displayer<
 })
 
 export const IssueModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.issue,
     display: displayer(),
-    format: {} as any,
+    format: formatter(),
     mutate: {} as any,
     search: {} as any,
-    type: 'Issue' as GraphQLModelType,
     validate: {} as any,
 })

@@ -1,22 +1,24 @@
-import { emailsCreate, emailsUpdate } from "@shared/validation";
-import { Email, EmailCreateInput, EmailUpdateInput } from "../endpoints/types";
+import { emailsCreate } from "@shared/validation";
+import { Email, EmailCreateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { CustomError, Trigger } from "../events";
-import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
 import { SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<Email, any> => ({
+const __typename = 'Email' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<Email, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Email',
-        user: 'Profile',
+        __typename,
     }
 })
 
 const validator = (): Validator<
     EmailCreateInput,
-    EmailUpdateInput,
+    any,
     Prisma.emailGetPayload<SelectWrap<Prisma.emailSelect>>,
     any,
     Prisma.emailSelect,
@@ -79,9 +81,9 @@ const validator = (): Validator<
 const mutater = (): Mutater<
     Email,
     { graphql: EmailCreateInput, db: Prisma.emailUpsertArgs['create'] },
-    { graphql: EmailUpdateInput, db: Prisma.emailUpsertArgs['update'] },
+    false,
     { graphql: EmailCreateInput, db: Prisma.emailCreateWithoutUserInput },
-    { graphql: EmailUpdateInput, db: Prisma.emailUpdateWithoutUserInput }
+    false
 > => ({
     shape: {
         create: async ({ data, userData }) => {
@@ -90,20 +92,14 @@ const mutater = (): Mutater<
                 emailAddress: data.emailAddress,
             }
         },
-        update: async ({ data }) => {
-            return {
-                id: data.id,
-            }
-        },
         relCreate: (...args) => mutater().shape.create(...args),
-        relUpdate: (...args) => mutater().shape.update(...args),
     },
     trigger: {
         onCreated: ({ prisma, userData }) => {
             Trigger(prisma, userData.languages).createEmail(userData.id)
         },
     },
-    yup: { create: emailsCreate, update: emailsUpdate },
+    yup: { create: emailsCreate },
 })
 
 const displayer = (): Displayer<
@@ -115,10 +111,10 @@ const displayer = (): Displayer<
 })
 
 export const EmailModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.email,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    type: 'Email' as GraphQLModelType,
     validate: validator(),
 })

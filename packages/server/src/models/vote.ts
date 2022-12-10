@@ -11,27 +11,17 @@ import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
 import { Prisma } from "@prisma/client";
 
-const formatter = (): Formatter<Vote, 'to'> => ({
+const __typename = 'Vote' as const;
+
+const suppFields = ['to'] as const;
+const formatter = (): Formatter<Vote, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Vote',
+        __typename,
         from: 'User',
-        to: {
-            Api: 'Api',
-            Comment: 'Comment',
-            Issue: 'Issue',
-            Note: 'Note',
-            Post: 'Post',
-            Project: 'Project',
-            Question: 'Question',
-            QuestionAnswer: 'QuestionAnswer',
-            Quiz: 'Quiz',
-            Routine: 'Routine',
-            SmartContract: 'SmartContract',
-            Standard: 'Standard',
-        }
+        to: ['Api', 'Comment', 'Issue', 'Note', 'Post', 'Project', 'Question', 'QuestionAnswer', 'Quiz', 'Routine', 'SmartContract', 'Standard']
     },
     supplemental: {
-        graphqlFields: ['to'],
+        graphqlFields: suppFields,
         toGraphQL: ({ languages, objects, partial, prisma, userData }) => [
             ['to', async () => {
                 if (!userData) return new Array(objects.length).fill([]);
@@ -232,10 +222,10 @@ const displayer = (): Displayer<
 })
 
 export const VoteModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.vote,
     display: displayer(),
     format: formatter(),
     query: querier(),
-    type: 'Vote' as GraphQLModelType,
     vote,
 })

@@ -69,9 +69,14 @@ export const typeDef = gql`
         organization: Organization!
         permissionsMeeting: MeetingPermission!
         restrictedToRoles: [Role!]!
-        invitedUsers: [MeetingInvite!]!
+        attendees: [User!]!
+        attendeesCount: Int!
+        invites: [MeetingInvite!]!
+        invitesCount: Int!
         labels: [Label!]!
+        labelsCount: Int!
         translations: [MeetingTranslation!]!
+        translationsCount: Int!
     }
 
     type MeetingPermission {

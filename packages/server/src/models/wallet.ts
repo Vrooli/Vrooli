@@ -7,12 +7,15 @@ import { PrismaType } from "../types";
 import { oneIsPublic } from "../utils";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
-import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Validator, Mutater, Displayer } from "./types";
 import { SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<Wallet, any> => ({
+const __typename = 'Wallet' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<Wallet, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Wallet',
+        __typename,
         handles: 'Handle',
         user: 'User',
         organization: 'Organization',
@@ -160,10 +163,10 @@ const displayer = (): Displayer<
 })
 
 export const WalletModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.wallet,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    type: 'Wallet' as GraphQLModelType,
     validate: validator(),
 })

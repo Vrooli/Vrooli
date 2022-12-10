@@ -8,9 +8,17 @@ import { CommentModel } from '../models';
 
 export const typeDef = gql`
     enum CommentFor {
-        Project
-        Routine
-        Standard
+        ApiVersion
+        Issue
+        NoteVersion
+        Post
+        ProjectVersion
+        PullRequest
+        Question
+        QuestionAnswer
+        RoutineVersion
+        SmartContractVersion
+        StandardVersion
     }   
 
     enum CommentSortBy {
@@ -18,10 +26,10 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input CommentCreateInput {
@@ -55,6 +63,7 @@ export const typeDef = gql`
         stars: Int!
         starredBy: [User!]
         translations: [CommentTranslation!]!
+        translationsCount: Int!
     }
 
     type CommentPermission {

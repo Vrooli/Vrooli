@@ -54,10 +54,16 @@ export const typeDef = gql`
         versionNotes: String
         translations: [NoteVersionTranslation!]!
         directoryListings: [ProjectVersionDirectory!]!
+        directoryListingsCount: Int!
+        pullRequest: PullRequest
         reports: [Report!]!
+        reportsCount: Int!
         root: Note!
         forks: [Note!]!
+        forksCount: Int!
         comments: [Comment!]!
+        commentsCount: Int!
+        permissionsVersion: VersionPermission!
     }
 
     type NoteVersionPermission {

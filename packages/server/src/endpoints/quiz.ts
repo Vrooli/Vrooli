@@ -14,10 +14,10 @@ export const typeDef = gql`
         DateUpdatedDesc
         QuestionsAsc
         QuestionsDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input QuizCreateInput {
@@ -30,7 +30,6 @@ export const typeDef = gql`
         rootId: ID!
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
     }
     input QuizUpdateInput {
         id: ID!
@@ -46,8 +45,6 @@ export const typeDef = gql`
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
     }
     type Quiz {
         id: ID!
@@ -69,14 +66,12 @@ export const typeDef = gql`
         forks: [Project!]!
         owner: Owner
         parent: Project
-        permissionsProject: ProjectPermission!
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]
         routines: [Routine!]!
         starredBy: [User!]
         tags: [Tag!]!
-        translations: [ProjectTranslation!]!
         wallets: [Wallet!]
     }
 

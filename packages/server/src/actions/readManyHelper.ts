@@ -33,7 +33,7 @@ export async function readManyHelper<GraphQLModel extends { [x: string]: any }>(
     const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: onlyValidIds(input.ids) } }) : undefined;
     const searcher: Searcher<any, any, any, any> | undefined = model.search;
     // Determine text search query
-    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchString({ objectType: model.type, searchString: input.searchString }) : undefined;
+    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchString({ objectType: model.__typename, searchString: input.searchString }) : undefined;
     // Determine createdTimeFrame query
     const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
     // Determine updatedTimeFrame query

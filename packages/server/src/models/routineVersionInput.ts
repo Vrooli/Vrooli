@@ -1,26 +1,30 @@
 import { Prisma } from "@prisma/client";
-import { InputItem, InputItemCreateInput, InputItemUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { relBuilderHelper } from "../actions";
-import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
+import { Displayer, Formatter, Mutater } from "./types";
 import { translationRelationshipBuilder } from "../utils";
 import { RoutineModel } from "./routine";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
+import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput } from "../endpoints/types";
 
-const formatter = (): Formatter<InputItem, any> => ({
+const __typename = 'RoutineVersionInput' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<RoutineVersionInput, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'InputItem',
-        standard: 'Standard',
+        __typename,
+        routineVersion: 'RoutineVersion',
+        standardVersion: 'StandardVersion',
     },
 })
 
 const mutater = (): Mutater<
-    InputItem,
+    RoutineVersionInput,
     false,
     false,
-    { graphql: InputItemCreateInput, db: Prisma.routine_version_inputCreateWithoutRoutineVersionInput },
-    { graphql: InputItemUpdateInput, db: Prisma.routine_version_inputUpdateWithoutRoutineVersionInput }
+    { graphql: RoutineVersionInputCreateInput, db: Prisma.routine_version_inputCreateWithoutRoutineVersionInput },
+    { graphql: RoutineVersionInputUpdateInput, db: Prisma.routine_version_inputUpdateWithoutRoutineVersionInput }
 > => ({
     shape: {
         relCreate: async ({ prisma, userData, data }) => {
@@ -54,10 +58,10 @@ const displayer = (): Displayer<
     label: (select, languages) => select.name ?? RoutineModel.display.label(select.routineVersion as any, languages),
 })
 
-export const InputItemModel = ({
+export const RoutineVersionInputModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version_input,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    type: 'InputItem' as GraphQLModelType,
 })

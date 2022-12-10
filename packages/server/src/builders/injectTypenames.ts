@@ -1,6 +1,6 @@
-import { isObject } from "@shared/utils";
 import { ObjectMap } from "../models";
 import { GraphQLModelType, RelationshipMap } from "../models/types";
+import { SingleOrArray } from "../types";
 import { PartialGraphQLInfo } from "./types";
 
 /**
@@ -8,10 +8,9 @@ import { PartialGraphQLInfo } from "./types";
  * @param select - GraphQL select object, partially converted without typenames
  * and keys that map to typemappers for each possible relationship
  * @param parentRelationshipMap - Relationship of last known parent
- * @param nestedFields - Array of nested fields accessed since last parent
  * @return select with __typename fields
  */
-export const injectTypenames = <GraphQLModel>(select: { [x: string]: any }, parentRelationshipMap: RelationshipMap<GraphQLModel>, nestedFields: string[] = []): PartialGraphQLInfo => {
+export const injectTypenames = <GraphQLModel>(select: { [x: string]: any }, parentRelationshipMap: RelationshipMap<GraphQLModel> & { __typename?: string }): PartialGraphQLInfo => {
     // Create result object
     let result: any = {};
     // Iterate over select object
@@ -24,31 +23,26 @@ export const injectTypenames = <GraphQLModel>(select: { [x: string]: any }, pare
             continue;
         }
         // If value is an object, recurse
-        // Find nested value in parent relationship map, using nestedFields
-        let nestedValue: GraphQLModelType | Partial<RelationshipMap<GraphQLModel>> | undefined = parentRelationshipMap;
-        for (const field of nestedFields) {
-            if (!isObject(nestedValue)) break;
-            if (field in nestedValue) {
-                nestedValue = (nestedValue as any)[field];
+        // Find the corresponding relationship map. An array represents a union
+        const nestedValue: SingleOrArray<GraphQLModelType> | undefined = parentRelationshipMap[selectKey];
+        // If union, add each possible type to the result
+        if (nestedValue !== undefined && Array.isArray(nestedValue)) {
+            // Iterate over possible types
+            for (const type of nestedValue) {
+                // If type is in selectValue, add it to the result
+                if (selectValue[type] && ObjectMap[type]) {
+                    result[type] = injectTypenames(selectValue[type], ObjectMap[type]!.format.relationshipMap);
+                }
             }
         }
-        if (typeof nestedValue === 'object') nestedValue = nestedValue[selectKey as keyof GraphQLModel] as any;
-        // If nestedValue is not an object, try to get its relationshipMap
-        let relationshipMap;
-        if (nestedValue !== undefined && typeof nestedValue !== 'object') {
-            relationshipMap = ObjectMap[nestedValue]?.format?.relationshipMap;
-        }
-        // If relationship map found, this becomes the new parent
-        if (relationshipMap) {
-            // New parent found, so we recurse with nestFields removed
-            result[selectKey] = injectTypenames(selectValue, relationshipMap, []);
-        }
+        // If not union, add the single type to the result
         else {
-            // No relationship map found, so we recurse and add this key to the nestedFields
-            result[selectKey] = injectTypenames(selectValue, parentRelationshipMap, [...nestedFields, selectKey]);
+            if (selectValue && ObjectMap[nestedValue!]) {
+                result[selectKey] = injectTypenames(selectValue, ObjectMap[nestedValue!]!.format.relationshipMap);
+            }
         }
     }
-    // Add __typename field if known
-    if (nestedFields.length === 0) result.__typename = parentRelationshipMap.__typename;
+    // Add __typename field
+    result.__typename = parentRelationshipMap.__typename;
     return result;
 }

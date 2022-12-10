@@ -1,5 +1,5 @@
 import { Count, SessionUser } from "../endpoints/types";
-import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
+import { PrismaType, PromiseOrValue, RecursivePartial, SingleOrArray } from "../types";
 import { ArraySchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 
@@ -14,7 +14,6 @@ export type GraphQLModelType =
     'Fork' |
     'Handle' |
     'HistoryResult' |
-    'InputItem' |
     'Issue' |
     'Label' |
     'LearnResult' |
@@ -35,11 +34,11 @@ export type GraphQLModelType =
     'Notification' |
     'NotificationSubscription' |
     'Organization' |
-    'OutputItem' |
+    'Payment' |
     'Phone' |
     'PopularResult' |
     'Post' |
-    'Profile' |
+    'Premium' |
     'Project' |
     'ProjectVersion' |
     'ProjectVersionDirectory' |
@@ -62,6 +61,8 @@ export type GraphQLModelType =
     'Role' |
     'Routine' |
     'RoutineVersion' |
+    'RoutineVersionInput' |
+    'RoutineVersionOutput' |
     'RunProject' |
     'RunProjectSchedule' |
     'RunProjectStep' |
@@ -74,6 +75,15 @@ export type GraphQLModelType =
     'Standard' |
     'StandardVersion' |
     'Star' |
+    'StatsApi' |
+    'StatsNote' |
+    'StatsOrganization' |
+    'StatsProject' |
+    'StatsQuiz' |
+    'StatsRoutine' |
+    'StatsSmartContract' |
+    'StatsStandard' |
+    'StatsUser' |
     'Tag' |
     'Transfer' |
     'User' |
@@ -89,7 +99,7 @@ export type GraphQLModelType =
 */
 export type ModelLogic<
     GQLObject extends { [key: string]: any },
-    GQLFields extends string,
+    SuppFields extends readonly string[],
     Create extends false | MutaterShapes,
     Update extends false | MutaterShapes,
     RelationshipCreate extends false | MutaterShapes,
@@ -107,13 +117,13 @@ export type ModelLogic<
     IsTransferable extends boolean,
     IsVersioned extends boolean,
 > = {
-    format: Formatter<GQLObject, GQLFields>;
+    __typename: GraphQLModelType;
+    format: Formatter<GQLObject, SuppFields>;
     display: Displayer<PermissionsSelect, PrismaObject>;
     delegate: (prisma: PrismaType) => PrismaDelegate;
     search?: Searcher<SearchInput, SortBy, OrderBy, Where>;
     mutate?: Mutater<GQLObject, Create, Update, RelationshipCreate, RelationshipUpdate>;
     validate?: Validator<GQLCreate, GQLUpdate, PrismaObject, PermissionObject, PermissionsSelect, OwnerOrMemberWhere, IsTransferable, IsVersioned>;
-    type: GraphQLModelType;
 }
 
 /**
@@ -130,28 +140,34 @@ export type ValidateMap<T> = {
     [K in keyof T]?: GraphQLModelType | ValidateMap<T[K]>
 };
 
-export type NestedGraphQLModelType = GraphQLModelType | { [fieldName: string]: NestedGraphQLModelType } | { root: GraphQLModelType } | { root: NestedGraphQLModelType };
-
-export type RelationshipMap<GraphQLModel> = { [key in keyof GraphQLModel]?: NestedGraphQLModelType } & { __typename: GraphQLModelType };
+/**
+ * An object which can maps GraphQL fields to GraphQLModelTypes. Normal fields 
+ * are a single GraphQLModelType, while unions are an array of GraphQLModelTypes
+ */
+export type RelationshipMap<T> = {
+    [K in keyof T]?: SingleOrArray<GraphQLModelType>
+}
 
 /**
  * Helper functions for adding and removing supplemental fields. These are fields 
  * are requested in the select query, but are either not in the main database or 
  * cannot be requested in the same query (e.g. isStarred, permissions) 
  */
-export interface SupplementalConverter<GQLModel, GQLFields extends string> {
+export interface SupplementalConverter<
+    SuppFields extends readonly string[]
+> {
     /**
      * List of all supplemental fields added to the GraphQL model after the main query 
      * (i.e. all fields to be excluded)
      */
-    graphqlFields: GQLFields[];
+    graphqlFields: SuppFields;
     /**
      * List of all fields to add to the Prisma select query, in order to calculate 
      * supplemental fields
      */
     dbFields?: string[]; // TODO make type safer
     /**
-     * An array of resolver functions, one for each calculated field
+     * An array of resolver functions, one for each calculated (supplemental) field
      */
     toGraphQL: ({ ids, objects, partial, prisma, userData }: {
         ids: string[],
@@ -160,13 +176,16 @@ export interface SupplementalConverter<GQLModel, GQLFields extends string> {
         partial: PartialGraphQLInfo,
         prisma: PrismaType,
         userData: SessionUser | null,
-    }) => [GQLFields, () => any][];
+    }) => [SuppFields[number], () => any][]
 }
 
 /**
  * Helper functions for converting between Prisma types and GraphQL types
  */
-export interface Formatter<GraphQLModel, GQLFields extends string> {
+export interface Formatter<
+    GQLModel extends Record<string, any>,
+    SuppFields extends readonly string[]
+> {
     /**
      * Maps relationship names to their GraphQL type. 
      * If the relationship is a union (i.e. has mutliple possible types), 
@@ -174,23 +193,24 @@ export interface Formatter<GraphQLModel, GQLFields extends string> {
      * NOTE: The keyword "root" is used to indicate that a relationship belongs in the root 
      * object. This only applies when working with versioned data
      */
-    relationshipMap: RelationshipMap<GraphQLModel>;
+    relationshipMap: RelationshipMap<GQLModel>;
     /**
      * Map used to add/remove join tables from the query
      */
     joinMap?: { [x: string]: string };
     /**
-     * Map used to convert _count fields to their GraphQL equivalents
+     * List of fields which provide the count of a relationship. 
+     * These fields must end with "Count", and exist in the GraphQL object.
+     * Each field of the form {relationship}Count will be converted to
+     * { [relationship]: { _count: true } } in the Prisma query
+     * 
+     * NOTE: Only allows string keys
      */
-    countMap?: { [x: string]: string };
+     countFields?: (keyof GQLModel extends infer R ? R extends `${string}Count` ? R : never : never)[];
     /**
      * List of fields to always exclude from GraphQL results
      */
     hiddenFields?: string[];
-    /**
-     * Maps primitive fields in a versioned object's root table to the GraphQL type. 
-     */
-    rootFields?: string[];
     /**
      * Add join tables which are not present in GraphQL object
      */
@@ -210,7 +230,7 @@ export interface Formatter<GraphQLModel, GQLFields extends string> {
     /**
      * Data for adding supplemental fields to the GraphQL object
      */
-    supplemental?: SupplementalConverter<GraphQLModel, GQLFields>;
+    supplemental?: SupplementalConverter<SuppFields>;
 }
 
 
@@ -529,8 +549,3 @@ export type Displayer<
  * their corresponding join table names.
  */
 export type JoinMap = { [key: string]: string };
-
-/**
- * Mapper for associating a model's GraphQL count fields to the relationships they count
- */
-export type CountMap = { [key: string]: string };

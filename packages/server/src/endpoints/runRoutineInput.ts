@@ -15,7 +15,7 @@ export const typeDef = gql`
     type RunRoutineInput {
         id: ID!
         data: String!
-        input: InputItem!
+        input: RoutineVersionInput!
     }
 
     input RunRoutineInputSearchInput {

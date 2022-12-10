@@ -1,10 +1,9 @@
 import { standardsCreate, standardsUpdate } from "@shared/validation";
 import { StandardSortBy } from "@shared/consts";
-import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Displayer, Formatter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
+import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
 import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from "../endpoints/types";
@@ -18,10 +17,12 @@ import { combineQueries, padSelect, permissionsSelectHelper, visibilityBuilder }
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
-type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsStandard' | 'versions';
-const formatter = (): Formatter<Standard, SupplementalFields> => ({
+const __typename = 'StandardVersion' as const;
+
+const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsStandard'] as const;
+const formatter = (): Formatter<Standard, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Standard',
+        __typename,
         comments: 'Comment',
         // creator: {
         //     root: {
@@ -36,23 +37,15 @@ const formatter = (): Formatter<Standard, SupplementalFields> => ({
         starredBy: 'User',
         tags: 'Tag',
     },
-    rootFields: ['hasCompleteVersion', 'isDeleted', 'isInternal', 'isPrivate', 'name', 'votes', 'stars', 'views', 'permissions'],
     joinMap: { tags: 'tag', starredBy: 'user' },
-    countMap: { commentsCount: 'comments', reportsCount: 'reports' },
+    countFields: ['commentsCount', 'reportsCount'],
     supplemental: {
-        graphqlFields: ['isUpvoted', 'isStarred', 'isViewed', 'permissionsStandard', 'versions'],
+        graphqlFields: suppFields,
         toGraphQL: ({ ids, prisma, userData }) => [
             ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Standard')],
             ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Standard')],
             ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'Standard')],
             ['permissionsStandard', async () => await getSingleTypePermissions('Standard', ids, prisma, userData)],
-            ['versions', async () => {
-                const groupData = await prisma.standard.findMany({
-                    where: { id: { in: ids } },
-                    select: { versions: { select: { id: true, versionLabel: true } } }
-                });
-                return groupData.map(g => g.versions);
-            }],
         ],
     },
 })
@@ -63,7 +56,7 @@ const searcher = (): Searcher<
     Prisma.standard_versionOrderByWithRelationInput,
     Prisma.standard_versionWhereInput
 > => ({
-    defaultSort: StandardSortBy.VotesDesc,
+    defaultSort: StandardSortBy.ScoreDesc,
     sortMap: {
         CommentsAsc: { comments: { _count: 'asc' } },
         CommentsDesc: { comments: { _count: 'desc' } },
@@ -71,10 +64,10 @@ const searcher = (): Searcher<
         DateCreatedDesc: { created_at: 'desc' },
         DateUpdatedAsc: { updated_at: 'asc' },
         DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { root: { stars: 'asc' } },
-        StarsDesc: { root: { stars: 'desc' } },
-        VotesAsc: { root: { votes: 'asc' } },
-        VotesDesc: { root: { votes: 'desc' } },
+        ScoreAsc: { root: { score: 'asc' } },
+        ScoreDesc: { root: { score: 'desc' } },
+        StarsAsc: { root: { starredBy: { _count: 'asc' } } },
+        StarsDesc: { root: { starredBy: { _count: 'desc' } } },
     },
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
@@ -539,12 +532,12 @@ const displayer = (): Displayer<
 })
 
 export const StandardVersionModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.standard_version,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     query: querier(),
     search: searcher(),
-    type: 'StandardVersion' as GraphQLModelType,
     validate: validator(),
 })

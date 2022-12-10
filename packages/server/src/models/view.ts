@@ -23,20 +23,17 @@ interface View {
     to: ViewFor;
 }
 
-const formatter = (): Formatter<View, 'to'> => ({
+const __typename = 'View' as const;
+
+const suppFields = ['to'] as const;
+const formatter = (): Formatter<View, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'View',
+        __typename,
         from: 'User',
-        to: {
-            Organization: 'Organization',
-            Project: 'Project',
-            Routine: 'Routine',
-            Standard: 'Standard',
-            User: 'User',
-        }
+        to: ['Api', 'Note', 'Organization', 'Project', 'Routine', 'Standard', 'User'],
     },
     supplemental: {
-        graphqlFields: ['to'],
+        graphqlFields: suppFields,
         toGraphQL: ({ languages, objects, partial, prisma, userData }) => [
             ['to', async () => {
                 if (!userData) return new Array(objects.length).fill([]);
@@ -86,11 +83,13 @@ const formatter = (): Formatter<View, 'to'> => ({
 })
 
 const forMapper: { [key in ViewFor]: keyof PrismaType } = {
-    Organization: 'organization',
-    Project: 'project_version',
-    Routine: 'routine_version',
-    Standard: 'standard_version',
-    User: 'user',
+    Api: "api",
+    Note: "note",
+    Organization: "organization",
+    Project: "project",
+    Routine: "routine",
+    Standard: "standard",
+    User: "user",
 }
 
 interface ViewInput {
@@ -197,40 +196,26 @@ const view = async (prisma: PrismaType, userData: SessionUser, input: ViewInput)
             const roles = await OrganizationModel.query.hasRole(prisma, userData.id, [input.forId]);
             isOwn = Boolean(roles[0]);
             break;
+        case ViewFor.Api:
+        case ViewFor.Note:
         case ViewFor.Project:
         case ViewFor.Routine:
+        case ViewFor.Standard:
             // Check if project/routine is owned by this user or by an organization they are a member of
-            const object = await (prisma[lowercaseFirstLetter(input.viewFor) as 'project' | 'routine'] as any).findFirst({
+            const object = await (prisma[lowercaseFirstLetter(input.viewFor) as 'api' | 'project' | 'routine' | 'standard'] as any).findFirst({
                 where: {
                     AND: [
                         { id: input.forId },
                         {
                             OR: [
                                 OrganizationModel.query.isMemberOfOrganizationQuery(userData.id),
-                                { user: { id: userData.id } },
-                            ]
-                        }
-                    ]
-                }
-            })
-            if (object) isOwn = true;
-            break;
-        case ViewFor.Standard:
-            // Check if standard is owned by this user or by an organization they are a member of
-            const object2 = await prisma.standard.findFirst({
-                where: {
-                    AND: [
-                        { id: input.forId },
-                        {
-                            OR: [
-                                { ownedByOrganization: OrganizationModel.query.isMemberOfOrganizationQuery(userData.id).organization },
                                 { ownedByUser: { id: userData.id } },
                             ]
                         }
                     ]
                 }
             })
-            if (object2) isOwn = true;
+            if (object) isOwn = true;
             break;
         case ViewFor.User:
             isOwn = userData.id === input.forId;
@@ -305,12 +290,12 @@ const displayer = (): Displayer<
 })
 
 export const ViewModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.view,
     display: displayer(),
     format: formatter(),
     search: searcher(),
     query: querier(),
-    type: 'View' as GraphQLModelType,
     view,
     deleteViews,
     clearViews,

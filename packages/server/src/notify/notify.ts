@@ -5,7 +5,7 @@ import { sendMail } from "./email";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 import { sendPush } from "./push";
 import i18next, { TFuncKey } from 'i18next';
-import { OrganizationModel } from "../models";
+import { OrganizationModel, subscriberMapper } from "../models";
 import { getDelegator, getDisplayer } from "../getters";
 import { GraphQLModelType } from "../models/types";
 import { NotificationSettings } from "../endpoints/types";
@@ -316,22 +316,21 @@ const NotifyResult = ({
             const batch = await prisma.notification_subscription.findMany({
                 where: {
                     AND: [
-                        { objectType },
-                        { objectId },
-                        { userId: { not: excludeUserId } }
+                        { [subscriberMapper[objectType]]: { id: objectId } },
+                        { subscriberId: { not: excludeUserId } }
                     ]
                 },
-                select: { userId: true, silent: true },
+                select: { subscriberId: true, silent: true },
                 skip,
                 take: batchSize,
             });
             skip += batchSize;
             currentBatchSize = batch.length;
             // Shape and translate the notification for each subscriber
-            const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ userId, silent }) => ({
+            const users = await replaceLabels(bodyVariables, titleVariables, silent, prisma, languages, batch.map(({ subscriberId, silent }) => ({
                 languages,
                 silent,
-                userId,
+                userId: subscriberId,
             })));
             // Send the notification to each subscriber
             await push({ bodyKey, category, link, prisma, titleKey, users });

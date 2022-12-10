@@ -18,30 +18,17 @@ import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { combineQueries, onlyValidIds, padSelect } from "../builders";
 import { getDelegator } from "../getters";
 
-const formatter = (): Formatter<Star, 'to'> => ({
+const __typename = 'Star' as const;
+
+const suppFields = ['to'] as const;
+const formatter = (): Formatter<Star, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Star',
+        __typename,
         from: 'User',
-        to: {
-            Api: 'Api',
-            Comment: 'Comment',
-            Issue: 'Issue',
-            Note: 'Note',
-            Organization: 'Organization',
-            Post: 'Post',
-            Project: 'Project',
-            Question: 'Question',
-            QuestionAnswer: 'QuestionAnswer',
-            Quiz: 'Quiz',
-            Routine: 'Routine',
-            SmartContract: 'SmartContract',
-            Standard: 'Standard',
-            Tag: 'Tag',
-            User: 'User',
-        }
+        to: ['Api', 'Comment', 'Issue', 'Note', 'Organization', 'Post', 'Project', 'Question', 'QuestionAnswer', 'Quiz', 'Routine', 'SmartContract', 'Standard', 'Tag', 'User'],
     },
     supplemental: {
-        graphqlFields: ['to'],
+        graphqlFields: suppFields,
         toGraphQL: ({ languages, objects, partial, prisma, userData }) => [
             ['to', async () => {
                 if (!userData) return new Array(objects.length).fill([]);
@@ -260,11 +247,11 @@ const displayer = (): Displayer<
 })
 
 export const StarModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.star,
     display: displayer(),
     format: formatter(),
     query: querier(),
     search: searcher(),
-    type: 'Star' as GraphQLModelType,
     star,
 })

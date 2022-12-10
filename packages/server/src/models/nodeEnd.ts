@@ -6,9 +6,12 @@ import { NodeModel } from "./node";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<NodeEnd, any> => ({
+const __typename = 'NodeEnd' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<NodeEnd, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'NodeEnd',
+        __typename,
     },
 })
 
@@ -44,9 +47,9 @@ const displayer = (): Displayer<
 })
 
 export const NodeEndModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node_end,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    type: 'NodeEnd' as GraphQLModelType,
 })

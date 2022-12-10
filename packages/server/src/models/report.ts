@@ -2,7 +2,7 @@ import { reportsCreate, reportsUpdate } from "@shared/validation";
 import { ReportFor, ReportSortBy } from '@shared/consts';
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { UserModel } from "./user";
@@ -15,12 +15,14 @@ import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { SelectWrap } from "../builders/types";
 
-type SupplementalFields = 'isOwn';
-const formatter = (): Formatter<Report, SupplementalFields> => ({
-    relationshipMap: { __typename: 'Report' },
+const __typename = 'Report' as const;
+
+const suppFields = ['isOwn'] as const;
+const formatter = (): Formatter<Report, typeof suppFields> => ({
+    relationshipMap: { __typename },
     hiddenFields: ['userId'], // Always hide report creator
     supplemental: {
-        graphqlFields: ['isOwn'],
+        graphqlFields: suppFields,
         dbFields: ['userId'],
         toGraphQL: ({ objects, userData }) => [
             ['isOwn', async () => objects.map((x) => Boolean(userData) && x.fromId === userData?.id)],
@@ -197,11 +199,11 @@ const displayer = (): Displayer<
 })
 
 export const ReportModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.report,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),
-    type: 'Report' as GraphQLModelType,
     validate: validator(),
 })

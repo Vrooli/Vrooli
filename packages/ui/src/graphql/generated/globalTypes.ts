@@ -18,10 +18,10 @@ export enum CommentSortBy {
   DateCreatedDesc = "DateCreatedDesc",
   DateUpdatedAsc = "DateUpdatedAsc",
   DateUpdatedDesc = "DateUpdatedDesc",
+  ScoreAsc = "ScoreAsc",
+  ScoreDesc = "ScoreDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
-  VotesAsc = "VotesAsc",
-  VotesDesc = "VotesDesc",
 }
 
 export enum CopyType {
@@ -106,14 +106,14 @@ export enum ProjectOrRoutineSortBy {
   PullRequestsDesc = "PullRequestsDesc",
   QuestionsAsc = "QuestionsAsc",
   QuestionsDesc = "QuestionsDesc",
+  ScoreAsc = "ScoreAsc",
+  ScoreDesc = "ScoreDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
   VersionsAsc = "VersionsAsc",
   VersionsDesc = "VersionsDesc",
   ViewsAsc = "ViewsAsc",
   ViewsDesc = "ViewsDesc",
-  VotesAsc = "VotesAsc",
-  VotesDesc = "VotesDesc",
 }
 
 export enum ProjectSortBy {
@@ -129,14 +129,14 @@ export enum ProjectSortBy {
   PullRequestsDesc = "PullRequestsDesc",
   QuestionsAsc = "QuestionsAsc",
   QuestionsDesc = "QuestionsDesc",
+  ScoreAsc = "ScoreAsc",
+  ScoreDesc = "ScoreDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
   VersionsAsc = "VersionsAsc",
   VersionsDesc = "VersionsDesc",
   ViewsAsc = "ViewsAsc",
   ViewsDesc = "ViewsDesc",
-  VotesAsc = "VotesAsc",
-  VotesDesc = "VotesDesc",
 }
 
 export enum ReportFor {
@@ -220,14 +220,14 @@ export enum RoutineSortBy {
   QuestionsDesc = "QuestionsDesc",
   QuizzesAsc = "QuizzesAsc",
   QuizzesDesc = "QuizzesDesc",
+  ScoreAsc = "ScoreAsc",
+  ScoreDesc = "ScoreDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
   VersionsAsc = "VersionsAsc",
   VersionsDesc = "VersionsDesc",
   ViewsAsc = "ViewsAsc",
   ViewsDesc = "ViewsDesc",
-  VotesAsc = "VotesAsc",
-  VotesDesc = "VotesDesc",
 }
 
 export enum RunRoutineSortBy {
@@ -274,14 +274,14 @@ export enum StandardSortBy {
   PullRequestsDesc = "PullRequestsDesc",
   QuestionsAsc = "QuestionsAsc",
   QuestionsDesc = "QuestionsDesc",
+  ScoreAsc = "ScoreAsc",
+  ScoreDesc = "ScoreDesc",
   StarsAsc = "StarsAsc",
   StarsDesc = "StarsDesc",
   VersionsAsc = "VersionsAsc",
   VersionsDesc = "VersionsDesc",
   ViewsAsc = "ViewsAsc",
   ViewsDesc = "ViewsDesc",
-  VotesAsc = "VotesAsc",
-  VotesDesc = "VotesDesc",
 }
 
 export enum StarFor {
@@ -440,12 +440,6 @@ export interface EmailSignUpInput {
   marketingEmails: boolean;
   password: string;
   confirmPassword: string;
-}
-
-export interface EmailUpdateInput {
-  id: string;
-  receivesAccountUpdates?: boolean | null;
-  receivesBusinessUpdates?: boolean | null;
 }
 
 export interface FeedbackInput {
@@ -854,7 +848,6 @@ export interface PopularInput {
 
 export interface ProfileEmailUpdateInput {
   emailsCreate?: EmailCreateInput[] | null;
-  emailsUpdate?: EmailUpdateInput[] | null;
   emailsDelete?: string[] | null;
   currentPassword: string;
   newPassword?: string | null;

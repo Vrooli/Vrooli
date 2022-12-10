@@ -32,7 +32,6 @@ export const typeDef = gql`
     #type Permission {
     #    members: MemberPermission!
     #    organizations: OrganizationPermission!
-    #    projects: ProjectPermission!
     #    roles: RolePermission!
     #    routines: RoutinePermission!
     #    standards: StandardPermission!

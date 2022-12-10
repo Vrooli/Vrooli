@@ -21,32 +21,31 @@ model award {
 }
 
 model api {
-    id                    String            @id @default(uuid()) @db.Uuid
-    created_at            DateTime          @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime          @default(now()) @db.Timestamptz(6)
-    stars                 Int               @default(0)
-    votes                 Int               @default(0)
-    views                 Int               @default(0)
-    createdById           String?           @db.Uuid
-    ownedByUserId         String?           @db.Uuid
-    ownedByOrganizationId String?           @db.Uuid
-    parentId              String?           @db.Uuid
-    createdBy             user?             @relation("api_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
-    ownedByUser           user?             @relation("api_ownedByUser", fields: [ownedByUserId], references: [id])
-    ownedByOrganization   organization?     @relation("api_ownedByOrganization", fields: [ownedByOrganizationId], references: [id])
-    parent                api_version?      @relation("api_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    id                    String                      @id @default(uuid()) @db.Uuid
+    created_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    score                 Int                         @default(0)
+    createdById           String?                     @db.Uuid
+    ownedByUserId         String?                     @db.Uuid
+    ownedByOrganizationId String?                     @db.Uuid
+    parentId              String?                     @db.Uuid
+    createdBy             user?                       @relation("api_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
+    ownedByUser           user?                       @relation("api_ownedByUser", fields: [ownedByUserId], references: [id])
+    ownedByOrganization   organization?               @relation("api_ownedByOrganization", fields: [ownedByOrganizationId], references: [id])
+    parent                api_version?                @relation("api_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     tags                  api_tags[]
     calledByRoutines      routine_version[]
     issues                issue[]
-    starredBy             star[]            @relation("star_api")
-    votedBy               vote[]            @relation("vote_api")
-    viewsBy               view[]            @relation("view_api")
+    starredBy             star[]                      @relation("star_api")
+    votedBy               vote[]                      @relation("vote_api")
+    viewedBy              view[]                      @relation("view_api")
     pullRequests          pull_request[]
     versions              api_version[]
     labels                api_labels[]
     stats                 stats_api[]
     questions             question[]
-    transfers             transfer[]        @relation("transfer_api")
+    transfers             transfer[]                  @relation("transfer_api")
+    subscriptions         notification_subscription[]
 }
 
 model api_labels {
@@ -118,44 +117,44 @@ model api_key {
 }
 
 model comment {
-    id                     String                  @id @default(uuid()) @db.Uuid
-    created_at             DateTime                @default(now()) @db.Timestamptz(6)
-    updated_at             DateTime                @default(now()) @db.Timestamptz(6)
-    ownedByUserId          String?                 @db.Uuid
-    ownedByOrganizationId  String?                 @db.Uuid
-    apiVersionId           String?                 @db.Uuid
-    issueId                String?                 @db.Uuid
-    noteVersionId          String?                 @db.Uuid
-    parentId               String?                 @db.Uuid
-    postId                 String?                 @db.Uuid
-    projectVersionId       String?                 @db.Uuid
-    pullRequestId          String?                 @db.Uuid
-    questionId             String?                 @db.Uuid
-    questionAnswerId       String?                 @db.Uuid
-    routineVersionId       String?                 @db.Uuid
-    smartContractVersionId String?                 @db.Uuid
-    standardVersionId      String?                 @db.Uuid
-    stars                  Int                     @default(0)
-    votes                  Int                     @default(0)
-    apiVersion             api_version?            @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
-    issue                  issue?                  @relation(fields: [issueId], references: [id], onDelete: Cascade)
-    ownedByOrganization    organization?           @relation("comment_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
-    noteVersion            note_version?           @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
-    parent                 comment?                @relation("comment_parent", fields: [parentId], references: [id], onDelete: Cascade)
-    post                   post?                   @relation(fields: [postId], references: [id], onDelete: Cascade)
-    projectVersion         project_version?        @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
-    pullRequest            pull_request?           @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
-    question               question?               @relation(fields: [questionId], references: [id], onDelete: Cascade)
-    questionAnswer         question_answer?        @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade)
-    routineVersion         routine_version?        @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    smartContractVersion   smart_contract_version? @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
-    standardVersion        standard_version?       @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
-    ownedByUser            user?                   @relation("comment_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
+    id                     String                      @id @default(uuid()) @db.Uuid
+    created_at             DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
+    ownedByUserId          String?                     @db.Uuid
+    ownedByOrganizationId  String?                     @db.Uuid
+    apiVersionId           String?                     @db.Uuid
+    issueId                String?                     @db.Uuid
+    noteVersionId          String?                     @db.Uuid
+    parentId               String?                     @db.Uuid
+    postId                 String?                     @db.Uuid
+    projectVersionId       String?                     @db.Uuid
+    pullRequestId          String?                     @db.Uuid
+    questionId             String?                     @db.Uuid
+    questionAnswerId       String?                     @db.Uuid
+    routineVersionId       String?                     @db.Uuid
+    smartContractVersionId String?                     @db.Uuid
+    standardVersionId      String?                     @db.Uuid
+    score                  Int                         @default(0)
+    apiVersion             api_version?                @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
+    issue                  issue?                      @relation(fields: [issueId], references: [id], onDelete: Cascade)
+    ownedByOrganization    organization?               @relation("comment_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
+    noteVersion            note_version?               @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
+    parent                 comment?                    @relation("comment_parent", fields: [parentId], references: [id], onDelete: Cascade)
+    post                   post?                       @relation(fields: [postId], references: [id], onDelete: Cascade)
+    projectVersion         project_version?            @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
+    pullRequest            pull_request?               @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+    question               question?                   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+    questionAnswer         question_answer?            @relation(fields: [questionAnswerId], references: [id], onDelete: Cascade)
+    routineVersion         routine_version?            @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
+    smartContractVersion   smart_contract_version?     @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
+    standardVersion        standard_version?           @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
+    ownedByUser            user?                       @relation("comment_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     translations           comment_translation[]
     reports                report[]
-    starredBy              star[]                  @relation("star_comment")
-    votedBy                vote[]                  @relation("vote_comment")
-    parents                comment[]               @relation("comment_parent")
+    starredBy              star[]                      @relation("star_comment")
+    votedBy                vote[]                      @relation("vote_comment")
+    parents                comment[]                   @relation("comment_parent")
+    subscriptions          notification_subscription[]
 }
 
 model comment_translation {
@@ -187,36 +186,39 @@ model handle {
 }
 
 model issue {
-    id                  String              @id @default(uuid()) @db.Uuid
-    status              IssueStatus         @default(Open)
-    createdAt           DateTime            @default(now()) @db.Timestamptz(6)
-    updatedAt           DateTime            @updatedAt @db.Timestamptz(6)
-    closedAt            DateTime?           @db.Timestamptz(6)
-    apiId               String?             @db.Uuid
-    organizationId      String?             @db.Uuid
-    noteId              String?             @db.Uuid
-    projectId           String?             @db.Uuid
-    routineId           String?             @db.Uuid
-    smartContractId     String?             @db.Uuid
-    standardId          String?             @db.Uuid
-    closedById          String?             @db.Uuid
-    createdById         String?             @db.Uuid
-    referencedVersionId String?             @db.Uuid
-    api                 api?                @relation(fields: [apiId], references: [id], onDelete: Cascade)
-    organization        organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    note                note?               @relation(fields: [noteId], references: [id], onDelete: Cascade)
-    project             project?            @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    routine             routine?            @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    smartContract       smart_contract?     @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
-    standard            standard?           @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    closedBy            user?               @relation("issue_closedBy", fields: [closedById], references: [id], onDelete: Cascade)
-    createdBy           user?               @relation("issue_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
+    id                  String                      @id @default(uuid()) @db.Uuid
+    status              IssueStatus                 @default(Open)
+    created_at          DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime                    @updatedAt @db.Timestamptz(6)
+    closedAt            DateTime?                   @db.Timestamptz(6)
+    apiId               String?                     @db.Uuid
+    organizationId      String?                     @db.Uuid
+    noteId              String?                     @db.Uuid
+    projectId           String?                     @db.Uuid
+    routineId           String?                     @db.Uuid
+    smartContractId     String?                     @db.Uuid
+    standardId          String?                     @db.Uuid
+    closedById          String?                     @db.Uuid
+    createdById         String?                     @db.Uuid
+    referencedVersionId String?                     @db.Uuid
+    api                 api?                        @relation(fields: [apiId], references: [id], onDelete: Cascade)
+    organization        organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    note                note?                       @relation(fields: [noteId], references: [id], onDelete: Cascade)
+    project             project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    routine             routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    smartContract       smart_contract?             @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
+    standard            standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    closedBy            user?                       @relation("issue_closedBy", fields: [closedById], references: [id], onDelete: Cascade)
+    createdBy           user?                       @relation("issue_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
     comments            comment[]
     labels              issue_labels[]
     reports             report[]
     translations        issue_translation[]
-    votes               vote[]              @relation("vote_issue")
-    stars               star[]              @relation("star_issue")
+    votedBy             vote[]                      @relation("vote_issue")
+    starredBy           star[]                      @relation("star_issue")
+    viewedBy            view[]                      @relation("view_issue")
+    score               Int                         @default(0)
+    subscriptions       notification_subscription[]
 }
 
 model issue_labels {
@@ -416,31 +418,30 @@ model node_routine_list_item_translation {
 }
 
 model note {
-    id                      String         @id @default(uuid()) @db.Uuid
-    created_at              DateTime       @default(now()) @db.Timestamptz(6)
-    updated_at              DateTime       @default(now()) @db.Timestamptz(6)
-    isPrivate               Boolean        @default(false)
-    stars                   Int            @default(0)
-    views                   Int            @default(0)
-    votes                   Int            @default(0)
-    parentId                String?        @db.Uuid
-    createdById             String?        @db.Uuid
-    ownedByUserId           String?        @db.Uuid
-    ownedByOrganizationId   String?        @db.Uuid
-    createdByOrganizationId String?        @db.Uuid
-    parent                  note_version?  @relation("note_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    createdBy               user?          @relation("note_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
-    ownedByUser             user?          @relation("note_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: Cascade)
-    ownedByOrganization     organization?  @relation("note_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
+    id                      String                      @id @default(uuid()) @db.Uuid
+    created_at              DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
+    isPrivate               Boolean                     @default(false)
+    score                   Int                         @default(0)
+    parentId                String?                     @db.Uuid
+    createdById             String?                     @db.Uuid
+    ownedByUserId           String?                     @db.Uuid
+    ownedByOrganizationId   String?                     @db.Uuid
+    createdByOrganizationId String?                     @db.Uuid
+    parent                  note_version?               @relation("note_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    createdBy               user?                       @relation("note_createdBy", fields: [createdById], references: [id], onDelete: Cascade)
+    ownedByUser             user?                       @relation("note_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: Cascade)
+    ownedByOrganization     organization?               @relation("note_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
     versions                note_version[]
     pullRequests            pull_request[]
     labels                  note_labels[]
     issues                  issue[]
     tags                    note_tags[]
-    starredBy               star[]         @relation("star_note")
-    viewedBy                view[]         @relation("view_note")
-    votedBy                 vote[]         @relation("vote_note")
-    transfers               transfer[]     @relation("transfer_note")
+    starredBy               star[]                      @relation("star_note")
+    viewedBy                view[]                      @relation("view_note")
+    votedBy                 vote[]                      @relation("vote_note")
+    transfers               transfer[]                  @relation("transfer_note")
+    subscriptions           notification_subscription[]
 }
 
 model note_labels {
@@ -521,15 +522,39 @@ model push_device {
 }
 
 model notification_subscription {
-    id         String   @id @default(uuid()) @db.Uuid
-    created_at DateTime @default(now()) @db.Timestamptz(6)
-    objectType String   @db.VarChar(64)
-    objectId   String   @db.Uuid
-    userId     String   @db.Uuid
-    silent     Boolean  @default(false)
-    user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([objectType, objectId, userId], name: "notification_subscription_objecttype_objectid_userid_unique")
+    id              String          @id @default(uuid()) @db.Uuid
+    created_at      DateTime        @default(now()) @db.Timestamptz(6)
+    apiId           String?         @db.Uuid
+    commentId       String?         @db.Uuid
+    issueId         String?         @db.Uuid
+    meetingId       String?         @db.Uuid
+    noteId          String?         @db.Uuid
+    organizationId  String?         @db.Uuid
+    projectId       String?         @db.Uuid
+    pullRequestId   String?         @db.Uuid
+    questionId      String?         @db.Uuid
+    quizId          String?         @db.Uuid
+    reportId        String?         @db.Uuid
+    routineId       String?         @db.Uuid
+    smartContractId String?         @db.Uuid
+    standardId      String?         @db.Uuid
+    api             api?            @relation(fields: [apiId], references: [id], onDelete: Cascade)
+    comment         comment?        @relation(fields: [commentId], references: [id], onDelete: Cascade)
+    issue           issue?          @relation(fields: [issueId], references: [id], onDelete: Cascade)
+    meeting         meeting?        @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+    note            note?           @relation(fields: [noteId], references: [id], onDelete: Cascade)
+    organization    organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    project         project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    pullRequest     pull_request?   @relation(fields: [pullRequestId], references: [id], onDelete: Cascade)
+    question        question?       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+    quiz            quiz?           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+    report          report?         @relation(fields: [reportId], references: [id], onDelete: Cascade)
+    routine         routine?        @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    smartContract   smart_contract? @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
+    standard        standard?       @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    subscriberId    String          @db.Uuid
+    silent          Boolean         @default(false)
+    subscriber      user            @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
 }
 
 model organization {
@@ -539,9 +564,8 @@ model organization {
     handle             String?                     @unique @db.VarChar(16)
     isOpenToNewMembers Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
-    stars              Int                         @default(0)
-    views              Int                         @default(0)
     permissions        String                      @db.VarChar(4096)
+    parentId           String?                     @db.Uuid
     premiumId          String?                     @unique @db.Uuid
     resourceListId     String?                     @unique @db.Uuid
     createdById        String?                     @db.Uuid
@@ -551,7 +575,7 @@ model organization {
     notes              note[]                      @relation("note_ownedByOrganization")
     apis               api[]                       @relation("api_ownedByOrganization")
     comments           comment[]                   @relation("comment_ownedByOrganization")
-    schedules          meeting[]
+    meetings           meeting[]
     paymentHistory     payment[]
     posts              post[]
     premium            premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
@@ -576,6 +600,9 @@ model organization {
     stats              stats_organization[]
     questions          question[]
     directoryListings  project_version_directory[]
+    subscriptions      notification_subscription[]
+    parent             organization?               @relation("organization_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    forks              organization[]              @relation("organization_version_fork")
 }
 
 model organization_language {
@@ -588,25 +615,26 @@ model organization_language {
 }
 
 model meeting {
-    id                        String                @id @default(uuid()) @db.Uuid
-    created_at                DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at                DateTime              @default(now()) @db.Timestamptz(6)
-    inviteId                  String?               @db.Uuid
-    openToAnyoneWithInvite    Boolean               @default(false)
-    showOnOrganizationProfile Boolean               @default(false)
-    timezone                  String?               @db.VarChar(128)
-    eventStart                DateTime?             @db.Timestamptz(6)
-    eventEnd                  DateTime?             @db.Timestamptz(6)
-    recurring                 Boolean               @default(false)
-    recurrStart               DateTime?             @db.Timestamptz(6)
-    recurrEnd                 DateTime?             @db.Timestamptz(6)
-    organizationId            String                @db.Uuid
-    organization              organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    id                        String                      @id @default(uuid()) @db.Uuid
+    created_at                DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at                DateTime                    @default(now()) @db.Timestamptz(6)
+    inviteId                  String?                     @db.Uuid
+    openToAnyoneWithInvite    Boolean                     @default(false)
+    showOnOrganizationProfile Boolean                     @default(false)
+    timezone                  String?                     @db.VarChar(128)
+    eventStart                DateTime?                   @db.Timestamptz(6)
+    eventEnd                  DateTime?                   @db.Timestamptz(6)
+    recurring                 Boolean                     @default(false)
+    recurrStart               DateTime?                   @db.Timestamptz(6)
+    recurrEnd                 DateTime?                   @db.Timestamptz(6)
+    organizationId            String                      @db.Uuid
+    organization              organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     restrictedToRoles         meeting_roles[]
     attendees                 meeting_attendees[]
     invites                   meeting_invite[]
     labels                    meeting_labels[]
     translations              meeting_translation[]
+    subscriptions             notification_subscription[]
 }
 
 model meeting_attendees {
@@ -727,6 +755,7 @@ model post {
     isPinned       Boolean            @default(false)
     isPublic       Boolean            @default(false)
     isDeleted      Boolean            @default(false)
+    score          Int                @default(0)
     organizationId String?            @db.Uuid
     userId         String?            @db.Uuid
     organization   organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -804,38 +833,37 @@ model premium {
 }
 
 model project {
-    id                    String            @id @default(uuid()) @db.Uuid
-    created_at            DateTime          @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime          @default(now()) @db.Timestamptz(6)
-    hasCompleteVersion    Boolean           @default(false)
-    isDeleted             Boolean           @default(false)
-    isPrivate             Boolean           @default(false)
-    completedAt           DateTime?         @db.Timestamptz(6)
-    votes                 Int               @default(0)
-    stars                 Int               @default(0)
-    views                 Int               @default(0)
-    permissions           String            @db.VarChar(4096)
-    createdById           String?           @db.Uuid
-    handle                String?           @unique @db.VarChar(16)
-    ownedByUserId         String?           @db.Uuid
-    ownedByOrganizationId String?           @db.Uuid
-    parentId              String?           @db.Uuid
-    createdBy             user?             @relation("project_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    ownedByOrganization   organization?     @relation("project_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
-    ownedByUser           user?             @relation("project_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
-    parent                project_version?  @relation("project_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    id                    String                      @id @default(uuid()) @db.Uuid
+    created_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasCompleteVersion    Boolean                     @default(false)
+    isDeleted             Boolean                     @default(false)
+    isPrivate             Boolean                     @default(false)
+    completedAt           DateTime?                   @db.Timestamptz(6)
+    score                 Int                         @default(0)
+    permissions           String                      @db.VarChar(4096)
+    createdById           String?                     @db.Uuid
+    handle                String?                     @unique @db.VarChar(16)
+    ownedByUserId         String?                     @db.Uuid
+    ownedByOrganizationId String?                     @db.Uuid
+    parentId              String?                     @db.Uuid
+    createdBy             user?                       @relation("project_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    ownedByOrganization   organization?               @relation("project_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
+    ownedByUser           user?                       @relation("project_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
+    parent                project_version?            @relation("project_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     issues                issue[]
     labels                project_labels[]
     tags                  project_tags[]
     versions              project_version[]
-    starredBy             star[]            @relation("star_project")
-    viewedBy              view[]            @relation("view_project")
-    votedBy               vote[]            @relation("vote_project")
+    starredBy             star[]                      @relation("star_project")
+    viewedBy              view[]                      @relation("view_project")
+    votedBy               vote[]                      @relation("vote_project")
     pullRequests          pull_request[]
     stats                 stats_project[]
     questions             question[]
-    transfers             transfer[]        @relation("transfer_project")
+    transfers             transfer[]                  @relation("transfer_project")
     quizzes               quiz[]
+    subscriptions         notification_subscription[]
 }
 
 model project_version {
@@ -875,24 +903,36 @@ model project_version {
 }
 
 model project_version_directory {
-    id                  String                      @id @default(uuid()) @db.Uuid
-    created_at          DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime                    @default(now()) @db.Timestamptz(6)
-    isRoot              Boolean                     @default(false)
-    parentDirectoryId   String?                     @db.Uuid
-    childOrder          String?                     @db.VarChar(4096)
-    projectVersionId    String?                     @db.Uuid
-    parentDirectory     project_version_directory?  @relation("project_version_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
-    projectVersion      project_version?            @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: SetNull)
-    children            project_version_directory[] @relation("project_version_directory_parent")
+    id                  String                                  @id @default(uuid()) @db.Uuid
+    created_at          DateTime                                @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime                                @default(now()) @db.Timestamptz(6)
+    isRoot              Boolean                                 @default(false)
+    parentDirectoryId   String?                                 @db.Uuid
+    childOrder          String?                                 @db.VarChar(4096)
+    projectVersionId    String?                                 @db.Uuid
+    parentDirectory     project_version_directory?              @relation("project_version_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
+    projectVersion      project_version?                        @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: SetNull)
+    children            project_version_directory[]             @relation("project_version_directory_parent")
     childApis           api_version[]
     childNotes          note_version[]
     childOrganizations  organization[]
-    childProjects       project_version[]           @relation("project_version_directory_listing")
+    childProjects       project_version[]                       @relation("project_version_directory_listing")
     childRoutines       routine_version[]
     childSmartContracts smart_contract_version[]
     childStandards      standard_version[]
-    runSteps            run_project_step[]          @relation("run_project_step_directory")
+    runSteps            run_project_step[]                      @relation("run_project_step_directory")
+    translations        project_version_directory_translation[]
+}
+
+model project_version_directory_translation {
+    id                        String                    @id @default(uuid()) @db.Uuid
+    description               String?                   @db.VarChar(2048)
+    name                      String?                   @db.VarChar(128)
+    language                  String                    @db.VarChar(3)
+    projectVersionDirectoryId String                    @db.Uuid
+    projectVersionDirectory   project_version_directory @relation(fields: [projectVersionDirectoryId], references: [id], onDelete: Cascade)
+
+    @@unique([projectVersionDirectoryId, language])
 }
 
 model project_version_translation {
@@ -937,61 +977,62 @@ model project_labels {
 }
 
 model pull_request {
-    id                       String                  @id @default(uuid()) @db.Uuid
-    created_at               DateTime                @default(now()) @db.Timestamptz(6)
-    updated_at               DateTime                @default(now()) @db.Timestamptz(6)
-    status                   PullRequestStatus       @default(Open)
-    mergedOrRejectedAt       DateTime?               @db.Timestamptz(6)
-    createdById              String?                 @db.Uuid
-    toApiId                  String?                 @db.Uuid
-    toNoteId                 String?                 @db.Uuid
-    toProjectId              String?                 @db.Uuid
-    toRoutineId              String?                 @db.Uuid
-    toSmartContractId        String?                 @db.Uuid
-    toStandardId             String?                 @db.Uuid
-    createdBy                user?                   @relation("pull_request_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    toApi                    api?                    @relation(fields: [toApiId], references: [id], onDelete: Cascade)
-    fromApiVersion           api_version?            @relation("pull_request_from_api_version")
-    note                     note?                   @relation(fields: [toNoteId], references: [id], onDelete: Cascade)
-    fromNoteVersion          note_version?           @relation("pull_request_from_note_version")
-    project                  project?                @relation(fields: [toProjectId], references: [id], onDelete: Cascade)
-    fromProjectVersion       project_version?        @relation("pull_request_from_project_version")
-    routine                  routine?                @relation(fields: [toRoutineId], references: [id], onDelete: Cascade)
-    fromRoutineVersion       routine_version?        @relation("pull_request_from_routine_version")
-    smartContract            smart_contract?         @relation(fields: [toSmartContractId], references: [id], onDelete: Cascade)
-    fromSmartContractVersion smart_contract_version? @relation("pull_request_from_smart_contract_version")
-    standard                 standard?               @relation(fields: [toStandardId], references: [id], onDelete: Cascade)
-    fromStandardVersion      standard_version?       @relation("pull_request_from_standard_version")
+    id                       String                      @id @default(uuid()) @db.Uuid
+    created_at               DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at               DateTime                    @default(now()) @db.Timestamptz(6)
+    status                   PullRequestStatus           @default(Open)
+    mergedOrRejectedAt       DateTime?                   @db.Timestamptz(6)
+    createdById              String?                     @db.Uuid
+    toApiId                  String?                     @db.Uuid
+    toNoteId                 String?                     @db.Uuid
+    toProjectId              String?                     @db.Uuid
+    toRoutineId              String?                     @db.Uuid
+    toSmartContractId        String?                     @db.Uuid
+    toStandardId             String?                     @db.Uuid
+    createdBy                user?                       @relation("pull_request_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    toApi                    api?                        @relation(fields: [toApiId], references: [id], onDelete: Cascade)
+    fromApiVersion           api_version?                @relation("pull_request_from_api_version")
+    toNote                   note?                       @relation(fields: [toNoteId], references: [id], onDelete: Cascade)
+    fromNoteVersion          note_version?               @relation("pull_request_from_note_version")
+    toProject                project?                    @relation(fields: [toProjectId], references: [id], onDelete: Cascade)
+    fromProjectVersion       project_version?            @relation("pull_request_from_project_version")
+    toRoutine                routine?                    @relation(fields: [toRoutineId], references: [id], onDelete: Cascade)
+    fromRoutineVersion       routine_version?            @relation("pull_request_from_routine_version")
+    toSmartContract          smart_contract?             @relation(fields: [toSmartContractId], references: [id], onDelete: Cascade)
+    fromSmartContractVersion smart_contract_version?     @relation("pull_request_from_smart_contract_version")
+    toStandard               standard?                   @relation(fields: [toStandardId], references: [id], onDelete: Cascade)
+    fromStandardVersion      standard_version?           @relation("pull_request_from_standard_version")
     comments                 comment[]
+    subscriptions            notification_subscription[]
 }
 
 model question {
-    id                String                 @id @default(uuid()) @db.Uuid
-    created_at        DateTime               @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime               @default(now()) @db.Timestamptz(6)
-    referencing       String?                @db.VarChar(2048) // Describes what part of object the question is about, in JSON
-    hasAcceptedAnswer Boolean                @default(false)
-    score             Int                    @default(0)
-    stars             Int                    @default(0)
-    apiId             String?                @db.Uuid
-    organizationId    String?                @db.Uuid
-    projectId         String?                @db.Uuid
-    routineId         String?                @db.Uuid
-    smartContractId   String?                @db.Uuid
-    standardId        String?                @db.Uuid
-    createdById       String?                @db.Uuid
-    api               api?                   @relation(fields: [apiId], references: [id], onDelete: Cascade)
-    organization      organization?          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    project           project?               @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    routine           routine?               @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    smartContract     smart_contract?        @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
-    standard          standard?              @relation(fields: [standardId], references: [id], onDelete: Cascade)
-    createdBy         user?                  @relation("question_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    id                String                      @id @default(uuid()) @db.Uuid
+    created_at        DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime                    @default(now()) @db.Timestamptz(6)
+    referencing       String?                     @db.VarChar(2048) // Describes what part of object the question is about, in JSON
+    hasAcceptedAnswer Boolean                     @default(false)
+    score             Int                         @default(0)
+    apiId             String?                     @db.Uuid
+    organizationId    String?                     @db.Uuid
+    projectId         String?                     @db.Uuid
+    routineId         String?                     @db.Uuid
+    smartContractId   String?                     @db.Uuid
+    standardId        String?                     @db.Uuid
+    createdById       String?                     @db.Uuid
+    api               api?                        @relation(fields: [apiId], references: [id], onDelete: Cascade)
+    organization      organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    project           project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    routine           routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    smartContract     smart_contract?             @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
+    standard          standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    createdBy         user?                       @relation("question_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     comments          comment[]
     answers           question_answer[]
-    starredBy         star[]                 @relation("star_question")
-    votedBy           vote[]                 @relation("vote_question")
+    starredBy         star[]                      @relation("star_question")
+    votedBy           vote[]                      @relation("vote_question")
     translations      question_translation[]
+    subscriptions     notification_subscription[]
 }
 
 model question_translation {
@@ -1010,7 +1051,6 @@ model question_answer {
     created_at   DateTime                      @default(now()) @db.Timestamptz(6)
     updated_at   DateTime                      @default(now()) @db.Timestamptz(6)
     score        Int                           @default(0)
-    stars        Int                           @default(0)
     isAccepted   Boolean                       @default(false)
     questionId   String                        @db.Uuid
     createdById  String?                       @db.Uuid
@@ -1034,29 +1074,29 @@ model question_answer_translation {
 }
 
 model quiz {
-    id                     String             @id @default(uuid()) @db.Uuid
-    created_at             DateTime           @default(now()) @db.Timestamptz(6)
-    updated_at             DateTime           @default(now()) @db.Timestamptz(6)
+    id                     String                      @id @default(uuid()) @db.Uuid
+    created_at             DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
     maxAttempts            Int?
-    randomizeQuestionOrder Boolean            @default(false)
-    revealCorrectAnswers   Boolean            @default(true)
+    randomizeQuestionOrder Boolean                     @default(false)
+    revealCorrectAnswers   Boolean                     @default(true)
     timeLimit              Int?
-    wasAutoGenerated       Boolean            @default(false)
+    wasAutoGenerated       Boolean                     @default(false)
     pointsToPass           Int?
-    score                  Int                @default(0)
-    stars                  Int                @default(0)
-    routineId              String?            @db.Uuid
-    projectId              String?            @db.Uuid
-    userId                 String?            @db.Uuid
-    routine                routine?           @relation(fields: [routineId], references: [id], onDelete: Cascade)
-    project                project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    user                   user?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+    score                  Int                         @default(0)
+    routineId              String?                     @db.Uuid
+    projectId              String?                     @db.Uuid
+    userId                 String?                     @db.Uuid
+    routine                routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    project                project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    user                   user?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
     questions              quiz_question[]
-    starredBy              star[]             @relation("star_quiz")
-    votedBy                vote[]             @relation("vote_quiz")
+    starredBy              star[]                      @relation("star_quiz")
+    votedBy                vote[]                      @relation("vote_quiz")
     translations           quiz_translation[]
     stats                  stats_quiz[]
     attempts               quiz_attempt[]
+    subscriptions          notification_subscription[]
 }
 
 model quiz_translation {
@@ -1133,68 +1173,69 @@ model reminder_list {
 }
 
 model reminder {
-    id             String        @id @default(uuid()) @db.Uuid
-    created_at     DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime      @default(now()) @db.Timestamptz(6)
-    name           String        @db.VarChar(128)
-    description    String?       @db.VarChar(2048)
-    dueDate        DateTime?     @db.Timestamptz(6)
-    completed      Boolean       @default(false)
+    id             String          @id @default(uuid()) @db.Uuid
+    created_at     DateTime        @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime        @default(now()) @db.Timestamptz(6)
+    name           String          @db.VarChar(128)
+    description    String?         @db.VarChar(2048)
+    dueDate        DateTime?       @db.Timestamptz(6)
+    completed      Boolean         @default(false)
     index          Int
-    reminderListId String        @db.Uuid
+    reminderListId String          @db.Uuid
     reminderItems  reminder_item[]
-    reminderList   reminder_list @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
+    reminderList   reminder_list   @relation(fields: [reminderListId], references: [id], onDelete: Cascade)
 }
 
 model reminder_item {
-    id          String     @id @default(uuid()) @db.Uuid
-    created_at  DateTime   @default(now()) @db.Timestamptz(6)
-    updated_at  DateTime   @default(now()) @db.Timestamptz(6)
-    name        String     @db.VarChar(128)
-    description String?    @db.VarChar(2048)
-    dueDate     DateTime?  @db.Timestamptz(6)
+    id          String    @id @default(uuid()) @db.Uuid
+    created_at  DateTime  @default(now()) @db.Timestamptz(6)
+    updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+    name        String    @db.VarChar(128)
+    description String?   @db.VarChar(2048)
+    dueDate     DateTime? @db.Timestamptz(6)
     index       Int
-    reminderId  String     @db.Uuid
-    reminder    reminder   @relation(fields: [reminderId], references: [id], onDelete: Cascade)
-    completed   Boolean    @default(false)
+    reminderId  String    @db.Uuid
+    reminder    reminder  @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+    completed   Boolean   @default(false)
 }
 
 model report {
-    id                     String                  @id @default(uuid()) @db.Uuid
-    reason                 String                  @db.VarChar(128)
-    details                String?                 @db.VarChar(1024)
-    language               String                  @db.VarChar(3)
-    created_at             DateTime                @default(now()) @db.Timestamptz(6)
+    id                     String                      @id @default(uuid()) @db.Uuid
+    reason                 String                      @db.VarChar(128)
+    details                String?                     @db.VarChar(1024)
+    language               String                      @db.VarChar(3)
+    created_at             DateTime                    @default(now()) @db.Timestamptz(6)
     status                 ReportStatus
-    fromId                 String                  @db.Uuid
-    apiVersionId           String?                 @db.Uuid
-    commentId              String?                 @db.Uuid
-    issueId                String?                 @db.Uuid
-    noteVersionId          String?                 @db.Uuid
-    organizationId         String?                 @db.Uuid
-    postId                 String?                 @db.Uuid
-    projectVersionId       String?                 @db.Uuid
-    routineVersionId       String?                 @db.Uuid
-    smartContractVersionId String?                 @db.Uuid
-    standardVersionId      String?                 @db.Uuid
-    tagId                  String?                 @db.Uuid
-    userId                 String?                 @db.Uuid
-    createdById            String?                 @db.Uuid
-    apiVersion             api_version?            @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
-    comment                comment?                @relation(fields: [commentId], references: [id], onDelete: Cascade)
-    issue                  issue?                  @relation(fields: [issueId], references: [id], onDelete: Cascade)
-    noteVersion            note_version?           @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
-    from                   user                    @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
-    organization           organization?           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    post                   post?                   @relation(fields: [postId], references: [id], onDelete: Cascade)
-    projectVersion         project_version?        @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
-    routineVersion         routine_version?        @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    smartContractVersion   smart_contract_version? @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
-    standardVersion        standard_version?       @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
-    tag                    tag?                    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-    user                   user?                   @relation("report_user", fields: [userId], references: [id], onDelete: Cascade)
-    createdBy              user?                   @relation("report_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    fromId                 String                      @db.Uuid
+    apiVersionId           String?                     @db.Uuid
+    commentId              String?                     @db.Uuid
+    issueId                String?                     @db.Uuid
+    noteVersionId          String?                     @db.Uuid
+    organizationId         String?                     @db.Uuid
+    postId                 String?                     @db.Uuid
+    projectVersionId       String?                     @db.Uuid
+    routineVersionId       String?                     @db.Uuid
+    smartContractVersionId String?                     @db.Uuid
+    standardVersionId      String?                     @db.Uuid
+    tagId                  String?                     @db.Uuid
+    userId                 String?                     @db.Uuid
+    createdById            String?                     @db.Uuid
+    apiVersion             api_version?                @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
+    comment                comment?                    @relation(fields: [commentId], references: [id], onDelete: Cascade)
+    issue                  issue?                      @relation(fields: [issueId], references: [id], onDelete: Cascade)
+    noteVersion            note_version?               @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
+    from                   user                        @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
+    organization           organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    post                   post?                       @relation(fields: [postId], references: [id], onDelete: Cascade)
+    projectVersion         project_version?            @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
+    routineVersion         routine_version?            @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
+    smartContractVersion   smart_contract_version?     @relation(fields: [smartContractVersionId], references: [id], onDelete: Cascade)
+    standardVersion        standard_version?           @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
+    tag                    tag?                        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+    user                   user?                       @relation("report_user", fields: [userId], references: [id], onDelete: Cascade)
+    createdBy              user?                       @relation("report_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     responses              report_response[]
+    subscriptions          notification_subscription[]
 }
 
 model report_response {
@@ -1297,38 +1338,37 @@ model role_translation {
 }
 
 model routine {
-    id                    String            @id @default(uuid()) @db.Uuid
-    created_at            DateTime          @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime          @default(now()) @db.Timestamptz(6)
-    hasCompleteVersion    Boolean           @default(false)
-    completedAt           DateTime?         @db.Timestamptz(6)
-    isDeleted             Boolean           @default(false)
-    isInternal            Boolean           @default(false)
-    isPrivate             Boolean           @default(false)
-    votes                 Int               @default(0)
-    stars                 Int               @default(0)
-    views                 Int               @default(0)
-    permissions           String            @db.VarChar(4096)
-    createdById           String?           @db.Uuid
-    ownedByOrganizationId String?           @db.Uuid
-    parentId              String?           @db.Uuid
-    ownedByUserId         String?           @db.Uuid
-    createdBy             user?             @relation("routine_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    id                    String                      @id @default(uuid()) @db.Uuid
+    created_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasCompleteVersion    Boolean                     @default(false)
+    completedAt           DateTime?                   @db.Timestamptz(6)
+    isDeleted             Boolean                     @default(false)
+    isInternal            Boolean                     @default(false)
+    isPrivate             Boolean                     @default(false)
+    score                 Int                         @default(0)
+    permissions           String                      @db.VarChar(4096)
+    createdById           String?                     @db.Uuid
+    ownedByOrganizationId String?                     @db.Uuid
+    parentId              String?                     @db.Uuid
+    ownedByUserId         String?                     @db.Uuid
+    createdBy             user?                       @relation("routine_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     issues                issue[]
-    ownedByOrganization   organization?     @relation("routine_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
-    parent                routine_version?  @relation("routine_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    ownedByOrganization   organization?               @relation("routine_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
+    parent                routine_version?            @relation("routine_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     quizzes               quiz[]
-    ownedByUser           user?             @relation("routine_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
+    ownedByUser           user?                       @relation("routine_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     labels                routine_labels[]
     tags                  routine_tags[]
-    starredBy             star[]            @relation("star_routine")
+    starredBy             star[]                      @relation("star_routine")
     versions              routine_version[]
-    viewedBy              view[]            @relation("view_routine")
-    votedBy               vote[]            @relation("vote_routine")
+    viewedBy              view[]                      @relation("view_routine")
+    votedBy               vote[]                      @relation("vote_routine")
     pullRequests          pull_request[]
     stats                 stats_routine[]
     questions             question[]
-    transfers             transfer[]        @relation("transfer_routine")
+    transfers             transfer[]                  @relation("transfer_routine")
+    subscriptions         notification_subscription[]
 }
 
 model routine_version {
@@ -1635,37 +1675,36 @@ model run_routine_schedule_translation {
 }
 
 model smart_contract {
-    id                    String                   @id @default(uuid()) @db.Uuid
-    created_at            DateTime                 @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime                 @default(now()) @db.Timestamptz(6)
-    hasCompleteVersion    Boolean                  @default(false)
-    completedAt           DateTime?                @db.Timestamptz(6)
-    isDeleted             Boolean                  @default(false)
-    isPrivate             Boolean                  @default(false)
-    votes                 Int                      @default(0)
-    stars                 Int                      @default(0)
-    views                 Int                      @default(0)
-    permissions           String                   @db.VarChar(4096)
-    createdById           String?                  @db.Uuid
-    ownedByOrganizationId String?                  @db.Uuid
-    parentId              String?                  @db.Uuid
-    ownedByUserId         String?                  @db.Uuid
-    createdBy             user?                    @relation("smart_contract_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    id                    String                      @id @default(uuid()) @db.Uuid
+    created_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasCompleteVersion    Boolean                     @default(false)
+    completedAt           DateTime?                   @db.Timestamptz(6)
+    isDeleted             Boolean                     @default(false)
+    isPrivate             Boolean                     @default(false)
+    score                 Int                         @default(0)
+    permissions           String                      @db.VarChar(4096)
+    createdById           String?                     @db.Uuid
+    ownedByOrganizationId String?                     @db.Uuid
+    parentId              String?                     @db.Uuid
+    ownedByUserId         String?                     @db.Uuid
+    createdBy             user?                       @relation("smart_contract_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     calledByRoutines      routine_version[]
     issues                issue[]
-    ownedByOrganization   organization?            @relation("smart_contract_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
-    parent                smart_contract_version?  @relation("smart_contract_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
-    ownedByUser           user?                    @relation("smart_contract_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
+    ownedByOrganization   organization?               @relation("smart_contract_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
+    parent                smart_contract_version?     @relation("smart_contract_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    ownedByUser           user?                       @relation("smart_contract_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     labels                smart_contract_labels[]
     tags                  smart_contract_tags[]
-    starredBy             star[]                   @relation("star_smart_contract")
+    starredBy             star[]                      @relation("star_smart_contract")
     versions              smart_contract_version[]
-    viewedBy              view[]                   @relation("view_smart_contract")
-    votedBy               vote[]                   @relation("vote_smart_contract")
+    viewedBy              view[]                      @relation("view_smart_contract")
+    votedBy               vote[]                      @relation("vote_smart_contract")
     pullRequests          pull_request[]
     stats                 stats_smart_contract[]
     questions             question[]
-    transfers             transfer[]               @relation("transfer_smart_contract")
+    transfers             transfer[]                  @relation("transfer_smart_contract")
+    subscriptions         notification_subscription[]
 }
 
 model smart_contract_version {
@@ -1732,39 +1771,38 @@ model smart_contract_labels {
 }
 
 model standard {
-    id                    String             @id @default(uuid()) @db.Uuid
-    created_at            DateTime           @default(now()) @db.Timestamptz(6)
-    updated_at            DateTime           @default(now()) @db.Timestamptz(6)
-    hasCompleteVersion    Boolean            @default(false)
-    completedAt           DateTime?          @db.Timestamptz(6)
-    name                  String             @db.VarChar(128)
-    votes                 Int                @default(0)
-    stars                 Int                @default(0)
-    permissions           String             @db.VarChar(4096)
-    isDeleted             Boolean            @default(false)
-    isInternal            Boolean            @default(false)
-    isPrivate             Boolean            @default(false)
-    parentId              String?            @db.Uuid
-    views                 Int                @default(0)
-    createdById           String?            @db.Uuid
-    ownedByUserId         String?            @db.Uuid
-    ownedByOrganizationId String?            @db.Uuid
-    createdBy             user?              @relation("standard_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    ownedByOrganization   organization?      @relation("standard_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
-    ownedByUser           user?              @relation("standard_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
+    id                    String                      @id @default(uuid()) @db.Uuid
+    created_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
+    hasCompleteVersion    Boolean                     @default(false)
+    completedAt           DateTime?                   @db.Timestamptz(6)
+    name                  String                      @db.VarChar(128)
+    score                 Int                         @default(0)
+    permissions           String                      @db.VarChar(4096)
+    isDeleted             Boolean                     @default(false)
+    isInternal            Boolean                     @default(false)
+    isPrivate             Boolean                     @default(false)
+    parentId              String?                     @db.Uuid
+    createdById           String?                     @db.Uuid
+    ownedByUserId         String?                     @db.Uuid
+    ownedByOrganizationId String?                     @db.Uuid
+    createdBy             user?                       @relation("standard_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
+    ownedByOrganization   organization?               @relation("standard_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
+    ownedByUser           user?                       @relation("standard_ownedByUser", fields: [ownedByUserId], references: [id], onDelete: SetNull)
     issues                issue[]
     labels                standard_labels[]
-    parent                standard_version?  @relation("standard_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
+    parent                standard_version?           @relation("standard_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     tags                  standard_tags[]
-    starredBy             star[]             @relation("star_standard")
+    starredBy             star[]                      @relation("star_standard")
     versions              standard_version[]
-    viewedBy              view[]             @relation("view_standard")
-    votedBy               vote[]             @relation("vote_standard")
+    viewedBy              view[]                      @relation("view_standard")
+    votedBy               vote[]                      @relation("vote_standard")
     pullRequests          pull_request[]
     stats                 stats_standard[]
     questions             question[]
-    transfers             transfer[]         @relation("transfer_standard")
+    transfers             transfer[]                  @relation("transfer_standard")
     quizQuestions         quiz_question[]
+    subscriptions         notification_subscription[]
 
     @@unique([ownedByUserId, ownedByOrganizationId, name], name: "standard_ownedByUserId_ownedByOrganizationId_name_unique")
 }
@@ -2027,7 +2065,6 @@ model tag {
     updated_at      DateTime               @default(now()) @db.Timestamptz(6)
     tag             String                 @unique @db.VarChar(128)
     createdById     String?                @db.Uuid
-    stars           Int                    @default(0)
     createdBy       user?                  @relation("tag_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     apis            api_tags[]
     notes           note_tags[]
@@ -2125,8 +2162,6 @@ model user {
     currentStreak                  Int                         @default(0)
     longestStreak                  Int                         @default(0)
     accountTabsOrder               String?                     @db.VarChar(255)
-    stars                          Int                         @default(0)
-    views                          Int                         @default(0)
     notificationSettings           String?                     @db.VarChar(2048)
     premiumId                      String?                     @unique @db.Uuid
     status                         AccountStatus               @default(Unlocked)
@@ -2266,6 +2301,7 @@ model view {
     name            String          @db.VarChar(128)
     byId            String          @db.Uuid
     apiId           String?         @db.Uuid
+    issueId         String?         @db.Uuid
     organizationId  String?         @db.Uuid
     noteId          String?         @db.Uuid
     postId          String?         @db.Uuid
@@ -2276,6 +2312,7 @@ model view {
     userId          String?         @db.Uuid
     by              user            @relation("view_by", fields: [byId], references: [id], onDelete: Cascade)
     api             api?            @relation("view_api", fields: [apiId], references: [id], onDelete: Cascade)
+    issue           issue?          @relation("view_issue", fields: [issueId], references: [id], onDelete: Cascade)
     organization    organization?   @relation("view_organization", fields: [organizationId], references: [id], onDelete: Cascade)
     note            note?           @relation("view_note", fields: [noteId], references: [id], onDelete: Cascade)
     post            post?           @relation("view_post", fields: [postId], references: [id], onDelete: Cascade)

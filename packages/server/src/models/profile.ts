@@ -47,7 +47,6 @@ export {}
 //     },
 //     joinMap: { hiddenTags: 'tag', roles: 'role', starredBy: 'user' },
 //     supplemental: {
-//         graphqlFields: ['starredTags', 'hiddenTags'],
 //         toGraphQL: ({ ids, objects, partial, prisma, userData }) => [
 //             ['starredTags', async () => {
 //                 if (!userData) return new Array(objects.length).fill([]);
@@ -238,5 +237,4 @@ export {}
 //     mutate: mutater(),
 //     port: porter(),
 //     query: querier(),
-//     type: 'Profile' as GraphQLModelType,
 // })

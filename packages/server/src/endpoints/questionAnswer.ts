@@ -12,10 +12,10 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input QuestionAnswerCreateInput {

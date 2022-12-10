@@ -18,53 +18,54 @@ export const typeDef = gql`
         PullRequestsDesc
         QuestionsAsc
         QuestionsDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
         ViewsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input ProjectCreateInput {
         id: ID!
-        createdByOrganizationId: ID
-        createdByUserId: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         handle: String
-        isComplete: Boolean
         isPrivate: Boolean
         parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
+        permissions: String
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        versionsCreate: [ProjectVersionCreateInput!]
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
     }
     input ProjectUpdateInput {
         id: ID!
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         handle: String
-        isComplete: Boolean
         isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
+        permissions: String
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        versionsCreate: [ProjectVersionCreateInput!]
+        versionsUpdate: [ProjectVersionUpdateInput!]
+        versionsDelete: [ID!]
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
     }
     type Project {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
         handle: String
-        isComplete: Boolean!
+        hasCompleteVersion: Boolean!
+        permissions: String
         isPrivate: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean
@@ -72,73 +73,48 @@ export const typeDef = gql`
         score: Int!
         stars: Int!
         views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
+        permissionsRoot: RootPermission!
         createdBy: User
-        forks: [Project!]!
         owner: Owner
+        issues: [Issue!]!
+        issuesCount: Int!
+        labels: [Label!]!
+        labelsCount: Int!
         parent: Project
-        permissionsProject: ProjectPermission!
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
+        pullRequests: [PullRequest!]!
+        pullRequestsCount: Int!
+        questions: [Question!]!
+        questionsCount: Int!
+        quizzes: [Quiz!]!
+        quizzesCount: Int!
+        starredBy: [User!]!
+        stats: [StatsProject!]!
         tags: [Tag!]!
-        translations: [ProjectTranslation!]!
-        wallets: [Wallet!]
-    }
-
-    type ProjectPermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
-    }
-
-    input ProjectTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
-    }
-    input ProjectTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type ProjectTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
+        transfers: [Transfer!]!
+        versions: [ProjectVersion!]!
+        versionsCount: Int!
+        runs: [RunProject!]!
+        runsCount: Int!
     }
 
     input ProjectSearchInput {
         after: String
         createdTimeFrame: TimeFrame
-        ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
+        createdById: ID
+        hasCompleteVersion: Boolean
+        maxScore: Int
+        maxStars: Int
         minScore: Int
         minStars: Int
-        minViews: Int
-        organizationId: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        languages: [String!]
+        ids: [ID!]
         searchString: String
         sortBy: ProjectSortBy
         tags: [String!]
-        take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 

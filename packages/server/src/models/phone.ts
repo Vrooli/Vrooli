@@ -3,6 +3,10 @@ import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { Displayer, GraphQLModelType } from "./types";
 
+const __typename = 'Phone' as const;
+
+const suppFields = [] as const;
+
 const displayer = (): Displayer<
     Prisma.phoneSelect,
     Prisma.phoneGetPayload<SelectWrap<Prisma.phoneSelect>>
@@ -17,11 +21,11 @@ const displayer = (): Displayer<
 })
 
 export const PhoneModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.phone,
     display: displayer(),
     format: {} as any,
     mutate: {} as any,
     search: {} as any,
-    type: 'Phone' as GraphQLModelType,
     validate: {} as any,
 })

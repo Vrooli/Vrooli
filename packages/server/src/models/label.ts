@@ -1,7 +1,28 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { Label } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, GraphQLModelType } from "./types";
+import { Displayer, Formatter } from "./types";
+
+const __typename = 'Label' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<Label, typeof suppFields> => ({
+    relationshipMap: {
+        __typename,
+        apis: 'Api',
+        issues: 'Issue',
+        meetings: 'Meeting',
+        notes: 'Note',
+        projects: 'Project',
+        routines: 'Routine',
+        runProjectSchedules: 'RunProjectSchedule',
+        runRoutineSchedules: 'RunRoutineSchedule',
+        userSchedules: 'UserSchedule',
+    },
+    joinMap: { starredBy: 'user' },
+    countFields: ['apisCount', 'issuesCount', 'meetingsCount', 'notesCount', 'projectsCount', 'routinesCount', 'runProjectSchedulesCount', 'runRoutineSchedulesCount', 'userSchedulesCount'],
+})
 
 const displayer = (): Displayer<
     Prisma.labelSelect,
@@ -12,11 +33,11 @@ const displayer = (): Displayer<
 })
 
 export const LabelModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.label,
     display: displayer(),
-    format: {} as any,
+    format: formatter(),
     mutate: {} as any,
     search: {} as any,
-    type: 'Label' as GraphQLModelType,
     validate: {} as any,
 })

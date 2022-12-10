@@ -1,11 +1,11 @@
 import { CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate } from "@shared/validation";
-import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../endpoints/types";
+import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Owner, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { Trigger } from "../events";
-import { Formatter, Searcher, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
+import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
@@ -15,30 +15,25 @@ import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchString } from "../getters";
 import { getUser } from "../auth";
 
-type SupplementalFields = 'isStarred' | 'isUpvoted' | 'permissionsComment';
-const formatter = (): Formatter<Comment, SupplementalFields> => ({
+const __typename = 'Comment' as const;
+
+const suppFields = ['isStarred', 'isUpvoted', 'permissionsComment'] as const;
+const formatter = (): Formatter<Comment, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Comment',
-        owner: {
-            User: 'User',
-            Organization: 'Organization',
-        },
-        commentedOn: {
-            Project: 'Project',
-            Routine: 'Routine',
-            Standard: 'Standard',
-        },
+        __typename,
+        owner: ['Organization', 'User'],
+        commentedOn: ['ApiVersion', 'Issue', 'NoteVersion', 'Post', 'ProjectVersion', 'PullRequest', 'Question', 'QuestionAnswer', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion'],
         reports: 'Report',
         starredBy: 'User',
     },
     joinMap: { starredBy: 'user' },
-    countMap: { reportsCount: 'reports' },
+    countFields: ['reportsCount', 'translationsCount'],
     supplemental: {
-        graphqlFields: ['isStarred', 'isUpvoted', 'permissionsComment'],
+        graphqlFields: suppFields,
         toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Comment')],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Routine')],
-            ['permissionsComment', async () => await getSingleTypePermissions('Comment', ids, prisma, userData)],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
+            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
+            ['permissionsComment', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
         ],
     },
 })
@@ -49,16 +44,16 @@ const searcher = (): Searcher<
     Prisma.commentOrderByWithRelationInput,
     Prisma.commentWhereInput
 > => ({
-    defaultSort: CommentSortBy.VotesDesc,
+    defaultSort: CommentSortBy.ScoreDesc,
     sortMap: {
         DateCreatedAsc: { created_at: 'asc' },
         DateCreatedDesc: { created_at: 'desc' },
         DateUpdatedAsc: { updated_at: 'asc' },
         DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { stars: 'asc' },
-        StarsDesc: { stars: 'desc' },
-        VotesAsc: { votes: 'asc' },
-        VotesDesc: { votes: 'desc' },
+        ScoreAsc: { score: 'asc' },
+        ScoreDesc: { score: 'desc' },
+        StarsAsc: { starredBy: { _count: 'asc' } },
+        StarsDesc: { starredBy: { _count: 'desc' } },
     },
     searchStringQuery: ({ insensitive, languages }) => ({
         translations: { some: { language: languages ? { in: languages } : undefined, text: insensitive } }
@@ -315,9 +310,17 @@ const querier = () => ({
 })
 
 const forMapper: { [key in CommentFor]: string } = {
-    Project: 'projectId',
-    Routine: 'routineId',
-    Standard: 'standardId',
+    ApiVersion: 'apiVersionId',
+    Issue: 'issueId',
+    NoteVersion: 'noteVersionId',
+    Post: 'postId',
+    ProjectVersion: 'projectVersionId',
+    PullRequest: 'pullRequestId',
+    Question: 'questionId',
+    QuestionAnswer: 'questionAnswerId',
+    RoutineVersion: 'routineVersionId',
+    SmartContractVersion: 'smartContractVersionId',
+    StandardVersion: 'standardVersionId',
 }
 
 const mutater = (): Mutater<
@@ -362,12 +365,12 @@ const displayer = (): Displayer<
 })
 
 export const CommentModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.comment,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     query: querier(),
     search: searcher(),
-    type: 'Comment' as GraphQLModelType,
     validate: validator(),
 })

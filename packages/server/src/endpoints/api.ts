@@ -18,14 +18,14 @@ export const typeDef = gql`
         PullRequestsDesc
         QuestionsAsc
         QuestionsDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
         ViewsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input ApiCreateInput {
@@ -48,6 +48,7 @@ export const typeDef = gql`
         tagsCreate: [TagCreateInput!]
         versionsCreate: [ApiVersionCreateInput!]
         versionsUpdate: [ApiVersionUpdateInput!]
+        versionsDelete: [ID!]
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
@@ -61,24 +62,34 @@ export const typeDef = gql`
         parent: Api
         tags: [Tag!]!
         versions: [ApiVersion!]!
+        versionsCount: Int!
         labels: [Label!]!
         stars: Int!
         views: Int!
-        votes: Int!
+        score: Int!
         isStarred: Boolean!
+        isViewed: Boolean!
         isUpvoted: Boolean
         issues: [Issue!]!
         permissionsRoot: RootPermission!
         pullRequests: [PullRequest!]!
+        pullRequestsCount: Int!
         stats: [StatsApi!]!
         questions: [Question!]!
+        questionsCount: Int!
         transfers: [Transfer!]!
+        transfersCount: Int!
+        starredBy: [User!]!
     }
 
     input ApiSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         createdById: ID
+        maxScore: Int
+        maxStars: Int
+        minScore: Int
+        minStars: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID

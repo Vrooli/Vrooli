@@ -3,6 +3,10 @@ import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { Displayer, GraphQLModelType } from "./types";
 
+const __typename = 'PushDevice' as const;
+
+const suppFields = [] as const;
+
 const displayer = (): Displayer<
     Prisma.push_deviceSelect,
     Prisma.push_deviceGetPayload<SelectWrap<Prisma.push_deviceSelect>>
@@ -17,11 +21,11 @@ const displayer = (): Displayer<
 })
 
 export const PushDeviceModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.push_device,
     display: displayer(),
     format: {} as any,
     mutate: {} as any,
     search: {} as any,
-    type: 'PushDevice' as GraphQLModelType,
     validate: {} as any,
 })

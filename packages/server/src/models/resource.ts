@@ -2,15 +2,18 @@ import { resourcesCreate, resourcesUpdate } from "@shared/validation";
 import { ResourceSortBy } from "@shared/consts";
 import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
+import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
 import { combineQueries, permissionsSelectHelper } from "../builders";
 import { bestLabel, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<Resource, any> => ({
-    relationshipMap: { __typename: 'Resource' }, // For now, resource is never queried directly. So no need to handle relationships
+const __typename = 'Resource' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<Resource, typeof suppFields> => ({
+    relationshipMap: { __typename }, // For now, resource is never queried directly. So no need to handle relationships
 })
 
 const searcher = (): Searcher<
@@ -132,11 +135,11 @@ const displayer = (): Displayer<
 })
 
 export const ResourceModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.resource,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),
-    type: 'Resource' as GraphQLModelType,
     validate: validator(),
 })

@@ -53,6 +53,8 @@ import * as ResourceList from './resourceList';
 import * as Role from './role';
 import * as Routine from './routine';
 import * as RoutineVersion from './routineVersion';
+import * as RoutineVersionInput from './routineVersionInput';
+import * as RoutineVersionOutput from './routineVersionOutput';
 import * as RunProject from './runProject';
 import * as RunProjectSchedule from './runProjectSchedule';
 import * as RunProjectStep from './runProjectStep';
@@ -139,6 +141,8 @@ const schemas: SchemaType[] = [
     Role,
     Routine,
     RoutineVersion,
+    RoutineVersionInput,
+    RoutineVersionOutput,
     RunProject,
     RunProjectSchedule,
     RunProjectStep,

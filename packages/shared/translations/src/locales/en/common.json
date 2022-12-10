@@ -54,6 +54,8 @@
     "Organization": "Organization",
     "ParentOverrideConfirm": "Selecting a parent to copy will override existing data. Continue?",
     "PasswordReset": "Password reset.",
+    "PaymentPlanBasic": "Basic plan",
+    "PaymentPlanCustom": "Custom plan",
     "Profile": "Profile",
     "Project": "Project",
     "Question": "Question",

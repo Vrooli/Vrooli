@@ -1,13 +1,16 @@
 import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
+import { Displayer, Formatter, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<NodeLinkWhen, any> => ({
+const __typename = 'NodeLinkWhen' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<NodeLinkWhen, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'NodeLinkWhen',
+        __typename,
     },
 })
 
@@ -51,9 +54,9 @@ const displayer = (): Displayer<
 })
 
 export const NodeLinkWhenModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node_link,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    type: 'NodeLinkWhen' as GraphQLModelType,
 })

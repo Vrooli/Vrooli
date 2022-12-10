@@ -1,14 +1,17 @@
 import { PrismaType } from "../types";
 import { Member } from "../endpoints/types";
-import { Displayer, Formatter, GraphQLModelType } from "./types";
+import { Displayer, Formatter } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<Member, any> => ({
+const __typename = 'Member' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<Member, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Member',
+        __typename,
         organization: 'Organization',
         user: 'User',
     }
@@ -26,9 +29,9 @@ const displayer = (): Displayer<
 })
 
 export const MemberModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.member,
     // TODO needs searcher
     display: displayer(),
     format: formatter(),
-    type: 'Member' as GraphQLModelType,
 })

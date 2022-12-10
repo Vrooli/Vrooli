@@ -68,18 +68,30 @@ export const typeDef = gql`
         label: String!
         color: String
         apis: [Api!]
+        apisCount: Int!
         issues: [Issue!]
+        issuesCount: Int!
         notes: [Note!]
+        notesCount: Int!
         permissionsLabel: LabelPermission!
         projects: [Project!]
+        projectsCount: Int!
         routines: [Routine!]
+        routinesCount: Int!
         smartContracts: [SmartContract!]
+        smartContractsCount: Int!
         standards: [Standard!]
+        standardsCount: Int!
         meetings: [Meeting!]
+        meetingsCount: Int!
         runProjectSchedules: [RunProjectSchedule!]
+        runProjectSchedulesCount: Int!
         runRoutineSchedules: [RunRoutineSchedule!]
+        runRoutineSchedulesCount: Int!
         userSchedules: [UserSchedule!]
+        userSchedulesCount: Int!
         translations: [LabelTranslation!]!
+        translationsCount: Int!
     }
 
     type LabelPermission {

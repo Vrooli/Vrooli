@@ -3,11 +3,14 @@ import { SelectWrap } from "../builders/types";
 import { Role } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, Formatter, GraphQLModelType } from "./types";
+import { Displayer, Formatter } from "./types";
 
-const formatter = (): Formatter<Role, any> => ({
+const __typename = 'Role' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<Role, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Role',
+        __typename,
         assignees: 'User',
         organization: 'Organization',
     },
@@ -32,8 +35,8 @@ const displayer = (): Displayer<
 })
 
 export const RoleModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.role,
     display: displayer(),
     format: formatter(),
-    type: 'Role' as GraphQLModelType,
 })

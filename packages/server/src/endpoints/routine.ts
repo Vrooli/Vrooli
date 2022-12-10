@@ -20,14 +20,14 @@ export const typeDef = gql`
         QuestionsDesc
         QuizzesAsc
         QuizzesDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
         ViewsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input RoutineCreateInput {
@@ -43,8 +43,8 @@ export const typeDef = gql`
         createdByOrganizationId: ID
         nodesCreate: [NodeCreateInput!]
         nodeLinksCreate: [NodeLinkCreateInput!]
-        inputsCreate: [InputItemCreateInput!]
-        outputsCreate: [OutputItemCreateInput!]
+        inputsCreate: [RoutineVersionInputCreateInput!]
+        outputsCreate: [RoutineVersionOutputCreateInput!]
         resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
@@ -66,11 +66,11 @@ export const typeDef = gql`
         nodeLinksDelete: [ID!]
         nodeLinksCreate: [NodeLinkCreateInput!]
         nodeLinksUpdate: [NodeLinkUpdateInput!]
-        inputsCreate: [InputItemCreateInput!]
-        inputsUpdate: [InputItemUpdateInput!]
+        inputsCreate: [RoutineVersionInputCreateInput!]
+        inputsUpdate: [RoutineVersionInputUpdateInput!]
         inputsDelete: [ID!]
-        outputsCreate: [OutputItemCreateInput!]
-        outputsUpdate: [OutputItemUpdateInput!]
+        outputsCreate: [RoutineVersionOutputCreateInput!]
+        outputsUpdate: [RoutineVersionOutputUpdateInput!]
         outputsDelete: [ID!]
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
@@ -107,12 +107,12 @@ export const typeDef = gql`
         commentsCount: Int!
         createdBy: User
         forks: [Routine!]!
-        inputs: [InputItem!]!
+        inputs: [RoutineVersionInput!]!
         nodeLists: [NodeRoutineList!]!
         nodes: [Node!]!
         nodesCount: Int
         nodeLinks: [NodeLink!]!
-        outputs: [OutputItem!]!
+        outputs: [RoutineVersionOutput!]!
         owner: Owner
         parent: Routine
         permissionsRoutine: RoutinePermission!
@@ -158,97 +158,6 @@ export const typeDef = gql`
         description: String
         instructions: String!
         name: String!
-    }
-
-    input InputItemCreateInput {
-        id: ID!
-        isRequired: Boolean
-        name: String
-        standardVersionConnect: ID
-        standardCreate: StandardCreateInput
-        translationsDelete: [ID!]
-        translationsCreate: [InputItemTranslationCreateInput!]
-        translationsUpdate: [InputItemTranslationUpdateInput!]
-    }
-    input InputItemUpdateInput {
-        id: ID!
-        isRequired: Boolean
-        name: String
-        standardConnect: ID
-        standardCreate: StandardCreateInput
-        translationsDelete: [ID!]
-        translationsCreate: [InputItemTranslationCreateInput!]
-        translationsUpdate: [InputItemTranslationUpdateInput!]
-    }
-    type InputItem {
-        id: ID!
-        isRequired: Boolean
-        name: String
-        routine: Routine!
-        standard: Standard
-        translations: [InputItemTranslation!]!
-    }
-
-    input InputItemTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        helpText: String
-    }
-    input InputItemTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        helpText: String
-    }
-    type InputItemTranslation {
-        id: ID!
-        language: String!
-        description: String
-        helpText: String
-    }
-
-    input OutputItemCreateInput {
-        id: ID!
-        name: String
-        standardVersionConnect: ID
-        standardCreate: StandardCreateInput
-        translationsCreate: [OutputItemTranslationCreateInput!]
-    }
-    input OutputItemUpdateInput {
-        id: ID!
-        name: String
-        standardVersionConnect: ID
-        standardCreate: StandardCreateInput
-        translationsDelete: [ID!]
-        translationsCreate: [OutputItemTranslationCreateInput!]
-        translationsUpdate: [OutputItemTranslationUpdateInput!]
-    }
-    type OutputItem {
-        id: ID!
-        name: String
-        routine: Routine!
-        standard: Standard
-        translations: [OutputItemTranslation!]!
-    }
-
-    input OutputItemTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        helpText: String
-    }
-    input OutputItemTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        helpText: String
-    }
-    type OutputItemTranslation {
-        id: ID!
-        language: String!
-        description: String
-        helpText: String
     }
 
     input RoutineSearchInput {

@@ -1,7 +1,17 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { ApiKey } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, GraphQLModelType } from "./types";
+import { Displayer, Formatter } from "./types";
+
+const __typename = 'ApiKey' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<ApiKey, typeof suppFields> => ({
+    relationshipMap: {
+        __typename,
+    },
+})
 
 const displayer = (): Displayer<
     Prisma.api_keySelect,
@@ -18,11 +28,11 @@ const displayer = (): Displayer<
 })
 
 export const ApiKeyModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.api_key,
     display: displayer(),
-    format: {} as any,
+    format: formatter(),
     mutate: {} as any,
     search: {} as any,
-    type: 'ApiKey' as GraphQLModelType,
     validate: {} as any,
 })

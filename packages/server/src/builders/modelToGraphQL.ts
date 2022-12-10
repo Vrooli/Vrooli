@@ -15,7 +15,12 @@ import { PartialGraphQLInfo } from "./types";
  * @param partialInfo PartialGraphQLInfo object
  * @returns Valid GraphQL object
  */
-export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): GraphQLModel {
+export function modelToGraphQL<
+    GraphQLModel extends Record<string, any>
+>(
+    data: { [x: string]: any },
+    partialInfo: PartialGraphQLInfo
+): GraphQLModel {
     console.log('modeltographql start');
     // Remove top-level union from partialInfo, if necessary
     // If every key starts with a capital letter, it's a union. 
@@ -42,7 +47,7 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
     if (formatter) {
         data = constructRelationships(data, formatter.relationshipMap);
         data = removeJoinTables(data, formatter.joinMap);
-        data = removeCountFields(data, formatter.countMap);
+        data = removeCountFields(data, formatter.countFields);
         data = removeHiddenFields(data, formatter.hiddenFields);
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object

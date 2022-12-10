@@ -3,7 +3,6 @@ import { ApiKeyModel } from './apiKey';
 import { ApiVersionModel } from './apiVersion';
 import { CommentModel } from './comment';
 import { EmailModel } from './email';
-import { InputItemModel } from './inputItem';
 import { IssueModel } from './issue';
 import { LabelModel } from './label';
 import { MeetingModel } from './meeting';
@@ -21,9 +20,10 @@ import { NodeRoutineListItemModel } from './nodeRoutineListItem';
 import { NotificationModel } from './notification';
 import { NotificationSubscriptionModel } from './notificationSubscription';
 import { OrganizationModel } from './organization';
-import { OutputItemModel } from './outputItem';
+import { PaymentModel } from './payment';
 import { PhoneModel } from './phone';
 import { PostModel } from './post';
+import { PremiumModel } from './premium';
 import { ProjectModel } from './project';
 import { ProjectVersionModel } from './projectVersion';
 import { ProjectVersionDirectoryModel } from './projectVersionDirectory';
@@ -41,6 +41,8 @@ import { ResourceListModel } from './resourceList';
 import { RoleModel } from './role';
 import { RoutineModel } from './routine';
 import { RoutineVersionModel } from './routineVersion';
+import { RoutineVersionInputModel } from './routineVersionInput';
+import { RoutineVersionOutputModel } from './routineVersionOutput';
 import { RunProjectModel } from './runProject';
 import { RunProjectScheduleModel } from './runProjectSchedule';
 import { RunProjectStepModel } from './runProjectStep';
@@ -56,6 +58,7 @@ import { StarModel } from './star';
 import { TagModel } from './tag';
 import { AniedModelLogic, GraphQLModelType } from './types';
 import { UserModel } from './user';
+import { UserScheduleModel } from './userSchedule';
 import { ViewModel } from './view';
 import { VoteModel } from './vote';
 import { WalletModel } from './wallet';
@@ -69,7 +72,6 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     ApiVersion: ApiVersionModel,
     Comment: CommentModel,
     Email: EmailModel,
-    InputItem: InputItemModel,
     Issue: IssueModel,
     Label: LabelModel,
     Meeting: MeetingModel,
@@ -87,9 +89,10 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     Notification: NotificationModel,
     NotificationSubscription: NotificationSubscriptionModel,
     Organization: OrganizationModel,
-    OutputItem: OutputItemModel,
+    Payment: PaymentModel,
     Phone: PhoneModel,
     Post: PostModel,
+    Premium: PremiumModel,
     Project: ProjectModel,
     ProjectVersion: ProjectVersionModel,
     ProjectVersionDirectory: ProjectVersionDirectoryModel,
@@ -107,6 +110,8 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     Role: RoleModel,
     Routine: RoutineModel,
     RoutineVersion: RoutineVersionModel,
+    RoutineVersionInput: RoutineVersionInputModel,
+    RoutineVersionOutput: RoutineVersionOutputModel,
     RunProject: RunProjectModel,
     RunProjectSchedule: RunProjectScheduleModel,
     RunProjectStep: RunProjectStepModel,
@@ -121,6 +126,7 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     Star: StarModel,
     Tag: TagModel,
     User: UserModel,
+    UserSchedule: UserScheduleModel,
     Vote: VoteModel,
     View: ViewModel,
     Wallet: WalletModel,
@@ -131,7 +137,7 @@ export * from './apiKey';
 export * from './apiVersion';
 export * from './comment';
 export * from './email';
-export * from './inputItem';
+export * from './routineVersionInput';
 export * from './issue';
 export * from './label';
 export * from './meeting';
@@ -149,9 +155,11 @@ export * from './nodeRoutineListItem';
 export * from './notification';
 export * from './notificationSubscription';
 export * from './organization';
-export * from './outputItem';
+export * from './routineVersionOutput';
+export * from './payment';
 export * from './phone';
 export * from './post';
+export * from './premium';
 export * from './profile';
 export * from './project';
 export * from './projectVersion';
@@ -170,6 +178,8 @@ export * from './resourceList';
 export * from './role';
 export * from './routine';
 export * from './routineVersion';
+export * from './routineVersionInput';
+export * from './routineVersionOutput';
 export * from './runProject';
 export * from './runProjectSchedule';
 export * from './runProjectStep';
@@ -186,6 +196,7 @@ export * from './runRoutineStep';
 export * from './runRoutineInput';
 export * from './tag';
 export * from './user';
+export * from './userSchedule';
 export * from './view';
 export * from './vote';
 export * from './wallet';

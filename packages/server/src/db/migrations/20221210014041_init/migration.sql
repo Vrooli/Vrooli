@@ -9,7 +9,10 @@ CREATE TYPE "AwardCategory" AS ENUM ('AccountAnniversary', 'AccountNew', 'ApiCre
 CREATE TYPE "IssueStatus" AS ENUM ('Open', 'ClosedResolved', 'CloseUnresolved', 'Rejected');
 
 -- CreateEnum
-CREATE TYPE "MeetingInviteStatus" AS ENUM ('Pending', 'Accepted', 'Rejected');
+CREATE TYPE "MemberInviteStatus" AS ENUM ('Pending', 'Accepted', 'Declined');
+
+-- CreateEnum
+CREATE TYPE "MeetingInviteStatus" AS ENUM ('Pending', 'Accepted', 'Declined');
 
 -- CreateEnum
 CREATE TYPE "NodeType" AS ENUM ('End', 'Redirect', 'RoutineList', 'Start');
@@ -65,9 +68,7 @@ CREATE TABLE "api" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "stars" INTEGER NOT NULL DEFAULT 0,
-    "votes" INTEGER NOT NULL DEFAULT 0,
-    "views" INTEGER NOT NULL DEFAULT 0,
+    "score" INTEGER NOT NULL DEFAULT 0,
     "createdById" UUID,
     "ownedByUserId" UUID,
     "ownedByOrganizationId" UUID,
@@ -91,7 +92,7 @@ CREATE TABLE "api_version" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "callLink" VARCHAR(1024) NOT NULL,
-    "documentationLink" VARCHAR(1024) NOT NULL,
+    "documentationLink" VARCHAR(1024),
     "isLatest" BOOLEAN NOT NULL DEFAULT false,
     "rootId" UUID NOT NULL,
     "resourceListId" UUID,
@@ -107,6 +108,7 @@ CREATE TABLE "api_version" (
 -- CreateTable
 CREATE TABLE "api_version_translation" (
     "id" UUID NOT NULL,
+    "name" VARCHAR(128),
     "summary" VARCHAR(1024),
     "details" VARCHAR(8096),
     "language" VARCHAR(3) NOT NULL,
@@ -147,6 +149,7 @@ CREATE TABLE "comment" (
     "ownedByOrganizationId" UUID,
     "apiVersionId" UUID,
     "issueId" UUID,
+    "noteVersionId" UUID,
     "parentId" UUID,
     "postId" UUID,
     "projectVersionId" UUID,
@@ -156,8 +159,7 @@ CREATE TABLE "comment" (
     "routineVersionId" UUID,
     "smartContractVersionId" UUID,
     "standardVersionId" UUID,
-    "stars" INTEGER NOT NULL DEFAULT 0,
-    "votes" INTEGER NOT NULL DEFAULT 0,
+    "score" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "comment_pkey" PRIMARY KEY ("id")
 );
@@ -198,11 +200,12 @@ CREATE TABLE "handle" (
 CREATE TABLE "issue" (
     "id" UUID NOT NULL,
     "status" "IssueStatus" NOT NULL DEFAULT 'Open',
-    "createdAt" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ(6) NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
     "closedAt" TIMESTAMPTZ(6),
     "apiId" UUID,
     "organizationId" UUID,
+    "noteId" UUID,
     "projectId" UUID,
     "routineId" UUID,
     "smartContractId" UUID,
@@ -210,6 +213,7 @@ CREATE TABLE "issue" (
     "closedById" UUID,
     "createdById" UUID,
     "referencedVersionId" UUID,
+    "score" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "issue_pkey" PRIMARY KEY ("id")
 );
@@ -227,7 +231,7 @@ CREATE TABLE "issue_labels" (
 CREATE TABLE "issue_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
-    "title" VARCHAR(128),
+    "name" VARCHAR(128),
     "issueId" UUID NOT NULL,
     "language" VARCHAR(3) NOT NULL,
 
@@ -241,8 +245,8 @@ CREATE TABLE "label" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "label" VARCHAR(128) NOT NULL,
     "color" VARCHAR(7),
-    "createdByUserId" UUID,
-    "createdByOrganizationId" UUID,
+    "ownedByUserId" UUID,
+    "ownedByOrganizationId" UUID,
 
     CONSTRAINT "label_pkey" PRIMARY KEY ("id")
 );
@@ -250,7 +254,7 @@ CREATE TABLE "label" (
 -- CreateTable
 CREATE TABLE "label_translation" (
     "id" UUID NOT NULL,
-    "description" VARCHAR(2048),
+    "description" VARCHAR(2048) NOT NULL,
     "labelId" UUID NOT NULL,
     "language" VARCHAR(3) NOT NULL,
 
@@ -276,7 +280,7 @@ CREATE TABLE "node" (
 CREATE TABLE "node_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
-    "title" VARCHAR(128) NOT NULL DEFAULT 'Name Me',
+    "name" VARCHAR(128) NOT NULL DEFAULT 'Name Me',
     "language" VARCHAR(3) NOT NULL,
     "nodeId" UUID NOT NULL,
 
@@ -324,7 +328,7 @@ CREATE TABLE "node_link_when" (
 CREATE TABLE "node_link_when_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "whenId" UUID NOT NULL,
 
@@ -355,7 +359,7 @@ CREATE TABLE "node_loop_while" (
 CREATE TABLE "node_loop_while_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048) NOT NULL,
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "whileId" UUID NOT NULL,
 
@@ -387,7 +391,7 @@ CREATE TABLE "node_routine_list_item" (
 CREATE TABLE "node_routine_list_item_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
-    "title" VARCHAR(128),
+    "name" VARCHAR(128),
     "language" VARCHAR(3) NOT NULL,
     "itemId" UUID NOT NULL,
 
@@ -400,6 +404,8 @@ CREATE TABLE "note" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
+    "score" INTEGER NOT NULL DEFAULT 0,
+    "parentId" UUID,
     "createdById" UUID,
     "ownedByUserId" UUID,
     "ownedByOrganizationId" UUID,
@@ -415,6 +421,15 @@ CREATE TABLE "note_labels" (
     "labelId" UUID NOT NULL,
 
     CONSTRAINT "note_labels_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "note_tags" (
+    "id" UUID NOT NULL,
+    "taggedId" UUID NOT NULL,
+    "tagTag" VARCHAR(128) NOT NULL,
+
+    CONSTRAINT "note_tags_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -437,6 +452,7 @@ CREATE TABLE "note_version" (
 -- CreateTable
 CREATE TABLE "note_version_translation" (
     "id" UUID NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "text" VARCHAR(65536) NOT NULL,
     "description" VARCHAR(2048),
     "language" VARCHAR(3) NOT NULL,
@@ -476,9 +492,22 @@ CREATE TABLE "push_device" (
 -- CreateTable
 CREATE TABLE "notification_subscription" (
     "id" UUID NOT NULL,
-    "objectType" VARCHAR(64) NOT NULL,
-    "objectId" UUID NOT NULL,
-    "userId" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "apiId" UUID,
+    "commentId" UUID,
+    "issueId" UUID,
+    "meetingId" UUID,
+    "noteId" UUID,
+    "organizationId" UUID,
+    "projectId" UUID,
+    "pullRequestId" UUID,
+    "questionId" UUID,
+    "quizId" UUID,
+    "reportId" UUID,
+    "routineId" UUID,
+    "smartContractId" UUID,
+    "standardId" UUID,
+    "subscriberId" UUID NOT NULL,
     "silent" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "notification_subscription_pkey" PRIMARY KEY ("id")
@@ -492,9 +521,8 @@ CREATE TABLE "organization" (
     "handle" VARCHAR(16),
     "isOpenToNewMembers" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
-    "stars" INTEGER NOT NULL DEFAULT 0,
-    "views" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
+    "parentId" UUID,
     "premiumId" UUID,
     "resourceListId" UUID,
     "createdById" UUID,
@@ -514,6 +542,8 @@ CREATE TABLE "organization_language" (
 -- CreateTable
 CREATE TABLE "meeting" (
     "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "inviteId" UUID,
     "openToAnyoneWithInvite" BOOLEAN NOT NULL DEFAULT false,
     "showOnOrganizationProfile" BOOLEAN NOT NULL DEFAULT false,
@@ -540,8 +570,11 @@ CREATE TABLE "meeting_attendees" (
 -- CreateTable
 CREATE TABLE "meeting_invite" (
     "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "status" "MeetingInviteStatus" NOT NULL DEFAULT 'Pending',
-    "scheduleId" UUID NOT NULL,
+    "message" VARCHAR(4096),
+    "meetingId" UUID NOT NULL,
     "userId" UUID NOT NULL,
 
     CONSTRAINT "meeting_invite_pkey" PRIMARY KEY ("id")
@@ -570,7 +603,7 @@ CREATE TABLE "meeting_translation" (
     "id" UUID NOT NULL,
     "scheduleId" UUID NOT NULL,
     "language" VARCHAR(3) NOT NULL,
-    "title" VARCHAR(128),
+    "name" VARCHAR(128),
     "description" VARCHAR(2048),
     "link" VARCHAR(2048),
 
@@ -600,6 +633,8 @@ CREATE TABLE "organization_tags" (
 -- CreateTable
 CREATE TABLE "member" (
     "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "isAdmin" BOOLEAN NOT NULL DEFAULT false,
     "permissions" VARCHAR(4096) NOT NULL,
     "organizationId" UUID NOT NULL,
@@ -609,12 +644,25 @@ CREATE TABLE "member" (
 );
 
 -- CreateTable
+CREATE TABLE "member_invite" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" "MemberInviteStatus" NOT NULL DEFAULT 'Pending',
+    "message" VARCHAR(4096),
+    "willBeAdmin" BOOLEAN NOT NULL DEFAULT false,
+    "willHavePermissions" VARCHAR(4096),
+    "organizationId" UUID NOT NULL,
+    "memberId" UUID NOT NULL,
+
+    CONSTRAINT "member_invite_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "post" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "title" VARCHAR(128),
-    "description" VARCHAR(2048),
     "repostedFromId" UUID,
     "resourceListId" UUID,
     "isPinned" BOOLEAN NOT NULL DEFAULT false,
@@ -633,6 +681,17 @@ CREATE TABLE "post_tags" (
     "tagTag" VARCHAR(128) NOT NULL,
 
     CONSTRAINT "post_tags_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "post_translation" (
+    "id" UUID NOT NULL,
+    "description" VARCHAR(2048),
+    "name" VARCHAR(128) NOT NULL,
+    "language" VARCHAR(3) NOT NULL,
+    "postId" UUID NOT NULL,
+
+    CONSTRAINT "post_translation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -687,9 +746,7 @@ CREATE TABLE "project" (
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
-    "votes" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
-    "views" INTEGER NOT NULL DEFAULT 0,
+    "score" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
     "createdById" UUID,
     "handle" VARCHAR(16),
@@ -736,6 +793,17 @@ CREATE TABLE "project_version_directory" (
     "projectVersionId" UUID,
 
     CONSTRAINT "project_version_directory_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "project_version_directory_translation" (
+    "id" UUID NOT NULL,
+    "description" VARCHAR(2048),
+    "name" VARCHAR(128),
+    "language" VARCHAR(3) NOT NULL,
+    "projectVersionDirectoryId" UUID NOT NULL,
+
+    CONSTRAINT "project_version_directory_translation_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -802,7 +870,6 @@ CREATE TABLE "question" (
     "referencing" VARCHAR(2048),
     "hasAcceptedAnswer" BOOLEAN NOT NULL DEFAULT false,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
     "apiId" UUID,
     "organizationId" UUID,
     "projectId" UUID,
@@ -831,7 +898,6 @@ CREATE TABLE "question_answer" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
     "isAccepted" BOOLEAN NOT NULL DEFAULT false,
     "questionId" UUID NOT NULL,
     "createdById" UUID,
@@ -862,7 +928,6 @@ CREATE TABLE "quiz" (
     "wasAutoGenerated" BOOLEAN NOT NULL DEFAULT false,
     "pointsToPass" INTEGER,
     "score" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
     "routineId" UUID,
     "projectId" UUID,
     "userId" UUID,
@@ -950,9 +1015,26 @@ CREATE TABLE "reminder" (
     "name" VARCHAR(128) NOT NULL,
     "description" VARCHAR(2048),
     "dueDate" TIMESTAMPTZ(6),
+    "completed" BOOLEAN NOT NULL DEFAULT false,
+    "index" INTEGER NOT NULL,
     "reminderListId" UUID NOT NULL,
 
     CONSTRAINT "reminder_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "reminder_item" (
+    "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "name" VARCHAR(128) NOT NULL,
+    "description" VARCHAR(2048),
+    "dueDate" TIMESTAMPTZ(6),
+    "index" INTEGER NOT NULL,
+    "reminderId" UUID NOT NULL,
+    "completed" BOOLEAN NOT NULL DEFAULT false,
+
+    CONSTRAINT "reminder_item_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -967,6 +1049,7 @@ CREATE TABLE "report" (
     "apiVersionId" UUID,
     "commentId" UUID,
     "issueId" UUID,
+    "noteVersionId" UUID,
     "organizationId" UUID,
     "postId" UUID,
     "projectVersionId" UUID,
@@ -1020,7 +1103,7 @@ CREATE TABLE "resource" (
 CREATE TABLE "resource_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
-    "title" VARCHAR(128),
+    "name" VARCHAR(128),
     "language" VARCHAR(3) NOT NULL,
     "resourceId" UUID NOT NULL,
 
@@ -1041,7 +1124,7 @@ CREATE TABLE "resource_list" (
 CREATE TABLE "resource_list_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(512),
-    "title" VARCHAR(128),
+    "name" VARCHAR(128),
     "language" VARCHAR(3) NOT NULL,
     "listId" UUID NOT NULL,
 
@@ -1053,7 +1136,7 @@ CREATE TABLE "role" (
     "id" UUID NOT NULL,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "permissions" VARCHAR(4096) NOT NULL,
     "organizationId" UUID NOT NULL,
 
@@ -1064,7 +1147,7 @@ CREATE TABLE "role" (
 CREATE TABLE "role_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "roleId" UUID NOT NULL,
 
@@ -1081,9 +1164,7 @@ CREATE TABLE "routine" (
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isInternal" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
-    "votes" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
-    "views" INTEGER NOT NULL DEFAULT 0,
+    "score" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
     "createdById" UUID,
     "ownedByOrganizationId" UUID,
@@ -1128,7 +1209,7 @@ CREATE TABLE "routine_version_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
     "instructions" VARCHAR(8192) NOT NULL,
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "routineVersionId" UUID NOT NULL,
 
@@ -1220,7 +1301,7 @@ CREATE TABLE "run_project" (
     "timeStarted" TIMESTAMPTZ(6),
     "timeElapsed" INTEGER,
     "timeCompleted" TIMESTAMPTZ(6),
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "status" "RunStatus" NOT NULL DEFAULT 'Scheduled',
     "projectVersionId" UUID,
     "userId" UUID,
@@ -1240,7 +1321,7 @@ CREATE TABLE "run_project_step" (
     "timeCompleted" TIMESTAMPTZ(6),
     "step" INTEGER[],
     "status" "RunStepStatus" NOT NULL DEFAULT 'InProgress',
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
 
     CONSTRAINT "run_project_step_pkey" PRIMARY KEY ("id")
 );
@@ -1271,7 +1352,7 @@ CREATE TABLE "run_project_schedule_labels" (
 CREATE TABLE "run_project_schedule_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "runProjectScheduleId" UUID NOT NULL,
 
@@ -1292,7 +1373,7 @@ CREATE TABLE "run_routine" (
     "timeStarted" TIMESTAMPTZ(6),
     "timeElapsed" INTEGER,
     "timeCompleted" TIMESTAMPTZ(6),
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "status" "RunStatus" NOT NULL DEFAULT 'Scheduled',
     "routineVersionId" UUID,
     "userId" UUID,
@@ -1305,6 +1386,8 @@ CREATE TABLE "run_routine" (
 -- CreateTable
 CREATE TABLE "run_routine_input" (
     "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "data" VARCHAR(8192) NOT NULL,
     "inputId" UUID NOT NULL,
     "runRoutineId" UUID NOT NULL,
@@ -1325,7 +1408,7 @@ CREATE TABLE "run_routine_step" (
     "timeCompleted" TIMESTAMPTZ(6),
     "step" INTEGER[],
     "status" "RunStepStatus" NOT NULL DEFAULT 'InProgress',
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
 
     CONSTRAINT "run_routine_step_pkey" PRIMARY KEY ("id")
 );
@@ -1358,7 +1441,7 @@ CREATE TABLE "run_routine_schedule_labels" (
 CREATE TABLE "run_routine_schedule_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "runRoutineScheduleId" UUID NOT NULL,
 
@@ -1374,9 +1457,7 @@ CREATE TABLE "smart_contract" (
     "completedAt" TIMESTAMPTZ(6),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
-    "votes" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
-    "views" INTEGER NOT NULL DEFAULT 0,
+    "score" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
     "createdById" UUID,
     "ownedByOrganizationId" UUID,
@@ -1413,6 +1494,7 @@ CREATE TABLE "smart_contract_version" (
 -- CreateTable
 CREATE TABLE "smart_contract_version_translation" (
     "id" UUID NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "description" VARCHAR(2048),
     "jsonVariable" VARCHAR(8192),
     "smartContractVersionId" UUID NOT NULL,
@@ -1447,14 +1529,12 @@ CREATE TABLE "standard" (
     "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
     "completedAt" TIMESTAMPTZ(6),
     "name" VARCHAR(128) NOT NULL,
-    "votes" INTEGER NOT NULL DEFAULT 0,
-    "stars" INTEGER NOT NULL DEFAULT 0,
+    "score" INTEGER NOT NULL DEFAULT 0,
     "permissions" VARCHAR(4096) NOT NULL,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isInternal" BOOLEAN NOT NULL DEFAULT false,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "parentId" UUID,
-    "views" INTEGER NOT NULL DEFAULT 0,
     "createdById" UUID,
     "ownedByUserId" UUID,
     "ownedByOrganizationId" UUID,
@@ -1526,6 +1606,7 @@ CREATE TABLE "star" (
     "apiId" UUID,
     "commentId" UUID,
     "issueId" UUID,
+    "noteId" UUID,
     "organizationId" UUID,
     "postId" UUID,
     "projectId" UUID,
@@ -1715,7 +1796,6 @@ CREATE TABLE "tag" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "tag" VARCHAR(128) NOT NULL,
     "createdById" UUID,
-    "stars" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "tag_pkey" PRIMARY KEY ("id")
 );
@@ -1796,8 +1876,6 @@ CREATE TABLE "user" (
     "currentStreak" INTEGER NOT NULL DEFAULT 0,
     "longestStreak" INTEGER NOT NULL DEFAULT 0,
     "accountTabsOrder" VARCHAR(255),
-    "stars" INTEGER NOT NULL DEFAULT 0,
-    "views" INTEGER NOT NULL DEFAULT 0,
     "notificationSettings" VARCHAR(2048),
     "premiumId" UUID,
     "status" "AccountStatus" NOT NULL DEFAULT 'Unlocked',
@@ -1827,7 +1905,7 @@ CREATE TABLE "user_language" (
 -- CreateTable
 CREATE TABLE "user_schedule" (
     "id" UUID NOT NULL,
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "timezone" VARCHAR(128),
     "eventStart" TIMESTAMPTZ(6),
     "eventEnd" TIMESTAMPTZ(6),
@@ -1854,7 +1932,7 @@ CREATE TABLE "user_schedule_labels" (
 CREATE TABLE "user_schedule_translation" (
     "id" UUID NOT NULL,
     "description" VARCHAR(2048),
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "language" VARCHAR(3) NOT NULL,
     "userScheduleId" UUID NOT NULL,
 
@@ -1875,10 +1953,12 @@ CREATE TABLE "user_schedule_filter" (
 CREATE TABLE "view" (
     "id" UUID NOT NULL,
     "lastViewed" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "title" VARCHAR(128) NOT NULL,
+    "name" VARCHAR(128) NOT NULL,
     "byId" UUID NOT NULL,
     "apiId" UUID,
+    "issueId" UUID,
     "organizationId" UUID,
+    "noteId" UUID,
     "postId" UUID,
     "projectId" UUID,
     "routineId" UUID,
@@ -1897,6 +1977,7 @@ CREATE TABLE "vote" (
     "apiId" UUID,
     "commentId" UUID,
     "issueId" UUID,
+    "noteId" UUID,
     "postId" UUID,
     "projectId" UUID,
     "questionId" UUID,
@@ -2022,7 +2103,7 @@ CREATE UNIQUE INDEX "issue_translation_issueId_language_key" ON "issue_translati
 CREATE UNIQUE INDEX "label_label_key" ON "label"("label");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "label_label_createdByUserId_createdByOrganizationId_key" ON "label"("label", "createdByUserId", "createdByOrganizationId");
+CREATE UNIQUE INDEX "label_label_ownedByUserId_ownedByOrganizationId_key" ON "label"("label", "ownedByUserId", "ownedByOrganizationId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "label_translation_labelId_language_key" ON "label_translation"("labelId", "language");
@@ -2055,6 +2136,9 @@ CREATE UNIQUE INDEX "node_routine_list_item_translation_itemId_language_key" ON 
 CREATE UNIQUE INDEX "note_labels_labelledId_labelId_key" ON "note_labels"("labelledId", "labelId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "note_tags_taggedId_tagTag_key" ON "note_tags"("taggedId", "tagTag");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "note_version_pullRequestId_key" ON "note_version"("pullRequestId");
 
 -- CreateIndex
@@ -2062,9 +2146,6 @@ CREATE UNIQUE INDEX "note_version_rootId_versionIndex_key" ON "note_version"("ro
 
 -- CreateIndex
 CREATE UNIQUE INDEX "push_device_endpoint_key" ON "push_device"("endpoint");
-
--- CreateIndex
-CREATE UNIQUE INDEX "notification_subscription_objectType_objectId_userId_key" ON "notification_subscription"("objectType", "objectId", "userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "organization_handle_key" ON "organization"("handle");
@@ -2082,7 +2163,7 @@ CREATE UNIQUE INDEX "organization_language_organizationId_language_key" ON "orga
 CREATE UNIQUE INDEX "meeting_attendees_scheduleId_userId_key" ON "meeting_attendees"("scheduleId", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "meeting_invite_scheduleId_userId_key" ON "meeting_invite"("scheduleId", "userId");
+CREATE UNIQUE INDEX "meeting_invite_meetingId_userId_key" ON "meeting_invite"("meetingId", "userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "meeting_labels_labelledId_labelId_key" ON "meeting_labels"("labelledId", "labelId");
@@ -2103,10 +2184,19 @@ CREATE UNIQUE INDEX "organization_tags_taggedId_tagTag_key" ON "organization_tag
 CREATE UNIQUE INDEX "member_organizationId_userId_key" ON "member"("organizationId", "userId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "member_invite_memberId_key" ON "member_invite"("memberId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "member_invite_memberId_organizationId_key" ON "member_invite"("memberId", "organizationId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "post_resourceListId_key" ON "post"("resourceListId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "post_tags_taggedId_tagTag_key" ON "post_tags"("taggedId", "tagTag");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "post_translation_postId_language_key" ON "post_translation"("postId", "language");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "phone_phoneNumber_key" ON "phone"("phoneNumber");
@@ -2125,6 +2215,9 @@ CREATE UNIQUE INDEX "project_version_pullRequestId_key" ON "project_version"("pu
 
 -- CreateIndex
 CREATE UNIQUE INDEX "project_version_rootId_versionIndex_key" ON "project_version"("rootId", "versionIndex");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "project_version_directory_translation_projectVersionDirecto_key" ON "project_version_directory_translation"("projectVersionDirectoryId", "language");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "project_version_translation_projectVersionId_language_key" ON "project_version_translation"("projectVersionId", "language");
@@ -2163,7 +2256,7 @@ CREATE UNIQUE INDEX "resource_translation_resourceId_language_key" ON "resource_
 CREATE UNIQUE INDEX "resource_list_translation_listId_language_key" ON "resource_list_translation"("listId", "language");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "role_organizationId_title_key" ON "role"("organizationId", "title");
+CREATE UNIQUE INDEX "role_organizationId_name_key" ON "role"("organizationId", "name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "role_translation_roleId_language_key" ON "role_translation"("roleId", "language");
@@ -2394,6 +2487,9 @@ ALTER TABLE "comment" ADD CONSTRAINT "comment_issueId_fkey" FOREIGN KEY ("issueI
 ALTER TABLE "comment" ADD CONSTRAINT "comment_ownedByOrganizationId_fkey" FOREIGN KEY ("ownedByOrganizationId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "comment" ADD CONSTRAINT "comment_noteVersionId_fkey" FOREIGN KEY ("noteVersionId") REFERENCES "note_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "comment" ADD CONSTRAINT "comment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2439,6 +2535,9 @@ ALTER TABLE "issue" ADD CONSTRAINT "issue_apiId_fkey" FOREIGN KEY ("apiId") REFE
 ALTER TABLE "issue" ADD CONSTRAINT "issue_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "issue" ADD CONSTRAINT "issue_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "issue" ADD CONSTRAINT "issue_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2466,10 +2565,10 @@ ALTER TABLE "issue_labels" ADD CONSTRAINT "issue_labels_labelId_fkey" FOREIGN KE
 ALTER TABLE "issue_translation" ADD CONSTRAINT "issue_translation_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "label" ADD CONSTRAINT "label_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "label" ADD CONSTRAINT "label_ownedByUserId_fkey" FOREIGN KEY ("ownedByUserId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "label" ADD CONSTRAINT "label_createdByOrganizationId_fkey" FOREIGN KEY ("createdByOrganizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "label" ADD CONSTRAINT "label_ownedByOrganizationId_fkey" FOREIGN KEY ("ownedByOrganizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "label_translation" ADD CONSTRAINT "label_translation_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2526,6 +2625,9 @@ ALTER TABLE "node_routine_list_item" ADD CONSTRAINT "node_routine_list_item_rout
 ALTER TABLE "node_routine_list_item_translation" ADD CONSTRAINT "node_routine_list_item_translation_itemId_fkey" FOREIGN KEY ("itemId") REFERENCES "node_routine_list_item"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "note" ADD CONSTRAINT "note_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "note_version"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "note" ADD CONSTRAINT "note_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2539,6 +2641,12 @@ ALTER TABLE "note_labels" ADD CONSTRAINT "note_labels_labelledId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "note_labels" ADD CONSTRAINT "note_labels_labelId_fkey" FOREIGN KEY ("labelId") REFERENCES "label"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "note_tags" ADD CONSTRAINT "note_tags_tagTag_fkey" FOREIGN KEY ("tagTag") REFERENCES "tag"("tag") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "note_tags" ADD CONSTRAINT "note_tags_taggedId_fkey" FOREIGN KEY ("taggedId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "note_version" ADD CONSTRAINT "note_version_rootId_fkey" FOREIGN KEY ("rootId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2556,7 +2664,49 @@ ALTER TABLE "notification" ADD CONSTRAINT "notification_userId_fkey" FOREIGN KEY
 ALTER TABLE "push_device" ADD CONSTRAINT "push_device_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_pullRequestId_fkey" FOREIGN KEY ("pullRequestId") REFERENCES "pull_request"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_questionId_fkey" FOREIGN KEY ("questionId") REFERENCES "question"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "report"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "routine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_smartContractId_fkey" FOREIGN KEY ("smartContractId") REFERENCES "smart_contract"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "notification_subscription" ADD CONSTRAINT "notification_subscription_subscriberId_fkey" FOREIGN KEY ("subscriberId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "organization" ADD CONSTRAINT "organization_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -2566,6 +2716,9 @@ ALTER TABLE "organization" ADD CONSTRAINT "organization_premiumId_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "organization" ADD CONSTRAINT "organization_resourceListId_fkey" FOREIGN KEY ("resourceListId") REFERENCES "resource_list"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "organization" ADD CONSTRAINT "organization_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "organization_language" ADD CONSTRAINT "organization_language_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2580,7 +2733,7 @@ ALTER TABLE "meeting_attendees" ADD CONSTRAINT "meeting_attendees_scheduleId_fke
 ALTER TABLE "meeting_attendees" ADD CONSTRAINT "meeting_attendees_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "meeting_invite" ADD CONSTRAINT "meeting_invite_scheduleId_fkey" FOREIGN KEY ("scheduleId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "meeting_invite" ADD CONSTRAINT "meeting_invite_meetingId_fkey" FOREIGN KEY ("meetingId") REFERENCES "meeting"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "meeting_invite" ADD CONSTRAINT "meeting_invite_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2616,6 +2769,12 @@ ALTER TABLE "member" ADD CONSTRAINT "member_organizationId_fkey" FOREIGN KEY ("o
 ALTER TABLE "member" ADD CONSTRAINT "member_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "member_invite" ADD CONSTRAINT "member_invite_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "member_invite" ADD CONSTRAINT "member_invite_memberId_fkey" FOREIGN KEY ("memberId") REFERENCES "member"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "post" ADD CONSTRAINT "post_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2632,6 +2791,9 @@ ALTER TABLE "post_tags" ADD CONSTRAINT "post_tags_tagTag_fkey" FOREIGN KEY ("tag
 
 -- AddForeignKey
 ALTER TABLE "post_tags" ADD CONSTRAINT "post_tags_taggedId_fkey" FOREIGN KEY ("taggedId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "post_translation" ADD CONSTRAINT "post_translation_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "phone" ADD CONSTRAINT "phone_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2668,6 +2830,9 @@ ALTER TABLE "project_version_directory" ADD CONSTRAINT "project_version_director
 
 -- AddForeignKey
 ALTER TABLE "project_version_directory" ADD CONSTRAINT "project_version_directory_projectVersionId_fkey" FOREIGN KEY ("projectVersionId") REFERENCES "project_version"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "project_version_directory_translation" ADD CONSTRAINT "project_version_directory_translation_projectVersionDirect_fkey" FOREIGN KEY ("projectVersionDirectoryId") REFERENCES "project_version_directory"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "project_version_translation" ADD CONSTRAINT "project_version_translation_projectVersionId_fkey" FOREIGN KEY ("projectVersionId") REFERENCES "project_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -2781,6 +2946,9 @@ ALTER TABLE "quiz_question_translation" ADD CONSTRAINT "quiz_question_translatio
 ALTER TABLE "reminder" ADD CONSTRAINT "reminder_reminderListId_fkey" FOREIGN KEY ("reminderListId") REFERENCES "reminder_list"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "reminder_item" ADD CONSTRAINT "reminder_item_reminderId_fkey" FOREIGN KEY ("reminderId") REFERENCES "reminder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "report" ADD CONSTRAINT "report_apiVersionId_fkey" FOREIGN KEY ("apiVersionId") REFERENCES "api_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -2788,6 +2956,9 @@ ALTER TABLE "report" ADD CONSTRAINT "report_commentId_fkey" FOREIGN KEY ("commen
 
 -- AddForeignKey
 ALTER TABLE "report" ADD CONSTRAINT "report_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "report" ADD CONSTRAINT "report_noteVersionId_fkey" FOREIGN KEY ("noteVersionId") REFERENCES "note_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "report" ADD CONSTRAINT "report_fromId_fkey" FOREIGN KEY ("fromId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3057,6 +3228,9 @@ ALTER TABLE "star" ADD CONSTRAINT "star_commentId_fkey" FOREIGN KEY ("commentId"
 ALTER TABLE "star" ADD CONSTRAINT "star_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "star" ADD CONSTRAINT "star_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "star" ADD CONSTRAINT "star_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -3192,7 +3366,13 @@ ALTER TABLE "view" ADD CONSTRAINT "view_byId_fkey" FOREIGN KEY ("byId") REFERENC
 ALTER TABLE "view" ADD CONSTRAINT "view_apiId_fkey" FOREIGN KEY ("apiId") REFERENCES "api"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "view" ADD CONSTRAINT "view_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "view" ADD CONSTRAINT "view_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "view" ADD CONSTRAINT "view_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "view" ADD CONSTRAINT "view_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -3223,6 +3403,9 @@ ALTER TABLE "vote" ADD CONSTRAINT "vote_commentId_fkey" FOREIGN KEY ("commentId"
 
 -- AddForeignKey
 ALTER TABLE "vote" ADD CONSTRAINT "vote_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "issue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "vote" ADD CONSTRAINT "vote_noteId_fkey" FOREIGN KEY ("noteId") REFERENCES "note"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "vote" ADD CONSTRAINT "vote_postId_fkey" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

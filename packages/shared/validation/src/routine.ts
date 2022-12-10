@@ -1,4 +1,4 @@
-import { description, idArray, id, name, name, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage, version, blankToUndefined } from './base';
+import { description, idArray, id, name, language, tagArray, helpText, maxStringErrorMessage, requiredErrorMessage, version, blankToUndefined } from './base';
 import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { standardCreate } from './standard';

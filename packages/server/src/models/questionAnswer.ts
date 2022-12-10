@@ -2,7 +2,11 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, GraphQLModelType } from "./types";
+import { Displayer } from "./types";
+
+const __typename = 'QuestionAnswer' as const;
+
+const suppFields = [] as const;
 
 const displayer = (): Displayer<
     Prisma.question_answerSelect,
@@ -13,11 +17,11 @@ const displayer = (): Displayer<
 })
 
 export const QuestionAnswerModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.question_answer,
     display: displayer(),
     format: {} as any,
     mutate: {} as any,
     search: {} as any,
-    type: 'QuestionAnswer' as GraphQLModelType,
     validate: {} as any,
 })

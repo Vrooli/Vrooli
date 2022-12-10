@@ -142,7 +142,6 @@ export const typeDef = gql`
 
     input ProfileEmailUpdateInput {
         emailsCreate: [EmailCreateInput!]
-        emailsUpdate: [EmailUpdateInput!]
         emailsDelete: [ID!]
         currentPassword: String!
         newPassword: String

@@ -1,15 +1,18 @@
 import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
+import { Displayer, Formatter, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { relBuilderHelper } from "../actions";
 import { padSelect } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<NodeRoutineList, any> => ({
+const __typename = 'NodeRoutineList' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<NodeRoutineList, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'NodeRoutineList',
+        __typename,
         items: 'NodeRoutineListItem',
     },
 })
@@ -50,9 +53,9 @@ const displayer = (): Displayer<
 })
 
 export const NodeRoutineListModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node_routine_list,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    type: 'NodeRoutineList' as GraphQLModelType,
 })

@@ -2,7 +2,7 @@ import { resourceListsCreate, resourceListsUpdate } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
@@ -13,9 +13,12 @@ import { combineQueries, permissionsSelectHelper } from "../builders";
 import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<ResourceList, any> => ({
+const __typename = 'ResourceList' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<ResourceList, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'ResourceList',
+        __typename,
         resources: 'Resource',
     },
 })
@@ -166,11 +169,11 @@ const displayer = (): Displayer<
 })
 
 export const ResourceListModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.resource_list,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),
-    type: 'ResourceList' as GraphQLModelType,
     validate: validator(),
 })

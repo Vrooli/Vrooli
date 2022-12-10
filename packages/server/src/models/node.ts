@@ -1,7 +1,7 @@
 import { Node, NodeCreateInput, NodeUpdateInput, SessionUser } from "../endpoints/types";
 import { nodesCreate, nodesUpdate } from "@shared/validation";
 import { PrismaType } from "../types";
-import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { CustomError } from "../events";
 import { RoutineModel } from "./routine";
@@ -9,15 +9,14 @@ import { relBuilderHelper } from "../actions";
 import { bestLabel, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+const __typename = 'Node' as const;
 const MAX_NODES_IN_ROUTINE = 100;
 
-const formatter = (): Formatter<Node, any> => ({
+const suppFields = [] as const;
+const formatter = (): Formatter<Node, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Node',
-        data: {
-            NodeEnd: 'NodeEnd',
-            NodeRoutineList: 'NodeRoutineList',
-        },
+        __typename,
+        data: ['NodeEnd', 'NodeRoutineList'],
         loop: 'NodeLoop',
         routineVersion: 'RoutineVersion',
     },
@@ -125,10 +124,10 @@ const displayer = (): Displayer<
 })
 
 export const NodeModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    type: 'Node' as GraphQLModelType,
     validate: validator(),
 })

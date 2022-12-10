@@ -4,16 +4,19 @@ import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, RunRoutinePermission, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
 import { oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 
-const formatter = (): Formatter<RunRoutine, ''> => ({
+const __typename = 'RunRoutine' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<RunRoutine, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'RunRoutine',
+        __typename,
         routine: 'Routine',
         steps: 'RunRoutineStep',
         inputs: 'RunRoutineInput',
@@ -22,7 +25,7 @@ const formatter = (): Formatter<RunRoutine, ''> => ({
     supplemental: {
         // Add fields needed for notifications when a run is started/completed
         dbFields: ['name'],
-        graphqlFields: [],
+        graphqlFields: suppFields,
         toGraphQL: () => [],
     },
 })
@@ -358,10 +361,11 @@ const displayer = (): Displayer<
     Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>
 > => ({
     select: () => ({ id: true, name: true }),
-    label: (select) => select.name ?? '',
+    label: (select) => select.name,
 })
 
 export const RunRoutineModel = ({
+    __typename,
     danger: danger(),
     delegate: (prisma: PrismaType) => prisma.run_routine,
     display: displayer(),
@@ -369,6 +373,5 @@ export const RunRoutineModel = ({
     mutate: mutater(),
     run: runner(),
     search: searcher(),
-    type: 'Run' as GraphQLModelType,
     validate: validator(),
 })

@@ -144,7 +144,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.courses as PartialGraphQLInfo,
-                input: { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
+                input: { take, sortBy: ProjectSortBy.ScoreDesc, tags: ['Learn'], isComplete: true, },
                 objectType: 'Project',
             });
             // Query tutorials
@@ -152,7 +152,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.tutorials as PartialGraphQLInfo,
-                input: { take, sortBy: ProjectSortBy.VotesDesc, tags: ['Learn'], isComplete: true, },
+                input: { take, sortBy: ProjectSortBy.ScoreDesc, tags: ['Learn'], isComplete: true, },
                 objectType: 'Routine',
             });
             // Add supplemental fields to every result
@@ -174,10 +174,7 @@ export const resolvers: {
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'ResearchResult',
                 'processes': 'Routine',
-                'newlyCompleted': {
-                    'Project': 'Project',
-                    'Routine': 'Routine',
-                },
+                'newlyCompleted': ['Project', 'Routine'],
                 'needVotes': 'Project',
                 'needInvestments': 'Project',
                 'needMembers': 'Organization',
@@ -191,7 +188,7 @@ export const resolvers: {
                 ...commonReadParams,
                 additionalQueries: { ...starsQuery, isPrivate: false },
                 info: partial.processes as PartialGraphQLInfo,
-                input: { take, sortBy: RoutineSortBy.VotesDesc, tags: ['Research'], isComplete: true, isInternal: false },
+                input: { take, sortBy: RoutineSortBy.ScoreDesc, tags: ['Research'], isComplete: true, isInternal: false },
                 objectType: 'Routine',
             });
             // Query newlyCompleted
@@ -263,18 +260,9 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'DevelopResult',
-                'completed': {
-                    'Project': 'Project',
-                    'Routine': 'Routine',
-                },
-                'inProgress': {
-                    'Project': 'Project',
-                    'Routine': 'Routine',
-                },
-                'recent': {
-                    'Project': 'Project',
-                    'Routine': 'Routine',
-                },
+                'completed': ['Project', 'Routine'],
+                'inProgress': ['Project', 'Routine'],
+                'recent': ['Project', 'Routine'],
             }, req.languages, true);
             // If not signed in, return empty data
             const userId = getUser(req)?.id ?? null;
@@ -289,28 +277,28 @@ export const resolvers: {
             const { nodes: completedRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.completed as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
-                input: { take, isComplete: true, isInternal: false, userId, sortBy: RoutineSortBy.DateCompletedAsc },
+                input: { take, hasCompleteVersion: true, isInternal: false, userId, sortBy: RoutineSortBy.DateCompletedAsc },
                 objectType: 'Routine',
             });
             // Query for projects you've completed
             const { nodes: completedProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.completed as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
-                input: { take, isComplete: true, userId, sortBy: ProjectSortBy.DateCompletedAsc },
+                input: { take, hasCompleteVersion: true, userId, sortBy: ProjectSortBy.DateCompletedAsc },
                 objectType: 'Project',
             });
             // Query for routines you're currently working on
             const { nodes: inProgressRoutines } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.inProgress as PartialGraphQLInfo)?.Routine as PartialGraphQLInfo,
-                input: { take, isComplete: false, isInternal: false, userId, sortBy: RoutineSortBy.DateCreatedAsc },
+                input: { take, hasCompleteVersion: false, isInternal: false, userId, sortBy: RoutineSortBy.DateCreatedAsc },
                 objectType: 'Routine',
             });
             // Query for projects you're currently working on
             const { nodes: inProgressProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 info: (partial.inProgress as PartialGraphQLInfo)?.Project as PartialGraphQLInfo,
-                input: { take, isComplete: false, userId, sortBy: ProjectSortBy.DateCreatedAsc },
+                input: { take, hasCompleteVersion: false, userId, sortBy: ProjectSortBy.DateCreatedAsc },
                 objectType: 'Project',
             });
             // Query recently created/updated routines
@@ -341,8 +329,8 @@ export const resolvers: {
             const recent: Array<Project | Routine> = [...withSupplemental['rr'], ...withSupplemental['rp']];
             // Sort arrays
             completed.sort((a, b) => {
-                if (a.completedAt < b.completedAt) return -1;
-                if (a.completedAt > b.completedAt) return 1;
+                if (a.updated_at < b.updated_at) return -1;
+                if (a.updated_at > b.updated_at) return 1;
                 return 0;
             });
             inProgress.sort((a, b) => {

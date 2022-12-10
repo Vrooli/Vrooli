@@ -1,8 +1,9 @@
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, IssueSortBy, Issue, IssueSearchInput, IssueCreateInput, IssueUpdateInput } from './types';
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
+import { FindByIdInput, IssueSortBy, Issue, IssueSearchInput, IssueCreateInput, IssueUpdateInput, IssueStatus } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
     enum IssueSortBy {
@@ -16,70 +17,63 @@ export const typeDef = gql`
         DateCreatedDesc
         DateUpdatedAsc
         DateUpdatedDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
-        VotesAsc
-        VotesDesc
     }
+
+    enum IssueStatus {
+        Open
+        ClosedResolved
+        CloseUnresolved
+        Rejected
+    }
+
+    union IssueTo = Api | Organization | Note | Project | Routine | SmartContract | Standard
 
     input IssueCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
+        apiConnect: ID
+        organizationConnect: ID
+        noteConnect: ID
+        projectConnect: ID
+        routineConnect: ID
+        smartContractConnect: ID
+        standardConnect: ID
+        referencedVersionId: ID
     }
     input IssueUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
+        status: IssueStatus
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
     }
     type Issue {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
+        closedAt: Date
+        closedBy: User
+        createdBy: User
+        status: IssueStatus!
+        to: IssueTo!
+        referencedVersionId: ID
+        comments: [Comment!]!
+        commentsCount: Int!
+        labels: [Label!]!
+        labelsCount: Int!
+        reports: [Report!]!
+        reportsCount: Int!
+        translations: [IssueTranslation!]!
+        translationsCount: Int!
         score: Int!
         stars: Int!
         views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        createdBy: User
-        forks: [Project!]!
-        owner: Owner
-        parent: Project
-        permissionsProject: ProjectPermission!
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        translations: [ProjectTranslation!]!
-        wallets: [Wallet!]
+        starredBy: [Star!]
+        isStarred: Boolean!
+        isUpvoted: Boolean
+        permissionsIssue: IssuePermission!
     }
 
     type IssuePermission {
@@ -115,34 +109,36 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
+        status: IssueStatus
         languages: [String!]
         minScore: Int
         minStars: Int
         minViews: Int
+        apiId: ID
         organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        noteId: ID
+        projectId: ID
+        routineId: ID
+        smartContractId: ID
+        standardId: ID
+        closedById: ID
+        createdById: ID
+        referencedVersionId: ID
         searchString: String
-        sortBy: ProjectSortBy
-        tags: [String!]
+        sortBy: IssueSortBy
         take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
     type IssueSearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [IssueEdge!]!
     }
 
     type IssueEdge {
         cursor: String!
-        node: Api!
+        node: Issue!
     }
 
     extend type Query {
@@ -159,6 +155,8 @@ export const typeDef = gql`
 const objectType = 'Issue';
 export const resolvers: {
     IssueSortBy: typeof IssueSortBy;
+    IssueStatus: typeof IssueStatus;
+    IssueTo: UnionResolver;
     Query: {
         issue: GQLEndpoint<FindByIdInput, FindOneResult<Issue>>;
         issues: GQLEndpoint<IssueSearchInput, FindManyResult<Issue>>;
@@ -168,7 +166,9 @@ export const resolvers: {
         issueUpdate: GQLEndpoint<IssueUpdateInput, UpdateOneResult<Issue>>;
     }
 } = {
-    IssueSortBy: IssueSortBy,
+    IssueSortBy,
+    IssueStatus,
+    IssueTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
     Query: {
         issue: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

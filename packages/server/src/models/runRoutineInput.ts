@@ -1,17 +1,20 @@
 import { runInputsCreate, runInputsUpdate } from "@shared/validation";
 import { RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, GraphQLModelType, Mutater, Validator } from "./types";
+import { Displayer, Formatter, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { padSelect } from "../builders";
-import { InputItemModel } from "./inputItem";
 import { SelectWrap } from "../builders/types";
+import { RoutineVersionInputModel } from ".";
 
-const formatter = (): Formatter<RunRoutineInput, any> => ({
+const __typename = 'RunRoutineInput' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<RunRoutineInput, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'RunRoutineInput',
-        input: 'InputItem',
+        __typename,
+        input: 'RoutineVersionInput',
     },
 })
 
@@ -27,7 +30,7 @@ const validator = (): Validator<
 > => ({
     validateMap: {
         __typename: 'RunRoutine',
-        input: 'InputItem',
+        input: 'RoutineVersionInput',
         runRoutine: 'RunRoutine',
     },
     isTransferable: false,
@@ -124,13 +127,13 @@ const displayer = (): Displayer<
 > => ({
     select: () => ({
         id: true,
-        input: padSelect(InputItemModel.display.select),
+        input: padSelect(RoutineVersionInputModel.display.select),
         runRoutine: padSelect(RunRoutineModel.display.select),
     }),
     // Label combines runRoutine's label and input's label
     label: (select, languages) => {
         const runRoutineLabel = RunRoutineModel.display.label(select.runRoutine as any, languages);
-        const inputLabel = InputItemModel.display.label(select.input as any, languages);
+        const inputLabel = RoutineVersionInputModel.display.label(select.input as any, languages);
         if (runRoutineLabel.length > 0) {
             return `${runRoutineLabel} - ${inputLabel}`;
         }
@@ -139,11 +142,11 @@ const displayer = (): Displayer<
 })
 
 export const RunRoutineInputModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_input,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     // search: searcher(),
-    type: 'RunInput' as GraphQLModelType,
     validate: validator(),
 })

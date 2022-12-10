@@ -16,49 +16,47 @@ export const typeDef = gql`
         ReportsDesc
         RepostsAsc
         RepostsDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
         ViewsAsc
         ViewsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input PostCreateInput {
-        anonymous: Boolean
-        tag: String!
-        translationsCreate: [PostTranslationCreateInput!]
+        id: ID!
+        isPinned: Boolean
+        isPublic: Boolean
+        organizationId: ID
+        repostedFromId: ID
+        resourceListCreate: ResourceListCreateInput
+        tagsConnect: [String!]
+        tagsCreate: [TagCreateInput!]
     }
     input PostUpdateInput {
-        anonymous: Boolean
-        tag: String!
-        translationsDelete: [ID!]
-        translationsCreate: [PostTranslationCreateInput!]
-        translationsUpdate: [PostTranslationUpdateInput!]
-    }
-
-    # User's hidden topics
-    input PostHiddenCreateInput {
         id: ID!
-        isBlur: Boolean
-        tagCreate: PostCreateInput
-        tagConnect: ID
+        isPinned: Boolean
+        isPublic: Boolean
+        resourceListUpdate: ResourceListUpdateInput
+        tagsConnect: [String!]
+        tagsDisconnect: [String!]
+        tagsCreate: [TagCreateInput!]
     }
-
-    input PostHiddenUpdateInput {
-        id: ID!
-        isBlur: Boolean
-    }
-
     type Post {
         id: ID!
-        tag: String!
         created_at: Date!
         updated_at: Date!
+        comments: [Comment!]!
+        owner: Owner!
+        reports: [Report!]!
+        repostedFrom: Post
+        reposts: [Post!]!
+        score: Int!
         stars: Int!
-        isStarred: Boolean!
-        isOwn: Boolean!
+        views: Int!
         starredBy: [User!]!
+        tags: [Tag!]!
         translations: [PostTranslation!]!
     }
 
@@ -66,36 +64,36 @@ export const typeDef = gql`
         id: ID!
         language: String!
         description: String
+        name: String!
     }
     input PostTranslationUpdateInput {
         id: ID!
         language: String
         description: String
+        name: String
     }
     type PostTranslation {
         id: ID!
         language: String!
         description: String
-    }
-
-    # Wraps tag with hidden/blurred option
-    type PostHidden {
-        id: ID!
-        isBlur: Boolean!
-        tag: Post!
+        name: String!
     }
 
     input PostSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
-        hidden: Boolean
+        isPinned: Boolean
         ids: [ID!]
         languages: [String!]
+        minScore: Int
         minStars: Int
-        myPosts: Boolean
+        organizationId: ID
+        userId: ID
+        repostedFromIds: [ID!]
         searchString: String
         sortBy: PostSortBy
+        tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
     }

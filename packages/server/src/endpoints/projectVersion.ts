@@ -28,72 +28,55 @@ export const typeDef = gql`
 
     input ProjectVersionCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsCreate: [ProjectTranslationCreateInput!]
+        isComplete: Boolean
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
+        translationsCreate: [ProjectVersionTranslationCreateInput!]
+        directoryListingsCreate: [ProjectVersionDirectoryCreateInput!]
     }
     input ProjectVersionUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        isComplete: Boolean
+        versionIndex: Int
+        versionLabel: String
+        versionNotes: String
+        translationsCreate: [ProjectVersionTranslationCreateInput!]
+        translationsUpdate: [ProjectVersionTranslationUpdateInput!]
         translationsDelete: [ID!]
-        translationsCreate: [ProjectTranslationCreateInput!]
-        translationsUpdate: [ProjectTranslationUpdateInput!]
+        directoryListingsCreate: [ProjectVersionDirectoryCreateInput!]
+        directoryListingsUpdate: [ProjectVersionDirectoryUpdateInput!]
+        directoryListingsDelete: [ID!]
     }
     type ProjectVersion {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
+        isLatest: Boolean!
         isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        createdBy: User
-        forks: [Project!]!
-        owner: Owner
-        parent: Project
-        permissionsProject: ProjectPermission!
+        isComplete: Boolean!
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
+        translations: [ProjectVersionTranslation!]!
+        translationsCount: Int!
+        directories: [ProjectVersionDirectory!]!
+        directoriesCount: Int!
+        directoryListings: [ProjectVersionDirectory!]!
+        directoryListingsCount: Int!
+        pullRequest: PullRequest
         reports: [Report!]!
         reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        translations: [ProjectTranslation!]!
-        wallets: [Wallet!]
-    }
-
-    type ProjectVersionPermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        root: Project!
+        forks: [Project!]!
+        forksCount: Int!
+        comments: [Comment!]!
+        commentsCount: Int!
+        permissionsVersion: VersionPermission!
     }
 
     input ProjectVersionTranslationCreateInput {
@@ -119,23 +102,18 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
         languages: [String!]
         minScore: Int
         minStars: Int
         minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        createdById: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         searchString: String
         sortBy: ProjectVersionSortBy
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 

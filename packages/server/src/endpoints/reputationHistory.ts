@@ -32,14 +32,12 @@ export const typeDef = gql`
         forks: [Project!]!
         owner: Owner
         parent: Project
-        permissionsProject: ProjectPermission!
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]
         routines: [Routine!]!
         starredBy: [User!]
         tags: [Tag!]!
-        translations: [ProjectTranslation!]!
         wallets: [Wallet!]
     }
 

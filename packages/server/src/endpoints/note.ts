@@ -16,14 +16,14 @@ export const typeDef = gql`
         PullRequestsDesc
         QuestionsAsc
         QuestionsDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
         ViewsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input NoteCreateInput {
@@ -47,6 +47,7 @@ export const typeDef = gql`
         tagsCreate: [TagCreateInput!]
         versionsCreate: [ApiVersionCreateInput!]
         versionsUpdate: [ApiVersionUpdateInput!]
+        versionsDelete: [ID!]
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
@@ -60,31 +61,36 @@ export const typeDef = gql`
         parent: Note
         tags: [Tag!]!
         versions: [NoteVersion!]!
+        versionsCount: Int!
         labels: [Label!]!
+        labelsCount: Int!
         stars: Int!
         views: Int!
-        votes: Int!
+        score: Int!
         isStarred: Boolean!
+        isViewed: Boolean!
         isUpvoted: Boolean
         issues: [Issue!]!
+        issuesCount: Int!
         pullRequests: [PullRequest!]!
+        pullRequestsCount: Int!
+        starredBy: [User!]!
         stats: [StatsNote!]!
         questions: [Question!]!
+        questionsCount: Int!
         transfers: [Transfer!]!
-    }
-
-    type NotePermission {
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        transfersCount: Int!
+        permissionsRoot: RootPermission!
     }
 
     input NoteSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         createdById: ID
+        maxScore: Int
+        maxStars: Int
+        minScore: Int
+        minStars: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID

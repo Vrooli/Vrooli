@@ -1,26 +1,30 @@
 import { Prisma } from "@prisma/client";
-import { OutputItem, OutputItemCreateInput, OutputItemUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { relBuilderHelper } from "../actions";
-import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
+import { Displayer, Formatter, Mutater } from "./types";
 import { translationRelationshipBuilder } from "../utils";
 import { RoutineModel } from "./routine";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
+import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput } from "../endpoints/types";
 
-const formatter = (): Formatter<OutputItem, any> => ({
+const __typename = 'RoutineVersionOutput' as const;
+
+const suppFields = [] as const;
+const formatter = (): Formatter<RoutineVersionOutput, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'OutputItem',
-        standard: 'Standard',
+        __typename,
+        routineVersion: 'RoutineVersion',
+        standardVersion: 'StandardVersion',
     },
 })
 
 const mutater = (): Mutater<
-    OutputItem,
+    RoutineVersionOutput,
     false,
     false,
-    { graphql: OutputItemCreateInput, db: Prisma.routine_version_outputCreateWithoutRoutineVersionInput },
-    { graphql: OutputItemUpdateInput, db: Prisma.routine_version_outputUpdateWithoutRoutineVersionInput }
+    { graphql: RoutineVersionOutputCreateInput, db: Prisma.routine_version_outputCreateWithoutRoutineVersionInput },
+    { graphql: RoutineVersionOutputUpdateInput, db: Prisma.routine_version_outputUpdateWithoutRoutineVersionInput }
 > => ({
     shape: {
         relCreate: async ({ prisma, userData, data }) => {
@@ -54,10 +58,10 @@ const displayer = (): Displayer<
     label: (select, languages) => select.name ?? RoutineModel.display.label(select.routineVersion as any, languages),
 })
 
-export const OutputItemModel = ({
+export const RoutineVersionOutputModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version_output,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    type: 'OutputItem' as GraphQLModelType,
 })

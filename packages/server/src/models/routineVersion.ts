@@ -1,13 +1,12 @@
 import { routinesCreate, routinesUpdate } from "@shared/validation";
 import { ResourceListUsedFor } from "@shared/consts";
-import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { CustomError, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer, Duplicator } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer, Duplicator } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
@@ -24,16 +23,18 @@ type NodeWeightData = {
     allInputs: number,
 }
 
-type SupplementalFields = 'isUpvoted' | 'isStarred' | 'isViewed' | 'permissionsRoutine' | 'runs' | 'versions';
-const formatter = (): Formatter<Routine, SupplementalFields> => ({
+const __typename = 'RoutineVersion' as const;
+
+const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoutine', 'runs'] as const;
+const formatter = (): Formatter<Routine, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'RoutineVersion',
+        __typename,
         comments: 'Comment',
         createdBy: 'User',
         forks: 'Routine',
-        inputs: 'InputItem',
+        inputs: 'RoutineVersionInput',
         nodes: 'Node',
-        outputs: 'OutputItem',
+        outputs: 'RoutineVersionOutput',
         parent: 'Routine',
         project: 'Project',
         reports: 'Report',
@@ -42,11 +43,10 @@ const formatter = (): Formatter<Routine, SupplementalFields> => ({
         starredBy: 'User',
         tags: 'Tag',
     },
-    rootFields: ['hasCompleteVersion', 'isDeleted', 'isInternal', 'isPrivate', 'votes', 'stars', 'views', 'permissions'],
     joinMap: { tags: 'tag', starredBy: 'user' },
-    countMap: { commentsCount: 'comments', nodesCount: 'nodes', reportsCount: 'reports' },
+    countFields: ['commentsCount', 'nodesCount', 'reportsCount'],
     supplemental: {
-        graphqlFields: ['isUpvoted', 'isStarred', 'isViewed', 'permissionsRoutine', 'runs', 'versions'],
+        graphqlFields: suppFields,
         toGraphQL: ({ ids, objects, partial, prisma, userData }) => [
             ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Routine')],
             ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Routine')],
@@ -77,13 +77,6 @@ const formatter = (): Formatter<Routine, SupplementalFields> => ({
                 // Split runs by id
                 const routineRuns = ids.map((id) => runs.filter(r => r.routineId === id));
                 return routineRuns;
-            }],
-            ['versions', async () => {
-                const groupData = await prisma.routine.findMany({
-                    where: { id: { in: ids } },
-                    select: { versions: { select: { id: true, versionLabel: true } } }
-                });
-                return groupData.map(g => g.versions);
             }],
         ],
     },
@@ -638,15 +631,15 @@ const calculateComplexity = async (
         if ((data as NodeCreateInput).nodeRoutineListCreate) {
             const listCreate = (data as NodeCreateInput).nodeRoutineListCreate as NodeRoutineListCreateInput;
             // Handle creates
-            ids = ids.concat(listCreate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineVersionConnect) ?? []);
+            ids = ids.concat(listCreate.itemsCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineVersionConnect) ?? []);
         }
         else if ((data as NodeUpdateInput).nodeRoutineListUpdate) {
             const listUpdate = (data as NodeUpdateInput).nodeRoutineListUpdate as NodeRoutineListUpdateInput;
             // Handle creates
-            ids = ids.concat(listUpdate.routinesCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineVersionConnect) ?? []);
+            ids = ids.concat(listUpdate.itemsCreate?.map((item: NodeRoutineListItemCreateInput) => item.routineVersionConnect) ?? []);
             // Handle deletes. No need to handle updates, as routine items cannot switch their routine associations
-            if (listUpdate.routinesDelete) {
-                ids = ids.filter(id => !listUpdate.routinesDelete?.find(deletedId => deletedId === id));
+            if (listUpdate.itemsDelete) {
+                ids = ids.filter(id => !listUpdate.itemsDelete?.find(deletedId => deletedId === id));
             }
         }
         subroutineIdsByNode[node.id] = ids;
@@ -724,8 +717,8 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
             isInternal: data.isInternal ?? undefined,
             versionLabel: data.versionLabel ?? undefined,
             resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-            inputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'input', objectType: 'InputItem', prisma, userData }),
-            outputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'output', objectType: 'OutputItem', prisma, userData }),
+            inputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'input', objectType: 'RoutineVersionInput', prisma, userData }),
+            outputs: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'output', objectType: 'RoutineVersionOutput', prisma, userData }),
             nodes: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'node', objectType: 'Node', prisma, userData }),
             nodeLinks: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'nodeLink', objectType: 'NodeLink', prisma, userData }),
             translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
@@ -864,12 +857,12 @@ const displayer = (): Displayer<
 })
 
 export const RoutineVersionModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),
-    type: 'RoutineVersion' as GraphQLModelType,
     validate: validator(),
     calculateComplexity,
     validateNodePositions,

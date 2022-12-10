@@ -23,6 +23,8 @@ export const typeDef = gql`
         updated_at: Date!
         isAdmin: Boolean!
         permissions: String!
+        organization: Organization!
+        user: User!
     }
 
     input MemberSearchInput {

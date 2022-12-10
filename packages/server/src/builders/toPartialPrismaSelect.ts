@@ -38,7 +38,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
         result = deconstructRelationships(result, formatter.relationshipMap);
         console.log('after deconstruct', JSON.stringify(result), '\n\n');
         result = addJoinTables(result, formatter.joinMap);
-        result = addCountFields(result, formatter.countMap);
+        result = addCountFields(result, formatter.countFields);
     }
     return result;
 }

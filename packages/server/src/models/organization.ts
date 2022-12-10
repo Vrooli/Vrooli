@@ -2,10 +2,9 @@ import { PrismaType } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission, SessionUser } from "../endpoints/types";
 import { organizationsCreate, organizationsUpdate } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
-import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { uuid } from "@shared/uuid";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
@@ -13,28 +12,47 @@ import { combineQueries, onlyValidIds, visibilityBuilder } from "../builders";
 import { bestLabel, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
-type SupplementalFields = 'isStarred' | 'isViewed' | 'permissionsOrganization';
-const formatter = (): Formatter<Organization, SupplementalFields> => ({
+const __typename = 'Organization' as const;
+
+const suppFields = ['isStarred', 'isViewed', 'permissionsOrganization'] as const;
+const formatter = (): Formatter<Organization, typeof suppFields> => ({
     relationshipMap: {
-        __typename: 'Organization',
+        __typename,
+        apis: 'Api',
         comments: 'Comment',
+        directoryListings: 'ProjectVersionDirectory',
+        forks: 'Organization',
+        issues: 'Issue',
+        labels: 'Label',
+        meetings: 'Meeting',
         members: 'Member',
+        notes: 'Note',
+        parent: 'Organization',
+        paymentHistory: 'Payment',
+        posts: 'Post',
+        premium: 'Premium',
         projects: 'Project',
+        questions: 'Question',
         reports: 'Report',
-        resourceLists: 'ResourceList',
+        resourceList: 'ResourceList',
+        roles: 'Role',
         routines: 'Routine',
-        routinesCreated: 'Routine',
+        smartContracts: 'SmartContract',
+        standards: 'Standard',
         starredBy: 'User',
         tags: 'Tag',
+        transfersIncoming: 'Transfer',
+        transfersOutgoing: 'Transfer',
+        wallets: 'Wallet',
     },
-    joinMap: { starredBy: 'user', tags: 'tag' },
-    countMap: { commentsCount: 'comments', membersCount: 'members', reportsCount: 'reports' },
+    joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
+    countFields: ['apisCount', 'commentsCount', 'issuesCount', 'labelsCount', 'meetingsCount', 'membersCount', 'notesCount', 'postsCount', 'projectsCount', 'questionsCount', 'rolesCount', 'routinesCount', 'smartContractsCount', 'standardsCount', 'translationsCount'],
     supplemental: {
-        graphqlFields: ['isStarred', 'isViewed', 'permissionsOrganization'],
+        graphqlFields: suppFields,
         toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Organization')],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'Organization')],
-            ['permissionsOrganization', async () => await getSingleTypePermissions('Organization', ids, prisma, userData)],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
+            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
+            ['permissionsOrganization', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
         ],
     },
 })
@@ -51,8 +69,8 @@ const searcher = (): Searcher<
         DateCreatedDesc: { created_at: 'desc' },
         DateUpdatedAsc: { updated_at: 'asc' },
         DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { stars: 'asc' },
-        StarsDesc: { stars: 'desc' },
+        StarsAsc: { starredBy: { _count: 'asc' } },
+        StarsDesc: { starredBy: { _count: 'desc' } },
     },
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
@@ -91,7 +109,7 @@ const validator = (): Validator<
     false
 > => ({
     validateMap: {
-        __typename: 'Organization',
+        __typename,
         members: 'Member',
         projects: 'Project',
         routines: 'Routine',
@@ -185,7 +203,7 @@ const querier = () => ({
      * Query for checking if a user is a member of an organization
      */
     isMemberOfOrganizationQuery: (userId: string) => (
-        { organization: { members: { some: { userId } } } }
+        { ownedByOrganization: { members: { some: { userId } } } }
     ),
     /**
      * Determines if a user has a role of a list of organizations
@@ -309,12 +327,12 @@ const displayer = (): Displayer<
 })
 
 export const OrganizationModel = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.organization,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
     search: searcher(),
     query: querier(),
-    type: 'Organization' as GraphQLModelType,
     validate: validator(),
 })

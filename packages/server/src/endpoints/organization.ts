@@ -19,22 +19,22 @@ export const typeDef = gql`
         handle: String
         isOpenToNewMembers: Boolean
         isPrivate: Boolean
-        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListCreate: ResourceListCreateInput
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [OrganizationTranslationCreateInput!]
         roles: [RoleCreateInput!]
+        memberInvites: [MemberInviteCreateInput!]
     }
     input OrganizationUpdateInput {
         id: ID!
         handle: String
         isOpenToNewMembers: Boolean
         isPrivate: Boolean
-        membersConnect: [ID!]
         membersDisconnect: [ID!]
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
+        memberInvitesDelete: [ID!]
+        memberInvitesCreate: [MemberInviteCreateInput!]
+        resourceListUpdate: ResourceListUpdateInput
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
@@ -56,21 +56,50 @@ export const typeDef = gql`
         views: Int!
         isStarred: Boolean!
         isViewed: Boolean!
+        apis: [Api!]!
+        apisCount: Int!
         comments: [Comment!]!
         commentsCount: Int!
+        directoryListings: [ProjectVersionDirectory!]!
+        forks: [Organization!]!
+        issues: [Issue!]!
+        issuesCount: Int!
+        labels: [Label!]!
+        labelsCount: Int!
+        meetings: [Meeting!]!
+        meetingsCount: Int!
         members: [Member!]!
         membersCount: Int!
+        notes: [Note!]!
+        notesCount: Int!
+        parent: Organization
+        paymentHistory: [Payment!]!
         permissionsOrganization: OrganizationPermission
+        posts: [Post!]!
+        postsCount: Int!
+        premium: Premium
         projects: [Project!]!
+        projectsCount: Int!
+        questions: [Question!]!
+        questionsCount: Int!
         reports: [Report!]!
         reportsCount: Int!
-        resourceLists: [ResourceList!]!
+        resourceList: ResourceList
         roles: [Role!]
+        rolesCount: Int!
         routines: [Routine!]!
-        routinesCreated: [Routine!]!
+        routinesCount: Int!
+        smartContracts: [SmartContract!]!
+        smartContractsCount: Int!
+        standards: [Standard!]!
+        standardsCount: Int!
         starredBy: [User!]!
+        stats: [StatsOrganization!]!
         tags: [Tag!]!
+        transfersIncoming: [Transfer!]!
+        transfersOutgoing: [Transfer!]!
         translations: [OrganizationTranslation!]!
+        translationsCount: Int!
         wallets: [Wallet!]!
     }
 

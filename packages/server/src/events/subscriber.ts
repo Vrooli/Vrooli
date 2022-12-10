@@ -2,6 +2,7 @@ import { getDelegator, getValidator } from "../getters";
 import { SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { CustomError } from "./error";
+import { subscriberMapper } from "../models";
 
 export type SubscribableObject = 'Organization' | 'Project' | 'Routine' | 'Standard' | 'User'; //'Api' | 'Note' | 'Organization' | 'Project' | 'Routine' | 'SmartContract' | 'Standard' | 'User';
 
@@ -43,9 +44,8 @@ export const Subscriber = (prisma: PrismaType) => ({
         // Create subscription
         await prisma.notification_subscription.create({
             data: {
-                objectType: object.__typename,
-                objectId: object.id,
-                user: { connect: { id: userData.id } },
+                subscriber: { connect: { id: userData.id } },
+                [subscriberMapper[object.__typename]]: { connect: { id: object.id } },
                 silent,
             }
         });
@@ -63,13 +63,13 @@ export const Subscriber = (prisma: PrismaType) => ({
         const subscription = await prisma.notification_subscription.findUnique({
             where: { id: subscriptionId },
             select: {
-                userId: true,
+                subscriberId: true,
             }
         });
         // Make sure the subscription exists and is owned by the user
         if (!subscription)
             throw new CustomError('0333', 'NotFound', userData.languages);
-        if (subscription.userId !== userData.id)
+        if (subscription.subscriberId !== userData.id)
             throw new CustomError('0334', 'Unauthorized', userData.languages);
         // Delete subscription
         await prisma.notification_subscription.delete({
@@ -91,14 +91,14 @@ export const Subscriber = (prisma: PrismaType) => ({
         const subscription = await prisma.notification_subscription.findUnique({
             where: { id: subscriptionId },
             select: {
-                userId: true,
+                subscriberId: true,
                 silent: true,
             }
         });
         // Make sure the subscription exists and is owned by the user
         if (!subscription)
             throw new CustomError('0335', 'NotFound', userData.languages);
-        if (subscription.userId !== userData.id)
+        if (subscription.subscriberId !== userData.id)
             throw new CustomError('0336', 'Unauthorized', userData.languages);
         // Update subscription if silent status has changed
         if (subscription.silent !== silent) {

@@ -15,7 +15,7 @@ const { merge } = pkg;
  */
 export const removeSupplementalFields = (objectType: GraphQLModelType, partial: PartialGraphQLInfo | PartialPrismaSelect) => {
     // Get supplemental info for object
-    const supplementer: SupplementalConverter<any, any> | undefined = ObjectMap[objectType]?.format?.supplemental;
+    const supplementer: SupplementalConverter<any> | undefined = ObjectMap[objectType]?.format?.supplemental;
     if (!supplementer) return partial;
     // Remove graphQL supplemental fields
     console.log('before removeSupplementalFields omit', supplementer.graphqlFields, JSON.stringify(partial), '\n\n');

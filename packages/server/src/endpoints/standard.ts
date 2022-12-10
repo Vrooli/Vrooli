@@ -18,14 +18,14 @@ export const typeDef = gql`
         PullRequestsDesc
         QuestionsAsc
         QuestionsDesc
+        ScoreAsc
+        ScoreDesc
         StarsAsc
         StarsDesc
         VersionsAsc
         VersionsDesc
         ViewsAsc
         ViewsDesc
-        VotesAsc
-        VotesDesc
     }
 
     input StandardCreateInput {
