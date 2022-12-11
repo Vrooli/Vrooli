@@ -51,6 +51,9 @@ export type GraphQLModelType =
     'Question' |
     'QuestionAnswer' |
     'Quiz' |
+    'QuizAttempt' |
+    'QuizQuestion' |
+    'QuizQuestionResponse' |
     'Reminder' |
     'ReminderItem' |
     'ReminderList' |
@@ -102,7 +105,7 @@ export type GraphQLModelType =
 */
 export type ModelLogic<
     GQLObject extends { [key: string]: any },
-    SuppFields extends readonly string[],
+    SuppFields extends readonly (keyof GQLObject extends infer R ? R extends string ? R : never : never)[],
     Create extends false | MutaterShapes,
     Update extends false | MutaterShapes,
     RelationshipCreate extends false | MutaterShapes,
@@ -186,7 +189,7 @@ export interface SupplementalConverter<
  */
 export interface Formatter<
     GQLModel extends Record<string, any>,
-    SuppFields extends readonly string[]
+    SuppFields extends readonly (keyof GQLModel extends infer R ? R extends string ? R : never : never)[]
 > {
     /**
      * Maps relationship names to their GraphQL type. 
@@ -237,6 +240,12 @@ export interface Formatter<
 
 type CommonSearchFields = 'after' | 'take' | 'ids' | 'searchString';
 
+export type SearchStringQueryParams = {
+    insensitive: { contains: string; mode: 'default' | 'insensitive'; },
+    languages?: string[],
+    searchString: string,
+}
+
 /**
  * Describes shape of component that can be sorted in a specific order
  */
@@ -265,11 +274,10 @@ export type Searcher<
         R extends CommonSearchFields ? never : R
         : never
         : never)[];
-    searchStringQuery: ({ insensitive, languages, searchString }: {
-        insensitive: { contains: string; mode: 'default' | 'insensitive'; },
-        languages?: string[],
-        searchString: string,
-    }) => Where;
+    /**
+     * Query for searching by a string
+     */
+    searchStringQuery: ({ insensitive, languages, searchString }: SearchStringQueryParams) => Where;
     /**
      * Any additional data to add to the Prisma query. Not usually needed
      */

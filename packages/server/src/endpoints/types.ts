@@ -128,8 +128,6 @@ export type ApiSearchResult = {
 };
 
 export enum ApiSortBy {
-  CalledByRoutinesAsc = 'CalledByRoutinesAsc',
-  CalledByRoutinesDesc = 'CalledByRoutinesDesc',
   DateCreatedAsc = 'DateCreatedAsc',
   DateCreatedDesc = 'DateCreatedDesc',
   DateUpdatedAsc = 'DateUpdatedAsc',
@@ -215,7 +213,7 @@ export type ApiVersionSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
@@ -236,6 +234,8 @@ export type ApiVersionSearchResult = {
 };
 
 export enum ApiVersionSortBy {
+  CalledByRoutinesAsc = 'CalledByRoutinesAsc',
+  CalledByRoutinesDesc = 'CalledByRoutinesDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
   DateCreatedAsc = 'DateCreatedAsc',
@@ -678,7 +678,7 @@ export type IssueSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
@@ -829,7 +829,7 @@ export type LabelSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   label?: InputMaybe<Scalars['String']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -1044,8 +1044,8 @@ export type MeetingSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  labels?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  labelsId?: InputMaybe<Array<Scalars['ID']>>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
@@ -1316,9 +1316,12 @@ export type Mutation = {
   pushDeviceCreate: PushDevice;
   pushDeviceUpdate: PushDevice;
   questionAnswerCreate: QuestionAnswer;
+  questionAnswerMarkAsAccepted: QuestionAnswer;
   questionAnswerUpdate: QuestionAnswer;
   questionCreate: Question;
   questionUpdate: Question;
+  quizAttemptCreate: QuizAttempt;
+  quizAttemptUpdate: QuizAttempt;
   quizCreate: Quiz;
   quizUpdate: Quiz;
   reminderCreate: Reminder;
@@ -1664,6 +1667,11 @@ export type MutationQuestionAnswerCreateArgs = {
 };
 
 
+export type MutationQuestionAnswerMarkAsAcceptedArgs = {
+  input: FindByIdInput;
+};
+
+
 export type MutationQuestionAnswerUpdateArgs = {
   input: QuestionAnswerUpdateInput;
 };
@@ -1676,6 +1684,16 @@ export type MutationQuestionCreateArgs = {
 
 export type MutationQuestionUpdateArgs = {
   input: QuestionUpdateInput;
+};
+
+
+export type MutationQuizAttemptCreateArgs = {
+  input: QuizAttemptCreateInput;
+};
+
+
+export type MutationQuizAttemptUpdateArgs = {
+  input: QuizAttemptUpdateInput;
 };
 
 
@@ -3016,8 +3034,6 @@ export type Project = {
   questionsCount: Scalars['Int'];
   quizzes: Array<Quiz>;
   quizzesCount: Scalars['Int'];
-  runs: Array<RunProject>;
-  runsCount: Scalars['Int'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
@@ -3279,6 +3295,8 @@ export type ProjectVersion = {
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   root: Project;
+  runs: Array<RunProject>;
+  runsCount: Scalars['Int'];
   translations: Array<ProjectVersionTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
@@ -3625,6 +3643,12 @@ export type Query = {
   questionAnswers: QuestionAnswerSearchResult;
   questions: QuestionSearchResult;
   quiz?: Maybe<Quiz>;
+  quizAttempt?: Maybe<QuizAttempt>;
+  quizAttempts: QuizAttemptSearchResult;
+  quizQuestion?: Maybe<QuizQuestion>;
+  quizQuestionResponse?: Maybe<QuizQuestionResponse>;
+  quizQuestionResponses: QuizQuestionResponseSearchResult;
+  quizQuestions: QuizQuestionSearchResult;
   quizzes: QuizSearchResult;
   readAssets: Array<Maybe<Scalars['String']>>;
   reminder?: Maybe<Reminder>;
@@ -3910,6 +3934,36 @@ export type QueryQuizArgs = {
 };
 
 
+export type QueryQuizAttemptArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryQuizAttemptsArgs = {
+  input: QuizAttemptSearchInput;
+};
+
+
+export type QueryQuizQuestionArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryQuizQuestionResponseArgs = {
+  input: FindByIdInput;
+};
+
+
+export type QueryQuizQuestionResponsesArgs = {
+  input: QuizQuestionResponseSearchInput;
+};
+
+
+export type QueryQuizQuestionsArgs = {
+  input: QuizQuestionSearchInput;
+};
+
+
 export type QueryQuizzesArgs = {
   input: QuizSearchInput;
 };
@@ -4183,20 +4237,21 @@ export type Question = {
 
 export type QuestionAnswer = {
   __typename?: 'QuestionAnswer';
+  comments: Array<Comment>;
+  createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isOwn: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
+  isAccepted: Scalars['Boolean'];
+  question: Question;
+  score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
-  tag: Scalars['String'];
   translations: Array<QuestionAnswerTranslation>;
   updated_at: Scalars['Date'];
 };
 
 export type QuestionAnswerCreateInput = {
-  anonymous?: InputMaybe<Scalars['Boolean']>;
-  tag: Scalars['String'];
+  id: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<QuestionAnswerTranslationCreateInput>>;
 };
 
@@ -4206,34 +4261,14 @@ export type QuestionAnswerEdge = {
   node: QuestionAnswer;
 };
 
-export type QuestionAnswerHidden = {
-  __typename?: 'QuestionAnswerHidden';
-  id: Scalars['ID'];
-  isBlur: Scalars['Boolean'];
-  tag: QuestionAnswer;
-};
-
-export type QuestionAnswerHiddenCreateInput = {
-  id: Scalars['ID'];
-  isBlur?: InputMaybe<Scalars['Boolean']>;
-  tagConnect?: InputMaybe<Scalars['ID']>;
-  tagCreate?: InputMaybe<QuestionAnswerCreateInput>;
-};
-
-export type QuestionAnswerHiddenUpdateInput = {
-  id: Scalars['ID'];
-  isBlur?: InputMaybe<Scalars['Boolean']>;
-};
-
 export type QuestionAnswerSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
-  hidden?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
+  minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
-  myQuestionAnswers?: InputMaybe<Scalars['Boolean']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<QuestionAnswerSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -4261,13 +4296,13 @@ export enum QuestionAnswerSortBy {
 
 export type QuestionAnswerTranslation = {
   __typename?: 'QuestionAnswerTranslation';
-  description?: Maybe<Scalars['String']>;
+  description: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
 };
 
 export type QuestionAnswerTranslationCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
+  description: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
 };
@@ -4279,8 +4314,7 @@ export type QuestionAnswerTranslationUpdateInput = {
 };
 
 export type QuestionAnswerUpdateInput = {
-  anonymous?: InputMaybe<Scalars['Boolean']>;
-  tag: Scalars['String'];
+  id: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<QuestionAnswerTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<QuestionAnswerTranslationUpdateInput>>;
@@ -4390,61 +4424,295 @@ export type QuestionUpdateInput = {
 
 export type Quiz = {
   __typename?: 'Quiz';
-  comments: Array<Comment>;
-  commentsCount: Scalars['Int'];
-  completedAt?: Maybe<Scalars['Date']>;
+  attempts: Array<QuizAttempt>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
-  forks: Array<Project>;
-  handle?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  isComplete: Scalars['Boolean'];
-  isPrivate: Scalars['Boolean'];
+  isCompleted: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
-  owner?: Maybe<Owner>;
-  parent?: Maybe<Project>;
-  reports: Array<Report>;
-  reportsCount: Scalars['Int'];
-  resourceLists?: Maybe<Array<ResourceList>>;
-  routines: Array<Routine>;
+  project?: Maybe<Project>;
+  quizQuestions: Array<QuizQuestion>;
+  routine?: Maybe<Routine>;
   score: Scalars['Int'];
-  starredBy?: Maybe<Array<User>>;
+  starredBy: Array<User>;
   stars: Scalars['Int'];
-  tags: Array<Tag>;
+  stats: Array<StatsQuiz>;
+  translations: Array<QuizTranslation>;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
-  wallets?: Maybe<Array<Wallet>>;
+};
+
+export type QuizAttempt = {
+  __typename?: 'QuizAttempt';
+  contextSwitches: Scalars['Int'];
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  pointsEarned: Scalars['Int'];
+  quiz: Quiz;
+  responses: Array<QuizQuestionResponse>;
+  status: QuizAttemptStatus;
+  timeTaken?: Maybe<Scalars['Int']>;
+  updated_at: Scalars['Date'];
+};
+
+export type QuizAttemptCreateInput = {
+  contextSwitches?: InputMaybe<Scalars['Int']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  responsesCreate?: InputMaybe<Array<QuizQuestionResponseCreateInput>>;
+  timeTaken?: InputMaybe<Scalars['Int']>;
+};
+
+export type QuizAttemptEdge = {
+  __typename?: 'QuizAttemptEdge';
+  cursor: Scalars['String'];
+  node: QuizAttempt;
+};
+
+export type QuizAttemptPermission = {
+  __typename?: 'QuizAttemptPermission';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+};
+
+export type QuizAttemptSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  languageIn?: InputMaybe<Array<Scalars['String']>>;
+  quizId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<QuizAttemptSortBy>;
+  status?: InputMaybe<QuizAttemptStatus>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type QuizAttemptSearchResult = {
+  __typename?: 'QuizAttemptSearchResult';
+  edges: Array<QuizAttemptEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum QuizAttemptSortBy {
+  ContextSwitchesAsc = 'ContextSwitchesAsc',
+  ContextSwitchesDesc = 'ContextSwitchesDesc',
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  PointsEarnedAsc = 'PointsEarnedAsc',
+  PointsEarnedDesc = 'PointsEarnedDesc',
+  TimeTakenAsc = 'TimeTakenAsc',
+  TimeTakenDesc = 'TimeTakenDesc'
+}
+
+export enum QuizAttemptStatus {
+  Failed = 'Failed',
+  InProgress = 'InProgress',
+  NotStarted = 'NotStarted',
+  Passed = 'Passed'
+}
+
+export type QuizAttemptUpdateInput = {
+  contextSwitches?: InputMaybe<Scalars['Int']>;
+  id: Scalars['ID'];
+  responsesCreate?: InputMaybe<Array<QuizQuestionResponseCreateInput>>;
+  responsesDelete?: InputMaybe<Array<Scalars['ID']>>;
+  responsesUpdate?: InputMaybe<Array<QuizQuestionResponseUpdateInput>>;
+  timeTaken?: InputMaybe<Scalars['Int']>;
 };
 
 export type QuizCreateInput = {
-  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
-  parentId?: InputMaybe<Scalars['ID']>;
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  rootId: Scalars['ID'];
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  maxAttempts?: InputMaybe<Scalars['Int']>;
+  pointsToPass?: InputMaybe<Scalars['Int']>;
+  projectConnect?: InputMaybe<Scalars['ID']>;
+  quizQuestionsCreate?: InputMaybe<Array<QuizQuestionCreateInput>>;
+  randomizeQuestionORder?: InputMaybe<Scalars['Boolean']>;
+  revealCorrectAnswers?: InputMaybe<Scalars['Boolean']>;
+  routineConnect?: InputMaybe<Scalars['ID']>;
+  timeLimit?: InputMaybe<Scalars['Int']>;
+  translationsCreate?: InputMaybe<Array<QuizTranslationCreateInput>>;
 };
 
 export type QuizEdge = {
   __typename?: 'QuizEdge';
   cursor: Scalars['String'];
-  node: Api;
+  node: Quiz;
 };
 
 export type QuizPermission = {
   __typename?: 'QuizPermission';
-  canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
   canView: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
+};
+
+export type QuizQuestion = {
+  __typename?: 'QuizQuestion';
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  order?: Maybe<Scalars['Int']>;
+  points: Scalars['Int'];
+  quiz: Quiz;
+  responses?: Maybe<Array<QuizQuestionResponse>>;
+  standard?: Maybe<Standard>;
+  translations?: Maybe<Array<QuizQuestionTranslation>>;
+  updated_at: Scalars['Date'];
+};
+
+export type QuizQuestionCreateInput = {
+  id: Scalars['ID'];
+  order?: InputMaybe<Scalars['Int']>;
+  points?: InputMaybe<Scalars['Int']>;
+  quizConnect?: InputMaybe<Scalars['ID']>;
+  standardConnect?: InputMaybe<Scalars['ID']>;
+  standardCreate?: InputMaybe<StandardCreateInput>;
+  translationsCreate?: InputMaybe<Array<QuizQuestionTranslationCreateInput>>;
+};
+
+export type QuizQuestionEdge = {
+  __typename?: 'QuizQuestionEdge';
+  cursor: Scalars['String'];
+  node: QuizQuestion;
+};
+
+export type QuizQuestionPermission = {
+  __typename?: 'QuizQuestionPermission';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+};
+
+export type QuizQuestionResponse = {
+  __typename?: 'QuizQuestionResponse';
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  permissionsQuizQuestionResponse: QuizQuestionResponsePermission;
+  quizAttempt: QuizAttempt;
+  quizQuestion: QuizQuestion;
+  response?: Maybe<Scalars['String']>;
+  updated_at: Scalars['Date'];
+};
+
+export type QuizQuestionResponseCreateInput = {
+  id: Scalars['ID'];
+  quizQuestionId: Scalars['ID'];
+  response?: InputMaybe<Scalars['String']>;
+};
+
+export type QuizQuestionResponseEdge = {
+  __typename?: 'QuizQuestionResponseEdge';
+  cursor: Scalars['String'];
+  node: QuizQuestionResponse;
+};
+
+export type QuizQuestionResponsePermission = {
+  __typename?: 'QuizQuestionResponsePermission';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+};
+
+export type QuizQuestionResponseSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  quizAttemptId?: InputMaybe<Scalars['ID']>;
+  quizQuestionId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<QuizQuestionResponseSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type QuizQuestionResponseSearchResult = {
+  __typename?: 'QuizQuestionResponseSearchResult';
+  edges: Array<QuizQuestionResponseEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum QuizQuestionResponseSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
+export type QuizQuestionResponseUpdateInput = {
+  id: Scalars['ID'];
+  response?: InputMaybe<Scalars['String']>;
+};
+
+export type QuizQuestionSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  languages?: InputMaybe<Array<Scalars['String']>>;
+  quizId?: InputMaybe<Scalars['ID']>;
+  responseId?: InputMaybe<Scalars['ID']>;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<QuizQuestionSortBy>;
+  standardId?: InputMaybe<Scalars['ID']>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+  userId?: InputMaybe<Scalars['ID']>;
+  visibility?: InputMaybe<VisibilityType>;
+};
+
+export type QuizQuestionSearchResult = {
+  __typename?: 'QuizQuestionSearchResult';
+  edges: Array<QuizQuestionEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum QuizQuestionSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc',
+  OrderAsc = 'OrderAsc',
+  OrderDesc = 'OrderDesc'
+}
+
+export type QuizQuestionTranslation = {
+  __typename?: 'QuizQuestionTranslation';
+  helpText?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  questionText: Scalars['String'];
+};
+
+export type QuizQuestionTranslationCreateInput = {
+  helpText?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language: Scalars['String'];
+  questionText: Scalars['String'];
+};
+
+export type QuizQuestionTranslationUpdateInput = {
+  helpText?: InputMaybe<Scalars['String']>;
+  id: Scalars['ID'];
+  language?: InputMaybe<Scalars['String']>;
+  questionText?: InputMaybe<Scalars['String']>;
+};
+
+export type QuizQuestionUpdateInput = {
+  id: Scalars['ID'];
+  order?: InputMaybe<Scalars['Int']>;
+  points?: InputMaybe<Scalars['Int']>;
+  standardConnect?: InputMaybe<Scalars['ID']>;
+  standardCreate?: InputMaybe<StandardCreateInput>;
+  standardDisconnect?: InputMaybe<Scalars['ID']>;
+  standardUpdate?: InputMaybe<StandardUpdateInput>;
+  translationsCreate?: InputMaybe<Array<QuizQuestionTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<QuizQuestionTranslationUpdateInput>>;
 };
 
 export type QuizSearchInput = {
@@ -4452,19 +4720,13 @@ export type QuizSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  parentId?: InputMaybe<Scalars['ID']>;
-  reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<ProjectSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  sortBy?: InputMaybe<QuizSortBy>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
@@ -4473,7 +4735,7 @@ export type QuizSearchInput = {
 
 export type QuizSearchResult = {
   __typename?: 'QuizSearchResult';
-  edges: Array<ApiEdge>;
+  edges: Array<QuizEdge>;
   pageInfo: PageInfo;
 };
 
@@ -4515,19 +4777,22 @@ export type QuizTranslationUpdateInput = {
 };
 
 export type QuizUpdateInput = {
-  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
+  maxAttempts?: InputMaybe<Scalars['Int']>;
+  pointsToPass?: InputMaybe<Scalars['Int']>;
+  projectConnect?: InputMaybe<Scalars['ID']>;
+  projectDisconnect?: InputMaybe<Scalars['ID']>;
+  quizQuestionsCreate?: InputMaybe<Array<QuizQuestionCreateInput>>;
+  quizQuestionsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  quizQuestionsUpdate?: InputMaybe<Array<QuizQuestionUpdateInput>>;
+  randomizeQuestionORder?: InputMaybe<Scalars['Boolean']>;
+  revealCorrectAnswers?: InputMaybe<Scalars['Boolean']>;
+  routineConnect?: InputMaybe<Scalars['ID']>;
+  routineDisconnect?: InputMaybe<Scalars['ID']>;
+  timeLimit?: InputMaybe<Scalars['Int']>;
+  translationsCreate?: InputMaybe<Array<QuizTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  userId?: InputMaybe<Scalars['ID']>;
+  translationsUpdate?: InputMaybe<Array<QuizTranslationUpdateInput>>;
 };
 
 export type ReadAssetsInput = {
@@ -4536,21 +4801,26 @@ export type ReadAssetsInput = {
 
 export type Reminder = {
   __typename?: 'Reminder';
+  completed: Scalars['Boolean'];
   created_at: Scalars['Date'];
+  description?: Maybe<Scalars['String']>;
+  dueDate?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
-  index?: Maybe<Scalars['Int']>;
-  link: Scalars['String'];
-  listId: Scalars['ID'];
-  translations: Array<ReminderTranslation>;
+  index: Scalars['Int'];
+  name: Scalars['String'];
+  reminderItems: Array<ReminderItem>;
+  reminderList: ReminderList;
   updated_at: Scalars['Date'];
 };
 
 export type ReminderCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
-  index?: InputMaybe<Scalars['Int']>;
-  link: Scalars['String'];
-  listId: Scalars['ID'];
-  translationsCreate?: InputMaybe<Array<ReminderTranslationCreateInput>>;
+  index: Scalars['Int'];
+  name: Scalars['String'];
+  reminderItemsCreate?: InputMaybe<Array<ReminderItemCreateInput>>;
+  reminderListConnect: Scalars['ID'];
 };
 
 export type ReminderEdge = {
@@ -4561,25 +4831,31 @@ export type ReminderEdge = {
 
 export type ReminderItem = {
   __typename?: 'ReminderItem';
+  completed: Scalars['Boolean'];
   created_at: Scalars['Date'];
+  description?: Maybe<Scalars['String']>;
+  dueDate?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
-  index?: Maybe<Scalars['Int']>;
-  link: Scalars['String'];
-  listId: Scalars['ID'];
+  index: Scalars['Int'];
+  name: Scalars['String'];
+  reminder: Reminder;
   updated_at: Scalars['Date'];
 };
 
 export type ReminderItemCreateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
-  index?: InputMaybe<Scalars['Int']>;
-  link: Scalars['String'];
-  reminderId: Scalars['ID'];
+  index: Scalars['Int'];
+  name: Scalars['String'];
 };
 
 export type ReminderItemUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
-  link?: InputMaybe<Scalars['String']>;
+  name?: InputMaybe<Scalars['String']>;
 };
 
 export type ReminderList = {
@@ -4681,9 +4957,8 @@ export type ReminderListUpdateInput = {
 export type ReminderSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
-  forId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  reminderListId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ReminderSortBy>;
   take?: InputMaybe<Scalars['Int']>;
@@ -4703,36 +4978,15 @@ export enum ReminderSortBy {
   NameDesc = 'NameDesc'
 }
 
-export type ReminderTranslation = {
-  __typename?: 'ReminderTranslation';
-  description?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  name?: Maybe<Scalars['String']>;
-};
-
-export type ReminderTranslationCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  name?: InputMaybe<Scalars['String']>;
-};
-
-export type ReminderTranslationUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
-  name?: InputMaybe<Scalars['String']>;
-};
-
 export type ReminderUpdateInput = {
+  description?: InputMaybe<Scalars['String']>;
+  dueDate?: InputMaybe<Scalars['Date']>;
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
-  link?: InputMaybe<Scalars['String']>;
-  listId?: InputMaybe<Scalars['ID']>;
-  translationsCreate?: InputMaybe<Array<ReminderTranslationCreateInput>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<ReminderTranslationUpdateInput>>;
+  name?: InputMaybe<Scalars['String']>;
+  reminderItemsCreate?: InputMaybe<Array<ReminderItemCreateInput>>;
+  reminderItemsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  reminderItemsUpdate?: InputMaybe<Array<ReminderItemUpdateInput>>;
 };
 
 export type Report = {
@@ -6882,6 +7136,8 @@ export type SmartContractVersionSearchResult = {
 };
 
 export enum SmartContractVersionSortBy {
+  CalledByRoutinesAsc = 'CalledByRoutinesAsc',
+  CalledByRoutinesDesc = 'CalledByRoutinesDesc',
   CommentsAsc = 'CommentsAsc',
   CommentsDesc = 'CommentsDesc',
   DateCreatedAsc = 'DateCreatedAsc',

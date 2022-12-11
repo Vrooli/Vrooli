@@ -21,7 +21,7 @@ const formatter = (): Formatter<Tag, typeof suppFields> => ({
         graphqlFields: suppFields,
         dbFields: ['createdByUserId', 'id'],
         toGraphQL: ({ ids, objects, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Tag')],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
             ['isOwn', async () => objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id)],
         ],
     },

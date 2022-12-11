@@ -29,8 +29,8 @@ const formatter = (): Formatter<User, typeof suppFields> => ({
     supplemental: {
         graphqlFields: suppFields,
         toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'User')],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'User')],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
+            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
         ],
     },
 })

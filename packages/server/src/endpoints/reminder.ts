@@ -14,59 +14,45 @@ export const typeDef = gql`
 
     input ReminderCreateInput {
         id: ID!
-        listId: ID!
-        index: Int
-        link: String!
-        translationsCreate: [ReminderTranslationCreateInput!]
+        name: String!
+        description: String
+        dueDate: Date
+        index: Int!
+        reminderListConnect: ID!
+        reminderItemsCreate: [ReminderItemCreateInput!]
     }
     input ReminderUpdateInput {
         id: ID!
-        listId: ID
+        name: String
+        description: String
+        dueDate: Date
         index: Int
-        link: String
-        translationsDelete: [ID!]
-        translationsCreate: [ReminderTranslationCreateInput!]
-        translationsUpdate: [ReminderTranslationUpdateInput!]
+        reminderItemsCreate: [ReminderItemCreateInput!]
+        reminderItemsUpdate: [ReminderItemUpdateInput!]
+        reminderItemsDelete: [ID!]
     }
     type Reminder {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        listId: ID!
-        index: Int
-        link: String!
-        translations: [ReminderTranslation!]!
-    }
-
-    input ReminderTranslationCreateInput {
-        id: ID!
-        language: String!
+        name: String!
         description: String
-        name: String
-    }
-    input ReminderTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type ReminderTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String
+        dueDate: Date
+        completed: Boolean!
+        index: Int!
+        reminderList: ReminderList!
+        reminderItems: [ReminderItem!]!
     }
 
     input ReminderSearchInput {
-        forId: ID
         ids: [ID!]
-        languages: [String!]
         sortBy: ReminderSortBy
         createdTimeFrame: TimeFrame
         updatedTimeFrame: TimeFrame
         searchString: String
         after: String
         take: Int
+        reminderListId: ID
     }
 
     type ReminderSearchResult {

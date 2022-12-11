@@ -4,7 +4,7 @@ import { Formatter, GraphQLModelType } from "../models/types";
 
 export function getFormatter<
     GQLObject extends { [x: string]: any },
-    SupplementalFields extends readonly string[]
+    SupplementalFields extends readonly (keyof GQLObject extends infer R ? R extends string ? R : never : never)[]
 >(
     objectType: GraphQLModelType,
     languages: string[],

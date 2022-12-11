@@ -113,12 +113,12 @@ export const typeDef = gql`
         ids: [ID!]
         openToAnyoneWithInvite: Boolean
         showOnOrganizationProfile: Boolean
-        labels: [ID!]
-        languages: [String!]
+        labelsId: [ID!]
         organizationId: ID
         searchString: String
         sortBy: MeetingSortBy
         take: Int
+        translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

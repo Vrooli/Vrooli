@@ -33,6 +33,5 @@ export const ApiKeyModel = ({
     display: displayer(),
     format: formatter(),
     mutate: {} as any,
-    search: {} as any,
     validate: {} as any,
 })

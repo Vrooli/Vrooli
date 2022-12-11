@@ -18,7 +18,7 @@ import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } f
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
 
-const __typename = 'ProjectVersion' as const;
+const __typename = 'Standard' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsStandard'] as const;
 const formatter = (): Formatter<Standard, typeof suppFields> => ({
@@ -39,10 +39,10 @@ const formatter = (): Formatter<Standard, typeof suppFields> => ({
     supplemental: {
         graphqlFields: suppFields,
         toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Standard')],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Standard')],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'Standard')],
-            ['permissionsStandard', async () => await getSingleTypePermissions('Standard', ids, prisma, userData)],
+            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
+            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
+            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
+            ['permissionsStandard', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
         ],
     },
 })

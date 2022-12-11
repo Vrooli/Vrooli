@@ -13,7 +13,7 @@ const displayer = (): Displayer<
     Prisma.question_answerGetPayload<SelectWrap<Prisma.question_answerSelect>>
 > => ({
     select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'name', languages)
+    label: (select, languages) => bestLabel(select.translations as any, 'name', languages)
 })
 
 export const QuestionAnswerModel = ({

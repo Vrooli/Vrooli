@@ -6,6 +6,8 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum ApiVersionSortBy {
+        CalledByRoutinesAsc
+        CalledByRoutinesDesc
         CommentsAsc
         CommentsDesc
         DirectoryListingsAsc
@@ -96,7 +98,6 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        languages: [String!]
         minScore: Int
         minStars: Int
         minViews: Int
@@ -107,6 +108,7 @@ export const typeDef = gql`
         sortBy: ApiVersionSortBy
         tags: [String!]
         take: Int
+        translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

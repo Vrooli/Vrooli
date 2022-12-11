@@ -1,49 +1,38 @@
 import { projectsCreate, projectsUpdate } from "@shared/validation";
-import { ResourceListUsedFor } from "@shared/consts";
-import { StarModel } from "./star";
-import { VoteModel } from "./vote";
-import { ViewModel } from "./view";
-import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput } from "../endpoints/types";
+import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput, ProjectVersion } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "../actions";
-import { getSingleTypePermissions } from "../validators";
-import { combineQueries, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
-import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { padSelect, permissionsSelectHelper, searchStringBuilder } from "../builders";
+import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 
 const __typename = 'ProjectVersion' as const;
 
-const suppFields = [] as const;
-const formatter = (): Formatter<Project, typeof suppFields> => ({
+const suppFields = ['runs'] as const;
+const formatter = (): Formatter<ProjectVersion, typeof suppFields> => ({
     relationshipMap: {
         __typename,
-        // comments: 'Comment',
-        // createdBy: 'User',
-        // forks: 'Project',
-        // owner: ['Organization', 'User'],
-        // parent: 'Project',
-        // reports: 'Report',
-        // resourceLists: 'ResourceList',
-        // routines: 'Routine',
-        // starredBy: 'User',
-        // tags: 'Tag',
-        // wallets: 'Wallet',
+        comments: 'Comment',
+        directories: 'ProjectVersionDirectory',
+        directoryListings: 'ProjectVersionDirectory',
+        forks: 'Project',
+        pullRequest: 'PullRequest',
+        reports: 'Report',
+        root: 'Project',
     },
-    joinMap: { tags: 'tag', users: 'user', organizations: 'organization', starredBy: 'user' },
-    // countFields: ['commentsCount', 'reportsCount'],
-    // supplemental: {
-    //     graphqlFields: suppFields,
-    //     toGraphQL: ({ ids, prisma, userData }) => [
-    //         ['isStarred', async () => StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-    //         ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
-    //         ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
-    //         ['permissionsProject', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
-    //     ],
-    // },
+    countFields: ['commentsCount', 'directoriesCount', 'directoryListingsCount', 'forksCount', 'reportsCount', 'runsCount'],
+    supplemental: {
+        graphqlFields: suppFields,
+        toGraphQL: ({ ids, prisma, userData }) => [
+            ['runs', async () => {
+                //TODO
+                return {} as any;
+            }],
+        ],
+    },
 })
 
 const searcher = (): Searcher<
@@ -68,11 +57,10 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: ({ insensitive, languages }) => ({
+    searchStringQuery: (params) => ({
         OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-            { tags: { some: { tag: { tag: { ...insensitive } } } } },
+            ...searchStringBuilder(['translationsDescription', 'translationsName'], params),
+            { root: searchStringBuilder(['tags'], params)[0] },
         ]
     }),
 })

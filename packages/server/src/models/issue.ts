@@ -1,11 +1,12 @@
 import { Prisma } from "@prisma/client";
+import { searchStringBuilder } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { Issue } from "../endpoints/types";
+import { Issue, IssueSearchInput, IssueSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { StarModel } from "./star";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, Searcher } from "./types";
 import { VoteModel } from "./vote";
 
 const __typename = 'Issue' as const;
@@ -34,6 +35,38 @@ const formatter = (): Formatter<Issue, typeof suppFields> => ({
     },
 })
 
+const searcher = (): Searcher<
+    IssueSearchInput,
+    IssueSortBy,
+    Prisma.issueWhereInput
+> => ({
+    defaultSort: IssueSortBy.ScoreDesc,
+    sortBy: IssueSortBy,
+    searchFields: [
+        'apiId',
+        'closedById',
+        'createdById',
+        'createdTimeFrame',
+        'minScore',
+        'minStars',
+        'minViews',
+        'noteId',
+        'organizationId',
+        'projectId',
+        'referencedVersionId',
+        'routineId',
+        'smartContractId',
+        'standardId',
+        'status',
+        'translationLanguages',
+        'updatedTimeFrame',
+        'visibility',
+    ],
+    searchStringQuery: (params) => ({
+        OR: searchStringBuilder(['translationsDescription', 'translationsName'], params),
+    }),
+})
+
 const displayer = (): Displayer<
     Prisma.issueSelect,
     Prisma.issueGetPayload<SelectWrap<Prisma.issueSelect>>
@@ -48,6 +81,6 @@ export const IssueModel = ({
     display: displayer(),
     format: formatter(),
     mutate: {} as any,
-    search: {} as any,
+    search: searcher(),
     validate: {} as any,
 })

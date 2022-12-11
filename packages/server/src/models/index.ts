@@ -32,6 +32,9 @@ import { PushDeviceModel } from './pushDevice';
 import { QuestionModel } from './question';
 import { QuestionAnswerModel } from './questionAnswer';
 import { QuizModel } from './quiz';
+import { QuizAttemptModel } from './quizAttempt';
+import { QuizQuestionModel } from './quizQuestion';
+import { QuizQuestionResponseModel } from './quizQuestionResponse';
 import { ReminderModel } from './reminder';
 import { ReminderItemModel } from './reminderItem';
 import { ReminderListModel } from './reminderList';
@@ -102,6 +105,9 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     Question: QuestionModel,
     QuestionAnswer: QuestionAnswerModel,
     Quiz: QuizModel,
+    QuizAttempt: QuizAttemptModel,
+    QuizQuestion: QuizQuestionModel,
+    QuizQuestionResponse: QuizQuestionResponseModel,
     Reminder: ReminderModel,
     ReminderItem: ReminderItemModel,
     ReminderList: ReminderListModel,
@@ -171,6 +177,9 @@ export * from './pushDevice';
 export * from './question';
 export * from './questionAnswer';
 export * from './quiz';
+export * from './quizAttempt';
+export * from './quizQuestion';
+export * from './quizQuestionResponse';
 export * from './reminder';
 export * from './reminderItem';
 export * from './reminderList';

@@ -6,6 +6,8 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum SmartContractVersionSortBy {
+        CalledByRoutinesAsc
+        CalledByRoutinesDesc
         CommentsAsc
         CommentsDesc
         DirectoryListingsAsc

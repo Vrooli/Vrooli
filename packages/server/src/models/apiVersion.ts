@@ -1,10 +1,11 @@
 import { Prisma } from "@prisma/client";
+import { searchStringBuilder } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { ApiVersion } from "../endpoints/types";
+import { ApiVersion, ApiVersionSearchInput, ApiVersionSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, Searcher } from "./types";
 
 const __typename = 'ApiVersion' as const;
 
@@ -28,6 +29,34 @@ const formatter = (): Formatter<ApiVersion, typeof suppFields> => ({
     },
 })
 
+const searcher = (): Searcher<
+    ApiVersionSearchInput,
+    ApiVersionSortBy,
+    Prisma.api_versionWhereInput
+> => ({
+    defaultSort: ApiVersionSortBy.DateUpdatedDesc,
+    sortBy: ApiVersionSortBy,
+    searchFields: [
+        'createdById',
+        'createdTimeFrame',
+        'minScore',
+        'minStars',
+        'minViews',
+        'ownedByOrganizationId',
+        'ownedByUserId',
+        'tags',
+        'translationLanguages',
+        'updatedTimeFrame',
+        'visibility',
+    ],
+    searchStringQuery: (params) => ({
+        OR: [
+            ...searchStringBuilder(['translationsSummary', 'translationsName'], params),
+            { root: searchStringBuilder(['tags'], params)[0] },
+        ]
+    }),
+})
+
 const displayer = (): Displayer<
     Prisma.api_versionSelect,
     Prisma.api_versionGetPayload<SelectWrap<Prisma.api_versionSelect>>
@@ -48,6 +77,6 @@ export const ApiVersionModel = ({
     display: displayer(),
     format: formatter(),
     mutate: {} as any,
-    search: {} as any,
+    search: searcher(),
     validate: {} as any,
 })

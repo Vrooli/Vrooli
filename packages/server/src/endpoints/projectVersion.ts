@@ -77,6 +77,8 @@ export const typeDef = gql`
         comments: [Comment!]!
         commentsCount: Int!
         permissionsVersion: VersionPermission!
+        runs: [RunProject!]!
+        runsCount: Int!
     }
 
     input ProjectVersionTranslationCreateInput {

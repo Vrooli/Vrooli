@@ -21,6 +21,7 @@ export * from './onlyValidIds';
 export * from './padSelect';
 export * from './permissionsSelectHelper';
 export * from './pickObjectById';
+export * from './searchStringBuilder';
 export * from './relationshipBuilderHelper';
 export * from './removeCountFields';
 export * from './removeHiddenFields';

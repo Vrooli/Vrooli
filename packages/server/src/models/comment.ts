@@ -9,7 +9,7 @@ import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
-import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, searchStringBuilder, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic, SearchMap, translationRelationshipBuilder } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchString } from "../getters";
@@ -66,9 +66,7 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
     ],
     sortBy: CommentSortBy,
-    searchStringQuery: ({ insensitive, languages }) => ({
-        translations: { some: { language: languages ? { in: languages } : undefined, text: insensitive } }
-    }),
+    searchStringQuery: (params) => searchStringBuilder(['translationsText'], params)[0],
 })
 
 const validator = (): Validator<

@@ -42,6 +42,9 @@ import * as PushDevice from './pushDevice';
 import * as Question from './question';
 import * as QuestionAnswer from './questionAnswer';
 import * as Quiz from './quiz';
+import * as QuizAttempt from './quizAttempt';
+import * as QuizQuestion from './quizQuestion';
+import * as QuizQuestionResponse from './quizQuestionResponse';
 import * as Reminder from './reminder';
 import * as ReminderItem from './reminderItem';
 import * as ReminderList from './reminderList';
@@ -131,6 +134,9 @@ const schemas: SchemaType[] = [
     Question,
     QuestionAnswer,
     Quiz,
+    QuizAttempt,
+    QuizQuestion,
+    QuizQuestionResponse,
     Reminder,
     ReminderItem,
     ReminderList,

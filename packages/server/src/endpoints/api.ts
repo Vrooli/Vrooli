@@ -6,8 +6,6 @@ import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../ac
 
 export const typeDef = gql`
     enum ApiSortBy {
-        CalledByRoutinesAsc
-        CalledByRoutinesDesc
         DateCreatedAsc
         DateCreatedDesc
         DateUpdatedAsc

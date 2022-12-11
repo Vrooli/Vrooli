@@ -7,6 +7,7 @@ export * from './oneIsPublic';
 export * from './origin';
 export * from './resolveGraphQLInfo';
 export * from './searchMap';
+export * from './searchStringMap';
 export * from './setupDatabase';
 export * from './sortMap';
 export * from './tagRelationshipBuilder';

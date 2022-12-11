@@ -1,25 +1,20 @@
 import { standardsCreate, standardsUpdate } from "@shared/validation";
-import { StandardSortBy } from "@shared/consts";
-import { StarModel } from "./star";
-import { VoteModel } from "./vote";
-import { ViewModel } from "./view";
 import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput } from "../endpoints/types";
+import { Standard, StandardPermission, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
-import { getSingleTypePermissions } from "../validators";
-import { combineQueries, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
+import { padSelect, permissionsSelectHelper } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
 const __typename = 'StandardVersion' as const;
 
-const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsStandard'] as const;
+const suppFields = [] as const;
 const formatter = (): Formatter<Standard, typeof suppFields> => ({
     relationshipMap: {
         __typename,
@@ -39,15 +34,6 @@ const formatter = (): Formatter<Standard, typeof suppFields> => ({
     },
     joinMap: { tags: 'tag', starredBy: 'user' },
     countFields: ['commentsCount', 'reportsCount'],
-    supplemental: {
-        graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Standard')],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Standard')],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'Standard')],
-            ['permissionsStandard', async () => await getSingleTypePermissions('Standard', ids, prisma, userData)],
-        ],
-    },
 })
 
 const searcher = (): Searcher<

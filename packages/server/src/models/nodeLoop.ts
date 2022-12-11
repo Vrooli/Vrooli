@@ -28,6 +28,5 @@ export const NodeLoopModel = ({
     display: displayer(),
     format: formatter(),
     mutate: {} as any,
-    search: {} as any,
     validate: {} as any,
 })

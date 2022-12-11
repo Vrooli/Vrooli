@@ -120,12 +120,12 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         label: String
-        languages: [String!]
         ownedByOrganizationId: ID
         ownedByUserId: ID
         searchString: String
         sortBy: LabelSortBy
         take: Int
+        translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

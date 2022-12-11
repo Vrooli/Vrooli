@@ -12,7 +12,7 @@ import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, searchStringBuilder, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type NodeWeightData = {
@@ -24,7 +24,7 @@ type NodeWeightData = {
 
 const __typename = 'RoutineVersion' as const;
 
-const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoutine', 'runs'] as const;
+const suppFields = ['runs'] as const;
 const formatter = (): Formatter<Routine, typeof suppFields> => ({
     relationshipMap: {
         __typename,
@@ -47,10 +47,6 @@ const formatter = (): Formatter<Routine, typeof suppFields> => ({
     supplemental: {
         graphqlFields: suppFields,
         toGraphQL: ({ ids, objects, partial, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Routine')],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, 'Routine')],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'Routine')],
-            ['permissionsRoutine', async () => await getSingleTypePermissions('Routine', ids, prisma, userData)],
             ['runs', async () => {
                 if (!userData) return new Array(objects.length).fill([]);
                 // Find requested fields of runs. Also add routineId, so we 
@@ -118,11 +114,10 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: ({ insensitive, languages }) => ({
+    searchStringQuery: (params) => ({
         OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-            { tags: { some: { tag: { tag: { ...insensitive } } } } },
+            ...searchStringBuilder(['translationsDescription', 'translationsName'], params),
+            { root: searchStringBuilder(['tags'], params)[0] },
         ]
     }),
 })

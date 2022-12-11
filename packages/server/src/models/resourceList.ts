@@ -8,7 +8,7 @@ import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
-import { permissionsSelectHelper } from "../builders";
+import { permissionsSelectHelper, searchStringBuilder } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -115,11 +115,8 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'userScheduleId',
     ],
-    searchStringQuery: ({ insensitive, languages }) => ({
-        OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-        ]
+    searchStringQuery: (params) => ({
+        OR: searchStringBuilder(['translationsDescription', 'translationsName'], params),
     }),
 })
 

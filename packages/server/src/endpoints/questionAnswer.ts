@@ -3,6 +3,7 @@ import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneR
 import { FindByIdInput, QuestionAnswer, QuestionAnswerSearchInput, QuestionAnswerCreateInput, QuestionAnswerUpdateInput, QuestionAnswerSortBy } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { CustomError } from '../events';
 
 export const typeDef = gql`
     enum QuestionAnswerSortBy {
@@ -19,39 +20,25 @@ export const typeDef = gql`
     }
 
     input QuestionAnswerCreateInput {
-        anonymous: Boolean
-        tag: String!
+        id: ID!
         translationsCreate: [QuestionAnswerTranslationCreateInput!]
     }
     input QuestionAnswerUpdateInput {
-        anonymous: Boolean
-        tag: String!
+        id: ID!
         translationsDelete: [ID!]
         translationsCreate: [QuestionAnswerTranslationCreateInput!]
         translationsUpdate: [QuestionAnswerTranslationUpdateInput!]
     }
-
-    # User's hidden topics
-    input QuestionAnswerHiddenCreateInput {
-        id: ID!
-        isBlur: Boolean
-        tagCreate: QuestionAnswerCreateInput
-        tagConnect: ID
-    }
-
-    input QuestionAnswerHiddenUpdateInput {
-        id: ID!
-        isBlur: Boolean
-    }
-
     type QuestionAnswer {
         id: ID!
-        tag: String!
         created_at: Date!
         updated_at: Date!
+        createdBy: User
+        score: Int!
         stars: Int!
-        isStarred: Boolean!
-        isOwn: Boolean!
+        isAccepted: Boolean!
+        question: Question!
+        comments: [Comment!]!
         starredBy: [User!]!
         translations: [QuestionAnswerTranslation!]!
     }
@@ -59,7 +46,7 @@ export const typeDef = gql`
     input QuestionAnswerTranslationCreateInput {
         id: ID!
         language: String!
-        description: String
+        description: String!
     }
     input QuestionAnswerTranslationUpdateInput {
         id: ID!
@@ -69,25 +56,17 @@ export const typeDef = gql`
     type QuestionAnswerTranslation {
         id: ID!
         language: String!
-        description: String
-    }
-
-    # Wraps tag with hidden/blurred option
-    type QuestionAnswerHidden {
-        id: ID!
-        isBlur: Boolean!
-        tag: QuestionAnswer!
+        description: String!
     }
 
     input QuestionAnswerSearchInput {
         after: String
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
-        hidden: Boolean
         ids: [ID!]
         languages: [String!]
+        minScore: Int
         minStars: Int
-        myQuestionAnswers: Boolean
         searchString: String
         sortBy: QuestionAnswerSortBy
         take: Int
@@ -112,6 +91,7 @@ export const typeDef = gql`
     extend type Mutation {
         questionAnswerCreate(input: QuestionAnswerCreateInput!): QuestionAnswer!
         questionAnswerUpdate(input: QuestionAnswerUpdateInput!): QuestionAnswer!
+        questionAnswerMarkAsAccepted(input: FindByIdInput!): QuestionAnswer!
     }
 `
 
@@ -125,6 +105,7 @@ export const resolvers: {
     Mutation: {
         questionAnswerCreate: GQLEndpoint<QuestionAnswerCreateInput, CreateOneResult<QuestionAnswer>>;
         questionAnswerUpdate: GQLEndpoint<QuestionAnswerUpdateInput, UpdateOneResult<QuestionAnswer>>;
+        questionAnswerMarkAsAccepted: GQLEndpoint<FindByIdInput, UpdateOneResult<QuestionAnswer>>;
     }
 } = {
     QuestionAnswerSortBy,
@@ -147,5 +128,9 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 500, req });
             return updateHelper({ info, input, objectType, prisma, req })
         },
+        questionAnswerMarkAsAccepted: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 500, req });
+            throw new CustomError('000', 'NotImplemented', ['en']);
+        }
     }
 }

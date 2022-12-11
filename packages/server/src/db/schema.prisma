@@ -36,7 +36,6 @@ model api {
     ownedByOrganization   organization?               @relation("api_ownedByOrganization", fields: [ownedByOrganizationId], references: [id])
     parent                api_version?                @relation("api_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
     tags                  api_tags[]
-    calledByRoutines      routine_version[]
     issues                issue[]
     starredBy             star[]                      @relation("star_api")
     votedBy               vote[]                      @relation("vote_api")
@@ -73,6 +72,7 @@ model api_version {
     versionLabel        String                      @default("1.0.0") @db.VarChar(16)
     versionNotes        String?                     @db.VarChar(4096)
     pullRequestId       String?                     @unique @db.Uuid
+    calledByRoutines    routine_version[]
     comments            comment[]
     reports             report[]
     root                api                         @relation(fields: [rootId], references: [id], onDelete: Cascade)
@@ -1084,8 +1084,7 @@ model question_answer {
 
 model question_answer_translation {
     id          String          @id @default(uuid()) @db.Uuid
-    description String?         @db.VarChar(2048)
-    name        String          @db.VarChar(128)
+    description String          @db.VarChar(2048)
     language    String          @db.VarChar(3)
     answerId    String          @db.Uuid
     answer      question_answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
@@ -1107,11 +1106,11 @@ model quiz {
     stars                  Int                         @default(0)
     routineId              String?                     @db.Uuid
     projectId              String?                     @db.Uuid
-    userId                 String?                     @db.Uuid
+    createdById            String?                     @db.Uuid
     routine                routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
     project                project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
-    user                   user?                       @relation(fields: [userId], references: [id], onDelete: SetNull)
-    questions              quiz_question[]
+    createdBy              user?                       @relation(fields: [createdById], references: [id], onDelete: SetNull)
+    quizQuestions          quiz_question[]
     starredBy              star[]                      @relation("star_quiz")
     votedBy                vote[]                      @relation("vote_quiz")
     translations           quiz_translation[]
@@ -1132,32 +1131,32 @@ model quiz_translation {
 }
 
 model quiz_attempt {
-    id              String                @id @default(uuid()) @db.Uuid
-    created_at      DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at      DateTime              @default(now()) @db.Timestamptz(6)
-    pointsEarned    Int                   @default(0)
-    language        String                @db.VarChar(3)
-    status          QuizAttemptStatus     @default(NotStarted)
-    contextSwitches Int                   @default(0)
+    id              String                   @id @default(uuid()) @db.Uuid
+    created_at      DateTime                 @default(now()) @db.Timestamptz(6)
+    updated_at      DateTime                 @default(now()) @db.Timestamptz(6)
+    pointsEarned    Int                      @default(0)
+    language        String                   @db.VarChar(3)
+    status          QuizAttemptStatus        @default(NotStarted)
+    contextSwitches Int                      @default(0)
     timeTaken       Int?
-    quizId          String                @db.Uuid
-    userId          String?               @db.Uuid
-    quiz            quiz                  @relation(fields: [quizId], references: [id], onDelete: Cascade)
-    user            user?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
-    answers         quiz_attempt_answer[]
+    quizId          String                   @db.Uuid
+    userId          String?                  @db.Uuid
+    quiz            quiz                     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+    user            user?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+    responses       quiz_question_response[]
 }
 
-model quiz_attempt_answer {
-    id            String        @id @default(uuid()) @db.Uuid
-    created_at    DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at    DateTime      @default(now()) @db.Timestamptz(6)
-    response      String?       @db.VarChar(2048)
-    quizAttemptId String        @db.Uuid
-    questionId    String        @db.Uuid
-    quizAttempt   quiz_attempt  @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
-    question      quiz_question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+model quiz_question_response {
+    id             String        @id @default(uuid()) @db.Uuid
+    created_at     DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime      @default(now()) @db.Timestamptz(6)
+    response       String?       @db.VarChar(2048)
+    quizAttemptId  String        @db.Uuid
+    quizQuestionId String        @db.Uuid
+    quizAttempt    quiz_attempt  @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+    quizQuestion   quiz_question @relation(fields: [quizQuestionId], references: [id], onDelete: Cascade)
 
-    @@unique([quizAttemptId, questionId])
+    @@unique([quizAttemptId, quizQuestionId])
 }
 
 model quiz_question {
@@ -1170,7 +1169,7 @@ model quiz_question {
     quizId       String                      @db.Uuid
     standard     standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
     quiz         quiz                        @relation(fields: [quizId], references: [id], onDelete: Cascade)
-    answers      quiz_attempt_answer[]
+    responses    quiz_question_response[]
     translations quiz_question_translation[]
 }
 
@@ -1413,16 +1412,16 @@ model routine_version {
     timesCompleted             Int                           @default(0)
     smartContractCallData      String?                       @db.VarChar(8192)
     resourceListId             String?                       @unique @db.Uuid
-    apiId                      String?                       @db.Uuid
-    smartContractId            String?                       @db.Uuid
+    apiVersionId               String?                       @db.Uuid
+    smartContractVersionId     String?                       @db.Uuid
     pullRequestId              String?                       @unique @db.Uuid
     versionIndex               Int                           @default(0)
     versionLabel               String                        @default("1.0.0") @db.VarChar(16)
     versionNotes               String?                       @db.VarChar(4096)
-    api                        api?                          @relation(fields: [apiId], references: [id], onDelete: SetNull)
+    apiVersion                 api_version?                  @relation(fields: [apiVersionId], references: [id], onDelete: SetNull)
     comments                   comment[]
     reports                    report[]
-    smartContract              smart_contract?               @relation(fields: [smartContractId], references: [id], onDelete: SetNull)
+    smartContractVersion       smart_contract_version?       @relation(fields: [smartContractVersionId], references: [id], onDelete: SetNull)
     nodes                      node[]
     nodeLinks                  node_link[]
     nodeLists                  node_routine_list_item[]
@@ -1714,7 +1713,6 @@ model smart_contract {
     parentId              String?                     @db.Uuid
     ownedByUserId         String?                     @db.Uuid
     createdBy             user?                       @relation("smart_contract_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
-    calledByRoutines      routine_version[]
     issues                issue[]
     ownedByOrganization   organization?               @relation("smart_contract_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
     parent                smart_contract_version?     @relation("smart_contract_version_fork", fields: [parentId], references: [id], onDelete: SetNull)
@@ -1751,6 +1749,7 @@ model smart_contract_version {
     isComplete          Boolean                              @default(false)
     isDeleted           Boolean                              @default(false)
     isPrivate           Boolean                              @default(false)
+    calledByRoutines    routine_version[]
     comments            comment[]
     forks               smart_contract[]                     @relation("smart_contract_version_fork")
     pullRequest         pull_request?                        @relation("pull_request_from_smart_contract_version", fields: [pullRequestId], references: [id], onDelete: SetNull)

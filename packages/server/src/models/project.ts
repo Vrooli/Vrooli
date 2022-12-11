@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
-import { padSelect, permissionsSelectHelper } from "../builders";
+import { padSelect, permissionsSelectHelper, searchStringBuilder } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
@@ -33,10 +33,9 @@ const formatter = (): Formatter<Project, typeof suppFields> => ({
         tags: 'Tag',
         transfers: 'Transfer',
         versions: 'ProjectVersion',
-        runs: 'RunProject',
     },
     joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
-    countFields: ['issuesCount', 'labelsCount', 'pullRequestsCount', 'questionsCount', 'quizzesCount', 'versionsCount', 'runsCount'],
+    countFields: ['issuesCount', 'labelsCount', 'pullRequestsCount', 'questionsCount', 'quizzesCount', 'versionsCount'],
     supplemental: {
         graphqlFields: suppFields,
         toGraphQL: ({ ids, prisma, userData }) => [
@@ -72,14 +71,11 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: ({ insensitive, languages }) => ({
+    searchStringQuery: (params) => ({
+        ...searchStringBuilder(['tags'], params)[0],
         versions: {
             some: {
-                OR: [
-                    { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-                    { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
-                    { tags: { some: { tag: { tag: { ...insensitive } } } } },
-                ]
+                OR: searchStringBuilder(['translationsDescription', 'translationsName'], params),
             }
         }
     }),

@@ -93,8 +93,6 @@ export const typeDef = gql`
         transfers: [Transfer!]!
         versions: [ProjectVersion!]!
         versionsCount: Int!
-        runs: [RunProject!]!
-        runsCount: Int!
     }
 
     input ProjectSearchInput {

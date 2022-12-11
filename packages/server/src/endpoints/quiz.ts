@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, LabelSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, QuizSortBy } from './types';
+import { FindByIdInput, QuizSortBy, Quiz, QuizSearchInput, QuizCreateInput, QuizUpdateInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -22,65 +22,58 @@ export const typeDef = gql`
 
     input QuizCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        maxAttempts: Int
+        randomizeQuestionORder: Boolean
+        revealCorrectAnswers: Boolean
+        timeLimit: Int
+        pointsToPass: Int
+        routineConnect: ID
+        projectConnect: ID
+        translationsCreate: [QuizTranslationCreateInput!]
+        quizQuestionsCreate: [QuizQuestionCreateInput!]
     }
     input QuizUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        maxAttempts: Int
+        randomizeQuestionORder: Boolean
+        revealCorrectAnswers: Boolean
+        timeLimit: Int
+        pointsToPass: Int
+        routineConnect: ID
+        routineDisconnect: ID
+        projectConnect: ID
+        projectDisconnect: ID
+        translationsCreate: [QuizTranslationCreateInput!]
+        translationsUpdate: [QuizTranslationUpdateInput!]
         translationsDelete: [ID!]
+        quizQuestionsCreate: [QuizQuestionCreateInput!]
+        quizQuestionsUpdate: [QuizQuestionUpdateInput!]
+        quizQuestionsDelete: [ID!]
     }
     type Quiz {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean
-        isViewed: Boolean!
+        isCompleted: Boolean!
         score: Int!
         stars: Int!
         views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
         createdBy: User
-        forks: [Project!]!
-        owner: Owner
-        parent: Project
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        wallets: [Wallet!]
+        routine: Routine
+        project: Project
+        quizQuestions: [QuizQuestion!]!
+        starredBy: [User!]!
+        translations: [QuizTranslation!]!
+        attempts: [QuizAttempt!]!
+        stats: [StatsQuiz!]!
     }
 
     type QuizPermission {
-        canComment: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!
-        canReport: Boolean!
         canView: Boolean!
         canVote: Boolean!
     }
@@ -109,33 +102,27 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
         languages: [String!]
         minScore: Int
         minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        routineId: ID
+        projectId: ID
+        userId: ID
         searchString: String
-        sortBy: ProjectSortBy
-        tags: [String!]
+        sortBy: QuizSortBy
         take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
     type QuizSearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [QuizEdge!]!
     }
 
     type QuizEdge {
         cursor: String!
-        node: Api!
+        node: Quiz!
     }
 
     extend type Query {
@@ -153,12 +140,12 @@ const objectType = 'Quiz';
 export const resolvers: {
     QuizSortBy: typeof QuizSortBy;
     Query: {
-        quiz: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        quizzes: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        quiz: GQLEndpoint<FindByIdInput, FindOneResult<Quiz>>;
+        quizzes: GQLEndpoint<QuizSearchInput, FindManyResult<Quiz>>;
     },
     Mutation: {
-        quizCreate: GQLEndpoint<LabelCreateInput, CreateOneResult<Label>>;
-        quizUpdate: GQLEndpoint<LabelUpdateInput, UpdateOneResult<Label>>;
+        quizCreate: GQLEndpoint<QuizCreateInput, CreateOneResult<Quiz>>;
+        quizUpdate: GQLEndpoint<QuizUpdateInput, UpdateOneResult<Quiz>>;
     }
 } = {
     QuizSortBy,

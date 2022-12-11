@@ -1,11 +1,12 @@
 import { Prisma } from "@prisma/client";
+import { searchStringBuilder } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { Api } from "../endpoints/types";
+import { Api, ApiSearchInput, ApiSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { ApiVersionModel } from "./apiVersion";
 import { StarModel } from "./star";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, Searcher } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 
@@ -41,6 +42,38 @@ const formatter = (): Formatter<Api, typeof suppFields> => ({
     },
 })
 
+const searcher = (): Searcher<
+    ApiSearchInput,
+    ApiSortBy,
+    Prisma.apiWhereInput
+> => ({
+    defaultSort: ApiSortBy.ScoreDesc,
+    sortBy: ApiSortBy,
+    searchFields: [
+        'createdById',
+        'createdTimeFrame',
+        'maxScore',
+        'maxStars',
+        'minScore',
+        'minStars',
+        'ownedByOrganizationId',
+        'ownedByUserId',
+        'parentId',
+        'tags',
+        'updatedTimeFrame',
+        'visibility',
+    ],
+    searchStringQuery: (params) => ({
+        ...searchStringBuilder(['tags'], params)[0],
+        ...searchStringBuilder(['labels'], params)[0],
+        versions: {
+            some: {
+                OR: searchStringBuilder(['translationsSummary', 'translationsName'], params),
+            }
+        }
+    }),
+})
+
 const displayer = (): Displayer<
     Prisma.apiSelect,
     Prisma.apiGetPayload<SelectWrap<Prisma.apiSelect>>
@@ -63,6 +96,6 @@ export const ApiModel = ({
     display: displayer(),
     format: formatter(),
     mutate: {} as any,
-    search: {} as any,
+    search: searcher(),
     validate: {} as any,
 })

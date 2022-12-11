@@ -110,7 +110,6 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         status: IssueStatus
-        languages: [String!]
         minScore: Int
         minStars: Int
         minViews: Int
@@ -127,6 +126,7 @@ export const typeDef = gql`
         searchString: String
         sortBy: IssueSortBy
         take: Int
+        translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }
