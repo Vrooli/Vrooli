@@ -6,7 +6,7 @@ import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { UserModel } from "./user";
-import { combineQueries, padSelect } from "../builders";
+import { padSelect } from "../builders";
 import { CommentModel } from "./comment";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
@@ -37,23 +37,30 @@ const searcher = (): Searcher<
 > => ({
     defaultSort: ReportSortBy.DateCreatedDesc,
     sortBy: ReportSortBy,
+    searchFields: [
+        'apiVersionId',
+        'commentId',
+        'createdTimeFrame',
+        'fromId',
+        'issueId',
+        'languageIn',
+        'noteVersionId',
+        'organizationId',
+        'postId',
+        'projectVersionId',
+        'routineVersionId',
+        'smartContractVersionId',
+        'standardVersionId',
+        'tagId',
+        'updatedTimeFrame',
+        'userId',
+    ],
     searchStringQuery: ({ insensitive }) => ({
         OR: [
             { reason: { ...insensitive } },
             { details: { ...insensitive } },
         ]
     }),
-    customQueries(input) {
-        return combineQueries([
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.userId !== undefined ? { userId: input.userId } : {}),
-            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            (input.projectId !== undefined ? { projectId: input.projectId } : {}),
-            (input.routineId !== undefined ? { routineId: input.routineId } : {}),
-            (input.standardId !== undefined ? { standardId: input.standardId } : {}),
-            (input.tagId !== undefined ? { tagId: input.tagId } : {}),
-        ])
-    },
 })
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] } = {

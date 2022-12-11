@@ -226,7 +226,7 @@ export type views_views_edges_node_to = views_views_edges_node_to_Organization |
 export interface views_views_edges_node {
   __typename: "View";
   id: string;
-  lastViewed: any;
+  lastViewedAt: any;
   name: string;
   to: views_views_edges_node_to;
 }

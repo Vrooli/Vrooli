@@ -162,14 +162,13 @@ export const typeDef = gql`
 
     input RoutineSearchInput {
         after: String
+        createdById: ID
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
+        hasCompleteVersion: Boolean
         isInternal: Boolean
-        isInternalExceptions: [SearchException!]
-        languages: [String!]
+        labelsId: ID
         minComplexity: Int
         maxComplexity: Int
         minSimplicity: Int
@@ -179,18 +178,16 @@ export const typeDef = gql`
         minStars: Int
         minTimesCompleted: Int
         minViews: Int
-        organizationId: ID
-        projectId: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         parentId: ID
         reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
         searchString: String
         sortBy: RoutineSortBy
         tags: [String!]
         take: Int
+        translationLanguagesLatestVersion: [String!]
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 

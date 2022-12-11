@@ -26,10 +26,14 @@ export const typeDef = gql`
         id: ID!
         index: Int
         usedFor: ResourceListUsedFor!
-        organizationId: ID
-        projectId: ID
-        routineId: ID
-        userId: ID
+        apiVersionConnect: ID
+        organizationConnect: ID
+        postConnect: ID
+        projectVersionConnect: ID
+        routineVersionConnect: ID
+        smartContractVersionConnect: ID
+        standardVersionConnect: ID
+        userScheduleConnect: ID
         translationsCreate: [ResourceListTranslationCreateInput!]
         resourcesCreate: [ResourceCreateInput!]
     }
@@ -37,10 +41,6 @@ export const typeDef = gql`
         id: ID!
         index: Int
         usedFor: ResourceListUsedFor
-        organizationId: ID
-        projectId: ID
-        routineId: ID
-        userId: ID
         translationsDelete: [ID!]
         translationsCreate: [ResourceListTranslationCreateInput!]
         translationsUpdate: [ResourceListTranslationUpdateInput!]
@@ -54,14 +54,14 @@ export const typeDef = gql`
         updated_at: Date!
         index: Int
         usedFor: ResourceListUsedFor
-        # api: Api
+        api: ApiVersion
         organization: Organization
-        # post: Post
-        project: Project
-        routine: Routine
-        # smartContract: SmartContract
-        standard: Standard
-        # userSchedule: UserSchedule
+        post: Post
+        project: ProjectVersion
+        routine: RoutineVersion
+        smartContract: SmartContractVersion
+        standard: StandardVersion
+        userSchedule: UserSchedule
         translations: [ResourceListTranslation!]!
         resources: [Resource!]!
     }
@@ -86,18 +86,22 @@ export const typeDef = gql`
     }
 
     input ResourceListSearchInput {
-        organizationId: ID
-        projectId: ID
-        routineId: ID
-        userId: ID
         ids: [ID!]
-        languages: [String!]
         sortBy: ResourceListSortBy
         createdTimeFrame: TimeFrame
         updatedTimeFrame: TimeFrame
         searchString: String
         after: String
         take: Int
+        apiVersionId: ID
+        organizationId: ID
+        postId: ID
+        projectVersionId: ID
+        routineVersionId: ID
+        smartContractVersionId: ID
+        standardVersionId: ID
+        translationLanguages: [String!]
+        userScheduleId: ID
     }
 
     type ResourceListSearchResult {

@@ -143,21 +143,21 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         isOpenToNewMembers: Boolean
-        languages: [String!]
+        maxStars: Int
+        maxViews: Int
+        memberUserIds: [ID!]
         minStars: Int
         minViews: Int
         projectId: ID
         reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
         routineId: ID
         searchString: String
         standardId: ID
         sortBy: OrganizationSortBy
         tags: [String!]
         take: Int
+        translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 

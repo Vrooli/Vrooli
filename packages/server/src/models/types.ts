@@ -3,6 +3,7 @@ import { PrismaType, PromiseOrValue, RecursivePartial, SingleOrArray } from "../
 import { ArraySchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 import { SortMap } from "../utils/sortMap";
+import { SearchMap } from "../utils";
 
 export type GraphQLModelType =
     'Api' |
@@ -105,7 +106,7 @@ export type ModelLogic<
     Update extends false | MutaterShapes,
     RelationshipCreate extends false | MutaterShapes,
     RelationshipUpdate extends false | MutaterShapes,
-    SearchInput,
+    SearchInput extends { [x: string]: any },
     SortBy extends string,
     Where extends { [x: string]: any; },
     GQLCreate extends { [x: string]: any; },
@@ -176,7 +177,7 @@ export interface SupplementalConverter<
         partial: PartialGraphQLInfo,
         prisma: PrismaType,
         userData: SessionUser | null,
-    }) => [SuppFields[number], () => any][]
+    }) => [SuppFields[number], () => any][];
 }
 
 /**
@@ -233,25 +234,45 @@ export interface Formatter<
     supplemental?: SupplementalConverter<SuppFields>;
 }
 
+type CommonSearchFields = 'after' | 'take' | 'ids' | 'searchString';
+
 /**
  * Describes shape of component that can be sorted in a specific order
  */
 export type Searcher<
-    SearchInput,
+    SearchInput extends { [x: string]: any },
     SortBy extends string,
     Where extends { [x: string]: any }
 > = {
     defaultSort: SortBy;
-    // Enum of all possible sort fields for this model
-    // Also ensures that each field is in the SortMap object 
-    // (i.e. SortMap is a superset of SortBy)
+    /**
+     * Enum of all possible sort fields for this model
+     * Also ensures that each field is in the SortMap object 
+     * (i.e. SortMap is a superset of SortBy)
+     */
     sortBy: { [x in SortBy]: keyof typeof SortMap };
+    /**
+     * Array of search input fields for this model
+     * Also ensures that each field is in the SearchMap object
+     * (i.e. SearchMap is a superset of SearchInput)
+     * 
+     * NOTE: Excludes fields which are common to all models (or have special logic), such as "take", "after", 
+     * "visibility", etc.
+     */
+    searchFields: (keyof SearchInput extends infer R ?
+        R extends keyof typeof SearchMap ?
+        R extends CommonSearchFields ? never : R
+        : never
+        : never)[];
     searchStringQuery: ({ insensitive, languages, searchString }: {
         insensitive: { contains: string; mode: 'default' | 'insensitive'; },
         languages?: string[],
         searchString: string,
     }) => Where;
-    customQueries?: (input: SearchInput, userData: SessionUser | null | undefined) => Where;
+    /**
+     * Any additional data to add to the Prisma query. Not usually needed
+     */
+    customQueryData?: (input: SearchInput, userData: SessionUser | null) => Where;
 }
 
 export type ObjectLimitVisibility = number | {

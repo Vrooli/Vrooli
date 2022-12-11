@@ -101,18 +101,20 @@ export const typeDef = gql`
     input ProjectVersionSearchInput {
         after: String
         createdTimeFrame: TimeFrame
+        directoryListingsId: ID
         ids: [ID!]
-        languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
+        minScoreRoot: Int
+        minStarsRoot: Int
+        minViewsRoot: Int
         createdById: ID
         ownedByUserId: ID
         ownedByOrganizationId: ID
+        rootId: ID
         searchString: String
         sortBy: ProjectVersionSortBy
         tags: [String!]
         take: Int
+        translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

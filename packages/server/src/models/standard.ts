@@ -1,10 +1,9 @@
 import { standardsCreate, standardsUpdate } from "@shared/validation";
 import { StandardSortBy } from "@shared/consts";
-import { TagModel } from "./tag";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Displayer, Formatter, GraphQLModelType, Mutater, Searcher, Validator } from "./types";
+import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
 import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from "../endpoints/types";
@@ -14,7 +13,7 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { combineQueries, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
+import { padSelect, permissionsSelectHelper } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
@@ -55,6 +54,26 @@ const searcher = (): Searcher<
 > => ({
     defaultSort: StandardSortBy.ScoreDesc,
     sortBy: StandardSortBy,
+    searchFields: [
+        'createdById',
+        'createdTimeFrame',
+        'issuesId',
+        'labelsId',
+        'minScore',
+        'minStars',
+        'minViews',
+        'ownedByOrganizationId',
+        'ownedByUserId',
+        'parentId',
+        'pullRequestsId',
+        'questionsId',
+        'standardTypeLatestVersion',
+        'tags',
+        'transfersId',
+        'translationLanguagesLatestVersion',
+        'updatedTimeFrame',
+        'visibility',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
@@ -62,37 +81,11 @@ const searcher = (): Searcher<
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
-    customQueries(input, userData) {
-        return combineQueries([
-            /**
-             * isInternal routines should never appear in the query, since they are 
-             * only meant for a single input/output
-             */
-            { isInternal: false },
-            visibilityBuilder({ objectType: 'Standard', userData, visibility: input.visibility }),
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.userId !== undefined ? { createdByUserId: input.userId } : {}),
-            (input.organizationId !== undefined ? { createdByOrganizationId: input.organizationId } : {}),
-            (input.projectId !== undefined ? {
-                OR: [
-                    { createdByUser: { projects: { some: { id: input.projectId } } } },
-                    { createdByOrganization: { projects: { some: { id: input.projectId } } } },
-                ]
-            } : {}),
-            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            (input.routineId !== undefined ? {
-                OR: [
-                    { routineInputs: { some: { routineId: input.routineId } } },
-                    { routineOutputs: { some: { routineId: input.routineId } } },
-                ]
-            } : {}),
-            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-            (!!input.type ? { type: { contains: input.type.trim(), mode: 'insensitive' } } : {}),
-        ])
-    },
+    /**
+     * isInternal routines should never appear in the query, since they are 
+     * only meant for a single input/output
+     */
+    customQueryData: () => ({ isInternal: true }),
 })
 
 const validator = (): Validator<

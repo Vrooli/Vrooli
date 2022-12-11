@@ -3,7 +3,7 @@ import { ObjectMap } from "../models";
 import { GraphQLModelType, Searcher } from "../models/types";
 
 export function getSearcher<
-    SearchInput,
+    SearchInput extends { [x: string]: any },
     SortBy extends string,
     Where extends { [x: string]: any }
 >(

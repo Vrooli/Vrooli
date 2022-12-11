@@ -134,23 +134,27 @@ export const typeDef = gql`
 
     input StandardSearchInput {
         after: String
+        createdById: ID
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        languages: [String!]
         minScore: Int
         minStars: Int
         minViews: Int
-        organizationId: ID
-        projectId: ID
-        reportId: ID
-        routineId: ID
+        ownedByOrganizationId: ID
+        ownedByUserId: ID
+        issuesId: ID
+        labelsId: ID
+        parentId: ID
+        pullRequestsId: ID
+        questionsId: ID
+        transfersId: ID
         searchString: String
         sortBy: StandardSortBy
+        standardTypeLatestVersion: String
         tags: [String!]
         take: Int
-        type: String
+        translationLanguagesLatestVersion: [String!]
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 

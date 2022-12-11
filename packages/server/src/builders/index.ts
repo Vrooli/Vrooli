@@ -7,7 +7,6 @@ export * from './combineQueries';
 export * from './combineSupplements';
 export * from './constructRelationships';
 export * from './deconstructRelationships';
-export * from './exceptionsBuilder';
 export * from './existsArray';
 export * from './filterFields';
 export * from './groupIdsByType';

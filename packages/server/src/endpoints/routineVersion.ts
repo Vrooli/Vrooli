@@ -158,35 +158,37 @@ export const typeDef = gql`
 
     input RoutineVersionSearchInput {
         after: String
+        createdById: ID
         createdTimeFrame: TimeFrame
+        directoryListingsId: ID
         excludeIds: [ID!]
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        isInternal: Boolean
-        isInternalExceptions: [SearchException!]
-        languages: [String!]
+        isCompleteWithRoot: Boolean
+        isCompleteWithRootExcludeOwnedByOrganizationId: ID
+        isCompleteWithRootExcludeOwnedByUserId: ID
+        isInternalWithRoot: Boolean
+        isInternalWithRootExcludeOwnedByOrganizationId: ID
+        isInternalWithRootExcludeOwnedByUserId: ID
         minComplexity: Int
         maxComplexity: Int
         minSimplicity: Int
         maxSimplicity: Int
         maxTimesCompleted: Int
-        minScore: Int
-        minStars: Int
+        minScoreRoot: Int
+        minStarsRoot: Int
         minTimesCompleted: Int
-        minViews: Int
-        organizationId: ID
-        projectId: ID
+        minViewsRoot: Int
+        ownedByOrganizationId: ID
+        ownedByUserId: ID
         parentId: ID
         reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        rootId: ID
         searchString: String
         sortBy: RoutineSortBy
         tags: [String!]
         take: Int
+        translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 

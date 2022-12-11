@@ -383,19 +383,27 @@ export type CommentPermission = {
 
 export type CommentSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  apiVersionId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  issueId?: InputMaybe<Scalars['ID']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
-  routineId?: InputMaybe<Scalars['ID']>;
+  noteVersionId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  postId?: InputMaybe<Scalars['ID']>;
+  projectVersionId?: InputMaybe<Scalars['ID']>;
+  pullRequestId?: InputMaybe<Scalars['ID']>;
+  questionAnswerId?: InputMaybe<Scalars['ID']>;
+  questionId?: InputMaybe<Scalars['ID']>;
+  routineVersionId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
+  smartContractVersionId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<CommentSortBy>;
-  standardId?: InputMaybe<Scalars['ID']>;
+  standardVersionId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export type CommentSearchResult = {
@@ -2710,21 +2718,21 @@ export type OrganizationSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  maxStars?: InputMaybe<Scalars['Int']>;
+  maxViews?: InputMaybe<Scalars['Int']>;
+  memberUserIds?: InputMaybe<Array<Scalars['ID']>>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<OrganizationSortBy>;
   standardId?: InputMaybe<Scalars['ID']>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
 };
 
@@ -2970,9 +2978,6 @@ export type ProfileEmailUpdateInput = {
 
 export type ProfileUpdateInput = {
   handle?: InputMaybe<Scalars['String']>;
-  hiddenTagsCreate?: InputMaybe<Array<TagHiddenCreateInput>>;
-  hiddenTagsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  hiddenTagsUpdate?: InputMaybe<Array<TagHiddenUpdateInput>>;
   name?: InputMaybe<Scalars['String']>;
   resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
   resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -3193,7 +3198,7 @@ export type ProjectSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   hasCompleteVersion?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  labelsId?: InputMaybe<Scalars['ID']>;
   maxScore?: InputMaybe<Scalars['Int']>;
   maxStars?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
@@ -3204,6 +3209,7 @@ export type ProjectSearchInput = {
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -3369,17 +3375,19 @@ export type ProjectVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  directoryListingsId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
-  minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
+  minScoreRoot?: InputMaybe<Scalars['Int']>;
+  minStarsRoot?: InputMaybe<Scalars['Int']>;
+  minViewsRoot?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
+  rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectVersionSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -4901,15 +4909,22 @@ export type ReportResponseUpdateInput = {
 
 export type ReportSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  apiVersionId?: InputMaybe<Scalars['ID']>;
+  commentId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  fromId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  issueId?: InputMaybe<Scalars['ID']>;
+  languageIn?: InputMaybe<Array<Scalars['String']>>;
+  noteVersionId?: InputMaybe<Scalars['ID']>;
   organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
-  routineId?: InputMaybe<Scalars['ID']>;
+  postId?: InputMaybe<Scalars['ID']>;
+  projectVersionId?: InputMaybe<Scalars['ID']>;
+  routineVersionId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
+  smartContractVersionId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<ReportSortBy>;
-  standardId?: InputMaybe<Scalars['ID']>;
+  standardVersionId?: InputMaybe<Scalars['ID']>;
   tagId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
@@ -5045,38 +5060,39 @@ export type ResourceEdge = {
   node: Resource;
 };
 
-export enum ResourceFor {
-  Organization = 'Organization',
-  Project = 'Project',
-  Routine = 'Routine',
-  User = 'User'
-}
-
 export type ResourceList = {
   __typename?: 'ResourceList';
+  api?: Maybe<ApiVersion>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   index?: Maybe<Scalars['Int']>;
   organization?: Maybe<Organization>;
-  project?: Maybe<Project>;
+  post?: Maybe<Post>;
+  project?: Maybe<ProjectVersion>;
   resources: Array<Resource>;
-  routine?: Maybe<Routine>;
-  standard?: Maybe<Standard>;
+  routine?: Maybe<RoutineVersion>;
+  smartContract?: Maybe<SmartContractVersion>;
+  standard?: Maybe<StandardVersion>;
   translations: Array<ResourceListTranslation>;
   updated_at: Scalars['Date'];
   usedFor?: Maybe<ResourceListUsedFor>;
+  userSchedule?: Maybe<UserSchedule>;
 };
 
 export type ResourceListCreateInput = {
+  apiVersionConnect?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
+  organizationConnect?: InputMaybe<Scalars['ID']>;
+  postConnect?: InputMaybe<Scalars['ID']>;
+  projectVersionConnect?: InputMaybe<Scalars['ID']>;
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
-  routineId?: InputMaybe<Scalars['ID']>;
+  routineVersionConnect?: InputMaybe<Scalars['ID']>;
+  smartContractVersionConnect?: InputMaybe<Scalars['ID']>;
+  standardVersionConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<ResourceListTranslationCreateInput>>;
   usedFor: ResourceListUsedFor;
-  userId?: InputMaybe<Scalars['ID']>;
+  userScheduleConnect?: InputMaybe<Scalars['ID']>;
 };
 
 export type ResourceListEdge = {
@@ -5087,17 +5103,21 @@ export type ResourceListEdge = {
 
 export type ResourceListSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  apiVersionId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
-  routineId?: InputMaybe<Scalars['ID']>;
+  postId?: InputMaybe<Scalars['ID']>;
+  projectVersionId?: InputMaybe<Scalars['ID']>;
+  routineVersionId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
+  smartContractVersionId?: InputMaybe<Scalars['ID']>;
   sortBy?: InputMaybe<ResourceListSortBy>;
+  standardVersionId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
+  userScheduleId?: InputMaybe<Scalars['ID']>;
 };
 
 export type ResourceListSearchResult = {
@@ -5140,17 +5160,13 @@ export type ResourceListTranslationUpdateInput = {
 export type ResourceListUpdateInput = {
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
   resourcesCreate?: InputMaybe<Array<ResourceCreateInput>>;
   resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
   resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
-  routineId?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<ResourceListTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<ResourceListTranslationUpdateInput>>;
   usedFor?: InputMaybe<ResourceListUsedFor>;
-  userId?: InputMaybe<Scalars['ID']>;
 };
 
 export enum ResourceListUsedFor {
@@ -5164,13 +5180,12 @@ export enum ResourceListUsedFor {
 export type ResourceSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
-  forId?: InputMaybe<Scalars['ID']>;
-  forType?: InputMaybe<ResourceFor>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  resourceListId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ResourceSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
@@ -5388,14 +5403,13 @@ export type RoutinePermission = {
 
 export type RoutineSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  hasCompleteVersion?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
   isInternal?: InputMaybe<Scalars['Boolean']>;
-  isInternalExceptions?: InputMaybe<Array<SearchException>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  labelsId?: InputMaybe<Scalars['ID']>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
   maxSimplicity?: InputMaybe<Scalars['Int']>;
   maxTimesCompleted?: InputMaybe<Scalars['Int']>;
@@ -5405,18 +5419,16 @@ export type RoutineSearchInput = {
   minStars?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
 };
 
@@ -5703,35 +5715,37 @@ export type RoutineVersionPermission = {
 
 export type RoutineVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  directoryListingsId?: InputMaybe<Scalars['ID']>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
-  isInternal?: InputMaybe<Scalars['Boolean']>;
-  isInternalExceptions?: InputMaybe<Array<SearchException>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isCompleteWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  isCompleteWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
+  isInternalWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isInternalWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  isInternalWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
   maxComplexity?: InputMaybe<Scalars['Int']>;
   maxSimplicity?: InputMaybe<Scalars['Int']>;
   maxTimesCompleted?: InputMaybe<Scalars['Int']>;
   minComplexity?: InputMaybe<Scalars['Int']>;
-  minScore?: InputMaybe<Scalars['Int']>;
+  minScoreRoot?: InputMaybe<Scalars['Int']>;
   minSimplicity?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
+  minStarsRoot?: InputMaybe<Scalars['Int']>;
   minTimesCompleted?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
+  minViewsRoot?: InputMaybe<Scalars['Int']>;
+  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
+  rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<RoutineSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
 };
 
@@ -6995,23 +7009,27 @@ export type StandardPermission = {
 
 export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  issuesId?: InputMaybe<Scalars['ID']>;
+  labelsId?: InputMaybe<Scalars['ID']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
-  reportId?: InputMaybe<Scalars['ID']>;
-  routineId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByUserId?: InputMaybe<Scalars['ID']>;
+  parentId?: InputMaybe<Scalars['ID']>;
+  pullRequestsId?: InputMaybe<Scalars['ID']>;
+  questionsId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardSortBy>;
+  standardTypeLatestVersion?: InputMaybe<Scalars['String']>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
-  type?: InputMaybe<Scalars['String']>;
+  transfersId?: InputMaybe<Scalars['ID']>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
 };
 
@@ -7163,18 +7181,13 @@ export type StandardVersionSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
-  minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
-  routineId?: InputMaybe<Scalars['ID']>;
+  rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardVersionSortBy>;
+  standardType?: InputMaybe<Scalars['String']>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
-  type?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7287,7 +7300,7 @@ export type StarInput = {
 
 export type StarSearchInput = {
   after?: InputMaybe<Scalars['String']>;
-  excludeTags?: InputMaybe<Scalars['Boolean']>;
+  excludeLinkedToTag?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StarSortBy>;
@@ -7428,37 +7441,17 @@ export type TagEdge = {
   node: Tag;
 };
 
-export type TagHidden = {
-  __typename?: 'TagHidden';
-  id: Scalars['ID'];
-  isBlur: Scalars['Boolean'];
-  tag: Tag;
-};
-
-export type TagHiddenCreateInput = {
-  id: Scalars['ID'];
-  isBlur?: InputMaybe<Scalars['Boolean']>;
-  tagConnect?: InputMaybe<Scalars['ID']>;
-  tagCreate?: InputMaybe<TagCreateInput>;
-};
-
-export type TagHiddenUpdateInput = {
-  id: Scalars['ID'];
-  isBlur?: InputMaybe<Scalars['Boolean']>;
-};
-
 export type TagSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
-  hidden?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
-  myTags?: InputMaybe<Scalars['Boolean']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<TagSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
@@ -7907,19 +7900,12 @@ export type UserSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  projectId?: InputMaybe<Scalars['ID']>;
-  reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
-  routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<UserSortBy>;
-  standardId?: InputMaybe<Scalars['ID']>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
@@ -7976,7 +7962,7 @@ export type View = {
   __typename?: 'View';
   from: User;
   id: Scalars['ID'];
-  lastViewed: Scalars['Date'];
+  lastViewedAt: Scalars['Date'];
   name: Scalars['String'];
   to: ProjectOrOrganizationOrRoutineOrStandardOrUser;
 };

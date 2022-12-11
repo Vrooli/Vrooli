@@ -7,7 +7,7 @@ import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
-import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 
@@ -37,29 +37,31 @@ const searcher = (): Searcher<
 > => ({
     defaultSort: RunSortBy.DateUpdatedDesc,
     sortBy: RunSortBy,
+    searchFields: [
+        'completedTimeFrame',
+        'createdTimeFrame',
+        'excludeIds',
+        'routineId',
+        'startedTimeFrame',
+        'status',
+        'updatedTimeFrame',
+        'visibility',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             {
-                routine: {
+                routineVersion: {
                     translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } },
                 }
             },
             {
-                routine: {
+                routineVersion: {
                     translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } },
                 }
             },
             { name: { ...insensitive } }
         ]
     }),
-    customQueries(input) {
-        return combineQueries([
-            (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            (input.completedTimeFrame !== undefined ? timeFrameToPrisma('completedAt', input.completedTimeFrame) : {}),
-            (input.startedTimeFrame !== undefined ? timeFrameToPrisma('startedAt', input.startedTimeFrame) : {}),
-            (input.status !== undefined ? { status: input.status } : {}),
-        ])
-    },
 })
 
 const validator = (): Validator<

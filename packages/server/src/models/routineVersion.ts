@@ -1,19 +1,18 @@
 import { routinesCreate, routinesUpdate } from "@shared/validation";
-import { ResourceListUsedFor } from "@shared/consts";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { CustomError, Trigger } from "../events";
-import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser } from "../endpoints/types";
+import { Routine, RoutinePermission, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Mutater, Displayer, Duplicator } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { addSupplementalFields, combineQueries, exceptionsBuilder, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo, visibilityBuilder } from "../builders";
+import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type NodeWeightData = {
@@ -83,12 +82,42 @@ const formatter = (): Formatter<Routine, typeof suppFields> => ({
 })
 
 const searcher = (): Searcher<
-    RoutineSearchInput,
+    RoutineVersionSearchInput,
     RoutineVersionSortBy,
     Prisma.routine_versionWhereInput
 > => ({
     defaultSort: RoutineVersionSortBy.DateCompletedDesc,
     sortBy: RoutineVersionSortBy,
+    searchFields: [
+        'createdById',
+        'createdTimeFrame',
+        'directoryListingsId',
+        'excludeIds',
+        'isCompleteWithRoot',
+        'isCompleteWithRootExcludeOwnedByOrganizationId',
+        'isCompleteWithRootExcludeOwnedByUserId',
+        'isInternalWithRoot',
+        'isInternalWithRootExcludeOwnedByOrganizationId',
+        'isInternalWithRootExcludeOwnedByUserId',
+        'translationLanguages',
+        'maxComplexity',
+        'maxSimplicity',
+        'maxTimesCompleted',
+        'minComplexity',
+        'minScoreRoot',
+        'minSimplicity',
+        'minStarsRoot',
+        'minTimesCompleted',
+        'minViewsRoot',
+        'ownedByOrganizationId',
+        'ownedByUserId',
+        'parentId',
+        'reportId',
+        'rootId',
+        'tags',
+        'updatedTimeFrame',
+        'visibility',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
@@ -96,46 +125,6 @@ const searcher = (): Searcher<
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
-    customQueries(input, userData) {
-        const isComplete = exceptionsBuilder({
-            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
-            exceptionField: 'isCompleteExceptions',
-            input,
-            mainField: 'isComplete',
-        })
-        const isInternal = exceptionsBuilder({
-            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
-            defaultValue: false,
-            exceptionField: 'isInternalExceptions',
-            input,
-            mainField: 'isInternal',
-        })
-        console.log('before routine customqueries combinequeries', JSON.stringify(isComplete), '\n', JSON.stringify(isInternal), '\n');
-        return combineQueries([
-            isComplete,
-            isInternal,
-            visibilityBuilder({ objectType: 'Routine', userData, visibility: input.visibility }),
-            (input.excludeIds !== undefined ? { NOT: { id: { in: input.excludeIds } } } : {}),
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minComplexity !== undefined ? { complexity: { gte: input.minComplexity } } : {}),
-            (input.maxComplexity !== undefined ? { complexity: { lte: input.maxComplexity } } : {}),
-            (input.minSimplicity !== undefined ? { simplicity: { gte: input.minSimplicity } } : {}),
-            (input.maxSimplicity !== undefined ? { simplicity: { lte: input.maxSimplicity } } : {}),
-            (input.maxTimesCompleted !== undefined ? { timesCompleted: { lte: input.maxTimesCompleted } } : {}),
-            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            (input.minTimesCompleted !== undefined ? { timesCompleted: { gte: input.minTimesCompleted } } : {}),
-            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
-            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            (input.userId !== undefined ? { userId: input.userId } : {}),
-            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            (input.projectId !== undefined ? { projectId: input.projectId } : {}),
-            (input.parentId !== undefined ? { parentId: input.parentId } : {}),
-            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        ])
-    },
 })
 
 const validator = (): Validator<

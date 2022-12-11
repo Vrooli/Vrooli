@@ -3,7 +3,7 @@ import { ResourceListUsedFor } from "@shared/consts";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission } from "../endpoints/types";
+import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
@@ -11,7 +11,7 @@ import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { combineQueries, exceptionsBuilder, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
+import { combineQueries, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -47,12 +47,27 @@ const formatter = (): Formatter<Project, typeof suppFields> => ({
 })
 
 const searcher = (): Searcher<
-    ProjectSearchInput,
+    ProjectVersionSearchInput,
     ProjectVersionSortBy,
     Prisma.project_versionWhereInput
 > => ({
     defaultSort: ProjectVersionSortBy.DateCompletedDesc,
     sortBy: ProjectVersionSortBy,
+    searchFields: [
+        'createdById',
+        'createdTimeFrame',
+        'directoryListingsId',
+        'minScoreRoot',
+        'minStarsRoot',
+        'minViewsRoot',
+        'ownedByOrganizationId',
+        'ownedByUserId',
+        'rootId',
+        'tags',
+        'translationLanguages',
+        'updatedTimeFrame',
+        'visibility',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
@@ -60,29 +75,6 @@ const searcher = (): Searcher<
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
-    customQueries(input, userData) {
-        const isComplete = exceptionsBuilder({
-            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
-            exceptionField: 'isCompleteExceptions',
-            input,
-            mainField: 'isComplete',
-        })
-        return combineQueries([
-            isComplete,
-            visibilityBuilder({ objectType: 'Project', userData, visibility: input.visibility }),
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            // (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            // (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            // (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
-            // (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            // (input.userId !== undefined ? { userId: input.userId } : {}),
-            // (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            // (input.parentId !== undefined ? { parentId: input.parentId } : {}),
-            // (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            // (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        ])
-    },
 })
 
 const validator = (): Validator<

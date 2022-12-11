@@ -1,5 +1,5 @@
 import { PrismaType } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, ResourceListUsedFor, OrganizationPermission, SessionUser } from "../endpoints/types";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationPermission, SessionUser } from "../endpoints/types";
 import { organizationsCreate, organizationsUpdate } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { StarModel } from "./star";
@@ -8,7 +8,7 @@ import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { uuid } from "@shared/uuid";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { combineQueries, onlyValidIds, visibilityBuilder } from "../builders";
+import { onlyValidIds } from "../builders";
 import { bestLabel, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -63,6 +63,23 @@ const searcher = (): Searcher<
     Prisma.organizationWhereInput
 > => ({
     defaultSort: OrganizationSortBy.StarsDesc,
+    searchFields: [
+        'createdTimeFrame',
+        'isOpenToNewMembers',
+        'maxStars',
+        'maxViews',
+        'memberUserIds',
+        'minStars',
+        'minViews',
+        'projectId',
+        'reportId',
+        'routineId',
+        'standardId',
+        'tags',
+        'translationLanguages',
+        'updatedTimeFrame',
+        'visibility',
+    ],
     sortBy: OrganizationSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
@@ -71,23 +88,6 @@ const searcher = (): Searcher<
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
-    customQueries(input, userData) {
-        return combineQueries([
-            visibilityBuilder({ objectType: 'Organization', userData, visibility: input.visibility }),
-            (input.isOpenToNewMembers !== undefined ? { isOpenToNewMembers: true } : {}),
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
-            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            (input.userId !== undefined ? { members: { some: { userId: input.userId } } } : {}),
-            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            (input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
-            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        ])
-    },
 })
 
 const validator = (): Validator<

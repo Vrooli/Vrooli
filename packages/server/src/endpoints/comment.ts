@@ -95,18 +95,26 @@ export const typeDef = gql`
     input CommentSearchInput {
         after: String
         createdTimeFrame: TimeFrame
-        languages: [String!]
         minScore: Int
         minStars: Int
-        organizationId: ID
-        projectId: ID
-        routineId: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         searchString: String
         sortBy: CommentSortBy
-        standardId: ID
         take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
+        apiVersionId: ID
+        issueId: ID
+        noteVersionId: ID
+        postId: ID
+        projectVersionId: ID
+        pullRequestId: ID
+        questionId: ID
+        questionAnswerId: ID
+        routineVersionId: ID
+        smartContractVersionId: ID
+        standardVersionId: ID
+        translationLanguages: [String!]
     }
 
     type CommentThread {

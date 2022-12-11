@@ -14,7 +14,7 @@ import { readManyHelper } from "../actions";
 import { Displayer, Formatter, GraphQLModelType, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { combineQueries, lowercaseFirstLetter, onlyValidIds, padSelect, timeFrameToPrisma } from "../builders";
+import { lowercaseFirstLetter, onlyValidIds, padSelect } from "../builders";
 import { getLabels } from "../getters";
 
 interface View {
@@ -104,6 +104,9 @@ const searcher = (): Searcher<
 > => ({
     defaultSort: ViewSortBy.LastViewedDesc,
     sortBy: ViewSortBy,
+    searchFields: [
+        'lastViewedTimeFrame',
+    ],
     searchStringQuery: ({ insensitive, languages, searchString }) => ({
         OR: [
             { name: { ...insensitive } },
@@ -114,11 +117,6 @@ const searcher = (): Searcher<
             { user: UserModel.search.searchStringQuery({ insensitive, languages, searchString }) },
         ]
     }),
-    customQueries(input) {
-        return combineQueries([
-            (input.lastViewedTimeFrame !== undefined ? timeFrameToPrisma('lastViewed', input.lastViewedTimeFrame) : {}),
-        ])
-    },
 })
 
 const querier = () => ({
@@ -169,7 +167,7 @@ const view = async (prisma: PrismaType, userData: SessionUser, input: ViewInput)
         await prisma.view.update({
             where: { id: view.id },
             data: {
-                lastViewed: new Date(),
+                lastViewedAt: new Date(),
             }
         })
     }

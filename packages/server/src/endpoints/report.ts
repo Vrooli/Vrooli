@@ -50,20 +50,27 @@ export const typeDef = gql`
     }
 
     input ReportSearchInput {
-        userId: ID
-        organizationId: ID
-        projectId: ID
-        routineId: ID
-        standardId: ID
-        tagId: ID
         ids: [ID!]
-        languages: [String!]
+        languageIn: [String!]
         sortBy: ReportSortBy
         createdTimeFrame: TimeFrame
         updatedTimeFrame: TimeFrame
         searchString: String
         after: String
         take: Int
+        fromId: ID
+        apiVersionId: ID
+        commentId: ID
+        issueId: ID
+        noteVersionId: ID
+        organizationId: ID
+        postId: ID
+        projectVersionId: ID
+        routineVersionId: ID
+        smartContractVersionId: ID
+        standardVersionId: ID
+        tagId: ID
+        userId: ID
     }
 
     type ReportSearchResult {

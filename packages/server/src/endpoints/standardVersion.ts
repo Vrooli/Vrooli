@@ -129,18 +129,13 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         ids: [ID!]
         languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        projectId: ID
         reportId: ID
-        routineId: ID
+        rootId: ID
         searchString: String
         sortBy: StandardVersionSortBy
+        standardType: String
         tags: [String!]
         take: Int
-        type: String
         updatedTimeFrame: TimeFrame
         userId: ID
         visibility: VisibilityType

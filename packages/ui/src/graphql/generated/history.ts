@@ -362,7 +362,7 @@ export type history_history_recentlyViewed_to = history_history_recentlyViewed_t
 export interface history_history_recentlyViewed {
   __typename: "View";
   id: string;
-  lastViewed: any;
+  lastViewedAt: any;
   title: string;
   to: history_history_recentlyViewed_to;
 }

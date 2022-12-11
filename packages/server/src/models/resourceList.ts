@@ -8,9 +8,8 @@ import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
-import { relBuilderHelper } from "../actions";
-import { combineQueries, permissionsSelectHelper } from "../builders";
-import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
+import { permissionsSelectHelper } from "../builders";
+import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 
 const __typename = 'ResourceList' as const;
@@ -103,28 +102,36 @@ const searcher = (): Searcher<
 > => ({
     defaultSort: ResourceListSortBy.IndexAsc,
     sortBy: ResourceListSortBy,
+    searchFields: [
+        'apiVersionId',
+        'createdTimeFrame',
+        'organizationId',
+        'postId',
+        'projectVersionId',
+        'routineVersionId',
+        'smartContractVersionId',
+        'standardVersionId',
+        'translationLanguages',
+        'updatedTimeFrame',
+        'userScheduleId',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
             { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
         ]
     }),
-    customQueries(input) {
-        return combineQueries([
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-        ])
-    },
 })
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceListCreateInput | ResourceListUpdateInput, isAdd: boolean) => {
     return {
         id: data.id,
-        organization: data.organizationId ? { connect: { id: data.organizationId } } : undefined,
-        project: data.projectId ? { connect: { id: data.projectId } } : undefined,
-        routine: data.routineId ? { connect: { id: data.routineId } } : undefined,
-        user: data.userId ? { connect: { id: data.userId } } : undefined,
-        resources: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'resources', objectType: 'Resource', prisma, userData }),
-        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+        // organization: data.organizationId ? { connect: { id: data.organizationId } } : undefined,
+        // project: data.projectId ? { connect: { id: data.projectId } } : undefined,
+        // routine: data.routineId ? { connect: { id: data.routineId } } : undefined,
+        // user: data.userId ? { connect: { id: data.userId } } : undefined,
+        // resources: await relBuilderHelper({ data, isAdd, isOneToOne: false, isRequired: false, relationshipName: 'resources', objectType: 'Resource', prisma, userData }),
+        // translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
     }
 }
 

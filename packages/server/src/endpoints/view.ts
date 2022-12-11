@@ -16,7 +16,7 @@ export const typeDef = gql`
     type View {
         id: ID!
         from: User!
-        lastViewed: Date!
+        lastViewedAt: Date!
         name: String!
         to: ProjectOrOrganizationOrRoutineOrStandardOrUser!
     }

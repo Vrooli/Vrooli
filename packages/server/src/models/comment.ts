@@ -1,6 +1,6 @@
 import { CommentSortBy } from "@shared/consts";
 import { commentsCreate, commentsUpdate } from "@shared/validation";
-import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, Owner, SessionUser } from "../endpoints/types";
+import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
 import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, oneIsPublic, translationRelationshipBuilder } from "../utils";
+import { bestLabel, oneIsPublic, SearchMap, translationRelationshipBuilder } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchString } from "../getters";
 import { getUser } from "../auth";
@@ -45,22 +45,30 @@ const searcher = (): Searcher<
     Prisma.commentWhereInput
 > => ({
     defaultSort: CommentSortBy.ScoreDesc,
+    searchFields: [
+        'apiVersionId',
+        'createdTimeFrame',
+        'issueId',
+        'minScore',
+        'minStars',
+        'noteVersionId',
+        'ownedByOrganizationId',
+        'ownedByUserId',
+        'postId',
+        'projectVersionId',
+        'pullRequestId',
+        'questionAnswerId',
+        'questionId',
+        'routineVersionId',
+        'smartContractVersionId',
+        'standardVersionId',
+        'translationLanguages',
+        'updatedTimeFrame',
+    ],
     sortBy: CommentSortBy,
     searchStringQuery: ({ insensitive, languages }) => ({
         translations: { some: { language: languages ? { in: languages } : undefined, text: insensitive } }
     }),
-    customQueries(input) {
-        return combineQueries([
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            (input.userId !== undefined ? { userId: input.userId } : {}),
-            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            (input.projectId !== undefined ? { projectId: input.projectId } : {}),
-            (input.routineId !== undefined ? { routineId: input.routineId } : {}),
-            (input.standardId !== undefined ? { standardId: input.standardId } : {}),
-        ])
-    },
 })
 
 const validator = (): Validator<
@@ -149,7 +157,6 @@ const querier = () => ({
     ): Promise<CommentThread[]> {
         // Partially convert info type
         let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap, userData?.languages ?? ['en'], true);
-        // Create query for specified ids
         const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
         // Combine queries
         const where = { ...idQuery };
@@ -223,16 +230,21 @@ const querier = () => ({
         let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap, req.languages, true);
         // Determine text search query
         const searchQuery = input.searchString ? getSearchString({ objectType: 'Comment', searchString: input.searchString }) : undefined;
-        // Determine createdTimeFrame query
-        const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
-        // Determine updatedTimeFrame query
-        const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
-        // Create type-specific queries
-        let typeQuery = (searcher() as any).customQueries(input);
+        // Loop through search fields and add each to the search query, 
+        // if the field is specified in the input
+        const customQueries: { [x: string]: any }[] = [];
+        for (const field of searcher().searchFields) {
+            if (input[field as string] !== undefined) {
+                customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
+            }
+        }
         // Combine queries
-        const where = { ...searchQuery, ...createdQuery, ...updatedQuery, ...typeQuery };
+        const where = combineQueries([searchQuery, ...customQueries]);
         // Determine sort order
-        const orderBy = SortMap[input.sortBy ?? searcher().defaultSort];
+        // Make sure sort field is valid
+        const orderByField = input.sortBy ?? searcher().defaultSort;
+        const orderByIsValid = searcher().sortBy[orderByField] === undefined
+        const orderBy = orderByIsValid ? SortMap[input.sortBy ?? searcher().defaultSort] : undefined;
         // Find requested search array
         const searchResults = await prisma.comment.findMany({
             where,

@@ -218,7 +218,7 @@ export type listViewFields_to = listViewFields_to_Organization | listViewFields_
 export interface listViewFields {
   __typename: "View";
   id: string;
-  lastViewed: any;
+  lastViewedAt: any;
   name: string;
   to: listViewFields_to;
 }

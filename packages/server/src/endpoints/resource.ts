@@ -1,17 +1,10 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceFor, ResourceSortBy, ResourceUsedFor } from './types';
+import { FindByIdInput, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceSearchInput, ResourceSortBy, ResourceUsedFor } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
 export const typeDef = gql`
-    enum ResourceFor {
-        Organization
-        Project
-        Routine
-        User
-    }
-
     enum ResourceSortBy {
         DateCreatedAsc
         DateCreatedDesc
@@ -91,16 +84,15 @@ export const typeDef = gql`
     }
 
     input ResourceSearchInput {
-        forId: ID
-        forType: ResourceFor
         ids: [ID!]
-        languages: [String!]
         sortBy: ResourceSortBy
         createdTimeFrame: TimeFrame
         updatedTimeFrame: TimeFrame
+        resourceListId: ID
         searchString: String
         after: String
         take: Int
+        translationLanguages: [String!]
     }
 
     type ResourceSearchResult {
@@ -126,7 +118,6 @@ export const typeDef = gql`
 
 const objectType = 'Resource';
 export const resolvers: {
-    ResourceFor: typeof ResourceFor;
     ResourceSortBy: typeof ResourceSortBy;
     ResourceUsedFor: typeof ResourceUsedFor;
     Query: {
@@ -138,7 +129,6 @@ export const resolvers: {
         resourceUpdate: GQLEndpoint<ResourceUpdateInput, UpdateOneResult<Resource>>;
     }
 } = {
-    ResourceFor: ResourceFor,
     ResourceSortBy: ResourceSortBy,
     ResourceUsedFor: ResourceUsedFor,
     Query: {

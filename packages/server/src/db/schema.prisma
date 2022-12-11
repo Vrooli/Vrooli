@@ -25,6 +25,8 @@ model api {
     created_at            DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
     score                 Int                         @default(0)
+    stars                 Int                         @default(0)
+    views                 Int                         @default(0)
     createdById           String?                     @db.Uuid
     ownedByUserId         String?                     @db.Uuid
     ownedByOrganizationId String?                     @db.Uuid
@@ -135,6 +137,7 @@ model comment {
     smartContractVersionId String?                     @db.Uuid
     standardVersionId      String?                     @db.Uuid
     score                  Int                         @default(0)
+    stars                  Int                         @default(0)
     apiVersion             api_version?                @relation(fields: [apiVersionId], references: [id], onDelete: Cascade)
     issue                  issue?                      @relation(fields: [issueId], references: [id], onDelete: Cascade)
     ownedByOrganization    organization?               @relation("comment_ownedByOrganization", fields: [ownedByOrganizationId], references: [id], onDelete: SetNull)
@@ -191,6 +194,9 @@ model issue {
     created_at          DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at          DateTime                    @updatedAt @db.Timestamptz(6)
     closedAt            DateTime?                   @db.Timestamptz(6)
+    score              Int                         @default(0)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     apiId               String?                     @db.Uuid
     organizationId      String?                     @db.Uuid
     noteId              String?                     @db.Uuid
@@ -217,7 +223,6 @@ model issue {
     votedBy             vote[]                      @relation("vote_issue")
     starredBy           star[]                      @relation("star_issue")
     viewedBy            view[]                      @relation("view_issue")
-    score               Int                         @default(0)
     subscriptions       notification_subscription[]
 }
 
@@ -423,6 +428,8 @@ model note {
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
     isPrivate               Boolean                     @default(false)
     score                   Int                         @default(0)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     parentId                String?                     @db.Uuid
     createdById             String?                     @db.Uuid
     ownedByUserId           String?                     @db.Uuid
@@ -566,6 +573,8 @@ model organization {
     isOpenToNewMembers Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
     permissions        String                      @db.VarChar(4096)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     parentId           String?                     @db.Uuid
     premiumId          String?                     @unique @db.Uuid
     resourceListId     String?                     @unique @db.Uuid
@@ -757,6 +766,8 @@ model post {
     isPublic       Boolean            @default(false)
     isDeleted      Boolean            @default(false)
     score          Int                @default(0)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     organizationId String?            @db.Uuid
     userId         String?            @db.Uuid
     organization   organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -842,6 +853,8 @@ model project {
     isPrivate             Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
     score                 Int                         @default(0)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     handle                String?                     @unique @db.VarChar(16)
@@ -1014,6 +1027,8 @@ model question {
     referencing       String?                     @db.VarChar(2048) // Describes what part of object the question is about, in JSON
     hasAcceptedAnswer Boolean                     @default(false)
     score             Int                         @default(0)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     apiId             String?                     @db.Uuid
     noteId            String?                     @db.Uuid
     organizationId    String?                     @db.Uuid
@@ -1034,6 +1049,7 @@ model question {
     answers           question_answer[]
     starredBy         star[]                      @relation("star_question")
     votedBy           vote[]                      @relation("vote_question")
+    viewedBy          view[]                      @relation("view_question")
     translations      question_translation[]
     subscriptions     notification_subscription[]
 }
@@ -1054,6 +1070,7 @@ model question_answer {
     created_at   DateTime                      @default(now()) @db.Timestamptz(6)
     updated_at   DateTime                      @default(now()) @db.Timestamptz(6)
     score        Int                           @default(0)
+    stars                  Int                         @default(0)
     isAccepted   Boolean                       @default(false)
     questionId   String                        @db.Uuid
     createdById  String?                       @db.Uuid
@@ -1087,6 +1104,7 @@ model quiz {
     wasAutoGenerated       Boolean                     @default(false)
     pointsToPass           Int?
     score                  Int                         @default(0)
+    stars                  Int                         @default(0)
     routineId              String?                     @db.Uuid
     projectId              String?                     @db.Uuid
     userId                 String?                     @db.Uuid
@@ -1350,6 +1368,8 @@ model routine {
     isInternal            Boolean                     @default(false)
     isPrivate             Boolean                     @default(false)
     score                 Int                         @default(0)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     ownedByOrganizationId String?                     @db.Uuid
@@ -1686,6 +1706,8 @@ model smart_contract {
     isDeleted             Boolean                     @default(false)
     isPrivate             Boolean                     @default(false)
     score                 Int                         @default(0)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     ownedByOrganizationId String?                     @db.Uuid
@@ -1781,6 +1803,8 @@ model standard {
     completedAt           DateTime?                   @db.Timestamptz(6)
     name                  String                      @db.VarChar(128)
     score                 Int                         @default(0)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     isDeleted             Boolean                     @default(false)
     isInternal            Boolean                     @default(false)
@@ -2067,6 +2091,7 @@ model tag {
     created_at      DateTime               @default(now()) @db.Timestamptz(6)
     updated_at      DateTime               @default(now()) @db.Timestamptz(6)
     tag             String                 @unique @db.VarChar(128)
+    stars                  Int                         @default(0)
     createdById     String?                @db.Uuid
     createdBy       user?                  @relation("tag_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     apis            api_tags[]
@@ -2166,6 +2191,8 @@ model user {
     longestStreak                  Int                         @default(0)
     accountTabsOrder               String?                     @db.VarChar(255)
     notificationSettings           String?                     @db.VarChar(2048)
+    stars                  Int                         @default(0)
+    views                  Int                         @default(0)
     premiumId                      String?                     @unique @db.Uuid
     status                         AccountStatus               @default(Unlocked)
     apisCreated                    api[]                       @relation("api_createdBy")
@@ -2300,12 +2327,13 @@ model user_schedule_filter {
 
 model view {
     id              String          @id @default(uuid()) @db.Uuid
-    lastViewed      DateTime        @default(now()) @db.Timestamptz(6)
+    lastViewedAt      DateTime        @default(now()) @db.Timestamptz(6)
     name            String          @db.VarChar(128)
     byId            String          @db.Uuid
     apiId           String?         @db.Uuid
     issueId         String?         @db.Uuid
     organizationId  String?         @db.Uuid
+    questionId      String?         @db.Uuid
     noteId          String?         @db.Uuid
     postId          String?         @db.Uuid
     projectId       String?         @db.Uuid
@@ -2317,6 +2345,7 @@ model view {
     api             api?            @relation("view_api", fields: [apiId], references: [id], onDelete: Cascade)
     issue           issue?          @relation("view_issue", fields: [issueId], references: [id], onDelete: Cascade)
     organization    organization?   @relation("view_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    question        question?       @relation("view_question", fields: [questionId], references: [id], onDelete: Cascade)
     note            note?           @relation("view_note", fields: [noteId], references: [id], onDelete: Cascade)
     post            post?           @relation("view_post", fields: [postId], references: [id], onDelete: Cascade)
     project         project?        @relation("view_project", fields: [projectId], references: [id], onDelete: Cascade)

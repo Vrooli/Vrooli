@@ -1,12 +1,11 @@
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
+import { UserSortBy } from "@shared/consts";
 import { ProfileUpdateInput, User, UserSearchInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Displayer, Mutater } from "./types";
+import { Formatter, Searcher, Validator, Displayer, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { profilesUpdate } from "@shared/validation";
-import { combineQueries } from "../builders";
 import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -43,6 +42,13 @@ export const searcher = (): Searcher<
 > => ({
     defaultSort: UserSortBy.StarsDesc,
     sortBy: UserSortBy,
+    searchFields: [
+        'createdTimeFrame',
+        'minStars',
+        'minViews',
+        'translationLanguages',
+        'updatedTimeFrame',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
@@ -50,20 +56,6 @@ export const searcher = (): Searcher<
             { handle: { ...insensitive } },
         ]
     }),
-    customQueries(input) {
-        return combineQueries([
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.organizationId !== undefined ? { organizations: { some: { organizationId: input.organizationId } } } : {}),
-            (input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
-            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            (input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
-        ])
-    },
 })
 
 const validator = (): Validator<

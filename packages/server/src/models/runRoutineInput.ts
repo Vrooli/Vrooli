@@ -1,7 +1,7 @@
 import { runInputsCreate, runInputsUpdate } from "@shared/validation";
-import { RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "../endpoints/types";
+import { RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Mutater, Validator } from "./types";
+import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { padSelect } from "../builders";
@@ -54,36 +54,22 @@ const validator = (): Validator<
     },
 })
 
-// const searcher = (): Searcher<RunSearchInput, RunSortBy, Prisma.run_routineWhereInput> => ({
-//     defaultSort: RunSortBy.DateUpdatedDesc,
-//     sortBy: RunSortBy,
-//     getSearchStringQuery: (searchString, languages) => {
-//         const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' });
-//         return ({
-//             OR: [
-//                 {
-//                     routine: {
-//                         translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } },
-//                     }
-//                 },
-//                 {
-//                     routine: {
-//                         translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } },
-//                     }
-//                 },
-//                 { name: { ...insensitive } }
-//             ]
-//         })
-//     },
-//     customQueries(input) {
-//         return combineQueries([
-//             (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-//             (input.completedTimeFrame !== undefined ? timeFrameToPrisma('completedAt', input.completedTimeFrame) : {}),
-//             (input.startedTimeFrame !== undefined ? timeFrameToPrisma('startedAt', input.startedTimeFrame) : {}),
-//             (input.status !== undefined ? { status: input.status } : {}),
-//         ])
-//     },
-// })
+const searcher = (): Searcher<
+    RunRoutineInputSearchInput,
+    RunRoutineInputSortBy,
+    Prisma.run_routine_inputWhereInput
+> => ({
+    defaultSort: RunRoutineInputSortBy.DateUpdatedDesc,
+    sortBy: RunRoutineInputSortBy,
+    searchFields: [
+        'createdTimeFrame',
+        'excludeIds',
+        'routineIds',
+        'standardIds',
+        'updatedTimeFrame',
+    ],
+    searchStringQuery: (params) => RunRoutineModel.search.searchStringQuery(params),
+})
 
 /**
  * Handles mutations of run inputs
@@ -138,6 +124,6 @@ export const RunRoutineInputModel = ({
     display: displayer(),
     format: formatter(),
     mutate: mutater(),
-    // search: searcher(),
+    search: searcher(),
     validate: validator(),
 })

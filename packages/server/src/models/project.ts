@@ -9,9 +9,8 @@ import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { combineQueries, exceptionsBuilder, padSelect, permissionsSelectHelper, visibilityBuilder } from "../builders";
+import { padSelect, permissionsSelectHelper } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
@@ -56,6 +55,23 @@ const searcher = (): Searcher<
 > => ({
     defaultSort: ProjectSortBy.ScoreDesc,
     sortBy: ProjectSortBy,
+    searchFields: [
+        'createdById',
+        'createdTimeFrame',
+        'hasCompleteVersion',
+        'labelsId',
+        'maxScore',
+        'maxStars',
+        'minScore',
+        'minStars',
+        'ownedByOrganizationId',
+        'ownedByUserId',
+        'parentId',
+        'tags',
+        'translationLanguagesLatestVersion',
+        'updatedTimeFrame',
+        'visibility',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         versions: {
             some: {
@@ -67,29 +83,6 @@ const searcher = (): Searcher<
             }
         }
     }),
-    customQueries(input, userData) {
-        const isComplete = exceptionsBuilder({
-            canQuery: ['createdByOrganization', 'createdByUser', 'organization.id', 'project.id', 'user.id'],
-            exceptionField: 'isCompleteExceptions',
-            input,
-            mainField: 'isComplete',
-        })
-        return combineQueries([
-            isComplete,
-            visibilityBuilder({ objectType: 'Project', userData, visibility: input.visibility }),
-            // (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            // (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            // (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            // (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            // (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { name: { in: input.resourceLists } } } } } } : {}),
-            // (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            // (input.userId !== undefined ? { userId: input.userId } : {}),
-            // (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            // (input.parentId !== undefined ? { parentId: input.parentId } : {}),
-            // (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            // (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-        ])
-    },
 })
 
 const validator = (): Validator<

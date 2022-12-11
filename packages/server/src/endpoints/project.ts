@@ -102,6 +102,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         createdById: ID
         hasCompleteVersion: Boolean
+        labelsId: ID
         maxScore: Int
         maxStars: Int
         minScore: Int
@@ -109,11 +110,11 @@ export const typeDef = gql`
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
-        languages: [String!]
         ids: [ID!]
         searchString: String
         sortBy: ProjectSortBy
         tags: [String!]
+        translationLanguagesLatestVersion: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

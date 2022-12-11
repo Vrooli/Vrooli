@@ -126,9 +126,6 @@ export const typeDef = gql`
         handle: String
         name: String
         theme: String
-        hiddenTagsDelete: [ID!]
-        hiddenTagsCreate: [TagHiddenCreateInput!]
-        hiddenTagsUpdate: [TagHiddenUpdateInput!]
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]
@@ -153,23 +150,16 @@ export const typeDef = gql`
     }
 
     input UserSearchInput {
-        languages: [String!]
         minStars: Int
         minViews: Int
-        organizationId: ID
-        projectId: ID
-        routineId: ID
-        reportId: ID
-        standardId: ID
         ids: [ID!]
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
         sortBy: UserSortBy
         searchString: String
         createdTimeFrame: TimeFrame
         updatedTimeFrame: TimeFrame
         after: String
         take: Int
+        translationLanguages: [String!]
     }
 
     type UserSearchResult {

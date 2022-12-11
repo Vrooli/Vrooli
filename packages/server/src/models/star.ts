@@ -15,7 +15,7 @@ import { Displayer, Formatter, GraphQLModelType, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from ".";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { combineQueries, onlyValidIds, padSelect } from "../builders";
+import { onlyValidIds, padSelect } from "../builders";
 import { getDelegator } from "../getters";
 
 const __typename = 'Star' as const;
@@ -86,6 +86,9 @@ const searcher = (): Searcher<
 > => ({
     defaultSort: StarSortBy.DateUpdatedDesc,
     sortBy: StarSortBy,
+    searchFields: [
+        'excludeLinkedToTag',
+    ],
     searchStringQuery: ({ insensitive, languages, searchString }) => ({
         OR: [
             { organization: OrganizationModel.search.searchStringQuery({ insensitive, languages, searchString }) },
@@ -96,11 +99,6 @@ const searcher = (): Searcher<
             { comment: CommentModel.search.searchStringQuery({ insensitive, languages, searchString }) },
         ]
     }),
-    customQueries(input) {
-        return combineQueries([
-            (input.excludeTags === true ? { tagId: null } : {}),
-        ])
-    },
 })
 
 const forMapper: { [key in StarFor]: keyof Prisma.starUpsertArgs['create'] } = {

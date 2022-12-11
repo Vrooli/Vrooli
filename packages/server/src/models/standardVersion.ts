@@ -6,7 +6,7 @@ import { ViewModel } from "./view";
 import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy } from "../endpoints/types";
+import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
@@ -51,12 +51,22 @@ const formatter = (): Formatter<Standard, typeof suppFields> => ({
 })
 
 const searcher = (): Searcher<
-    StandardSearchInput,
+    StandardVersionSearchInput,
     StandardVersionSortBy,
     Prisma.standard_versionWhereInput
 > => ({
     defaultSort: StandardVersionSortBy.DateCompletedDesc,
     sortBy: StandardVersionSortBy,
+    searchFields: [
+        'createdTimeFrame',
+        'reportId',
+        'rootId',
+        'standardType',
+        'tags',
+        'updatedTimeFrame',
+        'userId',
+        'visibility',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
@@ -64,37 +74,11 @@ const searcher = (): Searcher<
             { tags: { some: { tag: { tag: { ...insensitive } } } } },
         ]
     }),
-    customQueries(input, userData) {
-        return combineQueries([
-            /**
-             * isInternal routines should never appear in the query, since they are 
-             * only meant for a single input/output
-             */
-            { isInternal: false },
-            visibilityBuilder({ objectType: 'Standard', userData, visibility: input.visibility }),
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minScore !== undefined ? { score: { gte: input.minScore } } : {}),
-            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.userId !== undefined ? { createdByUserId: input.userId } : {}),
-            (input.organizationId !== undefined ? { createdByOrganizationId: input.organizationId } : {}),
-            (input.projectId !== undefined ? {
-                OR: [
-                    { createdByUser: { projects: { some: { id: input.projectId } } } },
-                    { createdByOrganization: { projects: { some: { id: input.projectId } } } },
-                ]
-            } : {}),
-            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            (input.routineId !== undefined ? {
-                OR: [
-                    { routineInputs: { some: { routineId: input.routineId } } },
-                    { routineOutputs: { some: { routineId: input.routineId } } },
-                ]
-            } : {}),
-            (input.tags !== undefined ? { tags: { some: { tag: { tag: { in: input.tags } } } } } : {}),
-            (!!input.type ? { type: { contains: input.type.trim(), mode: 'insensitive' } } : {}),
-        ])
-    },
+    /**
+     * isInternal routines should never appear in the query, since they are 
+     * only meant for a single input/output
+     */
+    customQueryData: () => ({ root: { isInternal: true } }),
 })
 
 const validator = (): Validator<

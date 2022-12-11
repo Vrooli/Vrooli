@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
-import { combineQueries, permissionsSelectHelper } from "../builders";
+import { permissionsSelectHelper } from "../builders";
 import { bestLabel, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -23,6 +23,12 @@ const searcher = (): Searcher<
 > => ({
     defaultSort: ResourceSortBy.IndexAsc,
     sortBy: ResourceSortBy,
+    searchFields: [
+        'createdTimeFrame',
+        'resourceListId',
+        'translationLanguages',
+        'updatedTimeFrame',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
@@ -30,12 +36,6 @@ const searcher = (): Searcher<
             { link: { ...insensitive } },
         ]
     }),
-    customQueries(input) {
-        // const forQuery = (input.forId && input.forType) ? { [forMap[input.forType]]: input.forId } : {};
-        return combineQueries([
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-        ])
-    },
 })
 
 const validator = (): Validator<

@@ -130,7 +130,7 @@ export const listViewFields = gql`
     }
     fragment listViewFields on View {
         id
-        lastViewed
+        lastViewedAt
         title
         to {
             ... on Organization {

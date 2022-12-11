@@ -5,6 +5,7 @@ import { CustomError } from "../events";
 import { getSearchString } from "../getters";
 import { ObjectMap } from "../models";
 import { Searcher } from "../models/types";
+import { SearchMap } from "../utils";
 import { SortMap } from "../utils/sortMap";
 import { ReadManyHelperProps } from "./types";
 
@@ -30,19 +31,24 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap, req.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
-    // Create query for specified ids
-    const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: onlyValidIds(input.ids) } }) : undefined;
     const searcher: Searcher<any, any, any> | undefined = model.search;
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchString({ objectType: model.__typename, searchString: input.searchString }) : undefined;
-    // Determine createdTimeFrame query
-    const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
-    // Determine updatedTimeFrame query
-    const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
-    // Create type-specific queries
-    let typeQuery = searcher?.customQueries ? searcher.customQueries(input, userData) : undefined;
+    // Loop through search fields and add each to the search query, 
+    // if the field is specified in the input
+    const customQueries: { [x: string]: any }[] = [];
+    if (searcher) {
+        for (const field of searcher.searchFields) {
+            if (input[field as string] !== undefined) {
+                customQueries.push(SearchMap[field as string](input, userData, model.__typename));
+            }
+        }
+    }
+    if (searcher?.customQueryData) {
+        customQueries.push(searcher.customQueryData(input, userData));
+    }
     // Combine queries
-    const where = combineQueries([additionalQueries, idQuery, searchQuery, createdQuery, updatedQuery, typeQuery]);
+    const where = combineQueries([additionalQueries, searchQuery, ...customQueries]);
     // Determine sort order
     // Make sure sort field is valid
     const orderByField = searcher ? input.sortBy ?? searcher.defaultSort : undefined;
@@ -92,6 +98,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             edges: []
         }
     }
+    //TODO validate that the user has permission to read all of the results, including relationships
     // If not adding supplemental fields, return the paginated results
     if (!addSupplemental) return paginatedResults;
     // Return formatted for GraphQL

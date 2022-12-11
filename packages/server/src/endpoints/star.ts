@@ -46,7 +46,7 @@ export const typeDef = gql`
     }
     input StarSearchInput {
         after: String
-        excludeTags: Boolean
+        excludeLinkedToTag: Boolean
         ids: [ID!]
         searchString: String
         sortBy: StarSortBy

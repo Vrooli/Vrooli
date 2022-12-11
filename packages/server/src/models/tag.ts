@@ -5,7 +5,6 @@ import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, SessionUser } from
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
-import { combineQueries } from "../builders";
 import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -35,19 +34,20 @@ const searcher = (): Searcher<
 > => ({
     defaultSort: TagSortBy.StarsDesc,
     sortBy: TagSortBy,
+    searchFields: [
+        'createdById',
+        'createdTimeFrame',
+        'excludeIds',
+        'minStars',
+        'translationLanguages',
+        'updatedTimeFrame',
+    ],
     searchStringQuery: ({ insensitive, languages }) => ({
         OR: [
             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
             { tag: { ...insensitive } },
         ]
     }),
-    customQueries(input) {
-        return combineQueries([
-            (input.excludeIds !== undefined ? { id: { not: { in: input.excludeIds } } } : {}),
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-        ])
-    },
 })
 
 const validator = (): Validator<
