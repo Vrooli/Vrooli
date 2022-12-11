@@ -194,9 +194,9 @@ model issue {
     created_at          DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at          DateTime                    @updatedAt @db.Timestamptz(6)
     closedAt            DateTime?                   @db.Timestamptz(6)
-    score              Int                         @default(0)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    score               Int                         @default(0)
+    stars               Int                         @default(0)
+    views               Int                         @default(0)
     apiId               String?                     @db.Uuid
     organizationId      String?                     @db.Uuid
     noteId              String?                     @db.Uuid
@@ -428,8 +428,8 @@ model note {
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
     isPrivate               Boolean                     @default(false)
     score                   Int                         @default(0)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    stars                   Int                         @default(0)
+    views                   Int                         @default(0)
     parentId                String?                     @db.Uuid
     createdById             String?                     @db.Uuid
     ownedByUserId           String?                     @db.Uuid
@@ -449,7 +449,7 @@ model note {
     votedBy                 vote[]                      @relation("vote_note")
     transfers               transfer[]                  @relation("transfer_note")
     subscriptions           notification_subscription[]
-    questions             question[]
+    questions               question[]
 }
 
 model note_labels {
@@ -573,8 +573,8 @@ model organization {
     isOpenToNewMembers Boolean                     @default(false)
     isPrivate          Boolean                     @default(false)
     permissions        String                      @db.VarChar(4096)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    stars              Int                         @default(0)
+    views              Int                         @default(0)
     parentId           String?                     @db.Uuid
     premiumId          String?                     @unique @db.Uuid
     resourceListId     String?                     @unique @db.Uuid
@@ -766,8 +766,8 @@ model post {
     isPublic       Boolean            @default(false)
     isDeleted      Boolean            @default(false)
     score          Int                @default(0)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    stars          Int                @default(0)
+    views          Int                @default(0)
     organizationId String?            @db.Uuid
     userId         String?            @db.Uuid
     organization   organization?      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -853,8 +853,8 @@ model project {
     isPrivate             Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
     score                 Int                         @default(0)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    stars                 Int                         @default(0)
+    views                 Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     handle                String?                     @unique @db.VarChar(16)
@@ -917,25 +917,25 @@ model project_version {
 }
 
 model project_version_directory {
-    id                  String                                  @id @default(uuid()) @db.Uuid
-    created_at          DateTime                                @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime                                @default(now()) @db.Timestamptz(6)
-    isRoot              Boolean                                 @default(false)
-    parentDirectoryId   String?                                 @db.Uuid
-    childOrder          String?                                 @db.VarChar(4096)
-    projectVersionId    String?                                 @db.Uuid
-    parentDirectory     project_version_directory?              @relation("project_version_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
-    projectVersion      project_version?                        @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: SetNull)
-    children            project_version_directory[]             @relation("project_version_directory_parent")
+    id                         String                                  @id @default(uuid()) @db.Uuid
+    created_at                 DateTime                                @default(now()) @db.Timestamptz(6)
+    updated_at                 DateTime                                @default(now()) @db.Timestamptz(6)
+    isRoot                     Boolean                                 @default(false)
+    parentDirectoryId          String?                                 @db.Uuid
+    childOrder                 String?                                 @db.VarChar(4096)
+    projectVersionId           String?                                 @db.Uuid
+    parentDirectory            project_version_directory?              @relation("project_version_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
+    projectVersion             project_version?                        @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: SetNull)
+    children                   project_version_directory[]             @relation("project_version_directory_parent")
     childApiVersions           api_version[]
     childNoteVersions          note_version[]
-    childOrganizations  organization[]
+    childOrganizations         organization[]
     childProjectVersions       project_version[]                       @relation("project_version_directory_listing")
     childRoutineVersions       routine_version[]
     childSmartContractVersions smart_contract_version[]
     childStandardVersions      standard_version[]
     runProjectSteps            run_project_step[]                      @relation("run_project_step_directory")
-    translations        project_version_directory_translation[]
+    translations               project_version_directory_translation[]
 }
 
 model project_version_directory_translation {
@@ -1027,8 +1027,8 @@ model question {
     referencing       String?                     @db.VarChar(2048) // Describes what part of object the question is about, in JSON
     hasAcceptedAnswer Boolean                     @default(false)
     score             Int                         @default(0)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    stars             Int                         @default(0)
+    views             Int                         @default(0)
     apiId             String?                     @db.Uuid
     noteId            String?                     @db.Uuid
     organizationId    String?                     @db.Uuid
@@ -1038,7 +1038,7 @@ model question {
     standardId        String?                     @db.Uuid
     createdById       String?                     @db.Uuid
     api               api?                        @relation(fields: [apiId], references: [id], onDelete: Cascade)
-    note             note?                       @relation(fields: [noteId], references: [id], onDelete: Cascade)
+    note              note?                       @relation(fields: [noteId], references: [id], onDelete: Cascade)
     organization      organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     project           project?                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
     routine           routine?                    @relation(fields: [routineId], references: [id], onDelete: Cascade)
@@ -1070,7 +1070,7 @@ model question_answer {
     created_at   DateTime                      @default(now()) @db.Timestamptz(6)
     updated_at   DateTime                      @default(now()) @db.Timestamptz(6)
     score        Int                           @default(0)
-    stars                  Int                         @default(0)
+    stars        Int                           @default(0)
     isAccepted   Boolean                       @default(false)
     questionId   String                        @db.Uuid
     createdById  String?                       @db.Uuid
@@ -1368,8 +1368,8 @@ model routine {
     isInternal            Boolean                     @default(false)
     isPrivate             Boolean                     @default(false)
     score                 Int                         @default(0)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    stars                 Int                         @default(0)
+    views                 Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     ownedByOrganizationId String?                     @db.Uuid
@@ -1540,9 +1540,9 @@ model run_project {
     isPrivate           Boolean               @default(false)
     scheduleId          String?               @db.Uuid
     suggestPublicData   Boolean               @default(false)
-    startedAt         DateTime?             @db.Timestamptz(6)
+    startedAt           DateTime?             @db.Timestamptz(6)
     timeElapsed         Int?
-    completedAt       DateTime?             @db.Timestamptz(6)
+    completedAt         DateTime?             @db.Timestamptz(6)
     name                String                @db.VarChar(128)
     status              RunStatus             @default(Scheduled)
     projectVersionId    String?               @db.Uuid
@@ -1560,9 +1560,9 @@ model run_project_step {
     contextSwitches Int                        @default(0)
     runProjectId    String                     @db.Uuid
     directoryId     String?                    @db.Uuid
-    startedAt     DateTime?                  @db.Timestamptz(6)
+    startedAt       DateTime?                  @db.Timestamptz(6)
     timeElapsed     Int?
-    completedAt   DateTime?                  @db.Timestamptz(6)
+    completedAt     DateTime?                  @db.Timestamptz(6)
     step            Int[]
     status          RunStepStatus              @default(InProgress)
     name            String                     @db.VarChar(128)
@@ -1614,9 +1614,9 @@ model run_routine {
     scheduleId          String?               @db.Uuid
     suggestPublicData   Boolean               @default(false)
     wasRunAutomatically Boolean               @default(false)
-    startedAt         DateTime?             @db.Timestamptz(6)
+    startedAt           DateTime?             @db.Timestamptz(6)
     timeElapsed         Int?
-    completedAt       DateTime?             @db.Timestamptz(6)
+    completedAt         DateTime?             @db.Timestamptz(6)
     name                String                @db.VarChar(128)
     status              RunStatus             @default(Scheduled)
     routineVersionId    String?               @db.Uuid
@@ -1650,9 +1650,9 @@ model run_routine_step {
     runRoutineId        String           @db.Uuid
     nodeId              String?          @db.Uuid
     subroutineVersionId String?          @db.Uuid
-    startedAt         DateTime?        @db.Timestamptz(6)
+    startedAt           DateTime?        @db.Timestamptz(6)
     timeElapsed         Int?
-    completedAt       DateTime?        @db.Timestamptz(6)
+    completedAt         DateTime?        @db.Timestamptz(6)
     step                Int[]
     status              RunStepStatus    @default(InProgress)
     name                String           @db.VarChar(128)
@@ -1706,8 +1706,8 @@ model smart_contract {
     isDeleted             Boolean                     @default(false)
     isPrivate             Boolean                     @default(false)
     score                 Int                         @default(0)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    stars                 Int                         @default(0)
+    views                 Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     ownedByOrganizationId String?                     @db.Uuid
@@ -1803,8 +1803,8 @@ model standard {
     completedAt           DateTime?                   @db.Timestamptz(6)
     name                  String                      @db.VarChar(128)
     score                 Int                         @default(0)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    stars                 Int                         @default(0)
+    views                 Int                         @default(0)
     permissions           String                      @db.VarChar(4096)
     isDeleted             Boolean                     @default(false)
     isInternal            Boolean                     @default(false)
@@ -2091,7 +2091,7 @@ model tag {
     created_at      DateTime               @default(now()) @db.Timestamptz(6)
     updated_at      DateTime               @default(now()) @db.Timestamptz(6)
     tag             String                 @unique @db.VarChar(128)
-    stars                  Int                         @default(0)
+    stars           Int                    @default(0)
     createdById     String?                @db.Uuid
     createdBy       user?                  @relation("tag_createdBy", fields: [createdById], references: [id], onDelete: SetNull)
     apis            api_tags[]
@@ -2191,8 +2191,8 @@ model user {
     longestStreak                  Int                         @default(0)
     accountTabsOrder               String?                     @db.VarChar(255)
     notificationSettings           String?                     @db.VarChar(2048)
-    stars                  Int                         @default(0)
-    views                  Int                         @default(0)
+    stars                          Int                         @default(0)
+    views                          Int                         @default(0)
     premiumId                      String?                     @unique @db.Uuid
     status                         AccountStatus               @default(Unlocked)
     apisCreated                    api[]                       @relation("api_createdBy")
@@ -2275,6 +2275,8 @@ model user_language {
 
 model user_schedule {
     id             String                      @id @default(uuid()) @db.Uuid
+    created_at     DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime                    @default(now()) @db.Timestamptz(6)
     name           String                      @db.VarChar(128)
     timezone       String?                     @db.VarChar(128)
     eventStart     DateTime?                   @db.Timestamptz(6)
@@ -2327,7 +2329,7 @@ model user_schedule_filter {
 
 model view {
     id              String          @id @default(uuid()) @db.Uuid
-    lastViewedAt      DateTime        @default(now()) @db.Timestamptz(6)
+    lastViewedAt    DateTime        @default(now()) @db.Timestamptz(6)
     name            String          @db.VarChar(128)
     byId            String          @db.Uuid
     apiId           String?         @db.Uuid

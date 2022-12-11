@@ -90,6 +90,7 @@ export type GraphQLModelType =
     'Transfer' |
     'User' |
     'UserSchedule' |
+    'UserScheduleFilter' |
     'View' |
     'Vote' |
     'Wallet';

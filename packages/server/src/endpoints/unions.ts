@@ -46,7 +46,6 @@ export const typeDef = gql`
 
     union ProjectOrRoutine = Project | Routine
     union ProjectOrOrganization = Project | Organization
-    union ProjectOrOrganizationOrRoutineOrStandardOrUser = Project | Organization | Routine | Standard | User
 
     input ProjectOrRoutineSearchInput {
         createdTimeFrame: TimeFrame
@@ -154,7 +153,6 @@ export const typeDef = gql`
 export const resolvers: {
     ProjectOrRoutine: UnionResolver;
     ProjectOrOrganization: UnionResolver;
-    ProjectOrOrganizationOrRoutineOrStandardOrUser: UnionResolver;
     Query: {
         projectOrRoutines: GQLEndpoint<ProjectOrRoutineSearchInput, FindManyResult<ProjectOrRoutine>>;
         projectOrOrganizations: GQLEndpoint<ProjectOrOrganizationSearchInput, FindManyResult<ProjectOrOrganization>>;
@@ -164,7 +162,6 @@ export const resolvers: {
     // ProjectOrOrganizationSortBy: ProjectOrOrganizationSortBy,
     ProjectOrRoutine: { __resolveType(obj: any) { return resolveUnion(obj) } },
     ProjectOrOrganization: { __resolveType(obj: any) { return resolveUnion(obj) } },
-    ProjectOrOrganizationOrRoutineOrStandardOrUser: { __resolveType(obj: any) { return resolveUnion(obj) } },
     Query: {
         projectOrRoutines: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });

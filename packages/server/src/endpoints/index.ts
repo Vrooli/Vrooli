@@ -74,6 +74,7 @@ import * as Translate from './translate';
 import * as Unions from './unions';
 import * as User from './user';
 import * as UserSchedule from './userSchedule';
+import * as UserScheduleFilter from './userScheduleFilter';
 import * as View from './view';
 import * as Vote from './vote';
 import * as Wallet from './wallet';
@@ -162,6 +163,7 @@ const schemas: SchemaType[] = [
     Unions,
     User,
     UserSchedule,
+    UserScheduleFilter,
     View,
     Vote,
     Wallet

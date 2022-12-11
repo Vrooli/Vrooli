@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, LabelSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, UserScheduleSortBy } from './types';
+import { FindByIdInput, UserScheduleSortBy, UserSchedule, UserScheduleSearchInput, UserScheduleCreateInput, UserScheduleUpdateInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -20,67 +20,57 @@ export const typeDef = gql`
 
     input UserScheduleCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        name: String!
+        timezone: String
+        eventStart: Date
+        eventEnd: Date
+        recurring: Boolean
+        recurrStart: Date
+        recurrEnd: Date
+        reminderListConnect: ID
+        reminderListCreate: ReminderListCreateInput
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        filtersCreate: [UserScheduleFilterCreateInput!]
+        translationsCreate: [UserScheduleTranslationCreateInput!]
     }
     input UserScheduleUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        name: String
+        timezone: String
+        eventStart: Date
+        eventEnd: Date
+        recurring: Boolean
+        recurrStart: Date
+        recurrEnd: Date
+        reminderListConnect: ID
+        reminderListDisconnect: ID
+        reminderListCreate: ReminderListCreateInput
+        reminderListUpdate: ReminderListUpdateInput
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        filtersCreate: [UserScheduleFilterCreateInput!]
+        filtersDelete: [ID!]
+        translationsCreate: [UserScheduleTranslationCreateInput!]
+        translationsUpdate: [UserScheduleTranslationUpdateInput!]
         translationsDelete: [ID!]
     }
     type UserSchedule {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        createdBy: User
-        forks: [Project!]!
-        owner: Owner
-        parent: Project
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        wallets: [Wallet!]
-    }
-
-    type UserSchedulePermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        name: String!
+        timezone: String
+        eventStart: Date
+        eventEnd: Date
+        recurring: Boolean!
+        recurrStart: Date
+        recurrEnd: Date
+        reminderList: ReminderList
+        labels: [Label!]!
+        filters: [UserScheduleFilter!]!
+        translations: [UserScheduleTranslation!]!
     }
 
     input UserScheduleTranslationCreateInput {
@@ -105,35 +95,27 @@ export const typeDef = gql`
     input UserScheduleSearchInput {
         after: String
         createdTimeFrame: TimeFrame
+        eventStartTimeFrame: TimeFrame
+        eventEndTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        recurrStartTimeFrame: TimeFrame
+        recurrEndTimeFrame: TimeFrame
         searchString: String
-        sortBy: ProjectSortBy
+        sortBy: UserScheduleSortBy
         tags: [String!]
         take: Int
+        timeZone: String
         updatedTimeFrame: TimeFrame
-        userId: ID
-        visibility: VisibilityType
     }
 
     type UserScheduleSearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [UserScheduleEdge!]!
     }
 
     type UserScheduleEdge {
         cursor: String!
-        node: Api!
+        node: UserSchedule!
     }
 
     extend type Query {
@@ -151,12 +133,12 @@ const objectType = 'UserSchedule';
 export const resolvers: {
     UserScheduleSortBy: typeof UserScheduleSortBy;
     Query: {
-        userSchedule: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        userSchedules: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        userSchedule: GQLEndpoint<FindByIdInput, FindOneResult<UserSchedule>>;
+        userSchedules: GQLEndpoint<UserScheduleSearchInput, FindManyResult<UserSchedule>>;
     },
     Mutation: {
-        userScheduleCreate: GQLEndpoint<LabelCreateInput, CreateOneResult<Label>>;
-        userScheduleUpdate: GQLEndpoint<LabelUpdateInput, UpdateOneResult<Label>>;
+        userScheduleCreate: GQLEndpoint<UserScheduleCreateInput, CreateOneResult<UserSchedule>>;
+        userScheduleUpdate: GQLEndpoint<UserScheduleUpdateInput, UpdateOneResult<UserSchedule>>;
     }
 } = {
     UserScheduleSortBy,

@@ -3,22 +3,25 @@ import { gql } from 'apollo-server-express';
 import { GraphQLResolveInfo } from 'graphql';
 import { assertRequestFrom } from '../auth/request';
 import { Context, rateLimit } from '../middleware';
-import { FindManyResult, GQLEndpoint, IWrap } from '../types';
+import { FindManyResult, GQLEndpoint, IWrap, UnionResolver } from '../types';
 import { View, ViewSearchInput, ViewSearchResult } from './types';
 import { readManyHelper } from '../actions';
+import { resolveUnion } from './resolvers';
 
 export const typeDef = gql`
     enum ViewSortBy {
         LastViewedAsc
         LastViewedDesc
     }
+
+    union ViewTo = Api | Issue | Organization | Question | Note | Post | Project | Routine | SmartContract | Standard | User
   
     type View {
         id: ID!
         from: User!
         lastViewedAt: Date!
         name: String!
-        to: ProjectOrOrganizationOrRoutineOrStandardOrUser!
+        to: ViewTo!
     }
 
     input ViewSearchInput {
@@ -48,11 +51,13 @@ export const typeDef = gql`
 const objectType = 'View';
 export const resolvers: {
     ViewSortBy: typeof ViewSortBy;
+    ViewTo: UnionResolver;
     Query: {
         views: GQLEndpoint<ViewSearchInput, FindManyResult<View>>;
     },
 } = {
     ViewSortBy,
+    ViewTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
     Query: {
         views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { prisma, req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
             const userData = assertRequestFrom(req, { isUser: true });

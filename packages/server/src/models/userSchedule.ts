@@ -8,6 +8,45 @@ const __typename = 'UserSchedule' as const;
 
 const suppFields = [] as const;
 
+// const searcher = (): Searcher<
+//     StandardSearchInput,
+//     StandardSortBy,
+//     Prisma.standardWhereInput
+// > => ({
+//     defaultSort: StandardSortBy.ScoreDesc,
+//     sortBy: StandardSortBy,
+//     searchFields: [
+//         'createdById',
+//         'createdTimeFrame',
+//         'issuesId',
+//         'labelsId',
+//         'minScore',
+//         'minStars',
+//         'minViews',
+//         'ownedByOrganizationId',
+//         'ownedByUserId',
+//         'parentId',
+//         'pullRequestsId',
+//         'questionsId',
+//         'standardTypeLatestVersion',
+//         'tags',
+//         'transfersId',
+//         'translationLanguagesLatestVersion',
+//         'updatedTimeFrame',
+//         'visibility',
+//     ],
+//     searchStringQuery: ({ insensitive, languages }) => ({
+//         OR: [
+//             { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
+//             { translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } } },
+//         ]
+//     }),
+//     /**
+//      * Can only query for your own schedules
+//      */
+//     customQueryData: (_, userData) => ({ user: { id: userData.id } }),
+// })
+
 const displayer = (): Displayer<
     Prisma.user_scheduleSelect,
     Prisma.user_scheduleGetPayload<SelectWrap<Prisma.user_scheduleSelect>>

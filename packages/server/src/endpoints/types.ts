@@ -3059,8 +3059,6 @@ export type ProjectOrOrganizationEdge = {
   node: ProjectOrOrganization;
 };
 
-export type ProjectOrOrganizationOrRoutineOrStandardOrUser = Organization | Project | Routine | Standard | User;
-
 export type ProjectOrOrganizationPageInfo = {
   __typename?: 'ProjectOrOrganizationPageInfo';
   endCursorOrganization?: Maybe<Scalars['String']>;
@@ -7758,90 +7756,86 @@ export type UserRole = {
 
 export type UserSchedule = {
   __typename?: 'UserSchedule';
-  comments: Array<Comment>;
-  commentsCount: Scalars['Int'];
-  completedAt?: Maybe<Scalars['Date']>;
-  createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
-  forks: Array<Project>;
-  handle?: Maybe<Scalars['String']>;
+  eventEnd?: Maybe<Scalars['Date']>;
+  eventStart?: Maybe<Scalars['Date']>;
+  filters: Array<UserScheduleFilter>;
   id: Scalars['ID'];
-  isComplete: Scalars['Boolean'];
-  isPrivate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
-  owner?: Maybe<Owner>;
-  parent?: Maybe<Project>;
-  reports: Array<Report>;
-  reportsCount: Scalars['Int'];
-  resourceLists?: Maybe<Array<ResourceList>>;
-  routines: Array<Routine>;
-  score: Scalars['Int'];
-  starredBy?: Maybe<Array<User>>;
-  stars: Scalars['Int'];
-  tags: Array<Tag>;
+  labels: Array<Label>;
+  name: Scalars['String'];
+  recurrEnd?: Maybe<Scalars['Date']>;
+  recurrStart?: Maybe<Scalars['Date']>;
+  recurring: Scalars['Boolean'];
+  reminderList?: Maybe<ReminderList>;
+  timezone?: Maybe<Scalars['String']>;
+  translations: Array<UserScheduleTranslation>;
   updated_at: Scalars['Date'];
-  views: Scalars['Int'];
-  wallets?: Maybe<Array<Wallet>>;
 };
 
 export type UserScheduleCreateInput = {
-  handle?: InputMaybe<Scalars['String']>;
+  eventEnd?: InputMaybe<Scalars['Date']>;
+  eventStart?: InputMaybe<Scalars['Date']>;
+  filtersCreate?: InputMaybe<Array<UserScheduleFilterCreateInput>>;
   id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
-  parentId?: InputMaybe<Scalars['ID']>;
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  rootId: Scalars['ID'];
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  name: Scalars['String'];
+  recurrEnd?: InputMaybe<Scalars['Date']>;
+  recurrStart?: InputMaybe<Scalars['Date']>;
+  recurring?: InputMaybe<Scalars['Boolean']>;
+  reminderListConnect?: InputMaybe<Scalars['ID']>;
+  reminderListCreate?: InputMaybe<ReminderListCreateInput>;
+  timezone?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<UserScheduleTranslationCreateInput>>;
 };
 
 export type UserScheduleEdge = {
   __typename?: 'UserScheduleEdge';
   cursor: Scalars['String'];
-  node: Api;
+  node: UserSchedule;
 };
 
-export type UserSchedulePermission = {
-  __typename?: 'UserSchedulePermission';
-  canComment: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
+export type UserScheduleFilter = {
+  __typename?: 'UserScheduleFilter';
+  filterType: UserScheduleFilterType;
+  id: Scalars['ID'];
+  tag?: Maybe<Tag>;
+  userSchedule: UserSchedule;
 };
+
+export type UserScheduleFilterCreateInput = {
+  filterType: UserScheduleFilterType;
+  id: Scalars['ID'];
+  tagConnect?: InputMaybe<Scalars['ID']>;
+  tagCreate?: InputMaybe<TagCreateInput>;
+  userScheduleConnect: Scalars['ID'];
+};
+
+export enum UserScheduleFilterType {
+  Blur = 'Blur',
+  Hide = 'Hide',
+  ShowMore = 'ShowMore'
+}
 
 export type UserScheduleSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  eventEndTimeFrame?: InputMaybe<TimeFrame>;
+  eventStartTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
-  minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  parentId?: InputMaybe<Scalars['ID']>;
-  reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
+  recurrEndTimeFrame?: InputMaybe<TimeFrame>;
+  recurrStartTimeFrame?: InputMaybe<TimeFrame>;
   searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<ProjectSortBy>;
+  sortBy?: InputMaybe<UserScheduleSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  timeZone?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
-  visibility?: InputMaybe<VisibilityType>;
 };
 
 export type UserScheduleSearchResult = {
   __typename?: 'UserScheduleSearchResult';
-  edges: Array<ApiEdge>;
+  edges: Array<UserScheduleEdge>;
   pageInfo: PageInfo;
 };
 
@@ -7881,19 +7875,26 @@ export type UserScheduleTranslationUpdateInput = {
 };
 
 export type UserScheduleUpdateInput = {
-  handle?: InputMaybe<Scalars['String']>;
+  eventEnd?: InputMaybe<Scalars['Date']>;
+  eventStart?: InputMaybe<Scalars['Date']>;
+  filtersCreate?: InputMaybe<Array<UserScheduleFilterCreateInput>>;
+  filtersDelete?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  name?: InputMaybe<Scalars['String']>;
+  recurrEnd?: InputMaybe<Scalars['Date']>;
+  recurrStart?: InputMaybe<Scalars['Date']>;
+  recurring?: InputMaybe<Scalars['Boolean']>;
+  reminderListConnect?: InputMaybe<Scalars['ID']>;
+  reminderListCreate?: InputMaybe<ReminderListCreateInput>;
+  reminderListDisconnect?: InputMaybe<Scalars['ID']>;
+  reminderListUpdate?: InputMaybe<ReminderListUpdateInput>;
+  timezone?: InputMaybe<Scalars['String']>;
+  translationsCreate?: InputMaybe<Array<UserScheduleTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  userId?: InputMaybe<Scalars['ID']>;
+  translationsUpdate?: InputMaybe<Array<UserScheduleTranslationUpdateInput>>;
 };
 
 export type UserSearchInput = {
@@ -7964,7 +7965,7 @@ export type View = {
   id: Scalars['ID'];
   lastViewedAt: Scalars['Date'];
   name: Scalars['String'];
-  to: ProjectOrOrganizationOrRoutineOrStandardOrUser;
+  to: ViewTo;
 };
 
 export type ViewEdge = {
@@ -7992,6 +7993,8 @@ export enum ViewSortBy {
   LastViewedAsc = 'LastViewedAsc',
   LastViewedDesc = 'LastViewedDesc'
 }
+
+export type ViewTo = Api | Issue | Note | Organization | Post | Project | Question | Routine | SmartContract | Standard | User;
 
 export enum VisibilityType {
   All = 'All',

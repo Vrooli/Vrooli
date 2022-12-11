@@ -59,6 +59,7 @@ import { TagModel } from './tag';
 import { AniedModelLogic, GraphQLModelType } from './types';
 import { UserModel } from './user';
 import { UserScheduleModel } from './userSchedule';
+import { UserScheduleFilterModel } from './userScheduleFilter';
 import { ViewModel } from './view';
 import { VoteModel } from './vote';
 import { WalletModel } from './wallet';
@@ -127,6 +128,7 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     Tag: TagModel,
     User: UserModel,
     UserSchedule: UserScheduleModel,
+    UserScheduleFilter: UserScheduleFilterModel,
     Vote: VoteModel,
     View: ViewModel,
     Wallet: WalletModel,
@@ -197,6 +199,7 @@ export * from './runRoutineInput';
 export * from './tag';
 export * from './user';
 export * from './userSchedule';
+export * from './userScheduleFilter';
 export * from './view';
 export * from './vote';
 export * from './wallet';
