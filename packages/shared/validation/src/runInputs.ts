@@ -1,18 +1,18 @@
-import { blankToUndefined, id, maxStringErrorMessage, requiredErrorMessage } from './base';
+import { blankToUndefined, id, maxStrErr, req, reqArr } from './base';
 import * as yup from 'yup';
 
-const data = yup.string().transform(blankToUndefined).max(8192, maxStringErrorMessage);
+const data = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
 
 export const runInputCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    data: data.required(requiredErrorMessage),
-    inputId: id.required(requiredErrorMessage),
+    id: req(id),
+    data: req(data),
+    inputId: req(id),
 })
 
 export const runInputUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    data: data.required(requiredErrorMessage),
+    id: req(id),
+    data: req(data),
 })
 
-export const runInputsCreate = yup.array().of(runInputCreate.required(requiredErrorMessage))
-export const runInputsUpdate = yup.array().of(runInputUpdate.required(requiredErrorMessage))
+export const runInputsCreate = reqArr(runInputCreate)
+export const runInputsUpdate = reqArr(runInputUpdate)

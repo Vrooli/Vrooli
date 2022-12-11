@@ -1,4 +1,4 @@
-import { description, idArray, id, name, language, tagArray, requiredErrorMessage } from './base';
+import { description, idArray, id, name, language, tagArray, req, reqArr, opt } from './base';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
@@ -7,55 +7,55 @@ const isComplete = yup.boolean()
 const isPrivate = yup.boolean()
 
 export const projectTranslationCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.required(requiredErrorMessage),
-    description: description.notRequired().default(undefined),
-    name: name.required(requiredErrorMessage),
+    id: req(id),
+    language: req(language),
+    description: req(description),
+    name: req(name),
 });
 export const projectTranslationUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.notRequired().default(undefined),
-    description: description.notRequired().default(undefined),
-    name: name.notRequired().default(undefined),
+    id: req(id),
+    language: opt(language),
+    description: req(description),
+    name: opt(name),
 });
-export const projectTranslationsCreate = yup.array().of(projectTranslationCreate.required(requiredErrorMessage))
-export const projectTranslationsUpdate = yup.array().of(projectTranslationUpdate.required(requiredErrorMessage))
+export const projectTranslationsCreate = reqArr(projectTranslationCreate)
+export const projectTranslationsUpdate = reqArr(projectTranslationUpdate)
 
 /**
  * Information required when creating a project. 
  */
 export const projectCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    isComplete: isComplete.notRequired().default(undefined),
-    isPrivate: isPrivate.notRequired().default(undefined),
-    parentId: id.notRequired().default(undefined), // If forked, the parent's id
-    createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
-    createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
-    resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    tagsConnect: tagArray.notRequired().default(undefined),
-    tagsCreate: tagsCreate.notRequired().default(undefined),
-    translationsCreate: projectTranslationsCreate.required(requiredErrorMessage),
+    id: req(id),
+    isComplete: opt(isComplete),
+    isPrivate: opt(isPrivate),
+    parentId: opt(id), // If forked, the parent's id
+    createdByUserId: opt(id), // If associating with yourself, your own id. Cannot associate with another user
+    createdByOrganizationId: opt(id), // If associating with an organization you are an admin of, the organization's id
+    resourceListsCreate: opt(resourceListsCreate),
+    tagsConnect: opt(tagArray),
+    tagsCreate: opt(tagsCreate),
+    translationsCreate: req(projectTranslationsCreate),
 }, [['createdByUserId', 'createdByOrganizationId']]) // Makes sure you can't associate with both a user and an organization
 
 /**
  * Information required when updating a project
  */
 export const projectUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    isComplete: isComplete.notRequired().default(undefined),
-    isPrivate: isPrivate.notRequired().default(undefined),
-    userId: id.notRequired().default(undefined), // Allows you to request transfer ownership of the project
-    organizationId: id.notRequired().default(undefined), // Allows you to request transfer ownership of the project
-    resourceListsDelete: idArray.notRequired().default(undefined),
-    resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    resourceListsUpdate: resourceListsUpdate.notRequired().default(undefined),
-    tagsConnect: tagArray.notRequired().default(undefined),
-    tagsDisconnect: tagArray.notRequired().default(undefined),
-    tagsCreate: tagsCreate.notRequired().default(undefined),
-    translationsDelete: idArray.notRequired().default(undefined),
-    translationsCreate: projectTranslationsCreate.notRequired().default(undefined),
-    translationsUpdate: projectTranslationsUpdate.notRequired().default(undefined),
+    id: req(id),
+    isComplete: opt(isComplete),
+    isPrivate: opt(isPrivate),
+    userId: opt(id), // Allows you to request transfer ownership of the project
+    organizationId: opt(id), // Allows you to request transfer ownership of the project
+    resourceListsDelete: opt(idArray),
+    resourceListsCreate: opt(resourceListsCreate),
+    resourceListsUpdate: opt(resourceListsUpdate),
+    tagsConnect: opt(tagArray),
+    tagsDisconnect: opt(tagArray),
+    tagsCreate: opt(tagsCreate),
+    translationsDelete: opt(idArray),
+    translationsCreate: opt(projectTranslationsCreate),
+    translationsUpdate: opt(projectTranslationsUpdate),
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
 
-export const projectsCreate = yup.array().of(projectCreate.required(requiredErrorMessage))
-export const projectsUpdate = yup.array().of(projectUpdate.required(requiredErrorMessage))
+export const projectsCreate = reqArr(projectCreate)
+export const projectsUpdate = reqArr(projectUpdate)

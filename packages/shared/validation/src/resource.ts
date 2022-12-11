@@ -1,4 +1,4 @@
-import { blankToUndefined, description, id, idArray, language, maxStringErrorMessage, minNumberErrorMessage, requiredErrorMessage, name } from './base';
+import { blankToUndefined, description, id, idArray, language, maxStrErr, minNumErr, name, opt, req, reqArr } from './base';
 import * as yup from 'yup';
 import { ResourceUsedFor } from '@shared/consts';
 
@@ -10,9 +10,9 @@ export const walletAddressRegex = /^addr1[a-zA-Z0-9]{98}$/
 // ADA Handle (i.e. starts with "$", and is 3-16 characters (not including the "$"))
 export const adaHandleRegex = /^\$[a-zA-Z0-9]{3,16}$/
 
-const index = yup.number().integer().min(0, minNumberErrorMessage)
+const index = yup.number().integer().min(0, minNumErr)
 // Link must match one of the regex above
-const link = yup.string().transform(blankToUndefined).max(1024, maxStringErrorMessage).test(
+const link = yup.string().transform(blankToUndefined).max(1024, maxStrErr).test(
     'link',
     'Must be a URL, Cardano payment address, or ADA Handle',
     (value: string | undefined) => {
@@ -22,41 +22,41 @@ const link = yup.string().transform(blankToUndefined).max(1024, maxStringErrorMe
 const usedFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ResourceUsedFor))
 
 export const resourceTranslationCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.required(requiredErrorMessage),
-    description: description.notRequired().default(undefined),
-    name: name.notRequired().default(undefined),
+    id: req(id),
+    language: req(language),
+    description: req(description),
+    name: opt(name),
 });
 export const resourceTranslationUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.notRequired().default(undefined),
-    description: description.notRequired().default(undefined),
-    name: name.notRequired().default(undefined),
+    id: req(id),
+    language: opt(language),
+    description: req(description),
+    name: opt(name),
 });
-export const resourceTranslationsCreate = yup.array().of(resourceTranslationCreate.required(requiredErrorMessage))
-export const resourceTranslationsUpdate = yup.array().of(resourceTranslationUpdate.required(requiredErrorMessage))
+export const resourceTranslationsCreate = reqArr(resourceTranslationCreate)
+export const resourceTranslationsUpdate = reqArr(resourceTranslationUpdate)
 
 export const resourceCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    listId: id.required(requiredErrorMessage),
-    index: index.notRequired().default(undefined),
-    link: link.required(requiredErrorMessage),
-    usedFor: usedFor.notRequired().default(undefined),
+    id: req(id),
+    listId: req(id),
+    index: opt(index),
+    link: req(link),
+    usedFor: opt(usedFor),
     translations: resourceTranslationsCreate,
 })
 
 export const resourceUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    listId: id.notRequired().default(undefined),
-    index: index.notRequired().default(undefined),
-    link: link.notRequired().default(undefined),
-    usedFor: usedFor.notRequired().default(undefined),
-    translationsDelete: idArray.notRequired().default(undefined),
-    translationsCreate: resourceTranslationsCreate.notRequired().default(undefined),
-    translationsUpdate: resourceTranslationsUpdate.notRequired().default(undefined),
+    id: req(id),
+    listId: opt(id),
+    index: opt(index),
+    link: opt(link),
+    usedFor: opt(usedFor),
+    translationsDelete: opt(idArray),
+    translationsCreate: opt(resourceTranslationsCreate),
+    translationsUpdate: opt(resourceTranslationsUpdate),
 })
 
 // Resources created/updated through relationships don't need createdFor and createdForId,
 // as the relationship handles that
-export const resourcesCreate = yup.array().of(resourceCreate.omit(['createdFor', 'createdForId']).required(requiredErrorMessage))
-export const resourcesUpdate = yup.array().of(resourceUpdate.omit(['createdFor', 'createdForId']).required(requiredErrorMessage))
+export const resourcesCreate = reqArr(resourceCreate.omit(['createdFor', 'createdForId']))
+export const resourcesUpdate = reqArr(resourceUpdate.omit(['createdFor', 'createdForId']))

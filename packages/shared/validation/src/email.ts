@@ -1,14 +1,14 @@
-import { blankToUndefined, requiredErrorMessage } from './base';
+import { blankToUndefined, req, reqArr } from './base';
 import * as yup from 'yup';
 
 const emailAddress = yup.string().transform(blankToUndefined).email()
 
 export const emailCreate = yup.object().shape({
-    emailAddress: emailAddress.required(requiredErrorMessage),
+    emailAddress: req(emailAddress),
 })
 
 export const emailCreateButton = yup.object().shape({
-    emailAddress: emailAddress.required(requiredErrorMessage),
+    emailAddress: req(emailAddress),
 })
 
-export const emailsCreate = yup.array().of(emailCreate.required(requiredErrorMessage))
+export const emailsCreate = reqArr(emailCreate)

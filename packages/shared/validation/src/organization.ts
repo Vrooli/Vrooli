@@ -1,4 +1,4 @@
-import { bio, id, idArray, language, name, requiredErrorMessage, tagArray } from './base';
+import { bio, id, idArray, language, name, opt, req, reqArr, tagArray } from './base';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 import { rolesCreate, rolesUpdate } from './role';
 import { tagsCreate } from './tag';
@@ -8,59 +8,59 @@ const isOpenToNewMembers = yup.boolean()
 const isPrivate = yup.boolean()
 
 export const organizationTranslationCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.required(requiredErrorMessage),
-    bio: bio.notRequired().default(undefined),
-    name: name.required(requiredErrorMessage),
+    id: req(id),
+    language: req(language),
+    bio: opt(bio),
+    name: req(name),
 });
 export const organizationTranslationUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.notRequired().default(undefined),
-    bio: bio.notRequired().default(undefined),
-    name: name.notRequired().default(undefined),
+    id: req(id),
+    language: opt(language),
+    bio: opt(bio),
+    name: opt(name),
 });
-export const organizationTranslationsCreate = yup.array().of(organizationTranslationCreate.required(requiredErrorMessage))
-export const organizationTranslationsUpdate = yup.array().of(organizationTranslationUpdate.required(requiredErrorMessage))
+export const organizationTranslationsCreate = reqArr(organizationTranslationCreate)
+export const organizationTranslationsUpdate = reqArr(organizationTranslationUpdate)
 
 /**
  * Information required when creating an organization. 
  * You are automatically created as an admin
  */
 export const organizationCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    isOpenToNewMembers: isOpenToNewMembers.notRequired().default(undefined),
-    isPrivate: isPrivate.notRequired().default(undefined),
+    id: req(id),
+    isOpenToNewMembers: opt(isOpenToNewMembers),
+    isPrivate: opt(isPrivate),
     // You are automatically added as an admin. IDs you add here will be requested to be added as a member
-    membersConnect: idArray.notRequired().default(undefined),
-    resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    rolesCreate: rolesCreate.notRequired().default(undefined),
-    tagsConnect: tagArray.notRequired().default(undefined),
-    tagsCreate: tagsCreate.notRequired().default(undefined),
-    translationsCreate: organizationTranslationsCreate.required(requiredErrorMessage),
+    membersConnect: opt(idArray),
+    resourceListsCreate: opt(resourceListsCreate),
+    rolesCreate: opt(rolesCreate),
+    tagsConnect: opt(tagArray),
+    tagsCreate: opt(tagsCreate),
+    translationsCreate: req(organizationTranslationsCreate),
 })
 
 /**
  * Information required when updating an organization
  */
 export const organizationUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    isOpenToNewMembers: isOpenToNewMembers.notRequired().default(undefined),
-    isPrivate: isPrivate.notRequired().default(undefined),
-    membersConnect: idArray.notRequired().default(undefined),
-    membersDisconnect: idArray.notRequired().default(undefined),
-    resourceListsDelete: idArray.notRequired().default(undefined),
-    resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    resourceListsUpdate: resourceListsUpdate.notRequired().default(undefined),
-    rolesDelete: idArray.notRequired().default(undefined),
-    rolesCreate: rolesCreate.notRequired().default(undefined),
-    rolesUpdate: rolesUpdate.notRequired().default(undefined),
-    tagsConnect: tagArray.notRequired().default(undefined),
-    tagsDisconnect: tagArray.notRequired().default(undefined),
-    tagsCreate: tagsCreate.notRequired().default(undefined),
-    translationsDelete: idArray.notRequired().default(undefined),
-    translationsCreate: organizationTranslationsCreate.notRequired().default(undefined),
-    translationsUpdate: organizationTranslationsUpdate.notRequired().default(undefined),
+    id: req(id),
+    isOpenToNewMembers: opt(isOpenToNewMembers),
+    isPrivate: opt(isPrivate),
+    membersConnect: opt(idArray),
+    membersDisconnect: opt(idArray),
+    resourceListsDelete: opt(idArray),
+    resourceListsCreate: opt(resourceListsCreate),
+    resourceListsUpdate: opt(resourceListsUpdate),
+    rolesDelete: opt(idArray),
+    rolesCreate: opt(rolesCreate),
+    rolesUpdate: opt(rolesUpdate),
+    tagsConnect: opt(tagArray),
+    tagsDisconnect: opt(tagArray),
+    tagsCreate: opt(tagsCreate),
+    translationsDelete: opt(idArray),
+    translationsCreate: opt(organizationTranslationsCreate),
+    translationsUpdate: opt(organizationTranslationsUpdate),
 })
 
-export const organizationsCreate = yup.array().of(organizationCreate.required(requiredErrorMessage))
-export const organizationsUpdate = yup.array().of(organizationUpdate.required(requiredErrorMessage))
+export const organizationsCreate = reqArr(organizationCreate)
+export const organizationsUpdate = reqArr(organizationUpdate)

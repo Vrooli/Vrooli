@@ -1,41 +1,41 @@
-import { blankToUndefined, id, language, maxStringErrorMessage, minStringErrorMessage, requiredErrorMessage } from './base';
+import { blankToUndefined, id, language, maxStrErr, minStrErr, opt, req, reqArr } from './base';
 import * as yup from 'yup';
 import { ReportFor } from '@shared/consts';
 
 const createdFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ReportFor))
-const details = yup.string().transform(blankToUndefined).max(1024, maxStringErrorMessage)
-const reason = yup.string().transform(blankToUndefined).min(1, minStringErrorMessage).max(128, maxStringErrorMessage)
+const details = yup.string().transform(blankToUndefined).max(1024, maxStrErr)
+const reason = yup.string().transform(blankToUndefined).min(1, minStrErr).max(128, maxStrErr)
 
 /**
  * Information required when creating a comment
  */
 export const reportCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    createdFor: createdFor.required(requiredErrorMessage),
-    createdForId: id.required(requiredErrorMessage),
-    details: details.notRequired().default(undefined),
-    language: language.required(requiredErrorMessage),
-    reason: reason.required(requiredErrorMessage),
+    id: req(id),
+    createdFor: req(createdFor),
+    createdForId: req(id),
+    details: opt(details),
+    language: req(language),
+    reason: req(reason),
 })
 
 export const reportCreateForm = yup.object().shape({
-    createdFor: createdFor.required(requiredErrorMessage),
-    createdForId: id.required(requiredErrorMessage),
-    details: details.notRequired().default(undefined),
-    language: language.required(requiredErrorMessage),
-    reason: reason.required(requiredErrorMessage),
-    otherReason: reason.notRequired().default(undefined),
+    createdFor: req(createdFor),
+    createdForId: req(id),
+    details: opt(details),
+    language: req(language),
+    reason: req(reason),
+    otherReason: opt(reason),
 })
 
 /**
  * Information required when updating an organization
  */
 export const reportUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    details: details.notRequired().default(undefined),
-    language: language.notRequired().default(undefined),
-    reason: reason.notRequired().default(undefined),
+    id: req(id),
+    details: opt(details),
+    language: opt(language),
+    reason: opt(reason),
 })
 
-export const reportsCreate = yup.array().of(reportCreate.required(requiredErrorMessage))
-export const reportsUpdate = yup.array().of(reportUpdate.required(requiredErrorMessage))
+export const reportsCreate = reqArr(reportCreate)
+export const reportsUpdate = reqArr(reportUpdate)

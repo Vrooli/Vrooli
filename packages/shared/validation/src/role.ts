@@ -1,32 +1,32 @@
-import { description, idArray, id, language, name, requiredErrorMessage } from './base';
+import { description, idArray, id, language, name, req, opt, reqArr } from './base';
 import * as yup from 'yup';
 
 export const roleTranslationCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.required(requiredErrorMessage),
-    description: description.required(requiredErrorMessage),
+    id: req(id),
+    language: req(language),
+    description: req(description),
 });
 export const roleTranslationUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.notRequired().default(undefined),
-    description: description.notRequired().default(undefined),
+    id: req(id),
+    language: opt(language),
+    description: req(description),
 });
-export const roleTranslationsCreate = yup.array().of(roleTranslationCreate.required(requiredErrorMessage))
-export const roleTranslationsUpdate = yup.array().of(roleTranslationUpdate.required(requiredErrorMessage))
+export const roleTranslationsCreate = reqArr(roleTranslationCreate)
+export const roleTranslationsUpdate = reqArr(roleTranslationUpdate)
 
 export const roleCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    name: name.required(requiredErrorMessage),
-    translationsCreate: roleTranslationsCreate.notRequired().default(undefined),
+    id: req(id),
+    name: req(name),
+    translationsCreate: opt(roleTranslationsCreate),
 })
 
 export const roleUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    name: name.notRequired().default(undefined),
-    translationsDelete: idArray.notRequired().default(undefined),
-    translationsCreate: roleTranslationsCreate.notRequired().default(undefined),
-    translationsUpdate: roleTranslationsUpdate.notRequired().default(undefined),
+    id: req(id),
+    name: opt(name),
+    translationsDelete: opt(idArray),
+    translationsCreate: opt(roleTranslationsCreate),
+    translationsUpdate: opt(roleTranslationsUpdate),
 })
 
-export const rolesCreate = yup.array().of(roleCreate.required(requiredErrorMessage))
-export const rolesUpdate = yup.array().of(roleUpdate.required(requiredErrorMessage))
+export const rolesCreate = reqArr(roleCreate)
+export const rolesUpdate = reqArr(roleUpdate)

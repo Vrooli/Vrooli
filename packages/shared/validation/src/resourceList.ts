@@ -1,57 +1,57 @@
-import { bio, blankToUndefined, description, id, idArray, language, minNumberErrorMessage, requiredErrorMessage, name } from './base';
+import { blankToUndefined, description, id, idArray, language, minNumErr, name, opt, req, reqArr } from './base';
 import { resourcesCreate, resourcesUpdate } from './resource';
 import * as yup from 'yup';
 import { ResourceListUsedFor } from '@shared/consts';
 
-const index = yup.number().integer().min(0, minNumberErrorMessage)
+const index = yup.number().integer().min(0, minNumErr)
 const usedFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ResourceListUsedFor))
 
 export const resourceListTranslationCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.required(requiredErrorMessage),
-    description: description.notRequired().default(undefined),
-    name: name.notRequired().default(undefined),
+    id: req(id),
+    language: req(language),
+    description: req(description),
+    name: opt(name),
 });
 export const resourceListTranslationUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.notRequired().default(undefined),
-    description: description.notRequired().default(undefined),
-    name: name.notRequired().default(undefined),
+    id: req(id),
+    language: opt(language),
+    description: req(description),
+    name: opt(name),
 });
-export const resourceListTranslationsCreate = yup.array().of(resourceListTranslationCreate.required(requiredErrorMessage))
-export const resourceListTranslationsUpdate = yup.array().of(resourceListTranslationUpdate.required(requiredErrorMessage))
+export const resourceListTranslationsCreate = reqArr(resourceListTranslationCreate)
+export const resourceListTranslationsUpdate = reqArr(resourceListTranslationUpdate)
 
 
 export const resourceListCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    index: index.notRequired().default(undefined),
-    organizationId: id.notRequired().default(undefined),
-    projectId: id.notRequired().default(undefined),
-    routineId: id.notRequired().default(undefined),
-    userId: id.notRequired().default(undefined),
-    usedFor: usedFor.notRequired().default(undefined),
-    resourcesCreate: resourcesCreate.notRequired().default(undefined),
-    translationsCreate: resourceListTranslationsCreate.notRequired().default(undefined),
+    id: req(id),
+    index: opt(index),
+    organizationId: opt(id),
+    projectId: opt(id),
+    routineId: opt(id),
+    userId: opt(id),
+    usedFor: opt(usedFor),
+    resourcesCreate: opt(resourcesCreate),
+    translationsCreate: opt(resourceListTranslationsCreate),
 })
 
 /**
  * Information required when updating an resourceList
  */
 export const resourceListUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    index: index.notRequired().default(undefined),
-    organizationId: id.notRequired().default(undefined),
-    projectId: id.notRequired().default(undefined),
-    routineId: id.notRequired().default(undefined),
-    userId: id.notRequired().default(undefined),
-    usedFor: usedFor.notRequired().default(undefined),
-    resourcesDelete: idArray.notRequired().default(undefined),
-    resourcesCreate: resourcesCreate.notRequired().default(undefined),
-    resourcesUpdate: resourcesUpdate.notRequired().default(undefined),
-    translationsDelete: idArray.notRequired().default(undefined),
-    translationsCreate: resourceListTranslationsCreate.notRequired().default(undefined),
-    translationsUpdate: resourceListTranslationsUpdate.notRequired().default(undefined),
+    id: req(id),
+    index: opt(index),
+    organizationId: opt(id),
+    projectId: opt(id),
+    routineId: opt(id),
+    userId: opt(id),
+    usedFor: opt(usedFor),
+    resourcesDelete: opt(idArray),
+    resourcesCreate: opt(resourcesCreate),
+    resourcesUpdate: opt(resourcesUpdate),
+    translationsDelete: opt(idArray),
+    translationsCreate: opt(resourceListTranslationsCreate),
+    translationsUpdate: opt(resourceListTranslationsUpdate),
 })
 
-export const resourceListsCreate = yup.array().of(resourceListCreate.required(requiredErrorMessage))
-export const resourceListsUpdate = yup.array().of(resourceListUpdate.required(requiredErrorMessage))
+export const resourceListsCreate = reqArr(resourceListCreate)
+export const resourceListsUpdate = reqArr(resourceListUpdate)

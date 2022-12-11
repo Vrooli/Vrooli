@@ -1,9 +1,9 @@
-import { id, name, requiredErrorMessage } from './base';
+import { id, name, opt, req, reqArr } from './base';
 import * as yup from 'yup';
 
 export const walletUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    name: name.notRequired().default(undefined),
+    id: req(id),
+    name: opt(name),
 })
 
-export const walletsUpdate = yup.array().of(walletUpdate.required(requiredErrorMessage))
+export const walletsUpdate = reqArr(walletUpdate)

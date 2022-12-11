@@ -1,41 +1,41 @@
-import { blankToUndefined, id, idArray, language, maxStringErrorMessage, minStringErrorMessage, requiredErrorMessage } from './base';
+import { blankToUndefined, id, idArray, language, maxStrErr, minStrErr, opt, req, reqArr } from './base';
 import * as yup from 'yup';
 
 const createdFor = yup.string().transform(blankToUndefined).oneOf(['Project', 'Routine', 'Standard'])
-const text = yup.string().transform(blankToUndefined).min(1, minStringErrorMessage).max(8192, maxStringErrorMessage)
+const text = yup.string().transform(blankToUndefined).min(1, minStrErr).max(8192, maxStrErr)
 
 export const commentTranslationCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.required(requiredErrorMessage),
-    text: text.required(requiredErrorMessage),
+    id: req(id),
+    language: req(language),
+    text: req(text),
 });
 export const commentTranslationUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.notRequired().default(undefined),
-    text: text.notRequired().default(undefined),
+    id: req(id),
+    language: opt(language),
+    text: opt(text),
 });
-export const commentTranslationsCreate = yup.array().of(commentTranslationCreate.required(requiredErrorMessage))
-export const commentTranslationsUpdate = yup.array().of(commentTranslationUpdate.required(requiredErrorMessage))
+export const commentTranslationsCreate = reqArr(commentTranslationCreate)
+export const commentTranslationsUpdate = reqArr(commentTranslationUpdate)
 
 /**
  * Information required when creating a comment
  */
 export const commentCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    createdFor: createdFor.required(requiredErrorMessage),
-    forId: id.required(requiredErrorMessage),
-    translationsCreate: commentTranslationsCreate.required(requiredErrorMessage),
+    id: req(id),
+    createdFor: req(createdFor),
+    forId: req(id),
+    translationsCreate: req(commentTranslationsCreate),
 })
 
 /**
  * Information required when updating an organization
  */
 export const commentUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    translationsDelete: idArray.notRequired().default(undefined),
-    translationsCreate: commentTranslationsCreate.notRequired().default(undefined),
-    translationsUpdate: commentTranslationsUpdate.notRequired().default(undefined),
+    id: req(id),
+    translationsDelete: opt(idArray),
+    translationsCreate: opt(commentTranslationsCreate),
+    translationsUpdate: opt(commentTranslationsUpdate),
 })
 
-export const commentsCreate = yup.array().of(commentCreate.required(requiredErrorMessage))
-export const commentsUpdate = yup.array().of(commentUpdate.required(requiredErrorMessage))
+export const commentsCreate = reqArr(commentCreate)
+export const commentsUpdate = reqArr(commentUpdate)

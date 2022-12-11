@@ -10,7 +10,7 @@ import { MessageParams } from 'yup/lib/types';
 /**
  * Error message for max string length
  */
-export const maxStringErrorMessage = (params: { max: number } & MessageParams) => {
+export const maxStrErr = (params: { max: number } & MessageParams) => {
     const amountOver = params.value.length - params.max;
     if (amountOver === 1) {
         return "1 character over the limit";
@@ -22,7 +22,7 @@ export const maxStringErrorMessage = (params: { max: number } & MessageParams) =
 /**
  * Error message for min string length
  */
-export const minStringErrorMessage = (params: { min: number } & MessageParams) => {
+export const minStrErr = (params: { min: number } & MessageParams) => {
     const amountUnder = params.min - params.value.length;
     if (amountUnder === 1) {
         return "1 character under the limit";
@@ -34,21 +34,21 @@ export const minStringErrorMessage = (params: { min: number } & MessageParams) =
 /**
  * Error message for max number
  */
-export const maxNumberErrorMessage = (params: { max: number } & MessageParams) => {
+export const maxNumErr = (params: { max: number } & MessageParams) => {
     return `Minimum value is ${params.max}`;
 }
 
 /**
  * Error message for min number
  */
-export const minNumberErrorMessage = (params: { min: number } & MessageParams) => {
+export const minNumErr = (params: { min: number } & MessageParams) => {
     return `Minimum value is ${params.min}`;
 }
 
 /**
  * Error message for required field
  */
-export const requiredErrorMessage = (params: MessageParams) => {
+export const reqErr = () => {
     return `This field is required`;
 }
 
@@ -114,15 +114,43 @@ export const blankToUndefined = (value: string | undefined) => {
     return trimmed;
 }
 
-export const id = yup.string().transform(blankToUndefined).max(256, maxStringErrorMessage)
-export const bio = yup.string().transform(blankToUndefined).max(2048, maxStringErrorMessage);
-export const email = yup.string().transform(blankToUndefined).email().max(256, maxStringErrorMessage);
-export const description = yup.string().transform(blankToUndefined).max(2048, maxStringErrorMessage)
-export const helpText = yup.string().transform(blankToUndefined).max(2048, maxStringErrorMessage)
-export const language = yup.string().transform(blankToUndefined).min(2, minStringErrorMessage).max(3, maxStringErrorMessage) // Language code
-export const name = yup.string().transform(blankToUndefined).min(3, minStringErrorMessage).max(128, maxStringErrorMessage)
-export const handle = yup.string().transform(blankToUndefined).min(3, minStringErrorMessage).max(16, maxStringErrorMessage).nullable() // ADA Handle
-export const tag = yup.string().transform(blankToUndefined).min(2, minStringErrorMessage).max(64, maxStringErrorMessage)
-export const version = (minVersion: string = '0.0.1') => yup.string().transform(blankToUndefined).max(16, maxStringErrorMessage).test(...minVersionTest(minVersion))
-export const idArray = yup.array().of(id.required(requiredErrorMessage))
-export const tagArray = yup.array().of(tag.required(requiredErrorMessage))
+/**
+ * Appends .notRequired().default(undefined) to a yup field
+ */
+export const opt = <T extends yup.AnySchema>(field: T) => {
+    return field.notRequired().default(undefined);
+}
+
+/**
+ * Appends .required(reqErr) to a yup field
+ */
+export const req = <T extends yup.AnySchema>(field: T) => {
+    return field.required(reqErr);
+}
+
+/**
+ * Creates an array of a required field
+ */
+export const reqArr = <T extends yup.AnySchema>(field: T) => {
+    return yup.array().of(req(field));
+}
+
+/**
+ * Creates an array of an optional field
+ */
+export const optArr = <T extends yup.AnySchema>(field: T) => {
+    return yup.array().of(opt(field));
+}
+
+export const id = yup.string().transform(blankToUndefined).max(256, maxStrErr)
+export const bio = yup.string().transform(blankToUndefined).max(2048, maxStrErr);
+export const email = yup.string().transform(blankToUndefined).email().max(256, maxStrErr);
+export const description = yup.string().transform(blankToUndefined).max(2048, maxStrErr)
+export const helpText = yup.string().transform(blankToUndefined).max(2048, maxStrErr)
+export const language = yup.string().transform(blankToUndefined).min(2, minStrErr).max(3, maxStrErr) // Language code
+export const name = yup.string().transform(blankToUndefined).min(3, minStrErr).max(128, maxStrErr)
+export const handle = yup.string().transform(blankToUndefined).min(3, minStrErr).max(16, maxStrErr).nullable() // ADA Handle
+export const tag = yup.string().transform(blankToUndefined).min(2, minStrErr).max(64, maxStrErr)
+export const version = (minVersion: string = '0.0.1') => yup.string().transform(blankToUndefined).max(16, maxStrErr).test(...minVersionTest(minVersion))
+export const idArray = reqArr(id)
+export const tagArray = reqArr(tag)

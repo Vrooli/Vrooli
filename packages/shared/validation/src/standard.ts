@@ -1,67 +1,67 @@
-import { description, idArray, id, name, version, language, tagArray, maxStringErrorMessage, requiredErrorMessage, blankToUndefined } from './base';
+import { description, idArray, id, name, version, language, tagArray, maxStrErr, blankToUndefined, req, opt, reqArr } from './base';
 import { tagsCreate } from './tag';
 import * as yup from 'yup';
 import { InputType } from '@shared/consts';
 import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 
-const standardDefault = yup.string().transform(blankToUndefined).max(8192, maxStringErrorMessage);
-const stringifiedJson = yup.string().transform(blankToUndefined).max(8192, maxStringErrorMessage);
+const standardDefault = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
+const stringifiedJson = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
 const type = yup.string().transform(blankToUndefined).oneOf(Object.values(InputType))
 const isPrivate = yup.boolean();
 
 export const standardTranslationCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.required(requiredErrorMessage),
-    description: description.notRequired().default(undefined),
-    jsonVariable: stringifiedJson.nullable().notRequired().default(undefined),
+    id: req(id),
+    language: req(language),
+    description: req(description),
+    jsonVariable: opt(stringifiedJson.nullable()),
 });
 export const standardTranslationUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    language: language.notRequired().default(undefined),
-    description: description.notRequired().default(undefined),
-    jsonVariable: stringifiedJson.nullable().notRequired().default(undefined),
+    id: req(id),
+    language: opt(language),
+    description: req(description),
+    jsonVariable: opt(stringifiedJson.nullable()),
 });
-export const standardTranslationsCreate = yup.array().of(standardTranslationCreate.required(requiredErrorMessage))
-export const standardTranslationsUpdate = yup.array().of(standardTranslationUpdate.required(requiredErrorMessage))
+export const standardTranslationsCreate = reqArr(standardTranslationCreate)
+export const standardTranslationsUpdate = reqArr(standardTranslationUpdate)
 
 /**
  * Information required when creating a standard. 
  */
 export const standardCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    default: standardDefault.notRequired().default(undefined),
-    isInternal: yup.boolean().notRequired().default(undefined),
-    isPrivate: isPrivate.notRequired().default(undefined),
-    name: name.notRequired().default(undefined),
-    type: type.required(requiredErrorMessage),
-    props: stringifiedJson.required(requiredErrorMessage),
-    yup: stringifiedJson.notRequired().default(undefined),
-    version: version().notRequired().default(undefined),
-    createdByUserId: id.notRequired().default(undefined), // If associating with yourself, your own id. Cannot associate with another user
-    createdByOrganizationId: id.notRequired().default(undefined), // If associating with an organization you are an admin of, the organization's id
-    resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    tagsConnect: tagArray.notRequired().default(undefined),
-    tagsCreate: tagsCreate.notRequired().default(undefined),
-    translationsCreate: standardTranslationsCreate.notRequired().default(undefined),
+    id: req(id),
+    default: opt(standardDefault),
+    isInternal: opt(yup.boolean()),
+    isPrivate: opt(isPrivate),
+    name: opt(name),
+    type: req(type),
+    props: req(stringifiedJson),
+    yup: opt(stringifiedJson),
+    version: opt(version()),
+    createdByUserId: opt(id), // If associating with yourself, your own id. Cannot associate with another user
+    createdByOrganizationId: opt(id), // If associating with an organization you are an admin of, the organization's id
+    resourceListsCreate: opt(resourceListsCreate),
+    tagsConnect: opt(tagArray),
+    tagsCreate: opt(tagsCreate),
+    translationsCreate: opt(standardTranslationsCreate),
 })
 
 /**
  * Information required when updating a routine
  */
 export const standardUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    isPrivate: isPrivate.notRequired().default(undefined),
-    makingAnonymous: yup.boolean().notRequired().default(undefined), // If you want the standard to be made anonymous
-    resourceListsDelete: idArray.notRequired().default(undefined),
-    resourceListsCreate: resourceListsCreate.notRequired().default(undefined),
-    resourceListsUpdate: resourceListsUpdate.notRequired().default(undefined),
-    tagsConnect: tagArray.notRequired().default(undefined),
-    tagsDisconnect: tagArray.notRequired().default(undefined),
-    tagsCreate: tagsCreate.notRequired().default(undefined),
-    translationsDelete: idArray.notRequired().default(undefined),
-    translationsCreate: standardTranslationsCreate.notRequired().default(undefined),
-    translationsUpdate: standardTranslationsUpdate.notRequired().default(undefined),
+    id: req(id),
+    isPrivate: opt(isPrivate),
+    makingAnonymous: opt(yup.boolean()), // If you want the standard to be made anonymous
+    resourceListsDelete: opt(idArray),
+    resourceListsCreate: opt(resourceListsCreate),
+    resourceListsUpdate: opt(resourceListsUpdate),
+    tagsConnect: opt(tagArray),
+    tagsDisconnect: opt(tagArray),
+    tagsCreate: opt(tagsCreate),
+    translationsDelete: opt(idArray),
+    translationsCreate: opt(standardTranslationsCreate),
+    translationsUpdate: opt(standardTranslationsUpdate),
 })
 
-export const standardsCreate = yup.array().of(standardCreate.required(requiredErrorMessage))
-export const standardsUpdate = yup.array().of(standardUpdate.required(requiredErrorMessage))
+export const standardsCreate = reqArr(standardCreate)
+export const standardsUpdate = reqArr(standardUpdate)

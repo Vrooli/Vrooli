@@ -1,27 +1,27 @@
-import { blankToUndefined, id, minNumberErrorMessage, requiredErrorMessage, name } from './base';
+import { blankToUndefined, id, minNumErr, name, opt, req, reqArr } from './base';
 import * as yup from 'yup';
 import { RunStepStatus } from '@shared/consts';
 
-const order = yup.number().integer().min(0, minNumberErrorMessage);
-const contextSwitches = yup.number().integer().min(0, minNumberErrorMessage);
+const order = yup.number().integer().min(0, minNumErr);
+const contextSwitches = yup.number().integer().min(0, minNumErr);
 const stepStatus = yup.string().transform(blankToUndefined).oneOf(Object.values(RunStepStatus))
-const timeElapsed = yup.number().integer().min(0, minNumberErrorMessage);
-const step = yup.array().of(yup.number().integer().min(0, minNumberErrorMessage));
+const timeElapsed = yup.number().integer().min(0, minNumErr);
+const step = yup.array().of(yup.number().integer().min(0, minNumErr));
 
 export const stepCreate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    nodeId: id.required(requiredErrorMessage),
-    order: order.required(requiredErrorMessage),
-    step: step.required(requiredErrorMessage),
-    name: name.required(requiredErrorMessage),
+    id: req(id),
+    nodeId: req(id),
+    order: req(order),
+    step: req(step),
+    name: req(name),
 })
 
 export const stepUpdate = yup.object().shape({
-    id: id.required(requiredErrorMessage),
-    contextSwitches: contextSwitches.notRequired().default(undefined),
-    status: stepStatus.notRequired().default(undefined),
-    timeElapsed: timeElapsed.notRequired().default(undefined),
+    id: req(id),
+    contextSwitches: opt(contextSwitches),
+    status: opt(stepStatus),
+    timeElapsed: opt(timeElapsed),
 })
 
-export const stepsCreate = yup.array().of(stepCreate.required(requiredErrorMessage))
-export const stepsUpdate = yup.array().of(stepUpdate.required(requiredErrorMessage))
+export const stepsCreate = reqArr(stepCreate)
+export const stepsUpdate = reqArr(stepUpdate)

@@ -19,7 +19,7 @@ import { multiLineEllipsis, noSelect, textShadow } from 'styles';
 import { BuildAction, firstString, getTranslation, updateTranslationFields, usePress } from 'utils';
 import { calculateNodeSize, EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
-import { requiredErrorMessage, name as nameValidation } from '@shared/validation';
+import { reqErr, name as nameValidation } from '@shared/validation';
 
 /**
  * Decides if a clicked element should trigger opening the subroutine dialog 
@@ -109,7 +109,7 @@ export const SubroutineNode = ({
                     }
                 }}
                 text={name}
-                validationSchema={nameValidation.required(requiredErrorMessage)}
+                validationSchema={nameValidation.required(reqErr)}
             />
         )
     }, [labelVisible, isEditing, handleLabelUpdate, name, data.id]);
