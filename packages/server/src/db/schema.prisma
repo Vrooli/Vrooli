@@ -1903,7 +1903,7 @@ model star {
     id               String           @id @default(uuid()) @db.Uuid
     created_at       DateTime         @default(now()) @db.Timestamptz(6)
     updated_at       DateTime         @default(now()) @db.Timestamptz(6)
-    byId             String           @db.Uuid
+    fromId             String           @db.Uuid
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
@@ -1919,7 +1919,7 @@ model star {
     standardId       String?          @db.Uuid
     tagId            String?          @db.Uuid
     userId           String?          @db.Uuid
-    by               user             @relation("star_by", fields: [byId], references: [id], onDelete: Cascade)
+    by               user             @relation("star_by", fields: [fromId], references: [id], onDelete: Cascade)
     api              api?             @relation("star_api", fields: [apiId], references: [id], onDelete: Cascade)
     comment          comment?         @relation("star_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue            issue?           @relation("star_issue", fields: [issueId], references: [id], onDelete: Cascade)
@@ -2118,33 +2118,33 @@ model tag_translation {
 }
 
 model transfer {
-    id                 String          @id @default(uuid()) @db.Uuid
-    created_at         DateTime        @default(now()) @db.Timestamptz(6)
-    updated_at         DateTime        @default(now()) @db.Timestamptz(6)
-    status             TransferStatus  @default(Pending)
-    objectTitle        String?         @db.VarChar(128)
-    message            String?         @db.VarChar(2048)
-    denyReason         String?         @db.VarChar(2048)
-    fromUserId         String?         @db.Uuid
-    fromOrganizationId String?         @db.Uuid
-    toUserId           String?         @db.Uuid
-    toOrganizationId   String?         @db.Uuid
-    apiId              String?         @db.Uuid
-    noteId             String?         @db.Uuid
-    projectId          String?         @db.Uuid
-    routineId          String?         @db.Uuid
-    smartContractId    String?         @db.Uuid
-    standardId         String?         @db.Uuid
-    fromUser           user?           @relation("transfer_from_user", fields: [fromUserId], references: [id], onDelete: SetNull)
-    fromOrganization   organization?   @relation("transfer_from_organization", fields: [fromOrganizationId], references: [id], onDelete: SetNull)
-    toUser             user?           @relation("transfer_to_user", fields: [toUserId], references: [id], onDelete: Cascade)
-    toOrganization     organization?   @relation("transfer_to_organization", fields: [toOrganizationId], references: [id], onDelete: Cascade)
-    api                api?            @relation("transfer_api", fields: [apiId], references: [id], onDelete: Cascade)
-    note               note?           @relation("transfer_note", fields: [noteId], references: [id], onDelete: Cascade)
-    project            project?        @relation("transfer_project", fields: [projectId], references: [id], onDelete: Cascade)
-    routine            routine?        @relation("transfer_routine", fields: [routineId], references: [id], onDelete: Cascade)
-    smartContract      smart_contract? @relation("transfer_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
-    standard           standard?       @relation("transfer_standard", fields: [standardId], references: [id], onDelete: Cascade)
+    id                    String          @id @default(uuid()) @db.Uuid
+    created_at            DateTime        @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime        @default(now()) @db.Timestamptz(6)
+    status                TransferStatus  @default(Pending)
+    initializedByReceiver Boolean         @default(false)
+    message               String?         @db.VarChar(2048)
+    denyReason            String?         @db.VarChar(2048)
+    fromUserId            String?         @db.Uuid
+    fromOrganizationId    String?         @db.Uuid
+    toUserId              String?         @db.Uuid
+    toOrganizationId      String?         @db.Uuid
+    apiId                 String?         @db.Uuid
+    noteId                String?         @db.Uuid
+    projectId             String?         @db.Uuid
+    routineId             String?         @db.Uuid
+    smartContractId       String?         @db.Uuid
+    standardId            String?         @db.Uuid
+    fromUser              user?           @relation("transfer_from_user", fields: [fromUserId], references: [id], onDelete: SetNull)
+    fromOrganization      organization?   @relation("transfer_from_organization", fields: [fromOrganizationId], references: [id], onDelete: SetNull)
+    toUser                user?           @relation("transfer_to_user", fields: [toUserId], references: [id], onDelete: Cascade)
+    toOrganization        organization?   @relation("transfer_to_organization", fields: [toOrganizationId], references: [id], onDelete: Cascade)
+    api                   api?            @relation("transfer_api", fields: [apiId], references: [id], onDelete: Cascade)
+    note                  note?           @relation("transfer_note", fields: [noteId], references: [id], onDelete: Cascade)
+    project               project?        @relation("transfer_project", fields: [projectId], references: [id], onDelete: Cascade)
+    routine               routine?        @relation("transfer_routine", fields: [routineId], references: [id], onDelete: Cascade)
+    smartContract         smart_contract? @relation("transfer_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
+    standard              standard?       @relation("transfer_standard", fields: [standardId], references: [id], onDelete: Cascade)
 }
 
 model user {
@@ -2330,7 +2330,7 @@ model view {
     id              String          @id @default(uuid()) @db.Uuid
     lastViewedAt    DateTime        @default(now()) @db.Timestamptz(6)
     name            String          @db.VarChar(128)
-    byId            String          @db.Uuid
+    fromId            String          @db.Uuid
     apiId           String?         @db.Uuid
     issueId         String?         @db.Uuid
     organizationId  String?         @db.Uuid
@@ -2342,12 +2342,12 @@ model view {
     smartContractId String?         @db.Uuid
     standardId      String?         @db.Uuid
     userId          String?         @db.Uuid
-    by              user            @relation("view_by", fields: [byId], references: [id], onDelete: Cascade)
+    by              user            @relation("view_by", fields: [fromId], references: [id], onDelete: Cascade)
     api             api?            @relation("view_api", fields: [apiId], references: [id], onDelete: Cascade)
     issue           issue?          @relation("view_issue", fields: [issueId], references: [id], onDelete: Cascade)
+    note            note?           @relation("view_note", fields: [noteId], references: [id], onDelete: Cascade)
     organization    organization?   @relation("view_organization", fields: [organizationId], references: [id], onDelete: Cascade)
     question        question?       @relation("view_question", fields: [questionId], references: [id], onDelete: Cascade)
-    note            note?           @relation("view_note", fields: [noteId], references: [id], onDelete: Cascade)
     post            post?           @relation("view_post", fields: [postId], references: [id], onDelete: Cascade)
     project         project?        @relation("view_project", fields: [projectId], references: [id], onDelete: Cascade)
     routine         routine?        @relation("view_routine", fields: [routineId], references: [id], onDelete: Cascade)
@@ -2355,13 +2355,13 @@ model view {
     standard        standard?       @relation("view_standard", fields: [standardId], references: [id], onDelete: Cascade)
     user            user?           @relation("view_user", fields: [userId], references: [id], onDelete: Cascade)
 
-    @@unique([byId, organizationId, projectId, routineId, standardId, userId])
+    @@unique([fromId, organizationId, projectId, routineId, standardId, userId])
 }
 
 model vote {
     id               String           @id @default(uuid()) @db.Uuid
     isUpvote         Boolean          @default(true)
-    byId             String           @db.Uuid
+    fromId             String           @db.Uuid
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
@@ -2374,7 +2374,7 @@ model vote {
     routineId        String?          @db.Uuid
     smartContractId  String?          @db.Uuid
     standardId       String?          @db.Uuid
-    by               user             @relation("vote_by", fields: [byId], references: [id], onDelete: Cascade)
+    by               user             @relation("vote_by", fields: [fromId], references: [id], onDelete: Cascade)
     api              api?             @relation("vote_api", fields: [apiId], references: [id], onDelete: Cascade)
     comment          comment?         @relation("vote_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue            issue?           @relation("vote_issue", fields: [issueId], references: [id], onDelete: Cascade)

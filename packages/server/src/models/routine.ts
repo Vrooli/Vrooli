@@ -12,7 +12,7 @@ import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, searchStringBuilder, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 
@@ -31,7 +31,10 @@ const formatter = (): Formatter<Routine, typeof suppFields> => ({
         __typename,
         comments: 'Comment',
         createdBy: 'User',
-        owner: ['Organization', 'User'],
+        owner: {
+            ownedByUser: 'User',
+            ownedByOrganization: 'Organization',
+        },
         forks: 'Routine',
         inputs: 'RoutineVersionInput',
         nodes: 'Node',
@@ -114,14 +117,14 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: (params) => ({
-        ...searchStringBuilder(['tags'], params)[0],
-        versions: {
-            some: {
-                OR: searchStringBuilder(['translationsDescription', 'translationsName'], params),
-            }
-        }
-    }),
+    searchStringQuery: () => ({
+        OR: [
+            'tagsWrapped',
+            'labelsWrapped',
+            { versions: { some: 'transDescriptionWrapped' } },
+            { versions: { some: 'transNameWrapped' } }
+        ]
+    })
 })
 
 const validator = (): Validator<

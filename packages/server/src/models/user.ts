@@ -16,10 +16,10 @@ const formatter = (): Formatter<User, typeof suppFields> => ({
     relationshipMap: {
         __typename: 'User',
         comments: 'Comment',
-        // emails: 'Email',
+        emails: 'Email',
         // phones: 'Phone',
         projects: 'Project',
-        // pushDevices: 'PushDevice',
+        pushDevices: 'PushDevice',
         starredBy: 'User',
         reportsReceived: 'Report',
         routines: 'Routine',
@@ -49,11 +49,11 @@ export const searcher = (): Searcher<
         'translationLanguages',
         'updatedTimeFrame',
     ],
-    searchStringQuery: ({ insensitive, languages }) => ({
+    searchStringQuery: () => ({
         OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
-            { name: { ...insensitive } },
-            { handle: { ...insensitive } },
+            'transBioWrapped',
+            'nameWrapped',
+            'handleWrapped',
         ]
     }),
 })

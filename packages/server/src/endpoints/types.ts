@@ -213,7 +213,6 @@ export type ApiVersionSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
@@ -223,6 +222,7 @@ export type ApiVersionSearchInput = {
   sortBy?: InputMaybe<ApiVersionSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -678,7 +678,6 @@ export type IssueSearchInput = {
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
@@ -693,6 +692,7 @@ export type IssueSearchInput = {
   standardId?: InputMaybe<Scalars['ID']>;
   status?: InputMaybe<IssueStatus>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -829,12 +829,12 @@ export type LabelSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   label?: InputMaybe<Scalars['String']>;
-  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<LabelSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -1045,13 +1045,13 @@ export type MeetingSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   labelsId?: InputMaybe<Array<Scalars['ID']>>;
-  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   openToAnyoneWithInvite?: InputMaybe<Scalars['Boolean']>;
   organizationId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   showOnOrganizationProfile?: InputMaybe<Scalars['Boolean']>;
   sortBy?: InputMaybe<MeetingSortBy>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
 };
@@ -1363,7 +1363,11 @@ export type Mutation = {
   switchCurrentAccount: Session;
   tagCreate: Tag;
   tagUpdate: Tag;
-  transferCreate: Transfer;
+  transferAccept: Transfer;
+  transferCancel: Transfer;
+  transferDeny: Transfer;
+  transferRequestReceive: Transfer;
+  transferRequestSend: Transfer;
   transferUpdate: Transfer;
   userDeleteOne: Success;
   userScheduleCreate: UserSchedule;
@@ -1897,8 +1901,28 @@ export type MutationTagUpdateArgs = {
 };
 
 
-export type MutationTransferCreateArgs = {
-  input: TransferCreateInput;
+export type MutationTransferAcceptArgs = {
+  input: FindByIdInput;
+};
+
+
+export type MutationTransferCancelArgs = {
+  input: FindByIdInput;
+};
+
+
+export type MutationTransferDenyArgs = {
+  input: TransferDenyInput;
+};
+
+
+export type MutationTransferRequestReceiveArgs = {
+  input: TransferRequestReceiveInput;
+};
+
+
+export type MutationTransferRequestSendArgs = {
+  input: TransferRequestSendInput;
 };
 
 
@@ -3508,9 +3532,6 @@ export type PullRequestPermission = {
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
 };
 
 export type PullRequestSearchInput = {
@@ -7758,90 +7779,85 @@ export type TimeFrame = {
 
 export type Transfer = {
   __typename?: 'Transfer';
-  comments: Array<Comment>;
-  commentsCount: Scalars['Int'];
-  completedAt?: Maybe<Scalars['Date']>;
-  createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
-  forks: Array<Project>;
-  handle?: Maybe<Scalars['String']>;
+  fromOwner?: Maybe<Owner>;
   id: Scalars['ID'];
-  isComplete: Scalars['Boolean'];
-  isPrivate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
-  owner?: Maybe<Owner>;
-  parent?: Maybe<Project>;
-  reports: Array<Report>;
-  reportsCount: Scalars['Int'];
-  resourceLists?: Maybe<Array<ResourceList>>;
-  routines: Array<Routine>;
-  score: Scalars['Int'];
-  starredBy?: Maybe<Array<User>>;
-  stars: Scalars['Int'];
-  tags: Array<Tag>;
+  mergedOrRejectedAt?: Maybe<Scalars['Date']>;
+  object: TransferObject;
+  status: TransferStatus;
+  toOwner?: Maybe<Owner>;
   updated_at: Scalars['Date'];
-  views: Scalars['Int'];
-  wallets?: Maybe<Array<Wallet>>;
 };
 
-export type TransferCreateInput = {
-  handle?: InputMaybe<Scalars['String']>;
+export type TransferDenyInput = {
   id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
-  parentId?: InputMaybe<Scalars['ID']>;
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  rootId: Scalars['ID'];
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  reason?: InputMaybe<Scalars['String']>;
 };
 
 export type TransferEdge = {
   __typename?: 'TransferEdge';
   cursor: Scalars['String'];
-  node: Api;
+  node: Transfer;
 };
+
+export type TransferObject = Api | Note | Project | Routine | SmartContract | Standard;
+
+export enum TransferObjectType {
+  Api = 'Api',
+  Note = 'Note',
+  Project = 'Project',
+  Routine = 'Routine',
+  SmartContract = 'SmartContract',
+  Standard = 'Standard'
+}
 
 export type TransferPermission = {
   __typename?: 'TransferPermission';
-  canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
+};
+
+export type TransferRequestReceiveInput = {
+  id: Scalars['ID'];
+  message?: InputMaybe<Scalars['String']>;
+  objectId: Scalars['ID'];
+  objectType: TransferObjectType;
+  toOrganizationId?: InputMaybe<Scalars['ID']>;
+};
+
+export type TransferRequestSendInput = {
+  id: Scalars['ID'];
+  message?: InputMaybe<Scalars['String']>;
+  objectId: Scalars['ID'];
+  objectType: TransferObjectType;
+  toOrganizationId?: InputMaybe<Scalars['ID']>;
+  toUserId?: InputMaybe<Scalars['ID']>;
 };
 
 export type TransferSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  apiId?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  fromOrganizationId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
-  minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  parentId?: InputMaybe<Scalars['ID']>;
-  reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
+  noteId?: InputMaybe<Scalars['ID']>;
+  projectId?: InputMaybe<Scalars['ID']>;
+  routineId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<ProjectSortBy>;
-  tags?: InputMaybe<Array<Scalars['String']>>;
+  smartContractId?: InputMaybe<Scalars['ID']>;
+  sortBy?: InputMaybe<TransferSortBy>;
+  standardId?: InputMaybe<Scalars['ID']>;
+  status?: InputMaybe<TransferStatus>;
   take?: InputMaybe<Scalars['Int']>;
+  toOrganizationId?: InputMaybe<Scalars['ID']>;
+  toUserId?: InputMaybe<Scalars['ID']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
 };
 
 export type TransferSearchResult = {
   __typename?: 'TransferSearchResult';
-  edges: Array<ApiEdge>;
+  edges: Array<TransferEdge>;
   pageInfo: PageInfo;
 };
 
@@ -7852,42 +7868,15 @@ export enum TransferSortBy {
   DateUpdatedDesc = 'DateUpdatedDesc'
 }
 
-export type TransferTranslation = {
-  __typename?: 'TransferTranslation';
-  description?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  name: Scalars['String'];
-};
-
-export type TransferTranslationCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  name: Scalars['String'];
-};
-
-export type TransferTranslationUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
-  name?: InputMaybe<Scalars['String']>;
-};
+export enum TransferStatus {
+  Accepted = 'Accepted',
+  Denied = 'Denied',
+  Pending = 'Pending'
+}
 
 export type TransferUpdateInput = {
-  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isPrivate?: InputMaybe<Scalars['Boolean']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  userId?: InputMaybe<Scalars['ID']>;
+  message?: InputMaybe<Scalars['String']>;
 };
 
 export type Translate = {

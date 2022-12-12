@@ -7,23 +7,35 @@ import { padSelect } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeRoutineListCreateInput,
+    GqlUpdate: NodeRoutineListUpdateInput,
+    GqlRelCreate: NodeRoutineListCreateInput,
+    GqlRelUpdate: NodeRoutineListUpdateInput,
+    GqlModel: NodeRoutineList,
+    GqlPermission: any,
+    PrismaCreate: Prisma.node_routine_listUpsertArgs['create'],
+    PrismaUpdate: Prisma.node_routine_listUpsertArgs['update'],
+    PrismaRelCreate: Prisma.node_routine_listCreateWithoutNodeInput,
+    PrismaRelUpdate: Prisma.node_routine_listUpdateWithoutNodeInput,
+    PrismaModel: Prisma.node_routine_listGetPayload<SelectWrap<Prisma.node_routine_listSelect>>,
+    PrismaSelect: Prisma.node_routine_listSelect,
+    PrismaWhere: Prisma.node_routine_listWhereInput,
+}
+
 const __typename = 'NodeRoutineList' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<NodeRoutineList, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         items: 'NodeRoutineListItem',
     },
 })
 
-const mutater = (): Mutater<
-    NodeRoutineList,
-    false,
-    false,
-    { graphql: NodeRoutineListCreateInput, db: Prisma.node_routine_listCreateWithoutNodeInput },
-    { graphql: NodeRoutineListUpdateInput, db: Prisma.node_routine_listUpdateWithoutNodeInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         relCreate: async ({ data, prisma, userData }) => {
             return {
@@ -41,13 +53,10 @@ const mutater = (): Mutater<
             }
         },
     },
-    yup: {},
+    yup: { create: {} as any, update: {} as any },
 })
 
-const displayer = (): Displayer<
-    Prisma.node_routine_listSelect,
-    Prisma.node_routine_listGetPayload<SelectWrap<Prisma.node_routine_listSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
     label: (select, languages) => NodeModel.display.label(select.node as any, languages),
 })

@@ -1,74 +1,34 @@
 import { VoteFor } from "@shared/consts";
-import { isObject } from "@shared/utils";
 import { CustomError, Trigger } from "../events";
-import { resolveUnion } from "../endpoints/resolvers";
 import { SessionUser, Vote, VoteInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { readManyHelper } from "../actions";
-import { Displayer, Formatter, GraphQLModelType } from "./types";
+import { Displayer, Formatter } from "./types";
 import { CommentModel, ProjectModel, RoutineModel, StandardModel } from ".";
-import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
+import { SelectWrap } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
 import { Prisma } from "@prisma/client";
 
 const __typename = 'Vote' as const;
 
-const suppFields = ['to'] as const;
+const suppFields = [] as const;
 const formatter = (): Formatter<Vote, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         from: 'User',
-        to: ['Api', 'Comment', 'Issue', 'Note', 'Post', 'Project', 'Question', 'QuestionAnswer', 'Quiz', 'Routine', 'SmartContract', 'Standard']
-    },
-    supplemental: {
-        graphqlFields: suppFields,
-        toGraphQL: ({ languages, objects, partial, prisma, userData }) => [
-            ['to', async () => {
-                if (!userData) return new Array(objects.length).fill([]);
-                // Query for data that star is applied to
-                if (isObject(partial.to)) {
-                    const toTypes: GraphQLModelType[] = objects.map(o => resolveUnion(o.to)).filter(t => t);
-                    const toIds = objects.map(x => x.to?.id ?? '') as string[];
-                    // Group ids by types
-                    const toIdsByType: { [x: string]: string[] } = {};
-                    toTypes.forEach((type, i) => {
-                        if (!toIdsByType[type]) toIdsByType[type] = [];
-                        toIdsByType[type].push(toIds[i]);
-                    })
-                    // Query for each type
-                    const tos: any[] = [];
-                    for (const objectType of Object.keys(toIdsByType)) {
-                        const validTypes: GraphQLModelType[] = [
-                            'Comment',
-                            'Organization',
-                            'Project',
-                            'Routine',
-                            'Standard',
-                            'Tag',
-                            'User',
-                        ];
-                        if (!validTypes.includes(objectType as GraphQLModelType)) {
-                            throw new CustomError('0321', 'InternalError', languages, { objectType });
-                        }
-                        const paginated = await readManyHelper({
-                            info: partial.to[objectType] as PartialGraphQLInfo,
-                            input: { ids: toIdsByType[objectType] },
-                            objectType: objectType as GraphQLModelType,
-                            prisma,
-                            req: { languages, users: [userData] }
-                        })
-                        tos.push(...paginated.edges.map(x => x.node));
-                    }
-                    // Apply each "to" to the "to" property of each object
-                    for (const object of objects) {
-                        // Find the correct "to", using object.to.id
-                        const to = tos.find(x => x.id === object.to.id);
-                        object.to = to;
-                    }
-                }
-                return objects;
-            }],
-        ],
+        to: {
+            api: 'Api',
+            comment: 'Comment',
+            issue: 'Issue',
+            note: 'Note',
+            post: 'Post',
+            project: 'Project',
+            question: 'Question',
+            questionAnswer: 'QuestionAnswer',
+            quiz: 'Quiz',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+        }
     },
 })
 

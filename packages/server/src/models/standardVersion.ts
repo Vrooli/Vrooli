@@ -53,11 +53,12 @@ const searcher = (): Searcher<
         'userId',
         'visibility',
     ],
-    searchStringQuery: ({ insensitive, languages }) => ({
+    searchStringQuery: () => ({
         OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { name: { ...insensitive } },
-            { tags: { some: { tag: { tag: { ...insensitive } } } } },
+            'transDescriptionWrapped',
+            { root: 'tagsWrapped' },
+            { root: 'labelsWrapped' },
+            { root: 'nameWrapped' },
         ]
     }),
     /**

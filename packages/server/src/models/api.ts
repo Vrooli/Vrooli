@@ -1,5 +1,4 @@
 import { Prisma } from "@prisma/client";
-import { searchStringBuilder } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { Api, ApiSearchInput, ApiSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
@@ -10,14 +9,26 @@ import { Displayer, Formatter, Searcher } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 
+type Model = {
+    GqlModel: Api,
+    GqlSearch: ApiSearchInput,
+    GqlSort: ApiSortBy,
+    PrismaModel: Prisma.apiGetPayload<SelectWrap<Prisma.apiSelect>>,
+    PrismaSelect: Prisma.apiSelect,
+    PrismaWhere: Prisma.apiWhereInput,
+}
+
 const __typename = 'Api' as const;
 
 const suppFields = ['isStarred', 'isViewed', 'isUpvoted', 'permissionsRoot'] as const;
-const formatter = (): Formatter<Api, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         createdBy: 'User',
-        owner: ['Organization', 'User'],
+        owner: {
+            ownedByUser: 'User',
+            ownedByOrganization: 'Organization',
+        },
         parent: 'Api',
         tags: 'Tag',
         versions: 'ApiVersion',
@@ -42,11 +53,7 @@ const formatter = (): Formatter<Api, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    ApiSearchInput,
-    ApiSortBy,
-    Prisma.apiWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: ApiSortBy.ScoreDesc,
     sortBy: ApiSortBy,
     searchFields: [
@@ -63,21 +70,17 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: (params) => ({
-        ...searchStringBuilder(['tags'], params)[0],
-        ...searchStringBuilder(['labels'], params)[0],
-        versions: {
-            some: {
-                OR: searchStringBuilder(['translationsSummary', 'translationsName'], params),
-            }
-        }
-    }),
+    searchStringQuery: () => ({
+        OR: [
+            'tagsWrapped',
+            'labelsWrapped',
+            { versions: { some: 'transNameWrapped' } },
+            { versions: { some: 'transSummaryWrapped' } }
+        ]
+    })
 })
 
-const displayer = (): Displayer<
-    Prisma.apiSelect,
-    Prisma.apiGetPayload<SelectWrap<Prisma.apiSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         versions: {

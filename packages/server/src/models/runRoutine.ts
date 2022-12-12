@@ -47,21 +47,12 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: ({ insensitive, languages }) => ({
+    searchStringQuery: () => ({
         OR: [
-            {
-                routineVersion: {
-                    translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } },
-                }
-            },
-            {
-                routineVersion: {
-                    translations: { some: { language: languages ? { in: languages } : undefined, name: { ...insensitive } } },
-                }
-            },
-            { name: { ...insensitive } }
+            'nameWrapped',
+            { routineVersion: RunRoutineModel.search.searchStringQuery() },
         ]
-    }),
+    })
 })
 
 const validator = (): Validator<

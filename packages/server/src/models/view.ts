@@ -1,5 +1,4 @@
 import { ViewFor, ViewSortBy } from "@shared/consts";
-import { isObject } from '@shared/utils'
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -7,15 +6,14 @@ import { UserModel } from "./user";
 import { StandardModel } from "./standard";
 import { CustomError } from "../events";
 import { initializeRedis } from "../redisConn";
-import { resolveUnion } from "../endpoints/resolvers";
 import { User, ViewSearchInput, Count, SessionUser } from "../endpoints/types";
-import { RecursivePartial, PrismaType } from "../types";
-import { readManyHelper } from "../actions";
-import { Displayer, Formatter, GraphQLModelType, Searcher } from "./types";
+import { PrismaType } from "../types";
+import { Displayer, Formatter, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
-import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
+import { SelectWrap } from "../builders/types";
 import { lowercaseFirstLetter, onlyValidIds, padSelect } from "../builders";
 import { getLabels } from "../getters";
+import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
 
 interface View {
     __typename?: 'View';
@@ -25,60 +23,24 @@ interface View {
 
 const __typename = 'View' as const;
 
-const suppFields = ['to'] as const;
+const suppFields = [] as const;
 const formatter = (): Formatter<View, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         from: 'User',
-        to: ['Api', 'Note', 'Organization', 'Project', 'Routine', 'Standard', 'User'],
-    },
-    supplemental: {
-        graphqlFields: suppFields,
-        toGraphQL: ({ languages, objects, partial, prisma, userData }) => [
-            ['to', async () => {
-                if (!userData) return new Array(objects.length).fill([]);
-                // Query for data that view is applied to
-                if (isObject(partial.to)) {
-                    const toTypes: GraphQLModelType[] = objects.map(o => resolveUnion(o.to))
-                    const toIds = objects.map(x => x.to?.id ?? '') as string[];
-                    // Group ids by types
-                    const toIdsByType: { [x: string]: string[] } = {};
-                    toTypes.forEach((type, i) => {
-                        if (!toIdsByType[type]) toIdsByType[type] = [];
-                        toIdsByType[type].push(toIds[i]);
-                    })
-                    // Query for each type
-                    const tos: any[] = [];
-                    for (const objectType of Object.keys(toIdsByType)) {
-                        const validTypes: Array<GraphQLModelType> = [
-                            'Organization',
-                            'Project',
-                            'Routine',
-                            'Standard',
-                            'User',
-                        ];
-                        if (!validTypes.includes(objectType as GraphQLModelType)) {
-                            throw new CustomError('0186', 'InternalError', languages, { objectType });
-                        }
-                        const paginated = await readManyHelper({
-                            info: partial.to[objectType] as PartialGraphQLInfo,
-                            input: { ids: toIdsByType[objectType] },
-                            objectType: objectType as GraphQLModelType,
-                            prisma,
-                            req: { languages, users: [userData] }
-                        })
-                        tos.push(...paginated.edges.map(x => x.node));
-                    }
-                    // Apply each "to" to the "to" property of each object
-                    for (const object of objects) {
-                        // Find the correct "to", using object.to.id
-                        const to = tos.find(x => x.id === object.to.id);
-                        object.to = to;
-                    }
-                }
-                return objects as RecursivePartial<View>[];
-            }],
-        ],
+        to: {
+            api: 'Api',
+            issue: 'Issue',
+            note: 'Note',
+            organization: 'Organization',
+            post: 'Post',
+            project: 'Project',
+            question: 'Question',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+            user: 'User',
+        }
     },
 })
 
@@ -107,14 +69,20 @@ const searcher = (): Searcher<
     searchFields: [
         'lastViewedTimeFrame',
     ],
-    searchStringQuery: ({ insensitive, languages, searchString }) => ({
+    searchStringQuery: () => ({
         OR: [
-            { name: { ...insensitive } },
-            { organization: OrganizationModel.search.searchStringQuery({ insensitive, languages, searchString }) },
-            { project: ProjectModel.search.searchStringQuery({ insensitive, languages, searchString }) },
-            { routine: RoutineModel.search.searchStringQuery({ insensitive, languages, searchString }) },
-            { standard: StandardModel.search.searchStringQuery({ insensitive, languages, searchString }) },
-            { user: UserModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            'nameWrapped',
+            { api: ApiModel.search.searchStringQuery() },
+            { issue: IssueModel.search.searchStringQuery() },
+            { note: NoteModel.search.searchStringQuery() },
+            { organization: OrganizationModel.search.searchStringQuery() },
+            { question: QuestionModel.search.searchStringQuery() },
+            { post: PostModel.search.searchStringQuery() },
+            { project: ProjectModel.search.searchStringQuery() },
+            { routine: RoutineModel.search.searchStringQuery() },
+            { smartContract: SmartContractModel.search.searchStringQuery() },
+            { standard: StandardModel.search.searchStringQuery() },
+            { user: UserModel.search.searchStringQuery() },
         ]
     }),
 })

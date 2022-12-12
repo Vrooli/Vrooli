@@ -7,25 +7,31 @@ import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: EmailCreateInput,
+    GqlRelCreate: EmailCreateInput,
+    GqlModel: Email,
+    GqlPermission: any,
+    PrismaCreate: Prisma.emailUpsertArgs['create'],
+    PrismaUpdate: Prisma.emailUpsertArgs['update'],
+    PrismaRelCreate: Prisma.emailCreateWithoutUserInput,
+    PrismaModel: Prisma.emailGetPayload<SelectWrap<Prisma.emailSelect>>,
+    PrismaSelect: Prisma.emailSelect,
+    PrismaWhere: Prisma.emailWhereInput,
+}
+
 const __typename = 'Email' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Email, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
     }
 })
 
-const validator = (): Validator<
-    EmailCreateInput,
-    any,
-    Prisma.emailGetPayload<SelectWrap<Prisma.emailSelect>>,
-    any,
-    Prisma.emailSelect,
-    Prisma.emailWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Email',
         user: 'User',
@@ -78,13 +84,7 @@ const validator = (): Validator<
     }
 })
 
-const mutater = (): Mutater<
-    Email,
-    { graphql: EmailCreateInput, db: Prisma.emailUpsertArgs['create'] },
-    false,
-    { graphql: EmailCreateInput, db: Prisma.emailCreateWithoutUserInput },
-    false
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, userData }) => {
             return {
@@ -102,10 +102,7 @@ const mutater = (): Mutater<
     yup: { create: emailsCreate },
 })
 
-const displayer = (): Displayer<
-    Prisma.emailSelect,
-    Prisma.emailGetPayload<SelectWrap<Prisma.emailSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, emailAddress: true }),
     label: (select) => select.emailAddress,
 })

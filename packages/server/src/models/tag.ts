@@ -42,10 +42,10 @@ const searcher = (): Searcher<
         'translationLanguages',
         'updatedTimeFrame',
     ],
-    searchStringQuery: ({ insensitive, languages }) => ({
+    searchStringQuery: () => ({
         OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { tag: { ...insensitive } },
+            'transDescriptionWrapped',
+            'tagWrapped',
         ]
     }),
 })

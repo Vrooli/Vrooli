@@ -1,5 +1,4 @@
 import { Prisma } from "@prisma/client";
-import { searchStringBuilder } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { ApiVersion, ApiVersionSearchInput, ApiVersionSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
@@ -7,10 +6,19 @@ import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { Displayer, Formatter, Searcher } from "./types";
 
+type Model = {
+    GqlModel: ApiVersion,
+    GqlSearch: ApiVersionSearchInput,
+    GqlSort: ApiVersionSortBy,
+    PrismaModel: Prisma.api_versionGetPayload<SelectWrap<Prisma.api_versionSelect>>,
+    PrismaSelect: Prisma.api_versionSelect,
+    PrismaWhere: Prisma.api_versionWhereInput,
+}
+
 const __typename = 'ApiVersion' as const;
 
 const suppFields = ['permissionsVersion'] as const;
-const formatter = (): Formatter<ApiVersion, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         comments: 'Comment',
@@ -29,11 +37,7 @@ const formatter = (): Formatter<ApiVersion, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    ApiVersionSearchInput,
-    ApiVersionSortBy,
-    Prisma.api_versionWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: ApiVersionSortBy.DateUpdatedDesc,
     sortBy: ApiVersionSortBy,
     searchFields: [
@@ -49,18 +53,17 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: (params) => ({
+    searchStringQuery: () => ({
         OR: [
-            ...searchStringBuilder(['translationsSummary', 'translationsName'], params),
-            { root: searchStringBuilder(['tags'], params)[0] },
+            'transSummaryWrapped',
+            'transNameWrapped',
+            { root: 'tagsWrapped' },
+            { root: 'labelsWrapped' },
         ]
     }),
 })
 
-const displayer = (): Displayer<
-    Prisma.api_versionSelect,
-    Prisma.api_versionGetPayload<SelectWrap<Prisma.api_versionSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => {
         // Return name if exists, or callLink host

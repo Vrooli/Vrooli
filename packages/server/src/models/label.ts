@@ -1,14 +1,33 @@
 import { Prisma } from "@prisma/client";
-import { searchStringBuilder } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { Label, LabelSearchInput, LabelSortBy } from "../endpoints/types";
+import { Label, LabelCreateInput, LabelPermission, LabelSearchInput, LabelSortBy, LabelUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Displayer, Formatter, Searcher } from "./types";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: LabelCreateInput,
+    GqlUpdate: LabelUpdateInput,
+    GqlRelCreate: LabelCreateInput,
+    GqlRelUpdate: LabelUpdateInput,
+    GqlModel: Label,
+    GqlSearch: LabelSearchInput,
+    GqlSort: LabelSortBy,
+    GqlPermission: LabelPermission,
+    PrismaCreate: Prisma.labelUpsertArgs['create'],
+    PrismaUpdate: Prisma.labelUpsertArgs['update'],
+    PrismaRelCreate: Prisma.labelCreateWithoutApisInput,
+    PrismaRelUpdate: Prisma.labelUpdateWithoutApisInput,
+    PrismaModel: Prisma.labelGetPayload<SelectWrap<Prisma.labelSelect>>,
+    PrismaSelect: Prisma.labelSelect,
+    PrismaWhere: Prisma.labelWhereInput,
+}
 
 const __typename = 'Label' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Label, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         apis: 'Api',
@@ -21,15 +40,10 @@ const formatter = (): Formatter<Label, typeof suppFields> => ({
         runRoutineSchedules: 'RunRoutineSchedule',
         userSchedules: 'UserSchedule',
     },
-    joinMap: { starredBy: 'user' },
     countFields: ['apisCount', 'issuesCount', 'meetingsCount', 'notesCount', 'projectsCount', 'routinesCount', 'runProjectSchedulesCount', 'runRoutineSchedulesCount', 'userSchedulesCount'],
 })
 
-const searcher = (): Searcher<
-    LabelSearchInput,
-    LabelSortBy,
-    Prisma.labelWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: LabelSortBy.DateUpdatedDesc,
     sortBy: LabelSortBy,
     searchFields: [
@@ -41,15 +55,15 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: (params) => ({
-        OR: searchStringBuilder(['label', 'translationsDescription'], params),
-    }),
+    searchStringQuery: () => ({
+        OR: [
+            'labelWrapped',
+            'transDescriptionWrapped'
+        ]
+    })
 })
 
-const displayer = (): Displayer<
-    Prisma.labelSelect,
-    Prisma.labelGetPayload<SelectWrap<Prisma.labelSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, label: true }),
     label: (select) => select.label,
 })

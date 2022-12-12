@@ -1,0 +1,9 @@
+{
+    "ignorePatterns": [
+        "dist/",
+        "src/auth/message_signing/"
+    ],
+    "files": [
+        "src/**/*.ts"
+    ]
+}

@@ -2,7 +2,7 @@ import { getUser } from "../auth";
 import { addSupplementalFields, combineQueries, modelToGraphQL, onlyValidIds, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
 import { CustomError } from "../events";
-import { getSearchString } from "../getters";
+import { getSearchStringQuery } from "../getters";
 import { ObjectMap } from "../models";
 import { Searcher } from "../models/types";
 import { SearchMap } from "../utils";
@@ -33,7 +33,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     partialInfo.id = true;
     const searcher: Searcher<any, any, any> | undefined = model.search;
     // Determine text search query
-    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchString({ objectType: model.__typename, searchString: input.searchString }) : undefined;
+    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
     // Loop through search fields and add each to the search query, 
     // if the field is specified in the input
     const customQueries: { [x: string]: any }[] = [];

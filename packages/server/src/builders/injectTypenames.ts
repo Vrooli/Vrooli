@@ -10,7 +10,10 @@ import { PartialGraphQLInfo } from "./types";
  * @param parentRelationshipMap - Relationship of last known parent
  * @return select with __typename fields
  */
-export const injectTypenames = <GraphQLModel>(select: { [x: string]: any }, parentRelationshipMap: RelationshipMap<GraphQLModel> & { __typename?: string }): PartialGraphQLInfo => {
+export const injectTypenames = <
+    GQLObject extends { [x: string]: any },
+    PrismaObject extends { [x: string]: any }
+>(select: { [x: string]: any }, parentRelationshipMap: RelationshipMap<GQLObject, PrismaObject>): PartialGraphQLInfo => {
     // Create result object
     let result: any = {};
     // Iterate over select object

@@ -1,5 +1,4 @@
 import { projectsCreate, projectsUpdate } from "@shared/validation";
-import { ResourceListUsedFor } from "@shared/consts";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
@@ -10,7 +9,7 @@ import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
-import { padSelect, permissionsSelectHelper, searchStringBuilder } from "../builders";
+import { padSelect, permissionsSelectHelper } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
@@ -24,7 +23,10 @@ const formatter = (): Formatter<Project, typeof suppFields> => ({
         createdBy: 'User',
         issues: 'Issue',
         labels: 'Label',
-        owner: ['Organization', 'User'],
+        owner: {
+            ownedByUser: 'User',
+            ownedByOrganization: 'Organization',
+        },
         parent: 'Project',
         pullRequests: 'PullRequest',
         questions: 'Question',
@@ -71,14 +73,14 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: (params) => ({
-        ...searchStringBuilder(['tags'], params)[0],
-        versions: {
-            some: {
-                OR: searchStringBuilder(['translationsDescription', 'translationsName'], params),
-            }
-        }
-    }),
+    searchStringQuery: () => ({
+        OR: [
+            'tagsWrapped',
+            'labelsWrapped',
+            { versions: { some: 'transDescriptionWrapped' } },
+            { versions: { some: 'transNameWrapped' } },
+        ]
+    })
 })
 
 const validator = (): Validator<

@@ -26,7 +26,10 @@ const formatter = (): Formatter<Standard, typeof suppFields> => ({
         __typename,
         comments: 'Comment',
         createdBy: 'User',
-        owner: ['Organization', 'User'],
+        owner: {
+            ownedByUser: 'User',
+            ownedByOrganization: 'Organization',
+        },
         reports: 'Report',
         resourceLists: 'ResourceList',
         routineInputs: 'Routine',
@@ -74,11 +77,12 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: ({ insensitive, languages }) => ({
+    searchStringQuery: () => ({
         OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { name: { ...insensitive } },
-            { tags: { some: { tag: { tag: { ...insensitive } } } } },
+            'tagsWrapped',
+            'labelsWrapped',
+            'nameWrapped',
+            { versions: { some: 'transDescriptionWrapped' } }
         ]
     }),
     /**

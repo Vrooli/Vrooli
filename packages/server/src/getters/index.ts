@@ -7,5 +7,5 @@ export * from './getLabels';
 export * from './getLatestVersion';
 export * from './getMutater';
 export * from './getSearcher';
-export * from './getSearchString';
+export * from './getSearchStringQuery';
 export * from './getValidator';

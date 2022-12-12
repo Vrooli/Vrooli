@@ -8,23 +8,35 @@ import { padSelect } from "../builders";
 import { RoutineModel } from "./routine";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeRoutineListItemCreateInput,
+    GqlUpdate: NodeRoutineListItemUpdateInput,
+    GqlRelCreate: NodeRoutineListItemCreateInput,
+    GqlRelUpdate: NodeRoutineListItemUpdateInput,
+    GqlModel: NodeRoutineListItem,
+    GqlPermission: any,
+    PrismaCreate: Prisma.node_routine_list_itemUpsertArgs['create'],
+    PrismaUpdate: Prisma.node_routine_list_itemUpsertArgs['update'],
+    PrismaRelCreate: Prisma.node_routine_list_itemCreateWithoutListInput
+    PrismaRelUpdate: Prisma.node_routine_list_itemUpdateWithoutListInput,
+    PrismaModel: Prisma.node_routine_list_itemGetPayload<SelectWrap<Prisma.node_routine_list_itemSelect>>,
+    PrismaSelect: Prisma.node_routine_list_itemSelect,
+    PrismaWhere: Prisma.node_routine_list_itemWhereInput,
+}
+
 const __typename = 'NodeRoutineListItem' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<NodeRoutineListItem, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         routineVersion: 'RoutineVersion',
     },
 })
 
-const mutater = (): Mutater<
-    NodeRoutineListItem,
-    false,
-    false,
-    { graphql: NodeRoutineListItemCreateInput, db: Prisma.node_routine_list_itemCreateWithoutListInput },
-    { graphql: NodeRoutineListItemUpdateInput, db: Prisma.node_routine_list_itemUpdateWithoutListInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         relCreate: async ({ data, prisma, userData }) => {
             return {
@@ -44,13 +56,10 @@ const mutater = (): Mutater<
             }
         },
     },
-    yup: {},
+    yup: { create: {} as any, update: {} as any },
 })
 
-const displayer = (): Displayer<
-    Prisma.node_routine_list_itemSelect,
-    Prisma.node_routine_list_itemGetPayload<SelectWrap<Prisma.node_routine_list_itemSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         translations: padSelect({ id: true, name: true }),

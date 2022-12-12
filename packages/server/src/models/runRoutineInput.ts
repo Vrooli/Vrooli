@@ -68,7 +68,7 @@ const searcher = (): Searcher<
         'standardIds',
         'updatedTimeFrame',
     ],
-    searchStringQuery: (params) => RunRoutineModel.search.searchStringQuery(params),
+    searchStringQuery: () => ({ runRoutine: RunRoutineModel.search.searchStringQuery() }),
 })
 
 /**

@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
-import { permissionsSelectHelper, searchStringBuilder } from "../builders";
+import { permissionsSelectHelper } from "../builders";
 import { bestLabel, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -29,8 +29,13 @@ const searcher = (): Searcher<
         'translationLanguages',
         'updatedTimeFrame',
     ],
-    searchStringQuery: (params) => ({
-        OR: searchStringBuilder(['translationsDescription', 'translationsName', 'link'], params),
+    
+    searchStringQuery: () => ({
+        OR: [
+            'transDescriptionWrapped',
+            'transNameWrapped',
+            'linkWrapped',
+        ]
     }),
 })
 

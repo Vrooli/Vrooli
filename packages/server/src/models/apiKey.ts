@@ -4,19 +4,22 @@ import { ApiKey } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Displayer, Formatter } from "./types";
 
+type Model = {
+    GqlModel: ApiKey,
+    PrismaModel: Prisma.api_keyGetPayload<SelectWrap<Prisma.api_keySelect>>,
+    PrismaSelect: Prisma.api_keySelect,
+}
+
 const __typename = 'ApiKey' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<ApiKey, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
     },
 })
 
-const displayer = (): Displayer<
-    Prisma.api_keySelect,
-    Prisma.api_keyGetPayload<SelectWrap<Prisma.api_keySelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, key: true }),
     // Label should be first 4 characters of key, an ellipsis, and last 4 characters of key
     label: (select) => {

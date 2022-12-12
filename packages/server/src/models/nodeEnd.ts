@@ -6,22 +6,34 @@ import { NodeModel } from "./node";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeEndCreateInput,
+    GqlUpdate: NodeEndUpdateInput,
+    GqlRelCreate: NodeEndCreateInput,
+    GqlRelUpdate: NodeEndUpdateInput,
+    GqlModel: NodeEnd,
+    GqlPermission: any,
+    PrismaCreate: Prisma.node_endUpsertArgs['create'],
+    PrismaUpdate: Prisma.node_endUpsertArgs['update'],
+    PrismaRelCreate: Prisma.node_endCreateWithoutNodeInput,
+    PrismaRelUpdate: Prisma.node_endUpdateWithoutNodeInput,
+    PrismaModel: Prisma.node_endGetPayload<SelectWrap<Prisma.node_endSelect>>,
+    PrismaSelect: Prisma.node_endSelect,
+    PrismaWhere: Prisma.node_endWhereInput,
+}
+
 const __typename = 'NodeEnd' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<NodeEnd, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
     },
 })
 
-const mutater = (): Mutater<
-    NodeEnd,
-    false,
-    false,
-    { graphql: NodeEndCreateInput, db: Prisma.node_endCreateWithoutNodeInput },
-    { graphql: NodeEndUpdateInput, db: Prisma.node_endUpdateWithoutNodeInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         relCreate: async ({ data }) => {
             return {
@@ -35,13 +47,10 @@ const mutater = (): Mutater<
             }
         },
     },
-    yup: {},
+    yup: { create: {} as any, update: {} as any },
 })
 
-const displayer = (): Displayer<
-    Prisma.node_endSelect,
-    Prisma.node_endGetPayload<SelectWrap<Prisma.node_endSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
     label: (select, languages) => NodeModel.display.label(select.node as any, languages),
 })

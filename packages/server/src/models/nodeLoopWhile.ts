@@ -1,23 +1,38 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NodeLoopWhile } from "../endpoints/types";
+import { NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Displayer, Formatter } from "./types";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeLoopWhileCreateInput,
+    GqlUpdate: NodeLoopWhileUpdateInput,
+    GqlRelCreate: NodeLoopWhileCreateInput,
+    GqlRelUpdate: NodeLoopWhileUpdateInput,
+    GqlModel: NodeLoopWhile,
+    GqlPermission: any,
+    PrismaCreate: Prisma.node_loop_whileUpsertArgs['create'],
+    PrismaUpdate: Prisma.node_loop_whileUpsertArgs['update'],
+    PrismaRelCreate: Prisma.node_loop_whileCreateWithoutLoopInput
+    PrismaRelUpdate: Prisma.node_loop_whileUpdateWithoutLoopInput,
+    PrismaModel: Prisma.node_loop_whileGetPayload<SelectWrap<Prisma.node_loop_whileSelect>>,
+    PrismaSelect: Prisma.node_loop_whileSelect,
+    PrismaWhere: Prisma.node_loop_whileWhereInput,
+}
 
 const __typename = 'NodeLoopWhile' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<NodeLoopWhile, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
     },
 })
 
 // Doesn't make sense to have a displayer for this model
-const displayer = (): Displayer<
-    Prisma.node_loop_whileSelect,
-    Prisma.node_loop_whileGetPayload<SelectWrap<Prisma.node_loop_whileSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true }),
     label: () => ''
 })

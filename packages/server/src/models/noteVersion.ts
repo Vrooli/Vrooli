@@ -1,15 +1,31 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NoteVersion } from "../endpoints/types";
+import { NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersionSortBy, NoteVersionUpdateInput, VersionPermission } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { Displayer, Formatter } from "./types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NoteVersionCreateInput,
+    GqlUpdate: NoteVersionUpdateInput,
+    GqlModel: NoteVersion,
+    GqlSearch: NoteVersionSearchInput,
+    GqlSort: NoteVersionSortBy,
+    GqlPermission: VersionPermission,
+    PrismaCreate: Prisma.note_versionUpsertArgs['create'],
+    PrismaUpdate: Prisma.note_versionUpsertArgs['update'],
+    PrismaModel: Prisma.note_versionGetPayload<SelectWrap<Prisma.note_versionSelect>>,
+    PrismaSelect: Prisma.note_versionSelect,
+    PrismaWhere: Prisma.note_versionWhereInput,
+}
+
 const __typename = 'NoteVersion' as const;
 
 const suppFields = ['permissionsVersion'] as const;
-const formatter = (): Formatter<NoteVersion, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         comments: 'Comment',
@@ -27,10 +43,7 @@ const formatter = (): Formatter<NoteVersion, typeof suppFields> => ({
     },
 })
 
-const displayer = (): Displayer<
-    Prisma.note_versionSelect,
-    Prisma.note_versionGetPayload<SelectWrap<Prisma.note_versionSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages)
 })

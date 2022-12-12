@@ -9,21 +9,52 @@ import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
-import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, searchStringBuilder, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic, SearchMap, translationRelationshipBuilder } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { getSearchString } from "../getters";
+import { getSearchStringQuery } from "../getters";
 import { getUser } from "../auth";
 import { SortMap } from "../utils/sortMap";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: CommentCreateInput,
+    GqlUpdate: CommentUpdateInput,
+    GqlModel: Comment,
+    GqlPermission: CommentPermission,
+    GqlSearch: CommentSearchInput,
+    GqlSort: CommentSortBy,
+    PrismaCreate: Prisma.commentUpsertArgs['create'],
+    PrismaUpdate: Prisma.commentUpsertArgs['update'],
+    PrismaModel: Prisma.commentGetPayload<SelectWrap<Prisma.commentSelect>>,
+    PrismaSelect: Prisma.commentSelect,
+    PrismaWhere: Prisma.commentWhereInput,
+}
 
 const __typename = 'Comment' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'permissionsComment'] as const;
-const formatter = (): Formatter<Comment, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
-        owner: ['Organization', 'User'],
-        commentedOn: ['ApiVersion', 'Issue', 'NoteVersion', 'Post', 'ProjectVersion', 'PullRequest', 'Question', 'QuestionAnswer', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion'],
+        owner: {
+            ownedByUser: 'User',
+            ownedByOrganization: 'Organization',
+        },
+        commentedOn: {
+            apiVersion: 'ApiVersion',
+            issue: 'Issue',
+            noteVersion: 'NoteVersion',
+            post: 'Post',
+            projectVersion: 'ProjectVersion',
+            pullRequest: 'PullRequest',
+            question: 'Question',
+            questionAnswer: 'QuestionAnswer',
+            routineVersion: 'RoutineVersion',
+            smartContractVersion: 'SmartContractVersion',
+            standardVersion: 'StandardVersion',
+        },
         reports: 'Report',
         starredBy: 'User',
     },
@@ -39,11 +70,7 @@ const formatter = (): Formatter<Comment, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    CommentSearchInput,
-    CommentSortBy,
-    Prisma.commentWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: CommentSortBy.ScoreDesc,
     searchFields: [
         'apiVersionId',
@@ -66,19 +93,10 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
     ],
     sortBy: CommentSortBy,
-    searchStringQuery: (params) => searchStringBuilder(['translationsText'], params)[0],
+    searchStringQuery: () => ({ translations: 'transText' }),
 })
 
-const validator = (): Validator<
-    CommentCreateInput,
-    CommentUpdateInput,
-    Prisma.commentGetPayload<SelectWrap<Prisma.commentSelect>>,
-    CommentPermission,
-    Prisma.commentSelect,
-    Prisma.commentWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Comment',
         ownedByUser: 'User',
@@ -95,16 +113,16 @@ const validator = (): Validator<
     permissionsSelect: (...params) => ({
         id: true,
         ...permissionsSelectHelper([
-            // ['apiVersion', 'Api'],
-            // ['issue', 'Issue'],
+            ['apiVersion', 'Api'],
+            ['issue', 'Issue'],
             ['ownedByOrganization', 'Organization'],
-            // ['post', 'Post'],
+            ['post', 'Post'],
             ['projectVersion', 'Project'],
-            // ['pullRequest', 'PullRequest'],
-            // ['question', 'Question'],
-            // ['questionAnswer', 'QuestionAnswer'],
+            ['pullRequest', 'PullRequest'],
+            ['question', 'Question'],
+            ['questionAnswer', 'QuestionAnswer'],
             ['routineVersion', 'Routine'],
-            // ['smartContractVersion', 'SmartContract'],
+            ['smartContractVersion', 'SmartContract'],
             ['standardVersion', 'Standard'],
             ['ownedByUser', 'User'],
         ], ...params)
@@ -124,15 +142,15 @@ const validator = (): Validator<
     }),
     isDeleted: () => false,
     isPublic: (data, languages) => oneIsPublic<Prisma.commentSelect>(data, [
-        // ['apiVersion', 'Api'],
-        // ['issue', 'Issue'],
-        // ['post', 'Post'],
+        ['apiVersion', 'Api'],
+        ['issue', 'Issue'],
+        ['post', 'Post'],
         ['projectVersion', 'Project'],
-        // ['pullRequest', 'PullRequest'],
-        // ['question', 'Question'],
-        // ['questionAnswer', 'QuestionAnswer'],
+        ['pullRequest', 'PullRequest'],
+        ['question', 'Question'],
+        ['questionAnswer', 'QuestionAnswer'],
         ['routineVersion', 'Routine'],
-        // ['smartContractVersion', 'SmartContract'],
+        ['smartContractVersion', 'SmartContract'],
         ['standardVersion', 'Standard'],
     ], languages),
     visibility: {
@@ -227,7 +245,7 @@ const querier = () => ({
         // Partially convert info type
         let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap, req.languages, true);
         // Determine text search query
-        const searchQuery = input.searchString ? getSearchString({ objectType: 'Comment', searchString: input.searchString }) : undefined;
+        const searchQuery = input.searchString ? getSearchStringQuery({ objectType: 'Comment', searchString: input.searchString }) : undefined;
         // Loop through search fields and add each to the search query, 
         // if the field is specified in the input
         const customQueries: { [x: string]: any }[] = [];
@@ -327,13 +345,7 @@ const forMapper: { [key in CommentFor]: string } = {
     StandardVersion: 'standardVersionId',
 }
 
-const mutater = (): Mutater<
-    Comment,
-    { graphql: CommentCreateInput, db: Prisma.commentUpsertArgs['create'] },
-    { graphql: CommentUpdateInput, db: Prisma.commentUpsertArgs['update'] },
-    false,
-    false
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             return {
@@ -360,10 +372,7 @@ const mutater = (): Mutater<
     yup: { create: commentsCreate, update: commentsUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.commentSelect,
-    Prisma.commentGetPayload<SelectWrap<Prisma.commentSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'text', languages),
 })

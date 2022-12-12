@@ -5,10 +5,28 @@ import { Prisma } from "@prisma/client";
 import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeLinkWhenCreateInput,
+    GqlUpdate: NodeLinkWhenUpdateInput,
+    GqlRelCreate: NodeLinkWhenCreateInput,
+    GqlRelUpdate: NodeLinkWhenUpdateInput,
+    GqlModel: NodeLinkWhen,
+    GqlPermission: any,
+    PrismaCreate: Prisma.node_link_whenUpsertArgs['create'],
+    PrismaUpdate: Prisma.node_link_whenUpsertArgs['update'],
+    PrismaRelCreate: Prisma.node_link_whenCreateWithoutLinkInput,
+    PrismaRelUpdate: Prisma.node_link_whenUpdateWithoutLinkInput,
+    PrismaModel: Prisma.node_link_whenGetPayload<SelectWrap<Prisma.node_link_whenSelect>>,
+    PrismaSelect: Prisma.node_link_whenSelect,
+    PrismaWhere: Prisma.node_link_whenWhereInput,
+}
+
 const __typename = 'NodeLinkWhen' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<NodeLinkWhen, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
     },
@@ -20,13 +38,7 @@ const relBase = async (prisma: PrismaType, userData: SessionUser, data: NodeLink
     }
 }
 
-const mutater = (): Mutater<
-    NodeLinkWhen,
-    false,
-    false,
-    { graphql: NodeLinkWhenCreateInput, db: Prisma.node_link_whenCreateWithoutLinkInput },
-    { graphql: NodeLinkWhenUpdateInput, db: Prisma.node_link_whenUpdateWithoutLinkInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         relCreate: async ({ data, prisma, userData }) => {
             return {
@@ -41,14 +53,11 @@ const mutater = (): Mutater<
             }
         },
     },
-    yup: {},
+    yup: { create: {} as any, update: {} as any },
 })
 
 // Doesn't make sense to have a displayer for this model
-const displayer = (): Displayer<
-    Prisma.node_link_whenSelect,
-    Prisma.node_link_whenGetPayload<SelectWrap<Prisma.node_link_whenSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true }),
     label: () => ''
 })

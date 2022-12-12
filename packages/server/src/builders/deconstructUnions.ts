@@ -7,7 +7,10 @@ import { isRelationshipObject } from "./isRelationshipObject";
  * @param relationshipMap - Mapping of relationship names to their transform shapes
  * @returns DB-shaped object
  */
-export const deconstructRelationships = <GraphQLModel>(data: { [x: string]: any }, relationshipMap: RelationshipMap<GraphQLModel>): { [x: string]: any } => {
+export const deconstructUnions = <
+    GQLObject extends { [x: string]: any },
+    PrismaObject extends { [x: string]: any }
+>(data: { [x: string]: any }, relationshipMap: RelationshipMap<GQLObject, PrismaObject>): { [x: string]: any } => {
     // Create result object
     let result: { [x: string]: any } = data;
     // Any value in the relationshipMap which is an array is a union. 

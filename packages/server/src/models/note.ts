@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Note } from "../endpoints/types";
+import { Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, RootPermission } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { NoteVersionModel } from "./noteVersion";
@@ -9,16 +9,35 @@ import { Displayer, Formatter } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 
+type Model = {
+    IsTransferable: true,
+    IsVersioned: true,
+    GqlCreate: NoteCreateInput,
+    GqlUpdate: NoteUpdateInput,
+    GqlModel: Note,
+    GqlSearch: NoteSearchInput,
+    GqlSort: NoteSortBy,
+    GqlPermission: RootPermission,
+    PrismaCreate: Prisma.noteUpsertArgs['create'],
+    PrismaUpdate: Prisma.noteUpsertArgs['update'],
+    PrismaModel: Prisma.noteGetPayload<SelectWrap<Prisma.noteSelect>>,
+    PrismaSelect: Prisma.noteSelect,
+    PrismaWhere: Prisma.noteWhereInput,
+}
+
 const __typename = 'Note' as const;
 
 const suppFields = ['isStarred', 'isViewed', 'isUpvoted', 'permissionsRoot'] as const;
-const formatter = (): Formatter<Note, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         createdBy: 'User',
         issues: 'Issue',
         labels: 'Label',
-        owner: ['Organization', 'User'],
+        owner: {
+            ownedByUser: 'User',
+            ownedByOrganization: 'Organization',
+        },
         parent: 'Note',
         pullRequests: 'PullRequest',
         questions: 'Question',
@@ -40,10 +59,7 @@ const formatter = (): Formatter<Note, typeof suppFields> => ({
     },
 })
 
-const displayer = (): Displayer<
-    Prisma.noteSelect,
-    Prisma.noteGetPayload<SelectWrap<Prisma.noteSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         versions: {

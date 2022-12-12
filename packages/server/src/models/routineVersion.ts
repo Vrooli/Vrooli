@@ -1,7 +1,4 @@
 import { routinesCreate, routinesUpdate } from "@shared/validation";
-import { StarModel } from "./star";
-import { VoteModel } from "./vote";
-import { ViewModel } from "./view";
 import { CustomError, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput } from "../endpoints/types";
 import { PrismaType } from "../types";
@@ -9,10 +6,9 @@ import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { relBuilderHelper } from "../actions";
-import { getSingleTypePermissions } from "../validators";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, searchStringBuilder, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 
 type NodeWeightData = {
@@ -114,10 +110,12 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: (params) => ({
+    searchStringQuery: () => ({
         OR: [
-            ...searchStringBuilder(['translationsDescription', 'translationsName'], params),
-            { root: searchStringBuilder(['tags'], params)[0] },
+            'transDescriptionWrapped',
+            'transNameWrapped',
+            { root: 'tagsWrapped' },
+            { root: 'labelsWrapped' },
         ]
     }),
 })

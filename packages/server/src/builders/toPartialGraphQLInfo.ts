@@ -13,17 +13,18 @@ import { GraphQLInfo, PartialGraphQLInfo } from "./types";
  * @returns Partial Prisma select. This can be passed into the function again without changing the result.
  */
 export const toPartialGraphQLInfo = <
-    GQLModel extends { [x: string]: any },
+    GQLObject extends { [x: string]: any },
+    PrismaObject extends { [x: string]: any },
     ThrowErrorIfNotPartial extends boolean
 >(
     info: GraphQLInfo | PartialGraphQLInfo,
-    relationshipMap: RelationshipMap<GQLModel>,
+    relationshipMap: RelationshipMap<GQLObject, PrismaObject>,
     languages: string[],
     throwIfNotPartial: ThrowErrorIfNotPartial = false as ThrowErrorIfNotPartial,
 ): ThrowErrorIfNotPartial extends true ? PartialGraphQLInfo : (PartialGraphQLInfo | undefined) => {
     // Return undefined if info not set
     if (!info) {
-        if (throwIfNotPartial) 
+        if (throwIfNotPartial)
             throw new CustomError('0345', 'InternalError', languages);
         return undefined as any;
     }
@@ -45,7 +46,7 @@ export const toPartialGraphQLInfo = <
     }
     // Inject __typename fields
     select = injectTypenames(select, relationshipMap);
-    if (!select) 
+    if (!select)
         throw new CustomError('0346', 'InternalError', languages);
     return select;
 }

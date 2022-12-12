@@ -9,29 +9,41 @@ import { relBuilderHelper } from "../actions";
 import { bestLabel, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeCreateInput,
+    GqlUpdate: NodeUpdateInput,
+    GqlRelCreate: NodeCreateInput,
+    GqlRelUpdate: NodeUpdateInput,
+    GqlModel: Node,
+    GqlPermission: any,
+    PrismaCreate: Prisma.nodeUpsertArgs['create'],
+    PrismaUpdate: Prisma.nodeUpsertArgs['update'],
+    PrismaRelCreate: Prisma.nodeCreateWithoutRoutineVersionInput,
+    PrismaRelUpdate: Prisma.nodeUpdateWithoutRoutineVersionInput,
+    PrismaModel: Prisma.nodeGetPayload<SelectWrap<Prisma.nodeSelect>>,
+    PrismaSelect: Prisma.nodeSelect,
+    PrismaWhere: Prisma.nodeWhereInput,
+}
+
 const __typename = 'Node' as const;
 const MAX_NODES_IN_ROUTINE = 100;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Node, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
-        data: ['NodeEnd', 'NodeRoutineList'],
+        data: {
+            nodeEnd: 'NodeEnd',
+            nodeRoutineList: 'NodeRoutineList',
+        },
         loop: 'NodeLoop',
         routineVersion: 'RoutineVersion',
     },
 })
 
-const validator = (): Validator<
-    NodeCreateInput,
-    NodeUpdateInput,
-    Prisma.nodeGetPayload<SelectWrap<Prisma.nodeSelect>>,
-    any,
-    Prisma.nodeSelect,
-    Prisma.nodeWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Node',
         routineVersion: 'Routine',
@@ -90,13 +102,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: NodeCr
     }
 }
 
-const mutater = (): Mutater<
-    Node,
-    { graphql: NodeCreateInput, db: Prisma.nodeUpsertArgs['create'] },
-    { graphql: NodeUpdateInput, db: Prisma.nodeUpsertArgs['update'] },
-    { graphql: NodeCreateInput, db: Prisma.nodeCreateWithoutRoutineVersionInput },
-    { graphql: NodeUpdateInput, db: Prisma.nodeUpdateWithoutRoutineVersionInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             return {
@@ -115,10 +121,7 @@ const mutater = (): Mutater<
     yup: { create: nodesCreate, update: nodesUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.nodeSelect,
-    Prisma.nodeGetPayload<SelectWrap<Prisma.nodeSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })

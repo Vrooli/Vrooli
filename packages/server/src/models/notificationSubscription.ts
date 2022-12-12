@@ -24,7 +24,22 @@ const suppFields = [] as const;
 const formatter = (): Formatter<NotificationSubscription, typeof suppFields> => ({
     relationshipMap: {
         __typename,
-        object: ['Api', 'Comment', 'Issue', 'Meeting', 'Note', 'Organization', 'Project', 'PullRequest', 'Question', 'Quiz', 'Report', 'Routine', 'SmartContract', 'Standard']
+        object: {
+            api: 'Api',
+            comment: 'Comment',
+            issue: 'Issue',
+            meeting: 'Meeting',
+            note: 'Note',
+            organization: 'Organization',
+            project: 'Project',
+            pullRequest: 'PullRequest',
+            question: 'Question',
+            quiz: 'Quiz',
+            report: 'Report',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+        },
     },
 })
 

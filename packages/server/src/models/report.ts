@@ -6,7 +6,7 @@ import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { UserModel } from "./user";
-import { padSelect, searchStringBuilder } from "../builders";
+import { padSelect } from "../builders";
 import { CommentModel } from "./comment";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
@@ -55,8 +55,11 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'userId',
     ],
-    searchStringQuery: (params) => ({
-        OR: searchStringBuilder(['details', 'reason'], params),
+    searchStringQuery: () => ({
+        OR: [
+            'detailsWrapped',
+            'reasonWrapped',
+        ]
     }),
 })
 

@@ -1,7 +1,7 @@
 import { isObject } from "@shared/utils";
 import { ObjectMap } from "../models";
 import { Formatter } from "../models/types";
-import { constructRelationships } from "./constructRelationships";
+import { constructUnions } from "./constructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeCountFields } from "./removeCountFields";
 import { removeHiddenFields } from "./removeHiddenFields";
@@ -45,7 +45,7 @@ export function modelToGraphQL<
     const type: string | undefined = partialInfo?.__typename;
     const formatter: Formatter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined as any;
     if (formatter) {
-        data = constructRelationships(data, formatter.relationshipMap);
+        data = constructUnions(data, formatter.relationshipMap);
         data = removeJoinTables(data, formatter.joinMap);
         data = removeCountFields(data, formatter.countFields);
         data = removeHiddenFields(data, formatter.hiddenFields);

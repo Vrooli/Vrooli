@@ -17,6 +17,7 @@ import { NodeLoopModel } from './nodeLoop';
 import { NodeLoopWhileModel } from './nodeLoopWhile';
 import { NodeRoutineListModel } from './nodeRoutineList';
 import { NodeRoutineListItemModel } from './nodeRoutineListItem';
+import { NoteModel } from './note';
 import { NotificationModel } from './notification';
 import { NotificationSubscriptionModel } from './notificationSubscription';
 import { OrganizationModel } from './organization';
@@ -59,6 +60,7 @@ import { StandardModel } from './standard';
 import { StandardVersionModel } from './standardVersion';
 import { StarModel } from './star';
 import { TagModel } from './tag';
+import { TransferModel } from './transfer';
 import { AniedModelLogic, GraphQLModelType } from './types';
 import { UserModel } from './user';
 import { UserScheduleModel } from './userSchedule';
@@ -90,6 +92,7 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     NodeLoopWhile: NodeLoopWhileModel,
     NodeRoutineList: NodeRoutineListModel,
     NodeRoutineListItem: NodeRoutineListItemModel,
+    Note: NoteModel,
     Notification: NotificationModel,
     NotificationSubscription: NotificationSubscriptionModel,
     Organization: OrganizationModel,
@@ -132,6 +135,7 @@ export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
     StandardVersion: StandardVersionModel,
     Star: StarModel,
     Tag: TagModel,
+    Transfer: TransferModel,
     User: UserModel,
     UserSchedule: UserScheduleModel,
     UserScheduleFilter: UserScheduleFilterModel,
@@ -160,6 +164,7 @@ export * from './nodeLoop';
 export * from './nodeLoopWhile';
 export * from './nodeRoutineList';
 export * from './nodeRoutineListItem';
+export * from './note';
 export * from './notification';
 export * from './notificationSubscription';
 export * from './organization';
@@ -206,6 +211,7 @@ export * from './star';
 export * from './runRoutineStep';
 export * from './runRoutineInput';
 export * from './tag';
+export * from './transfer';
 export * from './user';
 export * from './userSchedule';
 export * from './userScheduleFilter';

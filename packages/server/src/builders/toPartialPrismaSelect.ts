@@ -2,7 +2,7 @@ import { ObjectMap } from "../models";
 import { Formatter, GraphQLModelType } from "../models/types";
 import { addCountFields } from "./addCountFields";
 import { addJoinTables } from "./addJoinTables";
-import { deconstructRelationships } from "./deconstructRelationships";
+import { deconstructUnions } from "./deconstructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeSupplementalFields } from "./removeSupplementalFields";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
@@ -35,7 +35,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
     if (type && formatter) {
         result = removeSupplementalFields(type, result);
         console.log('before deconstruct', JSON.stringify(result), '\n\n');
-        result = deconstructRelationships(result, formatter.relationshipMap);
+        result = deconstructUnions(result, formatter.relationshipMap);
         console.log('after deconstruct', JSON.stringify(result), '\n\n');
         result = addJoinTables(result, formatter.joinMap);
         result = addCountFields(result, formatter.countFields);

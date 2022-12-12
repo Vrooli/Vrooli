@@ -601,13 +601,23 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'StreakBrokenTitle',
     }),
-    pushTransferRequest: (transferId: string, objectType: string): NotifyResultType => NotifyResult({
-        bodyKey: 'TransferRequestBody',
+    pushTransferRequestSend: (transferId: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
+        bodyKey: 'TransferRequestSendBody',
+        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'Transfer',
         languages,
         link: `/transfers/${transferId}`,
         prisma,
-        titleKey: 'TransferRequestTitle',
+        titleKey: 'TransferRequestSendTitle',
+    }),
+    pushTransferRequestReceive: (transferId: string, objectType: string, objectId: string): NotifyResultType => NotifyResult({
+        bodyKey: 'TransferRequestReceiveBody',
+        bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
+        category: 'Transfer',
+        languages,
+        link: `/transfers/${transferId}`,
+        prisma,
+        titleKey: 'TransferRequestReceiveTitle',
     }),
     pushTransferAccepted: (objectType: GraphQLModelType, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'TransferAcceptedTitle',

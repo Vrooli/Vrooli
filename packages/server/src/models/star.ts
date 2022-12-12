@@ -1,5 +1,4 @@
 import { StarFor, StarSortBy } from "@shared/consts";
-import { isObject } from '@shared/utils';
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
@@ -7,75 +6,40 @@ import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
 import { CustomError, Trigger } from "../events";
-import { resolveUnion } from "../endpoints/resolvers";
 import { Star, StarSearchInput, StarInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { readManyHelper } from "../actions";
-import { Displayer, Formatter, GraphQLModelType, Searcher } from "./types";
+import { Displayer, Formatter, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
-import { UserModel } from ".";
-import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
+import { ApiModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
+import { SelectWrap } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
 import { getDelegator } from "../getters";
+import { NoteModel } from "./note";
 
 const __typename = 'Star' as const;
 
-const suppFields = ['to'] as const;
+const suppFields = [] as const;
 const formatter = (): Formatter<Star, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         from: 'User',
-        to: ['Api', 'Comment', 'Issue', 'Note', 'Organization', 'Post', 'Project', 'Question', 'QuestionAnswer', 'Quiz', 'Routine', 'SmartContract', 'Standard', 'Tag', 'User'],
-    },
-    supplemental: {
-        graphqlFields: suppFields,
-        toGraphQL: ({ languages, objects, partial, prisma, userData }) => [
-            ['to', async () => {
-                if (!userData) return new Array(objects.length).fill([]);
-                // Query for data that star is applied to
-                if (isObject(partial.to)) {
-                    const toTypes: GraphQLModelType[] = objects.map(o => resolveUnion(o.to)).filter(t => t);
-                    const toIds = objects.map(x => x.to?.id ?? '') as string[];
-                    // Group ids by types
-                    const toIdsByType: { [x: string]: string[] } = {};
-                    toTypes.forEach((type, i) => {
-                        if (!toIdsByType[type]) toIdsByType[type] = [];
-                        toIdsByType[type].push(toIds[i]);
-                    })
-                    // Query for each type
-                    const tos: any[] = [];
-                    for (const objectType of Object.keys(toIdsByType)) {
-                        const validTypes: GraphQLModelType[] = [
-                            'Comment',
-                            'Organization',
-                            'Project',
-                            'Routine',
-                            'Standard',
-                            'Tag',
-                            'User',
-                        ];
-                        if (!validTypes.includes(objectType as GraphQLModelType)) {
-                            throw new CustomError('0185', 'InternalError', languages, { objectType });
-                        }
-                        const paginated = await readManyHelper({
-                            info: partial.to[objectType] as PartialGraphQLInfo,
-                            input: { ids: toIdsByType[objectType] },
-                            objectType: objectType as GraphQLModelType,
-                            prisma,
-                            req: { languages, users: [userData] }
-                        })
-                        tos.push(...paginated.edges.map(x => x.node));
-                    }
-                    // Apply each "to" to the "to" property of each object
-                    for (const object of objects) {
-                        // Find the correct "to", using object.to.id
-                        const to = tos.find(x => x.id === object.to.id);
-                        object.to = to;
-                    }
-                }
-                return objects;
-            }],
-        ],
+        to: {
+            api: 'Api',
+            comment: 'Comment',
+            issue: 'Issue',
+            note: 'Note',
+            organization: 'Organization',
+            post: 'Post',
+            project: 'Project',
+            question: 'Question',
+            questionAnswer: 'QuestionAnswer',
+            quiz: 'Quiz',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+            tag: 'Tag',
+            user: 'User',
+        }
     },
 })
 
@@ -89,14 +53,23 @@ const searcher = (): Searcher<
     searchFields: [
         'excludeLinkedToTag',
     ],
-    searchStringQuery: ({ insensitive, languages, searchString }) => ({
+    searchStringQuery: () => ({
         OR: [
-            { organization: OrganizationModel.search.searchStringQuery({ insensitive, languages, searchString }) },
-            { project: ProjectModel.search.searchStringQuery({ insensitive, languages, searchString }) },
-            { routine: RoutineModel.search.searchStringQuery({ insensitive, languages, searchString }) },
-            { standard: StandardModel.search.searchStringQuery({ insensitive, languages, searchString }) },
-            { tag: TagModel.search.searchStringQuery({ insensitive, languages, searchString }) },
-            { comment: CommentModel.search.searchStringQuery({ insensitive, languages, searchString }) },
+            { api: ApiModel.search.searchStringQuery() },
+            { comment: CommentModel.search.searchStringQuery() },
+            { issue: IssueModel.search.searchStringQuery() },
+            { note: NoteModel.search.searchStringQuery() },
+            { organization: OrganizationModel.search.searchStringQuery() },
+            { post: PostModel.search.searchStringQuery() },
+            { project: ProjectModel.search.searchStringQuery() },
+            { question: QuestionModel.search.searchStringQuery() },
+            { questionAnswer: QuestionAnswerModel.search.searchStringQuery() },
+            { quiz: QuizModel.search.searchStringQuery() },
+            { routine: RoutineModel.search.searchStringQuery() },
+            { smartContract: SmartContractModel.search.searchStringQuery() },
+            { standard: StandardModel.search.searchStringQuery() },
+            { tag: TagModel.search.searchStringQuery() },
+            { user: UserModel.search.searchStringQuery() },
         ]
     }),
 })

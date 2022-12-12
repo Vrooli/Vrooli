@@ -8,7 +8,7 @@ import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { uuid } from "@shared/uuid";
 import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { onlyValidIds, searchStringBuilder } from "../builders";
+import { onlyValidIds } from "../builders";
 import { bestLabel, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -81,9 +81,14 @@ const searcher = (): Searcher<
         'visibility',
     ],
     sortBy: OrganizationSortBy,
-    searchStringQuery: (params) => ({
-        OR: searchStringBuilder(['translationsBio', 'translationsName', 'tags'], params)
-    }),
+    searchStringQuery: () => ({
+        OR: [
+            'labelsWrapped',
+            'tagsWrapped',
+            'transNameWrapped',
+            'transBioWrapped'
+        ]
+    })
 })
 
 const validator = (): Validator<

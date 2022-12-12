@@ -1,7 +1,6 @@
 import { Prisma } from "@prisma/client";
-import { searchStringBuilder } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { Issue, IssueSearchInput, IssueSortBy } from "../endpoints/types";
+import { Issue, IssueCreateInput, IssuePermission, IssueSearchInput, IssueSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
@@ -9,10 +8,25 @@ import { StarModel } from "./star";
 import { Displayer, Formatter, Searcher } from "./types";
 import { VoteModel } from "./vote";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: IssueCreateInput,
+    GqlModel: Issue,
+    GqlSearch: IssueSearchInput,
+    GqlSort: IssueSortBy,
+    GqlPermission: IssuePermission,
+    PrismaCreate: Prisma.issueUpsertArgs['create'],
+    PrismaUpdate: Prisma.issueUpsertArgs['update'],
+    PrismaModel: Prisma.issueGetPayload<SelectWrap<Prisma.issueSelect>>,
+    PrismaSelect: Prisma.issueSelect,
+    PrismaWhere: Prisma.issueWhereInput,
+}
+
 const __typename = 'Issue' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'permissionsIssue'] as const;
-const formatter = (): Formatter<Issue, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         closedBy: 'User',
@@ -21,7 +35,15 @@ const formatter = (): Formatter<Issue, typeof suppFields> => ({
         labels: 'Label',
         reports: 'Report',
         starredBy: 'User',
-        to: ['Api', 'Organization', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard'],
+        to: {
+            api: 'Api',
+            organization: 'Organization',
+            note: 'Note',
+            project: 'Project',
+            routine: 'Routine',
+            smartContract: 'SmartContract',
+            standard: 'Standard',
+        }
     },
     joinMap: { labels: 'label', starredBy: 'user' },
     countFields: ['commentsCount', 'labelsCount', 'reportsCount', 'translationsCount'],
@@ -35,11 +57,7 @@ const formatter = (): Formatter<Issue, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    IssueSearchInput,
-    IssueSortBy,
-    Prisma.issueWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: IssueSortBy.ScoreDesc,
     sortBy: IssueSortBy,
     searchFields: [
@@ -62,15 +80,10 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: (params) => ({
-        OR: searchStringBuilder(['translationsDescription', 'translationsName'], params),
-    }),
+    searchStringQuery: () => ({ OR: ['transDescriptionWrapped', 'transNameWrapped'] }),
 })
 
-const displayer = (): Displayer<
-    Prisma.issueSelect,
-    Prisma.issueGetPayload<SelectWrap<Prisma.issueSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages)
 })

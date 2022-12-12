@@ -5,7 +5,7 @@ import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
-import { padSelect, permissionsSelectHelper, searchStringBuilder } from "../builders";
+import { padSelect, permissionsSelectHelper } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -57,10 +57,12 @@ const searcher = (): Searcher<
         'updatedTimeFrame',
         'visibility',
     ],
-    searchStringQuery: (params) => ({
+    searchStringQuery: () => ({
         OR: [
-            ...searchStringBuilder(['translationsDescription', 'translationsName'], params),
-            { root: searchStringBuilder(['tags'], params)[0] },
+            'transDescriptionWrapped',
+            'transNameWrapped',
+            { root: 'tagsWrapped' },
+            { root: 'labelsWrapped' },
         ]
     }),
 })

@@ -6,7 +6,10 @@ import { GraphQLModelType, RelationshipMap } from "../models/types";
  * @param relationshipMap - Mapping of GraphQL union field names to Prisma object field names
  * @returns partialInfo object with union fields added
  */
-export const constructRelationships = <GraphQLModel>(partialInfo: { [x: string]: any }, relationshipMap: RelationshipMap<GraphQLModel>): { [x: string]: any } => {
+export const constructUnions = <
+    GQLObject extends { [x: string]: any },
+    PrismaObject extends { [x: string]: any }
+>(partialInfo: { [x: string]: any }, relationshipMap: RelationshipMap<GQLObject, PrismaObject>): { [x: string]: any } => {
     // Create result object
     let result: { [x: string]: any } = partialInfo;
     // Any value in the relationshipMap which is an array is a union. 

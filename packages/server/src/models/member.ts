@@ -1,15 +1,32 @@
 import { PrismaType } from "../types";
-import { Member } from "../endpoints/types";
+import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from "../endpoints/types";
 import { Displayer, Formatter } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlUpdate: MemberUpdateInput,
+    GqlRelUpdate: MemberUpdateInput,
+    GqlModel: Member,
+    GqlSearch: MemberSearchInput,
+    GqlSort: MemberSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.memberUpsertArgs['create'],
+    PrismaUpdate: Prisma.memberUpsertArgs['update'],
+    PrismaRelUpdate: Prisma.memberUpdateWithoutOrganizationInput,
+    PrismaModel: Prisma.memberGetPayload<SelectWrap<Prisma.memberSelect>>,
+    PrismaSelect: Prisma.memberSelect,
+    PrismaWhere: Prisma.memberWhereInput,
+}
+
 const __typename = 'Member' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Member, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         organization: 'Organization',
@@ -17,10 +34,7 @@ const formatter = (): Formatter<Member, typeof suppFields> => ({
     }
 })
 
-const displayer = (): Displayer<
-    Prisma.memberSelect,
-    Prisma.memberGetPayload<SelectWrap<Prisma.memberSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         user: padSelect(UserModel.display.select),
