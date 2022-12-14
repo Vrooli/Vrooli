@@ -10,14 +10,10 @@ type Model = {
     IsVersioned: false,
     GqlCreate: NodeLinkWhenCreateInput,
     GqlUpdate: NodeLinkWhenUpdateInput,
-    GqlRelCreate: NodeLinkWhenCreateInput,
-    GqlRelUpdate: NodeLinkWhenUpdateInput,
     GqlModel: NodeLinkWhen,
     GqlPermission: any,
     PrismaCreate: Prisma.node_link_whenUpsertArgs['create'],
     PrismaUpdate: Prisma.node_link_whenUpsertArgs['update'],
-    PrismaRelCreate: Prisma.node_link_whenCreateWithoutLinkInput,
-    PrismaRelUpdate: Prisma.node_link_whenUpdateWithoutLinkInput,
     PrismaModel: Prisma.node_link_whenGetPayload<SelectWrap<Prisma.node_link_whenSelect>>,
     PrismaSelect: Prisma.node_link_whenSelect,
     PrismaWhere: Prisma.node_link_whenWhereInput,
@@ -40,13 +36,13 @@ const relBase = async (prisma: PrismaType, userData: SessionUser, data: NodeLink
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        relCreate: async ({ data, prisma, userData }) => {
+        create: async ({ data, prisma, userData }) => {
             return {
                 ...await relBase(prisma, userData, data, true),
                 condition: data.condition,
             }
         },
-        relUpdate: async ({ data, prisma, userData }) => {
+        update: async ({ data, prisma, userData }) => {
             return {
                 ...await relBase(prisma, userData, data, false),
                 condition: data.condition ?? undefined,

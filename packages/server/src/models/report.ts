@@ -15,10 +15,26 @@ import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: ReportCreateInput,
+    GqlUpdate: ReportUpdateInput,
+    GqlModel: Report,
+    GqlSearch: ReportSearchInput,
+    GqlSort: ReportSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.reportUpsertArgs['create'],
+    PrismaUpdate: Prisma.reportUpsertArgs['update'],
+    PrismaModel: Prisma.reportGetPayload<SelectWrap<Prisma.reportSelect>>,
+    PrismaSelect: Prisma.reportSelect,
+    PrismaWhere: Prisma.reportWhereInput,
+}
+
 const __typename = 'Report' as const;
 
 const suppFields = ['isOwn'] as const;
-const formatter = (): Formatter<Report, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: { __typename },
     hiddenFields: ['userId'], // Always hide report creator
     supplemental: {
@@ -30,11 +46,7 @@ const formatter = (): Formatter<Report, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    ReportSearchInput,
-    ReportSortBy,
-    Prisma.reportWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: ReportSortBy.DateCreatedDesc,
     sortBy: ReportSortBy,
     searchFields: [
@@ -77,16 +89,7 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] }
     User: "user",
 }
 
-const validator = (): Validator<
-    ReportCreateInput,
-    ReportUpdateInput,
-    Prisma.reportGetPayload<SelectWrap<Prisma.reportSelect>>,
-    any,
-    Prisma.reportSelect,
-    Prisma.reportWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Report',
     },
@@ -99,9 +102,9 @@ const validator = (): Validator<
         Organization: 0,
     },
     permissionsSelect: (...params) => ({ id: true, createdBy: { select: UserModel.validate.permissionsSelect(...params) } }),
-    permissionResolvers: ({ isAdmin }) => ([
-        ['isOwn', async () => isAdmin],
-    ]),
+    permissionResolvers: ({ isAdmin }) => ({
+        isOwn: async () => isAdmin,
+    }),
     owner: (data) => ({
         User: data.createdBy,
     }),
@@ -131,13 +134,7 @@ const validator = (): Validator<
     }
 })
 
-const mutater = (): Mutater<
-    Report,
-    { graphql: ReportCreateInput, db: Prisma.reportUpsertArgs['create'] },
-    { graphql: ReportUpdateInput, db: Prisma.reportUpsertArgs['update'] },
-    false,
-    false
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, userData }) => {
             return {
@@ -167,10 +164,7 @@ const mutater = (): Mutater<
     yup: { create: reportsCreate, update: reportsUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.reportSelect,
-    Prisma.reportGetPayload<SelectWrap<Prisma.reportSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         // apiVersion: padSelect(ApiModel.display.select),

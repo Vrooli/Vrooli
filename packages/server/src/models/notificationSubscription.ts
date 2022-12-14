@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NotificationSubscription } from "../endpoints/types";
+import { NotificationSubscription, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { CommentModel } from "./comment";
@@ -18,10 +18,24 @@ import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
 import { Displayer, Formatter } from "./types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlModel: NotificationSubscription,
+    GqlSearch: NotificationSubscriptionSearchInput,
+    GqlSort: NotificationSubscriptionSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.notification_subscriptionUpsertArgs['create'],
+    PrismaUpdate: Prisma.notification_subscriptionUpsertArgs['update'],
+    PrismaModel: Prisma.notification_subscriptionGetPayload<SelectWrap<Prisma.notification_subscriptionSelect>>,
+    PrismaSelect: Prisma.notification_subscriptionSelect,
+    PrismaWhere: Prisma.notification_subscriptionWhereInput,
+}
+
 const __typename = 'NotificationSubscription' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<NotificationSubscription, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         object: {
@@ -59,10 +73,7 @@ export const subscriberMapper: { [x: string]: string } = {
     Standard: 'standard',
 }
 
-const displayer = (): Displayer<
-    Prisma.notification_subscriptionSelect,
-    Prisma.notification_subscriptionGetPayload<SelectWrap<Prisma.notification_subscriptionSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         api: { select: ApiModel.display.select() },

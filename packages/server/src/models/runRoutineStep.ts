@@ -7,10 +7,24 @@ import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: RunRoutineStepCreateInput,
+    GqlUpdate: RunRoutineStepUpdateInput,
+    GqlModel: RunRoutineStep,
+    GqlPermission: any,
+    PrismaCreate: Prisma.run_routine_stepUpsertArgs['create'],
+    PrismaUpdate: Prisma.run_routine_stepUpsertArgs['update'],
+    PrismaModel: Prisma.run_routine_stepGetPayload<SelectWrap<Prisma.run_routine_stepSelect>>,
+    PrismaSelect: Prisma.run_routine_stepSelect,
+    PrismaWhere: Prisma.run_routine_stepWhereInput,
+}
+
 const __typename = 'RunRoutineStep' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<RunRoutineStep, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         run: 'RunRoutine',
@@ -19,16 +33,7 @@ const formatter = (): Formatter<RunRoutineStep, typeof suppFields> => ({
     },
 })
 
-const validator = (): Validator<
-    RunRoutineStepCreateInput,
-    RunRoutineStepUpdateInput,
-    Prisma.run_routine_stepGetPayload<SelectWrap<Prisma.run_routine_stepSelect>>,
-    any,
-    Prisma.run_routine_stepSelect,
-    Prisma.run_routine_stepWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'RunRoutine',
         node: 'Node',
@@ -40,11 +45,11 @@ const validator = (): Validator<
     permissionsSelect: (...params) => ({
         runRoutine: { select: RunRoutineModel.validate.permissionsSelect(...params) }
     }),
-    permissionResolvers: ({ isAdmin, isPublic }) => ([
-        ['canDelete', async () => isAdmin],
-        ['canEdit', async () => isAdmin],
-        ['canView', async () => isPublic],
-    ]),
+    permissionResolvers: ({ isAdmin, isPublic }) => ({
+        canDelete: async () => isAdmin,
+        canEdit: async () => isAdmin,
+        canView: async () => isPublic,
+    }),
     profanityFields: ['name'],
     owner: (data) => RunRoutineModel.validate.owner(data.runRoutine as any),
     isDeleted: () => false,
@@ -67,15 +72,9 @@ const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) 
 /**
  * Handles mutations of run steps
  */
-const mutater = (): Mutater<
-    RunRoutineStep,
-    false,
-    false,
-    { graphql: RunRoutineStepCreateInput, db: Prisma.run_routine_stepCreateWithoutRunRoutineInput },
-    { graphql: RunRoutineStepUpdateInput, db: Prisma.run_routine_stepUpdateWithoutRunRoutineInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
-        relCreate: async ({ data, userData }) => {
+        create: async ({ data, userData }) => {
             return {
                 ...shapeBase(data),
                 nodeId: data.nodeId,
@@ -86,7 +85,7 @@ const mutater = (): Mutater<
                 name: data.name,
             }
         },
-        relUpdate: async ({ data, userData }) => {
+        update: async ({ data, userData }) => {
             return {
                 ...shapeBase(data),
                 status: data.status ?? undefined,
@@ -96,10 +95,7 @@ const mutater = (): Mutater<
     yup: { create: stepsCreate, update: stepsUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.run_routine_stepSelect,
-    Prisma.run_routine_stepGetPayload<SelectWrap<Prisma.run_routine_stepSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, name: true }),
     label: (select) => select.name,
 })

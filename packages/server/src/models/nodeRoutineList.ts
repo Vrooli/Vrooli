@@ -12,14 +12,10 @@ type Model = {
     IsVersioned: false,
     GqlCreate: NodeRoutineListCreateInput,
     GqlUpdate: NodeRoutineListUpdateInput,
-    GqlRelCreate: NodeRoutineListCreateInput,
-    GqlRelUpdate: NodeRoutineListUpdateInput,
     GqlModel: NodeRoutineList,
     GqlPermission: any,
     PrismaCreate: Prisma.node_routine_listUpsertArgs['create'],
     PrismaUpdate: Prisma.node_routine_listUpsertArgs['update'],
-    PrismaRelCreate: Prisma.node_routine_listCreateWithoutNodeInput,
-    PrismaRelUpdate: Prisma.node_routine_listUpdateWithoutNodeInput,
     PrismaModel: Prisma.node_routine_listGetPayload<SelectWrap<Prisma.node_routine_listSelect>>,
     PrismaSelect: Prisma.node_routine_listSelect,
     PrismaWhere: Prisma.node_routine_listWhereInput,
@@ -37,7 +33,7 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        relCreate: async ({ data, prisma, userData }) => {
+        create: async ({ data, prisma, userData }) => {
             return {
                 id: data.id,
                 isOrdered: data.isOrdered ?? undefined,
@@ -45,7 +41,7 @@ const mutater = (): Mutater<Model> => ({
                 routines: await relBuilderHelper({ data, isAdd: true, isRequired: false, isOneToOne: false, relationshipName: 'routines', objectType: 'NodeRoutineListItem', prisma, userData }),
             }
         },
-        relUpdate: async ({ data, prisma, userData }) => {
+        update: async ({ data, prisma, userData }) => {
             return {
                 isOrdered: data.isOrdered ?? undefined,
                 isOptional: data.isOptional ?? undefined,

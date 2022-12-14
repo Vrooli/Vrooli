@@ -89,6 +89,8 @@ export type PrismaUpdate = {
     [x: string]: boolean | string | number | PrismaUpdateInside
 }
 
+export type RelationshipType = 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Update';
+
 /**
  * Generic Prisma model type. Useful for helper functions that work with any model
  */
@@ -183,102 +185,11 @@ export type ExistsArrayProps = {
     where: { [x: string]: any },
 }
 
-export type RelationshipTypes = 'Connect' | 'Disconnect' | 'Create' | 'Update' | 'Delete';
-
-export interface RelationshipBuilderHelperArgs<
-    IDField extends string,
-    IsAdd extends boolean,
-    IsOneToOne extends boolean,
-    IsRequired extends boolean,
-    RelName extends string,
-    Input extends { [key in RelName]: any },
-> {
-    /**
-     * The data to convert
-     */
-    data: Input,
-    /**
-     * The name of the relationship to convert. This is required because we're grabbing the 
-     * relationship from its parent object
-     */
-    relationshipName: RelName,
-    /**
-     * True if we're creating the parent object, instead of updating it. Adding limits 
-     * the types of Prisma operations we can perform
-     */
-    isAdd: IsAdd,
-    /**
-     * True if object can be transferred to another parent object. Some cases where this is false are 
-     * emails, phone numbers, etc.
-     */
-    isTransferable?: boolean,
-    /**
-     * True if relationship is one-to-one
-     */
-    isOneToOne?: IsOneToOne,
-    /**
-     * True if relationship must be provided
-     */
-    isRequired?: IsRequired,
-    /**
-     * If true: 
-     * 1. Object is assumed to be versionable
-     * 2. Links the relationship to a version, rather than the root object
-     */
-    linkVersion?: boolean,
-    /**
-     * Fields to exclude from the relationship data. This can be handled in the shape fields as well,
-     * but this is more convenient
-     */
-    fieldExcludes?: string[],
-    /**
-     * The Prisma client
-     */
-    prisma: PrismaType,
-    /**
-     * Prisma operations to exclude from the relationship data. "isAdd" is often sufficient 
-     * to determine which operations to exclude, sometimes it's also nice to exluce "connect" and 
-     * "disconnect" when we know that a relationship can only be applied to the parent object
-     */
-    relExcludes?: RelationshipTypes[],
-    /**
-     * True if object should be soft-deleted instead of hard-deleted. TODO THIS DOES NOT WORK YET
-     */
-    softDelete?: boolean,
-    /**
-     * The name of the ID field. Defaults to "id"
-     */
-    idField?: IDField,
-    /**
-     * Functions that perform additional formatting on create and update data. This is often 
-     * used to shape grandchildren, great-grandchildren, etc.
-     */
-    shape?: Mutater<any, any, any, { graphql: any, db: any }, { graphql: any, db: any }>['shape'];
-    /**
-     * Session data of the user performing the operation. Relationship building is only used when performing 
-     * create, update, and delete operations, so id is always required
-     */
-    userData: SessionUser,
-    /**
-     * If relationship is a join table, data required to create the join table record
-     * 
-     * NOTE: Does not differentiate between a disconnect and a delete. How these are handled is 
-     * determined by the database cascading.
-     */
-    joinData?: {
-        fieldName: string, // e.g. organization.tags.tag => 'tag'
-        uniqueFieldName: string, // e.g. organization.tags.tag => 'organization_tags_taggedid_tagTag_unique'
-        childIdFieldName: string, // e.g. organization.tags.tag => 'tagTag'
-        parentIdFieldName: string, // e.g. organization.tags.tag => 'taggedId'
-        parentId: string | null, // Only needed if not a create
-    }
-}
-
-type RelConnect<IDField extends string> = { [key in IDField]: string }
-type RelDisconnect<IDField extends string> = { [key in IDField]: string }
-type RelCreate<Shaped extends { [x: string]: any }> = Shaped
-type RelUpdate<Shaped extends { [x: string]: any }, IDField extends string> = { where: { [key in IDField]: string }, data: Shaped }
-type RelDelete<IDField extends string> = { [key in IDField]: string }
+export type RelConnect<IDField extends string> = { [key in IDField]: string }
+export type RelDisconnect<IDField extends string> = { [key in IDField]: string }
+export type RelCreate<Shaped extends { [x: string]: any }> = Shaped
+export type RelUpdate<Shaped extends { [x: string]: any }, IDField extends string> = { where: { [key in IDField]: string }, data: Shaped }
+export type RelDelete<IDField extends string> = { [key in IDField]: string }
 
 // Optional if IsRequired is false
 type MaybeOptional<T extends { [x: string]: any }, IsRequired extends boolean> =

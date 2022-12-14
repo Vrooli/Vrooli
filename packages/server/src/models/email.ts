@@ -11,12 +11,10 @@ type Model = {
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: EmailCreateInput,
-    GqlRelCreate: EmailCreateInput,
     GqlModel: Email,
     GqlPermission: any,
     PrismaCreate: Prisma.emailUpsertArgs['create'],
     PrismaUpdate: Prisma.emailUpsertArgs['update'],
-    PrismaRelCreate: Prisma.emailCreateWithoutUserInput,
     PrismaModel: Prisma.emailGetPayload<SelectWrap<Prisma.emailSelect>>,
     PrismaSelect: Prisma.emailSelect,
     PrismaWhere: Prisma.emailWhereInput,
@@ -45,10 +43,10 @@ const validator = (): Validator<Model> => ({
         Organization: 0,
     },
     permissionsSelect: (...params) => ({ id: true, user: { select: UserModel.validate.permissionsSelect(...params) } }),
-    permissionResolvers: ({ isAdmin }) => ([
-        ['canDelete', async () => isAdmin],
-        ['canEdit', async () => isAdmin],
-    ]),
+    permissionResolvers: ({ isAdmin }) => ({
+        canDelete: async () => isAdmin,
+        canEdit: async () => isAdmin,
+    }),
     owner: (data) => ({
         User: data.user,
     }),
@@ -92,7 +90,6 @@ const mutater = (): Mutater<Model> => ({
                 emailAddress: data.emailAddress,
             }
         },
-        relCreate: (...args) => mutater().shape.create(...args),
     },
     trigger: {
         onCreated: ({ prisma, userData }) => {

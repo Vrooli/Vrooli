@@ -8,15 +8,51 @@ import { Prisma } from "@prisma/client";
 import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: TagCreateInput,
+    GqlUpdate: TagUpdateInput,
+    GqlModel: Tag,
+    GqlSearch: TagSearchInput,
+    GqlSort: TagSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.tagUpsertArgs['create'],
+    PrismaUpdate: Prisma.tagUpsertArgs['update'],
+    PrismaModel: Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>,
+    PrismaSelect: Prisma.tagSelect,
+    PrismaWhere: Prisma.tagWhereInput,
+}
+
 const __typename = 'Tag' as const;
 
 const suppFields = ['isOwn', 'isStarred'] as const;
-const formatter = (): Formatter<Tag, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
+        apis: 'Api',
+        notes: 'Note',
+        organizations: 'Organization',
+        posts: 'Post',
+        projects: 'Project',
+        reports: 'Report',
+        routines: 'Routine',
+        smartContracts: 'SmartContract',
+        standards: 'Standard',
         starredBy: 'User',
     },
-    joinMap: { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' },
+    joinMap: {
+        apis: 'tagged',
+        notes: 'tagged',
+        organizations: 'tagged',
+        posts: 'tagged',
+        projects: 'tagged',
+        reports: 'tagged',
+        routines: 'tagged',
+        smartContracts: 'tagged',
+        standards: 'tagged',
+        starredBy: 'user'
+    },
     supplemental: {
         graphqlFields: suppFields,
         dbFields: ['createdByUserId', 'id'],
@@ -27,11 +63,7 @@ const formatter = (): Formatter<Tag, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    TagSearchInput,
-    TagSortBy,
-    Prisma.tagWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: TagSortBy.StarsDesc,
     sortBy: TagSortBy,
     searchFields: [
@@ -50,16 +82,7 @@ const searcher = (): Searcher<
     }),
 })
 
-const validator = (): Validator<
-    TagCreateInput,
-    TagUpdateInput,
-    Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>,
-    any,
-    Prisma.tagSelect,
-    Prisma.tagWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: { __typename: 'Tag' },
     isTransferable: false,
     maxObjects: {
@@ -67,7 +90,7 @@ const validator = (): Validator<
         Organization: 0,
     },
     permissionsSelect: () => ({ id: true }),
-    permissionResolvers: () => [],
+    permissionResolvers: () => ({}),
     owner: () => ({}),
     isDeleted: () => false,
     isPublic: () => true,
@@ -87,13 +110,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCre
     }
 }
 
-const mutater = (): Mutater<
-    Tag,
-    { graphql: TagCreateInput, db: Prisma.tagUpsertArgs['create'] },
-    { graphql: TagUpdateInput, db: Prisma.tagUpsertArgs['update'] },
-    false,
-    false
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, true),
         update: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, false),
@@ -101,10 +118,7 @@ const mutater = (): Mutater<
     yup: { create: tagsCreate, update: tagsUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.tagSelect,
-    Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, tag: true }),
     label: (select) => select.tag,
 })

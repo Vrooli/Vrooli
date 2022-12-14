@@ -16,6 +16,22 @@ import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelp
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 
+type Model = {
+    IsTransferable: true,
+    IsVersioned: true,
+    GqlCreate: RoutineCreateInput,
+    GqlUpdate: RoutineUpdateInput,
+    GqlModel: Routine,
+    GqlSearch: RoutineSearchInput,
+    GqlSort: RoutineSortBy,
+    GqlPermission: RoutinePermission,
+    PrismaCreate: Prisma.routineUpsertArgs['create'],
+    PrismaUpdate: Prisma.routineUpsertArgs['update'],
+    PrismaModel: Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
+    PrismaSelect: Prisma.routineSelect,
+    PrismaWhere: Prisma.routineWhereInput,
+}
+
 type NodeWeightData = {
     simplicity: number,
     complexity: number,
@@ -26,7 +42,7 @@ type NodeWeightData = {
 const __typename = 'Routine' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoutine', 'runs'] as const;
-const formatter = (): Formatter<Routine, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         comments: 'Comment',
@@ -85,11 +101,7 @@ const formatter = (): Formatter<Routine, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    RoutineSearchInput,
-    RoutineSortBy,
-    Prisma.routineWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: RoutineSortBy.ScoreDesc,
     sortBy: RoutineSortBy,
     searchFields: [
@@ -127,16 +139,7 @@ const searcher = (): Searcher<
     })
 })
 
-const validator = (): Validator<
-    RoutineCreateInput,
-    RoutineUpdateInput,
-    Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
-    RoutinePermission,
-    Prisma.routineSelect,
-    Prisma.routineWhereInput,
-    true,
-    true
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Routine',
         parent: 'Routine',
@@ -199,16 +202,16 @@ const validator = (): Validator<
             }
         }
     }),
-    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
-        ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canDelete', async () => isAdmin && !isDeleted],
-        ['canEdit', async () => isAdmin && !isDeleted],
-        ['canReport', async () => !isAdmin && !isDeleted && isPublic],
-        ['canRun', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canView', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
-    ]),
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+        canComment: async () => !isDeleted && (isAdmin || isPublic),
+        canDelete: async () => isAdmin && !isDeleted,
+        canEdit: async () => isAdmin && !isDeleted,
+        canReport: async () => !isAdmin && !isDeleted && isPublic,
+        canRun: async () => !isDeleted && (isAdmin || isPublic),
+        canStar: async () => !isDeleted && (isAdmin || isPublic),
+        canView: async () => !isDeleted && (isAdmin || isPublic),
+        canVote: async () => !isDeleted && (isAdmin || isPublic),
+    }),
     owner: (data) => ({
         Organization: data.ownedByOrganization,
         User: data.ownedByUser,
@@ -698,13 +701,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
 /**
  * Handles authorized creates, updates, and deletes
  */
-const mutater = (): Mutater<
-    Routine,
-    { graphql: RoutineCreateInput, db: Prisma.routineUpsertArgs['create'] },
-    { graphql: RoutineUpdateInput, db: Prisma.routineUpsertArgs['update'] },
-    { graphql: RoutineCreateInput, db: Prisma.routineCreateWithoutTransfersInput },
-    { graphql: RoutineUpdateInput, db: Prisma.routineUpdateWithoutTransfersInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             const [simplicity, complexity] = await calculateComplexity(prisma, userData.languages, data);
@@ -772,8 +769,6 @@ const mutater = (): Mutater<
                 },
             }
         },
-        relCreate: (...args) => mutater().shape.create(...args),
-        relUpdate: (...args) => mutater().shape.update(...args),
     },
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
@@ -817,10 +812,7 @@ const mutater = (): Mutater<
     yup: { create: routinesCreate, update: routinesUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.routineSelect,
-    Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         versions: {

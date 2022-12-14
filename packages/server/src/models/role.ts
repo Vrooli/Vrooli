@@ -1,14 +1,28 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Role } from "../endpoints/types";
+import { Role, RoleCreateInput, RoleUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { Displayer, Formatter } from "./types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: RoleCreateInput,
+    GqlUpdate: RoleUpdateInput,
+    GqlModel: Role,
+    GqlPermission: any,
+    PrismaCreate: Prisma.roleUpsertArgs['create'],
+    PrismaUpdate: Prisma.roleUpsertArgs['update'],
+    PrismaModel: Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>,
+    PrismaSelect: Prisma.roleSelect,
+    PrismaWhere: Prisma.roleWhereInput,
+}
+
 const __typename = 'Role' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Role, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         assignees: 'User',
@@ -17,10 +31,7 @@ const formatter = (): Formatter<Role, typeof suppFields> => ({
     joinMap: { assignees: 'user' },
 })
 
-const displayer = (): Displayer<
-    Prisma.roleSelect,
-    Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ 
         id: true, 
         name: true,

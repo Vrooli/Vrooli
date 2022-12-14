@@ -12,10 +12,26 @@ import { onlyValidIds } from "../builders";
 import { bestLabel, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: OrganizationCreateInput,
+    GqlUpdate: OrganizationUpdateInput,
+    GqlModel: Organization,
+    GqlSearch: OrganizationSearchInput,
+    GqlSort: OrganizationSortBy,
+    GqlPermission: OrganizationPermission,
+    PrismaCreate: Prisma.organizationUpsertArgs['create'],
+    PrismaUpdate: Prisma.organizationUpsertArgs['update'],
+    PrismaModel: Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>,
+    PrismaSelect: Prisma.organizationSelect,
+    PrismaWhere: Prisma.organizationWhereInput,
+}
+
 const __typename = 'Organization' as const;
 
 const suppFields = ['isStarred', 'isViewed', 'permissionsOrganization'] as const;
-const formatter = (): Formatter<Organization, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         apis: 'Api',
@@ -57,11 +73,7 @@ const formatter = (): Formatter<Organization, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    OrganizationSearchInput,
-    OrganizationSortBy,
-    Prisma.organizationWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: OrganizationSortBy.StarsDesc,
     searchFields: [
         'createdTimeFrame',
@@ -91,16 +103,7 @@ const searcher = (): Searcher<
     })
 })
 
-const validator = (): Validator<
-    OrganizationCreateInput,
-    OrganizationUpdateInput,
-    Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>,
-    OrganizationPermission,
-    Prisma.organizationSelect,
-    Prisma.organizationWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename,
         members: 'Member',
@@ -152,14 +155,14 @@ const validator = (): Validator<
             }
         } : {}),
     }),
-    permissionResolvers: ({ isAdmin, isPublic }) => ([
-        ['canAddMembers', async () => isAdmin],
-        ['canDelete', async () => isAdmin],
-        ['canEdit', async () => isAdmin],
-        ['canReport', async () => !isAdmin && isPublic],
-        ['canStar', async () => isAdmin || isPublic],
-        ['canView', async () => isAdmin || isPublic],
-    ]),
+    permissionResolvers: ({ isAdmin, isPublic }) => ({
+        // canAddMembers: async () => isAdmin,
+        // canDelete: async () => isAdmin,
+        // canEdit: async () => isAdmin,
+        // canReport: async () => !isAdmin && isPublic,
+        // canStar: async () => isAdmin || isPublic,
+        // canView: async () => isAdmin || isPublic,
+    } as any),
     owner: (data) => ({
         Organization: data,
     }),
@@ -269,13 +272,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Organi
     }
 }
 
-const mutater = (): Mutater<
-    Organization,
-    { graphql: OrganizationCreateInput, db: Prisma.organizationUpsertArgs['create'] },
-    { graphql: OrganizationUpdateInput, db: Prisma.organizationUpsertArgs['update'] },
-    false,
-    false
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             // ID for organization
@@ -311,10 +308,7 @@ const mutater = (): Mutater<
     yup: { create: organizationsCreate, update: organizationsUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.organizationSelect,
-    Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })

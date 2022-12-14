@@ -10,6 +10,6 @@ export * from './searchMap';
 export * from './searchStringMap';
 export * from './setupDatabase';
 export * from './sortMap';
-export * from './tagRelationshipBuilder';
-export * from './translationRelationshipBuilder';
+export * from './tagShapeHelper';
+export * from './translationShapeHelper';
 export * from './setupDatabase';

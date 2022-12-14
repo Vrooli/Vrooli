@@ -37,6 +37,15 @@ export const typeDef = gql`
         isOwn: Boolean!
         starredBy: [User!]!
         translations: [TagTranslation!]!
+        apis: [Api!]!
+        notes: [Note!]!
+        organizations: [Organization!]!
+        posts: [Post!]!
+        projects: [Project!]!
+        reports: [Report!]!
+        routines: [Routine!]!
+        smartContracts: [SmartContract!]!
+        standards: [Standard!]!
     }
 
     input TagTranslationCreateInput {

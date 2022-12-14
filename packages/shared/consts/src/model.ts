@@ -180,15 +180,38 @@ export enum RoutineSortBy {
     DateUpdatedAsc = "DateUpdatedAsc",
 }
 
-export enum RunSortBy {
-    DateStartedAsc = "DateStartedAsc",
-    DateStartedDesc = "DateStartedDesc",
-    DateCompletedAsc = "DateCompletedAsc",
-    DateCompletedDesc = "DateCompletedDesc",
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc",
+export enum RunProjectSortBy {
+    ContextSwitchesAsc = 'ContextSwitchesAsc',
+    ContextSwitchesDesc = 'ContextSwitchesDesc',
+    DateStartedAsc = 'DateStartedAsc',
+    DateStartedDesc = 'DateStartedDesc',
+    DateCompletedAsc = 'DateCompletedAsc',
+    DateCompletedDesc = 'DateCompletedDesc',
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc = 'DateUpdatedDesc',
+    RunRoutinesAsc = 'RunRoutinesAsc',
+    RunRoutinesDesc = 'RunRoutinesDesc',
+    StepsAsc = 'StepsAsc',
+    StepsDesc = 'StepsDesc'
+}
+
+export enum RunRoutineSortBy {
+    ContextSwitchesAsc = 'ContextSwitchesAsc',
+    ContextSwitchesDesc = 'ContextSwitchesDesc',
+    DateStartedAsc = 'DateStartedAsc',
+    DateStartedDesc = 'DateStartedDesc',
+    DateCompletedAsc = 'DateCompletedAsc',
+    DateCompletedDesc = 'DateCompletedDesc',
+    DateCreatedAsc = 'DateCreatedAsc',
+    DateCreatedDesc = 'DateCreatedDesc',
+    DateUpdatedAsc = 'DateUpdatedAsc',
+    DateUpdatedDesc = 'DateUpdatedDesc',
+    RunRoutinesAsc = 'RunRoutinesAsc',
+    RunRoutinesDesc = 'RunRoutinesDesc',
+    StepsAsc = 'StepsAsc',
+    StepsDesc = 'StepsDesc'
 }
 
 export enum StandardSortBy {

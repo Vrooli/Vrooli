@@ -9,10 +9,25 @@ import { profilesUpdate } from "@shared/validation";
 import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlUpdate: ProfileUpdateInput,
+    GqlModel: User,
+    GqlSearch: UserSearchInput,
+    GqlSort: UserSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.userUpsertArgs['create'],
+    PrismaUpdate: Prisma.userUpsertArgs['update'],
+    PrismaModel: Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>,
+    PrismaSelect: Prisma.userSelect,
+    PrismaWhere: Prisma.userWhereInput,
+}
+
 const __typename = 'User' as const;
 
 const suppFields = ['isStarred', 'isViewed'] as const;
-const formatter = (): Formatter<User, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename: 'User',
         comments: 'Comment',
@@ -35,11 +50,7 @@ const formatter = (): Formatter<User, typeof suppFields> => ({
     },
 })
 
-export const searcher = (): Searcher<
-    UserSearchInput,
-    UserSortBy,
-    Prisma.userWhereInput
-> => ({
+export const searcher = (): Searcher<Model> => ({
     defaultSort: UserSortBy.StarsDesc,
     sortBy: UserSortBy,
     searchFields: [
@@ -58,16 +69,7 @@ export const searcher = (): Searcher<
     }),
 })
 
-const validator = (): Validator<
-    any,
-    any,
-    Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>,
-    any,
-    Prisma.userSelect,
-    Prisma.userWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'User',
         projects: 'Project',
@@ -82,7 +84,7 @@ const validator = (): Validator<
         isPrivate: true,
         languages: { select: { language: true } },
     }),
-    permissionResolvers: () => [],
+    permissionResolvers: () => ({}),
     owner: (data) => ({ User: data }),
     isDeleted: () => false,
     isPublic: (data) => data.isPrivate === false,
@@ -95,13 +97,7 @@ const validator = (): Validator<
     // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
 })
 
-const mutater = (): Mutater<
-    User,
-    false,
-    { graphql: ProfileUpdateInput, db: Prisma.userUpsertArgs['update'] },
-    false,
-    false
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         update: async ({ data, prisma, userData }) => {
             return {
@@ -120,10 +116,7 @@ const mutater = (): Mutater<
     yup: { update: profilesUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.userSelect,
-    Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, name: true }),
     label: (select) => select.name ?? '',
 })

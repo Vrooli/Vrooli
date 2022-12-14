@@ -5,8 +5,8 @@ export const typeDef = gql`
         id: ID!
         whens: [NodeLinkWhenCreateInput!]
         operation: String
-        fromId: ID!
-        toId: ID!
+        fromConnect: ID!
+        toConnect: ID!
     }
     input NodeLinkUpdateInput {
         id: ID!
@@ -14,8 +14,8 @@ export const typeDef = gql`
         whensUpdate: [NodeLinkWhenUpdateInput!]
         whensDelete: [ID!]
         operation: String
-        fromId: ID
-        toId: ID
+        fromConnect: ID
+        toConnect: ID
     }
     type NodeLink{
         id: ID!

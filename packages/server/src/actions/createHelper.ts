@@ -3,8 +3,8 @@ import { CustomError } from "../events";
 import { RecursivePartial } from "../types";
 import { cudHelper } from "./cudHelper";
 import { CreateHelperProps } from "./types";
-import { getFormatter } from "../getters";
 import { addSupplementalFields, toPartialGraphQLInfo } from "../builders";
+import { getLogic } from "../getters";
 
 /**
  * Helper function for creating one object in a single line.
@@ -21,10 +21,10 @@ export async function createHelper<GraphQLModel>({
     console.log('create a');
     const userData = assertRequestFrom(req, { isUser: true });
     console.log('create b');
-    const formatter = getFormatter(objectType, req.languages, 'createHelper');
+    const { format } = getLogic(['format'], objectType, req.languages, 'createHelper');
     console.log('create c');
     // Partially convert info type
-    const partialInfo = toPartialGraphQLInfo(info, formatter.relationshipMap, req.languages, true);
+    const partialInfo = toPartialGraphQLInfo(info, format.relationshipMap, req.languages, true);
     console.log('create d');
     // Create objects. cudHelper will check permissions
     const cudResult = await cudHelper({ createMany: [input], objectType, partialInfo, prisma, userData });

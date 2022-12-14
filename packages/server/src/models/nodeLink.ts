@@ -3,7 +3,7 @@ import { PrismaType } from "../types";
 import { Displayer, Formatter, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { relBuilderHelper } from "../actions";
-import { padSelect } from "../builders";
+import { padSelect, shapeCon } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
 
@@ -12,14 +12,10 @@ type Model = {
     IsVersioned: false,
     GqlCreate: NodeLinkCreateInput,
     GqlUpdate: NodeLinkUpdateInput,
-    GqlRelCreate: NodeLinkCreateInput,
-    GqlRelUpdate: NodeLinkUpdateInput,
     GqlModel: NodeLink,
     GqlPermission: any,
     PrismaCreate: Prisma.node_linkUpsertArgs['create'],
     PrismaUpdate: Prisma.node_linkUpsertArgs['update'],
-    PrismaRelCreate: Prisma.node_linkCreateWithoutRoutineVersionInput,
-    PrismaRelUpdate: Prisma.node_linkUpdateWithoutRoutineVersionInput,
     PrismaModel: Prisma.node_linkGetPayload<SelectWrap<Prisma.node_linkSelect>>,
     PrismaSelect: Prisma.node_linkSelect,
     PrismaWhere: Prisma.node_linkWhereInput,
@@ -37,22 +33,23 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        relCreate: async ({ prisma, userData, data }) => {
+        create: async ({ prisma, userData, data }) => {
             let { fromId, toId, ...rest } = data;
+            let temp = shapeCon(data, ['to'], true, true)
             return {
                 ...rest,
+                ...shapeCon(data, ['from'], true, true),
+                ...shapeCon(data, ['to'], true, true),
                 whens: await relBuilderHelper({ data, isAdd: true, isOneToOne: false, isRequired: false, relationshipName: 'whens', objectType: 'Routine', prisma, userData }),
-                from: { connect: { id: fromId } },
-                to: { connect: { id: toId } },
             }
         },
-        relUpdate: async ({ prisma, userData, data }) => {
-            let { fromId, toId, ...rest } = data;
+        update: async ({ prisma, userData, data }) => {
+            let { fromConnect, toConnect, ...rest } = data;
             return {
                 ...rest,
+                ...shapeCon(data, ['from'], false, false),
+                ...shapeCon(data, ['to'], false, false),
                 whens: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'whens', objectType: 'Routine', prisma, userData }),
-                from: fromId ? { connect: { id: fromId } } : undefined,
-                to: toId ? { connect: { id: toId } } : undefined,
             }
         },
     },
@@ -73,7 +70,16 @@ const displayer = (): Displayer<Model> => ({
 
 export const NodeLinkModel = ({
     __typename,
-    delegate: (prisma: PrismaType) => prisma.node_link,
+    delegate: (prisma: PrismaType) =>{
+        await prisma.routine.update({
+            where: { id: ''},
+            data: {
+                labels: {
+                    de
+                }
+            }
+        })
+    } prisma.node_link,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),

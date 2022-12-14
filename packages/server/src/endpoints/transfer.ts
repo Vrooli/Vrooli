@@ -173,20 +173,23 @@ export const resolvers: {
         transferCancel: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
             const userData = assertRequestFrom(req, { isUser: true });
-            const transferId = await TransferModel.transfer(prisma).cancel(info, input, userData);
-            return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
+            throw new CustomError('0000', 'NotImplemented', ['en']);
+            // const transferId = await TransferModel.transfer(prisma).cancel(info, input, userData);
+            // return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
         },
         transferAccept: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
             const userData = assertRequestFrom(req, { isUser: true });
-            const transferId = await TransferModel.transfer(prisma).accept(info, input, userData);
-            return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
+            throw new CustomError('0000', 'NotImplemented', ['en']);
+            // const transferId = await TransferModel.transfer(prisma).accept(info, input, userData);
+            // return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
         },
         transferDeny: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
             const userData = assertRequestFrom(req, { isUser: true });
-            const transferId = await TransferModel.transfer(prisma).deny(info, input, userData);
-            return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
+            throw new CustomError('0000', 'NotImplemented', ['en']);
+            // const transferId = await TransferModel.transfer(prisma).deny(info, input, userData);
+            // return readOneHelper({ info, input: { id: transferId }, objectType, prisma, req })
         }
     }
 }

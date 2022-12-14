@@ -9,18 +9,30 @@ import { permissionsSelectHelper } from "../builders";
 import { bestLabel, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: ResourceCreateInput,
+    GqlUpdate: ResourceUpdateInput,
+    GqlModel: Resource,
+    GqlSearch: ResourceSearchInput,
+    GqlSort: ResourceSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.resourceUpsertArgs['create'],
+    PrismaUpdate: Prisma.resourceUpsertArgs['update'],
+    PrismaModel: Prisma.resourceGetPayload<SelectWrap<Prisma.resourceSelect>>,
+    PrismaSelect: Prisma.resourceSelect,
+    PrismaWhere: Prisma.resourceWhereInput,
+}
+
 const __typename = 'Resource' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Resource, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: { __typename }, // For now, resource is never queried directly. So no need to handle relationships
 })
 
-const searcher = (): Searcher<
-    ResourceSearchInput,
-    ResourceSortBy,
-    Prisma.resourceWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: ResourceSortBy.IndexAsc,
     sortBy: ResourceSortBy,
     searchFields: [
@@ -39,16 +51,7 @@ const searcher = (): Searcher<
     }),
 })
 
-const validator = (): Validator<
-    ResourceCreateInput,
-    ResourceUpdateInput,
-    Prisma.resourceGetPayload<SelectWrap<Prisma.resourceSelect>>,
-    any,
-    Prisma.resourceSelect,
-    Prisma.resourceWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Resource',
         list: 'ResourceList',
@@ -81,13 +84,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Resour
     }
 }
 
-const mutater = (): Mutater<
-    Resource,
-    { graphql: ResourceCreateInput, db: Prisma.resourceUpsertArgs['create'] },
-    { graphql: ResourceUpdateInput, db: Prisma.resourceUpsertArgs['update'] },
-    { graphql: ResourceCreateInput, db: Prisma.resourceCreateWithoutListInput },
-    { graphql: ResourceUpdateInput, db: Prisma.resourceUpdateWithoutListInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             return {
@@ -103,26 +100,11 @@ const mutater = (): Mutater<
                 listId: data.listId ?? undefined,
             };
         },
-        relCreate: async ({ data, prisma, userData }) => {
-            return {
-                ...await shapeBase(prisma, userData, data, true),
-                link: data.link,
-            }
-        },
-        relUpdate: async ({ data, prisma, userData }) => {
-            return {
-                ...await shapeBase(prisma, userData, data, false),
-                link: data.link ?? undefined,
-            }
-        }
     },
     yup: { create: resourcesCreate, update: resourcesUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.resourceSelect,
-    Prisma.resourceGetPayload<SelectWrap<Prisma.resourceSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })

@@ -10,10 +10,23 @@ import { OrganizationModel } from "./organization";
 import { Formatter, Validator, Mutater, Displayer } from "./types";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlUpdate: WalletUpdateInput,
+    GqlModel: Wallet,
+    GqlPermission: any,
+    PrismaCreate: Prisma.walletUpsertArgs['create'],
+    PrismaUpdate: Prisma.walletUpsertArgs['update'],
+    PrismaModel: Prisma.walletGetPayload<SelectWrap<Prisma.walletSelect>>,
+    PrismaSelect: Prisma.walletSelect,
+    PrismaWhere: Prisma.walletWhereInput,
+}
+
 const __typename = 'Wallet' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Wallet, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         handles: 'Handle',
@@ -67,16 +80,7 @@ export const verifyHandle = async (
         throw new CustomError('0120', 'BannedWord', languages);
 }
 
-const validator = (): Validator<
-    any,
-    WalletUpdateInput,
-    Prisma.walletGetPayload<SelectWrap<Prisma.walletSelect>>,
-    any,
-    Prisma.walletSelect,
-    Prisma.walletWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     isTransferable: false,
     maxObjects: {
         User: {
@@ -98,7 +102,7 @@ const validator = (): Validator<
             ['user', 'User'],
         ], ...params)
     }),
-    permissionResolvers: () => [],
+    permissionResolvers: () => ({}),
     owner: (data) => ({
         Organization: data.organization,
         User: data.user,
@@ -140,24 +144,14 @@ const validator = (): Validator<
     },
 })
 
-const mutater = (): Mutater<
-    Wallet,
-    false,
-    { graphql: WalletUpdateInput, db: Prisma.walletUpsertArgs['update'] },
-    false,
-    { graphql: WalletUpdateInput, db: Prisma.walletUpdateWithoutUserInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         update: async ({ data }) => data,
-        relUpdate: (...params) => mutater().shape.update(...params),
     },
     yup: { update: walletsUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.walletSelect,
-    Prisma.walletGetPayload<SelectWrap<Prisma.walletSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, name: true }),
     label: (select) => select.name ?? '',
 })

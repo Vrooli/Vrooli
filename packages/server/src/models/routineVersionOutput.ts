@@ -8,10 +8,24 @@ import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput } from "../endpoints/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: RoutineVersionOutputCreateInput,
+    GqlUpdate: RoutineVersionOutputUpdateInput,
+    GqlModel: RoutineVersionOutput,
+    GqlPermission: any,
+    PrismaCreate: Prisma.routine_version_outputUpsertArgs['create'],
+    PrismaUpdate: Prisma.routine_version_outputUpsertArgs['update'],
+    PrismaModel: Prisma.routine_version_outputGetPayload<SelectWrap<Prisma.routine_version_outputSelect>>,
+    PrismaSelect: Prisma.routine_version_outputSelect,
+    PrismaWhere: Prisma.routine_version_outputWhereInput,
+}
+
 const __typename = 'RoutineVersionOutput' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<RoutineVersionOutput, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         routineVersion: 'RoutineVersion',
@@ -19,15 +33,9 @@ const formatter = (): Formatter<RoutineVersionOutput, typeof suppFields> => ({
     },
 })
 
-const mutater = (): Mutater<
-    RoutineVersionOutput,
-    false,
-    false,
-    { graphql: RoutineVersionOutputCreateInput, db: Prisma.routine_version_outputCreateWithoutRoutineVersionInput },
-    { graphql: RoutineVersionOutputUpdateInput, db: Prisma.routine_version_outputUpdateWithoutRoutineVersionInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
-        relCreate: async ({ prisma, userData, data }) => {
+        create: async ({ prisma, userData, data }) => {
             return {
                 id: data.id,
                 name: data.name,
@@ -35,7 +43,7 @@ const mutater = (): Mutater<
                 translations: await translationRelationshipBuilder(prisma, userData, data, true),
             }
         },
-        relUpdate: async ({ prisma, userData, data }) => {
+        update: async ({ prisma, userData, data }) => {
             return {
                 name: data.name,
                 standardVersion: await relBuilderHelper({ data, isAdd: false, isOneToOne: true, isRequired: true, linkVersion: true, relationshipName: 'standard', objectType: 'Standard', prisma, userData }),
@@ -43,13 +51,10 @@ const mutater = (): Mutater<
             }
         },
     },
-    yup: {},
+    yup: { create: {} as any, update: {} as any },
 })
 
-const displayer = (): Displayer<
-    Prisma.routine_version_outputSelect,
-    Prisma.routine_version_outputGetPayload<SelectWrap<Prisma.routine_version_outputSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         name: true,

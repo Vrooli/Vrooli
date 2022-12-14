@@ -31,7 +31,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap, req.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
-    const searcher: Searcher<any, any, any> | undefined = model.search;
+    const searcher: Searcher<any> | undefined = model.search;
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
     // Loop through search fields and add each to the search query, 

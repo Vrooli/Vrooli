@@ -1,8 +1,25 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { UserSchedule, UserScheduleCreateInput, UserScheduleSearchInput, UserScheduleSortBy, UserScheduleUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { Displayer } from "./types";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: UserScheduleCreateInput,
+    GqlUpdate: UserScheduleUpdateInput,
+    GqlModel: UserSchedule,
+    GqlSearch: UserScheduleSearchInput,
+    GqlSort: UserScheduleSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.user_scheduleUpsertArgs['create'],
+    PrismaUpdate: Prisma.user_scheduleUpsertArgs['update'],
+    PrismaModel: Prisma.user_scheduleGetPayload<SelectWrap<Prisma.user_scheduleSelect>>,
+    PrismaSelect: Prisma.user_scheduleSelect,
+    PrismaWhere: Prisma.user_scheduleWhereInput,
+}
 
 const __typename = 'UserSchedule' as const;
 
@@ -47,10 +64,7 @@ const suppFields = [] as const;
 //     customQueryData: (_, userData) => ({ user: { id: userData.id } }),
 // })
 
-const displayer = (): Displayer<
-    Prisma.user_scheduleSelect,
-    Prisma.user_scheduleGetPayload<SelectWrap<Prisma.user_scheduleSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })

@@ -8,26 +8,33 @@ import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionInputModel } from ".";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: RunRoutineInputCreateInput,
+    GqlUpdate: RunRoutineInputUpdateInput,
+    GqlModel: RunRoutineInput,
+    GqlSearch: RunRoutineInputSearchInput,
+    GqlSort: RunRoutineInputSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.run_routine_inputUpsertArgs['create'],
+    PrismaUpdate: Prisma.run_routine_inputUpsertArgs['update'],
+    PrismaModel: Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>,
+    PrismaSelect: Prisma.run_routine_inputSelect,
+    PrismaWhere: Prisma.run_routine_inputWhereInput,
+}
+
 const __typename = 'RunRoutineInput' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<RunRoutineInput, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         input: 'RoutineVersionInput',
     },
 })
 
-const validator = (): Validator<
-    RunRoutineInputCreateInput,
-    RunRoutineInputUpdateInput,
-    Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>,
-    any,
-    Prisma.run_routine_inputSelect,
-    Prisma.run_routine_inputWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'RunRoutine',
         input: 'RoutineVersionInput',
@@ -38,11 +45,11 @@ const validator = (): Validator<
     permissionsSelect: (...params) => ({
         runRoutine: { select: RunRoutineModel.validate.permissionsSelect(...params) }
     }),
-    permissionResolvers: ({ isAdmin, isPublic }) => ([
-        ['canDelete', async () => isAdmin],
-        ['canEdit', async () => isAdmin],
-        ['canView', async () => isPublic],
-    ]),
+    permissionResolvers: ({ isAdmin, isPublic }) => ({
+        canDelete: async () => isAdmin,
+        canEdit: async () => isAdmin,
+        canView: async () => isPublic,
+    }),
     profanityFields: ['data'],
     owner: (data) => RunRoutineModel.validate.owner(data.runRoutine as any),
     isDeleted: () => false,
@@ -54,11 +61,7 @@ const validator = (): Validator<
     },
 })
 
-const searcher = (): Searcher<
-    RunRoutineInputSearchInput,
-    RunRoutineInputSortBy,
-    Prisma.run_routine_inputWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: RunRoutineInputSortBy.DateUpdatedDesc,
     sortBy: RunRoutineInputSortBy,
     searchFields: [
@@ -74,22 +77,16 @@ const searcher = (): Searcher<
 /**
  * Handles mutations of run inputs
  */
-const mutater = (): Mutater<
-    RunRoutineInput,
-    false,
-    false,
-    { graphql: RunRoutineInputCreateInput, db: Prisma.run_routine_inputCreateWithoutRunRoutineInput },
-    { graphql: RunRoutineInputUpdateInput, db: Prisma.run_routine_inputUpdateWithoutRunRoutineInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
-        relCreate: async ({ data }) => {
+        create: async ({ data }) => {
             return {
                 id: data.id,
                 data: data.data,
                 input: { connect: { id: data.inputId } },
             }
         },
-        relUpdate: async ({ data }) => {
+        update: async ({ data }) => {
             return {
                 data: data.data
             }
@@ -98,10 +95,7 @@ const mutater = (): Mutater<
     yup: { create: runInputsCreate, update: runInputsUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.run_routine_inputSelect,
-    Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         input: padSelect(RoutineVersionInputModel.display.select),

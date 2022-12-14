@@ -14,10 +14,26 @@ import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } f
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: true,
+    IsVersioned: true,
+    GqlCreate: ProjectCreateInput,
+    GqlUpdate: ProjectUpdateInput,
+    GqlModel: Project,
+    GqlSearch: ProjectSearchInput,
+    GqlSort: ProjectSortBy,
+    GqlPermission: RootPermission,
+    PrismaCreate: Prisma.projectUpsertArgs['create'],
+    PrismaUpdate: Prisma.projectUpsertArgs['update'],
+    PrismaModel: Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>,
+    PrismaSelect: Prisma.projectSelect,
+    PrismaWhere: Prisma.projectWhereInput,
+}
+
 const __typename = 'Project' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoot'] as const;
-const formatter = (): Formatter<Project, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         createdBy: 'User',
@@ -49,11 +65,7 @@ const formatter = (): Formatter<Project, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    ProjectSearchInput,
-    ProjectSortBy,
-    Prisma.projectWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: ProjectSortBy.ScoreDesc,
     sortBy: ProjectSortBy,
     searchFields: [
@@ -83,16 +95,7 @@ const searcher = (): Searcher<
     })
 })
 
-const validator = (): Validator<
-    ProjectCreateInput,
-    ProjectUpdateInput,
-    Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>,
-    RootPermission,
-    Prisma.projectSelect,
-    Prisma.projectWhereInput,
-    true,
-    true
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Project',
         parent: 'Project',
@@ -214,13 +217,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
 }
 
 
-const mutater = (): Mutater<
-    Project,
-    { graphql: ProjectCreateInput, db: Prisma.projectUpsertArgs['create'] },
-    { graphql: ProjectUpdateInput, db: Prisma.projectUpsertArgs['update'] },
-    false,
-    false
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             return {
@@ -255,10 +252,7 @@ const mutater = (): Mutater<
     yup: { create: projectsCreate, update: projectsUpdate },
 });
 
-const displayer = (): Displayer<
-    Prisma.projectSelect,
-    Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         versions: {

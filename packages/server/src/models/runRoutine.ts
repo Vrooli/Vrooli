@@ -1,8 +1,7 @@
 import { runsCreate, runsUpdate } from "@shared/validation";
-import { RunSortBy } from "@shared/consts";
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
-import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, RunRoutinePermission, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser } from "../endpoints/types";
+import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, RunRoutinePermission, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { OrganizationModel } from "./organization";
@@ -11,10 +10,26 @@ import { addSupplementalFields, modelToGraphQL, permissionsSelectHelper, selectH
 import { oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: RunRoutineCreateInput,
+    GqlUpdate: RunRoutineUpdateInput,
+    GqlModel: RunRoutine,
+    GqlSearch: RunRoutineSearchInput,
+    GqlSort: RunRoutineSortBy,
+    GqlPermission: RunRoutinePermission,
+    PrismaCreate: Prisma.run_routineUpsertArgs['create'],
+    PrismaUpdate: Prisma.run_routineUpsertArgs['update'],
+    PrismaModel: Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>,
+    PrismaSelect: Prisma.run_routineSelect,
+    PrismaWhere: Prisma.run_routineWhereInput,
+}
+
 const __typename = 'RunRoutine' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<RunRoutine, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         routine: 'Routine',
@@ -30,13 +45,9 @@ const formatter = (): Formatter<RunRoutine, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    RunRoutineSearchInput,
-    RunSortBy,
-    Prisma.run_routineWhereInput
-> => ({
-    defaultSort: RunSortBy.DateUpdatedDesc,
-    sortBy: RunSortBy,
+const searcher = (): Searcher<Model> => ({
+    defaultSort: RunRoutineSortBy.DateUpdatedDesc,
+    sortBy: RunRoutineSortBy,
     searchFields: [
         'completedTimeFrame',
         'createdTimeFrame',
@@ -55,16 +66,7 @@ const searcher = (): Searcher<
     })
 })
 
-const validator = (): Validator<
-    RunRoutineCreateInput,
-    RunRoutineUpdateInput,
-    Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>,
-    RunRoutinePermission,
-    Prisma.run_routineSelect,
-    Prisma.run_routineWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'RunRoutine',
         routineVersion: 'Routine',
@@ -85,11 +87,11 @@ const validator = (): Validator<
             ['user', 'User'],
         ], ...params)
     }),
-    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
-        ['canDelete', async () => isAdmin && !isDeleted],
-        ['canEdit', async () => isAdmin && !isDeleted],
-        ['canView', async () => !isDeleted && (isAdmin || isPublic)],
-    ]),
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+        canDelete: async () => isAdmin && !isDeleted,
+        canEdit: async () => isAdmin && !isDeleted,
+        canView: async () => !isDeleted && (isAdmin || isPublic),
+    }),
     owner: (data) => ({
         Organization: data.organization,
         User: data.user,
@@ -247,13 +249,7 @@ const runner = () => ({
     },
 })
 
-const mutater = (): Mutater<
-    RunRoutine,
-    { graphql: RunRoutineCreateInput, db: Prisma.run_routineUpsertArgs['create'] },
-    { graphql: RunRoutineUpdateInput, db: Prisma.run_routineUpsertArgs['update'] },
-    false,
-    false
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             // TODO - when scheduling added, don't assume that it is being started right away
@@ -339,10 +335,7 @@ const danger = () => ({
     }
 })
 
-const displayer = (): Displayer<
-    Prisma.run_routineSelect,
-    Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, name: true }),
     label: (select) => select.name,
 })

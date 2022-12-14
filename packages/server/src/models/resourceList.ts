@@ -12,26 +12,33 @@ import { permissionsSelectHelper } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: ResourceListCreateInput,
+    GqlUpdate: ResourceListUpdateInput,
+    GqlModel: ResourceList,
+    GqlSearch: ResourceListSearchInput,
+    GqlSort: ResourceListSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.resource_listUpsertArgs['create'],
+    PrismaUpdate: Prisma.resource_listUpsertArgs['update'],
+    PrismaModel: Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>,
+    PrismaSelect: Prisma.resource_listSelect,
+    PrismaWhere: Prisma.resource_listWhereInput,
+}
+
 const __typename = 'ResourceList' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<ResourceList, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         resources: 'Resource',
     },
 })
 
-const validator = (): Validator<
-    ResourceListCreateInput,
-    ResourceListUpdateInput,
-    Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>,
-    any,
-    Prisma.resource_listSelect,
-    Prisma.resource_listWhereInput,
-    false,
-    false
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'ResourceList',
         // api: 'Api',
@@ -58,10 +65,10 @@ const validator = (): Validator<
             // ['userSchedule', 'UserSchedule'],
         ], ...params)
     }),
-    permissionResolvers: ({ isAdmin }) => ([
-        ['canDelete', async () => isAdmin],
-        ['canEdit', async () => isAdmin],
-    ]),
+    permissionResolvers: ({ isAdmin }) => ({
+        canDelete: async () => isAdmin,
+        canEdit: async () => isAdmin,
+    }),
     owner: (data) => ({
         Organization: data.organization,
         User: (data.userSchedule as any)?.user,
@@ -95,11 +102,7 @@ const validator = (): Validator<
     }
 })
 
-const searcher = (): Searcher<
-    ResourceListSearchInput,
-    ResourceListSortBy,
-    Prisma.resource_listWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: ResourceListSortBy.IndexAsc,
     sortBy: ResourceListSortBy,
     searchFields: [
@@ -135,13 +138,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Resour
     }
 }
 
-const mutater = (): Mutater<
-    ResourceList,
-    { graphql: ResourceListCreateInput, db: Prisma.resource_listUpsertArgs['create'] },
-    { graphql: ResourceListUpdateInput, db: Prisma.resource_listUpsertArgs['update'] },
-    { graphql: ResourceListCreateInput, db: Prisma.resource_listCreateWithoutApiVersionInput },
-    { graphql: ResourceListUpdateInput, db: Prisma.resource_listUpdateWithoutApiVersionInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             return {
@@ -153,16 +150,11 @@ const mutater = (): Mutater<
                 ...await shapeBase(prisma, userData, data, false),
             };
         },
-        relCreate: (...args) => mutater().shape.create(...args),
-        relUpdate: (...args) => mutater().shape.update(...args),
     },
     yup: { create: resourceListsCreate, update: resourceListsUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.resource_listSelect,
-    Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })

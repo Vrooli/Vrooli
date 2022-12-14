@@ -9,7 +9,7 @@ import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
-import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, shapeCon, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic, SearchMap, translationRelationshipBuilder } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
@@ -127,15 +127,15 @@ const validator = (): Validator<Model> => ({
             ['ownedByUser', 'User'],
         ], ...params)
     }),
-    permissionResolvers: ({ isAdmin, isPublic }) => ([
-        ['canDelete', async () => isAdmin],
-        ['canEdit', async () => isAdmin],
-        ['canReply', async () => isAdmin || isPublic],
-        ['canReport', async () => !isAdmin && isPublic],
-        ['canStar', async () => isAdmin || isPublic],
-        ['canView', async () => isAdmin || isPublic],
-        ['canVote', async () => isAdmin || isPublic],
-    ]),
+    permissionResolvers: ({ isAdmin, isPublic }) => ({
+        canDelete: async () => isAdmin,
+        canEdit: async () => isAdmin,
+        canReply: async () => isAdmin || isPublic,
+        canReport: async () => !isAdmin && isPublic,
+        canStar: async () => isAdmin || isPublic,
+        canView: async () => isAdmin || isPublic,
+        canVote: async () => isAdmin || isPublic,
+    }),
     owner: (data) => ({
         Organization: data.ownedByOrganization,
         User: data.ownedByUser,

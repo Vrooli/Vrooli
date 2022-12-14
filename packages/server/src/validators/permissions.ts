@@ -237,9 +237,9 @@ export function getMultiTypePermissions(
         const isDeleted = validator.isDeleted(authDataById[id], userData?.languages ?? ['en']);
         const isPublic = validator.isPublic(authDataById[id], userData?.languages ?? ['en']);
         const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });
-        // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
-        // as the permissions object, but with the values being the result of the resolver.
-        const permissions = Object.fromEntries(permissionResolvers.map(([key, resolver]) => [key, resolver()]));
+        // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
+        // the same keys, but with the values of the resolvers instead.
+        const permissions = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));
         // Add permissions object to result
         permissionsById[id] = permissions;
     }
@@ -277,7 +277,7 @@ export async function getSingleTypePermissions<PermissionObject extends { [x: st
         const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
-        const permissionsObject = Object.fromEntries(permissionResolvers.map(([key, resolver]) => [key, resolver()]));
+        const permissionsObject = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));
         // Add permissions object to result
         permissions.push(permissionsObject as PermissionObject);
     }

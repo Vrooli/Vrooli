@@ -1,5 +1,5 @@
 import { projectsCreate, projectsUpdate } from "@shared/validation";
-import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput, ProjectVersion } from "../endpoints/types";
+import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput, ProjectVersion, VersionPermission } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
@@ -9,10 +9,26 @@ import { padSelect, permissionsSelectHelper } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: ProjectVersionCreateInput,
+    GqlUpdate: ProjectVersionUpdateInput,
+    GqlModel: ProjectVersion,
+    GqlSearch: ProjectVersionSearchInput,
+    GqlSort: ProjectVersionSortBy,
+    GqlPermission: VersionPermission,
+    PrismaCreate: Prisma.project_versionUpsertArgs['create'],
+    PrismaUpdate: Prisma.project_versionUpsertArgs['update'],
+    PrismaModel: Prisma.project_versionGetPayload<SelectWrap<Prisma.project_versionSelect>>,
+    PrismaSelect: Prisma.project_versionSelect,
+    PrismaWhere: Prisma.project_versionWhereInput,
+}
+
 const __typename = 'ProjectVersion' as const;
 
 const suppFields = ['runs'] as const;
-const formatter = (): Formatter<ProjectVersion, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         comments: 'Comment',
@@ -35,11 +51,7 @@ const formatter = (): Formatter<ProjectVersion, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    ProjectVersionSearchInput,
-    ProjectVersionSortBy,
-    Prisma.project_versionWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: ProjectVersionSortBy.DateCompletedDesc,
     sortBy: ProjectVersionSortBy,
     searchFields: [
@@ -67,16 +79,7 @@ const searcher = (): Searcher<
     }),
 })
 
-const validator = (): Validator<
-    ProjectCreateInput,
-    ProjectUpdateInput,
-    Prisma.projectGetPayload<SelectWrap<Prisma.projectSelect>>,
-    RootPermission,
-    Prisma.projectSelect,
-    Prisma.projectWhereInput,
-    true,
-    true
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Project',
         parent: 'Project',
@@ -89,7 +92,7 @@ const validator = (): Validator<
             }
         },
     },
-    isTransferable: true,
+    isTransferable: false,
     hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
     maxObjects: {
         User: {
@@ -132,16 +135,16 @@ const validator = (): Validator<
             }
         },
     }),
-    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
-        // ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
-        // ['canDelete', async () => isAdmin && !isDeleted],
-        // ['canEdit', async () => isAdmin && !isDeleted],
-        // ['canReport', async () => !isAdmin && !isDeleted && isPublic],
-        // // ['canRun', async () => !isDeleted && (isAdmin || isPublic)],
-        // ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
-        // ['canView', async () => !isDeleted && (isAdmin || isPublic)],
-        // ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
-    ]),
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+        // canComment: async () => !isDeleted && (isAdmin || isPublic),
+        // canDelete: async () => isAdmin && !isDeleted,
+        // canEdit: async () => isAdmin && !isDeleted,
+        // canReport: async () => !isAdmin && !isDeleted && isPublic,
+        // canRun: async () => !isDeleted && (isAdmin || isPublic),
+        // canStar: async () => !isDeleted && (isAdmin || isPublic),
+        // canView: async () => !isDeleted && (isAdmin || isPublic),
+        // canVote: async () => !isDeleted && (isAdmin || isPublic),
+    } as any),
     owner: (data) => ({
         Organization: data.ownedByOrganization,
         User: data.ownedByUser,
@@ -198,13 +201,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
 }
 
 
-const mutater = (): Mutater<
-    Project,
-    { graphql: ProjectCreateInput, db: Prisma.projectUpsertArgs['create'] },
-    { graphql: ProjectUpdateInput, db: Prisma.projectUpsertArgs['update'] },
-    false,
-    false
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             return {
@@ -239,10 +236,7 @@ const mutater = (): Mutater<
     yup: { create: projectsCreate, update: projectsUpdate },
 });
 
-const displayer = (): Displayer<
-    Prisma.project_versionSelect,
-    Prisma.project_versionGetPayload<SelectWrap<Prisma.project_versionSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })

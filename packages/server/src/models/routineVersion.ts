@@ -1,6 +1,6 @@
 import { routinesCreate, routinesUpdate } from "@shared/validation";
 import { CustomError, Trigger } from "../events";
-import { Routine, RoutinePermission, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput } from "../endpoints/types";
+import { Routine, RoutinePermission, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionPermission, RoutineVersionUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
@@ -10,6 +10,22 @@ import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: RoutineVersionCreateInput,
+    GqlUpdate: RoutineVersionUpdateInput,
+    GqlModel: RoutineVersion,
+    GqlSearch: RoutineVersionSearchInput,
+    GqlSort: RoutineVersionSortBy,
+    GqlPermission: RoutineVersionPermission,
+    PrismaCreate: Prisma.routine_versionUpsertArgs['create'],
+    PrismaUpdate: Prisma.routine_versionUpsertArgs['update'],
+    PrismaModel: Prisma.routine_versionGetPayload<SelectWrap<Prisma.routine_versionSelect>>,
+    PrismaSelect: Prisma.routine_versionSelect,
+    PrismaWhere: Prisma.routine_versionWhereInput,
+}
 
 type NodeWeightData = {
     simplicity: number,
@@ -21,7 +37,7 @@ type NodeWeightData = {
 const __typename = 'RoutineVersion' as const;
 
 const suppFields = ['runs'] as const;
-const formatter = (): Formatter<Routine, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         comments: 'Comment',
@@ -73,11 +89,7 @@ const formatter = (): Formatter<Routine, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    RoutineVersionSearchInput,
-    RoutineVersionSortBy,
-    Prisma.routine_versionWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: RoutineVersionSortBy.DateCompletedDesc,
     sortBy: RoutineVersionSortBy,
     searchFields: [
@@ -120,16 +132,7 @@ const searcher = (): Searcher<
     }),
 })
 
-const validator = (): Validator<
-    RoutineCreateInput,
-    RoutineUpdateInput,
-    Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
-    RoutinePermission,
-    Prisma.routineSelect,
-    Prisma.routineWhereInput,
-    true,
-    true
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Routine',
         parent: 'Routine',
@@ -192,16 +195,16 @@ const validator = (): Validator<
             }
         }
     }),
-    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
-        ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canDelete', async () => isAdmin && !isDeleted],
-        ['canEdit', async () => isAdmin && !isDeleted],
-        ['canReport', async () => !isAdmin && !isDeleted && isPublic],
-        ['canRun', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canView', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
-    ]),
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+        canComment: async () => !isDeleted && (isAdmin || isPublic),
+        canDelete: async () => isAdmin && !isDeleted,
+        canEdit: async () => isAdmin && !isDeleted,
+        canReport: async () => !isAdmin && !isDeleted && isPublic,
+        canRun: async () => !isDeleted && (isAdmin || isPublic),
+        canStar: async () => !isDeleted && (isAdmin || isPublic),
+        canView: async () => !isDeleted && (isAdmin || isPublic),
+        canVote: async () => !isDeleted && (isAdmin || isPublic),
+    }),
     owner: (data) => ({
         Organization: data.ownedByOrganization,
         User: data.ownedByUser,
@@ -337,188 +340,6 @@ const calculateShortestLongestWeightedPath = (
         Math.max(...distances.map(d => d[1]))
     ]
 }
-
-// const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
-//     select: {
-//         id: true,
-//         apiCallData: true,
-//         complexity: true,
-//         isAutomatable: true,
-//         simplicity: true,
-//         root: {
-//             select: {
-//                 isInternal: true,
-//                 tags: {
-//                     select: {
-//                         id: true,
-//                     }
-//                 },
-//             }
-//         },
-//         // Only select top-level nodes
-//         nodes: {
-//             select: {
-//                 id: true,
-//                 columnIndex: true,
-//                 rowIndex: true,
-//                 type: true,
-//                 nodeEnd: {
-//                     select: {
-//                         wasSuccessful: true
-//                     }
-//                 },
-//                 loop: {
-//                     select: {
-//                         loops: true,
-//                         maxLoops: true,
-//                         operation: true,
-//                         whiles: {
-//                             select: {
-//                                 condition: true,
-//                                 translations: {
-//                                     select: {
-//                                         description: true,
-//                                         name: true,
-//                                         language: true,
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 },
-//                 nodeRoutineList: {
-//                     select: {
-//                         isOrdered: true,
-//                         isOptional: true,
-//                         routines: {
-//                             select: {
-//                                 id: true,
-//                                 index: true,
-//                                 isOptional: true,
-//                                 routineVersion: {
-//                                     select: {
-//                                         id: true,
-//                                         root: {
-//                                             select: {
-//                                                 isInternal: true,
-//                                             }
-//                                         }
-//                                     }
-//                                 },
-//                                 translations: {
-//                                     select: {
-//                                         description: true,
-//                                         name: true,
-//                                         language: true,
-//                                     }
-//                                 }
-//                             }
-//                         }
-//                     }
-//                 },
-//                 translations: {
-//                     select: {
-//                         description: true,
-//                         name: true,
-//                         language: true,
-//                     }
-//                 }
-//             }
-//         },
-//         nodeLinks: {
-//             select: {
-//                 fromId: true,
-//                 toId: true,
-//                 whens: {
-//                     select: {
-//                         condition: true,
-//                         translations: {
-//                             select: {
-//                                 description: true,
-//                                 name: true,
-//                                 language: true,
-//                             }
-//                         }
-//                     }
-//                 }
-//             }
-//         },
-//         resourceList: {
-//             select: {
-//                 index: true,
-//                 resources: {
-//                     select: {
-//                         index: true,
-//                         link: true,
-//                         usedFor: true,
-//                         translations: {
-//                             select: {
-//                                 description: true,
-//                                 name: true,
-//                                 language: true,
-//                             }
-//                         }
-//                     }
-//                 },
-//                 translations: {
-//                     select: {
-//                         description: true,
-//                         name: true,
-//                         language: true,
-//                     }
-//                 }
-//             }
-//         },
-//         inputs: {
-//             select: {
-//                 isRequired: true,
-//                 name: true,
-//                 standardVersionId: true,
-//                 translations: {
-//                     select: {
-//                         description: true,
-//                         language: true,
-//                     }
-//                 }
-//             }
-//         },
-//         outputs: {
-//             select: {
-//                 name: true,
-//                 standardVersionId: true,
-//                 translations: {
-//                     select: {
-//                         description: true,
-//                         language: true,
-//                     }
-//                 }
-//             }
-//         },
-//         translations: {
-//             select: {
-//                 description: true,
-//                 instructions: true,
-//                 name: true,
-//                 language: true,
-//             }
-//         }
-//     },
-//     // validateSelect: {
-//     //     nodes: {
-//     //         select: {
-//     //             nodeRoutineList: {
-//     //                 select: {
-//     //                     routines: {
-//     //                         select: {
-//     //                             routineVersion: 'Routine',
-//     //                         }
-//     //                     }
-//     //                 }
-//     //             }
-//     //         }
-//     //     }
-//     // }
-// })
 
 /**
  * Calculates the maximum and minimum complexity of a routine based on the number of steps. 
@@ -691,13 +512,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
 /**
  * Handles authorized creates, updates, and deletes
  */
-const mutater = (): Mutater<
-    Routine,
-    { graphql: RoutineCreateInput, db: Prisma.routineUpsertArgs['create'] },
-    { graphql: RoutineUpdateInput, db: Prisma.routineUpsertArgs['update'] },
-    { graphql: RoutineCreateInput, db: Prisma.routineCreateWithoutTransfersInput },
-    { graphql: RoutineUpdateInput, db: Prisma.routineUpdateWithoutTransfersInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             const [simplicity, complexity] = await calculateComplexity(prisma, userData.languages, data);
@@ -765,8 +580,6 @@ const mutater = (): Mutater<
                 },
             }
         },
-        relCreate: (...args) => mutater().shape.create(...args),
-        relUpdate: (...args) => mutater().shape.update(...args),
     },
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
@@ -810,10 +623,7 @@ const mutater = (): Mutater<
     yup: { create: routinesCreate, update: routinesUpdate },
 })
 
-const displayer = (): Displayer<
-    Prisma.routine_versionSelect,
-    Prisma.routine_versionGetPayload<SelectWrap<Prisma.routine_versionSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })

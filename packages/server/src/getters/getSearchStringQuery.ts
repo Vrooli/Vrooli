@@ -1,7 +1,7 @@
 import { isRelationshipArray, isRelationshipObject } from "../builders";
 import { GraphQLModelType, SearchStringQuery, SearchStringQueryParams } from "../models/types";
 import { SearchStringMap } from "../utils";
-import { getSearcher } from "./getSearcher";
+import { getLogic } from ".";
 
 /**
  * @param queryParams Data required to replace keys
@@ -51,7 +51,8 @@ export function getSearchStringQuery<Where extends { [x: string]: any }>({
     searchString: string;
 }): Where {
     if (searchString.length === 0) return {} as Where;
-    const searcher = getSearcher<any, any, Where>(objectType, languages ?? ['en'], 'getSearchStringQuery');
+    // Get searcher
+    const { search } = getLogic(['search'], objectType, languages ?? ['en'], 'getSearchStringQuery')
     const insensitive = ({ contains: searchString.trim(), mode: 'insensitive' as const });
-    return getSearchStringQueryHelper({ insensitive, languages, searchString }, searcher.searchStringQuery());
+    return getSearchStringQueryHelper({ insensitive, languages, searchString }, search.searchStringQuery());
 }

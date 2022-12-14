@@ -126,9 +126,10 @@ export type ModelLogic<
     SuppFields extends readonly (keyof Model['GqlModel'] extends infer R ? R extends string ? R : never : never)[],
 > = {
     __typename: GraphQLModelType;
-    format: Formatter<Model, SuppFields>;
-    display: Displayer<Model>;
     delegate: (prisma: PrismaType) => PrismaDelegate;
+    display: Displayer<Model>;
+    duplicate?: Duplicator<any, any>;
+    format: Formatter<Model, SuppFields>;
     search?: Searcher<Model>;
     mutate?: Mutater<Model>;
     validate?: Validator<Model>;
@@ -383,13 +384,15 @@ export type Validator<
      */
     permissionsSelect: (userId: string | null, languages: string[]) => Model['PrismaSelect'];
     /**
-     * Array of resolvers to calculate the object's permissions
+     * Key/value pair of permission fields and resolvers to calculate them.
      */
     permissionResolvers: ({ isAdmin, isDeleted, isPublic }: {
         isAdmin: boolean,
         isDeleted: boolean,
         isPublic: boolean,
-    }) => [keyof Omit<Model['GqlPermission'], '__typename'>, () => any][];
+    }) => {
+            [x in keyof Omit<Model['GqlPermission'], '__typename'>]: () => any
+        }
     /**
      * Partial queries for various visibility checks
      */
@@ -433,42 +436,39 @@ export type Validator<
      * an error if a validation fails, since that'll return a customized error message to the
      * user
      */
-    validations?: (Model['GqlCreate'] extends Record<string, any> ? {
-        create?: ({ createMany, deltaAdding, languages, prisma, userData }: {
+    validations?: {
+        create?: Model['GqlCreate'] extends Record<string, any> ? ({ createMany, deltaAdding, languages, prisma, userData }: {
             createMany: Model['GqlCreate'][],
             deltaAdding: number,
             languages: string[],
             prisma: PrismaType,
             userData: SessionUser,
-        }) => Promise<void> | void;
-    } : {}) & (Model['GqlUpdate'] extends Record<string, any> ? {
-        update?: ({ languages, prisma, updateMany, userData }: {
+        }) => Promise<void> | void : never,
+        update?: Model['GqlUpdate'] extends Record<string, any> ? ({ languages, prisma, updateMany, userData }: {
             languages: string[],
             prisma: PrismaType,
             updateMany: Model['GqlUpdate'][],
             userData: SessionUser,
-        }) => Promise<void> | void;
-    } : {}) & {
+        }) => Promise<void> | void : never,
         connect?: ({ connectMany, languages, prisma, userData }: {
             connectMany: string[],
             languages: string[],
             prisma: PrismaType,
             userData: SessionUser,
-        }) => Promise<void> | void;
-
+        }) => Promise<void> | void,
         delete?: ({ deleteMany, languages, prisma, userData }: {
             deleteMany: string[],
             languages: string[],
             prisma: PrismaType,
             userData: SessionUser,
-        }) => Promise<void> | void;
+        }) => Promise<void> | void,
         disconnect?: ({ disconnectMany, languages, prisma, userData }: {
             disconnectMany: string[],
             languages: string[],
             prisma: PrismaType,
             userData: SessionUser,
-        }) => Promise<void> | void;
-    };
+        }) => Promise<void> | void,
+    }
     /**
      * Any custom transformations you want to perform before a create/update mutation, 
      * besides the ones supported by default in cudHelper. This includes converting creates to 
@@ -530,80 +530,57 @@ export type Duplicator<
 export type Mutater<Model extends {
     GqlCreate?: Record<string, any>,
     GqlUpdate?: Record<string, any>,
-    GqlRelCreate?: Record<string, any>,
-    GqlRelUpdate?: Record<string, any>,
     GqlModel: Record<string, any>,
     GqlPermission: Record<string, any>,
     PrismaCreate?: Record<string, any>,
     PrismaUpdate?: Record<string, any>,
-    PrismaRelCreate?: Record<string, any>,
-    PrismaRelUpdate?: Record<string, any>,
 }> = {
     /**
      * Shapes data for create/update mutations, both as a main 
      * object and as a relationship object
      */
-    shape: (Model['GqlCreate'] extends Record<string, any> ?
-        Model['PrismaCreate'] extends Record<string, any> ? {
-            create: ({ data, prisma, userData }: {
-                data: Model['GqlCreate'],
-                prisma: PrismaType,
-                userData: SessionUser,
-            }) => PromiseOrValue<Model['PrismaCreate']>,
-        } : {} : {}) & (Model['GqlUpdate'] extends Record<string, any> ?
-            Model['PrismaUpdate'] extends Record<string, any> ? {
-                update: ({ data, prisma, userData, where }: {
-                    data: Model['GqlUpdate'],
-                    prisma: PrismaType,
-                    userData: SessionUser,
-                    where: { id: string },
-                }) => PromiseOrValue<Model['PrismaUpdate']>,
-            } : {} : {}) & (Model['GqlRelCreate'] extends Record<string, any> ?
-                Model['PrismaRelCreate'] extends Record<string, any> ? {
-                    relCreate: ({ data, prisma, userData }: {
-                        data: Model['GqlRelCreate'],
-                        prisma: PrismaType,
-                        userData: SessionUser,
-                    }) => PromiseOrValue<Model['PrismaRelCreate']>,
-                } : {} : {}) & (Model['GqlRelUpdate'] extends Record<string, any> ?
-                    Model['PrismaRelUpdate'] extends Record<string, any> ? {
-                        relUpdate: ({ data, prisma, userData }: {
-                            data: Model['GqlRelUpdate'],
-                            prisma: PrismaType,
-                            userData: SessionUser,
-                            where: { id: string },
-                        }) => PromiseOrValue<Model['PrismaRelUpdate']>,
-                    } : {} : {}),
+    shape: {
+        create?: Model['GqlCreate'] extends Record<string, any> ?
+        Model['PrismaCreate'] extends Record<string, any> ? ({ data, prisma, userData }: {
+            data: Model['GqlCreate'],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<Model['PrismaCreate']> : never : never,
+        update?: Model['GqlUpdate'] extends Record<string, any> ?
+        Model['PrismaUpdate'] extends Record<string, any> ? ({ data, prisma, userData, where }: {
+            data: Model['GqlUpdate'],
+            prisma: PrismaType,
+            userData: SessionUser,
+            where: { id: string },
+        }) => PromiseOrValue<Model['PrismaUpdate']> : never : never
+    }
     /**
      * Triggers when a mutation is performed on the object
      */
-    trigger?: (Model['GqlCreate'] extends Record<string, any> ? {
-        onCreated?: ({ created, prisma, userData }: {
+    trigger?: {
+        onCreated?: Model['GqlCreate'] extends Record<string, any> ? ({ created, prisma, userData }: {
             authData: { [id: string]: { [x: string]: any } },
             created: (RecursivePartial<Model['GqlModel']> & { id: string })[],
             prisma: PrismaType,
             userData: SessionUser,
-        }) => PromiseOrValue<void>,
-    } : {}) & (Model['GqlUpdate'] extends Record<string, any> ? {
-        onUpdated?: ({ updated, updateInput, prisma, userData }: {
+        }) => PromiseOrValue<void> : never,
+        onUpdated?: Model['GqlUpdate'] extends Record<string, any> ? ({ updated, updateInput, prisma, userData }: {
             authData: { [id: string]: { [x: string]: any } },
             updated: (RecursivePartial<Model['GqlModel']> & { id: string })[],
             updateInput: Model['GqlUpdate'][],
             prisma: PrismaType,
             userData: SessionUser,
-        }) => PromiseOrValue<void>,
-    } : {}) & {
+        }) => PromiseOrValue<void> : never,
         onDeleted?: ({ deleted, prisma, userData }: {
             deleted: Count,
             prisma: PrismaType,
             userData: SessionUser,
         }) => PromiseOrValue<void>,
-    },
-    yup: (Model['GqlCreate'] extends Record<string, any> ? {
-        create: ArraySchema<any, any, any, any>,
-    } : {}) & (Model['GqlUpdate'] extends Record<string, any> ? {
-        update: ArraySchema<any, any, any, any>,
-    } : {});
+    }
+    yup: {
+        create?: (Model['GqlCreate'] extends Record<string, any> ? ArraySchema<any, any, any, any> : undefined),
+        update?: (Model['GqlUpdate'] extends Record<string, any> ? ArraySchema<any, any, any, any> : undefined),
+    }
 }
 
 /**

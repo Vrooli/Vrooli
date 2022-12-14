@@ -1,6 +1,6 @@
 import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
+import { Displayer, Formatter, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { NodeModel } from "./node";
 import { padSelect } from "../builders";
@@ -11,14 +11,10 @@ type Model = {
     IsVersioned: false,
     GqlCreate: NodeEndCreateInput,
     GqlUpdate: NodeEndUpdateInput,
-    GqlRelCreate: NodeEndCreateInput,
-    GqlRelUpdate: NodeEndUpdateInput,
     GqlModel: NodeEnd,
     GqlPermission: any,
     PrismaCreate: Prisma.node_endUpsertArgs['create'],
     PrismaUpdate: Prisma.node_endUpsertArgs['update'],
-    PrismaRelCreate: Prisma.node_endCreateWithoutNodeInput,
-    PrismaRelUpdate: Prisma.node_endUpdateWithoutNodeInput,
     PrismaModel: Prisma.node_endGetPayload<SelectWrap<Prisma.node_endSelect>>,
     PrismaSelect: Prisma.node_endSelect,
     PrismaWhere: Prisma.node_endWhereInput,
@@ -35,13 +31,14 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        relCreate: async ({ data }) => {
+        create: async ({ data }) => {
             return {
                 id: data.id,
+                nodeId: data.nodeId,
                 wasSuccessful: data.wasSuccessful ?? undefined,
             }
         },
-        relUpdate: async ({ data }) => {
+        update: async ({ data }) => {
             return {
                 wasSuccessful: data.wasSuccessful ?? undefined,
             }

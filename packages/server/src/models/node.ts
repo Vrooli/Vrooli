@@ -5,23 +5,19 @@ import { Formatter, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { CustomError } from "../events";
 import { RoutineModel } from "./routine";
-import { relBuilderHelper } from "../actions";
-import { bestLabel, translationRelationshipBuilder } from "../utils";
+import { bestLabel, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
+import { noNull, shapeHelper } from "../builders";
 
 type Model = {
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeCreateInput,
     GqlUpdate: NodeUpdateInput,
-    GqlRelCreate: NodeCreateInput,
-    GqlRelUpdate: NodeUpdateInput,
     GqlModel: Node,
     GqlPermission: any,
     PrismaCreate: Prisma.nodeUpsertArgs['create'],
     PrismaUpdate: Prisma.nodeUpsertArgs['update'],
-    PrismaRelCreate: Prisma.nodeCreateWithoutRoutineVersionInput,
-    PrismaRelUpdate: Prisma.nodeUpdateWithoutRoutineVersionInput,
     PrismaModel: Prisma.nodeGetPayload<SelectWrap<Prisma.nodeSelect>>,
     PrismaSelect: Prisma.nodeSelect,
     PrismaWhere: Prisma.nodeWhereInput,
@@ -58,10 +54,10 @@ const validator = (): Validator<Model> => ({
     },
     permissionsSelect: () => ({}) as any,
     //permissionsSelect: (...params) => ({ routineVersion: { select: RoutineModel.validate.permissionsSelect(...params) } }),
-    permissionResolvers: ({ isAdmin }) => ([
-        ['canDelete', async () => isAdmin],
-        ['canEdit', async () => isAdmin],
-    ]),
+    permissionResolvers: ({ isAdmin }) => ({
+        canDelete: async () => isAdmin,
+        canEdit: async () => isAdmin,
+    }),
     owner: (data) => RoutineModel.validate.owner(data.routineVersion as any),
     isDeleted: () => false,
     isPublic: (data, languages) => RoutineModel.validate.isPublic(data.routineVersion as any, languages),
@@ -87,36 +83,30 @@ const validator = (): Validator<Model> => ({
     }
 })
 
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: NodeCreateInput | NodeUpdateInput, isAdd: boolean) => {
-    // Make sure there isn't both end node and routine list node data
-    const result = { nodeEnd: null, nodeRoutineList: null }
-    return {
-        ...result,
-        id: data.id,
-        columnIndex: data.columnIndex ?? undefined,
-        rowIndex: data.rowIndex ?? undefined,
-        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-        nodeEnd: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'nodeEnd', objectType: 'NodeEnd', prisma, userData }),
-        nodeRoutineList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'nodeRoutineList', objectType: 'NodeRoutineList', prisma, userData }),
-        // loop: asdfa
-    }
-}
-
 const mutater = (): Mutater<Model> => ({
     shape: {
-        create: async ({ data, prisma, userData }) => {
-            return {
-                ...(await shapeBase(prisma, userData, data, true)),
-                permissions: JSON.stringify({}), //TODO
-                routineVersionId: data.routineVersionId,
-                type: data.type,
-            };
-        },
-        update: async ({ data, prisma, userData }) => {
-            return await shapeBase(prisma, userData, data, false);
-        },
-        relCreate: (...args) => mutater().shape.create(...args),
-        relUpdate: (...args) => mutater().shape.update(...args),
+        create: async ({ data, prisma, userData }) => ({
+            id: data.id,
+            columnIndex: noNull(data.columnIndex),
+            rowIndex: noNull(data.rowIndex),
+            type: data.type,
+            routineVersionId: data.routineVersionId,
+            ...(await shapeHelper({ relation: 'loop', relTypes: ['Create'], isOneToOne: true, isRequired: false,  objectType: 'NodeLoop', parentRelationshipName: 'node', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'nodeEnd', relTypes: ['Create'], isOneToOne: true, isRequired: false,  objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'nodeRoutineList', relTypes: ['Create'], isOneToOne: true, isRequired: false,  objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
+            ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+        }),
+        update: async ({ data, prisma, userData }) => ({
+            id: data.id,
+            columnIndex: noNull(data.columnIndex),
+            rowIndex: noNull(data.rowIndex),
+            type: noNull(data.type),
+            routineVersionId: noNull(data.routineVersionId),
+            ...(await shapeHelper({ relation: 'loop', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: true, isRequired: false, objectType: 'NodeLoop', parentRelationshipName: 'node', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'nodeEnd', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'nodeRoutineList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
+            ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+        })
     },
     yup: { create: nodesCreate, update: nodesUpdate },
 })

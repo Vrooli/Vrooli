@@ -16,10 +16,24 @@ import { onlyValidIds, padSelect } from "../builders";
 import { getDelegator } from "../getters";
 import { NoteModel } from "./note";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlModel: Star,
+    GqlSearch: StarSearchInput,
+    GqlSort: StarSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.starUpsertArgs['create'],
+    PrismaUpdate: Prisma.starUpsertArgs['update'],
+    PrismaModel: Prisma.starGetPayload<SelectWrap<Prisma.starSelect>>,
+    PrismaSelect: Prisma.starSelect,
+    PrismaWhere: Prisma.starWhereInput,
+}
+
 const __typename = 'Star' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Star, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         from: 'User',
@@ -43,11 +57,7 @@ const formatter = (): Formatter<Star, typeof suppFields> => ({
     },
 })
 
-const searcher = (): Searcher<
-    StarSearchInput,
-    StarSortBy,
-    Prisma.starWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: StarSortBy.DateUpdatedDesc,
     sortBy: StarSortBy,
     searchFields: [
@@ -173,39 +183,38 @@ const querier = () => ({
     },
 })
 
-const displayer = (): Displayer<
-    Prisma.starSelect,
-    Prisma.starGetPayload<SelectWrap<Prisma.starSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
-        // api: padSelect(ApiModel.display.select),
+        api: padSelect(ApiModel.display.select),
         comment: padSelect(CommentModel.display.select),
-        // issue: padSelect(IssueModel.display.select),
+        issue: padSelect(IssueModel.display.select),
+        note: padSelect(NoteModel.display.select),
         organization: padSelect(OrganizationModel.display.select),
-        // post: padSelect(PostModel.display.select),
+        post: padSelect(PostModel.display.select),
         project: padSelect(ProjectModel.display.select),
-        // question: padSelect(QuestionModel.display.select),
-        // questionAnswer: padSelect(QuestionAnswerModel.display.select),
-        // quiz: padSelect(QuizModel.display.select),
+        question: padSelect(QuestionModel.display.select),
+        questionAnswer: padSelect(QuestionAnswerModel.display.select),
+        quiz: padSelect(QuizModel.display.select),
         routine: padSelect(RoutineModel.display.select),
-        // smartContract: padSelect(SmartContractModel.display.select),
+        smartContract: padSelect(SmartContractModel.display.select),
         standard: padSelect(StandardModel.display.select),
         tag: padSelect(TagModel.display.select),
         user: padSelect(UserModel.display.select),
     }),
     label: (select, languages) => {
-        // if (select.api) return ApiModel.display.label(select.api as any, languages);
+        if (select.api) return ApiModel.display.label(select.api as any, languages);
         if (select.comment) return CommentModel.display.label(select.comment as any, languages);
-        // if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+        if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+        if (select.note) return NoteModel.display.label(select.note as any, languages);
         if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
-        // if (select.post) return PostModel.display.label(select.post as any, languages);
+        if (select.post) return PostModel.display.label(select.post as any, languages);
         if (select.project) return ProjectModel.display.label(select.project as any, languages);
-        // if (select.question) return QuestionModel.display.label(select.question as any, languages);
-        // if (select.questionAnswer) return QuestionAnswerModel.display.label(select.questionAnswer as any, languages);
-        // if (select.quiz) return QuizModel.display.label(select.quiz as any, languages);
+        if (select.question) return QuestionModel.display.label(select.question as any, languages);
+        if (select.questionAnswer) return QuestionAnswerModel.display.label(select.questionAnswer as any, languages);
+        if (select.quiz) return QuizModel.display.label(select.quiz as any, languages);
         if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
-        // if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
+        if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
         if (select.standard) return StandardModel.display.label(select.standard as any, languages);
         if (select.tag) return TagModel.display.label(select.tag as any, languages);
         if (select.user) return UserModel.display.label(select.user as any, languages);

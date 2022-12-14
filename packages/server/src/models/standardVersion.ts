@@ -2,7 +2,7 @@ import { standardsCreate, standardsUpdate } from "@shared/validation";
 import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardPermission, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput } from "../endpoints/types";
+import { Standard, StandardPermission, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, VersionPermission, StandardVersionCreateInput, StandardVersionUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
@@ -12,10 +12,26 @@ import { padSelect, permissionsSelectHelper } from "../builders";
 import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: StandardVersionCreateInput,
+    GqlUpdate: StandardVersionUpdateInput,
+    GqlModel: StandardVersion,
+    GqlSearch: StandardVersionSearchInput,
+    GqlSort: StandardVersionSortBy,
+    GqlPermission: VersionPermission,
+    PrismaCreate: Prisma.standard_versionUpsertArgs['create'],
+    PrismaUpdate: Prisma.standard_versionUpsertArgs['update'],
+    PrismaModel: Prisma.standard_versionGetPayload<SelectWrap<Prisma.standard_versionSelect>>,
+    PrismaSelect: Prisma.standard_versionSelect,
+    PrismaWhere: Prisma.standard_versionWhereInput,
+}
+
 const __typename = 'StandardVersion' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Standard, typeof suppFields> => ({
+const formatter = (): Formatter<Model, typeof suppFields> => ({
     relationshipMap: {
         __typename,
         comments: 'Comment',
@@ -36,11 +52,7 @@ const formatter = (): Formatter<Standard, typeof suppFields> => ({
     countFields: ['commentsCount', 'reportsCount'],
 })
 
-const searcher = (): Searcher<
-    StandardVersionSearchInput,
-    StandardVersionSortBy,
-    Prisma.standard_versionWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: StandardVersionSortBy.DateCompletedDesc,
     sortBy: StandardVersionSortBy,
     searchFields: [
@@ -68,16 +80,7 @@ const searcher = (): Searcher<
     customQueryData: () => ({ root: { isInternal: true } }),
 })
 
-const validator = (): Validator<
-    StandardCreateInput,
-    StandardUpdateInput,
-    Prisma.standardGetPayload<SelectWrap<Prisma.standardSelect>>,
-    StandardPermission,
-    Prisma.standardSelect,
-    Prisma.standardWhereInput,
-    true,
-    true
-> => ({
+const validator = (): Validator<Model> => ({
     validateMap: {
         __typename: 'Standard',
         parent: 'Standard',
@@ -134,15 +137,15 @@ const validator = (): Validator<
             }
         }
     }),
-    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
-        ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canDelete', async () => isAdmin && !isDeleted],
-        ['canEdit', async () => isAdmin && !isDeleted],
-        ['canReport', async () => !isAdmin && !isDeleted && isPublic],
-        ['canStar', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canView', async () => !isDeleted && (isAdmin || isPublic)],
-        ['canVote', async () => !isDeleted && (isAdmin || isPublic)],
-    ]),
+    permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+        canComment: async () => !isDeleted && (isAdmin || isPublic),
+        canDelete: async () => isAdmin && !isDeleted,
+        canEdit: async () => isAdmin && !isDeleted,
+        canReport: async () => !isAdmin && !isDeleted && isPublic,
+        canStar: async () => !isDeleted && (isAdmin || isPublic),
+        canView: async () => !isDeleted && (isAdmin || isPublic),
+        canVote: async () => !isDeleted && (isAdmin || isPublic),
+    }),
     owner: (data) => ({
         Organization: data.ownedByOrganization,
         User: data.ownedByUser,
@@ -321,13 +324,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Standa
     }
 }
 
-const mutater = (): Mutater<
-    Standard,
-    { graphql: StandardCreateInput, db: Prisma.standardUpsertArgs['create'] },
-    { graphql: StandardUpdateInput, db: Prisma.standardUpsertArgs['update'] },
-    { graphql: StandardCreateInput, db: Prisma.standardCreateWithoutTransfersInput },
-    { graphql: StandardUpdateInput, db: Prisma.standardUpdateWithoutTransfersInput }
-> => ({
+const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
             const base = await shapeBase(prisma, userData, data, true);
@@ -412,8 +409,6 @@ const mutater = (): Mutater<
                 },
             }
         },
-        relCreate: (...args) => mutater().shape.create(...args),
-        relUpdate: (...args) => mutater().shape.update(...args),
     },
     trigger: {
         onCreated: ({ created, prisma, userData }) => {
@@ -482,10 +477,7 @@ const mutater = (): Mutater<
     // },
 })
 
-const displayer = (): Displayer<
-    Prisma.standard_versionSelect,
-    Prisma.standard_versionGetPayload<SelectWrap<Prisma.standard_versionSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, root: { select: { name: true } } }),
     label: (select) => select.root.name ?? '',
 })

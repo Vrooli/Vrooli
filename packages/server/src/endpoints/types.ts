@@ -2012,6 +2012,7 @@ export type NodeEnd = {
 
 export type NodeEndCreateInput = {
   id: Scalars['ID'];
+  nodeId: Scalars['ID'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
@@ -2038,10 +2039,10 @@ export type NodeLinkCreateInput = {
 };
 
 export type NodeLinkUpdateInput = {
-  fromId?: InputMaybe<Scalars['ID']>;
+  fromConnect?: InputMaybe<Scalars['ID']>;
   id: Scalars['ID'];
   operation?: InputMaybe<Scalars['String']>;
-  toId?: InputMaybe<Scalars['ID']>;
+  toConnect?: InputMaybe<Scalars['ID']>;
   whensCreate?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
   whensDelete?: InputMaybe<Array<Scalars['ID']>>;
   whensUpdate?: InputMaybe<Array<NodeLinkWhenUpdateInput>>;
@@ -7702,7 +7703,7 @@ export type Tag = {
   tag: Scalars['String'];
   translations: Array<TagTranslation>;
   updated_at: Scalars['Date'];
-};
+} & { [x: string]: any; };
 
 export type TagCreateInput = {
   anonymous?: InputMaybe<Scalars['Boolean']>;

@@ -7,5 +7,4 @@ export * from './deleteOneHelper';
 export * from './readManyAsFeedHelper';
 export * from './readManyHelper';
 export * from './readOneHelper';
-export * from './relBuilderHelper';
 export * from './updateHelper';

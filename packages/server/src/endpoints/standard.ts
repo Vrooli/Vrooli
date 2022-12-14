@@ -92,7 +92,7 @@ export const typeDef = gql`
         commentsCount: Int!
         createdBy: User
         owner: Owner
-        permissionsStandard: StandardPermission!
+        permissionsRoot: RootPermission!
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]!
