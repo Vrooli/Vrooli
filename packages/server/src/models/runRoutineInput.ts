@@ -28,22 +28,23 @@ const __typename = 'RunRoutineInput' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         input: 'RoutineVersionInput',
     },
+    prismaRelMap: {
+        __typename,
+        input: 'RunRoutineInput',
+        runRoutine: 'RunRoutine',
+    }
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'RunRoutine',
-        input: 'RoutineVersionInput',
-        runRoutine: 'RunRoutine',
-    },
     isTransferable: false,
     maxObjects: 100000,
     permissionsSelect: (...params) => ({
-        runRoutine: { select: RunRoutineModel.validate.permissionsSelect(...params) }
+        id: true,
+        runRoutine: 'RunRoutine',
     }),
     permissionResolvers: ({ isAdmin, isPublic }) => ({
         canDelete: async () => isAdmin,

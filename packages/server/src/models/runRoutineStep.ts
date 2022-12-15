@@ -1,4 +1,4 @@
-import { stepsCreate, stepsUpdate } from "@shared/validation";
+import { stepCreate, stepUpdate } from "@shared/validation";
 import { RunStepStatus } from "@shared/consts";
 import { RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
@@ -25,25 +25,26 @@ const __typename = 'RunRoutineStep' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         run: 'RunRoutine',
         node: 'Node',
         subroutine: 'Routine',
     },
+    prismaRelMap: {
+        __typename,
+        node: 'Node',
+        runRoutine: 'RunRoutine',
+        subroutine: 'RoutineVersion',
+    }
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'RunRoutine',
-        node: 'Node',
-        runRoutine: 'RunRoutine',
-        subroutine: 'Routine',
-    },
     isTransferable: false,
     maxObjects: 100000,
     permissionsSelect: (...params) => ({
-        runRoutine: { select: RunRoutineModel.validate.permissionsSelect(...params) }
+        id: true,
+        runRoutine: 'RunRoutine',
     }),
     permissionResolvers: ({ isAdmin, isPublic }) => ({
         canDelete: async () => isAdmin,
@@ -92,7 +93,7 @@ const mutater = (): Mutater<Model> => ({
             }
         }
     },
-    yup: { create: stepsCreate, update: stepsUpdate },
+    yup: { create: stepCreate, update: stepUpdate },
 })
 
 const displayer = (): Displayer<Model> => ({

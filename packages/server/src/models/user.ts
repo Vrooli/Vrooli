@@ -65,7 +65,7 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         questionsAsked: 'Question',
         quizzesCreated: 'Quiz',
         quizzesTaken: 'QuizAttempt',
-        sentReports: 'Report',
+        reportsCreated: 'Report',
         reportsReceived: 'Report',
         reportResponses: 'ReportResponse',
         routinesCreated: 'Routine',

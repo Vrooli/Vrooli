@@ -99,7 +99,10 @@ const validator = (): Validator<Model> => ({
         },
         Organization: 0,
     },
-    permissionsSelect: (...params) => ({ id: true, createdBy: { select: UserModel.validate.permissionsSelect(...params) } }),
+    permissionsSelect: (...params) => ({
+        id: true,
+        createdBy: 'User',
+    }),
     permissionResolvers: ({ isAdmin }) => ({
         isOwn: async () => isAdmin,
     }),

@@ -42,7 +42,10 @@ const validator = (): Validator<Model> => ({
         },
         Organization: 0,
     },
-    permissionsSelect: (...params) => ({ id: true, user: { select: UserModel.validate.permissionsSelect(...params) } }),
+    permissionsSelect: (...params) => ({
+        id: true,
+        user: 'User',
+    }),
     permissionResolvers: ({ isAdmin }) => ({
         canDelete: async () => isAdmin,
         canEdit: async () => isAdmin,
@@ -85,8 +88,8 @@ const validator = (): Validator<Model> => ({
 const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, userData }) => ({
-                userId: userData.id,
-                emailAddress: data.emailAddress,
+            userId: userData.id,
+            emailAddress: data.emailAddress,
         }),
     },
     trigger: {

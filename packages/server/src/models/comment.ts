@@ -1,5 +1,5 @@
 import { CommentSortBy } from "@shared/consts";
-import { commentsCreate, commentsUpdate } from "@shared/validation";
+import { commentValidation } from "@shared/validation";
 import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { StarModel } from "./star";
@@ -128,20 +128,18 @@ const validator = (): Validator<Model> => ({
     },
     permissionsSelect: (...params) => ({
         id: true,
-        ...permissionsSelectHelper([
-            ['apiVersion', 'Api'],
-            ['issue', 'Issue'],
-            ['ownedByOrganization', 'Organization'],
-            ['post', 'Post'],
-            ['projectVersion', 'Project'],
-            ['pullRequest', 'PullRequest'],
-            ['question', 'Question'],
-            ['questionAnswer', 'QuestionAnswer'],
-            ['routineVersion', 'Routine'],
-            ['smartContractVersion', 'SmartContract'],
-            ['standardVersion', 'Standard'],
-            ['ownedByUser', 'User'],
-        ], ...params)
+        apiVersion: 'Api',
+        issue: 'Issue',
+        ownedByOrganization: 'Organization',
+        post: 'Post',
+        projectVersion: 'Project',
+        pullRequest: 'PullRequest',
+        question: 'Question',
+        questionAnswer: 'QuestionAnswer',
+        routineVersion: 'Routine',
+        smartContractVersion: 'SmartContract',
+        standardVersion: 'Standard',
+        ownedByUser: 'User',
     }),
     permissionResolvers: ({ isAdmin, isPublic }) => ({
         canDelete: async () => isAdmin,
@@ -381,7 +379,7 @@ const mutater = (): Mutater<Model> => ({
             }
         },
     },
-    yup: { create: commentsCreate, update: commentsUpdate },
+    yup: commentValidation,
 })
 
 const displayer = (): Displayer<Model> => ({

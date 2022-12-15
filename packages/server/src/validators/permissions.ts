@@ -1,10 +1,11 @@
 import { CustomError } from "../events";
-import { getDelegator, getValidator } from "../getters";
+import { getLogic } from "../getters";
 import { GraphQLModelType } from "../models/types";
 import { SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
+import { permissionsSelectHelper } from "../builders";
 
 /**
  * Handles setting and interpreting permission policies for organizations and their objects. Permissions are stored as stringified JSON 
@@ -232,11 +233,11 @@ export function getMultiTypePermissions(
     // Loop through each ID and calculate permissions
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
-        const validator = getValidator(authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
-        const isAdmin = isOwnerAdminCheck(validator.owner(authDataById[id]), userData?.id);
-        const isDeleted = validator.isDeleted(authDataById[id], userData?.languages ?? ['en']);
-        const isPublic = validator.isPublic(authDataById[id], userData?.languages ?? ['en']);
-        const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });
+        const { validate } = getLogic(['validate'], authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
+        const isAdmin = isOwnerAdminCheck(validate.owner(authDataById[id]), userData?.id);
+        const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ['en']);
+        const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ['en']);
+        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic });
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.
         const permissions = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));
@@ -262,19 +263,18 @@ export async function getSingleTypePermissions<PermissionObject extends { [x: st
     // Initialize result
     const permissions: PermissionObject[] = [];
     // Get validator and prismaDelegate
-    const validator = getValidator(type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
-    const prismaDelegate = getDelegator(type, prisma, userData?.languages ?? ['en'], 'getSingleTypePermissions');
+    const { delegate, validate } = getLogic(['delegate', 'validate'], type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
     // Get auth data for all objects
-    const authData = await prismaDelegate.findMany({
+    const authData = await delegate(prisma).findMany({
         where: { id: { in: ids } },
-        select: validator.permissionsSelect(userData?.id ?? null, userData?.languages ?? ['en']),
+        select: permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ['en']), 
     })
     // Loop through each object and calculate permissions
     for (const authDataItem of authData) {
-        const isAdmin = isOwnerAdminCheck(validator.owner(authDataItem), userData?.id);
-        const isDeleted = validator.isDeleted(authDataItem, userData?.languages ?? ['en']);
-        const isPublic = validator.isPublic(authDataItem, userData?.languages ?? ['en']);
-        const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isPublic });
+        const isAdmin = isOwnerAdminCheck(validate.owner(authDataItem), userData?.id);
+        const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ['en']);
+        const isPublic = validate.isPublic(authDataItem, userData?.languages ?? ['en']);
+        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
         const permissionsObject = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));

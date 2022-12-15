@@ -59,7 +59,7 @@ const validator = (): Validator<Model> => ({
         Organization: 0,
     },
     permissionsSelect: () => ({}) as any,
-    //permissionsSelect: (...params) => ({ routineVersion: { select: RoutineModel.validate.permissionsSelect(...params) } }),
+    //permissionsSelect: (...params) => ({ routineVersion: 'RoutineVersion' }),
     permissionResolvers: ({ isAdmin }) => ({
         canDelete: async () => isAdmin,
         canEdit: async () => isAdmin,

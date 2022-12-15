@@ -4,6 +4,7 @@ import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators
 import { CUDHelperInput, CUDResult } from "./types";
 import { modelToGraphQL, selectHelper } from "../builders";
 import { getLogic } from "../getters";
+import { reqArr } from '@shared/validation';
 
 /**
  * Performs create, update, and delete operations. 
@@ -37,18 +38,18 @@ export async function cudHelper<
     // Initialize results
     let created: GqlModel[] = [], updated: GqlModel[] = [], deleted: Count = { count: 0 };
     // Validate yup
-    createMany && mutate.yup.create && mutate.yup.create.validateSync(createMany, { abortEarly: false });
-    updateMany && mutate.yup.update && mutate.yup.update.validateSync(updateMany.map(u => u.data), { abortEarly: false });
+    createMany && mutate.yup.create && reqArr(mutate.yup.create).validateSync(createMany, { abortEarly: false });
+    updateMany && mutate.yup.update && reqArr(mutate.yup.update).validateSync(updateMany.map(u => u.data), { abortEarly: false });
     // Profanity check
     createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
     updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
     // Shape create and update data. This must be done before other validations, as shaping may convert creates to connects
     const shapedCreate: { [x: string]: any }[] = [];
     const shapedUpdate: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
-    if (createMany) {
+    if (createMany && mutate.shape.create) {
         for (const create of createMany) { shapedCreate.push(await mutate.shape.create({ data: create, prisma, userData })) }
     }
-    if (updateMany) {
+    if (updateMany && mutate.shape.update) {
         for (const update of updateMany) {
             const shaped = await mutate.shape.update({ data: update.data, prisma, userData, where: update.where });
             shapedUpdate.push({ where: update.where, data: shaped });

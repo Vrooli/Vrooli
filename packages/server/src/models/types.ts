@@ -1,6 +1,6 @@
 import { Count, SessionUser } from "../endpoints/types";
 import { PrismaType, PromiseOrValue, RecursivePartial, SingleOrArray } from "../types";
-import { ArraySchema } from 'yup';
+import { ObjectSchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 import { SortMap } from "../utils/sortMap";
 import { SearchMap, SearchStringMap } from "../utils";
@@ -344,6 +344,16 @@ export type ObjectLimit = number | {
 }
 
 /**
+ * Describes shape of select query used to check 
+ * the permissions for an object. Basically, it's the 
+ * Prisma select query, but where fields can be a GraphQLModelType 
+ * string instead of a boolean
+ */
+export type PermissionsMap<ModelSelect extends { [x: string]: any }> = {
+    [x in keyof ModelSelect]: ModelSelect[x] | GraphQLModelType
+}
+
+/**
  * Describes shape of component that has validation rules 
  */
 export type Validator<
@@ -371,7 +381,7 @@ export type Validator<
      * conjunction with the parent object's permissions (also queried in this field) - to determine if you 
      * are allowed to perform the mutation
      */
-    permissionsSelect: (userId: string | null, languages: string[]) => Model['PrismaSelect'];
+    permissionsSelect: (userId: string | null, languages: string[]) => PermissionsMap<Model['PrismaSelect']>;
     /**
      * Key/value pair of permission fields and resolvers to calculate them.
      */
@@ -567,8 +577,8 @@ export type Mutater<Model extends {
         }) => PromiseOrValue<void>,
     }
     yup: {
-        create?: (Model['GqlCreate'] extends Record<string, any> ? ArraySchema<any, any, any, any> : undefined),
-        update?: (Model['GqlUpdate'] extends Record<string, any> ? ArraySchema<any, any, any, any> : undefined),
+        create?: (Model['GqlCreate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : undefined),
+        update?: (Model['GqlUpdate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : undefined),
     }
 }
 

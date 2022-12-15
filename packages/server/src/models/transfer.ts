@@ -1,16 +1,13 @@
-import { isObject } from "@shared/utils";
 import { CustomError } from "../events";
-import { resolveUnion } from "../endpoints/resolvers";
 import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, Vote } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { readManyHelper } from "../actions";
-import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
-import { ApiModel, CommentModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
+import { Displayer, Formatter, Mutater } from "./types";
+import { ApiModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { padSelect } from "../builders";
+import { padSelect, permissionsSelectHelper } from "../builders";
 import { Prisma } from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
-import { getDelegator, getValidator } from "../getters";
+import { getLogic } from "../getters";
 import { isOwnerAdminCheck } from "../validators";
 import { Notify } from "../notify";
 
@@ -32,7 +29,7 @@ const __typename = 'Transfer' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         fromOwner: {
             fromUser: 'User',
@@ -85,26 +82,24 @@ const transfer = (prisma: PrismaType) => ({
     ): Promise<string> => {
         // Find the object and its owner
         const object: { __typename: TransferObjectType, id: string } = { __typename: input.objectType, id: input.objectId };
-        const validator = getValidator(object.__typename, userData.languages, 'Transfer.request-object');
-        const prismaDelegate = getDelegator(object.__typename, prisma, userData.languages, 'Transfer.request-object');
-        const permissionData = await prismaDelegate.findUnique({
+        const { delegate, validate } = getLogic(['delegate', 'validate'], object.__typename, userData.languages, 'Transfer.request-object');
+        const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
-            select: validator.permissionsSelect,
+            select: validate.permissionsSelect,
         });
-        const owner = permissionData && validator.owner(permissionData);
+        const owner = permissionData && validate.owner(permissionData);
         // Check if user is allowed to transfer this object
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
             throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
         // Check if the user is transferring to themselves
         const toType = input.toOrganizationId ? 'Organization' : 'User';
         const toId: string = input.toOrganizationId || input.toUserId as string;
-        const toValidator = getValidator(toType, userData.languages, 'Transfer.request-validator');
-        const toPrismaDelegate = getDelegator(toType, prisma, userData.languages, 'Transfer.request-validator');
-        const toPermissionData = await toPrismaDelegate.findUnique({
+        const { delegate: toDelegate, validate: toValidate } = getLogic(['delegate', 'validate'], toType, userData.languages, 'Transfer.request-validator');
+        const toPermissionData = await toDelegate(prisma).findUnique({
             where: { id: toId },
-            select: toValidator.permissionsSelect(userData.id, userData.languages),
+            select: permissionsSelectHelper(toValidate.permissionsSelect, userData.id, userData.languages),
         });
-        const isAdmin = toPermissionData && isOwnerAdminCheck(toValidator.owner(toPermissionData), userData.id)
+        const isAdmin = toPermissionData && isOwnerAdminCheck(toValidate.owner(toPermissionData), userData.id)
         // Create transfer request
         const request = await prisma.transfer.create({
             data: {
@@ -162,12 +157,12 @@ const transfer = (prisma: PrismaType) => ({
             throw new CustomError('0295', 'TransferAlreadyRejected', userData.languages);
         // Make sure user is the owner of the transfer request
         if (transfer.fromOrganizationId) {
-            const validator = getValidator('Organization', userData.languages, 'Transfer.cancel');
+            const { validate } = getLogic(['validate'], 'Organization', userData.languages, 'Transfer.cancel');
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.fromOrganizationId },
-                select: validator.permissionsSelect(userData.id, userData.languages),
+                select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
+            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData), userData.id))
                 throw new CustomError('0300', 'TransferRejectNotAuthorized', userData.languages);
         } else if (transfer.fromUserId !== userData.id) {
             throw new CustomError('0301', 'TransferRejectNotAuthorized', userData.languages);
@@ -196,12 +191,12 @@ const transfer = (prisma: PrismaType) => ({
             throw new CustomError('0289', 'TransferAlreadyRejected', userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const validator = getValidator('Organization', userData.languages, 'Transfer.accept');
+            const { validate } = getLogic(['validate'], 'Organization', userData.languages, 'Transfer.accept');
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
-                select: validator.permissionsSelect(userData.id, userData.languages),
+                select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
+            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData), userData.id))
                 throw new CustomError('0302', 'TransferAcceptNotAuthorized', userData.languages);
         } else if (transfer.toUserId !== userData.id) {
             throw new CustomError('0303', 'TransferAcceptNotAuthorized', userData.languages);
@@ -249,12 +244,12 @@ const transfer = (prisma: PrismaType) => ({
             throw new CustomError('0292', 'TransferAlreadyRejected', userData.languages);
         // Make sure transfer is going to you or an organization you can control
         if (transfer.toOrganizationId) {
-            const validator = getValidator('Organization', userData.languages, 'Transfer.reject');
+            const { validate } = getLogic(['validate'], 'Organization', userData.languages, 'Transfer.reject');
             const permissionData = await prisma.organization.findUnique({
                 where: { id: transfer.toOrganizationId },
-                select: validator.permissionsSelect(userData.id, userData.languages),
+                select: permissionsSelectHelper(validate.permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validator.owner(permissionData), userData.id))
+            if (!permissionData || !isOwnerAdminCheck(validate.owner(permissionData), userData.id))
                 throw new CustomError('0312', 'TransferRejectNotAuthorized', userData.languages);
         } else if (transfer.toUserId !== userData.id) {
             throw new CustomError('0313', 'TransferRejectNotAuthorized', userData.languages);

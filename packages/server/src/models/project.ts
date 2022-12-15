@@ -143,12 +143,10 @@ const validator = (): Validator<Model> => ({
         isDeleted: true,
         isPrivate: true,
         permissions: true,
-        createdBy: padSelect({ id: true }),
-        ...permissionsSelectHelper({
-            ownedByOrganization: 'Organization',
-            ownedByUser: 'User',
-        }, ...params),
-        versions: padSelect(ProjectVersionModel.validate.permissionsSelect(...params)),
+        createdBy: 'User',
+        ownedByOrganization: 'Organization',
+        ownedByUser: 'User',
+        versions: 'ProjectVersion',
     }),
     permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ([
         // ['canComment', async () => !isDeleted && (isAdmin || isPublic)],
