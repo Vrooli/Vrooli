@@ -19,7 +19,7 @@ const __typename = 'ApiVersion' as const;
 
 const suppFields = ['permissionsVersion'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         comments: 'Comment',
         directoryListings: 'ProjectVersionDirectory',
@@ -28,12 +28,23 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         resourceList: 'ResourceList',
         root: 'Api',
     },
+    prismaRelMap: {
+        __typename,
+        calledByRoutineVersions: 'RoutineVersion',
+        comments: 'Comment',
+        reports: 'Report',
+        root: 'Api',
+        forks: 'Api',
+        resourceList: 'ResourceList',
+        pullRequest: 'PullRequest',
+        directoryListings: 'ProjectVersionDirectory',
+    },
     countFields: ['commentsCount', 'directoryListingsCount', 'forksCount', 'reportsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['permissionsVersion', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
-        ],
+        toGraphQL: ({ ids, prisma, userData }) => ({
+            permissionsVersion: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+        }),
     },
 })
 

@@ -22,9 +22,13 @@ const __typename = 'NodeLoopWhile' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
     },
+    prismaRelMap: {
+        __typename,
+        loop: 'NodeLoop',
+    }
 })
 
 // Doesn't make sense to have a displayer for this model

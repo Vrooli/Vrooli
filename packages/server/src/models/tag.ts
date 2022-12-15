@@ -5,7 +5,6 @@ import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, SessionUser } from
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
-import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
 type Model = {
@@ -28,7 +27,7 @@ const __typename = 'Tag' as const;
 
 const suppFields = ['isOwn', 'isStarred'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         apis: 'Api',
         notes: 'Note',
@@ -40,6 +39,21 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         smartContracts: 'SmartContract',
         standards: 'Standard',
         starredBy: 'User',
+    },
+    prismaRelMap: {
+        __typename,
+        createdBy: 'User',
+        apis: 'Api',
+        notes: 'Note',
+        organizations: 'Organization',
+        posts: 'Post',
+        projects: 'Project',
+        reports: 'Report',
+        routines: 'Routine',
+        smartContracts: 'SmartContract',
+        standards: 'Standard',
+        starredBy: 'User',
+        // scheduleFilters: 'ScheduleFilter',
     },
     joinMap: {
         apis: 'tagged',
@@ -56,10 +70,10 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
     supplemental: {
         graphqlFields: suppFields,
         dbFields: ['createdByUserId', 'id'],
-        toGraphQL: ({ ids, objects, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-            ['isOwn', async () => objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id)],
-        ],
+        toGraphQL: ({ ids, objects, prisma, userData }) => ({
+            isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+            isOwn: async () => objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
+        }),
     },
 })
 
@@ -83,7 +97,6 @@ const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: { __typename: 'Tag' },
     isTransferable: false,
     maxObjects: {
         User: 10000,

@@ -19,33 +19,30 @@ const parentMapper: { [key in TaggedObjectType]: string } = {
 }
 
 type TagShapeHelperProps<
-    Input extends ShapeHelperInput<false, IsRequired, Types[number], RelField>,
-    IsRequired extends boolean,
+    Input extends ShapeHelperInput<false, false, Types[number], FieldName>,
     Types extends readonly RelationshipType[],
-    RelField extends string,
+    FieldName extends string,
 > = {
     parentType: TaggedObjectType;
-    relation: string;
-} & Omit<ShapeHelperProps<Input, false, IsRequired, Types, RelField, 'tag', false>, 'joinData' | 'objectType' | 'parentRelationshipName' | 'primaryKey' | 'softDelete'>;
+    relation: FieldName;
+} & Omit<ShapeHelperProps<Input, false, false, Types, FieldName, 'tag', false>, 'isRequired' | 'isOneToOne' | 'joinData' | 'objectType' | 'parentRelationshipName' | 'primaryKey' | 'relation' | 'softDelete'>;
 
 /**
 * Add, update, or remove tag data for an object.
 */
 export const tagShapeHelper = async <
-    IsRequired extends boolean,
     Types extends readonly RelationshipType[],
-    RelField extends string,
-    Input extends ShapeHelperInput<false, IsRequired, Types[number], RelField>,
+    Input extends ShapeHelperInput<false, false, Types[number], FieldName>,
+    FieldName extends string,
 >({
     data,
-    isRequired,
     parentType,
     prisma,
     relation,
     relTypes,
     userData,
-}: TagShapeHelperProps<Input, IsRequired, Types, RelField>):
-    Promise<ShapeHelperOutput<false, IsRequired, Types[number], RelField, 'tag'>> => {
+}: TagShapeHelperProps<Input, Types, FieldName>):
+    Promise<ShapeHelperOutput<false, false, Types[number], FieldName, 'tag'>> => {
     // Tags get special logic because they are treated as strings in GraphQL, 
     // instead of a normal relationship object
     // If any tag creates/connects, make sure they exist/not exist
@@ -79,7 +76,7 @@ export const tagShapeHelper = async <
     return shapeHelper({
         data,
         isOneToOne: false,
-        isRequired,
+        isRequired: false,
         joinData: {
             fieldName: 'tag',
             uniqueFieldName: parentMapper[parentType],

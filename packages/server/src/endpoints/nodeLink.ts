@@ -3,10 +3,11 @@ import { gql } from 'apollo-server-express';
 export const typeDef = gql`
     input NodeLinkCreateInput {
         id: ID!
-        whens: [NodeLinkWhenCreateInput!]
         operation: String
         fromConnect: ID!
         toConnect: ID!
+        routineVersionConnect: ID!
+        whensCreate: [NodeLinkWhenCreateInput!]
     }
     input NodeLinkUpdateInput {
         id: ID!

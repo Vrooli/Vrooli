@@ -28,8 +28,8 @@ export const typeDef = gql`
         id: ID!
         isPinned: Boolean
         isPublic: Boolean
-        organizationId: ID
-        repostedFromId: ID
+        organizationConnect: ID
+        repostedFromConnect: ID
         resourceListCreate: ResourceListCreateInput
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]

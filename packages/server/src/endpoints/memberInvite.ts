@@ -24,8 +24,8 @@ export const typeDef = gql`
 
     input MemberInviteCreateInput {
         id: ID!
-        memberId: ID!
-        organizationId: ID!
+        memberConnect: ID!
+        organizationConnect: ID!
         message: String
         willBeAdmin: Boolean
         willHavePermissions: String

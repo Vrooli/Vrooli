@@ -6,7 +6,6 @@ import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Displayer, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { profilesUpdate } from "@shared/validation";
-import { translationRelationshipBuilder } from "../utils";
 import { SelectWrap } from "../builders/types";
 
 type Model = {
@@ -28,7 +27,7 @@ const __typename = 'User' as const;
 
 const suppFields = ['isStarred', 'isViewed'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename: 'User',
         comments: 'Comment',
         emails: 'Email',
@@ -36,17 +35,68 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         projects: 'Project',
         pushDevices: 'PushDevice',
         starredBy: 'User',
+        reportsCreated: 'Report',
         reportsReceived: 'Report',
         routines: 'Routine',
     },
-    joinMap: { starredBy: 'user' },
+    prismaRelMap: {
+        __typename,
+        apis: 'Api',
+        apiKeys: 'ApiKey',
+        comments: 'Comment',
+        emails: 'Email',
+        organizationsCreated: 'Organization',
+        phones: 'Phone',
+        posts: 'Post',
+        invitedByUser: 'User',
+        invitedUsers: 'User',
+        issuesCreated: 'Issue',
+        issuesClosed: 'Issue',
+        labels: 'Label',
+        meetingsAttending: 'Meeting',
+        meetingsInvited: 'MeetingInvite',
+        pushDevices: 'PushDevice',
+        notifications: 'Notification',
+        memberships: 'Member',
+        projectsCreated: 'Project',
+        projects: 'Project',
+        pullRequests: 'PullRequest',
+        questionAnswered: 'QuestionAnswer',
+        questionsAsked: 'Question',
+        quizzesCreated: 'Quiz',
+        quizzesTaken: 'QuizAttempt',
+        sentReports: 'Report',
+        reportsReceived: 'Report',
+        reportResponses: 'ReportResponse',
+        routinesCreated: 'Routine',
+        routines: 'Routine',
+        runProjects: 'RunProject',
+        runRoutines: 'RunRoutine',
+        schedules: 'UserSchedule',
+        smartContractsCreated: 'SmartContract',
+        smartContracts: 'SmartContract',
+        standardsCreated: 'Standard',
+        standards: 'Standard',
+        starredBy: 'User',
+        tags: 'Tag',
+        transfersIncoming: 'Transfer',
+        transfersOutgoing: 'Transfer',
+        notesCreated: 'Note',
+        notes: 'Note',
+        wallets: 'Wallet',
+        stats: 'StatsUser',
+    },
+    joinMap: {
+        meetingsAttending: 'user',
+        starredBy: 'user',
+    },
     countFields: ['reportsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
-        ],
+        toGraphQL: ({ ids, prisma, userData }) => ({
+            isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+            isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+        }),
     },
 })
 
@@ -70,13 +120,6 @@ export const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'User',
-        projects: 'Project',
-        reportsCreated: 'Report',
-        routines: 'Routine',
-        // userSchedules: 'UserSchedule',
-    },
     isTransferable: false,
     maxObjects: 0,
     permissionsSelect: () => ({

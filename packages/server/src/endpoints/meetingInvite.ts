@@ -24,8 +24,8 @@ export const typeDef = gql`
 
     input MeetingInviteCreateInput {
         id: ID!
-        meetingId: ID!
-        userId: ID!
+        meetingConnect: ID!
+        userConnect: ID!
         message: String
     }
     input MeetingInviteUpdateInput {

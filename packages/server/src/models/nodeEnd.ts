@@ -24,9 +24,16 @@ const __typename = 'NodeEnd' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
+        suggestedNextRoutineVersion: 'RoutineVersion',
     },
+    prismaRelMap: {
+        __typename,
+        suggestedNextRoutineVersion: 'RoutineVersion',
+        node: 'Node',
+    },
+    joinMap: { suggestedNextRoutineVersion: 'toRoutineVersion' },
 })
 
 const mutater = (): Mutater<Model> => ({

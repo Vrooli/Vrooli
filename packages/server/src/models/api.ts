@@ -22,7 +22,7 @@ const __typename = 'Api' as const;
 
 const suppFields = ['isStarred', 'isViewed', 'isUpvoted', 'permissionsRoot'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         createdBy: 'User',
         owner: {
@@ -40,16 +40,34 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         stats: 'StatsApi',
         transfers: 'Transfer',
     },
+    prismaRelMap: {
+        __typename,
+        createdBy: 'User',
+        ownedByUser: 'User',
+        ownedByOrganization: 'Organization',
+        parent: 'ApiVersion',
+        tags: 'Tag',
+        issues: 'Issue',
+        starredBy: 'User',
+        votedBy: 'Vote',
+        viewedBy: 'View',
+        pullRequests: 'PullRequest',
+        versions: 'ApiVersion',
+        labels: 'Label',
+        stats: 'StatsApi',
+        questions: 'Question',
+        transfers: 'Transfer',
+    },
     joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
     countFields: ['versionsCount', 'pullRequestsCount', 'questionsCount', 'transfersCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
-            ['permissionsRoot', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
-        ],
+        toGraphQL: ({ ids, prisma, userData }) => ({
+            isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+            isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+            isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+            permissionsRoot: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+        }),
     },
 })
 

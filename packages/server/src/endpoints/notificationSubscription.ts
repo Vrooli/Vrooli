@@ -32,7 +32,7 @@ export const typeDef = gql`
     input NotificationSubscriptionCreateInput {
         id: ID!
         objectType: SubscribableObject!
-        objectId: ID!
+        objectConnect: ID!
         silent: Boolean
     }
     input NotificationSubscriptionUpdateInput {

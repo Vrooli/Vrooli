@@ -37,16 +37,16 @@ export const typeDef = gql`
     input TransferRequestSendInput {
         id: ID!
         objectType: TransferObjectType!
-        objectId: ID!
-        toOrganizationId: ID
-        toUserId: ID
+        objectConnect: ID!
+        toOrganizationConnect: ID
+        toUserConnect: ID
         message: String
     }
     input TransferRequestReceiveInput {
         id: ID!
         objectType: TransferObjectType!
-        objectId: ID!
-        toOrganizationId: ID # If not set, uses your userId
+        objectConnect: ID!
+        toOrganizationConnect: ID # If not set, uses your userId
         message: String
     }
     input TransferUpdateInput {

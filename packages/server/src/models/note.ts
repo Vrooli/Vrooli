@@ -29,7 +29,7 @@ const __typename = 'Note' as const;
 
 const suppFields = ['isStarred', 'isViewed', 'isUpvoted', 'permissionsRoot'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         createdBy: 'User',
         issues: 'Issue',
@@ -46,16 +46,30 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         transfers: 'Transfer',
         versions: 'NoteVersion',
     },
+    prismaRelMap: {
+        __typename,
+        parent: 'NoteVersion',
+        createdBy: 'User',
+        ownedByUser: 'User',
+        ownedByOrganization: 'Organization',
+        versions: 'NoteVersion',
+        pullRequests: 'PullRequest',
+        labels: 'Label',
+        issues: 'Issue',
+        tags: 'Tag',
+        starredBy: 'User',
+        questions: 'Question',
+    },
     joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
     countFields: ['issuesCount', 'labelsCount', 'pullRequestsCount', 'questionsCount', 'transfersCount', 'versionsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
-            ['permissionsRoot', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
-        ],
+        toGraphQL: ({ ids, prisma, userData }) => ({
+            isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+            isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+            isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+            permissionsRoot: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+        }),
     },
 })
 

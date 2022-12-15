@@ -16,8 +16,7 @@ export const typeDef = gql`
         id: ID!
         label: String!
         color: String
-        ownedByUserId: ID
-        ownedByOrganizationId: ID
+        organizationConnect: ID
         apisConnect: [ID!]
         issuesConnect: [ID!]
         notesConnect: [ID!]

@@ -6,10 +6,9 @@ import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { uuid } from "@shared/uuid";
-import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
-import { onlyValidIds } from "../builders";
-import { bestLabel, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { noNull, onlyValidIds, shapeHelper } from "../builders";
+import { bestLabel, tagShapeHelper, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 
 type Model = {
@@ -32,7 +31,7 @@ const __typename = 'Organization' as const;
 
 const suppFields = ['isStarred', 'isViewed', 'permissionsOrganization'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         apis: 'Api',
         comments: 'Comment',
@@ -61,15 +60,45 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         transfersOutgoing: 'Transfer',
         wallets: 'Wallet',
     },
-    joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
+    prismaRelMap: {
+        __typename,
+        createdBy: 'User',
+        directoryListings: 'ProjectVersionDirectory',
+        issues: 'Issue',
+        labels: 'Label',
+        notes: 'Note',
+        apis: 'Api',
+        comments: 'Comment',
+        forks: 'Organization',
+        meetings: 'Meeting',
+        parent: 'Organization',
+        posts: 'Post',
+        smartContracts: 'SmartContract',
+        tags: 'Tag',
+        members: 'Member',
+        memberInvites: 'MemberInvite',
+        projects: 'Project',
+        questions: 'Question',
+        reports: 'Report',
+        resourceList: 'ResourceList',
+        roles: 'Role',
+        routines: 'Routine',
+        runRoutines: 'RunRoutine',
+        standards: 'Standard',
+        starredBy: 'User',
+        transfersIncoming: 'Transfer',
+        transfersOutgoing: 'Transfer',
+        wallets: 'Wallet',
+    },
+    joinMap: { starredBy: 'user', tags: 'tag' },
     countFields: ['apisCount', 'commentsCount', 'issuesCount', 'labelsCount', 'meetingsCount', 'membersCount', 'notesCount', 'postsCount', 'projectsCount', 'questionsCount', 'rolesCount', 'routinesCount', 'smartContractsCount', 'standardsCount', 'translationsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
-            ['permissionsOrganization', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
-        ],
+        toGraphQL: ({ ids, prisma, userData }) => ({
+            isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+            isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+            permissionsOrganization: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+        }),
     },
 })
 
@@ -104,13 +133,6 @@ const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename,
-        members: 'Member',
-        projects: 'Project',
-        routines: 'Routine',
-        wallets: 'Wallet',
-    },
     isTransferable: false,
     maxObjects: {
         User: {
@@ -259,51 +281,58 @@ const querier = () => ({
     },
 })
 
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: OrganizationCreateInput | OrganizationUpdateInput, isAdd: boolean) => {
-    return {
-        id: data.id,
-        handle: data.handle ?? undefined,
-        isOpenToNewMembers: data.isOpenToNewMembers ?? undefined,
-        isPrivate: data.isPrivate ?? undefined,
-        permissions: JSON.stringify({}),
-        resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        tags: await tagRelationshipBuilder(prisma, userData, data, 'Organization', isAdd),
-        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-    }
-}
-
 const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
-            // ID for organization
+            // ID for organization and admin role
             const organizationId = uuid();
-            return {
-                ...(await shapeBase(prisma, userData, data, true)),
-                id: organizationId,
-                // Assign yourself as creator
-                createdBy: { connect: { id: userData.id } },
-                // Give yourself an Admin role
-                roles: {
+            const roleId = uuid();
+            // Add "Admin" role to roles, and assign yourself to it
+            const roles = await shapeHelper({ relation: 'roles', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'Role', parentRelationshipName: 'organization', data, prisma, userData })
+            const adminRole = {
+                id: roleId,
+                name: 'Admin',
+                permissions: JSON.stringify({}), //TODO
+                assignees: {
                     create: {
-                        name: 'Admin',
                         permissions: JSON.stringify({}), //TODO
-                        assignees: {
-                            create: {
-                                permissions: JSON.stringify({}), //TODO
-                                user: { connect: { id: userData.id } },
-                                organization: { connect: { id: organizationId } },
-                            }
-                        }
+                        user: { connect: { id: userData.id } },
+                        organization: { connect: { id: organizationId } },
                     }
                 }
             }
-        },
-        update: async ({ data, prisma, userData }) => {
-            // TODO members
-            return {
-                ...(await shapeBase(prisma, userData, data, false)),
+            if (roles.roles.create) roles.roles.create.push(adminRole);
+            else roles.roles.create = [adminRole];
+            // Add yourself as a member
+            const adminMember = {
+                isAdmin: true,
+                permissions: JSON.stringify({}), //TODO
+                user: { connect: { id: userData.id } },
+                organization: { connect: { id: organizationId } },
+                roles: { connect: { id: roleId } },
             }
-        }
+            return {
+                id: organizationId,
+                handle: noNull(data.handle),
+                isOpenToNewMembers: noNull(data.isOpenToNewMembers),
+                isPrivate: noNull(data.isPrivate),
+                permissions: JSON.stringify({}), //TODO
+                createdBy: { connect: { id: userData.id } },
+                members: { create: adminMember },
+                ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Create'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
+                ...roles,
+            }
+        },
+        update: async ({ data, prisma, userData }) => ({
+            handle: noNull(data.handle),
+            isOpenToNewMembers: noNull(data.isOpenToNewMembers),
+            isPrivate: noNull(data.isPrivate),
+            ...(await shapeHelper({ relation: 'members', relTypes: ['Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Update'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
+        })
     },
     yup: { create: organizationsCreate, update: organizationsUpdate },
 })

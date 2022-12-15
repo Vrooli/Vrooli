@@ -5,6 +5,7 @@ export * from './addSupplementalFieldsHelper';
 export * from './addSupplementalFieldsMultiTypes';
 export * from './combineQueries';
 export * from './combineSupplements';
+export * from './connectOwner';
 export * from './constructUnions';
 export * from './deconstructUnions';
 export * from './existsArray';

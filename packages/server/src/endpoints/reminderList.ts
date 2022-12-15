@@ -15,20 +15,20 @@ export const typeDef = gql`
     input ReminderListCreateInput {
         id: ID!
         index: Int
-        organizationId: ID
-        projectId: ID
-        routineId: ID
-        userId: ID
+        organizationConnect: ID
+        projectConnect: ID
+        routineConnect: ID
+        userConnect: ID
         translationsCreate: [ReminderListTranslationCreateInput!]
         resourcesCreate: [ResourceCreateInput!]
     }
     input ReminderListUpdateInput {
         id: ID!
         index: Int
-        organizationId: ID
-        projectId: ID
-        routineId: ID
-        userId: ID
+        organizationConnect: ID
+        projectConnect: ID
+        routineConnect: ID
+        userConnect: ID
         translationsDelete: [ID!]
         translationsCreate: [ReminderListTranslationCreateInput!]
         translationsUpdate: [ReminderListTranslationUpdateInput!]

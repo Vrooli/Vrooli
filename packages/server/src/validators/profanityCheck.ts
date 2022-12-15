@@ -16,11 +16,12 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: GraphQLMod
     // Initialize result
     const result: { [x: string]: string[] } = {};
     // Handle base case
-    // Get current object's validator
-    const validator: Validator<any, any, any, any, any, any, any, any> | undefined = objectType ? ObjectMap[objectType]?.validate : undefined;
+    // Get current object's formatter and validator
+    const format = objectType ? ObjectMap[objectType]?.format : undefined;
+    const validate = objectType ? ObjectMap[objectType]?.validate : undefined;
     // If validator specifies profanityFields, add them to the result
-    if (validator?.profanityFields) {
-        for (const field of validator.profanityFields) {
+    if (validate?.profanityFields) {
+        for (const field of validate.profanityFields) {
             if (input[field]) result[field] = result[field] ? [...result[field], input[field]] : [input[field]];
         }
     }
@@ -50,8 +51,8 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: GraphQLMod
         // Strip "Create" and "Update" from the end of the key
         const strippedKey = key.endsWith('Create') || key.endsWith('Update') ? key.slice(0, -6) : key;
         // Check if stripped key is in validator's validateMap
-        if (typeof validator?.validateMap?.[strippedKey] === 'string')
-            nextObjectType = validator?.validateMap?.[strippedKey] as GraphQLModelType;
+        if (typeof format?.gqlRelMap?.[strippedKey] === 'string')
+            nextObjectType = format?.gqlRelMap?.[strippedKey] as GraphQLModelType;
         // Now we can validate translations objects
         // Check for array
         if (isRelationshipArray(input[key])) {

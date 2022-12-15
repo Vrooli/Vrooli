@@ -159,25 +159,23 @@ export type AniedModelLogic<GqlModel extends { [x: string]: any }> = ModelLogic<
 }, any>;
 
 /**
- * Allows Prisma select fields to map to GraphQLModelTypes. Any field which can be 
- * an object (e.g. a relation) should be able to specify either a GraphQLModelType or
- * a nested ValidateMap
- */
-export type ValidateMap<T> = {
-    [K in keyof T]?: GraphQLModelType | ValidateMap<T[K]>
-};
-
-/**
  * An object which can maps GraphQL fields to GraphQLModelTypes. Normal fields 
  * are a single GraphQLModelType, while unions are handled with an object. 
  * A union object maps Prisma relation fields to GraphQLModelTypes.
  */
-export type RelationshipMap<
+export type GqlRelMap<
     GQLObject extends { [x: string]: any },
     PrismaObject extends { [x: string]: any },
 > = {
     [K in keyof GQLObject]?: GraphQLModelType | ({ [K2 in keyof PrismaObject]?: GraphQLModelType })
-} & { __typename?: GraphQLModelType };
+} & { __typename: GraphQLModelType };
+
+/**
+ * Allows Prisma select fields to map to GraphQLModelTypes
+ */
+export type PrismaRelMap<T> = {
+    [K in keyof T]?: GraphQLModelType
+} & { __typename: GraphQLModelType };
 
 /**
  * Helper functions for adding and removing supplemental fields. These are fields 
@@ -207,7 +205,7 @@ export interface SupplementalConverter<
         partial: PartialGraphQLInfo,
         prisma: PrismaType,
         userData: SessionUser | null,
-    }) => [SuppFields[number], () => any][];
+    }) => { [key in SuppFields[number]]: () => any };
 }
 
 /**
@@ -221,9 +219,13 @@ export interface Formatter<
     SuppFields extends readonly (keyof Model['GqlModel'] extends infer R ? R extends string ? R : never : never)[]
 > {
     /**
-     * Maps relationship names to their GraphQL type.  
+     * Maps GraphQL types to GraphQLModelType, with special handling for unions
      */
-    relationshipMap: RelationshipMap<Model['GqlModel'], Model['PrismaModel']>;
+    gqlRelMap: GqlRelMap<Model['GqlModel'], Model['PrismaModel']>;
+    /**
+     * Maps Prisma types to GraphQLModelType
+     */
+    prismaRelMap: PrismaRelMap<Model['PrismaModel']>;
     /**
      * Map used to add/remove join tables from the query. 
      * Each key is a GraphQL field, and each value is the join table's relation name
@@ -356,19 +358,6 @@ export type Validator<
         IsVersioned: boolean,
     }
 > = {
-    /**
-     * Maps relationsips on the object's database schema to the corresponding GraphQL type,
-     * if they require validation
-     * 
-     * Examples include: 
-     * routine -> organization
-     * node -> routine -> organization
-     * createdByOrganizationId
-     * 
-     * Examples when this is not needed:
-     * project -> resourceList
-     */
-    validateMap: { __typename: GraphQLModelType } & ValidateMap<Model['PrismaSelect']>;
     /**
      * The maximum number of objects that can be created by a single user/organization.
      * This depends on if the owner is a user or organization, if the owner 

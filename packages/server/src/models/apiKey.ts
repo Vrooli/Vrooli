@@ -14,7 +14,10 @@ const __typename = 'ApiKey' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
+        __typename,
+    },
+    prismaRelMap: {
         __typename,
     },
 })

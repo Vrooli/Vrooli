@@ -30,11 +30,11 @@ export const typeDef = gql`
 
     input ProjectCreateInput {
         id: ID!
-        ownedByUserId: ID
-        ownedByOrganizationId: ID
+        userConnect: ID
+        organizationConnect: ID
         handle: String
         isPrivate: Boolean
-        parentId: ID
+        parentConnect: ID
         permissions: String
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
@@ -44,8 +44,8 @@ export const typeDef = gql`
     }
     input ProjectUpdateInput {
         id: ID!
-        ownedByUserId: ID
-        ownedByOrganizationId: ID
+        userConnect: ID
+        organizationConnect: ID
         handle: String
         isPrivate: Boolean
         permissions: String

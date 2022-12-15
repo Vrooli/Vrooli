@@ -23,8 +23,8 @@ export const typeDef = gql`
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [OrganizationTranslationCreateInput!]
-        roles: [RoleCreateInput!]
-        memberInvites: [MemberInviteCreateInput!]
+        rolesCreate: [RoleCreateInput!]
+        memberInvitesCreate: [MemberInviteCreateInput!]
     }
     input OrganizationUpdateInput {
         id: ID!

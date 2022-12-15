@@ -36,6 +36,7 @@ export const typeDef = gql`
         versionNotes: String
         translationsCreate: [ProjectVersionTranslationCreateInput!]
         directoryListingsCreate: [ProjectVersionDirectoryCreateInput!]
+        suggestedNextByProjectConnect: [ID!]
     }
     input ProjectVersionUpdateInput {
         id: ID!
@@ -51,6 +52,8 @@ export const typeDef = gql`
         directoryListingsCreate: [ProjectVersionDirectoryCreateInput!]
         directoryListingsUpdate: [ProjectVersionDirectoryUpdateInput!]
         directoryListingsDelete: [ID!]
+        suggestedNextByProjectConnect: [ID!]
+        suggestedNextByProjectDisconnect: [ID!]
     }
     type ProjectVersion {
         id: ID!
@@ -79,6 +82,7 @@ export const typeDef = gql`
         permissionsVersion: VersionPermission!
         runs: [RunProject!]!
         runsCount: Int!
+        suggestedNextByProject: [Project!]!
     }
 
     input ProjectVersionTranslationCreateInput {

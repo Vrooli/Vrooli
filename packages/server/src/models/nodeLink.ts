@@ -2,8 +2,7 @@ import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from "../endpoints
 import { PrismaType } from "../types";
 import { Displayer, Formatter, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { relBuilderHelper } from "../actions";
-import { padSelect, shapeCon } from "../builders";
+import { noNull, padSelect, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
 
@@ -25,40 +24,43 @@ const __typename = 'NodeLink' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         whens: 'NodeLinkWhen',
     },
+    prismaRelMap: {
+        __typename,
+        from: 'Node',
+        to: 'Node',
+        routineVersion: 'RoutineVersion',
+        whens: 'NodeLinkWhen',
+    }
 })
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        create: async ({ prisma, userData, data }) => {
-            let { fromId, toId, ...rest } = data;
-            let temp = shapeCon(data, ['to'], true, true)
-            return {
-                ...rest,
-                ...shapeCon(data, ['from'], true, true),
-                ...shapeCon(data, ['to'], true, true),
-                whens: await relBuilderHelper({ data, isAdd: true, isOneToOne: false, isRequired: false, relationshipName: 'whens', objectType: 'Routine', prisma, userData }),
-            }
-        },
-        update: async ({ prisma, userData, data }) => {
-            let { fromConnect, toConnect, ...rest } = data;
-            return {
-                ...rest,
-                ...shapeCon(data, ['from'], false, false),
-                ...shapeCon(data, ['to'], false, false),
-                whens: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'whens', objectType: 'Routine', prisma, userData }),
-            }
-        },
+        create: async ({ prisma, userData, data }) => ({
+            id: data.id,
+            operation: noNull(data.operation),
+            ...(await shapeHelper({ relation: 'from', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'next', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'to', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'previous', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLinks', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'whens', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeLinkWhen', parentRelationshipName: 'link', data, prisma, userData })),
+
+        }),
+        update: async ({ prisma, userData, data }) => ({
+            operation: noNull(data.operation),
+            ...(await shapeHelper({ relation: 'from', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'next', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'to', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'previous', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'whens', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeLinkWhen', parentRelationshipName: 'link', data, prisma, userData })),
+        }),
     },
     yup: { create: {} as any, update: {} as any },
 })
 
 const displayer = (): Displayer<Model> => ({
-    select: () => ({ 
-        id: true, 
+    select: () => ({
+        id: true,
         from: padSelect(NodeModel.display.select),
         to: padSelect(NodeModel.display.select),
     }),
@@ -70,16 +72,7 @@ const displayer = (): Displayer<Model> => ({
 
 export const NodeLinkModel = ({
     __typename,
-    delegate: (prisma: PrismaType) =>{
-        await prisma.routine.update({
-            where: { id: ''},
-            data: {
-                labels: {
-                    de
-                }
-            }
-        })
-    } prisma.node_link,
+    delegate: (prisma: PrismaType) => prisma.node_link,
     display: displayer(),
     format: formatter(),
     mutate: mutater(),

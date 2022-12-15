@@ -23,26 +23,13 @@ export const typeDef = gql`
         handle: String
         isComplete: Boolean
         isPrivate: Boolean
-        parentId: ID
         resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
     }
     input RunProjectStepUpdateInput {
         id: ID!
         handle: String
         isComplete: Boolean
         isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
     }
     type RunProjectStep {
         id: ID!

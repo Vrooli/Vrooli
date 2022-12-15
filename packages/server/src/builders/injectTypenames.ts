@@ -1,6 +1,6 @@
 import { ObjectMap } from "../models";
-import { GraphQLModelType, RelationshipMap } from "../models/types";
-import { SingleOrArray } from "../types";
+import { GqlRelMap } from "../models/types";
+import { isRelationshipObject } from "./isRelationshipObject";
 import { PartialGraphQLInfo } from "./types";
 
 /**
@@ -13,7 +13,7 @@ import { PartialGraphQLInfo } from "./types";
 export const injectTypenames = <
     GQLObject extends { [x: string]: any },
     PrismaObject extends { [x: string]: any }
->(select: { [x: string]: any }, parentRelationshipMap: RelationshipMap<GQLObject, PrismaObject>): PartialGraphQLInfo => {
+>(select: { [x: string]: any }, parentRelationshipMap: GqlRelMap<GQLObject, PrismaObject>): PartialGraphQLInfo => {
     // Create result object
     let result: any = {};
     // Iterate over select object
@@ -27,21 +27,21 @@ export const injectTypenames = <
         }
         // If value is an object, recurse
         // Find the corresponding relationship map. An array represents a union
-        const nestedValue: SingleOrArray<GraphQLModelType> | undefined = parentRelationshipMap[selectKey];
-        // If union, add each possible type to the result
-        if (nestedValue !== undefined && Array.isArray(nestedValue)) {
-            // Iterate over possible types
-            for (const type of nestedValue) {
-                // If type is in selectValue, add it to the result
-                if (selectValue[type] && ObjectMap[type]) {
-                    result[type] = injectTypenames(selectValue[type], ObjectMap[type]!.format.relationshipMap);
-                }
+        const nestedValue = parentRelationshipMap[selectKey];
+        // If not union, add the single type to the result
+        if (typeof nestedValue === 'string') {
+            if (selectValue && ObjectMap[nestedValue!]) {
+                result[selectKey] = injectTypenames(selectValue, ObjectMap[nestedValue!]!.format.gqlRelMap);
             }
         }
-        // If not union, add the single type to the result
-        else {
-            if (selectValue && ObjectMap[nestedValue!]) {
-                result[selectKey] = injectTypenames(selectValue, ObjectMap[nestedValue!]!.format.relationshipMap);
+        // If union, add each possible type to the result
+        else if (isRelationshipObject(nestedValue)) {
+            // Iterate over possible types
+            for (const [field, type] of Object.entries(nestedValue)) {
+                // If type is in selectValue, add it to the result
+                if (selectValue[type!] && ObjectMap[type!]) {
+                    result[type!] = injectTypenames(selectValue[type!], ObjectMap[type!]!.format.gqlRelMap);
+                }
             }
         }
     }

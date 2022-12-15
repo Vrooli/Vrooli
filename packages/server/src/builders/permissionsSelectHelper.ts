@@ -1,22 +1,23 @@
-import { getValidator } from "../getters";
+import { getLogic } from "../getters";
 import { GraphQLModelType } from "../models/types";
 
 /**
- * Given a list of fields and GraphQLModels which have validators, creates a Prisma 
- * select object that combines all of the select objects from the validators
+ * Given an object of fields mapped to GraphQLModelTypes, creates a Prisma 
+ * select object that combines all of the select objects from each type's validators
  */
 export const permissionsSelectHelper = <PrismaSelect extends { [x: string]: any }>(
-    list: [keyof PrismaSelect, GraphQLModelType][],
+    map: { [key in keyof PrismaSelect]?: GraphQLModelType },
     userId: string | null,
     languages: string[]
-): PrismaSelect => {
+): { [key in keyof PrismaSelect]?: { select: any } } => {
     // Initialize result
-    const result: Partial<PrismaSelect> = {};
-    // Iterate through list
-    for (const [field, model] of list) {
+    const result: { [key in keyof PrismaSelect]?: { select: any } } = {};
+    // Iterate through map
+    for (const [field, type] of Object.entries(map)) {
+        if (!type) continue;
         // Get validator
-        const validator = getValidator(model, languages, 'permissionsSelectHelper');
-        result[field] = { select: validator.permissionsSelect(userId, languages) } as any;
+        const { validate } = getLogic(['validate'], type, languages, 'permissionsSelectHelper');
+        result[field as keyof PrismaSelect] = { select: validate.permissionsSelect(userId, languages) };
     }
     return result as PrismaSelect;
 }

@@ -6,6 +6,7 @@ export const typeDef = gql`
         isOrdered: Boolean
         isOptional: Boolean
         itemsCreate: [NodeRoutineListItemCreateInput!]
+        nodeConnect: ID!
     }
     input NodeRoutineListUpdateInput {
         id: ID!

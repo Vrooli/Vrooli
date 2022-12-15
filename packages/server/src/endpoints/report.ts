@@ -29,7 +29,7 @@ export const typeDef = gql`
     input ReportCreateInput {
         id: ID!
         createdFor: ReportFor!
-        createdForId: ID!
+        createdForConnect: ID!
         details: String
         language: String!
         reason: String!

@@ -1,21 +1,21 @@
-import { GraphQLModelType, RelationshipMap } from "../models/types";
+import { GraphQLModelType, GqlRelMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 
 /**
  * Deconstructs a GraphQL object's relationship fields into database fields. It's the opposite of constructRelationships
  * @param data - GraphQL-shaped object
- * @param relationshipMap - Mapping of relationship names to their transform shapes
+ * @param gqlRelMap - Mapping of relationship names to their transform shapes
  * @returns DB-shaped object
  */
 export const deconstructUnions = <
     GQLObject extends { [x: string]: any },
     PrismaObject extends { [x: string]: any }
->(data: { [x: string]: any }, relationshipMap: RelationshipMap<GQLObject, PrismaObject>): { [x: string]: any } => {
+>(data: { [x: string]: any }, gqlRelMap: GqlRelMap<GQLObject, PrismaObject>): { [x: string]: any } => {
     // Create result object
     let result: { [x: string]: any } = data;
-    // Any value in the relationshipMap which is an array is a union. 
+    // Any value in the gqlRelMap which is an array is a union. 
     // All other values can be ignored.
-    const unionFields: [string, GraphQLModelType[]][] = Object.entries(relationshipMap).filter(([_, value]) => Array.isArray(value)) as any[];
+    const unionFields: [string, GraphQLModelType[]][] = Object.entries(gqlRelMap).filter(([_, value]) => Array.isArray(value)) as any[];
     // For each union field
     for (const [key, value] of unionFields) {
         // If it's not in data, continue

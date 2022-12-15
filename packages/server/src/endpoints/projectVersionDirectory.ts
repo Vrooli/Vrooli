@@ -7,7 +7,7 @@ export const typeDef = gql`
         childOrder: String
         isRoot: Boolean
         parentDirectoryConnect: ID
-        projectVersionId: ID!
+        projectVersionConnect: ID!
         translationsCreate: [ProjectVersionDirectoryTranslationCreateInput!]
     }
     input ProjectVersionDirectoryUpdateInput {
@@ -16,7 +16,7 @@ export const typeDef = gql`
         isRoot: Boolean
         parentDirectoryConnect: ID
         parentDirectoryDisconnect: ID
-        projectVersionId: ID
+        projectVersionConnect: ID
         translationsCreate: [ProjectVersionDirectoryTranslationCreateInput!]
         translationsUpdate: [ProjectVersionDirectoryTranslationUpdateInput!]
         translationsDelete: [ID!]

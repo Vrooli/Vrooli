@@ -6,7 +6,7 @@ type TranslationShapeHelperProps<
     Input extends ShapeHelperInput<false, IsRequired, Types[number], 'translations'>,
     IsRequired extends boolean,
     Types extends readonly RelationshipType[],
-> = Omit<ShapeHelperProps<Input, false, IsRequired, Types, 'translations', 'id', false>, 'isOneToOne' | 'joinData' | 'objectType' | 'parentRelationshipName' | 'primaryKey' | 'relation' | 'relField' | 'softDelete'>;
+> = Omit<ShapeHelperProps<Input, false, IsRequired, Types, 'translations', 'id', false>, 'isOneToOne' | 'joinData' | 'objectType' | 'parentRelationshipName' | 'primaryKey' | 'relation' | 'softDelete'>;
 
 /**
 * Add, update, or remove translation data for an object.

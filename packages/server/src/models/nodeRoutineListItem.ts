@@ -2,9 +2,8 @@ import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListIte
 import { PrismaType } from "../types";
 import { Displayer, Formatter, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { relBuilderHelper } from "../actions";
-import { bestLabel, translationRelationshipBuilder } from "../utils";
-import { padSelect } from "../builders";
+import { bestLabel, translationShapeHelper } from "../utils";
+import { noNull, padSelect, shapeHelper } from "../builders";
 import { RoutineModel } from "./routine";
 import { SelectWrap } from "../builders/types";
 
@@ -26,31 +25,33 @@ const __typename = 'NodeRoutineListItem' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         routineVersion: 'RoutineVersion',
     },
+    prismaRelMap: {
+        __typename,
+        list: 'NodeRoutineList',
+        routineVersion: 'RoutineVersion',
+    }
 })
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        create: async ({ data, prisma, userData }) => {
-            return {
-                id: data.id,
-                index: data.index,
-                isOptional: data.isOptional ?? false,
-                routineVersion: await relBuilderHelper({ data, isAdd: true, isOneToOne: true, isRequired: true, linkVersion: true, relationshipName: 'routineVersion', objectType: 'Routine', prisma, userData }),
-                translations: await translationRelationshipBuilder(prisma, userData, data, true),
-            }
-        },
-        update: async ({ data, prisma, userData }) => {
-            return {
-                index: data.index ?? undefined,
-                isOptional: data.isOptional ?? undefined,
-                routineVersion: await relBuilderHelper({ data, isAdd: false, isOneToOne: true, isRequired: false, linkVersion: true, relationshipName: 'routineVersion', objectType: 'Routine', prisma, userData }),
-                translations: await translationRelationshipBuilder(prisma, userData, data, false),
-            }
-        },
+        create: async ({ data, prisma, userData }) => ({
+            id: data.id,
+            index: data.index,
+            isOptional: noNull(data.isOptional),
+            ...(await shapeHelper({ relation: 'list', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeRoutineList', parentRelationshipName: 'list', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLists', data, prisma, userData })),
+            ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+        }),
+        update: async ({ data, prisma, userData }) => ({
+            index: noNull(data.index),
+            isOptional: noNull(data.isOptional),
+            ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLists', data, prisma, userData })),
+            ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+        }),
     },
     yup: { create: {} as any, update: {} as any },
 })

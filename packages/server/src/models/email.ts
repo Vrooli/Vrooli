@@ -24,16 +24,16 @@ const __typename = 'Email' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
+    },
+    prismaRelMap: {
+        __typename,
+        user: 'User',
     }
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'Email',
-        user: 'User',
-    },
     isTransferable: false,
     maxObjects: {
         User: {
@@ -84,12 +84,10 @@ const validator = (): Validator<Model> => ({
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        create: async ({ data, userData }) => {
-            return {
+        create: async ({ data, userData }) => ({
                 userId: userData.id,
                 emailAddress: data.emailAddress,
-            }
-        },
+        }),
     },
     trigger: {
         onCreated: ({ prisma, userData }) => {

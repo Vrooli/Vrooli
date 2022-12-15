@@ -1,15 +1,14 @@
 import { routinesCreate, routinesUpdate } from "@shared/validation";
 import { CustomError, Trigger } from "../events";
-import { Routine, RoutinePermission, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionPermission, RoutineVersionUpdateInput } from "../endpoints/types";
+import { RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionPermission, RoutineVersionUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "../actions";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { bestLabel, oneIsPublic } from "../utils";
 
 type Model = {
     IsTransferable: false,
@@ -38,7 +37,7 @@ const __typename = 'RoutineVersion' as const;
 
 const suppFields = ['runs'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         comments: 'Comment',
         createdBy: 'User',
@@ -50,21 +49,44 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         project: 'Project',
         reports: 'Report',
         resourceLists: 'ResourceList',
-        // root: 'Routine',
+        root: 'Routine',
+        suggestedNextByRoutineVersion: 'RoutineVersion',
         starredBy: 'User',
         tags: 'Tag',
     },
-    joinMap: { tags: 'tag', starredBy: 'user' },
+    prismaRelMap: {
+        __typename,
+        apiVersion: 'ApiVersion',
+        comments: 'Comment',
+        reports: 'Report',
+        smartContractVersion: 'SmartContractVersion',
+        nodes: 'Node',
+        nodeLinks: 'NodeLink',
+        resourceList: 'ResourceList',
+        root: 'Routine',
+        forks: 'Routine',
+        inputs: 'RoutineVersionInput',
+        outputs: 'RoutineVersionOutput',
+        pullRequest: 'PullRequest',
+        runRoutines: 'RunRoutine',
+        runSteps: 'RunRoutineStep',
+        suggestedNextByRoutineVersion: 'RoutineVersion',
+    },
+    joinMap: {
+        tags: 'tag',
+        starredBy: 'user',
+        suggestedNextByRoutineVersion: 'toRoutineVersion',
+    },
     countFields: ['commentsCount', 'nodesCount', 'reportsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, objects, partial, prisma, userData }) => [
-            ['runs', async () => {
+        toGraphQL: ({ ids, objects, partial, prisma, userData }) => ({
+            runs: async () => {
                 if (!userData) return new Array(objects.length).fill([]);
                 // Find requested fields of runs. Also add routineId, so we 
                 // can associate runs with their routine
                 const runPartial: PartialGraphQLInfo = {
-                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.relationshipMap, userData.languages, true),
+                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.gqlRelMap, userData.languages, true),
                     routineVersionId: true
                 }
                 // Query runs made by user
@@ -84,8 +106,8 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
                 // Split runs by id
                 const routineRuns = ids.map((id) => runs.filter(r => r.routineId === id));
                 return routineRuns;
-            }],
-        ],
+            },
+        }),
     },
 })
 
@@ -133,22 +155,7 @@ const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'Routine',
-        parent: 'Routine',
-        createdBy: 'User',
-        ownedByOrganization: 'Organization',
-        ownedByUser: 'User',
-        versions: {
-            select: {
-                forks: 'Routine',
-                // api: 'Api',
-                // smartContract: 'SmartContract',
-                // directoryListings: 'ProjectDirectory',
-            }
-        }
-    },
-    isTransferable: true,
+    isTransferable: false,
     hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
     maxObjects: {
         User: {
@@ -181,34 +188,24 @@ const validator = (): Validator<Model> => ({
         isInternal: true,
         permissions: true,
         createdBy: padSelect({ id: true }),
-        ...permissionsSelectHelper([
-            ['ownedByOrganization', 'Organization'],
-            ['ownedByUser', 'User'],
-        ], ...params),
-        versions: {
-            select: {
-                id: true,
-                isComplete: true,
-                isPrivate: true,
-                isDeleted: true,
-                versionIndex: true,
-            }
-        }
+        ...permissionsSelectHelper({
+            root: 'Routine',
+        }, ...params),
     }),
     permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-        canComment: async () => !isDeleted && (isAdmin || isPublic),
-        canDelete: async () => isAdmin && !isDeleted,
-        canEdit: async () => isAdmin && !isDeleted,
-        canReport: async () => !isAdmin && !isDeleted && isPublic,
-        canRun: async () => !isDeleted && (isAdmin || isPublic),
-        canStar: async () => !isDeleted && (isAdmin || isPublic),
-        canView: async () => !isDeleted && (isAdmin || isPublic),
-        canVote: async () => !isDeleted && (isAdmin || isPublic),
-    }),
+        // canComment: async () => !isDeleted && (isAdmin || isPublic),
+        // canDelete: async () => isAdmin && !isDeleted,
+        // canEdit: async () => isAdmin && !isDeleted,
+        // canReport: async () => !isAdmin && !isDeleted && isPublic,
+        // canRun: async () => !isDeleted && (isAdmin || isPublic),
+        // canStar: async () => !isDeleted && (isAdmin || isPublic),
+        // canView: async () => !isDeleted && (isAdmin || isPublic),
+        // canVote: async () => !isDeleted && (isAdmin || isPublic),
+    } as any),
     owner: (data) => ({
-        Organization: data.ownedByOrganization,
-        User: data.ownedByUser,
-    }),
+        // Organization: data.ownedByOrganization,
+        // User: data.ownedByUser,
+    } as any),
     isDeleted: (data) => data.isDeleted,// || latest(data.versions)?.isDeleted,
     isPublic: (data, languages) => data.isPrivate === false &&
         data.isDeleted === false &&
@@ -235,16 +232,7 @@ const validator = (): Validator<Model> => ({
             // ]
         },
         owner: (userId) => ({
-            OR: [
-                { ownedByUser: { id: userId } },
-                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-            ]
-            // root: {
-            //     OR: [
-            //         { ownedByUser: { id: userId } },
-            //         { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-            //     ]
-            // }
+            root: RoutineVersionModel.validate.visibility.owner(userId),
         }),
     },
     // if (createMany) {

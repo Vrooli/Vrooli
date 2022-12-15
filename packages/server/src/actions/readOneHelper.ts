@@ -29,7 +29,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     if (!input.id && !(input as FindByIdOrHandleInput).handle && !(input as FindByVersionInput).versionGroupId)
         throw new CustomError('0019', 'IdOrHandleRequired', userData?.languages ?? req.languages);
     // Partially convert info
-    let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap, req.languages, true);
+    let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
     // If using versionGroupId, find the latest completed version in that group and use that id from now on
     let id: string | null | undefined;
     if ((input as FindByVersionInput).versionGroupId) {

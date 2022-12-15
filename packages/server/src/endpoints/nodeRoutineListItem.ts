@@ -5,6 +5,7 @@ export const typeDef = gql`
         id: ID!
         index: Int!
         isOptional: Boolean
+        listConnect: ID!
         routineVersionConnect: ID!
         translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
     }
@@ -12,7 +13,7 @@ export const typeDef = gql`
         id: ID!
         index: Int
         isOptional: Boolean
-        routineUpdate: RoutineUpdateInput
+        routineVersionUpdate: RoutineVersionUpdateInput
         translationsDelete: [ID!]
         translationsCreate: [NodeRoutineListItemTranslationCreateInput!]
         translationsUpdate: [NodeRoutineListItemTranslationUpdateInput!]

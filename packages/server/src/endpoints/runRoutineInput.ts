@@ -42,7 +42,7 @@ export const typeDef = gql`
     input RunRoutineInputCreateInput {
         id: ID!
         data: String!
-        inputId: ID!
+        inputConnect: ID!
     }
 
     input RunRoutineInputUpdateInput {

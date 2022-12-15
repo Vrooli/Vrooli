@@ -1,6 +1,5 @@
 import { isObject } from "@shared/utils";
 import { ObjectMap } from "../models";
-import { Formatter } from "../models/types";
 import { constructUnions } from "./constructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeCountFields } from "./removeCountFields";
@@ -42,13 +41,13 @@ export function modelToGraphQL<
         }
     }
     // Convert data to usable shape
-    const type: string | undefined = partialInfo?.__typename;
-    const formatter: Formatter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined as any;
-    if (formatter) {
-        data = constructUnions(data, formatter.relationshipMap);
-        data = removeJoinTables(data, formatter.joinMap);
-        data = removeCountFields(data, formatter.countFields);
-        data = removeHiddenFields(data, formatter.hiddenFields);
+    const type = partialInfo?.__typename;
+    const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    if (format) {
+        data = constructUnions(data, format.gqlRelMap);
+        data = removeJoinTables(data, format.joinMap as any);
+        data = removeCountFields(data, format.countFields);
+        data = removeHiddenFields(data, format.hiddenFields);
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {

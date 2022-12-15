@@ -25,7 +25,7 @@ const __typename = 'Meeting' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         attendees: 'User',
         invites: 'MeetingInvite',
@@ -33,7 +33,20 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         organization: 'Organization',
         restrictedToRoles: 'Role',
     },
-    joinMap: { labels: 'label' },
+    prismaRelMap: {
+        __typename,
+        organization: 'Organization',
+        restrictedToRoles: 'Role',
+        attendees: 'User',
+        invites: 'MeetingInvite',
+        labels: 'Label',
+    },
+    joinMap: { 
+        labels: 'label', 
+        restrictedToRoles: 'role', 
+        attendees: 'user',
+        invites: 'user',
+    },
     countFields: ['attendeesCount', 'invitesCount', 'labelsCount', 'translationsCount'],
 })
 

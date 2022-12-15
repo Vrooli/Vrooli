@@ -24,7 +24,7 @@ const __typename = 'Label' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         apis: 'Api',
         issues: 'Issue',
@@ -35,6 +35,29 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         runProjectSchedules: 'RunProjectSchedule',
         runRoutineSchedules: 'RunRoutineSchedule',
         userSchedules: 'UserSchedule',
+    },
+    prismaRelMap: {
+        __typename,
+        apis: 'Api',
+        issues: 'Issue',
+        meetings: 'Meeting',
+        notes: 'Note',
+        projects: 'Project',
+        routines: 'Routine',
+        runProjectSchedules: 'RunProjectSchedule',
+        runRoutineSchedules: 'RunRoutineSchedule',
+        userSchedules: 'UserSchedule',
+    },
+    joinMap: { 
+        apis: 'labelled', 
+        issues: 'labelled',
+        meetings: 'labelled',
+        notes: 'labelled',
+        projects: 'labelled',
+        routines: 'labelled',
+        runProjectSchedules: 'labelled',
+        runRoutineSchedules: 'labelled',
+        userSchedules: 'labelled',
     },
     countFields: ['apisCount', 'issuesCount', 'meetingsCount', 'notesCount', 'projectsCount', 'routinesCount', 'runProjectSchedulesCount', 'runRoutineSchedulesCount', 'userSchedulesCount'],
 })

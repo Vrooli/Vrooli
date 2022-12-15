@@ -41,7 +41,7 @@ export const typeDef = gql`
         routineConnect: ID
         smartContractConnect: ID
         standardConnect: ID
-        referencedVersionId: ID
+        referencedVersionConnect: ID
     }
     input IssueUpdateInput {
         id: ID!
@@ -58,7 +58,7 @@ export const typeDef = gql`
         createdBy: User
         status: IssueStatus!
         to: IssueTo!
-        referencedVersionId: ID
+        referencedVersionConnect: ID
         comments: [Comment!]!
         commentsCount: Int!
         labels: [Label!]!

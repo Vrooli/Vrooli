@@ -1,11 +1,11 @@
 import { isRelationshipArray, isRelationshipObject } from "../builders";
 import { PrismaUpdate } from "../builders/types";
 import { CustomError } from "../events";
-import { getDelegator, getValidator } from "../getters";
-import { GraphQLModelType } from "../models/types";
+import { GraphQLModelType, PrismaRelMap } from "../models/types";
 import { PrismaType } from "../types";
 import { QueryAction } from "./types";
 import pkg from 'lodash';
+import { getLogic } from "../getters";
 const { merge } = pkg;
 // TODO was originally created for partialselect format. Now must parse data as full Prisma select
 
@@ -56,9 +56,9 @@ const { merge } = pkg;
  *     idsByType: { 'Routine': ['abc123', 'def456', 'jkl012', 'pqr678', 'def456.organizationId', 'mno345.greatGrandchildId'], 'Organization': ['ghi789'] }
  * }
  */
-const objectToIds = ( // TODO doesn't support versioned objects
+const objectToIds = <T extends Record<string, any>>(
     actionType: QueryAction,
-    relMap: { [x: string]: GraphQLModelType } & { __typename: GraphQLModelType },
+    relMap: PrismaRelMap<T>,
     object: PrismaUpdate | string,
     languages: string[]
 ): {
@@ -219,8 +219,8 @@ const placeholdersToIds = async (idActions: { [key in GraphQLModelType]?: string
         // If there are any no ids, skip
         if (queries[key as any].ids.length === 0) continue;
         // Query for ids
-        const delegate = getDelegator(key as GraphQLModelType, prisma, languages, 'disconnectPlaceholdersToIds');
-        queryData[key as any] = await delegate.findMany({
+        const { delegate } = getLogic(['delegate'], key as GraphQLModelType, languages, 'disconnectPlaceholdersToIds');
+        queryData[key as any] = await delegate(prisma).findMany({
             where: { id: { in: queries[key as any].ids } },
             select: queries[key as any].select,
         });
@@ -276,7 +276,7 @@ export const getAuthenticatedIds = async (
     let idsByType: { [key in GraphQLModelType]?: string[] } = {};
     let idsByAction: { [key in QueryAction]?: string[] } = {};
     // Find validator for this object type
-    const validator = getValidator(objectType, languages, 'getAuthenticatedIds');
+    const { format } = getLogic(['format'], objectType, languages, 'getAuthenticatedIds');
     // Filter out objects that are strings, since the rest of the function only works with objects
     const filteredObjects = objects.filter(object => {
         const isString = typeof object.data === 'string';
@@ -296,7 +296,7 @@ export const getAuthenticatedIds = async (
         // Call objectToIds to get ids of all objects requiring authentication. 
         // For implicit IDs (i.e. 'Connect' and 'Disconnect'), this will return placeholders
         // that we can use to query for the actual ids.
-        const { idsByAction: childIdsByAction, idsByType: childIdsByType } = objectToIds(object.actionType, validator.validateMap as any, object.data as PrismaUpdate, languages); //TODO validateMap must account  for dot notation
+        const { idsByAction: childIdsByAction, idsByType: childIdsByType } = objectToIds(object.actionType, format.prismaRelMap, object.data as PrismaUpdate, languages); //TODO validateMap must account  for dot notation
         // Merge idsByAction and idsByType with childIdsByAction and childIdsByType
         idsByAction = merge(idsByAction, childIdsByAction);
         idsByType = merge(idsByType, childIdsByType);

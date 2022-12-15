@@ -39,9 +39,9 @@ export const typeDef = gql`
 
     input RunRoutineStepCreateInput {
         id: ID!
-        nodeId: ID
+        nodeConnect: ID
         contextSwitches: Int
-        subroutineVersionId: ID
+        subroutineVersionConnect: ID
         order: Int!
         step: [Int!]!
         timeElapsed: Int

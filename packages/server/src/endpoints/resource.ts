@@ -37,7 +37,7 @@ export const typeDef = gql`
 
     input ResourceCreateInput {
         id: ID!
-        listId: ID!
+        listConnect: ID!
         index: Int
         link: String!
         translationsCreate: [ResourceTranslationCreateInput!]
@@ -45,7 +45,7 @@ export const typeDef = gql`
     }
     input ResourceUpdateInput {
         id: ID!
-        listId: ID
+        listConnect: ID
         index: Int
         link: String
         translationsDelete: [ID!]

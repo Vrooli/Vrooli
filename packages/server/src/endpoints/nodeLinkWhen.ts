@@ -3,13 +3,13 @@ import { gql } from 'apollo-server-express';
 export const typeDef = gql`
     input NodeLinkWhenCreateInput {
         id: ID!
-        linkId: ID
+        linkConnect: ID!
         translationsCreate: [NodeLinkWhenTranslationCreateInput!]
         condition: String!
     }
     input NodeLinkWhenUpdateInput {
         id: ID!
-        linkId: ID
+        linkConnect: ID
         translationsDelete: [ID!]
         translationsCreate: [NodeLinkWhenTranslationCreateInput!]
         translationsUpdate: [NodeLinkWhenTranslationUpdateInput!]

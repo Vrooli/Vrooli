@@ -37,8 +37,8 @@ export const typeDef = gql`
     input PullRequestCreateInput {
         id: ID!
         toObjectType: PullRequestToObjectType!
-        toId: ID!
-        fromId: ID!
+        toConnect: ID!
+        fromConnect: ID!
     }
     input PullRequestUpdateInput {
         id: ID!

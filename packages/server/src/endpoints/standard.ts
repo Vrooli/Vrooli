@@ -38,8 +38,8 @@ export const typeDef = gql`
         props: String!
         yup: String
         versionLabel: String
-        createdByUserId: ID
-        createdByOrganizationId: ID
+        userConnect: ID
+        organizationConnect: ID
         resourceListsCreate: [ResourceListCreateInput!]
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
@@ -49,12 +49,12 @@ export const typeDef = gql`
         id: ID!
         makeAnonymous: Boolean
         isPrivate: Boolean
-        userId: ID
         default: String
         type: String!
         props: String!
         yup: String
-        organizationId: ID
+        userConnect: ID
+        organizationConnect: ID
         resourceListsDelete: [ID!]
         resourceListsCreate: [ResourceListCreateInput!]
         resourceListsUpdate: [ResourceListUpdateInput!]
@@ -64,7 +64,7 @@ export const typeDef = gql`
         translationsDelete: [ID!]
         translationsCreate: [StandardTranslationCreateInput!]
         translationsUpdate: [StandardTranslationUpdateInput!]
-        versionId: ID # If versionId passed, then we're updating an existing version. NOTE: This will throw an error if you try to update a completed version
+        versionConnect: ID # If versionId passed, then we're updating an existing version. NOTE: This will throw an error if you try to update a completed version
         versionLabel: String # If version label passed, then we're creating a new version
     }
     type Standard {

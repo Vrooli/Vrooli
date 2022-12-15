@@ -2,8 +2,7 @@ import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput
 import { PrismaType } from "../types";
 import { Displayer, Formatter, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { relBuilderHelper } from "../actions";
-import { padSelect } from "../builders";
+import { noNull, padSelect, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
 
@@ -25,29 +24,31 @@ const __typename = 'NodeRoutineList' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         items: 'NodeRoutineListItem',
     },
+    prismaRelMap: {
+        __typename,
+        node: 'Node',
+        items: 'NodeRoutineListItem',
+    }
 })
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        create: async ({ data, prisma, userData }) => {
-            return {
-                id: data.id,
-                isOrdered: data.isOrdered ?? undefined,
-                isOptional: data.isOptional ?? undefined,
-                routines: await relBuilderHelper({ data, isAdd: true, isRequired: false, isOneToOne: false, relationshipName: 'routines', objectType: 'NodeRoutineListItem', prisma, userData }),
-            }
-        },
-        update: async ({ data, prisma, userData }) => {
-            return {
-                isOrdered: data.isOrdered ?? undefined,
-                isOptional: data.isOptional ?? undefined,
-                routines: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'routines', objectType: 'NodeRoutineListItem', prisma, userData }),
-            }
-        },
+        create: async ({ data, prisma, userData }) => ({
+            id: data.id,
+            isOrdered: noNull(data.isOrdered),
+            isOptional: noNull(data.isOptional),
+            ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'node', data, prisma, userData })),
+            ...(await shapeHelper({ relation: 'items', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeRoutineListItem', parentRelationshipName: 'list', data, prisma, userData })),
+        }),
+        update: async ({ data, prisma, userData }) => ({
+            isOrdered: noNull(data.isOrdered),
+            isOptional: noNull(data.isOptional),
+            ...(await shapeHelper({ relation: 'items', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeRoutineListItem', parentRelationshipName: 'list', data, prisma, userData })),
+        }),
     },
     yup: { create: {} as any, update: {} as any },
 })

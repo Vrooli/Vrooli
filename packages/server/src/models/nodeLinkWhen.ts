@@ -2,8 +2,9 @@ import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, Session
 import { PrismaType } from "../types";
 import { Displayer, Formatter, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
-import { translationRelationshipBuilder } from "../utils";
+import { translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
+import { noNull, shapeHelper } from "../builders";
 
 type Model = {
     IsTransferable: false,
@@ -23,31 +24,28 @@ const __typename = 'NodeLinkWhen' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
     },
-})
-
-const relBase = async (prisma: PrismaType, userData: SessionUser, data: NodeLinkWhenCreateInput | NodeLinkWhenUpdateInput, isAdd: boolean) => {
-    return {
-        translations: await translationRelationshipBuilder(prisma, userData, data, true),
+    prismaRelMap: {
+        __typename,
+        link: 'NodeLink',
     }
-}
+})
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        create: async ({ data, prisma, userData }) => {
-            return {
-                ...await relBase(prisma, userData, data, true),
-                condition: data.condition,
-            }
-        },
-        update: async ({ data, prisma, userData }) => {
-            return {
-                ...await relBase(prisma, userData, data, false),
-                condition: data.condition ?? undefined,
-            }
-        },
+        create: async ({ data, prisma, userData }) => ({
+            id: data.id,
+            condition: data.condition,
+            ...(await shapeHelper({ relation: 'link', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeLink', parentRelationshipName: 'link', data, prisma, userData })),
+            ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+        }),
+        update: async ({ data, prisma, userData }) => ({
+            condition: noNull(data.condition),
+            ...(await shapeHelper({ relation: 'link', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'NodeLink', parentRelationshipName: 'link', data, prisma, userData })),
+            ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+        }),
     },
     yup: { create: {} as any, update: {} as any },
 })

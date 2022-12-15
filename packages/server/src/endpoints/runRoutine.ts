@@ -84,7 +84,7 @@ export const typeDef = gql`
     input RunRoutineCreateInput {
         id: ID!
         isPrivate: Boolean
-        routineVersionId: ID!
+        routineVersionConnect: ID!
         name: String!
         stepsCreate: [RunRoutineStepCreateInput!]
         inputsCreate: [RunRoutineInputCreateInput!]

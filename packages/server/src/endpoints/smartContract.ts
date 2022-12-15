@@ -33,9 +33,9 @@ export const typeDef = gql`
         handle: String
         isComplete: Boolean
         isPrivate: Boolean
-        parentId: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootId: ID!
+        parentConnect: ID
+        resourceListCreate: ResourceListCreateInput!
+        rootConnect: ID!
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
     }
@@ -44,11 +44,11 @@ export const typeDef = gql`
         handle: String
         isComplete: Boolean
         isPrivate: Boolean
-        organizationId: ID
-        userId: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
+        organizationConnect: ID
+        userConnect: ID
+        resourceListDelete: [ID!]
+        resourceListCreate: ResourceListCreateInput!
+        resourceListUpdate: ResourceListUpdateInput!
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]

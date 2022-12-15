@@ -37,12 +37,12 @@ export const typeDef = gql`
         id: ID!
         referencing: String
         forType: QuestionForType!
-        forId: ID!
+        forConnect: ID!
         translationsCreate: [QuestionTranslationCreateInput!]
     }
     input QuestionUpdateInput {
         id: ID!
-        acceptedAnswerId: ID
+        acceptedAnswerConnect: ID
         translationsDelete: [ID!]
         translationsCreate: [QuestionTranslationCreateInput!]
         translationsUpdate: [QuestionTranslationUpdateInput!]

@@ -5,7 +5,6 @@ import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpd
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "../actions";
 import { addSupplementalFields, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
@@ -30,12 +29,22 @@ const __typename = 'RunRoutine' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         routine: 'Routine',
         steps: 'RunRoutineStep',
         inputs: 'RunRoutineInput',
         user: 'User',
+    },
+    prismaRelMap: {
+        __typename,
+        routineVersion: 'Routine',
+        runRoutineSchedule: 'RunRoutineSchedule',
+        runProject: 'RunProject',
+        user: 'User',
+        organization: 'Organization',
+        steps: 'RunRoutineStep',
+        inputs: 'RunRoutineInput',
     },
     supplemental: {
         // Add fields needed for notifications when a run is started/completed
@@ -67,12 +76,6 @@ const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'RunRoutine',
-        routineVersion: 'Routine',
-        organization: 'Organization',
-        user: 'User',
-    },
     isTransferable: false,
     maxObjects: {
         User: 5000,
@@ -81,11 +84,11 @@ const validator = (): Validator<Model> => ({
     permissionsSelect: (...params) => ({
         id: true,
         isPrivate: true,
-        ...permissionsSelectHelper([
-            ['organization', 'Organization'],
-            ['routineVersion', 'Routine'],
-            ['user', 'User'],
-        ], ...params)
+        ...permissionsSelectHelper({
+            organization: 'Organization',
+            routineVersion: 'Routine',
+            user: 'User',
+        }, ...params)
     }),
     permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
         canDelete: async () => isAdmin && !isDeleted,
@@ -128,7 +131,7 @@ const runner = () => ({
      */
     async complete(prisma: PrismaType, userData: SessionUser, input: RunRoutineCompleteInput, info: GraphQLInfo): Promise<RunRoutine> {
         // Convert info to partial
-        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap, userData.languages, true);
+        const partial = toPartialGraphQLInfo(info, formatter().gqlRelMap, userData.languages, true);
         let run: run_routine | null;
         // Check if run is being created or updated
         if (input.exists) {
@@ -221,7 +224,7 @@ const runner = () => ({
      */
     async cancel(prisma: PrismaType, userData: SessionUser, input: RunRoutineCancelInput, info: GraphQLInfo): Promise<RunRoutine> {
         // Convert info to partial
-        const partial = toPartialGraphQLInfo(info, formatter().relationshipMap, userData.languages, true);
+        const partial = toPartialGraphQLInfo(info, formatter().gqlRelMap, userData.languages, true);
         // Find in database
         let object = await prisma.run_routine.findFirst({
             where: {

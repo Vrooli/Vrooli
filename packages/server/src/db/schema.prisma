@@ -72,7 +72,7 @@ model api_version {
     versionLabel        String                      @default("1.0.0") @db.VarChar(16)
     versionNotes        String?                     @db.VarChar(4096)
     pullRequestId       String?                     @unique @db.Uuid
-    calledByRoutines    routine_version[]
+    calledByRoutineVersions    routine_version[]
     comments            comment[]
     reports             report[]
     root                api                         @relation(fields: [rootId], references: [id], onDelete: Cascade)
@@ -265,7 +265,7 @@ model label {
     meetings              meeting_labels[]
     runProjectSchedules   run_project_schedule_labels[]
     runRoutineSchedules   run_routine_schedule_labels[]
-    schedulesUser         user_schedule_labels[]
+    userSchedules         user_schedule_labels[]
     ownedByUser           user?                         @relation(fields: [ownedByUserId], references: [id], onDelete: Cascade)
     ownedByOrganization   organization?                 @relation(fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)
     translations          label_translation[]
@@ -317,7 +317,7 @@ model node_translation {
 model node_end {
     id                   String          @id @default(uuid()) @db.Uuid
     wasSuccessful        Boolean         @default(true)
-    suggestedNextRoutine node_end_next[] @relation("node_end_next_from")
+    suggestedNextRoutineVersion node_end_next[] @relation("node_end_next_from")
     nodeId               String          @unique @db.Uuid
     node                 node            @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
@@ -1244,7 +1244,6 @@ model report {
     comment                comment?                    @relation(fields: [commentId], references: [id], onDelete: Cascade)
     issue                  issue?                      @relation(fields: [issueId], references: [id], onDelete: Cascade)
     noteVersion            note_version?               @relation(fields: [noteVersionId], references: [id], onDelete: Cascade)
-    from                   user                        @relation("report_from", fields: [fromId], references: [id], onDelete: Cascade)
     organization           organization?               @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     post                   post?                       @relation(fields: [postId], references: [id], onDelete: Cascade)
     projectVersion         project_version?            @relation(fields: [projectVersionId], references: [id], onDelete: Cascade)
@@ -1435,8 +1434,8 @@ model routine_version {
     runRoutines                run_routine[]                 @relation("run_routine_version")
     runSteps                   run_routine_step[]            @relation("run_routine_step_subroutine")
     suggestedNextByNode        node_end_next[]               @relation("node_end_next_to")
-    suggestedNextByRoutine     routine_version_end_next[]    @relation("routine_version_end_next_to")
-    suggestedNextByRoutineFrom routine_version_end_next[]    @relation("routine_version_end_next_from")
+    suggestedNextByRoutineVersion     routine_version_end_next[]    @relation("routine_version_end_next_to")
+    suggestedNextByRoutineVersionFrom routine_version_end_next[]    @relation("routine_version_end_next_from")
     directoryListings          project_version_directory[]
 
     @@unique([rootId, versionIndex], name: "routine_version_rootId_versionIndex_unique")
@@ -1749,7 +1748,7 @@ model smart_contract_version {
     isComplete          Boolean                              @default(false)
     isDeleted           Boolean                              @default(false)
     isPrivate           Boolean                              @default(false)
-    calledByRoutines    routine_version[]
+    calledByRoutineVersions    routine_version[]
     comments            comment[]
     forks               smart_contract[]                     @relation("smart_contract_version_fork")
     pullRequest         pull_request?                        @relation("pull_request_from_smart_contract_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
@@ -2224,7 +2223,6 @@ model user {
     questionsAsked                 question[]                  @relation("question_createdBy")
     quizzesCreated                 quiz[]
     quizzesTaken                   quiz_attempt[]
-    sentReports                    report[]                    @relation("report_from")
     reportsReceived                report[]                    @relation("report_user")
     reportsCreated                 report[]                    @relation("report_createdBy")
     reportResponses                report_response[]           @relation("report_response_createdBy")

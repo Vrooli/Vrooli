@@ -30,15 +30,15 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
         }
     }
     // Handle base case
-    const type: GraphQLModelType | undefined = partial?.__typename;
-    const formatter: Formatter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
-    if (type && formatter) {
+    const type = partial.__typename;
+    const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    if (type && format) {
         result = removeSupplementalFields(type, result);
         console.log('before deconstruct', JSON.stringify(result), '\n\n');
-        result = deconstructUnions(result, formatter.relationshipMap);
+        result = deconstructUnions(result, format.gqlRelMap);
         console.log('after deconstruct', JSON.stringify(result), '\n\n');
-        result = addJoinTables(result, formatter.joinMap);
-        result = addCountFields(result, formatter.countFields);
+        result = addJoinTables(result, format.joinMap as any);
+        result = addCountFields(result, format.countFields);
     }
     return result;
 }

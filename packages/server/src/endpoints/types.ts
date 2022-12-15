@@ -2007,6 +2007,7 @@ export type NodeData = NodeEnd | NodeRoutineList;
 export type NodeEnd = {
   __typename?: 'NodeEnd';
   id: Scalars['ID'];
+  suggestedNextRoutineVersion?: Maybe<RoutineVersion>;
   wasSuccessful: Scalars['Boolean'];
 };
 
@@ -2014,11 +2015,14 @@ export type NodeEndCreateInput = {
   id: Scalars['ID'];
   nodeId: Scalars['ID'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
+  suggestedNextRoutineVersionConnect?: InputMaybe<Scalars['ID']>;
 };
 
 export type NodeEndUpdateInput = {
   id: Scalars['ID'];
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
+  suggestedNextRoutineVersionConnect?: InputMaybe<Scalars['ID']>;
+  suggestedNextRoutineVersionDisconnect?: InputMaybe<Scalars['ID']>;
 };
 
 export type NodeLink = {
@@ -2031,11 +2035,12 @@ export type NodeLink = {
 };
 
 export type NodeLinkCreateInput = {
-  fromId: Scalars['ID'];
+  fromConnect: Scalars['ID'];
   id: Scalars['ID'];
   operation?: InputMaybe<Scalars['String']>;
-  toId: Scalars['ID'];
-  whens?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
+  toConnect: Scalars['ID'];
+  routineVersionConnect: Scalars['ID'];
+  whensCreate?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
 };
 
 export type NodeLinkUpdateInput = {
@@ -2058,7 +2063,7 @@ export type NodeLinkWhen = {
 export type NodeLinkWhenCreateInput = {
   condition: Scalars['String'];
   id: Scalars['ID'];
-  linkId?: InputMaybe<Scalars['ID']>;
+  linkConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<NodeLinkWhenTranslationCreateInput>>;
 };
 
@@ -2087,7 +2092,7 @@ export type NodeLinkWhenTranslationUpdateInput = {
 export type NodeLinkWhenUpdateInput = {
   condition?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  linkId?: InputMaybe<Scalars['ID']>;
+  linkConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<NodeLinkWhenTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<NodeLinkWhenTranslationUpdateInput>>;
@@ -2179,6 +2184,7 @@ export type NodeRoutineListCreateInput = {
   isOptional?: InputMaybe<Scalars['Boolean']>;
   isOrdered?: InputMaybe<Scalars['Boolean']>;
   itemsCreate?: InputMaybe<Array<NodeRoutineListItemCreateInput>>;
+  nodeConnect: Scalars['ID'];
 };
 
 export type NodeRoutineListItem = {
@@ -2195,6 +2201,7 @@ export type NodeRoutineListItemCreateInput = {
   index: Scalars['Int'];
   isOptional?: InputMaybe<Scalars['Boolean']>;
   routineVersionConnect: Scalars['ID'];
+  listConnect: Scalars['ID'];
   translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
 };
 
@@ -2224,7 +2231,7 @@ export type NodeRoutineListItemUpdateInput = {
   id: Scalars['ID'];
   index?: InputMaybe<Scalars['Int']>;
   isOptional?: InputMaybe<Scalars['Boolean']>;
-  routineUpdate?: InputMaybe<RoutineUpdateInput>;
+  routineVersionUpdate?: InputMaybe<RoutineVersionUpdateInput>;
   translationsCreate?: InputMaybe<Array<NodeRoutineListItemTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<NodeRoutineListItemTranslationUpdateInput>>;
@@ -2731,9 +2738,9 @@ export type OrganizationCreateInput = {
   id: Scalars['ID'];
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  memberInvites?: InputMaybe<Array<MemberInviteCreateInput>>;
+  memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-  roles?: InputMaybe<Array<RoleCreateInput>>;
+  rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
@@ -3328,6 +3335,7 @@ export type ProjectVersion = {
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: Maybe<Scalars['String']>;
+  suggestedNextByProject?: Maybe<Project>[];
 };
 
 export type ProjectVersionCreateInput = {
@@ -5827,6 +5835,7 @@ export type RoutineVersion = {
   reportsCount: Scalars['Int'];
   resourceLists: Array<ResourceList>;
   rootId: Scalars['ID'];
+  root: Routine;
   runs: Array<RunRoutine>;
   score: Scalars['Int'];
   simplicity: Scalars['Int'];
@@ -5837,6 +5846,7 @@ export type RoutineVersion = {
   updated_at: Scalars['Date'];
   versionLabel: Scalars['String'];
   views: Scalars['Int'];
+  suggestedNextByRoutineVersion: Array<RoutineVersion>;
 };
 
 export type RoutineVersionCreateInput = {

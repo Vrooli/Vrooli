@@ -37,10 +37,10 @@ export const typeDef = gql`
         isInternal: Boolean
         isPrivate: Boolean
         versionLabel: String
-        parentId: ID
-        projectId: ID
-        createdByUserId: ID
-        createdByOrganizationId: ID
+        parentConnect: ID
+        projectConnect: ID
+        userConnect: ID
+        organizationConnect: ID
         nodesCreate: [NodeCreateInput!]
         nodeLinksCreate: [NodeLinkCreateInput!]
         inputsCreate: [RoutineVersionInputCreateInput!]
@@ -55,11 +55,11 @@ export const typeDef = gql`
         isComplete: Boolean
         isInternal: Boolean
         isPrivate: Boolean
-        versionId: ID # If versionId passed, then we're updating an existing version
+        versionConnect: ID # If versionId passed, then we're updating an existing version
         versionLabel: String # If version label passed, then we're creating a new version
-        userId: ID
-        organizationId: ID
-        projectId: ID
+        userConect: ID
+        organizationConnect: ID
+        projectConnect: ID
         nodesDelete: [ID!]
         nodesCreate: [NodeCreateInput!]
         nodesUpdate: [NodeUpdateInput!]

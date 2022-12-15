@@ -5,11 +5,11 @@ export const typeDef = gql`
         id: ID!
         translationsCreate: [NodeLoopWhileTranslationCreateInput!]
         condition: String!
-        toId: ID
+        toConnect: ID
     }
     input NodeLoopWhileUpdateInput {
         id: ID!
-        toId: ID
+        toConnect: ID
         translationsDelete: [ID!]
         translationsCreate: [NodeLoopWhileTranslationCreateInput!]
         translationsUpdate: [NodeLoopWhileTranslationUpdateInput!]

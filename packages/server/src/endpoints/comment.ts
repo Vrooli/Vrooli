@@ -35,8 +35,8 @@ export const typeDef = gql`
     input CommentCreateInput {
         id: ID!
         createdFor: CommentFor!
-        forId: ID!
-        parentId: ID
+        forConnect: ID!
+        parentConnect: ID
         translationsCreate: [CommentTranslationCreateInput!]
     }
     input CommentUpdateInput {

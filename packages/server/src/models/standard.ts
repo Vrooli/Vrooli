@@ -38,7 +38,7 @@ const __typename = 'Standard' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsStandard'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         comments: 'Comment',
         createdBy: 'User',
@@ -53,16 +53,33 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         starredBy: 'User',
         tags: 'Tag',
     },
-    joinMap: { tags: 'tag', starredBy: 'user' },
+    prismaRelMap: {
+        __typename,
+        createdBy: 'User',
+        ownedByOrganization: 'Organization',
+        ownedByUser: 'User',
+        issues: 'Issue',
+        labels: 'Label',
+        parent: 'StandardVersion',
+        tags: 'Tag',
+        starredBy: 'User',
+        versions: 'StandardVersion',
+        pullRequests: 'PullRequest',
+        stats: 'StatsStandard',
+        questions: 'Question',
+        transfers: 'Transfer',
+        quizQuestions: 'QuizQuestion',
+    },
+    joinMap: { labels: 'label', tags: 'tag', starredBy: 'user' },
     countFields: ['commentsCount', 'reportsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
-            ['permissionsStandard', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
-        ],
+        toGraphQL: ({ ids, prisma, userData }) => ({
+            isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+            isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+            isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+            permissionsStandard: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+        }),
     },
 })
 
@@ -149,17 +166,11 @@ const validator = (): Validator<Model> => ({
         isDeleted: true,
         permissions: true,
         createdBy: padSelect({ id: true }),
-        ...permissionsSelectHelper([
-            ['ownedByOrganization', 'Organization'],
-            ['ownedByUser', 'User'],
-        ], ...params),
-        versions: {
-            select: {
-                isComplete: true,
-                isPrivate: true,
-                isDeleted: true,
-            }
-        }
+        ...permissionsSelectHelper({
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: 'StandardVersion',
+        }, ...params),
     }),
     permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
         canDelete: async () => isAdmin && !isDeleted,

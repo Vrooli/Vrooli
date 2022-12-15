@@ -37,7 +37,7 @@ export const typeDef = gql`
     input StarInput {
         isStar: Boolean!
         starFor: StarFor!
-        forId: ID!
+        forConnect: ID!
     }
     type Star {
         id: ID!

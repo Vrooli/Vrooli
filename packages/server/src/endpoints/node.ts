@@ -25,7 +25,7 @@ export const typeDef = gql`
         loopCreate: NodeLoopCreateInput
         nodeEndCreate: NodeEndCreateInput
         nodeRoutineListCreate: NodeRoutineListCreateInput
-        routineVersionId: ID!
+        routineVersionConnect: ID!
         translationsCreate: [NodeTranslationCreateInput!]
     }
     input NodeUpdateInput {
@@ -40,7 +40,7 @@ export const typeDef = gql`
         nodeEndUpdate: NodeEndUpdateInput
         nodeRoutineListCreate: NodeRoutineListCreateInput
         nodeRoutineListUpdate: NodeRoutineListUpdateInput
-        routineVersionId: ID
+        routineVersionConnect: ID
         translationsDelete: [ID!]
         translationsCreate: [NodeTranslationCreateInput!]
         translationsUpdate: [NodeTranslationUpdateInput!]

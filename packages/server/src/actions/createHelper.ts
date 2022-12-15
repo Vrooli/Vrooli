@@ -24,7 +24,7 @@ export async function createHelper<GraphQLModel>({
     const { format } = getLogic(['format'], objectType, req.languages, 'createHelper');
     console.log('create c');
     // Partially convert info type
-    const partialInfo = toPartialGraphQLInfo(info, format.relationshipMap, req.languages, true);
+    const partialInfo = toPartialGraphQLInfo(info, format.gqlRelMap, req.languages, true);
     console.log('create d');
     // Create objects. cudHelper will check permissions
     const cudResult = await cudHelper({ createMany: [input], objectType, partialInfo, prisma, userData });

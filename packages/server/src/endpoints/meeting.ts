@@ -30,7 +30,7 @@ export const typeDef = gql`
         recurring: Boolean
         recurrStart: Date
         recurrEnd: Date
-        organizationId: ID!
+        organizationConnect: ID!
         restrictedToRolesConnect: [ID!]
         invitedUsersConnect: [ID!]
         labelsConnect: [ID!]

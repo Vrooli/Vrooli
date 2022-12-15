@@ -27,7 +27,7 @@ export const typeDef = gql`
     input VoteInput {
         isUpvote: Boolean
         voteFor: VoteFor!
-        forId: ID!
+        forConnect: ID!
     }
     type Vote {
         isUpvote: Boolean

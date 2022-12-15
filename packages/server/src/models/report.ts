@@ -35,14 +35,15 @@ const __typename = 'Report' as const;
 
 const suppFields = ['isOwn'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: { __typename },
+    gqlRelMap: { __typename },
+    prismaRelMap: { __typename },
     hiddenFields: ['userId'], // Always hide report creator
     supplemental: {
         graphqlFields: suppFields,
         dbFields: ['userId'],
-        toGraphQL: ({ objects, userData }) => [
-            ['isOwn', async () => objects.map((x) => Boolean(userData) && x.fromId === userData?.id)],
-        ],
+        toGraphQL: ({ objects, userData }) => ({
+            isOwn: async () => objects.map((x) => Boolean(userData) && x.fromId === userData?.id),
+        }),
     },
 })
 
@@ -90,9 +91,6 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] }
 }
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'Report',
-    },
     isTransferable: false,
     maxObjects: {
         User: {

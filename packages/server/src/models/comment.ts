@@ -9,8 +9,8 @@ import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
-import { addSupplementalFields, combineQueries, modelToGraphQL, permissionsSelectHelper, selectHelper, shapeCon, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, oneIsPublic, SearchMap, translationRelationshipBuilder } from "../utils";
+import { addSupplementalFields, combineQueries, modelToGraphQL, noNull, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { bestLabel, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
 import { getUser } from "../auth";
@@ -36,7 +36,7 @@ const __typename = 'Comment' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'permissionsComment'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         owner: {
             ownedByUser: 'User',
@@ -58,15 +58,36 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         reports: 'Report',
         starredBy: 'User',
     },
+    prismaRelMap: {
+        __typename: 'Comment',
+        ownedByUser: 'User',
+        ownedByOrganization: 'Organization',
+        apiVersion: 'ApiVersion',
+        issue: 'Issue',
+        noteVersion: 'NoteVersion',
+        parent: 'Comment',
+        post: 'Post',
+        projectVersion: 'ProjectVersion',
+        pullRequest: 'PullRequest',
+        question: 'Question',
+        questionAnswer: 'QuestionAnswer',
+        routineVersion: 'RoutineVersion',
+        smartContractVersion: 'SmartContractVersion',
+        standardVersion: 'StandardVersion',
+        reports: 'Report',
+        starredBy: 'User',
+        votedBy: 'Vote',
+        parents: 'Comment',
+    },
     joinMap: { starredBy: 'user' },
     countFields: ['reportsCount', 'translationsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
-            ['permissionsComment', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
-        ],
+        toGraphQL: ({ ids, prisma, userData }) => ({
+            isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+            isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+            permissionsComment: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+        }),
     },
 })
 
@@ -97,11 +118,6 @@ const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'Comment',
-        ownedByUser: 'User',
-        ownedByOrganization: 'Organization',
-    },
     isTransferable: false,
     maxObjects: {
         User: {
@@ -172,7 +188,7 @@ const querier = () => ({
         nestLimit: number = 2,
     ): Promise<CommentThread[]> {
         // Partially convert info type
-        let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap, userData?.languages ?? ['en'], true);
+        let partialInfo = toPartialGraphQLInfo(info, formatter().gqlRelMap, userData?.languages ?? ['en'], true);
         const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
         // Combine queries
         const where = { ...idQuery };
@@ -243,7 +259,7 @@ const querier = () => ({
         nestLimit: number = 2,
     ): Promise<CommentSearchResult> {
         // Partially convert info type
-        let partialInfo = toPartialGraphQLInfo(info, formatter().relationshipMap, req.languages, true);
+        let partialInfo = toPartialGraphQLInfo(info, formatter().gqlRelMap, req.languages, true);
         // Determine text search query
         const searchQuery = input.searchString ? getSearchStringQuery({ objectType: 'Comment', searchString: input.searchString }) : undefined;
         // Loop through search fields and add each to the search query, 
@@ -347,20 +363,16 @@ const forMapper: { [key in CommentFor]: string } = {
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        create: async ({ data, prisma, userData }) => {
-            return {
-                id: data.id,
-                translations: await translationRelationshipBuilder(prisma, userData, data, true),
-                userId: userData.id,
-                [forMapper[data.createdFor]]: data.forId,
-                parentId: data.parentId ?? null,
-            }
-        },
-        update: async ({ data, prisma, userData }) => {
-            return {
-                translations: await translationRelationshipBuilder(prisma, userData, data, false),
-            }
-        }
+        create: async ({ data, prisma, userData }) => ({
+            id: data.id,
+            userId: userData.id,
+            [forMapper[data.createdFor]]: data.forId,
+            parentId: noNull(data.parentId),
+            ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+        }),
+        update: async ({ data, prisma, userData }) => ({
+            ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+        })
     },
     trigger: {
         onCreated: ({ created, prisma, userData }) => {

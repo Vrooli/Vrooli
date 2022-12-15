@@ -15,7 +15,7 @@ export const typeDef = gql`
     input QuizQuestionResponseCreateInput {
         id: ID!
         response: String
-        quizQuestionId: ID!
+        quizQuestionConnect: ID!
     }
     input QuizQuestionResponseUpdateInput {
         id: ID!

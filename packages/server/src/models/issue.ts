@@ -27,7 +27,7 @@ const __typename = 'Issue' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'permissionsIssue'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         closedBy: 'User',
         comments: 'Comment',
@@ -45,15 +45,32 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
             standard: 'Standard',
         }
     },
+    prismaRelMap: {
+        __typename,
+        api: 'Api',
+        organization: 'Organization',
+        note: 'Note',
+        project: 'Project',
+        routine: 'Routine',
+        smartContract: 'SmartContract',
+        standard: 'Standard',
+        closedBy: 'User',
+        comments: 'Comment',
+        labels: 'Label',
+        reports: 'Report',
+        votedBy: 'Vote',
+        starredBy: 'User',
+        viewedBy: 'View',
+    },
     joinMap: { labels: 'label', starredBy: 'user' },
     countFields: ['commentsCount', 'labelsCount', 'reportsCount', 'translationsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
-            ['permissionsIssue', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
-        ],
+        toGraphQL: ({ ids, prisma, userData }) => ({
+            isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+            isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+            permissionsIssue: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+        }),
     },
 })
 

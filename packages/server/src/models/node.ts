@@ -1,4 +1,4 @@
-import { Node, NodeCreateInput, NodeUpdateInput, SessionUser } from "../endpoints/types";
+import { Node, NodeCreateInput, NodeUpdateInput } from "../endpoints/types";
 import { nodesCreate, nodesUpdate } from "@shared/validation";
 import { PrismaType } from "../types";
 import { Formatter, Validator, Mutater, Displayer } from "./types";
@@ -28,7 +28,7 @@ const MAX_NODES_IN_ROUTINE = 100;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         data: {
             nodeEnd: 'NodeEnd',
@@ -37,13 +37,19 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         loop: 'NodeLoop',
         routineVersion: 'RoutineVersion',
     },
+    prismaRelMap: {
+        __typename,
+        routineVersion: 'RoutineVersion',
+        nodeEnd: 'NodeEnd',
+        previous: 'NodeLink',
+        next: 'NodeLink',
+        loop: 'NodeLoop',
+        nodeRoutineList: 'NodeRoutineList',
+        runSteps: 'RunRoutineStep',
+    },
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'Node',
-        routineVersion: 'Routine',
-    },
     isTransferable: false,
     maxObjects: {
         User: {

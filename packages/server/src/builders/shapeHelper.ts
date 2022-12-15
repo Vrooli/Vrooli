@@ -14,6 +14,10 @@ type MaybeArray<T, IsOneToOne extends boolean> =
 type MaybeArrayBoolean<T, IsOneToOne extends boolean> =
     IsOneToOne extends true ? boolean : T[];
 
+// [{ where: { id: 'id' }, data: { ... } }] if isOneToOne is false, otherwise { ... }
+type MaybeArrayUpdate<T extends RelUpdate<any, string>, IsOneToOne extends boolean> =
+    IsOneToOne extends true ? T['data'] : T[];
+
 type ShapeHelperOptionalInput<
     IsOneToOne extends boolean,
     RelFields extends string,
@@ -56,7 +60,7 @@ type ShapeHelperOptionalOutput<
 > = {
     delete?: 'Delete' extends RelFields ? MaybeArrayBoolean<RelDelete<PrimaryKey>, IsOneToOne> | undefined : never,
     disconnect?: 'Disconnect' extends RelFields ? MaybeArrayBoolean<RelDisconnect<PrimaryKey>, IsOneToOne> | undefined : never,
-    update?: 'Update' extends RelFields ? MaybeArray<RelUpdate<any, PrimaryKey>, IsOneToOne> | undefined : never,
+    update?: 'Update' extends RelFields ? MaybeArrayUpdate<RelUpdate<any, PrimaryKey>, IsOneToOne> | undefined : never,
 }
 
 type WrapInField<T, FieldName extends string> = {

@@ -25,10 +25,17 @@ const __typename = 'Member' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         organization: 'Organization',
         user: 'User',
+    },
+    prismaRelMap: {
+        __typename,
+        organization: 'Organization',
+        user: 'User',
+        roles: 'Role',
+        invite: 'MeetingInvite',
     }
 })
 

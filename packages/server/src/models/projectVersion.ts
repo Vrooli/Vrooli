@@ -1,5 +1,5 @@
 import { projectsCreate, projectsUpdate } from "@shared/validation";
-import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput, ProjectVersion, VersionPermission } from "../endpoints/types";
+import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput, ProjectVersion, VersionPermission, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
@@ -29,7 +29,7 @@ const __typename = 'ProjectVersion' as const;
 
 const suppFields = ['runs'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         comments: 'Comment',
         directories: 'ProjectVersionDirectory',
@@ -38,16 +38,33 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         pullRequest: 'PullRequest',
         reports: 'Report',
         root: 'Project',
+        runs: 'RunProject',
+    },
+    prismaRelMap: {
+        __typename,
+        comments: 'Comment',
+        directories: 'ProjectVersionDirectory',
+        directoryListings: 'ProjectVersionDirectory',
+        pullRequest: 'PullRequest',
+        reports: 'Report',
+        resourceList: 'ResourceList',
+        root: 'Project',
+        forks: 'Project',
+        runProjects: 'RunProject',
+        suggestedNextByProject: 'ProjectVersion',
+    },
+    joinMap: {
+        suggestedNextByProject: 'toProjectVersion',
     },
     countFields: ['commentsCount', 'directoriesCount', 'directoryListingsCount', 'forksCount', 'reportsCount', 'runsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['runs', async () => {
+        toGraphQL: ({ ids, prisma, userData }) => ({
+            runs: async () => {
                 //TODO
                 return {} as any;
-            }],
-        ],
+            },
+        }),
     },
 })
 
@@ -123,10 +140,10 @@ const validator = (): Validator<Model> => ({
         isPrivate: true,
         permissions: true,
         createdBy: padSelect({ id: true }),
-        ...permissionsSelectHelper([
-            ['ownedByOrganization', 'Organization'],
-            ['ownedByUser', 'User'],
-        ], ...params),
+        ...permissionsSelectHelper({
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+        }, ...params),
         versions: {
             select: {
                 isComplete: true,
@@ -146,9 +163,9 @@ const validator = (): Validator<Model> => ({
         // canVote: async () => !isDeleted && (isAdmin || isPublic),
     } as any),
     owner: (data) => ({
-        Organization: data.ownedByOrganization,
-        User: data.ownedByUser,
-    }),
+        // Organization: data.ownedByOrganization,
+        // User: data.ownedByUser,
+    } as any),
     hasCompletedVersion: (data) => data.hasCompleteVersion === true,
     isDeleted: (data) => data.isDeleted,// || data.root.isDeleted,
     isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
@@ -171,16 +188,7 @@ const validator = (): Validator<Model> => ({
             // ]
         },
         owner: (userId) => ({
-            OR: [
-                { ownedByUser: { id: userId } },
-                { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-            ]
-            // root: {
-            //     OR: [
-            //         { ownedByUser: { id: userId } },
-            //         { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-            //     ]
-            // }
+            root: ProjectVersionModel.validate.visibility.owner(userId),
         }),
     }
     // createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksDescription'));
@@ -203,23 +211,17 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
 
 const mutater = (): Mutater<Model> => ({
     shape: {
-        create: async ({ data, prisma, userData }) => {
-            return {
-                ...(await shapeBase(prisma, userData, data, true)),
-                // parentId: data.parentId ?? undefined,
-                // organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                // createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                // createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                // user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-            }
-        },
-        update: async ({ data, prisma, userData }) => {
-            return {
-                ...(await shapeBase(prisma, userData, data, false)),
-                // organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                // user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-            }
-        }
+        create: async ({ data, prisma, userData }) => ({
+            // parentId: data.parentId ?? undefined,
+            // organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+            // createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+            // createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+            // user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+        } as any),
+        update: async ({ data, prisma, userData }) => ({
+            // organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+            // user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+        } as any)
     },
     trigger: {
         onCreated: ({ created, prisma, userData }) => {

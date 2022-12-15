@@ -28,9 +28,9 @@ export const typeDef = gql`
 
     input ApiCreateInput {
         id: ID!
-        ownedByUserId: ID
-        ownedByOrganizationId: ID
-        parentId: ID
+        userConnect: ID
+        organizationConnect: ID
+        parentConnect: ID
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         versionsCreate: [ApiVersionCreateInput!]
@@ -39,8 +39,8 @@ export const typeDef = gql`
     }
     input ApiUpdateInput {
         id: ID!
-        ownedByUserId: ID
-        ownedByOrganizationId: ID
+        userConnect: ID
+        organizationConnect: ID
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]

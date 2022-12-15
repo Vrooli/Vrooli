@@ -8,12 +8,11 @@ import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { oneIsPublic } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 
 type Model = {
@@ -43,7 +42,7 @@ const __typename = 'Routine' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoutine', 'runs'] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         comments: 'Comment',
         createdBy: 'User',
@@ -62,21 +61,37 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         starredBy: 'User',
         tags: 'Tag',
     },
+    prismaRelMap: {
+        __typename,
+        createdBy: 'User',
+        ownedByUser: 'User',
+        ownedByOrganization: 'Organization',
+        parent: 'RoutineVersion',
+        quizzes: 'Quiz',
+        labels: 'Label',
+        starredBy: 'User',
+        versions: 'RoutineVersion',
+        viewedBy: 'View',
+        pullRequests: 'PullRequest',
+        stats: 'StatsRoutine',
+        questions: 'Question',
+        transfers: 'Transfer',
+    },
     joinMap: { tags: 'tag', starredBy: 'user' },
     countFields: ['commentsCount', 'nodesCount', 'reportsCount'],
     supplemental: {
         graphqlFields: suppFields,
-        toGraphQL: ({ ids, objects, partial, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename)],
-            ['isUpvoted', async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename)],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename)],
-            ['permissionsRoutine', async () => await getSingleTypePermissions(__typename, ids, prisma, userData)],
-            ['runs', async () => {
+        toGraphQL: ({ ids, objects, partial, prisma, userData }) => ({
+            isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+            isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+            isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+            permissionsRoutine: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+            runs: async () => {
                 if (!userData) return new Array(objects.length).fill([]);
                 // Find requested fields of runs. Also add routineId, so we 
                 // can associate runs with their routine
                 const runPartial: PartialGraphQLInfo = {
-                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.relationshipMap, userData.languages, true),
+                    ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.gqlRelMap, userData.languages, true),
                     routineVersionId: true
                 }
                 // Query runs made by user
@@ -96,8 +111,8 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
                 // Split runs by id
                 const routineRuns = ids.map((id) => runs.filter(r => r.routineId === id));
                 return routineRuns;
-            }],
-        ],
+            },
+        }),
     },
 })
 
@@ -140,21 +155,6 @@ const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'Routine',
-        parent: 'Routine',
-        createdBy: 'User',
-        ownedByOrganization: 'Organization',
-        ownedByUser: 'User',
-        versions: {
-            select: {
-                forks: 'Routine',
-                // api: 'Api',
-                // smartContract: 'SmartContract',
-                // directoryListings: 'ProjectDirectory',
-            }
-        }
-    },
     isTransferable: true,
     hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
     maxObjects: {
@@ -188,30 +188,22 @@ const validator = (): Validator<Model> => ({
         isInternal: true,
         permissions: true,
         createdBy: padSelect({ id: true }),
-        ...permissionsSelectHelper([
-            ['ownedByOrganization', 'Organization'],
-            ['ownedByUser', 'User'],
-        ], ...params),
-        versions: {
-            select: {
-                id: true,
-                isComplete: true,
-                isPrivate: true,
-                isDeleted: true,
-                versionIndex: true,
-            }
-        }
+        ...permissionsSelectHelper({
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: 'RoutineVersion',
+        }, ...params),
     }),
     permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-        canComment: async () => !isDeleted && (isAdmin || isPublic),
-        canDelete: async () => isAdmin && !isDeleted,
-        canEdit: async () => isAdmin && !isDeleted,
-        canReport: async () => !isAdmin && !isDeleted && isPublic,
-        canRun: async () => !isDeleted && (isAdmin || isPublic),
-        canStar: async () => !isDeleted && (isAdmin || isPublic),
-        canView: async () => !isDeleted && (isAdmin || isPublic),
-        canVote: async () => !isDeleted && (isAdmin || isPublic),
-    }),
+        // canComment: async () => !isDeleted && (isAdmin || isPublic),
+        // canDelete: async () => isAdmin && !isDeleted,
+        // canEdit: async () => isAdmin && !isDeleted,
+        // canReport: async () => !isAdmin && !isDeleted && isPublic,
+        // canRun: async () => !isDeleted && (isAdmin || isPublic),
+        // canStar: async () => !isDeleted && (isAdmin || isPublic),
+        // canView: async () => !isDeleted && (isAdmin || isPublic),
+        // canVote: async () => !isDeleted && (isAdmin || isPublic),
+    } as any),
     owner: (data) => ({
         Organization: data.ownedByOrganization,
         User: data.ownedByUser,
