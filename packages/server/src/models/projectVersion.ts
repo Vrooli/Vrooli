@@ -97,42 +97,8 @@ const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'Project',
-        parent: 'Project',
-        createdBy: 'User',
-        ownedByOrganization: 'Organization',
-        ownedByUser: 'User',
-        versions: {
-            select: {
-                forks: 'Project',
-            }
-        },
-    },
     isTransferable: false,
-    hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
-    maxObjects: {
-        User: {
-            private: {
-                noPremium: 3,
-                premium: 100,
-            },
-            public: {
-                noPremium: 25,
-                premium: 250,
-            },
-        },
-        Organization: {
-            private: {
-                noPremium: 3,
-                premium: 100,
-            },
-            public: {
-                noPremium: 25,
-                premium: 250,
-            },
-        },
-    },
+    maxObjects: 1000000,
     permissionsSelect: (...params) => ({
         id: true,
         hasCompleteVersion: true,
@@ -166,7 +132,6 @@ const validator = (): Validator<Model> => ({
         // Organization: data.ownedByOrganization,
         // User: data.ownedByUser,
     } as any),
-    hasCompletedVersion: (data) => data.hasCompleteVersion === true,
     isDeleted: (data) => data.isDeleted,// || data.root.isDeleted,
     isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
         ['ownedByOrganization', 'Organization'],

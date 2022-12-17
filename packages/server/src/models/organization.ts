@@ -156,7 +156,7 @@ const validator = (): Validator<Model> => ({
         ...(userId ? {
             roles: {
                 where: {
-                    assignees: {
+                    members: {
                         some: {
                             userId
                         },
@@ -215,7 +215,7 @@ const querier = () => ({
         // If no names are provided, query by members (in case user was not assigned a role)
         if (names.length === 0) return { members: { some: { user: { id: userId } } } };
         // Otherwise, query for roles with one of the provided names
-        return { roles: { some: { name: { in: names }, assignees: { some: { user: { id: userId } } } } } };
+        return { roles: { some: { name: { in: names }, members: { some: { user: { id: userId } } } } } };
     },
     /**
      * Query for checking if a user is a member of an organization
@@ -239,7 +239,7 @@ const querier = () => ({
             where: {
                 name,
                 organization: { id: { in: idsToQuery } },
-                assignees: { some: { user: { id: userId } } }
+                members: { some: { user: { id: userId } } }
             }
         });
         // Create an array of the same length as the input, with the role data or undefined
@@ -293,7 +293,7 @@ const mutater = (): Mutater<Model> => ({
                 id: roleId,
                 name: 'Admin',
                 permissions: JSON.stringify({}), //TODO
-                assignees: {
+                members: {
                     create: {
                         permissions: JSON.stringify({}), //TODO
                         user: { connect: { id: userData.id } },

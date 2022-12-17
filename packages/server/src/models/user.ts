@@ -140,24 +140,24 @@ const validator = (): Validator<Model> => ({
     // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
 })
 
-const mutater = (): Mutater<Model> => ({
-    shape: {
-        update: async ({ data, prisma, userData }) => {
-            return {
-                handle: data.handle,
-                name: data.name ?? undefined,
-                theme: data.theme ?? undefined,
-                // // hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder!(userData.id, input, false),
-                // starred: {
-                //     create: starredCreate,
-                //     delete: starredDelete,
-                // }, TODO
-                translations: await translationRelationshipBuilder(prisma, userData, data, false),
-            }
-        }
-    },
-    yup: { update: profilesUpdate },
-})
+// const mutater = (): Mutater<Model> => ({
+//     shape: {
+//         update: async ({ data, prisma, userData }) => {
+//             return {
+//                 handle: data.handle,
+//                 name: data.name ?? undefined,
+//                 theme: data.theme ?? undefined,
+//                 // // hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder!(userData.id, input, false),
+//                 // starred: {
+//                 //     create: starredCreate,
+//                 //     delete: starredDelete,
+//                 // }, TODO
+//                 translations: await translationRelationshipBuilder(prisma, userData, data, false),
+//             }
+//         }
+//     },
+//     yup: { update: profilesUpdate },
+// })
 
 const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, name: true }),
@@ -169,7 +169,7 @@ export const UserModel = ({
     delegate: (prisma: PrismaType) => prisma.user,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
 })

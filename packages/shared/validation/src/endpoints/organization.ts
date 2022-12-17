@@ -1,66 +1,45 @@
-import { bio, id, idArray, language, name, opt, req, reqArr, tagArray } from './base';
-import { resourceListsCreate, resourceListsUpdate } from './resourceList';
-import { rolesCreate, rolesUpdate } from './role';
-import { tagsCreate } from './tag';
+import { bio, handle, id, name, opt, rel, req, transRel, YupModel } from '../utils';
 import * as yup from 'yup';
+import { tagValidation } from './tag';
+import { resourceListValidation } from './resourceList';
+import { roleValidation } from './role';
+import { memberInviteValidation } from './memberInvite';
 
 const isOpenToNewMembers = yup.boolean()
 const isPrivate = yup.boolean()
 
-export const organizationTranslationCreate = yup.object().shape({
-    id: req(id),
-    language: req(language),
-    bio: opt(bio),
-    name: req(name),
-});
-export const organizationTranslationUpdate = yup.object().shape({
-    id: req(id),
-    language: opt(language),
-    bio: opt(bio),
-    name: opt(name),
-});
-export const organizationTranslationsCreate = reqArr(organizationTranslationCreate)
-export const organizationTranslationsUpdate = reqArr(organizationTranslationUpdate)
-
-/**
- * Information required when creating an organization. 
- * You are automatically created as an admin
- */
-export const organizationCreate = yup.object().shape({
-    id: req(id),
-    isOpenToNewMembers: opt(isOpenToNewMembers),
-    isPrivate: opt(isPrivate),
-    // You are automatically added as an admin. IDs you add here will be requested to be added as a member
-    membersConnect: opt(idArray),
-    resourceListsCreate: opt(resourceListsCreate),
-    rolesCreate: opt(rolesCreate),
-    tagsConnect: opt(tagArray),
-    tagsCreate: opt(tagsCreate),
-    translationsCreate: req(organizationTranslationsCreate),
+export const organizationTranslationValidation: YupModel = transRel({
+    create: {
+        bio: opt(bio),
+        name: req(name),
+    },
+    update: {
+        bio: opt(bio),
+        name: opt(name),
+    },
 })
 
-/**
- * Information required when updating an organization
- */
-export const organizationUpdate = yup.object().shape({
-    id: req(id),
-    isOpenToNewMembers: opt(isOpenToNewMembers),
-    isPrivate: opt(isPrivate),
-    membersConnect: opt(idArray),
-    membersDisconnect: opt(idArray),
-    resourceListsDelete: opt(idArray),
-    resourceListsCreate: opt(resourceListsCreate),
-    resourceListsUpdate: opt(resourceListsUpdate),
-    rolesDelete: opt(idArray),
-    rolesCreate: opt(rolesCreate),
-    rolesUpdate: opt(rolesUpdate),
-    tagsConnect: opt(tagArray),
-    tagsDisconnect: opt(tagArray),
-    tagsCreate: opt(tagsCreate),
-    translationsDelete: opt(idArray),
-    translationsCreate: opt(organizationTranslationsCreate),
-    translationsUpdate: opt(organizationTranslationsUpdate),
-})
-
-export const organizationsCreate = reqArr(organizationCreate)
-export const organizationsUpdate = reqArr(organizationUpdate)
+export const organizationValidation: YupModel = {
+    create: yup.object().shape({
+        id: req(id),
+        handle: opt(handle),
+        isOpenToNewMembers: opt(isOpenToNewMembers),
+        isPrivate: opt(isPrivate),
+        ...rel('resourceList', ['Create'], 'one', 'opt', resourceListValidation),
+        ...rel('tags', ['Connect', 'Create'], 'many', 'opt', tagValidation),
+        ...rel('roles', ['Create'], 'many', 'opt', roleValidation),
+        ...rel('memberInvites', ['Create'], 'many', 'opt', memberInviteValidation),
+        ...rel('translations', ['Create'], 'many', 'opt', organizationTranslationValidation),
+    }),
+    update: yup.object().shape({
+        id: req(id),
+        handle: opt(handle),
+        isOpenToNewMembers: opt(isOpenToNewMembers),
+        isPrivate: opt(isPrivate),
+        ...rel('resourceList', ['Update'], 'one', 'opt', resourceListValidation),
+        ...rel('tags', ['Connect', 'Disconnect', 'Create'], 'many', 'opt', tagValidation),
+        ...rel('roles', ['Create', 'Update', 'Delete'], 'many', 'opt', roleValidation),
+        ...rel('memberInvites', ['Create', 'Delete'], 'many', 'opt', memberInviteValidation),
+        ...rel('members', ['Delete'], 'many', 'opt'),
+    }),
+}

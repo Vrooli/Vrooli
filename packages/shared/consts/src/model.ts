@@ -299,14 +299,6 @@ export enum ResourceUsedFor {
     Tutorial = "Tutorial",
 }
 
-export enum ResourceListUsedFor {
-    Custom = "Custom",
-    Display = "Display",
-    Learn = "Learn",
-    Research = "Research",
-    Develop = "Develop",
-}
-
 export enum RunStepStatus {
     InProgress = "InProgress",
     Completed = "Completed",

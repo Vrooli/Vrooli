@@ -1,8 +1,6 @@
-import { description, idArray, id, name, version, language, tagArray, maxStrErr, blankToUndefined, req, opt, reqArr } from './base';
-import { tagsCreate } from './tag';
+import { description, idArray, id, name, language, tagArray, maxStrErr, blankToUndefined, req, opt } from '../utils';
 import * as yup from 'yup';
 import { InputType } from '@shared/consts';
-import { resourceListsCreate, resourceListsUpdate } from './resourceList';
 
 const standardDefault = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
 const stringifiedJson = yup.string().transform(blankToUndefined).max(8192, maxStrErr);
@@ -21,8 +19,6 @@ export const standardTranslationUpdate = yup.object().shape({
     description: req(description),
     jsonVariable: opt(stringifiedJson.nullable()),
 });
-export const standardTranslationsCreate = reqArr(standardTranslationCreate)
-export const standardTranslationsUpdate = reqArr(standardTranslationUpdate)
 
 /**
  * Information required when creating a standard. 
@@ -36,13 +32,13 @@ export const standardCreate = yup.object().shape({
     type: req(type),
     props: req(stringifiedJson),
     yup: opt(stringifiedJson),
-    version: opt(version()),
+    // version: opt(version()),
     createdByUserId: opt(id), // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: opt(id), // If associating with an organization you are an admin of, the organization's id
-    resourceListsCreate: opt(resourceListsCreate),
+    // resourceListsCreate: opt(resourceListsCreate),
     tagsConnect: opt(tagArray),
-    tagsCreate: opt(tagsCreate),
-    translationsCreate: opt(standardTranslationsCreate),
+    // tagsCreate: opt(tagsCreate),
+    // translationsCreate: opt(standardTranslationsCreate),
 })
 
 /**
@@ -53,15 +49,12 @@ export const standardUpdate = yup.object().shape({
     isPrivate: opt(isPrivate),
     makingAnonymous: opt(yup.boolean()), // If you want the standard to be made anonymous
     resourceListsDelete: opt(idArray),
-    resourceListsCreate: opt(resourceListsCreate),
-    resourceListsUpdate: opt(resourceListsUpdate),
+    // resourceListsCreate: opt(resourceListsCreate),
+    // resourceListsUpdate: opt(resourceListsUpdate),
     tagsConnect: opt(tagArray),
     tagsDisconnect: opt(tagArray),
-    tagsCreate: opt(tagsCreate),
+    // tagsCreate: opt(tagsCreate),
     translationsDelete: opt(idArray),
-    translationsCreate: opt(standardTranslationsCreate),
-    translationsUpdate: opt(standardTranslationsUpdate),
+    // translationsCreate: opt(standardTranslationsCreate),
+    // translationsUpdate: opt(standardTranslationsUpdate),
 })
-
-export const standardsCreate = reqArr(standardCreate)
-export const standardsUpdate = reqArr(standardUpdate)

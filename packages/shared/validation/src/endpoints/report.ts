@@ -1,4 +1,4 @@
-import { blankToUndefined, id, language, maxStrErr, minStrErr, opt, req, reqArr } from './base';
+import { blankToUndefined, id, language, maxStrErr, minStrErr, opt, req } from '../utils';
 import * as yup from 'yup';
 import { ReportFor } from '@shared/consts';
 
@@ -36,6 +36,3 @@ export const reportUpdate = yup.object().shape({
     language: opt(language),
     reason: opt(reason),
 })
-
-export const reportsCreate = reqArr(reportCreate)
-export const reportsUpdate = reqArr(reportUpdate)

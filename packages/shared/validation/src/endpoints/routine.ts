@@ -1,8 +1,4 @@
-import { description, idArray, id, name, language, tagArray, helpText, maxStrErr, version, blankToUndefined, reqArr, req, opt } from './base';
-import { nodeLinksCreate, nodeLinksUpdate, nodesCreate, nodesUpdate } from './node';
-import { resourceListsCreate, resourceListsUpdate } from './resourceList';
-import { standardCreate } from './standard';
-import { tagsCreate } from './tag';
+import { description, idArray, id, name, language, tagArray, helpText, maxStrErr, blankToUndefined, req, opt } from '../utils';
 import * as yup from 'yup';
 
 const isAutomatable = yup.boolean()
@@ -24,14 +20,12 @@ export const inputTranslationUpdate = yup.object().shape({
     description: req(description),
     helpText: opt(helpText),
 });
-export const inputTranslationsCreate = reqArr(inputTranslationCreate)
-export const inputTranslationsUpdate = reqArr(inputTranslationUpdate)
 export const inputCreate = yup.object().shape({
     id: req(id),
     isRequired: opt(isRequired),
     name: req(name),
     standardConnect: opt(id),
-    standardCreate: opt(standardCreate),
+    // standardCreate: opt(standardCreate),
 }, [['standardConnect', 'standardCreate']]) // Can only pick one standard
 export const inputUpdate = yup.object().shape({
     id: req(id),
@@ -40,10 +34,8 @@ export const inputUpdate = yup.object().shape({
     // There is purposely no option to delete or update a standard from here
     standardConnect: opt(id),
     standardDisconnect: opt(id),
-    standardCreate: opt(standardCreate),
+    // standardCreate: opt(standardCreate),
 })
-export const inputsCreate = reqArr(inputCreate)
-export const inputsUpdate = reqArr(inputUpdate)
 
 export const outputTranslationCreate = yup.object().shape({
     id: req(id),
@@ -57,14 +49,12 @@ export const outputTranslationUpdate = yup.object().shape({
     description: req(description),
     helpText: opt(helpText),
 });
-export const outputTranslationsCreate = reqArr(outputTranslationCreate)
-export const outputTranslationsUpdate = reqArr(outputTranslationUpdate)
 export const outputCreate = yup.object().shape({
     id: req(id),
     name: opt(name),
     standardConnect: opt(id),
-    standardCreate: opt(standardCreate),
-    translationsCreate: opt(outputTranslationsCreate),
+    // standardCreate: opt(standardCreate),
+    // translationsCreate: opt(outputTranslationsCreate),
 }, [['standardConnect', 'standardCreate']]) // Can only pick one standard
 export const outputUpdate = yup.object().shape({
     id: req(id),
@@ -72,13 +62,11 @@ export const outputUpdate = yup.object().shape({
     // There is purposely no option to delete or update a standard from here
     standardConnect: opt(id),
     standardDisconnect: opt(id),
-    standardCreate: opt(standardCreate),
+    // standardCreate: opt(standardCreate),
     translationsDelete: opt(idArray),
-    translationsCreate: opt(outputTranslationsCreate),
-    translationsUpdate: opt(outputTranslationsUpdate),
+    // translationsCreate: opt(outputTranslationsCreate),
+    // translationsUpdate: opt(outputTranslationsUpdate),
 })
-export const outputsCreate = reqArr(outputCreate)
-export const outputsUpdate = reqArr(outputUpdate)
 
 export const routineTranslationCreate = yup.object().shape({
     id: req(id),
@@ -94,8 +82,6 @@ export const routineTranslationUpdate = yup.object().shape({
     instructions: opt(instructions),
     name: opt(name),
 });
-export const routineTranslationsCreate = reqArr(routineTranslationCreate)
-export const routineTranslationsUpdate = reqArr(routineTranslationUpdate)
 
 /**
  * Information required when creating a routine. 
@@ -106,18 +92,18 @@ export const routineCreate = yup.object().shape({
     isComplete: opt(isComplete),
     isInternal: opt(isInternal.nullable()),
     isPrivate: isPrivate.notRequired().default(false),
-    version: opt(version().nullable()),
+    // version: opt(version().nullable()),
     parentId: opt(id), // If forked, the parent's id
     createdByUserId: opt(id), // If associating with yourself, your own id. Cannot associate with another user
     createdByOrganizationId: opt(id), // If associating with an organization you are an admin of, the organization's id
-    nodesCreate: opt(nodesCreate),
-    nodeLinksCreate: opt(nodeLinksCreate),
-    inputsCreate: opt(inputsCreate),
-    outputsCreate: opt(outputsCreate),
-    resourceListsCreate: opt(resourceListsCreate),
+    // nodesCreate: opt(nodesCreate),
+    // nodeLinksCreate: opt(nodeLinksCreate),
+    // inputsCreate: opt(inputsCreate),
+    // outputsCreate: opt(outputsCreate),
+    // resourceListsCreate: opt(resourceListsCreate),
     tagsConnect: opt(tagArray),
-    tagsCreate: opt(tagsCreate),
-    translationsCreate: opt(routineTranslationsCreate),
+    // tagsCreate: opt(tagsCreate),
+    // translationsCreate: opt(routineTranslationsCreate),
 }, [['createdByUserId', 'createdByOrganizationId']]) // Makes sure you can't associate with both a user and an organization
 
 
@@ -134,32 +120,29 @@ export const routineUpdate = ({ minVersion }: RoutineUpdateValidationProps) => y
     isComplete: opt(isComplete),
     isInternal: opt(isInternal.nullable()),
     isPrivate: isPrivate.notRequired().default(false),
-    version: opt(version(minVersion).nullable()),
+    // version: opt(version(minVersion).nullable()),
     parentId: opt(id), // If forked, the parent's id
     userId: opt(id), // If associating with yourself, your own id. Cannot associate with another user
     organizationId: opt(id), // If associating with an organization you are an admin of, the organization's id
     nodesDelete: opt(idArray),
-    nodesCreate: opt(nodesCreate),
-    nodesUpdate: opt(nodesUpdate),
+    // nodesCreate: opt(nodesCreate),
+    // nodesUpdate: opt(nodesUpdate),
     nodeLinksDelete: opt(idArray),
-    nodeLinksCreate: opt(nodeLinksCreate),
-    nodeLinksUpdate: opt(nodeLinksUpdate),
+    // nodeLinksCreate: opt(nodeLinksCreate),
+    // nodeLinksUpdate: opt(nodeLinksUpdate),
     inputsDelete: opt(idArray),
-    inputsCreate: opt(inputsCreate),
-    inputsUpdate: opt(inputsUpdate),
-    outputsDelete: opt(idArray),
-    outputsCreate: opt(outputsCreate),
-    outputsUpdate: opt(outputsUpdate),
-    resourceListsDelete: opt(idArray),
-    resourceListsCreate: opt(resourceListsCreate),
-    resourceListsUpdate: opt(resourceListsUpdate),
-    tagsConnect: opt(tagArray),
-    tagsDisconnect: opt(tagArray),
-    tagsCreate: opt(tagsCreate),
-    translationsDelete: opt(idArray),
-    translationsCreate: opt(routineTranslationsCreate),
-    translationsUpdate: opt(routineTranslationsUpdate),
+    // inputsCreate: opt(inputsCreate),
+    // inputsUpdate: opt(inputsUpdate),
+    // outputsDelete: opt(idArray),
+    // outputsCreate: opt(outputsCreate),
+    // outputsUpdate: opt(outputsUpdate),
+    // resourceListsDelete: opt(idArray),
+    // resourceListsCreate: opt(resourceListsCreate),
+    // resourceListsUpdate: opt(resourceListsUpdate),
+    // tagsConnect: opt(tagArray),
+    // tagsDisconnect: opt(tagArray),
+    // tagsCreate: opt(tagsCreate),
+    // translationsDelete: opt(idArray),
+    // translationsCreate: opt(routineTranslationsCreate),
+    // translationsUpdate: opt(routineTranslationsUpdate),
 }, [['userId', 'organizationId']]) // Makes sure you can't transfer to both a user and an organization
-
-export const routinesCreate = reqArr(routineCreate)
-export const routinesUpdate = reqArr(routineUpdate({}))

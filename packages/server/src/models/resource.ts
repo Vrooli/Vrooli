@@ -6,7 +6,7 @@ import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
 import { permissionsSelectHelper } from "../builders";
-import { bestLabel, translationRelationshipBuilder } from "../utils";
+import { bestLabel } from "../utils";
 import { SelectWrap } from "../builders/types";
 
 type Model = {
@@ -28,9 +28,9 @@ type Model = {
 const __typename = 'Resource' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: { __typename }, // For now, resource is never queried directly. So no need to handle relationships
-})
+// const formatter = (): Formatter<Model, typeof suppFields> => ({
+//     relationshipMap: { __typename }, // For now, resource is never queried directly. So no need to handle relationships
+// })
 
 const searcher = (): Searcher<Model> => ({
     defaultSort: ResourceSortBy.IndexAsc,
@@ -52,10 +52,6 @@ const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'Resource',
-        list: 'ResourceList',
-    },
     isTransferable: false,
     maxObjects: 50000,
     permissionsSelect: (...params) => ({
@@ -75,34 +71,34 @@ const validator = (): Validator<Model> => ({
     }
 })
 
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) => {
-    return {
-        id: data.id,
-        index: data.index,
-        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-        usedFor: data.usedFor ?? undefined,
-    }
-}
+// const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) => {
+//     return {
+//         id: data.id,
+//         index: data.index,
+//         translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+//         usedFor: data.usedFor ?? undefined,
+//     }
+// }
 
-const mutater = (): Mutater<Model> => ({
-    shape: {
-        create: async ({ data, prisma, userData }) => {
-            return {
-                ...await shapeBase(prisma, userData, data, true),
-                link: data.link,
-                listId: data.listId,
-            };
-        },
-        update: async ({ data, prisma, userData }) => {
-            return {
-                ...await shapeBase(prisma, userData, data, false),
-                link: data.link ?? undefined,
-                listId: data.listId ?? undefined,
-            };
-        },
-    },
-    yup: { create: resourcesCreate, update: resourcesUpdate },
-})
+// const mutater = (): Mutater<Model> => ({
+//     shape: {
+//         create: async ({ data, prisma, userData }) => {
+//             return {
+//                 ...await shapeBase(prisma, userData, data, true),
+//                 link: data.link,
+//                 listId: data.listId,
+//             };
+//         },
+//         update: async ({ data, prisma, userData }) => {
+//             return {
+//                 ...await shapeBase(prisma, userData, data, false),
+//                 link: data.link ?? undefined,
+//                 listId: data.listId ?? undefined,
+//             };
+//         },
+//     },
+//     yup: { create: resourcesCreate, update: resourcesUpdate },
+// })
 
 const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -113,8 +109,8 @@ export const ResourceModel = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.resource,
     display: displayer(),
-    format: formatter(),
-    mutate: mutater(),
+    format: {} as any,//formatter(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
 })

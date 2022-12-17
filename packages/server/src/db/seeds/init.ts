@@ -136,7 +136,7 @@ export async function init(prisma: PrismaType) {
                     create: {
                         name: 'Admin',
                         permissions: JSON.stringify({}),
-                        assignees: {
+                        members: {
                             create: [
                                 {
                                     permissions: JSON.stringify({}),

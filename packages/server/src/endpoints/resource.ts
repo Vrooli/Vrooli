@@ -37,31 +37,31 @@ export const typeDef = gql`
 
     input ResourceCreateInput {
         id: ID!
-        listConnect: ID!
         index: Int
         link: String!
-        translationsCreate: [ResourceTranslationCreateInput!]
         usedFor: ResourceUsedFor!
+        listConnect: ID!
+        translationsCreate: [ResourceTranslationCreateInput!]
     }
     input ResourceUpdateInput {
         id: ID!
-        listConnect: ID
         index: Int
         link: String
+        usedFor: ResourceUsedFor
+        listConnect: ID
         translationsDelete: [ID!]
         translationsCreate: [ResourceTranslationCreateInput!]
         translationsUpdate: [ResourceTranslationUpdateInput!]
-        usedFor: ResourceUsedFor
     }
     type Resource {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        listId: ID!
         index: Int
         link: String!
-        translations: [ResourceTranslation!]!
         usedFor: ResourceUsedFor
+        listId: ID!
+        translations: [ResourceTranslation!]!
     }
 
     input ResourceTranslationCreateInput {
@@ -129,8 +129,8 @@ export const resolvers: {
         resourceUpdate: GQLEndpoint<ResourceUpdateInput, UpdateOneResult<Resource>>;
     }
 } = {
-    ResourceSortBy: ResourceSortBy,
-    ResourceUsedFor: ResourceUsedFor,
+    ResourceSortBy,
+    ResourceUsedFor,
     Query: {
         resource: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

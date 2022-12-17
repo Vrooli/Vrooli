@@ -1,4 +1,4 @@
-import { blankToUndefined, id, minNumErr, name, opt, req, reqArr } from './base';
+import { blankToUndefined, id, minNumErr, name, opt, req } from '../utils';
 import * as yup from 'yup';
 import { RunStepStatus } from '@shared/consts';
 
@@ -22,6 +22,3 @@ export const stepUpdate = yup.object().shape({
     status: opt(stepStatus),
     timeElapsed: opt(timeElapsed),
 })
-
-export const stepsCreate = reqArr(stepCreate)
-export const stepsUpdate = reqArr(stepUpdate)

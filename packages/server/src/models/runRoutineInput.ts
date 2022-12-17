@@ -82,10 +82,10 @@ const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data }) => {
             return {
-                id: data.id,
-                data: data.data,
-                input: { connect: { id: data.inputId } },
-            }
+                // id: data.id,
+                // data: data.data,
+                // input: { connect: { id: data.inputId } },
+            } as any;
         },
         update: async ({ data }) => {
             return {

@@ -70,6 +70,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
+        maxStars: Int
         minStars: Int
         searchString: String
         sortBy: TagSortBy

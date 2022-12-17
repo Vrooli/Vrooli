@@ -14,18 +14,8 @@ export const typeDef = gql`
         IndexDesc
     }
 
-    enum ResourceListUsedFor {
-        Custom
-        Display
-        Learn
-        Research
-        Develop
-    }
-
     input ResourceListCreateInput {
         id: ID!
-        index: Int
-        usedFor: ResourceListUsedFor!
         apiVersionConnect: ID
         organizationConnect: ID
         postConnect: ID
@@ -39,8 +29,6 @@ export const typeDef = gql`
     }
     input ResourceListUpdateInput {
         id: ID!
-        index: Int
-        usedFor: ResourceListUsedFor
         translationsDelete: [ID!]
         translationsCreate: [ResourceListTranslationCreateInput!]
         translationsUpdate: [ResourceListTranslationUpdateInput!]
@@ -52,7 +40,6 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        index: Int
         usedFor: ResourceListUsedFor
         api: ApiVersion
         organization: Organization
@@ -128,7 +115,6 @@ export const typeDef = gql`
 const objectType = 'ResourceList';
 export const resolvers: {
     ResourceListSortBy: typeof ResourceListSortBy;
-    ResourceListUsedFor: typeof ResourceListUsedFor;
     Query: {
         resourceList: GQLEndpoint<FindByIdInput, FindOneResult<ResourceList>>;
         resourceLists: GQLEndpoint<ResourceListSearchInput, FindManyResult<ResourceList>>;
@@ -139,7 +125,6 @@ export const resolvers: {
     }
 } = {
     ResourceListSortBy: ResourceListSortBy,
-    ResourceListUsedFor: ResourceListUsedFor,
     Query: {
         resourceList: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

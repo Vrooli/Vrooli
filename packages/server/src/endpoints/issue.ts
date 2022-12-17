@@ -1,9 +1,10 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { FindByIdInput, IssueSortBy, Issue, IssueSearchInput, IssueCreateInput, IssueUpdateInput, IssueStatus } from './types';
+import { FindByIdInput, IssueSortBy, Issue, IssueSearchInput, IssueCreateInput, IssueUpdateInput, IssueStatus, IssueFor } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { resolveUnion } from './resolvers';
+import { CustomError } from '../events';
 
 export const typeDef = gql`
     enum IssueSortBy {
@@ -30,24 +31,34 @@ export const typeDef = gql`
         Rejected
     }
 
+    enum IssueFor {
+        Api
+        Organization
+        Note
+        Project
+        Routine
+        SmartContract
+        Standard
+    } 
+
     union IssueTo = Api | Organization | Note | Project | Routine | SmartContract | Standard
 
     input IssueCreateInput {
         id: ID!
-        apiConnect: ID
-        organizationConnect: ID
-        noteConnect: ID
-        projectConnect: ID
-        routineConnect: ID
-        smartContractConnect: ID
-        standardConnect: ID
-        referencedVersionConnect: ID
+        issueFor: IssueFor!
+        forConnect: ID!
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        translationsCreate: [IssueTranslationCreateInput!]
     }
     input IssueUpdateInput {
         id: ID!
-        status: IssueStatus
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        translationsCreate: [IssueTranslationCreateInput!]
+        translationsUpdate: [IssueTranslationUpdateInput!]
+        translationsDelete: [ID!]
     }
     type Issue {
         id: ID!
@@ -141,6 +152,11 @@ export const typeDef = gql`
         node: Issue!
     }
 
+    input IssueCloseInput {
+        id: ID!
+        status: IssueStatus!
+    }
+
     extend type Query {
         issue(input: FindByIdInput!): Issue
         issues(input: IssueSearchInput!): IssueSearchResult!
@@ -149,6 +165,7 @@ export const typeDef = gql`
     extend type Mutation {
         issueCreate(input: IssueCreateInput!): Issue!
         issueUpdate(input: IssueUpdateInput!): Issue!
+        issueClose(input: IssueCloseInput!): Issue!
     }
 `
 
@@ -156,6 +173,7 @@ const objectType = 'Issue';
 export const resolvers: {
     IssueSortBy: typeof IssueSortBy;
     IssueStatus: typeof IssueStatus;
+    IssueFor: typeof IssueFor;
     IssueTo: UnionResolver;
     Query: {
         issue: GQLEndpoint<FindByIdInput, FindOneResult<Issue>>;
@@ -164,10 +182,12 @@ export const resolvers: {
     Mutation: {
         issueCreate: GQLEndpoint<IssueCreateInput, CreateOneResult<Issue>>;
         issueUpdate: GQLEndpoint<IssueUpdateInput, UpdateOneResult<Issue>>;
+        issueClose: GQLEndpoint<any, UpdateOneResult<Issue>>;
     }
 } = {
     IssueSortBy,
     IssueStatus,
+    IssueFor,
     IssueTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
     Query: {
         issue: async (_, { input }, { prisma, req }, info) => {
@@ -187,6 +207,9 @@ export const resolvers: {
         issueUpdate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req })
+        },
+        issueClose: async (_, { input }, { prisma, req }, info) => {
+            throw new CustomError('0000', 'NotImplemented', ['en'])
         },
     }
 }

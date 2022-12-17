@@ -318,7 +318,7 @@ export const resolvers: {
                 res.clearCookie(COOKIE.Jwt);
                 throw new CustomError('0315', 'SessionExpired', req.languages);
             }
-            // If timezone is updated, update session
+            // If time zone is updated, update session
             updateSessionTimeZone(req, res, input.timeZone);
             // If guest, return default session
             if (req.isLoggedIn !== true) {

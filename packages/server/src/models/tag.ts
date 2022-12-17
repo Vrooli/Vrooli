@@ -115,21 +115,21 @@ const validator = (): Validator<Model> => ({
     },
 })
 
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCreateInput | TagUpdateInput, isAdd: boolean) => {
-    return {
-        tag: data.tag,
-        createdByUserId: userData.id,
-        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-    }
-}
+// const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCreateInput | TagUpdateInput, isAdd: boolean) => {
+//     return {
+//         tag: data.tag,
+//         createdByUserId: userData.id,
+//         translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+//     }
+// }
 
-const mutater = (): Mutater<Model> => ({
-    shape: {
-        create: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, true),
-        update: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, false),
-    },
-    yup: { create: tagsCreate, update: tagsUpdate },
-})
+// const mutater = (): Mutater<Model> => ({
+//     shape: {
+//         create: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, true),
+//         update: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, false),
+//     },
+//     yup: { create: tagsCreate, update: tagsUpdate },
+// })
 
 const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, tag: true }),
@@ -141,7 +141,7 @@ export const TagModel = ({
     delegate: (prisma: PrismaType) => prisma.tag,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
 })

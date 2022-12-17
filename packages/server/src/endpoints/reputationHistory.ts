@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, LabelSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, ReputationHistorySortBy } from './types';
+import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
+import { FindByIdInput, Label, LabelSearchInput, ReputationHistorySortBy } from './types';
 import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { readManyHelper, readOneHelper } from '../actions';
 
 export const typeDef = gql`
     enum ReputationHistorySortBy {
@@ -14,65 +14,31 @@ export const typeDef = gql`
 
     type ReputationHistory {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        createdBy: User
-        forks: [Project!]!
-        owner: Owner
-        parent: Project
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        wallets: [Wallet!]
+        amound: Int!
     }
 
     input ReputationHistorySearchInput {
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
         searchString: String
-        sortBy: ProjectSortBy
+        sortBy: ReputationHistorySortBy
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
     type ReputationHistorySearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [ReputationHistoryEdge!]!
     }
 
     type ReputationHistoryEdge {
         cursor: String!
-        node: Api!
+        node: ReputationHistory!
     }
 
     extend type Query {

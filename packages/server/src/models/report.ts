@@ -144,7 +144,7 @@ const mutater = (): Mutater<Model> => ({
                 reason: data.reason,
                 details: data.details,
                 status: ReportStatus.Open,
-                from: { connect: { id: userData.id } },
+                createdBy: { connect: { id: userData.id } },
                 [forMapper[data.createdFor]]: { connect: { id: data.createdForId } },
             }
         },

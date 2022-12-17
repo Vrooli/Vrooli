@@ -14,71 +14,27 @@ export const typeDef = gql`
 
     input ReminderListCreateInput {
         id: ID!
-        index: Int
-        organizationConnect: ID
-        projectConnect: ID
-        routineConnect: ID
-        userConnect: ID
-        translationsCreate: [ReminderListTranslationCreateInput!]
-        resourcesCreate: [ResourceCreateInput!]
+        userScheduleConnect: ID
+        remindersCreate: [ReminderCreateInput!]
     }
     input ReminderListUpdateInput {
         id: ID!
-        index: Int
-        organizationConnect: ID
-        projectConnect: ID
-        routineConnect: ID
-        userConnect: ID
-        translationsDelete: [ID!]
-        translationsCreate: [ReminderListTranslationCreateInput!]
-        translationsUpdate: [ReminderListTranslationUpdateInput!]
-        resourcesDelete: [ID!]
-        resourcesCreate: [ResourceCreateInput!]
-        resourcesUpdate: [ResourceUpdateInput!]
+        userScheduleConnect: ID
+        remindersCreate: [ReminderCreateInput!]
+        remindersUpdate: [ReminderUpdateInput!]
+        remindersDelete: [ID!]
     }
     type ReminderList {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        index: Int
-        # api: Api
-        organization: Organization
-        # post: Post
-        project: Project
-        routine: Routine
-        # smartContract: SmartContract
-        standard: Standard
-        # userSchedule: UserSchedule
-        translations: [ReminderListTranslation!]!
-        resources: [Resource!]!
-    }
-
-    input ReminderListTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        name: String
-    }
-    input ReminderListTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type ReminderListTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String
+        userSchedule: UserSchedule
+        reminders: [Reminder!]!
     }
 
     input ReminderListSearchInput {
-        organizationId: ID
-        projectId: ID
-        routineId: ID
-        userId: ID
+        userSchedule: ID
         ids: [ID!]
-        languages: [String!]
         sortBy: ReminderListSortBy
         createdTimeFrame: TimeFrame
         updatedTimeFrame: TimeFrame

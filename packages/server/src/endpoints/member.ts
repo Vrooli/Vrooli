@@ -1,8 +1,8 @@
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Meeting, MeetingSearchInput, MeetingCreateInput, MeetingUpdateInput, MemberSortBy } from './types';
+import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { FindByIdInput, Member, MemberSearchInput, MemberUpdateInput, MemberSortBy } from './types';
 import { rateLimit } from '../middleware';
-import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { readManyHelper, readOneHelper, updateHelper } from '../actions';
 
 export const typeDef = gql`
     enum MemberSortBy {
@@ -66,11 +66,11 @@ const objectType = 'Member';
 export const resolvers: {
     MemberSortBy: typeof MemberSortBy;
     Query: {
-        member: GQLEndpoint<FindByIdInput, FindOneResult<Meeting>>;
-        members: GQLEndpoint<MeetingSearchInput, FindManyResult<Meeting>>;
+        member: GQLEndpoint<FindByIdInput, FindOneResult<Member>>;
+        members: GQLEndpoint<MemberSearchInput, FindManyResult<Member>>;
     },
     Mutation: {
-        memberUpdate: GQLEndpoint<MeetingUpdateInput, UpdateOneResult<Meeting>>;
+        memberUpdate: GQLEndpoint<MemberUpdateInput, UpdateOneResult<Member>>;
     }
 } = {
     MemberSortBy,

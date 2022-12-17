@@ -47,6 +47,7 @@ export const typeDef = gql`
         details: String
         language: String!
         reason: String!
+        responses: [ReportResponse!]!
     }
 
     input ReportSearchInput {

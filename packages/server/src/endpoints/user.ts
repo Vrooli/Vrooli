@@ -63,10 +63,12 @@ export const typeDef = gql`
         meetingsAttending: [Meeting!]
         meetingsInvited: [MeetingInvite!]
         memberships: [Member!]
+        membershipsInvited: [MemberInvite!]
         notesCreated: [Note!]
         notes: [Note!]
         notifications: [Notification!]
         notificationSubscriptions: [NotificationSubscription!]
+        notificationSettings: String
         paymentHistory: [Payment!]
         premium: Premium
         projects: [Project!]
@@ -126,12 +128,30 @@ export const typeDef = gql`
         handle: String
         name: String
         theme: String
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        starredTagsConnect: [ID!]
-        starredTagsDisconnect: [ID!]
-        starredTagsCreate: [TagCreateInput!]
+        isPrivate: Boolean
+        isPrivateApis: Boolean
+        isPrivateApisCreated: Boolean
+        isPrivateMemberships: Boolean
+        isPrivateOrganizationsCreated: Boolean
+        isPrivateProjects: Boolean
+        isPrivateProjectsCreated: Boolean
+        isPrivatePullRequests: Boolean
+        isPrivateQuestionsAnswered: Boolean
+        isPrivateQuestionsAsked: Boolean
+        isPrivateQuizzesCreated: Boolean
+        isPrivateRoles: Boolean
+        isPrivateRoutines: Boolean
+        isPrivateRoutinesCreated: Boolean
+        isPrivateSmartContracts: Boolean
+        isPrivateStandards: Boolean
+        isPrivateStandardsCreated: Boolean
+        isPrivateStars: Boolean
+        isPrivateVotes: Boolean
+        notificationSettings: String
+        languages: [String!]
+        schedulesDelete: [ID!]
+        schedulesCreate: [UserScheduleCreateInput!]
+        schedulesUpdate: [UserScheduleUpdateInput!]
         translationsDelete: [ID!]
         translationsCreate: [UserTranslationCreateInput!]
         translationsUpdate: [UserTranslationUpdateInput!]

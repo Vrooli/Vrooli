@@ -1,14 +1,11 @@
-import { blankToUndefined, req, reqArr } from './base';
+import { blankToUndefined, req, YupModel } from '../utils';
 import * as yup from 'yup';
 
 const emailAddress = yup.string().transform(blankToUndefined).email()
 
-export const emailCreate = yup.object().shape({
-    emailAddress: req(emailAddress),
-})
-
-export const emailCreateButton = yup.object().shape({
-    emailAddress: req(emailAddress),
-})
-
-export const emailsCreate = reqArr(emailCreate)
+export const emailValidation: YupModel = {
+    create: yup.object().shape({
+        emailAddress: req(emailAddress),
+    }),
+    update: yup.object().shape({ }), // Can't update an email. Push notifications & other email-related settings are updated elsewhere
+}

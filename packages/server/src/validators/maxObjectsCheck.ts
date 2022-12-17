@@ -12,7 +12,7 @@
  * the organization's governance structure.
  */
 import { CustomError } from "../events";
-import { getDelegator, getValidator } from "../getters";
+import { getLogic } from "../getters";
 import { GraphQLModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitVisibility } from "../models/types";
 import { SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
@@ -104,6 +104,8 @@ const checkObjectLimit = (
     }
 }
 
+// TODO Would be nice if we could check max number of relations for an object, not just the absolute number of the object. 
+// For example, we could limit the versions on a root object
 /**
  * Validates that the user will not exceed any maximum object limits after the given action. Checks both 
  * for personal limits and organizational limits, factoring in the user or organization's premium status. 
@@ -127,7 +129,7 @@ export async function maxObjectsCheck(
             // Get auth data
             const authData = authDataById[id]
             // Get validator
-            const validate = getValidator(authData.__typename, userData.languages, 'maxObjectsCheck-create')
+            const { validate } = getLogic(['validate'], authData.__typename, userData.languages, 'maxObjectsCheck-create')
             // Find owner and object type
             const owners = validate.owner(authData);
             // Increment count for owner
@@ -149,7 +151,7 @@ export async function maxObjectsCheck(
             // Get auth data
             const authData = authDataById[id]
             // Get validator
-            const validate = getValidator(authData.__typename, userData.languages, 'maxObjectsCheck-delete')
+            const { validate } = getLogic(['validate'], authData.__typename, userData.languages, 'maxObjectsCheck-delete')
             // Find owner and object type
             const owners = validate.owner(authData);
             // Decrement count for owner
@@ -168,13 +170,12 @@ export async function maxObjectsCheck(
     // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
         // Get delegate and validate functions for the object type
-        const prismaDelegate = getDelegator(objectType as GraphQLModelType, prisma, userData.languages, 'maxObjectsCheck-existing');
-        const validate = getValidator(objectType as GraphQLModelType, userData.languages, 'maxObjectsCheck-existing');
+        const { delegate, validate } = getLogic(['delegate', 'validate'], objectType as GraphQLModelType, userData.languages, 'maxObjectsCheck-existing');
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner
-            let currCountPrivate = await prismaDelegate.count({ where: validate.visibility.private });
-            let currCountPublic = await prismaDelegate.count({ where: validate.visibility.public });
+            let currCountPrivate = await delegate(prisma).count({ where: validate.visibility.private });
+            let currCountPublic = await delegate(prisma).count({ where: validate.visibility.public });
             // Add count obtained from add and deletes to the current counts
             currCountPrivate += counts[objectType]![ownerId].private;
             currCountPublic += counts[objectType]![ownerId].public;

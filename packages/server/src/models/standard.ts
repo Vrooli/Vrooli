@@ -6,15 +6,14 @@ import { ViewModel } from "./view";
 import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardPermission, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, RootPermission } from "../endpoints/types";
+import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, RootPermission } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "../actions";
 import { getSingleTypePermissions } from "../validators";
 import { padSelect, permissionsSelectHelper } from "../builders";
-import { oneIsPublic, tagRelationshipBuilder, translationRelationshipBuilder } from "../utils";
+import { oneIsPublic } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
 
@@ -122,18 +121,6 @@ const searcher = (): Searcher<Model> => ({
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'Standard',
-        parent: 'Standard',
-        createdBy: 'User',
-        ownedByOrganization: 'Organization',
-        ownedByUser: 'User',
-        versions: {
-            select: {
-                forks: 'Standard',
-            }
-        },
-    },
     isTransferable: true,
     hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
     maxObjects: {
@@ -173,12 +160,12 @@ const validator = (): Validator<Model> => ({
         }, ...params),
     }),
     permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-        canDelete: async () => isAdmin && !isDeleted,
-        canEdit: async () => isAdmin && !isDeleted,
-        canStar: async () => !isDeleted && (isAdmin || isPublic),
-        canView: async () => !isDeleted && (isAdmin || isPublic),
-        canVote: async () => !isDeleted && (isAdmin || isPublic),
-    }),
+        // canDelete: async () => isAdmin && !isDeleted,
+        // canEdit: async () => isAdmin && !isDeleted,
+        // canStar: async () => !isDeleted && (isAdmin || isPublic),
+        // canView: async () => !isDeleted && (isAdmin || isPublic),
+        // canVote: async () => !isDeleted && (isAdmin || isPublic),
+    } as any),
     owner: (data) => ({
         Organization: data.ownedByOrganization,
         User: data.ownedByUser,
@@ -346,101 +333,103 @@ const querier = () => ({
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: StandardCreateInput | StandardUpdateInput, isAdd: boolean) => {
     return {
-        root: {
-            isPrivate: data.isPrivate ?? undefined,
-            tags: await tagRelationshipBuilder(prisma, userData, data, 'Standard', isAdd),
-        },
-        version: {
-            isPrivate: data.isPrivate ?? undefined,
-            resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
-        },
-    }
+        // root: {
+        //     isPrivate: data.isPrivate ?? undefined,
+        //     tags: await tagRelationshipBuilder(prisma, userData, data, 'Standard', isAdd),
+        // },
+        // version: {
+        //     isPrivate: data.isPrivate ?? undefined,
+        //     resourceList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'resourceList', objectType: 'ResourceList', prisma, userData }),
+        // },
+    } as any
 }
 
 const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, prisma, userData }) => {
-            const base = await shapeBase(prisma, userData, data, true);
-            // If jsonVariables defined, sort them
-            let translations = await translationRelationshipBuilder(prisma, userData, data, true)
-            if (translations?.create?.length) {
-                translations.create = translations.create.map(t => {
-                    t.jsonVariables = sortify(t.jsonVariables, userData.languages);
-                    return t;
-                })
-            }
-            return {
-                ...base.root,
-                isInternal: data.isInternal ?? undefined,
-                name: data.name ?? await querier().generateName(prisma, userData.id, data),
-                permissions: JSON.stringify({}), //TODO
-                createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-                createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-                versions: {
-                    create: {
-                        ...base.version,
-                        default: data.default ?? undefined,
-                        props: sortify(data.props, userData.languages),
-                        yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                        type: data.type,
-                        translations,
-                    }
-                }
-            }
+            // const base = await shapeBase(prisma, userData, data, true);
+            // // If jsonVariables defined, sort them
+            // let translations = await translationRelationshipBuilder(prisma, userData, data, true)
+            // if (translations?.create?.length) {
+            //     translations.create = translations.create.map(t => {
+            //         t.jsonVariables = sortify(t.jsonVariables, userData.languages);
+            //         return t;
+            //     })
+            // }
+            // return {
+            //     ...base.root,
+            //     isInternal: data.isInternal ?? undefined,
+            //     name: data.name ?? await querier().generateName(prisma, userData.id, data),
+            //     permissions: JSON.stringify({}), //TODO
+            //     createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+            //     organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+            //     createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+            //     user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+            //     versions: {
+            //         create: {
+            //             ...base.version,
+            //             default: data.default ?? undefined,
+            //             props: sortify(data.props, userData.languages),
+            //             yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+            //             type: data.type,
+            //             translations,
+            //         }
+            //     }
+            // }
+            return {} as any
         },
         update: async ({ data, prisma, userData }) => {
-            const base = await shapeBase(prisma, userData, data, false);
-            // If jsonVariables defined, sort them
-            let translations = await translationRelationshipBuilder(prisma, userData, data, false)
-            if (translations?.update?.length) {
-                translations.update = translations.update.map(t => {
-                    t.data = {
-                        ...t.data,
-                        jsonVariables: sortify(t.data.jsonVariables, userData.languages),
-                    }
-                    return t;
-                })
-            }
-            if (translations?.create?.length) {
-                translations.create = translations.create.map(t => {
-                    t.jsonVariables = sortify(t.jsonVariables, userData.languages);
-                    return t;
-                })
-            }
-            return {
-                ...base.root,
-                organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-                user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-                // If versionId is provided, update that version. 
-                // Otherwise, versionLabel is provided, so create new version with that label
-                versions: {
-                    ...(data.versionId ? {
-                        update: {
-                            where: { id: data.versionId },
-                            data: {
-                                ...base.version,
-                                default: data.default ?? undefined,
-                                props: data.props ? sortify(data.props, userData.languages) : undefined,
-                                yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                                type: data.type as string,
-                                translations,
-                            }
-                        }
-                    } : {
-                        create: {
-                            ...base.version,
-                            versionLabel: data.versionLabel as string,
-                            default: data.default as string,
-                            props: sortify(data.props as string, userData.languages),
-                            yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                            type: data.type as string,
-                            translations,
-                        }
-                    })
-                },
-            }
+            // const base = await shapeBase(prisma, userData, data, false);
+            // // If jsonVariables defined, sort them
+            // let translations = await translationRelationshipBuilder(prisma, userData, data, false)
+            // if (translations?.update?.length) {
+            //     translations.update = translations.update.map(t => {
+            //         t.data = {
+            //             ...t.data,
+            //             jsonVariables: sortify(t.data.jsonVariables, userData.languages),
+            //         }
+            //         return t;
+            //     })
+            // }
+            // if (translations?.create?.length) {
+            //     translations.create = translations.create.map(t => {
+            //         t.jsonVariables = sortify(t.jsonVariables, userData.languages);
+            //         return t;
+            //     })
+            // }
+            // return {
+            //     ...base.root,
+            //     organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+            //     user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+            //     // If versionId is provided, update that version. 
+            //     // Otherwise, versionLabel is provided, so create new version with that label
+            //     versions: {
+            //         ...(data.versionId ? {
+            //             update: {
+            //                 where: { id: data.versionId },
+            //                 data: {
+            //                     ...base.version,
+            //                     default: data.default ?? undefined,
+            //                     props: data.props ? sortify(data.props, userData.languages) : undefined,
+            //                     yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+            //                     type: data.type as string,
+            //                     translations,
+            //                 }
+            //             }
+            //         } : {
+            //             create: {
+            //                 ...base.version,
+            //                 versionLabel: data.versionLabel as string,
+            //                 default: data.default as string,
+            //                 props: sortify(data.props as string, userData.languages),
+            //                 yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+            //                 type: data.type as string,
+            //                 translations,
+            //             }
+            //         })
+            //     },
+            // }
+            return {} as any
         },
     },
     trigger: {

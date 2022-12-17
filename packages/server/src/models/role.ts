@@ -22,14 +22,14 @@ type Model = {
 const __typename = 'Role' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
-        __typename,
-        assignees: 'User',
-        organization: 'Organization',
-    },
-    joinMap: { assignees: 'user' },
-})
+// const formatter = (): Formatter<Model, typeof suppFields> => ({
+//     relationshipMap: {
+//         __typename,
+//         members: 'User',
+//         organization: 'Organization',
+//     },
+//     joinMap: { members: 'user' },
+// })
 
 const displayer = (): Displayer<Model> => ({
     select: () => ({ 
@@ -49,5 +49,5 @@ export const RoleModel = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.role,
     display: displayer(),
-    format: formatter(),
+    format: {} as any,//formatter(),
 })

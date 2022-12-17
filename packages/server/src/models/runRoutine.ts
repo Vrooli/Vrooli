@@ -257,23 +257,23 @@ const mutater = (): Mutater<Model> => ({
         create: async ({ data, prisma, userData }) => {
             // TODO - when scheduling added, don't assume that it is being started right away
             return {
-                id: data.id,
-                startedAt: new Date(),
-                routineVersionId: data.routineVersionId,
-                status: RunStatus.InProgress,
-                steps: await relBuilderHelper({ data, isAdd: true, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),
-                name: data.name,
-                userId: userData.id,
-            }
+                // id: data.id,
+                // startedAt: new Date(),
+                // routineVersionId: data.routineVersionId,
+                // status: RunStatus.InProgress,
+                // steps: await relBuilderHelper({ data, isAdd: true, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),
+                // name: data.name,
+                // userId: userData.id,
+            } as any
         },
         update: async ({ data, prisma, userData }) => {
             return {
-                timeElapsed: data.timeElapsed ? { increment: data.timeElapsed } : undefined,
-                completedComplexity: data.completedComplexity ? { increment: data.completedComplexity } : undefined,
-                contextSwitches: data.contextSwitches ? { increment: data.contextSwitches } : undefined,
-                steps: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),
-                inputs: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'inputs', objectType: 'RunRoutineInput', prisma, userData }),
-            }
+                // timeElapsed: data.timeElapsed ? { increment: data.timeElapsed } : undefined,
+                // completedComplexity: data.completedComplexity ? { increment: data.completedComplexity } : undefined,
+                // contextSwitches: data.contextSwitches ? { increment: data.contextSwitches } : undefined,
+                // steps: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'step', objectType: 'RunRoutineStep', prisma, userData }),
+                // inputs: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'inputs', objectType: 'RunRoutineInput', prisma, userData }),
+            } as any;
         }
     },
     trigger: {

@@ -24,7 +24,7 @@ export const typeDef = gql`
 
     input MemberInviteCreateInput {
         id: ID!
-        memberConnect: ID!
+        userConnect: ID!
         organizationConnect: ID!
         message: String
         willBeAdmin: Boolean
@@ -40,7 +40,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        member: Member!
+        user: User!
         organization: Organization!
         message: String
         status: MemberInviteStatus!

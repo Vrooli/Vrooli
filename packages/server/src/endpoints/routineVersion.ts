@@ -28,53 +28,60 @@ export const typeDef = gql`
 
     input RoutineVersionCreateInput {
         id: ID!
+        apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
-        versionLabel: String
-        projectConnect: ID
+        rootId: ID!
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
+        smartContractCallData: String
+        apiVersionConnect: ID
+        directoryListingsConnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
+        smartContractVersionConnect: ID
         nodesCreate: [NodeCreateInput!]
         nodeLinksCreate: [NodeLinkCreateInput!]
         inputsCreate: [RoutineVersionInputCreateInput!]
         outputsCreate: [RoutineVersionOutputCreateInput!]
-        resourceListsCreate: [ResourceListCreateInput!]
         suggestedNextByRoutineVersionConnect: [ID!]
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsCreate: [RoutineTranslationCreateInput!]
     }
     input RoutineVersionUpdateInput {
+        id: ID!
+        apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
         isInternal: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
-        versionConnect: ID # If versionId passed, then we're updating an existing version
-        versionLabel: String # If version label passed, then we're creating a new version
-        userConnect: ID
-        nodesDelete: [ID!]
+        versionIndex: Int!
+        versionNotes: String
+        smartContractCallData: String
+        apiVersionConnect: ID
+        apiVersionDisconnect: ID
+        directoryListingsConnect: [ID!]
+        directoryListingsDisconnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
+        resourceListUpdate: ResourceListUpdateInput
+        smartContractVersionConnect: ID
+        smartContractVersionDisconnect: ID
         nodesCreate: [NodeCreateInput!]
         nodesUpdate: [NodeUpdateInput!]
-        nodeLinksDelete: [ID!]
+        nodesDelete: [ID!]
         nodeLinksCreate: [NodeLinkCreateInput!]
         nodeLinksUpdate: [NodeLinkUpdateInput!]
+        nodeLinksDelete: [ID!]
         inputsCreate: [RoutineVersionInputCreateInput!]
         inputsUpdate: [RoutineVersionInputUpdateInput!]
         inputsDelete: [ID!]
         outputsCreate: [RoutineVersionOutputCreateInput!]
         outputsUpdate: [RoutineVersionOutputUpdateInput!]
         outputsDelete: [ID!]
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
         suggestedNextByRoutineVersionConnect: [ID!]
         suggestedNextByRoutineVersionDisconnect: [ID!]
-        tagsConnect: [String!]
-        tagsDisconnect: [ID!]
-        tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
-        translationsCreate: [RoutineTranslationCreateInput!]
-        translationsUpdate: [RoutineTranslationUpdateInput!]
     }
     type RoutineVersion {
         id: ID!
@@ -86,39 +93,38 @@ export const typeDef = gql`
         isComplete: Boolean!
         isDeleted: Boolean!
         isInternal: Boolean
+        isLatest: Boolean!
         isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
         simplicity: Int!
-        stars: Int!
-        views: Int!
-        versionLabel: String!
-        rootId: ID!
-        # versions: [Version!]!
+        timesStarted: Int!
+        timesCompleted: Int!
+        smartContractCallData: String
+        apiCallData: String
+        runs: [RunRoutine!]! # Calculated field - only shows your runs
+        api: Api
         comments: [Comment!]!
         commentsCount: Int!
-        createdBy: User
         forks: [Routine!]!
+        forksCount: Int!
         inputs: [RoutineVersionInput!]!
-        nodeLists: [NodeRoutineList!]!
+        inputsCount: Int!
         nodes: [Node!]!
-        nodesCount: Int
+        nodesCount: Int!
         nodeLinks: [NodeLink!]!
+        nodeLinksCount: Int!
         outputs: [RoutineVersionOutput!]!
-        owner: Owner
-        parent: Routine
-        permissionsRoutine: RoutinePermission!
-        project: Project
+        outputsCount: Int!
+        pullRequest: PullRequest
+        resourceList: ResourceList
         reports: [Report!]!
         reportsCount: Int!
-        resourceLists: [ResourceList!]!
-        runs: [RunRoutine!]!
+        root: Routine!
+        smartContract: SmartContract
         suggestedNextByRoutineVersion: [RoutineVersion!]!
-        starredBy: [User!]!
-        tags: [Tag!]!
-        translations: [RoutineTranslation!]!
+        suggestedNextByRoutineVersionCount: Int!
+        translations: [RoutineVersionTranslation!]!
+        translationsCount: Int!
+        permissions: RoutineVersionPermission!
     }
 
     type RoutineVersionPermission {
@@ -179,11 +185,10 @@ export const typeDef = gql`
         minViewsRoot: Int
         ownedByOrganizationId: ID
         ownedByUserId: ID
-        parentId: ID
         reportId: ID
         rootId: ID
         searchString: String
-        sortBy: RoutineSortBy
+        sortBy: RoutineVersionSortBy
         tags: [String!]
         take: Int
         translationLanguages: [String!]
@@ -193,7 +198,7 @@ export const typeDef = gql`
 
     type RoutineVersionSearchResult {
         pageInfo: PageInfo!
-        edges: [RoutineEdge!]!
+        edges: [RoutineVersionEdge!]!
     }
 
     type RoutineVersionEdge {

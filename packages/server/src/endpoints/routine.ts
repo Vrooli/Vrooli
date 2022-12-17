@@ -32,64 +32,40 @@ export const typeDef = gql`
 
     input RoutineCreateInput {
         id: ID!
-        isAutomatable: Boolean
-        isComplete: Boolean
         isInternal: Boolean
         isPrivate: Boolean
-        versionLabel: String
+        permissions: String!
         parentConnect: ID
-        projectConnect: ID
         userConnect: ID
         organizationConnect: ID
-        nodesCreate: [NodeCreateInput!]
-        nodeLinksCreate: [NodeLinkCreateInput!]
-        inputsCreate: [RoutineVersionInputCreateInput!]
-        outputsCreate: [RoutineVersionOutputCreateInput!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        tagsConnect: [String!]
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
-        translationsCreate: [RoutineTranslationCreateInput!]
+        versionsCreate: [RoutineVersionCreateInput!]
     }
     input RoutineUpdateInput {
-        isAutomatable: Boolean
-        isComplete: Boolean
         isInternal: Boolean
         isPrivate: Boolean
-        versionConnect: ID # If versionId passed, then we're updating an existing version
-        versionLabel: String # If version label passed, then we're creating a new version
-        userConect: ID
+        permissions: String
+        userConnect: ID
         organizationConnect: ID
-        projectConnect: ID
-        nodesDelete: [ID!]
-        nodesCreate: [NodeCreateInput!]
-        nodesUpdate: [NodeUpdateInput!]
-        nodeLinksDelete: [ID!]
-        nodeLinksCreate: [NodeLinkCreateInput!]
-        nodeLinksUpdate: [NodeLinkUpdateInput!]
-        inputsCreate: [RoutineVersionInputCreateInput!]
-        inputsUpdate: [RoutineVersionInputUpdateInput!]
-        inputsDelete: [ID!]
-        outputsCreate: [RoutineVersionOutputCreateInput!]
-        outputsUpdate: [RoutineVersionOutputUpdateInput!]
-        outputsDelete: [ID!]
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        tagsConnect: [ID!]
         tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
-        translationsCreate: [RoutineTranslationCreateInput!]
-        translationsUpdate: [RoutineTranslationUpdateInput!]
+        versionsCreate: [RoutineVersionCreateInput!]
+        versionsUpdate: [RoutineVersionUpdateInput!]
+        versionsDelete: [ID!]
     }
     type Routine {
         id: ID!
         completedAt: Date
-        complexity: Int!
         created_at: Date!
         updated_at: Date!
-        isAutomatable: Boolean
-        isComplete: Boolean!
+        hasCompletedVersion: Boolean!
         isDeleted: Boolean!
         isInternal: Boolean
         isPrivate: Boolean!
@@ -97,67 +73,29 @@ export const typeDef = gql`
         isUpvoted: Boolean
         isViewed: Boolean!
         score: Int!
-        simplicity: Int!
         stars: Int!
         views: Int!
-        versionLabel: String!
-        rootId: ID!
-        # versions: [Version!]!
-        comments: [Comment!]!
-        commentsCount: Int!
         createdBy: User
         forks: [Routine!]!
-        inputs: [RoutineVersionInput!]!
-        nodeLists: [NodeRoutineList!]!
-        nodes: [Node!]!
-        nodesCount: Int
-        nodeLinks: [NodeLink!]!
-        outputs: [RoutineVersionOutput!]!
+        forksCount: Int!
+        labels: [Label!]!
         owner: Owner
         parent: Routine
         permissionsRoutine: RoutinePermission!
-        project: Project
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]!
-        runs: [RunRoutine!]!
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [RoutineTranslation!]!
+        versions: [RoutineVersion!]!
+        versionsCount: Int
     }
 
     type RoutinePermission {
         canComment: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
-        canFork: Boolean!
         canStar: Boolean!
-        canReport: Boolean!
-        canRun: Boolean!
         canView: Boolean!
         canVote: Boolean!
-    }
-
-    input RoutineTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        instructions: String!
-        name: String!
-    }
-    input RoutineTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        instructions: String
-        name: String
-    }
-    type RoutineTranslation {
-        id: ID!
-        language: String!
-        description: String
-        instructions: String!
-        name: String!
     }
 
     input RoutineSearchInput {
@@ -169,19 +107,15 @@ export const typeDef = gql`
         hasCompleteVersion: Boolean
         isInternal: Boolean
         labelsId: ID
-        minComplexity: Int
-        maxComplexity: Int
-        minSimplicity: Int
-        maxSimplicity: Int
-        maxTimesCompleted: Int
+        maxScore: Int
+        maxStars: Int
+        maxViews: Int
         minScore: Int
         minStars: Int
-        minTimesCompleted: Int
         minViews: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
-        reportId: ID
         searchString: String
         sortBy: RoutineSortBy
         tags: [String!]

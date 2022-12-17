@@ -32,7 +32,7 @@ export const typeDef = gql`
         recurrEnd: Date
         organizationConnect: ID!
         restrictedToRolesConnect: [ID!]
-        invitedUsersConnect: [ID!]
+        invitesCreate: [MeetingInviteCreateInput!]
         labelsConnect: [ID!]
         translationsCreate: [MeetingTranslationCreateInput!]
     }
@@ -48,8 +48,9 @@ export const typeDef = gql`
         recurrEnd: Date
         restrictedToRolesConnect: [ID!]
         restrictedToRolesDisconnect: [ID!]
-        invitedUsersConnect: [ID!]
-        invitedUsersDisconnect: [ID!]
+        invitesCreate: [MeetingInviteCreateInput!]
+        invitesUpdate: [MeetingInviteUpdateInput!]
+        invitesDelete: [ID!]
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         translationsCreate: [MeetingTranslationCreateInput!]

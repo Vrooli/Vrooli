@@ -62,13 +62,13 @@ const validator = (): Validator<Model> => ({
     },
 })
 
-const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) => {
-    return {
-        id: data.id,
-        contextSwitches: data.contextSwitches ?? undefined,
-        timeElapsed: data.timeElapsed,
-    }
-}
+// const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) => {
+//     return {
+//         id: data.id,
+//         contextSwitches: data.contextSwitches ?? undefined,
+//         timeElapsed: data.timeElapsed,
+//     }
+// }
 
 /**
  * Handles mutations of run steps
@@ -77,20 +77,20 @@ const mutater = (): Mutater<Model> => ({
     shape: {
         create: async ({ data, userData }) => {
             return {
-                ...shapeBase(data),
-                nodeId: data.nodeId,
-                subroutineVersionId: data.subroutineVersionId,
-                order: data.order,
-                status: RunStepStatus.InProgress,
-                step: data.step,
-                name: data.name,
-            }
+                // ...shapeBase(data),
+                // nodeId: data.nodeId,
+                // subroutineVersionId: data.subroutineVersionId,
+                // order: data.order,
+                // status: RunStepStatus.InProgress,
+                // step: data.step,
+                // name: data.name,
+            } as any;
         },
         update: async ({ data, userData }) => {
             return {
-                ...shapeBase(data),
-                status: data.status ?? undefined,
-            }
+                // ...shapeBase(data),
+                // status: data.status ?? undefined,
+            } as any
         }
     },
     yup: { create: stepCreate, update: stepUpdate },

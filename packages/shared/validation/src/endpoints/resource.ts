@@ -1,14 +1,6 @@
-import { blankToUndefined, description, id, idArray, language, maxStrErr, minNumErr, name, opt, req, reqArr } from './base';
+import { adaHandleRegex, blankToUndefined, description, id, maxStrErr, minNumErr, name, opt, rel, req, transRel, urlRegex, walletAddressRegex, YupModel } from '../utils';
 import * as yup from 'yup';
 import { ResourceUsedFor } from '@shared/consts';
-
-// Regular expressions for validating links
-// URL (taken from here: https://stackoverflow.com/a/9284473/10240279)
-export const urlRegex = /^(?:(?:https?|ftp):\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,}))\.?)(?::\d{2,5})?(?:[/?#]\S*)?$/i
-// Cardano payment wallet address (i.e. starts with "addr1", and is 103 characters long in total)
-export const walletAddressRegex = /^addr1[a-zA-Z0-9]{98}$/
-// ADA Handle (i.e. starts with "$", and is 3-16 characters (not including the "$"))
-export const adaHandleRegex = /^\$[a-zA-Z0-9]{3,16}$/
 
 const index = yup.number().integer().min(0, minNumErr)
 // Link must match one of the regex above
@@ -21,42 +13,32 @@ const link = yup.string().transform(blankToUndefined).max(1024, maxStrErr).test(
 )
 const usedFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ResourceUsedFor))
 
-export const resourceTranslationCreate = yup.object().shape({
-    id: req(id),
-    language: req(language),
-    description: req(description),
-    name: opt(name),
-});
-export const resourceTranslationUpdate = yup.object().shape({
-    id: req(id),
-    language: opt(language),
-    description: req(description),
-    name: opt(name),
-});
-export const resourceTranslationsCreate = reqArr(resourceTranslationCreate)
-export const resourceTranslationsUpdate = reqArr(resourceTranslationUpdate)
-
-export const resourceCreate = yup.object().shape({
-    id: req(id),
-    listId: req(id),
-    index: opt(index),
-    link: req(link),
-    usedFor: opt(usedFor),
-    translations: resourceTranslationsCreate,
+export const resourceTranslationValidation: YupModel = transRel({
+    create: {
+        description: opt(description),
+        name: opt(name),
+    },
+    update: {
+        description: opt(description),
+        name: opt(name),
+    },
 })
 
-export const resourceUpdate = yup.object().shape({
-    id: req(id),
-    listId: opt(id),
-    index: opt(index),
-    link: opt(link),
-    usedFor: opt(usedFor),
-    translationsDelete: opt(idArray),
-    translationsCreate: opt(resourceTranslationsCreate),
-    translationsUpdate: opt(resourceTranslationsUpdate),
-})
-
-// Resources created/updated through relationships don't need createdFor and createdForId,
-// as the relationship handles that
-export const resourcesCreate = reqArr(resourceCreate.omit(['createdFor', 'createdForId']))
-export const resourcesUpdate = reqArr(resourceUpdate.omit(['createdFor', 'createdForId']))
+export const resourceValidation: YupModel = {
+    create: yup.object().shape({
+        id: req(id),
+        index: opt(index),
+        link: req(link),
+        usedFor: opt(usedFor),
+        ...rel('list', ['Connect'], 'one', 'req'),
+        ...rel('translations', ['Create'], 'one', 'opt', resourceTranslationValidation),
+    }),
+    update: yup.object().shape({
+        id: req(id),
+        index: opt(index),
+        link: opt(link),
+        usedFor: opt(usedFor),
+        ...rel('list', ['Connect'], 'one', 'req'),
+        ...rel('translations', ['Create', 'Update', 'Delete'], 'one', 'opt', resourceTranslationValidation),
+    }),
+}

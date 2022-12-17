@@ -1,6 +1,4 @@
-import { id, idArray, minNumErr, name, opt, req, reqArr, version } from './base';
-import { runInputsCreate, runInputsUpdate } from './runInputs';
-import { stepsCreate, stepsUpdate } from './step';
+import { id, idArray, minNumErr, name, opt, req } from '../utils';
 import * as yup from 'yup';
 
 const completedComplexity = yup.number().integer().min(0, minNumErr);
@@ -13,7 +11,7 @@ export const runCreate = yup.object().shape({
     isPrivate: opt(isPrivate),
     routineId: req(id),
     name: req(name),
-    version: req(version()),
+    // version: req(version()),
 })
 
 export const runUpdate = yup.object().shape({
@@ -22,13 +20,10 @@ export const runUpdate = yup.object().shape({
     contextSwitches: opt(contextSwitches),
     isPrivate: opt(isPrivate),
     timeElapsed: opt(timeElapsed),
-    stepsCreate: opt(stepsCreate),
-    stepsUpdate: opt(stepsUpdate),
-    stepsDelete: opt(idArray),
-    inputsCreate: opt(runInputsCreate),
-    inputsUpdate: opt(runInputsUpdate),
+    // stepsCreate: opt(stepsCreate),
+    // stepsUpdate: opt(stepsUpdate),
+    // stepsDelete: opt(idArray),
+    // inputsCreate: opt(runInputsCreate),
+    // inputsUpdate: opt(runInputsUpdate),
     inputsDelete: opt(idArray),
 })
-
-export const runsCreate = reqArr(runCreate)
-export const runsUpdate = reqArr(runUpdate)

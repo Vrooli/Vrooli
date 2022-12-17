@@ -28,27 +28,27 @@ type Model = {
 const __typename = 'Transfer' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    gqlRelMap: {
-        __typename,
-        fromOwner: {
-            fromUser: 'User',
-            fromOrganization: 'Organization',
-        },
-        toOwner: {
-            toUser: 'User',
-            toOrganization: 'Organization',
-        },
-        object: {
-            api: 'Api',
-            note: 'Note',
-            project: 'Project',
-            routine: 'Routine',
-            smartContract: 'SmartContract',
-            standard: 'Standard',
-        }
-    },
-})
+// const formatter = (): Formatter<Model, typeof suppFields> => ({
+//     gqlRelMap: {
+//         __typename,
+//         fromOwner: {
+//             fromUser: 'User',
+//             fromOrganization: 'Organization',
+//         },
+//         toOwner: {
+//             toUser: 'User',
+//             toOrganization: 'Organization',
+//         },
+//         object: {
+//             api: 'Api',
+//             note: 'Note',
+//             project: 'Project',
+//             routine: 'Routine',
+//             smartContract: 'SmartContract',
+//             standard: 'Standard',
+//         }
+//     },
+// })
 
 /**
  * Maps a transferable object type to its field name in the database
@@ -274,15 +274,15 @@ const transfer = (prisma: PrismaType) => ({
     },
 })
 
-const mutater = (): Mutater<Model> => ({
-    shape: {
-        update: async ({ data }) => ({
-            id: data.id,
-            message: data.message
-        }),
-    },
-    yup: { update: {} as any },
-})
+// const mutater = (): Mutater<Model> => ({
+//     shape: {
+//         update: async ({ data }) => ({
+//             id: data.id,
+//             message: data.message
+//         }),
+//     },
+//     yup: { update: {} as any },
+// })
 
 const displayer = (): Displayer<Model> => ({
     select: () => ({
@@ -309,8 +309,8 @@ export const TransferModel = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.transfer,
     display: displayer(),
-    format: formatter(),
-    mutate: mutater(),
+    format: {} as any,// formatter(),
+    mutate: {} as any,//mutater(),
     transfer,
     validate: {} as any,
 })

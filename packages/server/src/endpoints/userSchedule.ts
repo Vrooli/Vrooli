@@ -21,7 +21,8 @@ export const typeDef = gql`
     input UserScheduleCreateInput {
         id: ID!
         name: String!
-        timezone: String
+        description: String
+        timeZone: String
         eventStart: Date
         eventEnd: Date
         recurring: Boolean
@@ -29,15 +30,16 @@ export const typeDef = gql`
         recurrEnd: Date
         reminderListConnect: ID
         reminderListCreate: ReminderListCreateInput
+        resourceListCreate: ResourceListCreateInput
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
         filtersCreate: [UserScheduleFilterCreateInput!]
-        translationsCreate: [UserScheduleTranslationCreateInput!]
     }
     input UserScheduleUpdateInput {
         id: ID!
         name: String
-        timezone: String
+        description: String
+        timeZone: String
         eventStart: Date
         eventEnd: Date
         recurring: Boolean
@@ -47,21 +49,21 @@ export const typeDef = gql`
         reminderListDisconnect: ID
         reminderListCreate: ReminderListCreateInput
         reminderListUpdate: ReminderListUpdateInput
+        resourceListCreate: ResourceListCreateInput
+        resourceListUpdate: ResourceListUpdateInput
         labelsConnect: [ID!]
         labelsDisconnect: [ID!]
         labelsCreate: [LabelCreateInput!]
         filtersCreate: [UserScheduleFilterCreateInput!]
         filtersDelete: [ID!]
-        translationsCreate: [UserScheduleTranslationCreateInput!]
-        translationsUpdate: [UserScheduleTranslationUpdateInput!]
-        translationsDelete: [ID!]
     }
     type UserSchedule {
         id: ID!
         created_at: Date!
         updated_at: Date!
         name: String!
-        timezone: String
+        description: String
+        timeZone: String
         eventStart: Date
         eventEnd: Date
         recurring: Boolean!
@@ -70,26 +72,6 @@ export const typeDef = gql`
         reminderList: ReminderList
         labels: [Label!]!
         filters: [UserScheduleFilter!]!
-        translations: [UserScheduleTranslation!]!
-    }
-
-    input UserScheduleTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
-    }
-    input UserScheduleTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type UserScheduleTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
     }
 
     input UserScheduleSearchInput {

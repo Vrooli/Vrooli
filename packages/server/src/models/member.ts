@@ -24,20 +24,20 @@ type Model = {
 const __typename = 'Member' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    gqlRelMap: {
-        __typename,
-        organization: 'Organization',
-        user: 'User',
-    },
-    prismaRelMap: {
-        __typename,
-        organization: 'Organization',
-        user: 'User',
-        roles: 'Role',
-        invite: 'MeetingInvite',
-    }
-})
+// const formatter = (): Formatter<Model, typeof suppFields> => ({
+//     gqlRelMap: {
+//         __typename,
+//         organization: 'Organization',
+//         user: 'User',
+//     },
+//     prismaRelMap: {
+//         __typename,
+//         organization: 'Organization',
+//         user: 'User',
+//         roles: 'Role',
+//         invite: 'MeetingInvite',
+//     }
+// })
 
 const displayer = (): Displayer<Model> => ({
     select: () => ({
@@ -52,5 +52,5 @@ export const MemberModel = ({
     delegate: (prisma: PrismaType) => prisma.member,
     // TODO needs searcher
     display: displayer(),
-    format: formatter(),
+    format: {} as any, //formatter(),
 })

@@ -1,17 +1,31 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { SmartContract, SmartContractCreateInput, SmartContractPermission, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { Displayer } from "./types";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: SmartContractCreateInput,
+    GqlUpdate: SmartContractUpdateInput,
+    GqlModel: SmartContract,
+    GqlSearch: SmartContractSearchInput,
+    GqlSort: SmartContractSortBy,
+    GqlPermission: SmartContractPermission,
+    PrismaCreate: Prisma.smart_contractUpsertArgs['create'],
+    PrismaUpdate: Prisma.smart_contractUpsertArgs['update'],
+    PrismaModel: Prisma.smart_contractGetPayload<SelectWrap<Prisma.smart_contractSelect>>,
+    PrismaSelect: Prisma.smart_contractSelect,
+    PrismaWhere: Prisma.smart_contractWhereInput,
+}
 
 const __typename = 'SmartContract' as const;
 
 const suppFields = [] as const;
 
-const displayer = (): Displayer<
-    Prisma.smart_contractSelect,
-    Prisma.smart_contractGetPayload<SelectWrap<Prisma.smart_contractSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         versions: {

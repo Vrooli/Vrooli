@@ -727,6 +727,16 @@ export enum IssueStatus {
   Rejected = 'Rejected'
 }
 
+export enum IssueFor {
+    Api     = "Api",
+    Organization    = "Organization",
+    Note    = "Note",
+    Project = "Project",
+    Routine = "Routine",
+    SmartContract   = "SmartContract",
+    Standard    = "Standard",
+} 
+
 export type IssueTo = Api | Note | Organization | Project | Routine | SmartContract | Standard;
 
 export type IssueTranslation = {
@@ -5548,7 +5558,7 @@ export type Response = {
 
 export type Role = {
   __typename?: 'Role';
-  assignees?: Maybe<Array<UserRole>>;
+  members?: Maybe<Array<UserRole>>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   name: Scalars['String'];
@@ -7224,6 +7234,7 @@ export type SmartContractVersionUpdateInput = {
 
 export type Standard = {
   __typename?: 'Standard';
+  labels: any;
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   createdBy?: Maybe<User>;
@@ -8023,7 +8034,7 @@ export type UserSchedule = {
   recurrStart?: Maybe<Scalars['Date']>;
   recurring: Scalars['Boolean'];
   reminderList?: Maybe<ReminderList>;
-  timezone?: Maybe<Scalars['String']>;
+  timeZone?: Maybe<Scalars['String']>;
   translations: Array<UserScheduleTranslation>;
   updated_at: Scalars['Date'];
 };
@@ -8041,7 +8052,7 @@ export type UserScheduleCreateInput = {
   recurring?: InputMaybe<Scalars['Boolean']>;
   reminderListConnect?: InputMaybe<Scalars['ID']>;
   reminderListCreate?: InputMaybe<ReminderListCreateInput>;
-  timezone?: InputMaybe<Scalars['String']>;
+  timeZone?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<UserScheduleTranslationCreateInput>>;
 };
 
@@ -8147,7 +8158,7 @@ export type UserScheduleUpdateInput = {
   reminderListCreate?: InputMaybe<ReminderListCreateInput>;
   reminderListDisconnect?: InputMaybe<Scalars['ID']>;
   reminderListUpdate?: InputMaybe<ReminderListUpdateInput>;
-  timezone?: InputMaybe<Scalars['String']>;
+  timeZone?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<UserScheduleTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<UserScheduleTranslationUpdateInput>>;

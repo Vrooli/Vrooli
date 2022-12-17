@@ -4,6 +4,6 @@
  * The client uses validation to display errors to the user, and to simplify forms 
  * by using formik.
  */
-export * from './base';
+export * from './utils';
 export * from './endpoints';
 export * from './forms';

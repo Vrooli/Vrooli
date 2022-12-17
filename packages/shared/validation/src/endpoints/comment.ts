@@ -1,4 +1,4 @@
-import { blankToUndefined, id, language, maxStrErr, minStrErr, opt, rel, req } from '../base';
+import { blankToUndefined, id, maxStrErr, minStrErr, opt, rel, req, transRel, YupModel } from '../utils';
 import * as yup from 'yup';
 
 const createdFor = yup.string().transform(blankToUndefined).oneOf([
@@ -16,20 +16,16 @@ const createdFor = yup.string().transform(blankToUndefined).oneOf([
 ]);
 const text = yup.string().transform(blankToUndefined).min(1, minStrErr).max(8192, maxStrErr)
 
-export const commentTranslationValidation = {
-    create: yup.object().shape({
-        id: req(id),
-        language: req(language),
+export const commentTranslationValidation: YupModel = transRel({
+    create: {
         text: req(text),
-    }),
-    update: yup.object().shape({
-        id: req(id),
-        language: opt(language),
+    },
+    update: {
         text: opt(text),
-    })
-}
+    }
+})
 
-export const commentValidation = {
+export const commentValidation: YupModel = {
     create: yup.object().shape({
         id: req(id),
         createdFor: req(createdFor),
