@@ -9,7 +9,6 @@ import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { ResourceList } from "types";
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { uuid } from '@shared/uuid';
 import { FieldData } from "forms/types";
 import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession } from "components/inputs";
@@ -65,7 +64,7 @@ export const StandardCreate = ({
     // });
 
     // // Handle resources
-    // const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    // const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
     // const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
     //     setResourceList(updatedList);
     // }, [setResourceList]);

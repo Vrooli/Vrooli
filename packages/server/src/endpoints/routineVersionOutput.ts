@@ -3,26 +3,31 @@ import { gql } from 'apollo-server-express';
 export const typeDef = gql`
     input RoutineVersionOutputCreateInput {
         id: ID!
+        index: Int
         isRequired: Boolean
         name: String
+        routineVersionConnect: ID!
         standardVersionConnect: ID
-        standardCreate: StandardCreateInput
+        standardVersionCreate: StandardVersionCreateInput
         translationsDelete: [ID!]
         translationsCreate: [RoutineVersionOutputTranslationCreateInput!]
         translationsUpdate: [RoutineVersionOutputTranslationUpdateInput!]
     }
     input RoutineVersionOutputUpdateInput {
         id: ID!
+        index: Int
         isRequired: Boolean
         name: String
-        standardConnect: ID
-        standardCreate: StandardCreateInput
+        standardVersionConnect: ID
+        standardVersionDisconnect: ID
+        standardVersionCreate: StandardVersionCreateInput
         translationsDelete: [ID!]
         translationsCreate: [RoutineVersionOutputTranslationCreateInput!]
         translationsUpdate: [RoutineVersionOutputTranslationUpdateInput!]
     }
     type RoutineVersionOutput {
         id: ID!
+        index: Int
         isRequired: Boolean
         name: String
         routineVersion: RoutineVersion!

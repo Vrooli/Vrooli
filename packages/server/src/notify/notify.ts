@@ -6,7 +6,7 @@ import { findRecipientsAndLimit, updateNotificationSettings } from "./notificati
 import { sendPush } from "./push";
 import i18next, { TFuncKey } from 'i18next';
 import { OrganizationModel, subscriberMapper } from "../models";
-import { getDelegator, getDisplayer } from "../getters";
+import { getLogic } from "../getters";
 import { GraphQLModelType } from "../models/types";
 import { NotificationSettings } from "../endpoints/types";
 
@@ -195,9 +195,8 @@ const replaceLabels = async (
     const findTranslations = async (objectType: GraphQLModelType, objectId: string) => {
         // Ignore if already translated
         if (Object.keys(labelTranslations).length > 0) return;
-        const prismaDelegate = getDelegator(objectType, prisma, languages, 'replaceLabels');
-        const display = getDisplayer(objectType, languages, 'replaceLabels');
-        const labels = await prismaDelegate.findUnique({
+        const { delegate, display } = getLogic(['delegate', 'display'], objectType, languages, 'replaceLabels');
+        const labels = await delegate(prisma).findUnique({
             where: { id: objectId },
             select: display.select(),
         })
@@ -215,7 +214,7 @@ const replaceLabels = async (
                     // Find label translations
                     await findTranslations(match[1] as GraphQLModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const display = getDisplayer(match[1] as GraphQLModelType, languages, 'replaceLabels');
+                    const { display } = getLogic(['display'], match[1] as GraphQLModelType, languages, 'replaceLabels');
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display.label(labelTranslations, result[i].languages));
                     }
@@ -235,7 +234,7 @@ const replaceLabels = async (
                     // Find label translations
                     await findTranslations(match[1] as GraphQLModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const display = getDisplayer(match[1] as GraphQLModelType, languages, 'replaceLabels');
+                    const { display } = getLogic(['display'], match[1] as GraphQLModelType, languages, 'replaceLabels');
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display.label(labelTranslations, result[i].languages));
                     }

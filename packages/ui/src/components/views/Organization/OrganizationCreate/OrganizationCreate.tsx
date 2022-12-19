@@ -9,7 +9,6 @@ import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { uuid } from '@shared/uuid';
 import { organizationCreateVariables, organizationCreate_organizationCreate } from "graphql/generated/organizationCreate";
 import { RelationshipsObject } from "components/inputs/types";
@@ -37,7 +36,7 @@ export const OrganizationCreate = ({
     }, [relationships]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);

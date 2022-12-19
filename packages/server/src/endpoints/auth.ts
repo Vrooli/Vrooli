@@ -3,7 +3,7 @@
 // 2. Email sign up, log in, verification, and password reset
 // 3. Guest login
 import { gql } from 'apollo-server-express';
-import { emailLogInSchema, emailSignUpSchema, passwordSchema, emailRequestPasswordChangeSchema } from '@shared/validation';
+import { emailLogInFormValidation, emailSignUpFormValidation, emailRequestPasswordChangeSchema, password as passwordValidation } from '@shared/validation';
 import { COOKIE } from "@shared/consts";
 import { CustomError } from '../events/error';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
@@ -129,7 +129,7 @@ export const resolvers: {
         emailLogIn: async (_, { input }, { prisma, req, res }, info) => {
             await rateLimit({ info, maxUser: 100, req });
             // Validate arguments with schema
-            emailLogInSchema.validateSync(input, { abortEarly: false });
+            emailLogInFormValidation.validateSync(input, { abortEarly: false });
             let user;
             // If email not supplied, check if session is valid. 
             // This is needed when this is called to verify an email address
@@ -203,7 +203,7 @@ export const resolvers: {
         emailSignUp: async (_, { input }, { prisma, req, res }, info) => {
             await rateLimit({ info, maxUser: 10, req });
             // Validate input format
-            emailSignUpSchema.validateSync(input, { abortEarly: false });
+            emailSignUpFormValidation.validateSync(input, { abortEarly: false });
             // Check for censored words
             if (hasProfanity(input.name))
                 throw new CustomError('0140', 'BannedWord', req.languages);
@@ -254,7 +254,7 @@ export const resolvers: {
         emailResetPassword: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 10, req });
             // Validate input format
-            passwordSchema.validateSync(input.newPassword, { abortEarly: false });
+            passwordValidation.validateSync(input.newPassword, { abortEarly: false });
             // Find user
             let user = await prisma.user.findUnique({
                 where: { id: input.id },

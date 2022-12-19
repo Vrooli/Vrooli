@@ -1,16 +1,30 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, GraphQLModelType } from "./types";
+import { Displayer, ModelLogic } from "./types";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: PushDeviceCreateInput,
+    GqlUpdate: PushDeviceUpdateInput,
+    GqlModel: PushDevice,
+    GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
+    PrismaCreate: Prisma.push_deviceUpsertArgs['create'],
+    PrismaUpdate: Prisma.push_deviceUpsertArgs['update'],
+    PrismaModel: Prisma.push_deviceGetPayload<SelectWrap<Prisma.push_deviceSelect>>,
+    PrismaSelect: Prisma.push_deviceSelect,
+    PrismaWhere: Prisma.push_deviceWhereInput,
+}
 
 const __typename = 'PushDevice' as const;
 
 const suppFields = [] as const;
 
-const displayer = (): Displayer<
-    Prisma.push_deviceSelect,
-    Prisma.push_deviceGetPayload<SelectWrap<Prisma.push_deviceSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, name: true, p256dh: true }),
     label: (select) => {
         // Return name if it exists
@@ -20,7 +34,7 @@ const displayer = (): Displayer<
     }
 })
 
-export const PushDeviceModel = ({
+export const PushDeviceModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.push_device,
     display: displayer(),

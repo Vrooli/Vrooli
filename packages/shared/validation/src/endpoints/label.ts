@@ -1,5 +1,5 @@
 import * as yup from 'yup';
-import { blankToUndefined, description, hexColor, id, maxStrErr, opt, rel, req, transRel, YupModel } from "utils";
+import { blankToUndefined, description, hexColor, id, maxStrErr, opt, rel, req, transRel, YupModel } from "../utils";
 
 const label = yup.string().transform(blankToUndefined).max(128, maxStrErr)
 
@@ -13,7 +13,7 @@ export const labelTranslationValidation: YupModel = transRel({
 })
 
 export const labelValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         label: req(label),
         color: opt(hexColor),
@@ -30,7 +30,7 @@ export const labelValidation: YupModel = {
         ...rel('runRoutineSchedules', ['Connect'], 'many', 'opt'),
         ...rel('translations', ['Create'], 'many', 'opt', labelTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         label: req(label),
         color: opt(hexColor),

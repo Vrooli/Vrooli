@@ -4,9 +4,10 @@
  * field with a duplicate name has the name format, so as long as 
  * that format matches the fields below, there should be no errors.
  */
+import { ReportFor } from '@shared/consts';
 import * as yup from 'yup';
 import { blankToUndefined, reqArr } from './builders';
-import { maxStrErr, minStrErr, passwordErr } from './errors';
+import { maxStrErr, minNumErr, minStrErr, passwordErr } from './errors';
 import { passwordRegex, urlRegex } from './regex';
 import { minVersionTest } from './versions';
 
@@ -44,3 +45,9 @@ export const url = yup.string().transform(blankToUndefined).max(1024, maxStrErr)
 )
 export const details = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
 export const summary = yup.string().transform(blankToUndefined).max(1024, maxStrErr)
+export const reportCreatedFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ReportFor))
+export const reportReason = yup.string().transform(blankToUndefined).min(1, minStrErr).max(128, maxStrErr)
+export const apiCallData = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
+export const smartContractCallData = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
+export const instructions = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
+export const index = yup.number().integer().min(0, minNumErr).nullable();

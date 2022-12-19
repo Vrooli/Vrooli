@@ -8,17 +8,19 @@ import { CommentModel } from "./comment";
 import { CustomError, Trigger } from "../events";
 import { Star, StarSearchInput, StarInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Searcher } from "./types";
+import { Displayer, Formatter, ModelLogic, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
 import { ApiModel, IssueModel, PostModel, QuestionAnswerModel, QuestionModel, QuizModel, SmartContractModel, UserModel } from ".";
 import { SelectWrap } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
-import { getDelegator } from "../getters";
+import { getLogic } from "../getters";
 import { NoteModel } from "./note";
 
 type Model = {
     IsTransferable: false,
     IsVersioned: false,
+    GqlCreate: undefined,
+    GqlUpdate: undefined,
     GqlModel: Star,
     GqlSearch: StarSearchInput,
     GqlSort: StarSortBy,
@@ -34,9 +36,9 @@ const __typename = 'Star' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
-        from: 'User',
+        by: 'User',
         to: {
             api: 'Api',
             comment: 'Comment',
@@ -55,6 +57,25 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
             user: 'User',
         }
     },
+    prismaRelMap: {
+        __typename,
+        by: 'User',
+        api: 'Api',
+        comment: 'Comment',
+        issue: 'Issue',
+        note: 'Note',
+        organization: 'Organization',
+        post: 'Post',
+        project: 'Project',
+        question: 'Question',
+        questionAnswer: 'QuestionAnswer',
+        quiz: 'Quiz',
+        routine: 'Routine',
+        smartContract: 'SmartContract',
+        standard: 'Standard',
+        tag: 'Tag',
+        user: 'User',
+    }
 })
 
 const searcher = (): Searcher<Model> => ({
@@ -65,21 +86,21 @@ const searcher = (): Searcher<Model> => ({
     ],
     searchStringQuery: () => ({
         OR: [
-            { api: ApiModel.search.searchStringQuery() },
-            { comment: CommentModel.search.searchStringQuery() },
-            { issue: IssueModel.search.searchStringQuery() },
-            { note: NoteModel.search.searchStringQuery() },
-            { organization: OrganizationModel.search.searchStringQuery() },
-            { post: PostModel.search.searchStringQuery() },
-            { project: ProjectModel.search.searchStringQuery() },
-            { question: QuestionModel.search.searchStringQuery() },
-            { questionAnswer: QuestionAnswerModel.search.searchStringQuery() },
-            { quiz: QuizModel.search.searchStringQuery() },
-            { routine: RoutineModel.search.searchStringQuery() },
-            { smartContract: SmartContractModel.search.searchStringQuery() },
-            { standard: StandardModel.search.searchStringQuery() },
-            { tag: TagModel.search.searchStringQuery() },
-            { user: UserModel.search.searchStringQuery() },
+            { api: ApiModel.search!.searchStringQuery() },
+            { comment: CommentModel.search!.searchStringQuery() },
+            { issue: IssueModel.search!.searchStringQuery() },
+            { note: NoteModel.search!.searchStringQuery() },
+            { organization: OrganizationModel.search!.searchStringQuery() },
+            { post: PostModel.search!.searchStringQuery() },
+            { project: ProjectModel.search!.searchStringQuery() },
+            { question: QuestionModel.search!.searchStringQuery() },
+            { questionAnswer: QuestionAnswerModel.search!.searchStringQuery() },
+            { quiz: QuizModel.search!.searchStringQuery() },
+            { routine: RoutineModel.search!.searchStringQuery() },
+            { smartContract: SmartContractModel.search!.searchStringQuery() },
+            { standard: StandardModel.search!.searchStringQuery() },
+            { tag: TagModel.search!.searchStringQuery() },
+            { user: UserModel.search!.searchStringQuery() },
         ]
     }),
 })
@@ -109,9 +130,9 @@ const star = async (prisma: PrismaType, userData: SessionUser, input: StarInput)
         }
     })
     // Get prisma delegate for type of object being starred
-    const prismaDelegate = getDelegator(input.starFor, prisma, userData.languages, 'star');
+    const { delegate } = getLogic(['delegate'], input.starFor, userData.languages, 'star');
     // Check if object being starred exists
-    const starringFor: null | { id: string, stars: number } = await prismaDelegate.findUnique({ where: { id: input.forId }, select: { id: true, stars: true } }) as any;
+    const starringFor: null | { id: string, stars: number } = await delegate(prisma).findUnique({ where: { id: input.forId }, select: { id: true, stars: true } }) as any;
     if (!starringFor)
         throw new CustomError('0110', 'ErrorUnknown', userData.languages, { starFor: input.starFor, forId: input.forId });
     // Check if star already exists on object by this user TODO fix for tags
@@ -134,7 +155,7 @@ const star = async (prisma: PrismaType, userData: SessionUser, input: StarInput)
             }
         })
         // Increment star count on object
-        await prismaDelegate.update({
+        await delegate(prisma).update({
             where: { id: input.forId },
             data: { stars: starringFor.stars + 1 }
         })
@@ -146,7 +167,7 @@ const star = async (prisma: PrismaType, userData: SessionUser, input: StarInput)
         // Delete star
         await prisma.star.delete({ where: { id: star.id } })
         // Decrement star count on object
-        await prismaDelegate.update({
+        await delegate(prisma).update({
             where: { id: input.forId },
             data: { stars: starringFor.stars - 1 }
         })
@@ -222,7 +243,7 @@ const displayer = (): Displayer<Model> => ({
     }
 })
 
-export const StarModel = ({
+export const StarModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.star,
     display: displayer(),

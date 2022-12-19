@@ -6,7 +6,7 @@ import { resourceListValidation } from './resourceList';
 import { userScheduleFilterValidation } from './userScheduleFilter';
 
 export const userScheduleValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         name: req(name),
         description: opt(description),
@@ -21,7 +21,7 @@ export const userScheduleValidation: YupModel = {
         ...rel('labels', ['Create', 'Connect'], 'many', 'opt', labelValidation),
         ...rel('filters', ['Create'], 'many', 'opt', userScheduleFilterValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         name: opt(name),
         description: opt(description),

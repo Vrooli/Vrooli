@@ -1,5 +1,8 @@
-import { description, idArray, id, name, language, tagArray, helpText, maxStrErr, blankToUndefined, req, opt } from '../utils';
+import { description, idArray, id, name, language, tagArray, helpText, maxStrErr, blankToUndefined, req, opt, YupModel, permissions, rel } from '../utils';
 import * as yup from 'yup';
+import { labelValidation } from './label';
+import { tagValidation } from './tag';
+import { routineVersionValidation } from './routineVersion';
 
 const isAutomatable = yup.boolean()
 const isComplete = yup.boolean()
@@ -7,6 +10,31 @@ const isInternal = yup.boolean()
 const isPrivate = yup.boolean()
 const isRequired = yup.boolean()
 const instructions = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
+
+export const routineValidation: YupModel = {
+    create: () => yup.object().shape({
+        id: req(id),
+        isInternal: opt(isInternal),
+        isPrivate: opt(isPrivate),
+        permissions: req(permissions),
+        ...rel('user', ['Connect'], 'one', 'opt'),
+        ...rel('organization', ['Connect'], 'one', 'opt'),
+        ...rel('labels', ['Connect', 'Create'], 'many', 'opt', labelValidation),
+        ...rel('tags', ['Connect', 'Create'], 'many', 'opt', tagValidation),
+        ...rel('versions', ['Create'], 'many', 'req', routineVersionValidation),
+    }),
+    update: () => yup.object().shape({
+        id: req(id),
+        isInternal: opt(isInternal),
+        isPrivate: opt(isPrivate),
+        permissions: opt(permissions),
+        ...rel('user', ['Connect'], 'one', 'opt'),
+        ...rel('organization', ['Connect'], 'one', 'opt'),
+        ...rel('labels', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', labelValidation),
+        ...rel('tags', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', tagValidation),
+        ...rel('versions', ['Create', 'Update', 'Delete'], 'many', 'req', routineVersionValidation),
+    }),
+}
 
 export const inputTranslationCreate = yup.object().shape({
     id: req(id),

@@ -343,7 +343,7 @@ export interface ThemeSwitchProps {
     onChange: (theme: 'light' | 'dark') => any;
 }
 
-export type VersionInputProps = TextFieldProps & {
+export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | 'onChange'> & {
     autoFocus?: boolean;
     error?: boolean;
     helperText?: string | null | undefined;

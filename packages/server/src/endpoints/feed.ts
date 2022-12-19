@@ -174,7 +174,10 @@ export const resolvers: {
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'ResearchResult',
                 'processes': 'Routine',
-                'newlyCompleted': ['Project', 'Routine'],
+                'newlyCompleted': {
+                    'Routine': 'Routine',
+                    'Project': 'Project',
+                },
                 'needVotes': 'Project',
                 'needInvestments': 'Project',
                 'needMembers': 'Organization',
@@ -260,9 +263,18 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 '__typename': 'DevelopResult',
-                'completed': ['Project', 'Routine'],
-                'inProgress': ['Project', 'Routine'],
-                'recent': ['Project', 'Routine'],
+                'completed': {
+                    'Routine': 'Routine',
+                    'Project': 'Project',
+                },
+                'inProgress': {
+                    'Routine': 'Routine',
+                    'Project': 'Project',
+                },
+                'recent': {
+                    'Routine': 'Routine',
+                    'Project': 'Project',
+                },
             }, req.languages, true);
             // If not signed in, return empty data
             const userId = getUser(req)?.id ?? null;

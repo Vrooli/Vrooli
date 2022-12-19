@@ -1,6 +1,6 @@
 import { PrismaType } from "../types";
 import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from "../endpoints/types";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
 import { padSelect } from "../builders";
@@ -9,6 +9,7 @@ import { SelectWrap } from "../builders/types";
 type Model = {
     IsTransferable: false,
     IsVersioned: false,
+    GqlCreate: undefined,
     GqlUpdate: MemberUpdateInput,
     GqlModel: Member,
     GqlSearch: MemberSearchInput,
@@ -24,20 +25,19 @@ type Model = {
 const __typename = 'Member' as const;
 
 const suppFields = [] as const;
-// const formatter = (): Formatter<Model, typeof suppFields> => ({
-//     gqlRelMap: {
-//         __typename,
-//         organization: 'Organization',
-//         user: 'User',
-//     },
-//     prismaRelMap: {
-//         __typename,
-//         organization: 'Organization',
-//         user: 'User',
-//         roles: 'Role',
-//         invite: 'MeetingInvite',
-//     }
-// })
+const formatter = (): Formatter<Model, typeof suppFields> => ({
+    gqlRelMap: {
+        __typename,
+        organization: 'Organization',
+        user: 'User',
+    },
+    prismaRelMap: {
+        __typename,
+        organization: 'Organization',
+        user: 'User',
+        roles: 'Role',
+    }
+})
 
 const displayer = (): Displayer<Model> => ({
     select: () => ({
@@ -47,10 +47,10 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => UserModel.display.label(select.user as any, languages),
 })
 
-export const MemberModel = ({
+export const MemberModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.member,
     // TODO needs searcher
     display: displayer(),
-    format: {} as any, //formatter(),
+    format: formatter(),
 })

@@ -114,6 +114,14 @@ export const typeDef = gql`
         ids: [ID!]
         openToAnyoneWithInvite: Boolean
         showOnOrganizationProfile: Boolean
+        maxEventStart: Date
+        maxEventEnd: Date
+        maxRecurrStart: Date
+        maxRecurrEnd: Date
+        minEventStart: Date
+        minEventEnd: Date
+        minRecurrStart: Date
+        minRecurrEnd: Date
         labelsId: [ID!]
         organizationId: ID
         searchString: String

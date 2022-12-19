@@ -1,96 +1,94 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { ApiVersion, ApiVersionSearchInput, ApiVersionSortBy } from "../endpoints/types";
+import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, VersionPermission } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
-import { Displayer, Formatter, Searcher } from "./types";
+import { ModelLogic } from "./types";
 
-type Model = {
+const __typename = 'ApiVersion' as const;
+const suppFields = ['permissionsVersion'] as const;
+export const ApiVersionModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: ApiVersionCreateInput,
+    GqlUpdate: ApiVersionUpdateInput,
+    GqlPermission: VersionPermission,
     GqlModel: ApiVersion,
     GqlSearch: ApiVersionSearchInput,
     GqlSort: ApiVersionSortBy,
+    PrismaCreate: Prisma.api_keyUpsertArgs['create'],
+    PrismaUpdate: Prisma.api_keyUpsertArgs['update'],
     PrismaModel: Prisma.api_versionGetPayload<SelectWrap<Prisma.api_versionSelect>>,
     PrismaSelect: Prisma.api_versionSelect,
     PrismaWhere: Prisma.api_versionWhereInput,
-}
-
-const __typename = 'ApiVersion' as const;
-
-const suppFields = ['permissionsVersion'] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    gqlRelMap: {
-        __typename,
-        comments: 'Comment',
-        directoryListings: 'ProjectVersionDirectory',
-        forks: 'ApiVersion',
-        reports: 'Report',
-        resourceList: 'ResourceList',
-        root: 'Api',
-    },
-    prismaRelMap: {
-        __typename,
-        calledByRoutineVersions: 'RoutineVersion',
-        comments: 'Comment',
-        reports: 'Report',
-        root: 'Api',
-        forks: 'Api',
-        resourceList: 'ResourceList',
-        pullRequest: 'PullRequest',
-        directoryListings: 'ProjectVersionDirectory',
-    },
-    countFields: ['commentsCount', 'directoryListingsCount', 'forksCount', 'reportsCount'],
-    supplemental: {
-        graphqlFields: suppFields,
-        toGraphQL: ({ ids, prisma, userData }) => ({
-            permissionsVersion: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
-        }),
-    },
-})
-
-const searcher = (): Searcher<Model> => ({
-    defaultSort: ApiVersionSortBy.DateUpdatedDesc,
-    sortBy: ApiVersionSortBy,
-    searchFields: [
-        'createdById',
-        'createdTimeFrame',
-        'minScore',
-        'minStars',
-        'minViews',
-        'ownedByOrganizationId',
-        'ownedByUserId',
-        'tags',
-        'translationLanguages',
-        'updatedTimeFrame',
-        'visibility',
-    ],
-    searchStringQuery: () => ({
-        OR: [
-            'transSummaryWrapped',
-            'transNameWrapped',
-            { root: 'tagsWrapped' },
-            { root: 'labelsWrapped' },
-        ]
-    }),
-})
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-    label: (select, languages) => {
-        // Return name if exists, or callLink host
-        const name = bestLabel(select.translations, 'name', languages)
-        if (name.length > 0) return name
-        const url = new URL(select.callLink)
-        return url.host
-    },
-})
-
-export const ApiVersionModel = ({
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.api_version,
-    display: displayer(),
-    format: formatter(),
+    display: {
+        select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+        label: (select, languages) => {
+            // Return name if exists, or callLink host
+            const name = bestLabel(select.translations, 'name', languages)
+            if (name.length > 0) return name
+            const url = new URL(select.callLink)
+            return url.host
+        },
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            comments: 'Comment',
+            directoryListings: 'ProjectVersionDirectory',
+            forks: 'ApiVersion',
+            reports: 'Report',
+            resourceList: 'ResourceList',
+            root: 'Api',
+        },
+        prismaRelMap: {
+            __typename,
+            calledByRoutineVersions: 'RoutineVersion',
+            comments: 'Comment',
+            reports: 'Report',
+            root: 'Api',
+            forks: 'Api',
+            resourceList: 'ResourceList',
+            pullRequest: 'PullRequest',
+            directoryListings: 'ProjectVersionDirectory',
+        },
+        countFields: ['commentsCount', 'directoryListingsCount', 'forksCount', 'reportsCount'],
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: ({ ids, prisma, userData }) => ({
+                permissionsVersion: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+            }),
+        },
+    },
     mutate: {} as any,
-    search: searcher(),
+    search: {
+        defaultSort: ApiVersionSortBy.DateUpdatedDesc,
+        sortBy: ApiVersionSortBy,
+        searchFields: [
+            'createdById',
+            'createdTimeFrame',
+            'minScore',
+            'minStars',
+            'minViews',
+            'ownedByOrganizationId',
+            'ownedByUserId',
+            'tags',
+            'translationLanguages',
+            'updatedTimeFrame',
+            'visibility',
+        ],
+        searchStringQuery: () => ({
+            OR: [
+                'transSummaryWrapped',
+                'transNameWrapped',
+                { root: 'tagsWrapped' },
+                { root: 'labelsWrapped' },
+            ]
+        }),
+    },
     validate: {} as any,
 })

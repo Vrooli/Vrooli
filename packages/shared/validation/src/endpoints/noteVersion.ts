@@ -1,5 +1,6 @@
-import { details, id, opt, rel, req, summary, transRel, versionLabel, versionNotes, YupModel } from '../utils';
+import { details, id, index, opt, rel, req, summary, transRel, versionLabel, versionNotes, YupModel } from '../utils';
 import * as yup from 'yup';
+import { noteValidation } from './note';
 
 export const noteVersionTranslationValidation: YupModel = transRel({
     create: {
@@ -13,21 +14,22 @@ export const noteVersionTranslationValidation: YupModel = transRel({
 })
 
 export const noteVersionValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         isLatest: opt(yup.boolean()),
         isPrivate: opt(yup.boolean()),
-        versionIndex: req(yup.number()),
+        versionIndex: req(index),
         versionLabel: req(versionLabel('0.0.1')),
         versionNotes: opt(versionNotes),
+        ...rel('root', ['Connect', 'Create'], 'one', 'req', noteValidation),
         ...rel('directoryListings', ['Connect'], 'many', 'opt'),
         ...rel('translations', ['Create'], 'many', 'opt', noteVersionTranslationValidation),
-    }),
-    update: yup.object().shape({
+    }, [['rootConnect', 'rootCreate']]),
+    update: () => yup.object().shape({
         id: req(id),
         isLatest: opt(yup.boolean()),
         isPrivate: opt(yup.boolean()),
-        versionIndex: opt(yup.number()),
+        versionIndex: opt(index),
         versionLabel: opt(versionLabel('0.0.1')),
         versionNotes: opt(versionNotes),
         ...rel('directoryListings', ['Connect', 'Disconnect'], 'many', 'opt'),

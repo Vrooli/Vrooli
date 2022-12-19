@@ -1,8 +1,8 @@
-import { resourceListsCreate, resourceListsUpdate } from "@shared/validation";
+import { resourceListValidation } from "@shared/validation";
 import { ResourceListSortBy } from "@shared/consts";
 import { ResourceList, ResourceListSearchInput, ResourceListCreateInput, ResourceListUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
@@ -11,6 +11,10 @@ import { StandardModel } from "./standard";
 import { permissionsSelectHelper } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
+import { ApiModel } from "./api";
+import { PostModel } from "./post";
+import { UserScheduleModel } from "./userSchedule";
+import { SmartContractModel } from "./smartContract";
 
 type Model = {
     IsTransferable: false,
@@ -32,24 +36,33 @@ const __typename = 'ResourceList' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         resources: 'Resource',
+        apiVersion: 'ApiVersion',
+        organization: 'Organization',
+        post: 'Post',
+        projectVersion: 'ProjectVersion',
+        routineVersion: 'RoutineVersion',
+        smartContractVersion: 'SmartContractVersion',
+        standardVersion: 'StandardVersion',
+        userSchedule: 'UserSchedule',
     },
+    prismaRelMap: {
+        __typename,
+        resources: 'Resource',
+        apiVersion: 'ApiVersion',
+        organization: 'Organization',
+        post: 'Post',
+        projectVersion: 'ProjectVersion',
+        routineVersion: 'RoutineVersion',
+        smartContractVersion: 'SmartContractVersion',
+        standardVersion: 'StandardVersion',
+        userSchedule: 'UserSchedule',
+    }
 })
 
 const validator = (): Validator<Model> => ({
-    validateMap: {
-        __typename: 'ResourceList',
-        // api: 'Api',
-        organization: 'Organization',
-        // post: 'Post',
-        projectVersion: 'Project',
-        routineVersion: 'Routine',
-        // smartContract: 'SmartContract',
-        // standard: 'Standard',
-        // userSchedule: 'UserSchedule',
-    },
     isTransferable: false,
     maxObjects: 50000,
     permissionsSelect: (...params) => ({
@@ -75,28 +88,28 @@ const validator = (): Validator<Model> => ({
     }),
     isDeleted: () => false,
     isPublic: (data, languages) => oneIsPublic<Prisma.resource_listSelect>(data, [
-        // ['apiVersion', 'Api'],
+        ['apiVersion', 'Api'],
         ['organization', 'Organization'],
-        // ['post', 'Post'],
+        ['post', 'Post'],
         ['projectVersion', 'Project'],
         ['routineVersion', 'Routine'],
-        // ['smartContractVersion', 'SmartContract'],
+        ['smartContractVersion', 'SmartContract'],
         ['standardVersion', 'Standard'],
-        // ['userSchedule', 'UserSchedule'],
+        ['userSchedule', 'UserSchedule'],
     ], languages),
     visibility: {
         private: {},
         public: {},
         owner: (userId) => ({
             OR: [
-                // { apiVersion: ApiModel.validate.visibility.owner(userId) },
-                { organization: OrganizationModel.validate.visibility.owner(userId) },
-                // { post: PostModel.validate.visibility.owner(userId) },
-                { project: ProjectModel.validate.visibility.owner(userId) },
-                { routineVersion: RoutineModel.validate.visibility.owner(userId) },
-                // { smartContractVersion: SmartContractModel.validate.visibility.owner(userId) },
-                { standardVersion: StandardModel.validate.visibility.owner(userId) },
-                { userSchedule: { userId } },
+                { apiVersion: ApiModel.validate!.visibility.owner(userId) },
+                { organization: OrganizationModel.validate!.visibility.owner(userId) },
+                { post: PostModel.validate!.visibility.owner(userId) },
+                { project: ProjectModel.validate!.visibility.owner(userId) },
+                { routineVersion: RoutineModel.validate!.visibility.owner(userId) },
+                { smartContractVersion: SmartContractModel.validate!.visibility.owner(userId) },
+                { standardVersion: StandardModel.validate!.visibility.owner(userId) },
+                { userSchedule: UserScheduleModel.validate!.visibility.owner(userId) },
             ]
         }),
     }
@@ -151,7 +164,7 @@ const mutater = (): Mutater<Model> => ({
             };
         },
     },
-    yup: { create: resourceListsCreate, update: resourceListsUpdate },
+    yup: resourceListValidation,
 })
 
 const displayer = (): Displayer<Model> => ({
@@ -159,12 +172,12 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
-export const ResourceListModel = ({
+export const ResourceListModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.resource_list,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
 })

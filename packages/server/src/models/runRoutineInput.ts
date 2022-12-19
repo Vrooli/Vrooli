@@ -1,7 +1,6 @@
-import { runInputsCreate, runInputsUpdate } from "@shared/validation";
 import { RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
+import { Displayer, Formatter, ModelLogic, Mutater, Searcher, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { padSelect } from "../builders";
@@ -52,13 +51,13 @@ const validator = (): Validator<Model> => ({
         canView: async () => isPublic,
     }),
     profanityFields: ['data'],
-    owner: (data) => RunRoutineModel.validate.owner(data.runRoutine as any),
+    owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),
     isDeleted: () => false,
-    isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as any, languages),
+    isPublic: (data, languages) => RunRoutineModel.validate!.isPublic(data.runRoutine as any, languages),
     visibility: {
         private: { runRoutine: { isPrivate: true } },
         public: { runRoutine: { isPrivate: false } },
-        owner: (userId) => ({ runRoutine: RunRoutineModel.validate.visibility.owner(userId) }),
+        owner: (userId) => ({ runRoutine: RunRoutineModel.validate!.visibility.owner(userId) }),
     },
 })
 
@@ -72,7 +71,7 @@ const searcher = (): Searcher<Model> => ({
         'standardIds',
         'updatedTimeFrame',
     ],
-    searchStringQuery: () => ({ runRoutine: RunRoutineModel.search.searchStringQuery() }),
+    searchStringQuery: () => ({ runRoutine: RunRoutineModel.search!.searchStringQuery() }),
 })
 
 /**
@@ -93,7 +92,7 @@ const mutater = (): Mutater<Model> => ({
             }
         }
     },
-    yup: { create: runInputsCreate, update: runInputsUpdate },
+    yup: {} as any,
 })
 
 const displayer = (): Displayer<Model> => ({
@@ -113,12 +112,12 @@ const displayer = (): Displayer<Model> => ({
     }
 })
 
-export const RunRoutineInputModel = ({
+export const RunRoutineInputModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_input,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
 })

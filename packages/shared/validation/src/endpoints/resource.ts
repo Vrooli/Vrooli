@@ -1,8 +1,7 @@
-import { adaHandleRegex, blankToUndefined, description, id, maxStrErr, minNumErr, name, opt, rel, req, transRel, urlRegex, walletAddressRegex, YupModel } from '../utils';
+import { adaHandleRegex, blankToUndefined, description, id, index, maxStrErr, minNumErr, name, opt, rel, req, transRel, urlRegex, walletAddressRegex, YupModel } from '../utils';
 import * as yup from 'yup';
 import { ResourceUsedFor } from '@shared/consts';
 
-const index = yup.number().integer().min(0, minNumErr)
 // Link must match one of the regex above
 const link = yup.string().transform(blankToUndefined).max(1024, maxStrErr).test(
     'link',
@@ -25,7 +24,7 @@ export const resourceTranslationValidation: YupModel = transRel({
 })
 
 export const resourceValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         index: opt(index),
         link: req(link),
@@ -33,7 +32,7 @@ export const resourceValidation: YupModel = {
         ...rel('list', ['Connect'], 'one', 'req'),
         ...rel('translations', ['Create'], 'one', 'opt', resourceTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         index: opt(index),
         link: opt(link),

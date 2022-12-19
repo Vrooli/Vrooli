@@ -84,7 +84,6 @@ export const typeDef = gql`
         permissionsRoutine: RoutinePermission!
         starredBy: [User!]!
         tags: [Tag!]!
-        translations: [RoutineTranslation!]!
         versions: [RoutineVersion!]!
         versionsCount: Int
     }

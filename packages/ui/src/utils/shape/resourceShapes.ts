@@ -1,4 +1,4 @@
-import { ResourceCreateInput, ResourceListCreateInput, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput, ResourceListUsedFor, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from "graphql/generated/globalTypes";
+import { ResourceCreateInput, ResourceListCreateInput, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from "graphql/generated/globalTypes";
 import { Resource, ResourceList, ResourceListTranslation, ResourceTranslation, ShapeWrapper } from "types";
 import { hasObjectChanged } from "./objectTools";
 import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
@@ -87,7 +87,6 @@ export const shapeResourceListTranslationUpdate = (
 export const shapeResourceListCreate = (item: ResourceListShape): ResourceListCreateInput => ({
     id: item.id,
     index: item.index,
-    usedFor: item.usedFor ?? ResourceListUsedFor.Display,
     ...shapeCreateList(item, 'translations', shapeResourceListTranslationCreate),
     ...shapeCreateList({
         resources: item.resources?.map(r => ({

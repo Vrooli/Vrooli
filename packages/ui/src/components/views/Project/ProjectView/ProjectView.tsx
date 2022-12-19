@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, ResourceListUsedFor, StarFor } from "@shared/consts";
+import { APP_LINKS, StarFor } from "@shared/consts";
 import { adaHandleRegex } from "@shared/validation";
 import { useLazyQuery } from "@apollo/client";
 import { project, projectVariables } from "graphql/generated/project";
@@ -51,7 +51,7 @@ export const ProjectView = ({
 
     const { canStar, name, description, handle, resourceList } = useMemo(() => {
         const { canStar } = project?.permissionsProject ?? {};
-        const resourceList: ResourceList | undefined = Array.isArray(project?.resourceLists) ? project?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
+        const resourceList: ResourceList | undefined = project?.resourceList;
         const { description, name } = getTranslation(project ?? partialData, [language]);
         return {
             canStar,

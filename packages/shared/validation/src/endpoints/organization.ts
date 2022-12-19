@@ -20,7 +20,7 @@ export const organizationTranslationValidation: YupModel = transRel({
 })
 
 export const organizationValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         handle: opt(handle),
         isOpenToNewMembers: opt(isOpenToNewMembers),
@@ -31,7 +31,7 @@ export const organizationValidation: YupModel = {
         ...rel('memberInvites', ['Create'], 'many', 'opt', memberInviteValidation),
         ...rel('translations', ['Create'], 'many', 'opt', organizationTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         handle: opt(handle),
         isOpenToNewMembers: opt(isOpenToNewMembers),

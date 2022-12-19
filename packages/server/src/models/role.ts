@@ -3,7 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { Role, RoleCreateInput, RoleUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, ModelLogic } from "./types";
 
 type Model = {
     IsTransferable: false,
@@ -12,6 +12,8 @@ type Model = {
     GqlUpdate: RoleUpdateInput,
     GqlModel: Role,
     GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
     PrismaCreate: Prisma.roleUpsertArgs['create'],
     PrismaUpdate: Prisma.roleUpsertArgs['update'],
     PrismaModel: Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>,
@@ -22,14 +24,19 @@ type Model = {
 const __typename = 'Role' as const;
 
 const suppFields = [] as const;
-// const formatter = (): Formatter<Model, typeof suppFields> => ({
-//     relationshipMap: {
-//         __typename,
-//         members: 'User',
-//         organization: 'Organization',
-//     },
-//     joinMap: { members: 'user' },
-// })
+const formatter = (): Formatter<Model, typeof suppFields> => ({
+    gqlRelMap: {
+        __typename,
+        members: 'Member',
+        organization: 'Organization',
+    },
+    prismaRelMap: {
+        __typename,
+        members: 'Member',
+        meetings: 'Meeting',
+        organization: 'Organization',
+    }
+})
 
 const displayer = (): Displayer<Model> => ({
     select: () => ({ 
@@ -45,9 +52,9 @@ const displayer = (): Displayer<Model> => ({
     },
 })
 
-export const RoleModel = ({
+export const RoleModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.role,
     display: displayer(),
-    format: {} as any,//formatter(),
+    format: formatter(),
 })

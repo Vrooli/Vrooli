@@ -12,7 +12,6 @@ import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, get
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ResourceList, Routine } from "types";
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineUpdateVariables, routineUpdate_routineUpdate } from "graphql/generated/routineUpdate";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
@@ -74,7 +73,7 @@ export const RoutineUpdate = ({
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -94,7 +93,7 @@ export const RoutineUpdate = ({
         });
         setInputsList(routine?.inputs ?? []);
         setOutputsList(routine?.outputs ?? []);
-        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(routine?.resourceList ?? { id: uuid() } as any);
         setTags(routine?.tags ?? []);
     }, [routine]);
 

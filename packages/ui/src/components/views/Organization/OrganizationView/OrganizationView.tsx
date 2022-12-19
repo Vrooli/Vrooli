@@ -13,7 +13,7 @@ import { SearchListGenerator } from "components/lists/types";
 import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, placeholderColor, SearchType, uuidToBase36 } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
-import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
+import { VisibilityType } from "graphql/generated/globalTypes";
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 
@@ -55,7 +55,7 @@ export const OrganizationView = ({
 
     const { bio, canStar, handle, name, resourceList } = useMemo(() => {
         const { canStar } = organization?.permissionsOrganization ?? {};
-        const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
+        const resourceList: ResourceList | undefined = organization?.resourceList;
         const { bio, name } = getTranslation(organization ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,

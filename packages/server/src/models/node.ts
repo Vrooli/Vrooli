@@ -1,7 +1,7 @@
 import { Node, NodeCreateInput, NodeUpdateInput } from "../endpoints/types";
-import { nodesCreate, nodesUpdate } from "@shared/validation";
+import { nodeValidation } from "@shared/validation";
 import { PrismaType } from "../types";
-import { Formatter, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { CustomError } from "../events";
 import { RoutineModel } from "./routine";
@@ -16,6 +16,8 @@ type Model = {
     GqlUpdate: NodeUpdateInput,
     GqlModel: Node,
     GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
     PrismaCreate: Prisma.nodeUpsertArgs['create'],
     PrismaUpdate: Prisma.nodeUpsertArgs['update'],
     PrismaModel: Prisma.nodeGetPayload<SelectWrap<Prisma.nodeSelect>>,
@@ -64,9 +66,9 @@ const validator = (): Validator<Model> => ({
         canDelete: async () => isAdmin,
         canEdit: async () => isAdmin,
     }),
-    owner: (data) => RoutineModel.validate.owner(data.routineVersion as any),
+    owner: (data) => RoutineModel.validate!.owner(data.routineVersion as any),
     isDeleted: () => false,
-    isPublic: (data, languages) => RoutineModel.validate.isPublic(data.routineVersion as any, languages),
+    isPublic: (data, languages) => RoutineModel.validate!.isPublic(data.routineVersion as any, languages),
     validations: {
         create: async ({ createMany, deltaAdding, prisma, userData }) => {
             if (createMany.length === 0) return;
@@ -83,9 +85,9 @@ const validator = (): Validator<Model> => ({
         }
     },
     visibility: {
-        private: { routineVersion: RoutineModel.validate.visibility.private },
-        public: { routineVersion: RoutineModel.validate.visibility.public },
-        owner: (userId) => ({ routineVersion: RoutineModel.validate.visibility.owner(userId) }),
+        private: { routineVersion: RoutineModel.validate!.visibility.private },
+        public: { routineVersion: RoutineModel.validate!.visibility.public },
+        owner: (userId) => ({ routineVersion: RoutineModel.validate!.visibility.owner(userId) }),
     }
 })
 
@@ -114,7 +116,7 @@ const mutater = (): Mutater<Model> => ({
             ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
         })
     },
-    yup: { create: nodesCreate, update: nodesUpdate },
+    yup: nodeValidation,
 })
 
 const displayer = (): Displayer<Model> => ({
@@ -122,11 +124,11 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
-export const NodeModel = ({
+export const NodeModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     validate: validator(),
 })

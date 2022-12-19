@@ -25,7 +25,7 @@ export const nodeTranslationValidation: YupModel = transRel({
 })
 
 export const nodeValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         columnIndex: opt(columnIndex),
         rowIndex: opt(rowIndex),
@@ -36,7 +36,7 @@ export const nodeValidation: YupModel = {
         ...rel('routineVersion', ['Connect'], 'one', 'req'),
         ...rel('translations', ['Create'], 'many', 'opt', nodeTranslationValidation),
     }, [['loopCreate', 'nodeEndCreate']]),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         columnIndex: opt(columnIndex),
         rowIndex: opt(rowIndex),

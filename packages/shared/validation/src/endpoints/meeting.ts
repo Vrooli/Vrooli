@@ -16,7 +16,7 @@ export const meetingTranslationValidation: YupModel = transRel({
 })
 
 export const meetingValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         openToAnyoneWithInvite: opt(yup.boolean()),
         showOnOrganizationProfile: opt(yup.boolean()),
@@ -32,7 +32,7 @@ export const meetingValidation: YupModel = {
         ...rel('labels', ['Connect'], 'many', 'opt'),
         ...rel('translations', ['Create'], 'many', 'opt', meetingTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         openToAnyoneWithInvite: opt(yup.boolean()),
         showOnOrganizationProfile: opt(yup.boolean()),

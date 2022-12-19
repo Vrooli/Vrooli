@@ -1,6 +1,7 @@
-import { details, id, opt, rel, req, summary, transRel, url, versionLabel, versionNotes, YupModel } from '../utils';
+import { details, id, index, opt, rel, req, summary, transRel, url, versionLabel, versionNotes, YupModel } from '../utils';
 import * as yup from 'yup';
 import { resourceListValidation } from './resourceList';
+import { apiValidation } from './api';
 
 export const apiVersionTranslationValidation: YupModel = transRel({
     create: {
@@ -14,24 +15,25 @@ export const apiVersionTranslationValidation: YupModel = transRel({
 })
 
 export const apiVersionValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         callLink: opt(url),
         documentationLink: opt(url),
         isLatest: opt(yup.boolean()),
-        versionIndex: req(yup.number()),
+        versionIndex: req(index),
         versionLabel: req(versionLabel('0.0.1')),
         versionNotes: opt(versionNotes),
+        ...rel('root', ['Connect', 'Create'], 'one', 'req', apiValidation),
         ...rel('resourceList', ['Create'], 'one', 'opt', resourceListValidation),
         ...rel('directoryListings', ['Connect'], 'many', 'opt'),
         ...rel('translations', ['Create'], 'many', 'opt', apiVersionTranslationValidation),
-    }),
-    update: yup.object().shape({
+    }, [['rootConnect', 'rootCreate']]),
+    update: () => yup.object().shape({
         id: req(id),
         callLink: opt(url),
         documentationLink: opt(url),
         isLatest: opt(yup.boolean()),
-        versionIndex: opt(yup.number()),
+        versionIndex: opt(index),
         versionLabel: opt(versionLabel('0.0.1')),
         versionNotes: opt(versionNotes),
         ...rel('resourceList', ['Create', 'Update'], 'one', 'opt', resourceListValidation),

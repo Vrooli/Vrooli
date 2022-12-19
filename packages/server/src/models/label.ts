@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { Label, LabelCreateInput, LabelPermission, LabelSearchInput, LabelSortBy, LabelUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Searcher } from "./types";
+import { Displayer, Formatter, ModelLogic, Searcher } from "./types";
 
 type Model = {
     IsTransferable: false,
@@ -87,7 +87,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select) => select.label,
 })
 
-export const LabelModel = ({
+export const LabelModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.label,
     display: displayer(),

@@ -23,14 +23,14 @@ export const issueTranslationValidation: YupModel = transRel({
 })
 
 export const issueValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         issueFor: req(issueFor),
         ...rel('for', ['Connect'], 'one', 'req'),
         ...rel('labels', ['Connect', 'Create'], 'one', 'opt', labelValidation),
         ...rel('translations', ['Create'], 'many', 'opt', issueTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         ...rel('labels', ['Connect', 'Create', 'Disconnect'], 'one', 'opt', labelValidation),
         ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', issueTranslationValidation),

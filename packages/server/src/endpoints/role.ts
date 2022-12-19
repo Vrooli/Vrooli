@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { rateLimit } from '../middleware';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput } from './types';
+import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizUpdateInput, RoleSortBy } from './types';
 
 export const typeDef = gql`
     enum RoleSortBy {
@@ -114,7 +114,7 @@ export const typeDef = gql`
 
 const objectType = 'Role';
 export const resolvers: {
-    RoleSortBy: typeof QuizSortBy;
+    RoleSortBy: typeof RoleSortBy;
     Query: {
         role: GQLEndpoint<FindByIdInput, FindOneResult<Quiz>>;
         roles: GQLEndpoint<QuizSearchInput, FindManyResult<Quiz>>;
@@ -124,7 +124,7 @@ export const resolvers: {
         roleUpdate: GQLEndpoint<QuizUpdateInput, UpdateOneResult<Quiz>>;
     }
 } = {
-    RoleSortBy: QuizSortBy,
+    RoleSortBy,
     Query: {
         role: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

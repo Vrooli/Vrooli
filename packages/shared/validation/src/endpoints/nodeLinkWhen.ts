@@ -13,13 +13,13 @@ export const nodeLinkWhenTranslationValidation: YupModel = transRel({
 })
 
 export const nodeLinkWhenValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         condition: req(nodeCondition),
         ...rel('link', ['Connect'], 'one', 'req'),
         ...rel('translations', ['Create'], 'many', 'opt', nodeLinkWhenTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         condition: opt(nodeCondition),
         ...rel('link', ['Connect'], 'one', 'opt'),

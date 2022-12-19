@@ -41,9 +41,10 @@ export const typeDef = gql`
     }
     type Star {
         id: ID!
-        from: User!
+        by: User!
         to: StarTo!
     }
+
     input StarSearchInput {
         after: String
         excludeLinkedToTag: Boolean
@@ -52,12 +53,10 @@ export const typeDef = gql`
         sortBy: StarSortBy
         take: Int
     }
-
     type StarSearchResult {
         pageInfo: PageInfo!
         edges: [StarEdge!]!
     }
-
     type StarEdge {
         cursor: String!
         node: Star!

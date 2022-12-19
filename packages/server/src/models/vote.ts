@@ -1,20 +1,35 @@
-import { VoteFor } from "@shared/consts";
 import { CustomError, Trigger } from "../events";
-import { SessionUser, Vote, VoteInput } from "../endpoints/types";
+import { SessionUser, Vote, VoteFor, VoteInput, VoteSearchInput, VoteSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter } from "./types";
-import { CommentModel, ProjectModel, RoutineModel, StandardModel } from ".";
+import { Displayer, Formatter, ModelLogic } from "./types";
+import { ApiModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { SelectWrap } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
 import { Prisma } from "@prisma/client";
 
+type Model = {
+    IsTransferable: true,
+    IsVersioned: true,
+    GqlCreate: undefined,
+    GqlUpdate: undefined,
+    GqlModel: Vote,
+    GqlSearch: VoteSearchInput,
+    GqlSort: VoteSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.voteUpsertArgs['create'],
+    PrismaUpdate: Prisma.voteUpsertArgs['update'],
+    PrismaModel: Prisma.voteGetPayload<SelectWrap<Prisma.voteSelect>>,
+    PrismaSelect: Prisma.voteSelect,
+    PrismaWhere: Prisma.voteWhereInput,
+}
+
 const __typename = 'Vote' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Vote, typeof suppFields> => ({
-    relationshipMap: {
+const formatter = (): Formatter<Model, typeof suppFields> => ({
+    gqlRelMap: {
         __typename,
-        from: 'User',
+        by: 'User',
         to: {
             api: 'Api',
             comment: 'Comment',
@@ -30,6 +45,22 @@ const formatter = (): Formatter<Vote, typeof suppFields> => ({
             standard: 'Standard',
         }
     },
+    prismaRelMap: {
+        __typename,
+        by: 'User',
+        api: 'Api',
+        comment: 'Comment',
+        issue: 'Issue',
+        note: 'Note',
+        post: 'Post',
+        project: 'Project',
+        question: 'Question',
+        questionAnswer: 'QuestionAnswer',
+        quiz: 'Quiz',
+        routine: 'Routine',
+        smartContract: 'SmartContract',
+        standard: 'Standard',
+    }
 })
 
 const forMapper: { [key in VoteFor]: string } = {
@@ -147,41 +178,40 @@ const querier = () => ({
     },
 })
 
-const displayer = (): Displayer<
-    Prisma.voteSelect,
-    Prisma.voteGetPayload<SelectWrap<Prisma.voteSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
-        // api: padSelect(ApiModel.display.select),
+        api: padSelect(ApiModel.display.select),
         comment: padSelect(CommentModel.display.select),
-        // issue: padSelect(IssueModel.display.select),
-        // post: padSelect(PostModel.display.select),
+        issue: padSelect(IssueModel.display.select),
+        note: padSelect(NoteModel.display.select),
+        post: padSelect(PostModel.display.select),
         project: padSelect(ProjectModel.display.select),
-        // question: padSelect(QuestionModel.display.select),
-        // questionAnswer: padSelect(QuestionAnswerModel.display.select),
-        // quiz: padSelect(QuizModel.display.select),
+        question: padSelect(QuestionModel.display.select),
+        questionAnswer: padSelect(QuestionAnswerModel.display.select),
+        quiz: padSelect(QuizModel.display.select),
         routine: padSelect(RoutineModel.display.select),
-        // smartContract: padSelect(SmartContractModel.display.select),
+        smartContract: padSelect(SmartContractModel.display.select),
         standard: padSelect(StandardModel.display.select),
     }),
     label: (select, languages) => {
-        // if (select.api) return ApiModel.display.label(select.api as any, languages);
+        if (select.api) return ApiModel.display.label(select.api as any, languages);
         if (select.comment) return CommentModel.display.label(select.comment as any, languages);
-        // if (select.issue) return IssueModel.display.label(select.issue as any, languages);
-        // if (select.post) return PostModel.display.label(select.post as any, languages);
+        if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+        if (select.note) return NoteModel.display.label(select.note as any, languages);
+        if (select.post) return PostModel.display.label(select.post as any, languages);
         if (select.project) return ProjectModel.display.label(select.project as any, languages);
-        // if (select.question) return QuestionModel.display.label(select.question as any, languages);
-        // if (select.questionAnswer) return QuestionAnswerModel.display.label(select.questionAnswer as any, languages);
-        // if (select.quiz) return QuizModel.display.label(select.quiz as any, languages);
+        if (select.question) return QuestionModel.display.label(select.question as any, languages);
+        if (select.questionAnswer) return QuestionAnswerModel.display.label(select.questionAnswer as any, languages);
+        if (select.quiz) return QuizModel.display.label(select.quiz as any, languages);
         if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
-        // if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
+        if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
         if (select.standard) return StandardModel.display.label(select.standard as any, languages);
         return '';
     }
 })
 
-export const VoteModel = ({
+export const VoteModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.vote,
     display: displayer(),

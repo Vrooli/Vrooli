@@ -1,7 +1,7 @@
-import { projectsCreate, projectsUpdate } from "@shared/validation";
+import { projectVersionValidation } from "@shared/validation";
 import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput, ProjectVersion, VersionPermission, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
@@ -153,7 +153,7 @@ const validator = (): Validator<Model> => ({
             // ]
         },
         owner: (userId) => ({
-            root: ProjectVersionModel.validate.visibility.owner(userId),
+            root: ProjectVersionModel.validate!.visibility.owner(userId),
         }),
     }
     // createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksDescription'));
@@ -200,7 +200,7 @@ const mutater = (): Mutater<Model> => ({
             // }
         }
     },
-    yup: { create: projectsCreate, update: projectsUpdate },
+    yup: projectVersionValidation,
 });
 
 const displayer = (): Displayer<Model> => ({
@@ -208,12 +208,12 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
-export const ProjectVersionModel = ({
+export const ProjectVersionModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.project_version,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
 })

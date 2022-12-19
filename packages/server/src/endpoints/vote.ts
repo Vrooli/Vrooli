@@ -1,12 +1,18 @@
 import { gql } from 'apollo-server-express';
-import { VoteInput, Success, VoteFor } from './types';
-import { GQLEndpoint, UnionResolver } from '../types';
+import { VoteInput, Success, VoteFor, VoteSortBy, VoteSearchInput, Vote } from './types';
+import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
 import { rateLimit } from '../middleware';
 import { VoteModel } from '../models';
 import { resolveUnion } from './resolvers';
 import { assertRequestFrom } from '../auth/request';
+import { readManyHelper } from '../actions';
 
 export const typeDef = gql`
+    enum VoteSortBy {
+        DateUpdatedAsc
+        DateUpdatedDesc
+    }
+
     enum VoteFor {
         Api
         Comment
@@ -31,8 +37,31 @@ export const typeDef = gql`
     }
     type Vote {
         isUpvote: Boolean
-        from: User!
+        by: User!
         to: VoteTo!
+    }
+
+    input VoteSearchInput {
+        after: String
+        excludeLinkedToTag: Boolean
+        ids: [ID!]
+        searchString: String
+        sortBy: VoteSortBy
+        take: Int
+    }
+
+    type VoteSearchResult {
+        pageInfo: PageInfo!
+        edges: [VoteEdge!]!
+    }
+
+    type VoteEdge {
+        cursor: String!
+        node: Vote!
+    }
+
+    extend type Query {
+        votes(input: VoteSearchInput!): VoteSearchResult!
     }
 
     extend type Mutation {
@@ -40,15 +69,28 @@ export const typeDef = gql`
     }
 `
 
+const objectType = 'Vote';
 export const resolvers: {
-    VoteFor: typeof VoteFor;
-    VoteTo: UnionResolver;
+    VoteSortBy: typeof VoteSortBy,
+    VoteFor: typeof VoteFor,
+    VoteTo: UnionResolver,
+    Query: {
+        votes: GQLEndpoint<VoteSearchInput, FindManyResult<Vote>>;
+    },
     Mutation: {
         vote: GQLEndpoint<VoteInput, Success>;
     }
 } = {
+    VoteSortBy,
     VoteFor,
     VoteTo: { __resolveType(obj: any) { return resolveUnion(obj) } },
+    Query: {
+        votes: async (_, { input }, { prisma, req }, info) => {
+            const userData = assertRequestFrom(req, { isUser: true });
+            await rateLimit({ info, maxUser: 2000, req });
+            return readManyHelper({ info, input, objectType, prisma, req, additionalQueries: { userId: userData.id } });
+        },
+    },
     Mutation: {
         /**
          * Adds or removes a vote to an object. A user can only cast one vote per object. So if a user re-votes, 

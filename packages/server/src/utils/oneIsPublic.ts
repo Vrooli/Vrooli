@@ -1,4 +1,4 @@
-import { getValidator } from "../getters";
+import { getLogic } from "../getters";
 import { GraphQLModelType } from "../models/types";
 
 /**
@@ -14,9 +14,9 @@ export const oneIsPublic = <PrismaSelect extends { [x: string]: any }>(
     for (let i = 0; i < list.length; i++) {
         const [field, type] = list[i];
         // Get the validator for this type
-        const validator = getValidator(type, languages, 'oneIsPublic');
+        const { validate } = getLogic(['validate'], type, languages, 'oneIsPublic');
         // Use validator to determine if this field is public
-        if (validator.isPublic(permissionsData[field], languages)) {
+        if (validate.isPublic(permissionsData[field], languages)) {
             return true;
         }
     }

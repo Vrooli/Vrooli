@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, ResourceList, ResourceListCreateInput, ResourceListUpdateInput, ResourceListSortBy, ResourceListUsedFor, ResourceListSearchInput } from './types';
+import { FindByIdInput, ResourceList, ResourceListCreateInput, ResourceListUpdateInput, ResourceListSortBy, ResourceListSearchInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -40,14 +40,13 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        usedFor: ResourceListUsedFor
-        api: ApiVersion
+        apiVersion: ApiVersion
         organization: Organization
         post: Post
-        project: ProjectVersion
-        routine: RoutineVersion
-        smartContract: SmartContractVersion
-        standard: StandardVersion
+        projectVersion: ProjectVersion
+        routineVersion: RoutineVersion
+        smartContractVersion: SmartContractVersion
+        standardVersion: StandardVersion
         userSchedule: UserSchedule
         translations: [ResourceListTranslation!]!
         resources: [Resource!]!

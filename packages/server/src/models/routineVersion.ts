@@ -1,10 +1,9 @@
-import { routinesCreate, routinesUpdate } from "@shared/validation";
+import { routineVersionValidation } from "@shared/validation";
 import { CustomError, Trigger } from "../events";
 import { RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionPermission, RoutineVersionUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { OrganizationModel } from "./organization";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
@@ -209,7 +208,7 @@ const validator = (): Validator<Model> => ({
             // ]
         },
         owner: (userId) => ({
-            root: RoutineVersionModel.validate.visibility.owner(userId),
+            root: RoutineVersionModel.validate!.visibility.owner(userId),
         }),
     },
     // if (createMany) {
@@ -500,7 +499,7 @@ const mutater = (): Mutater<Model> => ({
             // }
         },
     },
-    yup: { create: routinesCreate, update: routinesUpdate },
+    yup: routineVersionValidation,
 })
 
 const displayer = (): Displayer<Model> => ({
@@ -508,12 +507,12 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
-export const RoutineVersionModel = ({
+export const RoutineVersionModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
     calculateComplexity,

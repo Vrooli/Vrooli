@@ -1,11 +1,11 @@
-import { routinesCreate, routinesUpdate } from "@shared/validation";
+import { routineValidation } from "@shared/validation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { CustomError, Trigger } from "../events";
 import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
@@ -804,7 +804,7 @@ const mutater = (): Mutater<Model> => ({
             // }
         },
     },
-    yup: { create: routinesCreate, update: routinesUpdate },
+    yup: routineValidation,
 })
 
 const displayer = (): Displayer<Model> => ({
@@ -821,12 +821,12 @@ const displayer = (): Displayer<Model> => ({
         RoutineVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 
-export const RoutineModel = ({
+export const RoutineModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
     calculateComplexity,

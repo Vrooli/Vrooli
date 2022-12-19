@@ -3,7 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionPermission, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer } from "./types";
+import { Displayer, ModelLogic } from "./types";
 
 type Model = {
     IsTransferable: false,
@@ -30,7 +30,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages)
 })
 
-export const SmartContractVersionModel = ({
+export const SmartContractVersionModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.smart_contract_version,
     display: displayer(),

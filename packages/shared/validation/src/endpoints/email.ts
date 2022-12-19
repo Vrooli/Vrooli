@@ -4,8 +4,8 @@ import * as yup from 'yup';
 const emailAddress = yup.string().transform(blankToUndefined).email()
 
 export const emailValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         emailAddress: req(emailAddress),
     }),
-    update: yup.object().shape({ }), // Can't update an email. Push notifications & other email-related settings are updated elsewhere
+    // Can't update an email. Push notifications & other email-related settings are updated elsewhere
 }

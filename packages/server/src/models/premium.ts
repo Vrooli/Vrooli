@@ -1,17 +1,31 @@
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { SelectWrap } from "../builders/types";
+import { Premium } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer } from "./types";
+import { Displayer, ModelLogic } from "./types";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: undefined,
+    GqlUpdate: undefined,
+    GqlModel: Premium,
+    GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
+    PrismaCreate: Prisma.premiumUpsertArgs['create'],
+    PrismaUpdate: Prisma.premiumUpsertArgs['update'],
+    PrismaModel: Prisma.premiumGetPayload<SelectWrap<Prisma.premiumSelect>>,
+    PrismaSelect: Prisma.premiumSelect,
+    PrismaWhere: Prisma.premiumWhereInput,
+}
 
 const __typename = 'Premium' as const;
 
 const suppFields = [] as const;
 
-const displayer = (): Displayer<
-    Prisma.premiumSelect,
-    Prisma.premiumGetPayload<SelectWrap<Prisma.premiumSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, customPlan: true }),
     label: (select, languages) => {
         const lng = languages[0];
@@ -20,7 +34,7 @@ const displayer = (): Displayer<
     }
 })
 
-export const PremiumModel = ({
+export const PremiumModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.payment,
     display: displayer(),

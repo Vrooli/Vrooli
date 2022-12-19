@@ -14,7 +14,7 @@ export const resourceListTranslationValidation: YupModel = transRel({
 })
 
 export const resourceListValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         ...rel('apiVersion', ['Connect'], 'one', 'opt'),
         ...rel('organization', ['Connect'], 'one', 'opt'),
@@ -26,7 +26,7 @@ export const resourceListValidation: YupModel = {
         ...rel('translations', ['Create'], 'many', 'opt', resourceListTranslationValidation),
         ...rel('resources', ['Create'], 'many', 'opt', resourceValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', resourceListTranslationValidation),
         ...rel('resources', ['Create', 'Update', 'Delete'], 'many', 'opt', resourceValidation),

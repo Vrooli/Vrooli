@@ -24,29 +24,56 @@ export const typeDef = gql`
         StepsDesc
     }
 
-    enum RunStatus {
-        Scheduled
-        InProgress
-        Completed
-        Failed
-        Cancelled
+    input RunRoutineCreateInput {
+        id: ID!
+        isPrivate: Boolean
+        status: RunStatus!
+        name: String!
+        completedComplexity: Int
+        contextSwitches: Int
+        stepsCreate: [RunRoutineStepCreateInput!]
+        inputsCreate: [RunRoutineInputCreateInput!]
+        runRoutineScheduleConnect: ID
+        runRoutineScheduleCreate: RunProjectScheduleCreateInput
+        routineVersionConnect: ID!
+        runProjectConnect: ID
+        organizationId: ID
     }
-
+    input RunRoutineUpdateInput {
+        id: ID!
+        isPrivate: Boolean
+        isStarted: Boolean # True if the run has started, and previously was scheduled
+        completedComplexity: Int # Total completed complexity, including what was completed before this update
+        contextSwitches: Int # Total contextSwitches, including what was completed before this update
+        timeElapsed: Int # Total time elapsed, including what was completed before this update
+        stepsDelete: [ID!]
+        stepsCreate: [RunRoutineStepCreateInput!]
+        stepsUpdate: [RunRoutineStepUpdateInput!]
+        inputsDelete: [ID!]
+        inputsCreate: [RunRoutineInputCreateInput!]
+        inputsUpdate: [RunRoutineInputUpdateInput!]
+        runRoutineScheduleConnect: ID
+        runRoutineScheduleCreate: RunProjectScheduleCreateInput
+    }
     type RunRoutine {
         id: ID!
+        isPrivate: Boolean!
         completedComplexity: Int!
         contextSwitches: Int!
-        isPrivate: Boolean!
-        permissionsRun: RunRoutinePermission!
         startedAt: Date
         timeElapsed: Int
         completedAt: Date
         name: String!
         status: RunStatus!
-        routine: Routine
+        wasRunAutomaticaly: Boolean!
+        routineVersion: RoutineVersion
+        runProject: RunProject
+        runRoutineSchedule: RunRoutineSchedule
         steps: [RunRoutineStep!]!
         inputs: [RunRoutineInput!]!
-        user: User!
+        user: User
+        organization: Organization
+        permissionsRun: RunRoutinePermission!
     }
 
     type RunRoutinePermission {
@@ -81,36 +108,11 @@ export const typeDef = gql`
         node: RunRoutine!
     }
 
-    input RunRoutineCreateInput {
-        id: ID!
-        isPrivate: Boolean
-        routineVersionConnect: ID!
-        name: String!
-        stepsCreate: [RunRoutineStepCreateInput!]
-        inputsCreate: [RunRoutineInputCreateInput!]
-        # If scheduling info provided, not starting immediately
-        # TODO
-    }
-
-    input RunRoutineUpdateInput {
-        id: ID!
-        completedComplexity: Int # Total completed complexity, including what was completed before this update
-        contextSwitches: Int # Total contextSwitches, including what was completed before this update
-        isPrivate: Boolean
-        timeElapsed: Int # Total time elapsed, including what was completed before this update
-        stepsDelete: [ID!]
-        stepsCreate: [RunRoutineStepCreateInput!]
-        stepsUpdate: [RunRoutineStepUpdateInput!]
-        inputsDelete: [ID!]
-        inputsCreate: [RunRoutineInputCreateInput!]
-        inputsUpdate: [RunRoutineInputUpdateInput!]
-    }
-
     input RunRoutineCompleteInput {
         id: ID! # Run ID if "exists" is true, or routine version ID if "exists" is false
         completedComplexity: Int # Even though the runRoutine was completed, the user may not have completed every subroutine
         exists: Boolean # If true, runRoutine ID is provided, otherwise routine ID so we can create a runRoutine
-        name: String! # Title of routine, so runRoutine name stays consistent even if routine updates/deletes
+        name: String # Title of routine, so runRoutine name stays consistent even if routine updates/deletes
         finalStepCreate: RunRoutineStepCreateInput
         finalStepUpdate: RunRoutineStepUpdateInput
         inputsDelete: [ID!]
@@ -118,7 +120,6 @@ export const typeDef = gql`
         inputsUpdate: [RunRoutineInputUpdateInput!]
         wasSuccessful: Boolean
     }
-
     input RunRoutineCancelInput {
         id: ID!
     }
@@ -140,7 +141,6 @@ export const typeDef = gql`
 const objectType = 'RunRoutine';
 export const resolvers: {
     RunRoutineSortBy: typeof RunRoutineSortBy;
-    RunStatus: typeof RunStatus;
     Query: {
         runRoutine: GQLEndpoint<FindByIdInput, FindOneResult<RunRoutine>>;
         runRoutines: GQLEndpoint<RunRoutineSearchInput, FindManyResult<RunRoutine>>;
@@ -154,7 +154,6 @@ export const resolvers: {
     }
 } = {
     RunRoutineSortBy,
-    RunStatus,
     Query: {
         runRoutine: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });

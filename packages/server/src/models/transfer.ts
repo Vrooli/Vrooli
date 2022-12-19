@@ -1,7 +1,7 @@
 import { CustomError } from "../events";
 import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, Vote } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Mutater } from "./types";
+import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { ApiModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { padSelect, permissionsSelectHelper } from "../builders";
@@ -14,6 +14,8 @@ import { Notify } from "../notify";
 type Model = {
     IsTransferable: false,
     IsVersioned: false,
+    GqlCreate: undefined,
+    GqlUpdate: undefined,
     GqlModel: Transfer,
     GqlSearch: TransferSearchInput,
     GqlSort: TransferSortBy,
@@ -305,7 +307,7 @@ const displayer = (): Displayer<Model> => ({
     }
 })
 
-export const TransferModel = ({
+export const TransferModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.transfer,
     display: displayer(),

@@ -61,7 +61,7 @@ import { StandardVersionModel } from './standardVersion';
 import { StarModel } from './star';
 import { TagModel } from './tag';
 import { TransferModel } from './transfer';
-import { AniedModelLogic, GraphQLModelType } from './types';
+import { GraphQLModelType, ModelLogic } from './types';
 import { UserModel } from './user';
 import { UserScheduleModel } from './userSchedule';
 import { UserScheduleFilterModel } from './userScheduleFilter';
@@ -72,7 +72,7 @@ import { WalletModel } from './wallet';
 /**
  * Maps model types to their respective business logic implementations.
  */
-export const ObjectMap: { [key in GraphQLModelType]?: AniedModelLogic<any> } = {
+export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any> } = {
     Api: ApiModel,
     ApiKey: ApiKeyModel,
     ApiVersion: ApiVersionModel,

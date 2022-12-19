@@ -79,8 +79,8 @@ export const rel = <
         }
         else if (t === 'Create') {
             result[`${relation}${t}`] = isOneToOne === 'one' ?
-                required ? req(model!.create) : opt(model!.create) :
-                required ? reqArr(model!.create) : optArr(model!.create);
+                required ? req((model as any).create()) : opt((model as any).create()) :
+                required ? reqArr((model as any).create()) : optArr((model as any).create());
         }
         else if (t === 'Delete') {
             result[`${relation}${t}`] = isOneToOne === 'one' ? opt(yup.bool()) : optArr(id);
@@ -89,7 +89,7 @@ export const rel = <
             result[`${relation}${t}`] = isOneToOne === 'one' ? opt(yup.bool()) : optArr(id);
         }
         else if (t === 'Update') {
-            result[`${relation}${t}`] = isOneToOne === 'one' ? opt(model!.update) : optArr(model!.update);
+            result[`${relation}${t}`] = isOneToOne === 'one' ? opt((model as any).update()) : optArr((model as any).update());
         }
     }
     // Return result

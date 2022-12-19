@@ -1,19 +1,24 @@
-import { reportsCreate, reportsUpdate } from "@shared/validation";
+import { reportValidation } from "@shared/validation";
 import { ReportFor, ReportSortBy } from '@shared/consts';
 import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { UserModel } from "./user";
 import { padSelect } from "../builders";
 import { CommentModel } from "./comment";
 import { OrganizationModel } from "./organization";
-import { ProjectModel } from "./project";
-import { RoutineModel } from "./routine";
-import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { SelectWrap } from "../builders/types";
+import { ApiVersionModel } from "./apiVersion";
+import { IssueModel } from "./issue";
+import { NoteVersionModel } from "./noteVersion";
+import { PostModel } from "./post";
+import { ProjectVersionModel } from "./projectVersion";
+import { RoutineVersionModel } from "./routineVersion";
+import { SmartContractVersionModel } from "./smartContractVersion";
+import { StandardVersionModel } from "./standardVersion";
 
 type Model = {
     IsTransferable: false,
@@ -162,46 +167,48 @@ const mutater = (): Mutater<Model> => ({
             }
         },
     },
-    yup: { create: reportsCreate, update: reportsUpdate },
+    yup: reportValidation,
 })
 
 const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
-        // apiVersion: padSelect(ApiModel.display.select),
+        apiVersion: padSelect(ApiVersionModel.display.select),
         comment: padSelect(CommentModel.display.select),
-        // issue: padSelect(IssueModel.display.select),
+        issue: padSelect(IssueModel.display.select),
+        noteVersion: padSelect(NoteVersionModel.display.select),
         organization: padSelect(OrganizationModel.display.select),
-        // post: padSelect(PostModel.display.select),
-        projectVersion: padSelect(ProjectModel.display.select),
-        routineVersion: padSelect(RoutineModel.display.select),
-        // smartContractVersion: padSelect(SmartContractModel.display.select),
-        standardVersion: padSelect(StandardModel.display.select),
+        post: padSelect(PostModel.display.select),
+        projectVersion: padSelect(ProjectVersionModel.display.select),
+        routineVersion: padSelect(RoutineVersionModel.display.select),
+        smartContractVersion: padSelect(SmartContractVersionModel.display.select),
+        standardVersion: padSelect(StandardVersionModel.display.select),
         tag: padSelect(TagModel.display.select),
         user: padSelect(UserModel.display.select),
     }),
     label: (select, languages) => {
-        // if (select.apiVersion) return ApiModel.display.label(select.api as any, languages);
+        if (select.apiVersion) return ApiVersionModel.display.label(select.apiVersion as any, languages);
         if (select.comment) return CommentModel.display.label(select.comment as any, languages);
-        // if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+        if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+        if (select.noteVersion) return NoteVersionModel.display.label(select.noteVersion as any, languages);
         if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
-        // if (select.post) return PostModel.display.label(select.post as any, languages);
-        if (select.projectVersion) return ProjectModel.display.label(select.projectVersion as any, languages);
-        if (select.routineVersion) return RoutineModel.display.label(select.routineVersion as any, languages);
-        // if (select.smartContractVersion) return SmartContractModel.display.label(select.smartContractVersion as any, languages);
-        if (select.standardVersion) return StandardModel.display.label(select.standardVersion as any, languages);
+        if (select.post) return PostModel.display.label(select.post as any, languages);
+        if (select.projectVersion) return ProjectVersionModel.display.label(select.projectVersion as any, languages);
+        if (select.routineVersion) return RoutineVersionModel.display.label(select.routineVersion as any, languages);
+        if (select.smartContractVersion) return SmartContractVersionModel.display.label(select.smartContractVersion as any, languages);
+        if (select.standardVersion) return StandardVersionModel.display.label(select.standardVersion as any, languages);
         if (select.tag) return TagModel.display.label(select.tag as any, languages);
         if (select.user) return UserModel.display.label(select.user as any, languages);
         return '';
     }
 })
 
-export const ReportModel = ({
+export const ReportModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.report,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
 })

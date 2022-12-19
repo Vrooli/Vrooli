@@ -6,7 +6,8 @@ import { readFiles, saveFiles } from '../utils';
 import { Context, rateLimit } from '../middleware';
 import { CustomError } from '../events/error';
 import { resolveUnion } from './resolvers';
-import { VisibilityType } from './types';
+import { ReadAssetsInput, RunStatus, VisibilityType, WriteAssetsInput } from './types';
+import { GQLEndpoint, UnionResolver } from '../types';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = gql`
@@ -69,6 +70,14 @@ export const typeDef = gql`
         canView: Boolean!
     }
 
+    enum RunStatus {
+        Scheduled
+        InProgress
+        Completed
+        Failed
+        Cancelled
+    }
+
     input ReadAssetsInput {
         files: [String!]!
     }
@@ -119,7 +128,20 @@ export const typeDef = gql`
     }
 `
 
-export const resolvers = {
+export const resolvers: {
+    RunStatus: typeof RunStatus;
+    VisibilityType: typeof VisibilityType;
+    Upload: typeof GraphQLUpload;
+    Date: GraphQLScalarType;
+    Owner: UnionResolver;
+    Query: {
+        readAssets: GQLEndpoint<ReadAssetsInput, (string | null)[]>;
+    },
+    Mutation: {
+        writeAssets: GQLEndpoint<WriteAssetsInput, boolean>;
+    }
+} = {
+    RunStatus,
     VisibilityType: VisibilityType,
     Upload: GraphQLUpload,
     Date: new GraphQLScalarType({
@@ -136,17 +158,15 @@ export const resolvers = {
             return new Date(ast).toDateString(); // ast value is always in string format
         }
     }),
-    Owner: {
-        __resolveType(obj: any) { return resolveUnion(obj) },
-    },
+    Owner: { __resolveType(obj) { return resolveUnion(obj) } },
     Query: {
-        readAssets: async (_parent: undefined, { input }: any, { req }: Context, info: GraphQLResolveInfo): Promise<Array<String | null>> => {
+        readAssets: async (_parent, { input }, { req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
             return await readFiles(input.files);
         },
     },
     Mutation: {
-        writeAssets: async (_parent: undefined, { input }: any, { req }: Context, info: GraphQLResolveInfo): Promise<boolean> => {
+        writeAssets: async (_parent, { input }, { req }, info) => {
             await rateLimit({ info, maxUser: 500, req });
             throw new CustomError('0327', 'NotImplemented', req.languages); // TODO add safety checks before allowing uploads
             const data = await saveFiles(input.files);

@@ -599,6 +599,7 @@ model organization {
     resourceList       resource_list?              @relation("resource_list_organization", fields: [resourceListId], references: [id], onDelete: SetNull)
     routines           routine[]                   @relation("routine_ownedByOrganization")
     runRoutines        run_routine[]               @relation("run_routine_organization")
+    runProjects        run_project[]               @relation("run_project_organization")
     standards          standard[]                  @relation("standard_ownedByOrganization")
     starredBy          star[]                      @relation("star_organization")
     viewedBy           view[]                      @relation("view_organization")
@@ -1146,16 +1147,26 @@ model quiz_attempt {
 }
 
 model quiz_question_response {
-    id             String        @id @default(uuid()) @db.Uuid
-    created_at     DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime      @default(now()) @db.Timestamptz(6)
-    response       String?       @db.VarChar(2048)
-    quizAttemptId  String        @db.Uuid
-    quizQuestionId String        @db.Uuid
-    quizAttempt    quiz_attempt  @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
-    quizQuestion   quiz_question @relation(fields: [quizQuestionId], references: [id], onDelete: Cascade)
+    id             String                               @id @default(uuid()) @db.Uuid
+    created_at     DateTime                             @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime                             @default(now()) @db.Timestamptz(6)
+    quizAttemptId  String                               @db.Uuid
+    quizQuestionId String                               @db.Uuid
+    quizAttempt    quiz_attempt                         @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+    quizQuestion   quiz_question                        @relation(fields: [quizQuestionId], references: [id], onDelete: Cascade)
+    translations   quiz_question_response_translation[]
 
     @@unique([quizAttemptId, quizQuestionId])
+}
+
+model quiz_question_response_translation {
+    id          String                 @id @default(uuid()) @db.Uuid
+    response    String                 @db.VarChar(8192)
+    language    String                 @db.VarChar(3)
+    responseId  String                 @db.Uuid
+    quizAttempt quiz_question_response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+    @@unique([responseId, language])
 }
 
 model quiz_question {
@@ -1335,7 +1346,7 @@ model role {
     permissions    String             @db.VarChar(4096)
     organizationId String             @db.Uuid
     organization   organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-    members      member[]
+    members        member[]
     meetings       meeting_roles[]
     translations   role_translation[]
 
@@ -1527,26 +1538,27 @@ model routine_labels {
 }
 
 model run_project {
-    id                  String                @id @default(uuid()) @db.Uuid
-    created_at          DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime              @default(now()) @db.Timestamptz(6)
-    completedComplexity Int                   @default(0)
-    contextSwitches     Int                   @default(0)
-    isPrivate           Boolean               @default(false)
-    scheduleId          String?               @db.Uuid
-    suggestPublicData   Boolean               @default(false)
-    startedAt           DateTime?             @db.Timestamptz(6)
-    timeElapsed         Int?
-    completedAt         DateTime?             @db.Timestamptz(6)
-    name                String                @db.VarChar(128)
-    status              RunStatus             @default(Scheduled)
-    projectVersionId    String?               @db.Uuid
-    userId              String?               @db.Uuid
-    projectVersion      project_version?      @relation("run_project_version", fields: [projectVersionId], references: [id])
-    runProjectSchedule  run_project_schedule?
-    user                user?                 @relation("run_project_user", fields: [userId], references: [id], onDelete: Cascade)
-    steps               run_project_step[]    @relation("run_project_step_run")
-    runRoutines         run_routine[]         @relation("run_routine_run_project")
+    id                   String                @id @default(uuid()) @db.Uuid
+    created_at           DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at           DateTime              @default(now()) @db.Timestamptz(6)
+    completedComplexity  Int                   @default(0)
+    contextSwitches      Int                   @default(0)
+    isPrivate            Boolean               @default(false)
+    scheduleId           String?               @db.Uuid
+    startedAt            DateTime?             @db.Timestamptz(6)
+    timeElapsed          Int?
+    completedAt          DateTime?             @db.Timestamptz(6)
+    name                 String                @db.VarChar(128)
+    status               RunStatus             @default(Scheduled)
+    projectVersionId     String?               @db.Uuid
+    userId               String?               @db.Uuid
+    organizationId       String?               @db.Uuid
+    projectVersion       project_version?      @relation("run_project_version", fields: [projectVersionId], references: [id])
+    runProjectSchedule   run_project_schedule?
+    user                 user?                 @relation("run_project_user", fields: [userId], references: [id], onDelete: Cascade)
+    organization         organization?         @relation("run_project_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    steps                run_project_step[]    @relation("run_project_step_run")
+    runRoutines          run_routine[]         @relation("run_routine_run_project")
 }
 
 model run_project_step {
@@ -1600,31 +1612,30 @@ model run_project_schedule_translation {
 }
 
 model run_routine {
-    id                  String                @id @default(uuid()) @db.Uuid
-    created_at          DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime              @default(now()) @db.Timestamptz(6)
-    completedComplexity Int                   @default(0)
-    contextSwitches     Int                   @default(0)
-    isPrivate           Boolean               @default(false)
-    scheduleId          String?               @db.Uuid
-    suggestPublicData   Boolean               @default(false)
-    wasRunAutomatically Boolean               @default(false)
-    startedAt           DateTime?             @db.Timestamptz(6)
-    timeElapsed         Int?
-    completedAt         DateTime?             @db.Timestamptz(6)
-    name                String                @db.VarChar(128)
-    status              RunStatus             @default(Scheduled)
-    routineVersionId    String?               @db.Uuid
-    userId              String?               @db.Uuid
-    organizationId      String?               @db.Uuid
-    runProjectId        String?               @db.Uuid
-    routineVersion      routine_version?      @relation("run_routine_version", fields: [routineVersionId], references: [id])
-    runRoutineSchedule  run_routine_schedule?
-    runProject          run_project?          @relation("run_routine_run_project", fields: [runProjectId], references: [id], onDelete: SetNull)
-    user                user?                 @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
-    organization        organization?         @relation("run_routine_organization", fields: [organizationId], references: [id], onDelete: SetNull)
-    steps               run_routine_step[]    @relation("run_routine_step_run")
-    inputs              run_routine_input[]   @relation("run_routine_input_run")
+    id                   String                @id @default(uuid()) @db.Uuid
+    created_at           DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at           DateTime              @default(now()) @db.Timestamptz(6)
+    completedComplexity  Int                   @default(0)
+    contextSwitches      Int                   @default(0)
+    isPrivate            Boolean               @default(false)
+    scheduleId           String?               @db.Uuid
+    wasRunAutomatically  Boolean               @default(false)
+    startedAt            DateTime?             @db.Timestamptz(6)
+    timeElapsed          Int?
+    completedAt          DateTime?             @db.Timestamptz(6)
+    name                 String                @db.VarChar(128)
+    status               RunStatus             @default(Scheduled)
+    routineVersionId     String?               @db.Uuid
+    userId               String?               @db.Uuid
+    organizationId       String?               @db.Uuid
+    runProjectId         String?               @db.Uuid
+    routineVersion       routine_version?      @relation("run_routine_version", fields: [routineVersionId], references: [id])
+    runRoutineSchedule   run_routine_schedule?
+    runProject           run_project?          @relation("run_routine_run_project", fields: [runProjectId], references: [id], onDelete: SetNull)
+    user                 user?                 @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
+    organization         organization?         @relation("run_routine_organization", fields: [organizationId], references: [id], onDelete: SetNull)
+    steps                run_routine_step[]    @relation("run_routine_step_run")
+    inputs               run_routine_input[]   @relation("run_routine_input_run")
 }
 
 model run_routine_input {
@@ -1899,7 +1910,7 @@ model star {
     id               String           @id @default(uuid()) @db.Uuid
     created_at       DateTime         @default(now()) @db.Timestamptz(6)
     updated_at       DateTime         @default(now()) @db.Timestamptz(6)
-    fromId           String           @db.Uuid
+    byId           String           @db.Uuid
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
@@ -1915,7 +1926,7 @@ model star {
     standardId       String?          @db.Uuid
     tagId            String?          @db.Uuid
     userId           String?          @db.Uuid
-    by               user             @relation("star_by", fields: [fromId], references: [id], onDelete: Cascade)
+    by               user             @relation("star_by", fields: [byId], references: [id], onDelete: Cascade)
     api              api?             @relation("star_api", fields: [apiId], references: [id], onDelete: Cascade)
     comment          comment?         @relation("star_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue            issue?           @relation("star_issue", fields: [issueId], references: [id], onDelete: Cascade)
@@ -2269,23 +2280,23 @@ model user_language {
 }
 
 model user_schedule {
-    id             String                      @id @default(uuid()) @db.Uuid
-    created_at     DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime                    @default(now()) @db.Timestamptz(6)
-    name           String                      @db.VarChar(128)
-    description    String?                     @db.VarChar(2048)
-    timeZone       String?                     @db.VarChar(128)
-    eventStart     DateTime?                   @db.Timestamptz(6)
-    eventEnd       DateTime?                   @db.Timestamptz(6)
-    recurring      Boolean                     @default(false)
-    recurrStart    DateTime?                   @db.Timestamptz(6)
-    recurrEnd      DateTime?                   @db.Timestamptz(6)
-    reminderListId String?                     @unique @db.Uuid
-    resourceListId String?                     @unique @db.Uuid
-    userId         String                      @db.Uuid
-    reminderList   reminder_list?              @relation(fields: [reminderListId], references: [id], onDelete: SetNull)
-    resourceList   resource_list?              @relation("resource_list_user_schedule", fields: [resourceListId], references: [id], onDelete: SetNull)
-    user           user                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id             String                 @id @default(uuid()) @db.Uuid
+    created_at     DateTime               @default(now()) @db.Timestamptz(6)
+    updated_at     DateTime               @default(now()) @db.Timestamptz(6)
+    name           String                 @db.VarChar(128)
+    description    String?                @db.VarChar(2048)
+    timeZone       String?                @db.VarChar(128)
+    eventStart     DateTime?              @db.Timestamptz(6)
+    eventEnd       DateTime?              @db.Timestamptz(6)
+    recurring      Boolean                @default(false)
+    recurrStart    DateTime?              @db.Timestamptz(6)
+    recurrEnd      DateTime?              @db.Timestamptz(6)
+    reminderListId String?                @unique @db.Uuid
+    resourceListId String?                @unique @db.Uuid
+    userId         String                 @db.Uuid
+    reminderList   reminder_list?         @relation(fields: [reminderListId], references: [id], onDelete: SetNull)
+    resourceList   resource_list?         @relation("resource_list_user_schedule", fields: [resourceListId], references: [id], onDelete: SetNull)
+    user           user                   @relation(fields: [userId], references: [id], onDelete: Cascade)
     labels         user_schedule_labels[]
     filters        user_schedule_filter[]
 }
@@ -2315,7 +2326,7 @@ model view {
     id              String          @id @default(uuid()) @db.Uuid
     lastViewedAt    DateTime        @default(now()) @db.Timestamptz(6)
     name            String          @db.VarChar(128)
-    fromId          String          @db.Uuid
+    byId          String          @db.Uuid
     apiId           String?         @db.Uuid
     issueId         String?         @db.Uuid
     organizationId  String?         @db.Uuid
@@ -2327,7 +2338,7 @@ model view {
     smartContractId String?         @db.Uuid
     standardId      String?         @db.Uuid
     userId          String?         @db.Uuid
-    by              user            @relation("view_by", fields: [fromId], references: [id], onDelete: Cascade)
+    by              user            @relation("view_by", fields: [byId], references: [id], onDelete: Cascade)
     api             api?            @relation("view_api", fields: [apiId], references: [id], onDelete: Cascade)
     issue           issue?          @relation("view_issue", fields: [issueId], references: [id], onDelete: Cascade)
     note            note?           @relation("view_note", fields: [noteId], references: [id], onDelete: Cascade)
@@ -2339,14 +2350,14 @@ model view {
     smartContract   smart_contract? @relation("view_smart_contract", fields: [smartContractId], references: [id], onDelete: Cascade)
     standard        standard?       @relation("view_standard", fields: [standardId], references: [id], onDelete: Cascade)
     user            user?           @relation("view_user", fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([fromId, organizationId, projectId, routineId, standardId, userId])
 }
 
 model vote {
     id               String           @id @default(uuid()) @db.Uuid
+    created_at       DateTime         @default(now()) @db.Timestamptz(6)
+    updated_at       DateTime         @default(now()) @db.Timestamptz(6)
     isUpvote         Boolean          @default(true)
-    fromId           String           @db.Uuid
+    byId           String           @db.Uuid
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
@@ -2359,7 +2370,7 @@ model vote {
     routineId        String?          @db.Uuid
     smartContractId  String?          @db.Uuid
     standardId       String?          @db.Uuid
-    by               user             @relation("vote_by", fields: [fromId], references: [id], onDelete: Cascade)
+    by               user             @relation("vote_by", fields: [byId], references: [id], onDelete: Cascade)
     api              api?             @relation("vote_api", fields: [apiId], references: [id], onDelete: Cascade)
     comment          comment?         @relation("vote_comment", fields: [commentId], references: [id], onDelete: Cascade)
     issue            issue?           @relation("vote_issue", fields: [issueId], references: [id], onDelete: Cascade)

@@ -161,15 +161,6 @@ Examples of correct use for each resource type:
 - `Social` - Twitter, Facebook, Instagram
 - `Tutorial` - Youtube video link
 
-
-## ResourceListUsedFor
-- `Custom` - User-created resource list, which can be deleted
-- `Display` - e.g. Oranization view, Profile page
-- `Learn` - Learn dashboard
-- `Research` - Research dashboard
-- `Develop` - Develop dashboard
-
-
 ## RunStatus
 - `Scheduled` - Routine is scheduled to run
 - `InProgress` - Routine is currently running

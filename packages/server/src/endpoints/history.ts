@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { UserSortBy, RunStatus, ViewSortBy, HistoryResult, HistoryInput, RunRoutineSortBy } from './types';
+import { UserSortBy, ViewSortBy, HistoryResult, HistoryInput, RunRoutineSortBy, RunStatus } from './types';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { assertRequestFrom, getUser } from '../auth/request';

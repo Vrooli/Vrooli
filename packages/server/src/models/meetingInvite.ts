@@ -3,7 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { MeetingInvite, MeetingInviteCreateInput, MeetingInvitePermission, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { MeetingModel } from "./meeting";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, ModelLogic } from "./types";
 
 type Model = {
     IsTransferable: false,
@@ -43,7 +43,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => MeetingModel.display.label(select.meeting as any, languages),
 })
 
-export const MeetingInviteModel = ({
+export const MeetingInviteModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.meeting_invite,
     display: displayer(),

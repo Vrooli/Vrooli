@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { walletsUpdate } from '@shared/validation';
+import { walletValidation } from '@shared/validation';
 import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
 import { Wallet, WalletUpdateInput } from "../endpoints/types";
@@ -7,15 +7,18 @@ import { PrismaType } from "../types";
 import { oneIsPublic } from "../utils";
 import { hasProfanity } from "../utils/censor";
 import { OrganizationModel } from "./organization";
-import { Formatter, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { SelectWrap } from "../builders/types";
 
 type Model = {
     IsTransferable: false,
     IsVersioned: false,
+    GqlCreate: undefined,
     GqlUpdate: WalletUpdateInput,
     GqlModel: Wallet,
     GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
     PrismaCreate: Prisma.walletUpsertArgs['create'],
     PrismaUpdate: Prisma.walletUpsertArgs['update'],
     PrismaModel: Prisma.walletGetPayload<SelectWrap<Prisma.walletSelect>>,
@@ -27,12 +30,18 @@ const __typename = 'Wallet' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         handles: 'Handle',
         user: 'User',
         organization: 'Organization',
     },
+    prismaRelMap: {
+        __typename,
+        handles: 'Handle',
+        user: 'User',
+        organization: 'Organization',
+    }
 })
 
 /**
@@ -112,11 +121,6 @@ const validator = (): Validator<Model> => ({
         ['organization', 'Organization'],
         ['user', 'User'],
     ], languages),
-    validateMap: {
-        __typename: 'Wallet',
-        user: 'User',
-        organization: 'Organization',
-    },
     validations: {
         delete: async ({ deleteMany, prisma, userData }) => {
             // Prevent deleting wallets if it will leave you with less than one verified authentication method
@@ -148,7 +152,7 @@ const mutater = (): Mutater<Model> => ({
     shape: {
         update: async ({ data }) => data,
     },
-    yup: { update: walletsUpdate },
+    yup: walletValidation,
 })
 
 const displayer = (): Displayer<Model> => ({
@@ -156,11 +160,11 @@ const displayer = (): Displayer<Model> => ({
     label: (select) => select.name ?? '',
 })
 
-export const WalletModel = ({
+export const WalletModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.wallet,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     validate: validator(),
 })

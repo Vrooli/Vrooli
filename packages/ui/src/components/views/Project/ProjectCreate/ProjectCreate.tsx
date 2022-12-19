@@ -1,7 +1,7 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
 import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { projectCreate as validationSchema, projectTranslationCreate } from '@shared/validation';
+import { projectValidation, projectTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { projectCreateMutation } from "graphql/mutation";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeProjectCreate, TagShape, usePromptBeforeUnload } from "utils";
@@ -9,7 +9,6 @@ import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { uuid } from '@shared/uuid';
 import { projectCreateVariables, projectCreate_projectCreate } from "graphql/generated/projectCreate";
 import { RelationshipsObject } from "components/inputs/types";
@@ -37,7 +36,7 @@ export const ProjectCreate = ({
     }, [relationships]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -65,7 +64,7 @@ export const ProjectCreate = ({
                 description: '',
             }],
         },
-        validationSchema,
+        validationSchema: projectValidation.create!(),
         onSubmit: (values) => {
             mutationWrapper<projectCreate_projectCreate, projectCreateVariables>({
                 mutation,

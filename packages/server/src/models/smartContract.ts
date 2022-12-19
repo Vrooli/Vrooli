@@ -3,7 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { SmartContract, SmartContractCreateInput, SmartContractPermission, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { SmartContractVersionModel } from "./smartContractVersion";
-import { Displayer } from "./types";
+import { Displayer, ModelLogic } from "./types";
 
 type Model = {
     IsTransferable: false,
@@ -38,7 +38,7 @@ const displayer = (): Displayer<Model> => ({
         SmartContractVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 
-export const SmartContractModel = ({
+export const SmartContractModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.smart_contract,
     display: displayer(),

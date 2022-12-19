@@ -12,7 +12,6 @@ import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, get
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { organizationUpdateVariables, organizationUpdate_organizationUpdate } from "graphql/generated/organizationUpdate";
 import { RelationshipsObject } from "components/inputs/types";
 
@@ -43,7 +42,7 @@ export const OrganizationUpdate = ({
     }, [relationships]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -130,7 +129,7 @@ export const OrganizationUpdate = ({
             parent: null,
             project: null,
         });
-        setResourceList(organization?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(organization?.resourceList ?? { id: uuid() } as any);
         setTags(organization?.tags ?? []);
         if (organization?.translations?.length) {
             setLanguage(getPreferredLanguage(organization.translations.map(t => t.language), getUserLanguages(session)));

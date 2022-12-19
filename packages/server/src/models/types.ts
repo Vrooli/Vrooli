@@ -98,31 +98,29 @@ export type GraphQLModelType =
     'Vote' |
     'Wallet';
 
+type ModelLogicType = {
+    GqlCreate: Record<string, any> | undefined,
+    GqlUpdate: Record<string, any> | undefined,
+    GqlSearch: Record<string, any> | undefined,
+    GqlSort: string | undefined,
+    GqlModel: Record<string, any>,
+    GqlPermission: Record<string, any> | undefined,
+    PrismaCreate: Record<string, any> | undefined,
+    PrismaUpdate: Record<string, any> | undefined,
+    PrismaSelect: Record<string, any>,
+    PrismaWhere: Record<string, any> | undefined,
+    PrismaModel: Record<string, any>,
+    IsTransferable?: boolean,
+    IsVersioned?: boolean,
+}
+
 /**
 * Basic structure of an object's business layer.
 * Every business layer object has at least a PrismaType object and a format converter. 
 * Everything else is optional
 */
 export type ModelLogic<
-    Model extends {
-        GqlCreate: Record<string, any>,
-        GqlUpdate: Record<string, any>,
-        GqlRelCreate?: Record<string, any>,
-        GqlRelUpdate?: Record<string, any>,
-        GqlSearch: Record<string, any>,
-        GqlSort: string,
-        GqlModel: Record<string, any>,
-        GqlPermission: Record<string, any>,
-        PrismaCreate?: Record<string, any>,
-        PrismaUpdate?: Record<string, any>,
-        PrismaRelCreate?: Record<string, any>,
-        PrismaRelUpdate?: Record<string, any>,
-        PrismaSelect: Record<string, any>,
-        PrismaWhere: Record<string, any>,
-        PrismaModel: Record<string, any>,
-        IsTransferable: boolean,
-        IsVersioned: boolean,
-    },
+    Model extends ModelLogicType,
     SuppFields extends readonly (keyof Model['GqlModel'] extends infer R ? R extends string ? R : never : never)[],
 > = {
     __typename: GraphQLModelType;
@@ -130,33 +128,32 @@ export type ModelLogic<
     display: Displayer<Model>;
     duplicate?: Duplicator<any, any>;
     format: Formatter<Model, SuppFields>;
-    search?: Searcher<Model>;
-    mutate?: Mutater<Model>;
-    validate?: Validator<Model>;
-}
-
-/**
- * Mostly unsafe type for a model logic object.
- */
-export type AniedModelLogic<GqlModel extends { [x: string]: any }> = ModelLogic<{
-    GqlCreate: Record<string, any>,
-    GqlUpdate: Record<string, any>,
-    GqlRelCreate?: Record<string, any>,
-    GqlRelUpdate?: Record<string, any>,
-    GqlSearch: Record<string, any>,
-    GqlSort: string,
-    GqlModel: GqlModel
-    GqlPermission: Record<string, any>,
-    PrismaCreate?: Record<string, any>,
-    PrismaUpdate?: Record<string, any>,
-    PrismaRelCreate?: Record<string, any>,
-    PrismaRelUpdate?: Record<string, any>,
-    PrismaSelect: Record<string, any>,
-    PrismaWhere: Record<string, any>,
-    PrismaModel: Record<string, any>,
-    IsTransferable: boolean,
-    IsVersioned: boolean,
-}, any>;
+    search?: Model['GqlSearch'] extends undefined ? undefined :
+    Model['GqlSort'] extends undefined ? undefined :
+    Model['PrismaWhere'] extends undefined ? undefined :
+    Searcher<{
+        GqlSearch: Exclude<Model['GqlSearch'], undefined>,
+        GqlSort: Exclude<Model['GqlSort'], undefined>,
+        PrismaWhere: Exclude<Model['PrismaWhere'], undefined>,
+    }>;
+    mutate?: Mutater<{
+        GqlCreate: Model['GqlCreate'],
+        GqlUpdate: Model['GqlUpdate'],
+        GqlModel: Exclude<Model['GqlModel'], undefined>,
+        PrismaCreate: Model['PrismaCreate'],
+        PrismaUpdate: Model['PrismaUpdate'],
+    }>;
+    validate?: Validator<{
+        GqlCreate: Model['GqlCreate'],
+        GqlUpdate: Model['GqlUpdate'],
+        PrismaModel: Exclude<Model['PrismaModel'], undefined>,
+        GqlPermission: Exclude<Model['GqlPermission'], undefined>,
+        PrismaSelect: Exclude<Model['PrismaSelect'], undefined>,
+        PrismaWhere: Exclude<Model['PrismaWhere'], undefined>,
+        IsTransferable: Exclude<Model['IsTransferable'], undefined>,
+        IsVersioned: Exclude<Model['IsVersioned'], undefined>,
+    }>
+} & { [x: string]: any };
 
 /**
  * An object which can maps GraphQL fields to GraphQLModelTypes. Normal fields 
@@ -164,10 +161,10 @@ export type AniedModelLogic<GqlModel extends { [x: string]: any }> = ModelLogic<
  * A union object maps Prisma relation fields to GraphQLModelTypes.
  */
 export type GqlRelMap<
-    GQLObject extends { [x: string]: any },
-    PrismaObject extends { [x: string]: any },
+    GqlModel extends ModelLogicType['GqlModel'],
+    PrismaModel extends ModelLogicType['PrismaModel'],
 > = {
-    [K in keyof GQLObject]?: GraphQLModelType | ({ [K2 in keyof PrismaObject]?: GraphQLModelType })
+    [K in keyof GqlModel]?: GraphQLModelType | ({ [K2 in keyof PrismaModel]?: GraphQLModelType })
 } & { __typename: GraphQLModelType };
 
 /**
@@ -213,8 +210,8 @@ export interface SupplementalConverter<
  */
 export interface Formatter<
     Model extends {
-        GqlModel: Record<string, any>,
-        PrismaModel: Record<string, any>,
+        GqlModel: ModelLogicType['GqlModel'],
+        PrismaModel: ModelLogicType['PrismaModel'],
     },
     SuppFields extends readonly (keyof Model['GqlModel'] extends infer R ? R extends string ? R : never : never)[]
 > {
@@ -291,9 +288,9 @@ export type SearchStringQuery<Where extends { [x: string]: any }> = {
  */
 export type Searcher<
     Model extends {
-        GqlSearch: Record<string, any>,
-        GqlSort: string,
-        PrismaWhere: Record<string, any>,
+        GqlSearch: Exclude<ModelLogicType['GqlSearch'], undefined>,
+        GqlSort: Exclude<ModelLogicType['GqlSort'], undefined>,
+        PrismaWhere: Exclude<ModelLogicType['PrismaWhere'], undefined>,
     }
 > = {
     defaultSort: Model['GqlSort'];
@@ -358,14 +355,14 @@ export type PermissionsMap<ModelSelect extends { [x: string]: any }> = {
  */
 export type Validator<
     Model extends {
-        GqlCreate?: Record<string, any>,
-        GqlUpdate?: Record<string, any>,
-        PrismaModel: Record<string, any>,
-        GqlPermission: Record<string, any>,
-        PrismaSelect: Record<string, any>,
-        PrismaWhere: Record<string, any>,
-        IsTransferable: boolean,
-        IsVersioned: boolean,
+        GqlCreate: ModelLogicType['GqlCreate'],
+        GqlUpdate: ModelLogicType['GqlUpdate'],
+        PrismaModel: Exclude<ModelLogicType['PrismaModel'], undefined>,
+        GqlPermission: Exclude<ModelLogicType['GqlPermission'], undefined>,
+        PrismaSelect: Exclude<ModelLogicType['PrismaSelect'], undefined>,
+        PrismaWhere: Exclude<ModelLogicType['PrismaWhere'], undefined>,
+        IsTransferable: Exclude<ModelLogicType['IsTransferable'], undefined>,
+        IsVersioned: Exclude<ModelLogicType['IsVersioned'], undefined>,
     }
 > = {
     /**
@@ -527,12 +524,11 @@ export type Duplicator<
  * Describes shape of component that can be mutated
  */
 export type Mutater<Model extends {
-    GqlCreate?: Record<string, any>,
-    GqlUpdate?: Record<string, any>,
-    GqlModel: Record<string, any>,
-    GqlPermission: Record<string, any>,
-    PrismaCreate?: Record<string, any>,
-    PrismaUpdate?: Record<string, any>,
+    GqlCreate: ModelLogicType['GqlCreate'],
+    GqlUpdate: ModelLogicType['GqlUpdate'],
+    GqlModel: ModelLogicType['GqlModel'],
+    PrismaCreate: ModelLogicType['PrismaCreate'],
+    PrismaUpdate: ModelLogicType['PrismaUpdate'],
 }> = {
     /**
      * Shapes data for create/update mutations, both as a main 
@@ -577,8 +573,8 @@ export type Mutater<Model extends {
         }) => PromiseOrValue<void>,
     }
     yup: {
-        create?: (Model['GqlCreate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : undefined),
-        update?: (Model['GqlUpdate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : undefined),
+        create?: () => (Model['GqlCreate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : any),
+        update?: () => (Model['GqlUpdate'] extends Record<string, any> ? ObjectSchema<any, any, any, any> : any),
     }
 }
 
@@ -587,8 +583,8 @@ export type Mutater<Model extends {
  */
 export type Displayer<
     Model extends {
-        PrismaSelect: Record<string, any>,
-        PrismaModel: Record<string, any>,
+        PrismaSelect: ModelLogicType['PrismaSelect'],
+        PrismaModel: ModelLogicType['PrismaModel'],
     }
 > = {
     /**

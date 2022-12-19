@@ -4,13 +4,13 @@ import * as yup from 'yup';
 export const childOrder = yup.string().transform(blankToUndefined).max(4096, maxStrErr)
 
 export const projectVersionDirectoryTranslationValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         language: req(language),
         description: opt(description),
         name: req(name),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         language: opt(language),
         description: opt(description),
@@ -19,7 +19,7 @@ export const projectVersionDirectoryTranslationValidation: YupModel = {
 }
 
 export const projectVersionDirectoryValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         childOrder: opt(childOrder),
         isRoot: opt(yup.boolean()),
@@ -27,7 +27,7 @@ export const projectVersionDirectoryValidation: YupModel = {
         ...rel('projectVersion', ['Connect'], 'one', 'req'),
         ...rel('translations', ['Create'], 'many', 'opt', projectVersionDirectoryTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         childOrder: opt(childOrder),
         isRoot: opt(yup.boolean()),

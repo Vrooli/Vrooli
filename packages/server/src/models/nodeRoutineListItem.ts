@@ -1,6 +1,6 @@
 import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Mutater } from "./types";
+import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { bestLabel, translationShapeHelper } from "../utils";
 import { noNull, padSelect, shapeHelper } from "../builders";
@@ -14,6 +14,8 @@ type Model = {
     GqlUpdate: NodeRoutineListItemUpdateInput,
     GqlModel: NodeRoutineListItem,
     GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
     PrismaCreate: Prisma.node_routine_list_itemUpsertArgs['create'],
     PrismaUpdate: Prisma.node_routine_list_itemUpsertArgs['update'],
     PrismaModel: Prisma.node_routine_list_itemGetPayload<SelectWrap<Prisma.node_routine_list_itemSelect>>,
@@ -70,10 +72,10 @@ const displayer = (): Displayer<Model> => ({
     }
 })
 
-export const NodeRoutineListItemModel = ({
+export const NodeRoutineListItemModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_routine_list_item,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
 })

@@ -3,7 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { Meeting, MeetingCreateInput, MeetingSearchInput, MeetingSortBy, MeetingUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, Formatter, Searcher } from "./types";
+import { Displayer, Formatter, ModelLogic, Searcher } from "./types";
 
 type Model = {
     IsTransferable: false,
@@ -77,7 +77,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
-export const MeetingModel = ({
+export const MeetingModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.meeting,
     display: displayer(),

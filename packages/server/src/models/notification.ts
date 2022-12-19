@@ -2,11 +2,13 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { Notification, NotificationSearchInput, NotificationSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, ModelLogic } from "./types";
 
 type Model = {
     IsTransferable: false,
     IsVersioned: false,
+    GqlCreate: undefined,
+    GqlUpdate: undefined,
     GqlModel: Notification,
     GqlSearch: NotificationSearchInput,
     GqlSort: NotificationSortBy,
@@ -22,7 +24,10 @@ const __typename = 'Notification' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
+        __typename,
+    },
+    prismaRelMap: {
         __typename,
     },
 })
@@ -32,7 +37,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select) => select.title,
 })
 
-export const NotificationModel = ({
+export const NotificationModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.notification,
     display: displayer(),

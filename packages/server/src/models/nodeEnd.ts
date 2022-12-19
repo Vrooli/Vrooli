@@ -1,6 +1,6 @@
 import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Mutater } from "./types";
+import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { NodeModel } from "./node";
 import { padSelect } from "../builders";
@@ -13,6 +13,8 @@ type Model = {
     GqlUpdate: NodeEndUpdateInput,
     GqlModel: NodeEnd,
     GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
     PrismaCreate: Prisma.node_endUpsertArgs['create'],
     PrismaUpdate: Prisma.node_endUpsertArgs['update'],
     PrismaModel: Prisma.node_endGetPayload<SelectWrap<Prisma.node_endSelect>>,
@@ -59,10 +61,10 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => NodeModel.display.label(select.node as any, languages),
 })
 
-export const NodeEndModel = ({
+export const NodeEndModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_end,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
 })

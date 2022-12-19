@@ -1,17 +1,18 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Issue, IssueCreateInput, IssuePermission, IssueSearchInput, IssueSortBy } from "../endpoints/types";
+import { Issue, IssueCreateInput, IssuePermission, IssueSearchInput, IssueSortBy, IssueUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { StarModel } from "./star";
-import { Displayer, Formatter, Searcher } from "./types";
+import { Displayer, Formatter, ModelLogic, Searcher } from "./types";
 import { VoteModel } from "./vote";
 
 type Model = {
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: IssueCreateInput,
+    GqlUpdate: IssueUpdateInput,
     GqlModel: Issue,
     GqlSearch: IssueSearchInput,
     GqlSort: IssueSortBy,
@@ -105,7 +106,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages)
 })
 
-export const IssueModel = ({
+export const IssueModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.issue,
     display: displayer(),

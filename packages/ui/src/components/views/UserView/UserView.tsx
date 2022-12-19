@@ -12,7 +12,7 @@ import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, 
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
-import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
+import { VisibilityType } from "graphql/generated/globalTypes";
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
@@ -61,7 +61,7 @@ export const UserView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { bio, name, handle, resourceList } = useMemo(() => {
-        const resourceList: ResourceList | undefined = Array.isArray(user?.resourceLists) ? user?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
+        const resourceList: ResourceList | undefined = user?.resourceList;
         const { bio } = getTranslation(user ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,

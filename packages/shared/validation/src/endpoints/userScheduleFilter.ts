@@ -9,11 +9,11 @@ const userScheduleFilterType = yup.string().transform(blankToUndefined).oneOf([
 ]);
 
 export const userScheduleFilterValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         filterType: req(userScheduleFilterType),
         ...rel('userSchedule', ['Connect'], 'one', 'opt'),
         ...rel('tags', ['Create', 'Connect'], 'one', 'opt', tagValidation),
     }),
-    update: yup.object().shape({ }), // Can only create and delete
+    // Can only create and delete
 }

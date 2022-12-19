@@ -1,10 +1,10 @@
 import { PrismaType } from "../types";
 import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationPermission, SessionUser } from "../endpoints/types";
-import { organizationsCreate, organizationsUpdate } from "@shared/validation";
+import { organizationValidation } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { uuid } from "@shared/uuid";
 import { getSingleTypePermissions } from "../validators";
 import { noNull, onlyValidIds, shapeHelper } from "../builders";
@@ -334,7 +334,7 @@ const mutater = (): Mutater<Model> => ({
             ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Update'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
         })
     },
-    yup: { create: organizationsCreate, update: organizationsUpdate },
+    yup: organizationValidation,
 })
 
 const displayer = (): Displayer<Model> => ({
@@ -342,12 +342,12 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
-export const OrganizationModel = ({
+export const OrganizationModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.organization,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     query: querier(),
     validate: validator(),

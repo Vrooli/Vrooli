@@ -4,7 +4,7 @@ import { NoteVersion, NoteVersionCreateInput, NoteVersionSearchInput, NoteVersio
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, ModelLogic } from "./types";
 
 type Model = {
     IsTransferable: false,
@@ -57,7 +57,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages)
 })
 
-export const NoteVersionModel = ({
+export const NoteVersionModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.note_version,
     display: displayer(),

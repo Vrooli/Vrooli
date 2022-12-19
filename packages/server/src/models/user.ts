@@ -3,14 +3,15 @@ import { ViewModel } from "./view";
 import { UserSortBy } from "@shared/consts";
 import { ProfileUpdateInput, User, UserSearchInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Displayer, Mutater } from "./types";
+import { Formatter, Searcher, Validator, Displayer, Mutater, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { profilesUpdate } from "@shared/validation";
+import { userValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
 
 type Model = {
     IsTransferable: false,
     IsVersioned: false,
+    GqlCreate: undefined,
     GqlUpdate: ProfileUpdateInput,
     GqlModel: User,
     GqlSearch: UserSearchInput,
@@ -156,7 +157,7 @@ const validator = (): Validator<Model> => ({
 //             }
 //         }
 //     },
-//     yup: { update: profilesUpdate },
+//     yup: userValidation,
 // })
 
 const displayer = (): Displayer<Model> => ({
@@ -164,7 +165,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select) => select.name ?? '',
 })
 
-export const UserModel = ({
+export const UserModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.user,
     display: displayer(),

@@ -31,6 +31,8 @@ export const typeDef = gql`
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
+        rootConnect: ID
+        rootCreate: ApiCreateInput
         translationsCreate: [ApiVersionTranslationCreateInput!]
         directoryListingsConnect: [ID!]
     }

@@ -1,4 +1,4 @@
-import { getDelegator, getValidator } from "../getters";
+import { getLogic } from "../getters";
 import { SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { CustomError } from "./error";
@@ -30,14 +30,13 @@ export const Subscriber = (prisma: PrismaType) => ({
         silent?: boolean
     ) => {
         // Find the object and its owner
-        const validator = getValidator(object.__typename, userData.languages, 'Transfer.request-object');
-        const prismaDelegate = getDelegator(object.__typename, prisma, userData.languages, 'Transfer.request-object');
-        const permissionData = await prismaDelegate.findUnique({
+        const { delegate, validate } = getLogic(['delegate', 'validate'], object.__typename, userData.languages, 'Transfer.request-object');
+        const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
-            select: validator.permissionsSelect,
+            select: validate.permissionsSelect,
         });
-        const isPublic = permissionData && validator.isPublic(permissionData, userData.languages);
-        const isDeleted = permissionData && validator.isDeleted(permissionData, userData.languages);
+        const isPublic = permissionData && validate.isPublic(permissionData, userData.languages);
+        const isDeleted = permissionData && validate.isDeleted(permissionData, userData.languages);
         // Don't subscribe if object is private or deleted
         if (!isPublic || isDeleted)
             throw new CustomError('0332', 'Unauthorized', userData.languages);

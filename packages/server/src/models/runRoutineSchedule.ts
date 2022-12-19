@@ -1,22 +1,36 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { RunRoutineSchedule, RunRoutineScheduleCreateInput, RunRoutineSchedulePermission, RunRoutineScheduleSearchInput, RunRoutineScheduleSortBy, RunRoutineScheduleUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer } from "./types";
+import { Displayer, ModelLogic } from "./types";
+
+type Model = {
+    IsTransferable: true,
+    IsVersioned: true,
+    GqlCreate: RunRoutineScheduleCreateInput,
+    GqlUpdate: RunRoutineScheduleUpdateInput,
+    GqlModel: RunRoutineSchedule,
+    GqlSearch: RunRoutineScheduleSearchInput,
+    GqlSort: RunRoutineScheduleSortBy,
+    GqlPermission: RunRoutineSchedulePermission,
+    PrismaCreate: Prisma.run_routine_scheduleUpsertArgs['create'],
+    PrismaUpdate: Prisma.run_routine_scheduleUpsertArgs['update'],
+    PrismaModel: Prisma.run_routine_scheduleGetPayload<SelectWrap<Prisma.run_routine_scheduleSelect>>,
+    PrismaSelect: Prisma.run_routine_scheduleSelect,
+    PrismaWhere: Prisma.run_routine_scheduleWhereInput,
+}
 
 const __typename = 'RunRoutineSchedule' as const;
 
 const suppFields = [] as const;
 
-const displayer = (): Displayer<
-    Prisma.run_routine_scheduleSelect,
-    Prisma.run_routine_scheduleGetPayload<SelectWrap<Prisma.run_routine_scheduleSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
-export const RunRoutineScheduleModel = ({
+export const RunRoutineScheduleModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_schedule,
     display: displayer(),

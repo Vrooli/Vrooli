@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { NoteVersionModel } from "./noteVersion";
 import { StarModel } from "./star";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 
@@ -86,7 +86,7 @@ const displayer = (): Displayer<Model> => ({
         NoteVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 
-export const NoteModel = ({
+export const NoteModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.note,
     display: displayer(),

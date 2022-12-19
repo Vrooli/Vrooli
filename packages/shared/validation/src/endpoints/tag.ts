@@ -4,12 +4,12 @@ import * as yup from 'yup';
 const anonymous = yup.boolean() // Determines if the user will be credited for the tag
 
 export const tagTranslationValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         language: req(language),
         description: req(description),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         language: req(language),
         description: req(description),
@@ -17,12 +17,12 @@ export const tagTranslationValidation: YupModel = {
 }
 
 export const tagValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         anonymous: opt(anonymous),
         tag: req(tag),
         ...rel('translations', ['Create'], 'many', 'opt', tagTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         anonymous: opt(anonymous),
         tag: req(tag),
         ...rel('translations', ['Delete', 'Create', 'Update'], 'many', 'opt', tagTranslationValidation),

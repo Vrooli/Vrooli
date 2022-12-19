@@ -1,22 +1,36 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponsePermission, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer } from "./types";
+import { Displayer, ModelLogic } from "./types";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: QuizQuestionResponseCreateInput,
+    GqlUpdate: QuizQuestionResponseUpdateInput,
+    GqlModel: QuizQuestionResponse,
+    GqlSearch: QuizQuestionResponseSearchInput,
+    GqlSort: QuizQuestionResponseSortBy,
+    GqlPermission: QuizQuestionResponsePermission,
+    PrismaCreate: Prisma.quiz_question_responseUpsertArgs['create'],
+    PrismaUpdate: Prisma.quiz_question_responseUpsertArgs['update'],
+    PrismaModel: Prisma.quiz_question_responseGetPayload<SelectWrap<Prisma.quiz_question_responseSelect>>,
+    PrismaSelect: Prisma.quiz_question_responseSelect,
+    PrismaWhere: Prisma.quiz_question_responseWhereInput,
+}
 
 const __typename = 'QuizQuestionResponse' as const;
 
 const suppFields = [] as const;
 
-// Doesn't make sense to have a displayer for this model
-const displayer = (): Displayer<
-    Prisma.quiz_question_responseSelect,
-    Prisma.quiz_question_responseGetPayload<SelectWrap<Prisma.quiz_question_responseSelect>>
-> => ({
+// TODO
+const displayer = (): Displayer<Model> => ({
     select: () => ({ id: true }),
     label: () => '',
 })
 
-export const QuizQuestionResponseModel = ({
+export const QuizQuestionResponseModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_question_response,
     display: displayer(),

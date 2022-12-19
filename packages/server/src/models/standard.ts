@@ -1,9 +1,8 @@
-import { standardsCreate, standardsUpdate } from "@shared/validation";
 import { StandardSortBy } from "@shared/consts";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
+import { Displayer, Formatter, ModelLogic, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
 import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, RootPermission } from "../endpoints/types";
@@ -449,7 +448,7 @@ const mutater = (): Mutater<Model> => ({
             // }
         },
     },
-    yup: { create: standardsCreate, update: standardsUpdate },
+    yup: {} as any,
     /**
      * Add, update, or remove a one-to-one standard relationship. 
      * Due to some unknown Prisma bug, it won't let us create/update a standard directly
@@ -513,12 +512,12 @@ const displayer = (): Displayer<Model> => ({
         StandardVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 
-export const StandardModel = ({
+export const StandardModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     query: querier(),
     search: searcher(),
     validate: validator(),

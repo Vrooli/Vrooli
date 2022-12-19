@@ -1,5 +1,4 @@
-import { standardsCreate, standardsUpdate } from "@shared/validation";
-import { Displayer, Formatter, Mutater, Searcher, Validator } from "./types";
+import { Displayer, Formatter, ModelLogic, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
 import { Standard, StandardPermission, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, VersionPermission, StandardVersionCreateInput, StandardVersionUpdateInput } from "../endpoints/types";
@@ -426,7 +425,7 @@ const querier = () => ({
 //             // }
 //         },
 //     },
-//     yup: { create: standardsCreate, update: standardsUpdate },
+//     yup: standardVersionValidation,
 //     /**
 //      * Add, update, or remove a one-to-one standard relationship. 
 //      * Due to some unknown Prisma bug, it won't let us create/update a standard directly
@@ -481,7 +480,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select) => select.root.name ?? '',
 })
 
-export const StandardVersionModel = ({
+export const StandardVersionModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard_version,
     display: displayer(),

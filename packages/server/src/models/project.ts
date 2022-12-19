@@ -1,10 +1,10 @@
-import { projectsCreate, projectsUpdate } from "@shared/validation";
+import { projectValidation } from "@shared/validation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { Project, ProjectSearchInput, ProjectCreateInput, ProjectUpdateInput, ProjectSortBy, SessionUser, RootPermission } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
@@ -238,7 +238,7 @@ const mutater = (): Mutater<Model> => ({
             // }
         }
     },
-    yup: { create: projectsCreate, update: projectsUpdate },
+    yup: projectValidation,
 });
 
 const displayer = (): Displayer<Model> => ({
@@ -255,12 +255,12 @@ const displayer = (): Displayer<Model> => ({
         ProjectVersionModel.display.label(select.versions[0] as any, languages) : '',
 })
 
-export const ProjectModel = ({
+export const ProjectModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.project,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     search: searcher(),
     validate: validator(),
 })

@@ -1,5 +1,4 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { ResourceListUsedFor } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { standard, standardVariables } from "graphql/generated/standard";
 import { standardQuery } from "graphql/query";
@@ -56,7 +55,7 @@ export const StandardUpdate = ({
     // }, [relationships]);
 
     // // Handle resources
-    // const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    // const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
     // const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
     //     setResourceList(updatedList);
     // }, [setResourceList]);
@@ -74,7 +73,7 @@ export const StandardUpdate = ({
     //         // parent: standard?.parent ?? null, TODO
     //         project: null // TODO
     //     });
-    //     setResourceList(standard?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    //     setResourceList(standard?.resourceList ?? { id: uuid() } as any);
     //     setTags(standard?.tags ?? []);
     // }, [standard]);
 

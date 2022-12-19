@@ -6,28 +6,38 @@ import { UserModel } from "./user";
 import { StandardModel } from "./standard";
 import { CustomError } from "../events";
 import { initializeRedis } from "../redisConn";
-import { User, ViewSearchInput, Count, SessionUser } from "../endpoints/types";
+import { User, ViewSearchInput, Count, SessionUser, View } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Searcher } from "./types";
+import { Displayer, Formatter, ModelLogic, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { lowercaseFirstLetter, onlyValidIds, padSelect } from "../builders";
 import { getLabels } from "../getters";
 import { ApiModel, IssueModel, NoteModel, PostModel, QuestionModel, SmartContractModel } from ".";
 
-interface View {
-    __typename?: 'View';
-    from: User;
-    to: ViewFor;
+type Model = {
+    IsTransferable: true,
+    IsVersioned: true,
+    GqlCreate: undefined,
+    GqlUpdate: undefined,
+    GqlModel: View,
+    GqlSearch: ViewSearchInput,
+    GqlSort: ViewSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.viewUpsertArgs['create'],
+    PrismaUpdate: Prisma.viewUpsertArgs['update'],
+    PrismaModel: Prisma.viewGetPayload<SelectWrap<Prisma.viewSelect>>,
+    PrismaSelect: Prisma.viewSelect,
+    PrismaWhere: Prisma.viewWhereInput,
 }
 
 const __typename = 'View' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<View, typeof suppFields> => ({
-    relationshipMap: {
+const formatter = (): Formatter<Model, typeof suppFields> => ({
+    gqlRelMap: {
         __typename,
-        from: 'User',
+        by: 'User',
         to: {
             api: 'Api',
             issue: 'Issue',
@@ -42,6 +52,21 @@ const formatter = (): Formatter<View, typeof suppFields> => ({
             user: 'User',
         }
     },
+    prismaRelMap: {
+        __typename,
+        by: 'User',
+        api: 'Api',
+        issue: 'Issue',
+        note: 'Note',
+        organization: 'Organization',
+        post: 'Post',
+        project: 'Project',
+        question: 'Question',
+        routine: 'Routine',
+        smartContract: 'SmartContract',
+        standard: 'Standard',
+        user: 'User',
+    }
 })
 
 const forMapper: { [key in ViewFor]: keyof PrismaType } = {
@@ -59,11 +84,7 @@ interface ViewInput {
     viewFor: ViewFor;
 }
 
-const searcher = (): Searcher<
-    ViewSearchInput,
-    ViewSortBy,
-    Prisma.viewWhereInput
-> => ({
+const searcher = (): Searcher<Model> => ({
     defaultSort: ViewSortBy.LastViewedDesc,
     sortBy: ViewSortBy,
     searchFields: [
@@ -72,17 +93,17 @@ const searcher = (): Searcher<
     searchStringQuery: () => ({
         OR: [
             'nameWrapped',
-            { api: ApiModel.search.searchStringQuery() },
-            { issue: IssueModel.search.searchStringQuery() },
-            { note: NoteModel.search.searchStringQuery() },
-            { organization: OrganizationModel.search.searchStringQuery() },
-            { question: QuestionModel.search.searchStringQuery() },
-            { post: PostModel.search.searchStringQuery() },
-            { project: ProjectModel.search.searchStringQuery() },
-            { routine: RoutineModel.search.searchStringQuery() },
-            { smartContract: SmartContractModel.search.searchStringQuery() },
-            { standard: StandardModel.search.searchStringQuery() },
-            { user: UserModel.search.searchStringQuery() },
+            { api: ApiModel.search!.searchStringQuery() },
+            { issue: IssueModel.search!.searchStringQuery() },
+            { note: NoteModel.search!.searchStringQuery() },
+            { organization: OrganizationModel.search!.searchStringQuery() },
+            { question: QuestionModel.search!.searchStringQuery() },
+            { post: PostModel.search!.searchStringQuery() },
+            { project: ProjectModel.search!.searchStringQuery() },
+            { routine: RoutineModel.search!.searchStringQuery() },
+            { smartContract: SmartContractModel.search!.searchStringQuery() },
+            { standard: StandardModel.search!.searchStringQuery() },
+            { user: UserModel.search!.searchStringQuery() },
         ]
     }),
 })
@@ -224,34 +245,36 @@ const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> =>
     })
 }
 
-const displayer = (): Displayer<
-    Prisma.viewSelect,
-    Prisma.viewGetPayload<SelectWrap<Prisma.viewSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
-        // api: padSelect(ApiModel.display.select),
+        api: padSelect(ApiModel.display.select),
         organization: padSelect(OrganizationModel.display.select),
-        // post: padSelect(PostModel.display.select),
+        question: padSelect(QuestionModel.display.select),
+        note: padSelect(NoteModel.display.select),
+        post: padSelect(PostModel.display.select),
         project: padSelect(ProjectModel.display.select),
         routine: padSelect(RoutineModel.display.select),
-        // smartContract: padSelect(SmartContractModel.display.select),
+        smartContract: padSelect(SmartContractModel.display.select),
         standard: padSelect(StandardModel.display.select),
         user: padSelect(UserModel.display.select),
     }),
     label: (select, languages) => {
-        // if (select.api) return ApiModel.display.label(select.api as any, languages);
+        if (select.api) return ApiModel.display.label(select.api as any, languages);
         if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
+        if (select.question) return QuestionModel.display.label(select.question as any, languages);
+        if (select.note) return NoteModel.display.label(select.note as any, languages);
+        if (select.post) return PostModel.display.label(select.post as any, languages);
         if (select.project) return ProjectModel.display.label(select.project as any, languages);
         if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
-        // if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
+        if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
         if (select.standard) return StandardModel.display.label(select.standard as any, languages);
         if (select.user) return UserModel.display.label(select.user as any, languages);
         return '';
     }
 })
 
-export const ViewModel = ({
+export const ViewModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.view,
     display: displayer(),

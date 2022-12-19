@@ -1,7 +1,7 @@
 import { Request } from "express";
 import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, CopyInput, SessionUser, VisibilityType } from "../endpoints/types";
 import { PrismaType, RecursivePartial } from "../types";
-import { AniedModelLogic, GraphQLModelType } from "../models/types";
+import { GraphQLModelType } from "../models/types";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 
 export type CountHelperProps<CountInput extends CountInputBase> = {

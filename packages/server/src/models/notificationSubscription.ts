@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NotificationSubscription, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy } from "../endpoints/types";
+import { NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionSearchInput, NotificationSubscriptionSortBy, NotificationSubscriptionUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { CommentModel } from "./comment";
@@ -16,11 +16,13 @@ import { ReportModel } from "./report";
 import { RoutineModel } from "./routine";
 import { SmartContractModel } from "./smartContract";
 import { StandardModel } from "./standard";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, ModelLogic } from "./types";
 
 type Model = {
     IsTransferable: false,
     IsVersioned: false,
+    GqlCreate: NotificationSubscriptionCreateInput,
+    GqlUpdate: NotificationSubscriptionUpdateInput,
     GqlModel: NotificationSubscription,
     GqlSearch: NotificationSubscriptionSearchInput,
     GqlSort: NotificationSubscriptionSortBy,
@@ -36,7 +38,7 @@ const __typename = 'NotificationSubscription' as const;
 
 const suppFields = [] as const;
 const formatter = (): Formatter<Model, typeof suppFields> => ({
-    relationshipMap: {
+    gqlRelMap: {
         __typename,
         object: {
             api: 'Api',
@@ -55,6 +57,24 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
             standard: 'Standard',
         },
     },
+    prismaRelMap: {
+        __typename,
+        api: 'Api',
+        comment: 'Comment',
+        issue: 'Issue',
+        meeting: 'Meeting',
+        note: 'Note',
+        organization: 'Organization',
+        project: 'Project',
+        pullRequest: 'PullRequest',
+        question: 'Question',
+        quiz: 'Quiz',
+        report: 'Report',
+        routine: 'Routine',
+        smartContract: 'SmartContract',
+        standard: 'Standard',
+        subscriber: 'User',
+    }
 })
 
 export const subscriberMapper: { [x: string]: string } = {
@@ -111,7 +131,7 @@ const displayer = (): Displayer<Model> => ({
     },
 })
 
-export const NotificationSubscriptionModel = ({
+export const NotificationSubscriptionModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.notification_subscription,
     display: displayer(),

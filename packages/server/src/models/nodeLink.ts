@@ -1,6 +1,6 @@
 import { NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Mutater } from "./types";
+import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { noNull, padSelect, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
@@ -13,6 +13,8 @@ type Model = {
     GqlUpdate: NodeLinkUpdateInput,
     GqlModel: NodeLink,
     GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
     PrismaCreate: Prisma.node_linkUpsertArgs['create'],
     PrismaUpdate: Prisma.node_linkUpsertArgs['update'],
     PrismaModel: Prisma.node_linkGetPayload<SelectWrap<Prisma.node_linkSelect>>,
@@ -70,10 +72,10 @@ const displayer = (): Displayer<Model> => ({
     }
 })
 
-export const NodeLinkModel = ({
+export const NodeLinkModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_link,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
 })

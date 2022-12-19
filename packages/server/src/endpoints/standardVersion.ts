@@ -33,6 +33,8 @@ export const typeDef = gql`
         yup: String
         versionLabel: String
         resourceListsCreate: [ResourceListCreateInput!]
+        rootConnect: ID
+        rootCreate: StandardCreateInput
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [StandardTranslationCreateInput!]
@@ -86,6 +88,7 @@ export const typeDef = gql`
         resourceLists: [ResourceList!]!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!
+        root: Standard!
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [StandardTranslation!]!

@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter } from "./types";
+import { Displayer, Formatter, ModelLogic } from "./types";
 
 type Model = {
     IsTransferable: false,
@@ -11,6 +11,8 @@ type Model = {
     GqlUpdate: NodeLoopWhileUpdateInput,
     GqlModel: NodeLoopWhile,
     GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
     PrismaCreate: Prisma.node_loop_whileUpsertArgs['create'],
     PrismaUpdate: Prisma.node_loop_whileUpsertArgs['update'],
     PrismaModel: Prisma.node_loop_whileGetPayload<SelectWrap<Prisma.node_loop_whileSelect>>,
@@ -37,7 +39,7 @@ const displayer = (): Displayer<Model> => ({
     label: () => ''
 })
 
-export const NodeLoopWhileModel = ({
+export const NodeLoopWhileModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_loop_while,
     display: displayer(),

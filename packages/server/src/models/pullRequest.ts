@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { PullRequest, PullRequestCreateInput, PullRequestPermission, PullRequestSearchInput, PullRequestSortBy, PullRequestUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { ApiModel } from "./api";
 import { ApiVersionModel } from "./apiVersion";
@@ -13,16 +14,29 @@ import { SmartContractModel } from "./smartContract";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { StandardModel } from "./standard";
 import { StandardVersionModel } from "./standardVersion";
-import { Displayer } from "./types";
+import { Displayer, ModelLogic } from "./types";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: PullRequestCreateInput,
+    GqlUpdate: PullRequestUpdateInput,
+    GqlModel: PullRequest,
+    GqlSearch: PullRequestSearchInput,
+    GqlSort: PullRequestSortBy,
+    GqlPermission: PullRequestPermission,
+    PrismaCreate: Prisma.pull_requestUpsertArgs['create'],
+    PrismaUpdate: Prisma.pull_requestUpsertArgs['update'],
+    PrismaModel: Prisma.pull_requestGetPayload<SelectWrap<Prisma.pull_requestSelect>>,
+    PrismaSelect: Prisma.pull_requestSelect,
+    PrismaWhere: Prisma.pull_requestWhereInput,
+}
 
 const __typename = 'PullRequest' as const;
 
 const suppFields = [] as const;
 
-const displayer = (): Displayer<
-    Prisma.pull_requestSelect,
-    Prisma.pull_requestGetPayload<SelectWrap<Prisma.pull_requestSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({
         id: true,
         toApi: { select: ApiModel.display.select() },
@@ -58,7 +72,7 @@ const displayer = (): Displayer<
     },
 })
 
-export const PullRequestModel = ({
+export const PullRequestModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.pull_request,
     display: displayer(),

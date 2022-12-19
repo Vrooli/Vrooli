@@ -1,6 +1,6 @@
 import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, Mutater } from "./types";
+import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { Prisma } from "@prisma/client";
 import { translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
@@ -13,6 +13,8 @@ type Model = {
     GqlUpdate: NodeLinkWhenUpdateInput,
     GqlModel: NodeLinkWhen,
     GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
     PrismaCreate: Prisma.node_link_whenUpsertArgs['create'],
     PrismaUpdate: Prisma.node_link_whenUpsertArgs['update'],
     PrismaModel: Prisma.node_link_whenGetPayload<SelectWrap<Prisma.node_link_whenSelect>>,
@@ -56,10 +58,10 @@ const displayer = (): Displayer<Model> => ({
     label: () => ''
 })
 
-export const NodeLinkWhenModel = ({
+export const NodeLinkWhenModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_link,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
 })

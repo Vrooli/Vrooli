@@ -1,9 +1,8 @@
-import { runsCreate, runsUpdate } from "@shared/validation";
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, RunRoutinePermission, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Mutater, Displayer } from "./types";
+import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { addSupplementalFields, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { oneIsPublic } from "../utils";
@@ -70,7 +69,7 @@ const searcher = (): Searcher<Model> => ({
     searchStringQuery: () => ({
         OR: [
             'nameWrapped',
-            { routineVersion: RunRoutineModel.search.searchStringQuery() },
+            { routineVersion: RunRoutineModel.search!.searchStringQuery() },
         ]
     })
 })
@@ -305,7 +304,7 @@ const mutater = (): Mutater<Model> => ({
             }
         },
     },
-    yup: { create: runsCreate, update: runsUpdate },
+    yup: {} as any,
 })
 
 const danger = () => ({
@@ -343,13 +342,13 @@ const displayer = (): Displayer<Model> => ({
     label: (select) => select.name,
 })
 
-export const RunRoutineModel = ({
+export const RunRoutineModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     danger: danger(),
     delegate: (prisma: PrismaType) => prisma.run_routine,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     run: runner(),
     search: searcher(),
     validate: validator(),

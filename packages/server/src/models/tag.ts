@@ -1,9 +1,9 @@
-import { tagsCreate, tagsUpdate } from "@shared/validation";
+import { tagValidation } from "@shared/validation";
 import { TagSortBy } from "@shared/consts";
 import { StarModel } from "./star";
 import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
+import { Formatter, Searcher, Mutater, Validator, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 
@@ -128,7 +128,7 @@ const validator = (): Validator<Model> => ({
 //         create: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, true),
 //         update: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, false),
 //     },
-//     yup: { create: tagsCreate, update: tagsUpdate },
+//     yup: tagValidation,
 // })
 
 const displayer = (): Displayer<Model> => ({
@@ -136,7 +136,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select) => select.tag,
 })
 
-export const TagModel = ({
+export const TagModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.tag,
     display: displayer(),

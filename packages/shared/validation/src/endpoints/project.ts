@@ -7,7 +7,7 @@ import { labelValidation } from './label';
 const isPrivate = yup.boolean()
 
 export const projectValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         handle: opt(handle),
         isPrivate: opt(isPrivate),
@@ -19,7 +19,7 @@ export const projectValidation: YupModel = {
         ...rel('versions', ['Create'], 'many', 'opt', projectVersionValidation),
         ...rel('tags', ['Connect', 'Create'], 'many', 'opt', tagValidation),
     }, [['userConnect', 'organizationConnect']]),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         handle: opt(handle),
         isPrivate: opt(isPrivate),

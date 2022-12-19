@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, LabelSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, RunRoutineScheduleSortBy } from './types';
+import { FindByIdInput, Label, LabelSearchInput, RunRoutineScheduleSortBy, RunRoutineSchedule } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -18,65 +18,44 @@ export const typeDef = gql`
 
     input RunRoutineScheduleCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        parentConnect: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootConnect: ID!
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        timeZone: String
+        windowStart: Date
+        windowEnd: Date
+        recurring: Boolean
+        recurrStart: Date
+        recurrEnd: Date
+        runRoutineConnect: ID!
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        translationsCreate: [RunRoutineScheduleTranslationCreateInput!]
     }
     input RunRoutineScheduleUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        timeZone: String
+        windowStart: Date
+        windowEnd: Date
+        recurring: Boolean
+        recurrStart: Date
+        recurrEnd: Date
+        runRoutineConnect: ID!
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        translationsCreate: [RunRoutineScheduleTranslationCreateInput!]
+        translationsUpdate: [RunRoutineScheduleTranslationUpdateInput!]
         translationsDelete: [ID!]
     }
     type RunRoutineSchedule {
         id: ID!
-        completedAt: Date
-        created_at: Date!
-        updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        createdBy: User
-        forks: [Project!]!
-        owner: Owner
-        parent: Project
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        wallets: [Wallet!]
-    }
-
-    type RunRoutineSchedulePermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        timeZone: String
+        windowStart: Date
+        windowEnd: Date
+        recurring: Boolean!
+        recurrStart: Date
+        recurrEnd: Date
+        runRoutine: RunRoutine!
+        labels: [Label!]!
+        translations: [RunRoutineScheduleTranslation!]!
     }
 
     input RunRoutineScheduleTranslationCreateInput {
@@ -102,39 +81,42 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        maxEventStart: Date
+        maxEventEnd: Date
+        maxRecurrStart: Date
+        maxRecurrEnd: Date
+        minEventStart: Date
+        minEventEnd: Date
+        minRecurrStart: Date
+        minRecurrEnd: Date
+        labelsId: [ID!]
+        organizationId: ID # If not provided, uses your user ID
         searchString: String
-        sortBy: ProjectSortBy
-        tags: [String!]
+        sortBy: RunRoutineScheduleSortBy
         take: Int
+        translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
     type RunRoutineScheduleSearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [RunRoutineScheduleEdge!]!
     }
 
     type RunRoutineScheduleEdge {
         cursor: String!
-        node: Api!
+        node: RunRoutineSchedule!
     }
 
     extend type Query {
         runRoutineSchedule(input: FindByIdInput!): RunRoutineSchedule
         runRoutineSchedules(input: RunRoutineScheduleSearchInput!): RunRoutineScheduleSearchResult!
+    }
+
+    extend type Mutation {
+        runRoutineScheduleCreate(input: RunRoutineScheduleCreateInput!): RunRoutineSchedule!
+        runRoutineScheduleUpdate(input: RunRoutineScheduleUpdateInput!): RunRoutineSchedule!
     }
 `
 
@@ -145,6 +127,10 @@ export const resolvers: {
         runRoutineSchedule: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
         runRoutineSchedules: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
     },
+    Mutation: {
+        runRoutineScheduleCreate: GQLEndpoint<any, CreateOneResult<RunRoutineSchedule>>;
+        runRoutineScheduleUpdate: GQLEndpoint<any, UpdateOneResult<RunRoutineSchedule>>;
+    }
 } = {
     RunRoutineScheduleSortBy,
     Query: {
@@ -157,4 +143,14 @@ export const resolvers: {
             return readManyHelper({ info, input, objectType, prisma, req })
         },
     },
+    Mutation: {
+        runRoutineScheduleCreate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 500, req });
+            return createHelper({ info, input, objectType, prisma, req });
+        },
+        runRoutineScheduleUpdate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return updateHelper({ info, input, objectType, prisma, req });
+        },
+    }
 }

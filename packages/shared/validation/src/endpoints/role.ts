@@ -11,7 +11,7 @@ export const roleTranslationValidation: YupModel = transRel({
 })
 
 export const roleValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         name: req(name),
         permissions: opt(permissions),
@@ -19,7 +19,7 @@ export const roleValidation: YupModel = {
         ...rel('organization', ['Connect'], 'one', 'req'),
         ...rel('translations', ['Create'], 'many', 'opt', roleTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         name: req(name),
         permissions: opt(permissions),

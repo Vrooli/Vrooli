@@ -9,7 +9,6 @@ import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
 import { ResourceList, Routine } from "types";
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
 import { uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { routineCreateVariables, routineCreate_routineCreate } from "graphql/generated/routineCreate";
@@ -57,7 +56,7 @@ export const RoutineCreate = ({
     }, [setOutputsList]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);

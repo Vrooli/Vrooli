@@ -1,6 +1,6 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, ResourceListUsedFor } from "@shared/consts";
+import { APP_LINKS } from "@shared/consts";
 import { useMutation, useLazyQuery } from "@apollo/client";
 import { routine, routineVariables } from "graphql/generated/routine";
 import { routineQuery } from "graphql/query";
@@ -250,7 +250,7 @@ export const RoutineView = ({
     }, [relationships]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>((partialData?.tags as TagShape[] | undefined) ?? []);
@@ -264,7 +264,7 @@ export const RoutineView = ({
             // parent: routine?.parent ?? null, TODO
             project: null, //TODO
         });
-        setResourceList(routine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(routine?.resourceList ?? { id: uuid() } as any);
         setTags(routine?.tags ?? []);
     }, [routine]);
 

@@ -26,7 +26,7 @@
         "@blockfrost/blockfrost-js": "^4.1.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
-        "@prisma/client": "4.7.0",
+        "@prisma/client": "^4.7.1",
         "@shared/consts": "*",
         "@shared/translations": "*",
         "@shared/utils": "*",

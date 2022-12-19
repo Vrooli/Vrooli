@@ -1,8 +1,7 @@
-import { stepCreate, stepUpdate } from "@shared/validation";
 import { RunStepStatus } from "@shared/consts";
-import { RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from "../endpoints/types";
+import { RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, GraphQLModelType, Mutater, Validator } from "./types";
+import { Displayer, Formatter, GraphQLModelType, ModelLogic, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { SelectWrap } from "../builders/types";
@@ -14,6 +13,8 @@ type Model = {
     GqlUpdate: RunRoutineStepUpdateInput,
     GqlModel: RunRoutineStep,
     GqlPermission: any,
+    GqlSearch: RunRoutineSearchInput,
+    GqlSort: RunRoutineSortBy,
     PrismaCreate: Prisma.run_routine_stepUpsertArgs['create'],
     PrismaUpdate: Prisma.run_routine_stepUpsertArgs['update'],
     PrismaModel: Prisma.run_routine_stepGetPayload<SelectWrap<Prisma.run_routine_stepSelect>>,
@@ -52,13 +53,13 @@ const validator = (): Validator<Model> => ({
         canView: async () => isPublic,
     }),
     profanityFields: ['name'],
-    owner: (data) => RunRoutineModel.validate.owner(data.runRoutine as any),
+    owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),
     isDeleted: () => false,
-    isPublic: (data, languages) => RunRoutineModel.validate.isPublic(data.runRoutine as any, languages),
+    isPublic: (data, languages) => RunRoutineModel.validate!.isPublic(data.runRoutine as any, languages),
     visibility: {
         private: { runRoutine: { isPrivate: true } },
         public: { runRoutine: { isPrivate: false } },
-        owner: (userId) => ({ runRoutine: RunRoutineModel.validate.visibility.owner(userId) }),
+        owner: (userId) => ({ runRoutine: RunRoutineModel.validate!.visibility.owner(userId) }),
     },
 })
 
@@ -93,7 +94,7 @@ const mutater = (): Mutater<Model> => ({
             } as any
         }
     },
-    yup: { create: stepCreate, update: stepUpdate },
+    yup: {} as any,
 })
 
 const displayer = (): Displayer<Model> => ({
@@ -101,11 +102,11 @@ const displayer = (): Displayer<Model> => ({
     label: (select) => select.name,
 })
 
-export const RunRoutineStepModel = ({
+export const RunRoutineStepModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_step,
     display: displayer(),
     format: formatter(),
-    mutate: mutater(),
+    mutate: {} as any,//mutater(),
     validate: validator(),
 })

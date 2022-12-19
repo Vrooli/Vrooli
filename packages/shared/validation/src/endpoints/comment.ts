@@ -26,14 +26,14 @@ export const commentTranslationValidation: YupModel = transRel({
 })
 
 export const commentValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         createdFor: req(createdFor),
         forConnect: req(id),
         parentConnect: opt(id),
         ...rel('translations', ['Create'], 'many', 'opt', commentTranslationValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         ...rel('translations', ['Delete', 'Create', 'Update'], 'many', 'opt', commentTranslationValidation),
     }),

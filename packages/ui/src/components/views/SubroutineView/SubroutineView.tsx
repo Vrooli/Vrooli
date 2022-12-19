@@ -7,7 +7,7 @@ import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
-import { APP_LINKS, ResourceListUsedFor } from "@shared/consts";
+import { APP_LINKS } from "@shared/consts";
 import { ResourceList, Routine } from "types";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
@@ -229,7 +229,7 @@ export const SubroutineView = ({
     // }, [relationships]);
 
     // // Handle resources
-    // const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    // const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
 
     // // Handle tags
     // const [tags, setTags] = useState<TagShape[]>([]);
@@ -243,7 +243,7 @@ export const SubroutineView = ({
     //         // parent: internalRoutine?.parent ?? null, TODO
     //         project: null, //TODO
     //     });
-    //     setResourceList(internalRoutine?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    //     setResourceList(internalRoutine?.resourceList ?? { id: uuid() } as any);
     //     setTags(internalRoutine?.tags ?? []);
     // }, [internalRoutine]);
 

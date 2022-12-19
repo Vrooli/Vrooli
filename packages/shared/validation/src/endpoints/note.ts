@@ -1,11 +1,11 @@
 import * as yup from 'yup';
-import { id, opt, rel, req, YupModel } from "utils";
+import { id, opt, rel, req, YupModel } from "../utils";
 import { tagValidation } from './tag';
 import { labelValidation } from './label';
 import { noteVersionValidation } from './noteVersion';
 
 export const noteValidation: YupModel = {
-    create: yup.object().shape({
+    create: () => yup.object().shape({
         id: req(id),
         isPrivate: opt(yup.boolean()),
         ...rel('user', ['Connect'], 'one', 'opt'),
@@ -15,7 +15,7 @@ export const noteValidation: YupModel = {
         ...rel('versions', ['Create'], 'many', 'opt', noteVersionValidation),
         ...rel('labels', ['Connect', 'Create'], 'many', 'opt', labelValidation),
     }),
-    update: yup.object().shape({
+    update: () => yup.object().shape({
         id: req(id),
         isPrivate: opt(yup.boolean()),
         ...rel('user', ['Connect'], 'one', 'opt'),

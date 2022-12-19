@@ -1,8 +1,8 @@
-import { resourcesCreate, resourcesUpdate } from "@shared/validation";
+import { resourceValidation } from "@shared/validation";
 import { ResourceSortBy } from "@shared/consts";
 import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Mutater, Validator, Displayer } from "./types";
+import { Formatter, Searcher, Mutater, Validator, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
 import { permissionsSelectHelper } from "../builders";
@@ -60,14 +60,14 @@ const validator = (): Validator<Model> => ({
             ['list', 'ResourceList'],
         ], ...params)
     }),
-    permissionResolvers: (params) => ResourceListModel.validate.permissionResolvers(params),
-    owner: (data) => ResourceListModel.validate.owner(data.list as any),
+    permissionResolvers: (params) => ResourceListModel.validate!.permissionResolvers(params),
+    owner: (data) => ResourceListModel.validate!.owner(data.list as any),
     isDeleted: () => false,
-    isPublic: (data, languages) => ResourceListModel.validate.isPublic(data.list as any, languages),
+    isPublic: (data, languages) => ResourceListModel.validate!.isPublic(data.list as any, languages),
     visibility: {
         private: {},
         public: {},
-        owner: (userId) => ({ list: ResourceListModel.validate.visibility.owner(userId) }),
+        owner: (userId) => ({ list: ResourceListModel.validate!.visibility.owner(userId) }),
     }
 })
 
@@ -97,7 +97,7 @@ const validator = (): Validator<Model> => ({
 //             };
 //         },
 //     },
-//     yup: { create: resourcesCreate, update: resourcesUpdate },
+//     yup: resourceValidation,
 // })
 
 const displayer = (): Displayer<Model> => ({
@@ -105,7 +105,7 @@ const displayer = (): Displayer<Model> => ({
     label: (select, languages) => bestLabel(select.translations, 'name', languages),
 })
 
-export const ResourceModel = ({
+export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.resource,
     display: displayer(),

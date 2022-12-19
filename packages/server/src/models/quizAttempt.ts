@@ -1,17 +1,31 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { QuizAttempt, QuizAttemptCreateInput, QuizAttemptPermission, QuizAttemptSearchInput, QuizAttemptSortBy, QuizAttemptUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { QuizModel } from "./quiz";
-import { Displayer } from "./types";
+import { Displayer, ModelLogic } from "./types";
+
+type Model = {
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: QuizAttemptCreateInput,
+    GqlUpdate: QuizAttemptUpdateInput,
+    GqlModel: QuizAttempt,
+    GqlSearch: QuizAttemptSearchInput,
+    GqlSort: QuizAttemptSortBy,
+    GqlPermission: QuizAttemptPermission,
+    PrismaCreate: Prisma.quiz_attemptUpsertArgs['create'],
+    PrismaUpdate: Prisma.quiz_attemptUpsertArgs['update'],
+    PrismaModel: Prisma.quiz_attemptGetPayload<SelectWrap<Prisma.quiz_attemptSelect>>,
+    PrismaSelect: Prisma.quiz_attemptSelect,
+    PrismaWhere: Prisma.quiz_attemptWhereInput,
+}
 
 const __typename = 'QuizAttempt' as const;
 
 const suppFields = [] as const;
 
-const displayer = (): Displayer<
-    Prisma.quiz_attemptSelect,
-    Prisma.quiz_attemptGetPayload<SelectWrap<Prisma.quiz_attemptSelect>>
-> => ({
+const displayer = (): Displayer<Model> => ({
     select: () => ({ 
         id: true,
         created_at: true,
@@ -25,7 +39,7 @@ const displayer = (): Displayer<
     }
 })
 
-export const QuizAttemptModel = ({
+export const QuizAttemptModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_attempt,
     display: displayer(),

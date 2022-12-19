@@ -29,7 +29,8 @@ export const typeDef = gql`
         isPrivate: Boolean
         parentConnect: ID
         resourceListsCreate: [ResourceListCreateInput!]
-        rootConnect: ID!
+        rootConnect: ID
+        rootCreate: SmartContractCreateInput
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
     }
@@ -69,6 +70,7 @@ export const typeDef = gql`
         reports: [Report!]!
         reportsCount: Int!
         resourceLists: [ResourceList!]
+        root: SmartContract!
         routines: [Routine!]!
         starredBy: [User!]
         tags: [Tag!]!

@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CreateOneResult, GQLEndpoint, UpdateOneResult } from '../types';
+import { CreateOneResult, GQLEndpoint } from '../types';
 import { Phone, PhoneCreateInput, SendVerificationTextInput, Success } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper } from '../actions';

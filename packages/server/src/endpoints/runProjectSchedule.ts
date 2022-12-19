@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, LabelSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, RunProjectScheduleSortBy } from './types';
+import { FindByIdInput, Label, LabelSearchInput, RunProjectScheduleSortBy, RunProjectSchedule } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -18,56 +18,44 @@ export const typeDef = gql`
 
     input RunProjectScheduleCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
-        resourceListsCreate: [ResourceListCreateInput!]
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        timeZone: String
+        windowStart: Date
+        windowEnd: Date
+        recurring: Boolean
+        recurrStart: Date
+        recurrEnd: Date
+        runProjectConnect: ID!
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        translationsCreate: [RunProjectScheduleTranslationCreateInput!]
     }
     input RunProjectScheduleUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
-        isPrivate: Boolean
+        timeZone: String
+        windowStart: Date
+        windowEnd: Date
+        recurring: Boolean
+        recurrStart: Date
+        recurrEnd: Date
+        runProjectConnect: ID!
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        translationsCreate: [RunProjectScheduleTranslationCreateInput!]
+        translationsUpdate: [RunProjectScheduleTranslationUpdateInput!]
+        translationsDelete: [ID!]
     }
     type RunProjectSchedule {
         id: ID!
-        completedAt: Date
-        created_at: Date!
-        updated_at: Date!
-        handle: String
-        isComplete: Boolean!
-        isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
-        createdBy: User
-        forks: [Project!]!
-        owner: Owner
-        parent: Project
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        wallets: [Wallet!]
-    }
-
-    type RunProjectSchedulePermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        timeZone: String
+        windowStart: Date
+        windowEnd: Date
+        recurring: Boolean!
+        recurrStart: Date
+        recurrEnd: Date
+        runProject: RunProject!
+        labels: [Label!]!
+        translations: [RunProjectScheduleTranslation!]!
     }
 
     input RunProjectScheduleTranslationCreateInput {
@@ -93,39 +81,42 @@ export const typeDef = gql`
         after: String
         createdTimeFrame: TimeFrame
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        maxEventStart: Date
+        maxEventEnd: Date
+        maxRecurrStart: Date
+        maxRecurrEnd: Date
+        minEventStart: Date
+        minEventEnd: Date
+        minRecurrStart: Date
+        minRecurrEnd: Date
+        labelsId: [ID!]
+        organizationId: ID # If not provided, uses your user ID
         searchString: String
-        sortBy: ProjectSortBy
-        tags: [String!]
+        sortBy: RunProjectScheduleSortBy
         take: Int
+        translationLanguages: [String!]
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 
     type RunProjectScheduleSearchResult {
         pageInfo: PageInfo!
-        edges: [ApiEdge!]!
+        edges: [RunProjectScheduleEdge!]!
     }
 
     type RunProjectScheduleEdge {
         cursor: String!
-        node: Api!
+        node: RunProjectSchedule!
     }
 
     extend type Query {
         runProjectSchedule(input: FindByIdInput!): RunProjectSchedule
         runProjectSchedules(input: RunProjectScheduleSearchInput!): RunProjectScheduleSearchResult!
+    }
+
+    extend type Mutation {
+        runProjectScheduleCreate(input: RunProjectScheduleCreateInput!): RunProjectSchedule!
+        runProjectScheduleUpdate(input: RunProjectScheduleUpdateInput!): RunProjectSchedule!
     }
 `
 
@@ -136,6 +127,10 @@ export const resolvers: {
         runProjectSchedule: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
         runProjectSchedules: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
     },
+    Mutation: {
+        runProjectScheduleCreate: GQLEndpoint<any, CreateOneResult<RunProjectSchedule>>;
+        runProjectScheduleUpdate: GQLEndpoint<any, UpdateOneResult<RunProjectSchedule>>;
+    }
 } = {
     RunProjectScheduleSortBy,
     Query: {
@@ -148,4 +143,14 @@ export const resolvers: {
             return readManyHelper({ info, input, objectType, prisma, req })
         },
     },
+    Mutation: {
+        runProjectScheduleCreate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 500, req });
+            return createHelper({ info, input, objectType, prisma, req });
+        },
+        runProjectScheduleUpdate: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 1000, req });
+            return updateHelper({ info, input, objectType, prisma, req });
+        },
+    }
 }

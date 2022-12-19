@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Stack, TextField, Tooltip, useTheme } from '@mui/material';
 import { VersionInputProps } from "../types";
 import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "@shared/icons";
-import { calculateVersionsFromString, meetsMinimumVersion } from "@shared/validation";
+import { calculateVersionsFromString, meetsMinVersion } from "@shared/validation";
 import { ColorIconButton } from "components/buttons";
 
 export const VersionInput = ({
@@ -30,7 +30,7 @@ export const VersionInput = ({
         setInternalValue(newValue);
         // If value is a valid version (e.g. 1.0.0, 1.0, 1) and is at least the minimum value, then call onChange
         if (newValue.match(/^[0-9]+(\.[0-9]+){0,2}$/)) {
-            if (meetsMinimumVersion(newValue, minimum)) {
+            if (meetsMinVersion(newValue, minimum)) {
                 onChange(newValue);
             }
         }
