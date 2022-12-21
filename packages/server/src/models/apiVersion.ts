@@ -56,7 +56,12 @@ export const ApiVersionModel: ModelLogic<{
             pullRequest: 'PullRequest',
             directoryListings: 'ProjectVersionDirectory',
         },
-        countFields: ['commentsCount', 'directoryListingsCount', 'forksCount', 'reportsCount'],
+        countFields: {
+            commentsCount: true,
+            directoryListingsCount: true,
+            forksCount: true,
+            reportsCount: true,
+        },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: ({ ids, prisma, userData }) => ({
@@ -68,19 +73,19 @@ export const ApiVersionModel: ModelLogic<{
     search: {
         defaultSort: ApiVersionSortBy.DateUpdatedDesc,
         sortBy: ApiVersionSortBy,
-        searchFields: [
-            'createdById',
-            'createdTimeFrame',
-            'minScore',
-            'minStars',
-            'minViews',
-            'ownedByOrganizationId',
-            'ownedByUserId',
-            'tags',
-            'translationLanguages',
-            'updatedTimeFrame',
-            'visibility',
-        ],
+        searchFields: {
+            createdById: true,
+            createdTimeFrame: true,
+            minScore: true,
+            minStars: true,
+            minViews: true,
+            ownedByOrganizationId: true,
+            ownedByUserId: true,
+            tags: true,
+            translationLanguages: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
         searchStringQuery: () => ({
             OR: [
                 'transSummaryWrapped',

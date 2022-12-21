@@ -2,9 +2,11 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { Notification, NotificationSearchInput, NotificationSortBy } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 
-type Model = {
+const __typename = 'Notification' as const;
+const suppFields = [] as const;
+export const NotificationModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -18,30 +20,22 @@ type Model = {
     PrismaModel: Prisma.notificationGetPayload<SelectWrap<Prisma.notificationSelect>>,
     PrismaSelect: Prisma.notificationSelect,
     PrismaWhere: Prisma.notificationWhereInput,
-}
-
-const __typename = 'Notification' as const;
-
-const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    gqlRelMap: {
-        __typename,
-    },
-    prismaRelMap: {
-        __typename,
-    },
-})
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, title: true }),
-    label: (select) => select.title,
-})
-
-export const NotificationModel: ModelLogic<Model, typeof suppFields> = ({
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.notification,
-    display: displayer(),
-    format: formatter(),
+    display: {
+        select: () => ({ id: true, title: true }),
+        label: (select) => select.title,
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+        },
+        prismaRelMap: {
+            __typename,
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

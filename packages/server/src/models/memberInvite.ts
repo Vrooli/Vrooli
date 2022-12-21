@@ -2,10 +2,12 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { MemberInvite, MemberInviteCreateInput, MemberInvitePermission, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 import { UserModel } from "./user";
 
-type Model = {
+const __typename = 'MemberInvite' as const;
+const suppFields = [] as const;
+export const MemberInviteModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: MemberInviteCreateInput,
@@ -19,23 +21,14 @@ type Model = {
     PrismaModel: Prisma.member_inviteGetPayload<SelectWrap<Prisma.member_inviteSelect>>,
     PrismaSelect: Prisma.member_inviteSelect,
     PrismaWhere: Prisma.member_inviteWhereInput,
-}
-
-
-const __typename = 'MemberInvite' as const;
-
-const suppFields = [] as const;
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, user: { select: UserModel.display.select() } }),
-    // Label is the member label
-    label: (select, languages) => UserModel.display.label(select.user as any, languages),
-})
-
-export const MemberInviteModel: ModelLogic<Model, typeof suppFields> = ({
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.member_invite,
-    display: displayer(),
+    display: {
+        select: () => ({ id: true, user: { select: UserModel.display.select() } }),
+        // Label is the member label
+        label: (select, languages) => UserModel.display.label(select.user as any, languages),
+    },
     format: {} as any,
     mutate: {} as any,
     search: {} as any,

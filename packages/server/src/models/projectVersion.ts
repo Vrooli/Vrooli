@@ -56,7 +56,15 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
     joinMap: {
         suggestedNextByProject: 'toProjectVersion',
     },
-    countFields: ['commentsCount', 'directoriesCount', 'directoryListingsCount', 'forksCount', 'reportsCount', 'runsCount'],
+    countFields: {
+        commentsCount: true,
+        directoriesCount: true,
+        directoryListingsCount: true,
+        forksCount: true,
+        reportsCount: true,
+        runsCount: true,
+        translationsCount: true,
+    },
     supplemental: {
         graphqlFields: suppFields,
         toGraphQL: ({ ids, prisma, userData }) => ({
@@ -71,21 +79,21 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
 const searcher = (): Searcher<Model> => ({
     defaultSort: ProjectVersionSortBy.DateCompletedDesc,
     sortBy: ProjectVersionSortBy,
-    searchFields: [
-        'createdById',
-        'createdTimeFrame',
-        'directoryListingsId',
-        'minScoreRoot',
-        'minStarsRoot',
-        'minViewsRoot',
-        'ownedByOrganizationId',
-        'ownedByUserId',
-        'rootId',
-        'tags',
-        'translationLanguages',
-        'updatedTimeFrame',
-        'visibility',
-    ],
+    searchFields: {
+        createdById: true,
+        createdTimeFrame: true,
+        directoryListingsId: true,
+        minScoreRoot: true,
+        minStarsRoot: true,
+        minViewsRoot: true,
+        ownedByOrganizationId: true,
+        ownedByUserId: true,
+        rootId: true,
+        tags: true,
+        translationLanguages: true,
+        updatedTimeFrame: true,
+        visibility: true,
+    },
     searchStringQuery: () => ({
         OR: [
             'transDescriptionWrapped',

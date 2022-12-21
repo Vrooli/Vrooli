@@ -502,7 +502,7 @@ export const getTranslationData = <
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
 >(formik: FormikProps<Values>, field: KeyField, language: string): {
-    error: FormikErrors<Values[KeyField][0]> | undefined,
+    error: { [key in keyof Values[KeyField][0]]: string } | undefined,
     index: number,
     touched: { [key in keyof Values[KeyField][0]]: boolean } | undefined,
     value: Values[KeyField][0] | undefined

@@ -67,6 +67,7 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         standards: 'tagged',
         starredBy: 'user'
     },
+    countFields: {},
     supplemental: {
         graphqlFields: suppFields,
         dbFields: ['createdByUserId', 'id'],
@@ -80,14 +81,15 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
 const searcher = (): Searcher<Model> => ({
     defaultSort: TagSortBy.StarsDesc,
     sortBy: TagSortBy,
-    searchFields: [
-        'createdById',
-        'createdTimeFrame',
-        'excludeIds',
-        'minStars',
-        'translationLanguages',
-        'updatedTimeFrame',
-    ],
+    searchFields: {
+        createdById: true,
+        createdTimeFrame: true,
+        excludeIds: true,
+        maxStars: true,
+        minStars: true,
+        translationLanguages: true,
+        updatedTimeFrame: true,
+    },
     searchStringQuery: () => ({
         OR: [
             'transDescriptionWrapped',

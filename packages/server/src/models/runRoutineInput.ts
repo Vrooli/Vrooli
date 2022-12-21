@@ -35,7 +35,8 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         __typename,
         input: 'RunRoutineInput',
         runRoutine: 'RunRoutine',
-    }
+    },
+    countFields: {},
 })
 
 const validator = (): Validator<Model> => ({
@@ -64,13 +65,13 @@ const validator = (): Validator<Model> => ({
 const searcher = (): Searcher<Model> => ({
     defaultSort: RunRoutineInputSortBy.DateUpdatedDesc,
     sortBy: RunRoutineInputSortBy,
-    searchFields: [
-        'createdTimeFrame',
-        'excludeIds',
-        'routineIds',
-        'standardIds',
-        'updatedTimeFrame',
-    ],
+    searchFields: {
+        createdTimeFrame: true,
+        excludeIds: true,
+        routineIds: true,
+        standardIds: true,
+        updatedTimeFrame: true,
+    },
     searchStringQuery: () => ({ runRoutine: RunRoutineModel.search!.searchStringQuery() }),
 })
 

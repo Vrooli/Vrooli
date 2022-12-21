@@ -38,7 +38,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // if the field is specified in the input
     const customQueries: { [x: string]: any }[] = [];
     if (searcher) {
-        for (const field of searcher.searchFields) {
+        for (const field of Object.keys(searcher.searchFields)) {
             if (input[field as string] !== undefined) {
                 customQueries.push(SearchMap[field as string](input, userData, model.__typename));
             }

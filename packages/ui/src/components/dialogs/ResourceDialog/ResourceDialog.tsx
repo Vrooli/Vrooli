@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@apollo/client';
-import { resourceCreate as validationSchema, resourceTranslationUpdate } from '@shared/validation';
+import { resourceValidation } from '@shared/validation';
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
@@ -86,7 +86,7 @@ export const ResourceDialog = ({
             }],
         },
         enableReinitialize: true,
-        validationSchema,
+        validationSchema: resourceValidation.update,
         onSubmit: (values) => {
             const input: ResourceShape = {
                 id: partialData?.id ?? uuid(),

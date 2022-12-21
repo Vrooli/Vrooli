@@ -4,14 +4,14 @@
  * @param countFields - List of GraphQL field names (e.g. ['commentsCount', reportsCount']) 
  * that correspond to Prisma relationship counts (e.g. { _count: { comments: true, reports: true } })
  */
-export const removeCountFields = (obj: any, countFields: readonly string[] | undefined): any => {
+export const removeCountFields = (obj: any, countFields: { [x: string]: true } | undefined): any => {
     if (!obj || !countFields) return obj;
     // Create result object
     let result: any = {};
     // If no counts, no reason to continue
     if (!obj._count) return obj;
     // Iterate over count map
-    for (const key of countFields) {
+    for (const key of Object.keys(countFields)) {
         // Relationship name is the count field without the 'Count' suffix
         const value = key.slice(0, -5);
         if (obj._count[value] !== undefined && obj._count[value] !== null) {

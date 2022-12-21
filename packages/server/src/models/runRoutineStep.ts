@@ -37,7 +37,8 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         node: 'Node',
         runRoutine: 'RunRoutine',
         subroutine: 'RoutineVersion',
-    }
+    },
+    countFields: {},
 })
 
 const validator = (): Validator<Model> => ({

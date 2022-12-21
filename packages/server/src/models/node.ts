@@ -53,6 +53,7 @@ export const NodeModel: ModelLogic<{
             nodeRoutineList: 'NodeRoutineList',
             runSteps: 'RunRoutineStep',
         },
+        countFields: {},
     },
     mutate: {
         shape: {

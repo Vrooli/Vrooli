@@ -1,8 +1,7 @@
-import { resourceValidation } from "@shared/validation";
 import { ResourceSortBy } from "@shared/consts";
-import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput, SessionUser } from "../endpoints/types";
+import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Mutater, Validator, Displayer, ModelLogic } from "./types";
+import { Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
 import { permissionsSelectHelper } from "../builders";
@@ -28,48 +27,6 @@ type Model = {
 const __typename = 'Resource' as const;
 
 const suppFields = [] as const;
-// const formatter = (): Formatter<Model, typeof suppFields> => ({
-//     relationshipMap: { __typename }, // For now, resource is never queried directly. So no need to handle relationships
-// })
-
-const searcher = (): Searcher<Model> => ({
-    defaultSort: ResourceSortBy.IndexAsc,
-    sortBy: ResourceSortBy,
-    searchFields: [
-        'createdTimeFrame',
-        'resourceListId',
-        'translationLanguages',
-        'updatedTimeFrame',
-    ],
-    
-    searchStringQuery: () => ({
-        OR: [
-            'transDescriptionWrapped',
-            'transNameWrapped',
-            'linkWrapped',
-        ]
-    }),
-})
-
-const validator = (): Validator<Model> => ({
-    isTransferable: false,
-    maxObjects: 50000,
-    permissionsSelect: (...params) => ({
-        id: true,
-        ...permissionsSelectHelper([
-            ['list', 'ResourceList'],
-        ], ...params)
-    }),
-    permissionResolvers: (params) => ResourceListModel.validate!.permissionResolvers(params),
-    owner: (data) => ResourceListModel.validate!.owner(data.list as any),
-    isDeleted: () => false,
-    isPublic: (data, languages) => ResourceListModel.validate!.isPublic(data.list as any, languages),
-    visibility: {
-        private: {},
-        public: {},
-        owner: (userId) => ({ list: ResourceListModel.validate!.visibility.owner(userId) }),
-    }
-})
 
 // const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) => {
 //     return {
@@ -109,8 +66,46 @@ export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.resource,
     display: displayer(),
-    format: {} as any,//formatter(),
+    format: {
+        gqlRelMap: { __typename },
+        prismaRelMap: { __typename },
+        countFields: {},
+    },
     mutate: {} as any,//mutater(),
-    search: searcher(),
-    validate: validator(),
+    search: {
+        defaultSort: ResourceSortBy.IndexAsc,
+        sortBy: ResourceSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            resourceListId: true,
+            translationLanguages: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transDescriptionWrapped',
+                'transNameWrapped',
+                'linkWrapped',
+            ]
+        }),
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: 50000,
+        permissionsSelect: (...params) => ({
+            id: true,
+            ...permissionsSelectHelper([
+                ['list', 'ResourceList'],
+            ], ...params)
+        }),
+        permissionResolvers: (params) => ResourceListModel.validate!.permissionResolvers(params),
+        owner: (data) => ResourceListModel.validate!.owner(data.list as any),
+        isDeleted: () => false,
+        isPublic: (data, languages) => ResourceListModel.validate!.isPublic(data.list as any, languages),
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({ list: ResourceListModel.validate!.visibility.owner(userId) }),
+        }
+    },
 })

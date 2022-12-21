@@ -1,6 +1,5 @@
 import { gql } from 'apollo-server-express';
 import { RunStepStatus } from '@shared/consts';
-import { RunProjectStepSortBy } from './types';
 
 export const typeDef = gql`
     enum RunProjectStepStatus {
@@ -44,9 +43,7 @@ export const typeDef = gql`
 
 const objectType = 'RunProjectStep';
 export const resolvers: {
-    RunProjectStepSortBy: typeof RunProjectStepSortBy;
     RunProjectStepStatus: typeof RunStepStatus;
 } = {
-    RunProjectStepSortBy,
     RunProjectStepStatus: RunStepStatus,
 }

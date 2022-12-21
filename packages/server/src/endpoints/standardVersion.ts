@@ -81,6 +81,8 @@ export const typeDef = gql`
         views: Int!
         comments: [Comment!]!
         commentsCount: Int!
+        directoryListings: [ProjectVersionDirectory!]!
+        directoryListingsCount: Int!
         permissionsStandard: StandardPermission!
         reports: [Report!]!
         reportsCount: Int!
@@ -88,7 +90,6 @@ export const typeDef = gql`
         root: Standard!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!
-        root: Standard!
         starredBy: [User!]!
         tags: [Tag!]!
         translations: [StandardTranslation!]!

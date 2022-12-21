@@ -2087,22 +2087,21 @@ export type NodeData = NodeEnd | NodeRoutineList;
 export type NodeEnd = {
   __typename?: 'NodeEnd';
   id: Scalars['ID'];
-  nodeConnect: any;
   suggestedNextRoutineVersion?: Maybe<RoutineVersion>;
   wasSuccessful: Scalars['Boolean'];
 };
 
 export type NodeEndCreateInput = {
   id: Scalars['ID'];
-  nodeConnect: any;
-  suggestedNextRoutineVersionsConnect?: string[];
+  nodeConnect: Scalars['ID'];
+  suggestedNextRoutineVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
 export type NodeEndUpdateInput = {
   id: Scalars['ID'];
-  suggestedNextRoutineVersionsConnect?: string[];
-  suggestedNextRoutineVersionsDisconnect?: string[];
+  suggestedNextRoutineVersionsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  suggestedNextRoutineVersionsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
@@ -5632,14 +5631,14 @@ export type Routine = {
   forksCount: Scalars['Int'];
   hasCompletedVersion: Scalars['Boolean'];
   id: Scalars['ID'];
-  issues: any
-        issuesCount: any
   isDeleted: Scalars['Boolean'];
   isInternal?: Maybe<Scalars['Boolean']>;
   isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
+  issues: Array<Issue>;
+  issuesCount: Scalars['Int'];
   labels: Array<Label>;
   owner?: Maybe<Owner>;
   parent?: Maybe<Routine>;
@@ -5762,7 +5761,6 @@ export type RoutineUpdateInput = {
 
 export type RoutineVersion = {
   __typename?: 'RoutineVersion';
-  directoryListings?: any;
   api?: Maybe<Api>;
   apiCallData?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
@@ -5770,6 +5768,8 @@ export type RoutineVersion = {
   completedAt?: Maybe<Scalars['Date']>;
   complexity: Scalars['Int'];
   created_at: Scalars['Date'];
+  directoryListings: Array<ProjectVersionDirectory>;
+  directoryListingsCount: Scalars['Int'];
   forks: Array<Routine>;
   forksCount: Scalars['Int'];
   id: Scalars['ID'];
@@ -6329,19 +6329,6 @@ export type RunProjectStepCreateInput = {
   step: Array<Scalars['Int']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
 };
-
-export enum RunProjectStepSortBy {
-  ContextSwitchesAsc = 'ContextSwitchesAsc',
-  ContextSwitchesDesc = 'ContextSwitchesDesc',
-  OrderAsc = 'OrderAsc',
-  OrderDesc = 'OrderDesc',
-  TimeCompletedAsc = 'TimeCompletedAsc',
-  TimeCompletedDesc = 'TimeCompletedDesc',
-  TimeElapsedAsc = 'TimeElapsedAsc',
-  TimeElapsedDesc = 'TimeElapsedDesc',
-  TimeStartedAsc = 'TimeStartedAsc',
-  TimeStartedDesc = 'TimeStartedDesc'
-}
 
 export enum RunProjectStepStatus {
   Completed = 'Completed',
@@ -7216,6 +7203,8 @@ export type StandardVersion = {
   commentsCount: Scalars['Int'];
   created_at: Scalars['Date'];
   default?: Maybe<Scalars['String']>;
+  directoryListings: Array<ProjectVersionDirectory>;
+  directoryListingsCount: Scalars['Int'];
   id: Scalars['ID'];
   isDeleted: Scalars['Boolean'];
   isInternal: Scalars['Boolean'];
@@ -7228,7 +7217,7 @@ export type StandardVersion = {
   props: Scalars['String'];
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
-  resourceLists: Array<ResourceList>;
+  resourceList?: Maybe<ResourceList>;
   root: Standard;
   rootId: Scalars['ID'];
   routineInputs: Array<Routine>;
@@ -7243,7 +7232,7 @@ export type StandardVersion = {
   versionLabel: Scalars['String'];
   views: Scalars['Int'];
   yup?: Maybe<Scalars['String']>;
-} & { [x: string]: any };
+};
 
 export type StandardVersionCreateInput = {
   default?: InputMaybe<Scalars['String']>;
@@ -7252,7 +7241,7 @@ export type StandardVersionCreateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   name?: InputMaybe<Scalars['String']>;
   props: Scalars['String'];
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
+  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<StandardCreateInput>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
@@ -7348,9 +7337,8 @@ export type StandardVersionUpdateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   makeAnonymous?: InputMaybe<Scalars['Boolean']>;
   props: Scalars['String'];
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
+  resourceListsCreate?: InputMaybe<ResourceListCreateInput>;
+  resourceListsUpdate?: InputMaybe<ResourceListUpdateInput>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;

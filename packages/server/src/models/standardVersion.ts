@@ -29,47 +29,47 @@ type Model = {
 const __typename = 'StandardVersion' as const;
 
 const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    gqlRelMap: {
-        __typename,
-        comments: 'Comment',
-        directoryListings: 'ProjectVersionDirectory',
-        forks: 'Standard',
-        pullRequest: 'PullRequest',
-        reports: 'Report',
-        resourceList: 'ResourceList',
-        root: 'Standard',
-        routineVersionInputs: 'RoutineVersionInput',
-        routineVersionOutputs: 'RoutineVersionOutput',
-    },
-    prismaRelMap: {
-        __typename,
-        comments: 'Comment',
-        directoryListings: 'ProjectVersionDirectory',
-        forks: 'Standard',
-        pullRequest: 'PullRequest',
-        reports: 'Report',
-        root: 'Standard',
-        resourceList: 'ResourceList',
-        // routineVersionInputs: 'RoutineVersionInput',
-        // routineVersionOutputs: 'RoutineVersionOutput',
-    },
-    // countFields: ['commentsCount', 'reportsCount'],
-})
+// const formatter = (): Formatter<Model, typeof suppFields> => ({
+//     gqlRelMap: {
+//         __typename,
+//         comments: 'Comment',
+//         // directoryListings: 'ProjectVersionDirectory',
+//         // forks: 'Standard',
+//         // pullRequest: 'PullRequest',
+//         reports: 'Report',
+//         resourceList: 'ResourceList',
+//         root: 'Standard',
+//         // routineVersionInputs: 'RoutineVersionInput',
+//         // routineVersionOutputs: 'RoutineVersionOutput',
+//     },
+//     prismaRelMap: {
+//         __typename,
+//         comments: 'Comment',
+//         directoryListings: 'ProjectVersionDirectory',
+//         forks: 'Standard',
+//         pullRequest: 'PullRequest',
+//         reports: 'Report',
+//         root: 'Standard',
+//         resourceList: 'ResourceList',
+//         // routineVersionInputs: 'RoutineVersionInput',
+//         // routineVersionOutputs: 'RoutineVersionOutput',
+//     },
+//     // countFields: ['commentsCount', 'reportsCount'],
+// })
 
 const searcher = (): Searcher<Model> => ({
     defaultSort: StandardVersionSortBy.DateCompletedDesc,
     sortBy: StandardVersionSortBy,
-    searchFields: [
-        'createdTimeFrame',
-        'reportId',
-        'rootId',
-        'standardType',
-        'tags',
-        'updatedTimeFrame',
-        'userId',
-        'visibility',
-    ],
+    searchFields: {
+        createdTimeFrame: true,
+        reportId: true,
+        rootId: true,
+        standardType: true,
+        tags: true,
+        updatedTimeFrame: true,
+        userId: true,
+        visibility: true,
+    },
     searchStringQuery: () => ({
         OR: [
             'transDescriptionWrapped',

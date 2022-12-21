@@ -1,12 +1,15 @@
 import { PrismaType } from "../types";
 import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from "../endpoints/types";
-import { Displayer, Formatter, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 
-type Model = {
+const __typename = 'Member' as const;
+
+const suppFields = [] as const;
+export const MemberModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -20,37 +23,29 @@ type Model = {
     PrismaModel: Prisma.memberGetPayload<SelectWrap<Prisma.memberSelect>>,
     PrismaSelect: Prisma.memberSelect,
     PrismaWhere: Prisma.memberWhereInput,
-}
-
-const __typename = 'Member' as const;
-
-const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    gqlRelMap: {
-        __typename,
-        organization: 'Organization',
-        user: 'User',
-    },
-    prismaRelMap: {
-        __typename,
-        organization: 'Organization',
-        user: 'User',
-        roles: 'Role',
-    }
-})
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({
-        id: true,
-        user: padSelect(UserModel.display.select),
-    }),
-    label: (select, languages) => UserModel.display.label(select.user as any, languages),
-})
-
-export const MemberModel: ModelLogic<Model, typeof suppFields> = ({
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.member,
-    // TODO needs searcher
-    display: displayer(),
-    format: formatter(),
+    display: {
+        select: () => ({
+            id: true,
+            user: padSelect(UserModel.display.select),
+        }),
+        label: (select, languages) => UserModel.display.label(select.user as any, languages),
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            organization: 'Organization',
+            user: 'User',
+        },
+        prismaRelMap: {
+            __typename,
+            organization: 'Organization',
+            user: 'User',
+            roles: 'Role',
+        },
+        countFields: {},
+    },
+    search: {} as any,
 })

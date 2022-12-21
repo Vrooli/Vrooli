@@ -36,7 +36,8 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         routineVersion: 'RoutineVersion',
         standardVersion: 'StandardVersion',
         runInputs: 'RunRoutineInput',
-    }
+    },
+    countFields: {},
 })
 
 // const mutater = (): Mutater<Model> => ({

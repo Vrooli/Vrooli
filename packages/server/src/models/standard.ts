@@ -34,161 +34,6 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Standa
     } as any
 }
 
-const mutater = (): Mutater<any> => ({
-    shape: {
-        create: async ({ data, prisma, userData }) => {
-            // const base = await shapeBase(prisma, userData, data, true);
-            // // If jsonVariables defined, sort them
-            // let translations = await translationRelationshipBuilder(prisma, userData, data, true)
-            // if (translations?.create?.length) {
-            //     translations.create = translations.create.map(t => {
-            //         t.jsonVariables = sortify(t.jsonVariables, userData.languages);
-            //         return t;
-            //     })
-            // }
-            // return {
-            //     ...base.root,
-            //     isInternal: data.isInternal ?? undefined,
-            //     name: data.name ?? await querier().generateName(prisma, userData.id, data),
-            //     permissions: JSON.stringify({}), //TODO
-            //     createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-            //     organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-            //     createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-            //     user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
-            //     versions: {
-            //         create: {
-            //             ...base.version,
-            //             default: data.default ?? undefined,
-            //             props: sortify(data.props, userData.languages),
-            //             yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-            //             type: data.type,
-            //             translations,
-            //         }
-            //     }
-            // }
-            return {} as any
-        },
-        update: async ({ data, prisma, userData }) => {
-            // const base = await shapeBase(prisma, userData, data, false);
-            // // If jsonVariables defined, sort them
-            // let translations = await translationRelationshipBuilder(prisma, userData, data, false)
-            // if (translations?.update?.length) {
-            //     translations.update = translations.update.map(t => {
-            //         t.data = {
-            //             ...t.data,
-            //             jsonVariables: sortify(t.data.jsonVariables, userData.languages),
-            //         }
-            //         return t;
-            //     })
-            // }
-            // if (translations?.create?.length) {
-            //     translations.create = translations.create.map(t => {
-            //         t.jsonVariables = sortify(t.jsonVariables, userData.languages);
-            //         return t;
-            //     })
-            // }
-            // return {
-            //     ...base.root,
-            //     organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
-            //     user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
-            //     // If versionId is provided, update that version. 
-            //     // Otherwise, versionLabel is provided, so create new version with that label
-            //     versions: {
-            //         ...(data.versionId ? {
-            //             update: {
-            //                 where: { id: data.versionId },
-            //                 data: {
-            //                     ...base.version,
-            //                     default: data.default ?? undefined,
-            //                     props: data.props ? sortify(data.props, userData.languages) : undefined,
-            //                     yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-            //                     type: data.type as string,
-            //                     translations,
-            //                 }
-            //             }
-            //         } : {
-            //             create: {
-            //                 ...base.version,
-            //                 versionLabel: data.versionLabel as string,
-            //                 default: data.default as string,
-            //                 props: sortify(data.props as string, userData.languages),
-            //                 yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-            //                 type: data.type as string,
-            //                 translations,
-            //             }
-            //         })
-            //     },
-            // }
-            return {} as any
-        },
-    },
-    trigger: {
-        onCreated: ({ created, prisma, userData }) => {
-            for (const c of created) {
-                Trigger(prisma, userData.languages).createStandard(userData.id, c.id as string);
-            }
-        },
-        onUpdated: ({ prisma, updated, updateInput, userData }) => {
-            // for (let i = 0; i < updated.length; i++) {
-            //     const u = updated[i];
-            //     const input = updateInput[i];
-            //     // Check if version changed
-            //     if (input.versionLabel && u.isComplete) {
-            //         Trigger(prisma, userData.languages).objectNewVersion('Standard', u.id as string, userData.id);
-            //     }
-            // }
-        },
-    },
-    yup: {} as any,
-    /**
-     * Add, update, or remove a one-to-one standard relationship. 
-     * Due to some unknown Prisma bug, it won't let us create/update a standard directly
-     * in the main mutation query like most other relationship builders. Instead, we 
-     * must do this separately, and return the standard's ID.
-     */
-    // async relationshipBuilder(
-    //     userId: string,
-    //     data: { [x: string]: any },
-    //     isAdd: boolean = true,
-    // ): Promise<{ [x: string]: any } | undefined> {
-    //     // Check if standard of same shape already exists with the same creator. 
-    //     // If so, connect instead of creating a new standard
-    //     const initialCreate = Array.isArray(data[`standardCreate`]) ?
-    //         data[`standardCreate`].map((c: any) => c.id) :
-    //         typeof data[`standardCreate`] === 'object' ? [data[`standardCreate`].id] :
-    //             [];
-    //     const initialConnect = Array.isArray(data[`standardConnect`]) ?
-    //         data[`standardConnect`] :
-    //         typeof data[`standardConnect`] === 'object' ? [data[`standardConnect`]] :
-    //             [];
-    //     const initialUpdate = Array.isArray(data[`standardUpdate`]) ?
-    //         data[`standardUpdate`].map((c: any) => c.id) :
-    //         typeof data[`standardUpdate`] === 'object' ? [data[`standardUpdate`].id] :
-    //             [];
-    //     const initialCombined = [...initialCreate, ...initialConnect, ...initialUpdate];
-    //     // TODO this will have bugs
-    //     if (initialCombined.length > 0) {
-    //         const existingIds: string[] = [];
-    //         // Find shapes of all initial standards
-    //         for (const standard of initialCombined) {
-    //             const initialShape = await this.shapeCreate(userId, standard);
-    //             const exists = await querier().findMatchingStandardVersion(prisma, standard, userId, true, false)
-    //             if (exists) existingIds.push(exists.id);
-    //         }
-    //         // All existing shapes are the new connects
-    //         data[`standardConnect`] = existingIds;
-    //         data[`standardCreate`] = initialCombined.filter((s: any) => !existingIds.includes(s.id));
-    //     }
-    //     return relationshipBuilderHelper({
-    //         data,
-    //         relationshipName: 'standard',
-    //         isAdd,
-    //         userId,
-    //         shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
-    //     });
-    // },
-})
-
 export const StandardModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -252,8 +97,11 @@ export const StandardModel: ModelLogic<{
             transfers: 'Transfer',
             quizQuestions: 'QuizQuestion',
         },
-        // joinMap: { labels: 'label', tags: 'tag', starredBy: 'user' },
-        countFields: ['commentsCount', 'reportsCount'],
+        joinMap: { tags: 'tag', starredBy: 'user' },//{ labels: 'label', tags: 'tag', starredBy: 'user' },
+        countFields: {
+            commentsCount: true,
+            reportsCount: true,
+        },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: ({ ids, prisma, userData }) => ({
@@ -264,7 +112,160 @@ export const StandardModel: ModelLogic<{
             }),
         },
     },
-    mutate: {} as any,//mutater(),
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => {
+                // const base = await shapeBase(prisma, userData, data, true);
+                // // If jsonVariables defined, sort them
+                // let translations = await translationRelationshipBuilder(prisma, userData, data, true)
+                // if (translations?.create?.length) {
+                //     translations.create = translations.create.map(t => {
+                //         t.jsonVariables = sortify(t.jsonVariables, userData.languages);
+                //         return t;
+                //     })
+                // }
+                // return {
+                //     ...base.root,
+                //     isInternal: data.isInternal ?? undefined,
+                //     name: data.name ?? await querier().generateName(prisma, userData.id, data),
+                //     permissions: JSON.stringify({}), //TODO
+                //     createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                //     organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+                //     createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                //     user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
+                //     versions: {
+                //         create: {
+                //             ...base.version,
+                //             default: data.default ?? undefined,
+                //             props: sortify(data.props, userData.languages),
+                //             yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+                //             type: data.type,
+                //             translations,
+                //         }
+                //     }
+                // }
+                return {} as any
+            },
+            update: async ({ data, prisma, userData }) => {
+                // const base = await shapeBase(prisma, userData, data, false);
+                // // If jsonVariables defined, sort them
+                // let translations = await translationRelationshipBuilder(prisma, userData, data, false)
+                // if (translations?.update?.length) {
+                //     translations.update = translations.update.map(t => {
+                //         t.data = {
+                //             ...t.data,
+                //             jsonVariables: sortify(t.data.jsonVariables, userData.languages),
+                //         }
+                //         return t;
+                //     })
+                // }
+                // if (translations?.create?.length) {
+                //     translations.create = translations.create.map(t => {
+                //         t.jsonVariables = sortify(t.jsonVariables, userData.languages);
+                //         return t;
+                //     })
+                // }
+                // return {
+                //     ...base.root,
+                //     organization: data.organizationId ? { connect: { id: data.organizationId } } : data.userId ? { disconnect: true } : undefined,
+                //     user: data.userId ? { connect: { id: data.userId } } : data.organizationId ? { disconnect: true } : undefined,
+                //     // If versionId is provided, update that version. 
+                //     // Otherwise, versionLabel is provided, so create new version with that label
+                //     versions: {
+                //         ...(data.versionId ? {
+                //             update: {
+                //                 where: { id: data.versionId },
+                //                 data: {
+                //                     ...base.version,
+                //                     default: data.default ?? undefined,
+                //                     props: data.props ? sortify(data.props, userData.languages) : undefined,
+                //                     yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+                //                     type: data.type as string,
+                //                     translations,
+                //                 }
+                //             }
+                //         } : {
+                //             create: {
+                //                 ...base.version,
+                //                 versionLabel: data.versionLabel as string,
+                //                 default: data.default as string,
+                //                 props: sortify(data.props as string, userData.languages),
+                //                 yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
+                //                 type: data.type as string,
+                //                 translations,
+                //             }
+                //         })
+                //     },
+                // }
+                return {} as any
+            },
+        },
+        trigger: {
+            onCreated: ({ created, prisma, userData }) => {
+                for (const c of created) {
+                    Trigger(prisma, userData.languages).createStandard(userData.id, c.id as string);
+                }
+            },
+            onUpdated: ({ prisma, updated, updateInput, userData }) => {
+                // for (let i = 0; i < updated.length; i++) {
+                //     const u = updated[i];
+                //     const input = updateInput[i];
+                //     // Check if version changed
+                //     if (input.versionLabel && u.isComplete) {
+                //         Trigger(prisma, userData.languages).objectNewVersion('Standard', u.id as string, userData.id);
+                //     }
+                // }
+            },
+        },
+        yup: {} as any,
+        /**
+         * Add, update, or remove a one-to-one standard relationship. 
+         * Due to some unknown Prisma bug, it won't let us create/update a standard directly
+         * in the main mutation query like most other relationship builders. Instead, we 
+         * must do this separately, and return the standard's ID.
+         */
+        // async relationshipBuilder(
+        //     userId: string,
+        //     data: { [x: string]: any },
+        //     isAdd: boolean = true,
+        // ): Promise<{ [x: string]: any } | undefined> {
+        //     // Check if standard of same shape already exists with the same creator. 
+        //     // If so, connect instead of creating a new standard
+        //     const initialCreate = Array.isArray(data[`standardCreate`]) ?
+        //         data[`standardCreate`].map((c: any) => c.id) :
+        //         typeof data[`standardCreate`] === 'object' ? [data[`standardCreate`].id] :
+        //             [];
+        //     const initialConnect = Array.isArray(data[`standardConnect`]) ?
+        //         data[`standardConnect`] :
+        //         typeof data[`standardConnect`] === 'object' ? [data[`standardConnect`]] :
+        //             [];
+        //     const initialUpdate = Array.isArray(data[`standardUpdate`]) ?
+        //         data[`standardUpdate`].map((c: any) => c.id) :
+        //         typeof data[`standardUpdate`] === 'object' ? [data[`standardUpdate`].id] :
+        //             [];
+        //     const initialCombined = [...initialCreate, ...initialConnect, ...initialUpdate];
+        //     // TODO this will have bugs
+        //     if (initialCombined.length > 0) {
+        //         const existingIds: string[] = [];
+        //         // Find shapes of all initial standards
+        //         for (const standard of initialCombined) {
+        //             const initialShape = await this.shapeCreate(userId, standard);
+        //             const exists = await querier().findMatchingStandardVersion(prisma, standard, userId, true, false)
+        //             if (exists) existingIds.push(exists.id);
+        //         }
+        //         // All existing shapes are the new connects
+        //         data[`standardConnect`] = existingIds;
+        //         data[`standardCreate`] = initialCombined.filter((s: any) => !existingIds.includes(s.id));
+        //     }
+        //     return relationshipBuilderHelper({
+        //         data,
+        //         relationshipName: 'standard',
+        //         isAdd,
+        //         userId,
+        //         shape: { shapeCreate: this.shapeCreate, shapeUpdate: this.shapeUpdate },
+        //     });
+        // },
+    },
     query: {
         /**
          * Checks for existing standards with the same shape. Useful to avoid duplicates
@@ -373,26 +374,26 @@ export const StandardModel: ModelLogic<{
     search: {
         defaultSort: StandardSortBy.ScoreDesc,
         sortBy: StandardSortBy,
-        searchFields: [
-            'createdById',
-            'createdTimeFrame',
-            'issuesId',
-            'labelsId',
-            'minScore',
-            'minStars',
-            'minViews',
-            'ownedByOrganizationId',
-            'ownedByUserId',
-            'parentId',
-            'pullRequestsId',
-            'questionsId',
-            'standardTypeLatestVersion',
-            'tags',
-            'transfersId',
-            'translationLanguagesLatestVersion',
-            'updatedTimeFrame',
-            'visibility',
-        ],
+        searchFields: {
+            createdById: true,
+            createdTimeFrame: true,
+            issuesId: true,
+            labelsId: true,
+            minScore: true,
+            minStars: true,
+            minViews: true,
+            ownedByOrganizationId: true,
+            ownedByUserId: true,
+            parentId: true,
+            pullRequestsId: true,
+            questionsId: true,
+            standardTypeLatestVersion: true,
+            tags: true,
+            transfersId: true,
+            translationLanguagesLatestVersion: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
         searchStringQuery: () => ({
             OR: [
                 'tagsWrapped',

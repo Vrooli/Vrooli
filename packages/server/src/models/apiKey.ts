@@ -40,6 +40,7 @@ export const ApiKeyModel: ModelLogic<{
         prismaRelMap: {
             __typename,
         },
+        countFields: {},
     },
     mutate: {} as any,
     validate: {} as any,

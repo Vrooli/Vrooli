@@ -78,7 +78,12 @@ export const ApiModel: ModelLogic<{
             transfers: 'Transfer',
         },
         joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
-        countFields: ['versionsCount', 'pullRequestsCount', 'questionsCount', 'transfersCount'],
+        countFields: {
+            pullRequestsCount: true,
+            questionsCount: true,
+            transfersCount: true,
+            versionsCount: true,
+        },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: ({ ids, prisma, userData }) => ({
@@ -93,20 +98,20 @@ export const ApiModel: ModelLogic<{
     search: {
         defaultSort: ApiSortBy.ScoreDesc,
         sortBy: ApiSortBy,
-        searchFields: [
-            'createdById',
-            'createdTimeFrame',
-            'maxScore',
-            'maxStars',
-            'minScore',
-            'minStars',
-            'ownedByOrganizationId',
-            'ownedByUserId',
-            'parentId',
-            'tags',
-            'updatedTimeFrame',
-            'visibility',
-        ],
+        searchFields: {
+            createdById: true,
+            createdTimeFrame: true,
+            maxScore: true,
+            maxStars: true,
+            minScore: true,
+            minStars: true,
+            ownedByOrganizationId: true,
+            ownedByUserId: true,
+            parentId: true,
+            tags: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
         searchStringQuery: () => ({
             OR: [
                 'tagsWrapped',

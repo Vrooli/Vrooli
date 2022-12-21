@@ -35,7 +35,8 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         members: 'Member',
         meetings: 'Meeting',
         organization: 'Organization',
-    }
+    },
+    countFields: {},
 })
 
 const displayer = (): Displayer<Model> => ({

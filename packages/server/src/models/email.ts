@@ -35,7 +35,8 @@ export const EmailModel: ModelLogic<{
         prismaRelMap: {
             __typename,
             user: 'User',
-        }
+        },
+        countFields: {},
     },
     mutate: {
         shape: {

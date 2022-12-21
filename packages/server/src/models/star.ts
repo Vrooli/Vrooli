@@ -75,15 +75,16 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         standard: 'Standard',
         tag: 'Tag',
         user: 'User',
-    }
+    },
+    countFields: {},
 })
 
 const searcher = (): Searcher<Model> => ({
     defaultSort: StarSortBy.DateUpdatedDesc,
     sortBy: StarSortBy,
-    searchFields: [
-        'excludeLinkedToTag',
-    ],
+    searchFields: {
+        excludeLinkedToTag: true,
+    },
     searchStringQuery: () => ({
         OR: [
             { api: ApiModel.search!.searchStringQuery() },

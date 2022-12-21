@@ -59,7 +59,8 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
         smartContractVersion: 'SmartContractVersion',
         standardVersion: 'StandardVersion',
         userSchedule: 'UserSchedule',
-    }
+    },
+    countFields: {},
 })
 
 const validator = (): Validator<Model> => ({
@@ -118,19 +119,19 @@ const validator = (): Validator<Model> => ({
 const searcher = (): Searcher<Model> => ({
     defaultSort: ResourceListSortBy.IndexAsc,
     sortBy: ResourceListSortBy,
-    searchFields: [
-        'apiVersionId',
-        'createdTimeFrame',
-        'organizationId',
-        'postId',
-        'projectVersionId',
-        'routineVersionId',
-        'smartContractVersionId',
-        'standardVersionId',
-        'translationLanguages',
-        'updatedTimeFrame',
-        'userScheduleId',
-    ],
+    searchFields: {
+        apiVersionId: true,
+        createdTimeFrame: true,
+        organizationId: true,
+        postId: true,
+        projectVersionId: true,
+        routineVersionId: true,
+        smartContractVersionId: true,
+        standardVersionId: true,
+        translationLanguages: true,
+        updatedTimeFrame: true,
+        userScheduleId: true,
+    },
     searchStringQuery: () => ({
         OR: [
             'transDescriptionWrapped',

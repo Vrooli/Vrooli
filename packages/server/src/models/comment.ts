@@ -1,6 +1,6 @@
 import { CommentSortBy } from "@shared/consts";
 import { commentValidation } from "@shared/validation";
-import { Comment, CommentCreateInput, CommentFor, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../endpoints/types";
+import { Comment, CommentCreateInput, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -86,7 +86,10 @@ export const CommentModel: ModelLogic<{
             parents: 'Comment',
         },
         joinMap: { starredBy: 'user' },
-        countFields: ['reportsCount', 'translationsCount'],
+        countFields: {
+            reportsCount: true,
+            translationsCount: true,
+        },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: ({ ids, prisma, userData }) => ({
@@ -206,7 +209,7 @@ export const CommentModel: ModelLogic<{
             // Loop through search fields and add each to the search query, 
             // if the field is specified in the input
             const customQueries: { [x: string]: any }[] = [];
-            for (const field of CommentModel.search!.searchFields) {
+            for (const field of Object.keys(CommentModel.search!.searchFields)) {
                 if (input[field as string] !== undefined) {
                     customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
                 }
@@ -289,26 +292,26 @@ export const CommentModel: ModelLogic<{
     },
     search: {
         defaultSort: CommentSortBy.ScoreDesc,
-        searchFields: [
-            'apiVersionId',
-            'createdTimeFrame',
-            'issueId',
-            'minScore',
-            'minStars',
-            'noteVersionId',
-            'ownedByOrganizationId',
-            'ownedByUserId',
-            'postId',
-            'projectVersionId',
-            'pullRequestId',
-            'questionAnswerId',
-            'questionId',
-            'routineVersionId',
-            'smartContractVersionId',
-            'standardVersionId',
-            'translationLanguages',
-            'updatedTimeFrame',
-        ],
+        searchFields: {
+            apiVersionId: true,
+            createdTimeFrame: true,
+            issueId: true,
+            minScore: true,
+            minStars: true,
+            noteVersionId: true,
+            ownedByOrganizationId: true,
+            ownedByUserId: true,
+            postId: true,
+            projectVersionId: true,
+            pullRequestId: true,
+            questionAnswerId: true,
+            questionId: true,
+            routineVersionId: true,
+            smartContractVersionId: true,
+            standardVersionId: true,
+            translationLanguages: true,
+            updatedTimeFrame: true,
+        },
         sortBy: CommentSortBy,
         searchStringQuery: () => ({ translations: 'transText' }),
     },

@@ -42,6 +42,7 @@ export const NodeEndModel: ModelLogic<{
             node: 'Node',
         },
         joinMap: { suggestedNextRoutineVersion: 'toRoutineVersion' },
+        countFields: {},
     },
     mutate: {
         shape: {

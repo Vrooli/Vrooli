@@ -205,6 +205,10 @@ export interface SupplementalConverter<
     }) => { [key in SuppFields[number]]: () => any };
 }
 
+type StringArrayMap<T extends readonly string[]> = {
+    [K in T[number]]: true
+}
+
 /**
  * Helper functions for converting between Prisma types and GraphQL types
  */
@@ -233,10 +237,8 @@ export interface Formatter<
      * These fields must end with "Count", and exist in the GraphQL object.
      * Each field of the form {relationship}Count will be converted to
      * { [relationship]: { _count: true } } in the Prisma query
-     * 
-     * NOTE: Only allows string keys
      */
-    countFields?: (keyof Model['GqlModel'] extends infer R ? R extends `${string}Count` ? R : never : never)[];
+    countFields: StringArrayMap<(keyof Model['GqlModel'] extends infer R ? R extends `${string}Count` ? R : never : never)[]>;
     /**
      * List of fields to always exclude from GraphQL results
      */
@@ -301,18 +303,18 @@ export type Searcher<
      */
     sortBy: { [x in Model['GqlSort']]: keyof typeof SortMap };
     /**
-     * Array of search input fields for this model
+     * Search input fields for this model
      * Also ensures that each field is in the SearchMap object
      * (i.e. SearchMap is a superset of Model['GqlSearch'])
      * 
      * NOTE: Excludes fields which are common to all models (or have special logic), such as "take", "after", 
      * "visibility", etc.
      */
-    searchFields: (keyof Model['GqlSearch'] extends infer R ?
+    searchFields: StringArrayMap<(keyof Model['GqlSearch'] extends infer R ?
         R extends keyof typeof SearchMap ?
         R extends CommonSearchFields ? never : R
         : never
-        : never)[];
+        : never)[]>;
     /**
      * Query for searching by a string. To reduce code duplication, 
      * pieces of the query can be replaced with keys of the SearchStringMap object. 

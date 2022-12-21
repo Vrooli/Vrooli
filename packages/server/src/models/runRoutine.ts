@@ -83,6 +83,7 @@ export const RunRoutineModel: ModelLogic<Model, typeof suppFields> = ({
             steps: 'RunRoutineStep',
             user: 'User',
         },
+        countFields: {},
         supplemental: {
             // Add fields needed for notifications when a run is started/completed
             dbFields: ['name'],
@@ -277,16 +278,16 @@ export const RunRoutineModel: ModelLogic<Model, typeof suppFields> = ({
     search: {
         defaultSort: RunRoutineSortBy.DateUpdatedDesc,
         sortBy: RunRoutineSortBy,
-        searchFields: [
-            'completedTimeFrame',
-            'createdTimeFrame',
-            'excludeIds',
-            'routineId',
-            'startedTimeFrame',
-            'status',
-            'updatedTimeFrame',
-            'visibility',
-        ],
+        searchFields: {
+            completedTimeFrame: true,
+            createdTimeFrame: true,
+            excludeIds: true,
+            routineId: true,
+            startedTimeFrame: true,
+            status: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
         searchStringQuery: () => ({
             OR: [
                 'nameWrapped',
