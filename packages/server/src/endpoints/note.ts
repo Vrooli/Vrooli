@@ -75,7 +75,6 @@ export const typeDef = gql`
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         starredBy: [User!]!
-        stats: [StatsNote!]!
         questions: [Question!]!
         questionsCount: Int!
         transfers: [Transfer!]!

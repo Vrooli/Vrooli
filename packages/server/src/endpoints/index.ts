@@ -70,7 +70,15 @@ import * as SmartContractVersion from './smartContractVersion';
 import * as Standard from './standard';
 import * as StandardVersion from './standardVersion';
 import * as Star from './star';
-import * as Stats from './stats';
+import * as StatsApi from './statsApi';
+import * as StatsOrganization from './statsOrganization';
+import * as StatsProject from './statsProject';
+import * as StatsQuiz from './statsQuiz';
+import * as StatsRoutine from './statsRoutine';
+import * as StatsSite from './statsSite';
+import * as StatsSmartContract from './statsSmartContract';
+import * as StatsStandard from './statsStandard';
+import * as StatsUser from './statsUser';
 import * as Tag from './tag';
 import * as Transfer from './transfer';
 import * as Translate from './translate';
@@ -162,7 +170,15 @@ const schemas: SchemaType[] = [
     Standard,
     StandardVersion,
     Star,
-    Stats,
+    StatsApi,
+    StatsOrganization,
+    StatsProject,
+    StatsQuiz,
+    StatsRoutine,
+    StatsSite,
+    StatsSmartContract,
+    StatsStandard,
+    StatsUser,
     Tag,
     Transfer,
     Translate,

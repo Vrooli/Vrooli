@@ -2,7 +2,7 @@ import { StandardSortBy } from "@shared/consts";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { ModelLogic, Mutater } from "./types";
+import { ModelLogic } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
 import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, RootPermission } from "../endpoints/types";
@@ -65,18 +65,13 @@ export const StandardModel: ModelLogic<{
             StandardVersionModel.display.label(select.versions[0] as any, languages) : '',
     },
     format: {
-        gqlRelMap: {
+        gqlRelMap: { //TODO finish
             __typename,
-            comments: 'Comment',
             createdBy: 'User',
             owner: {
                 ownedByUser: 'User',
                 ownedByOrganization: 'Organization',
             },
-            reports: 'Report',
-            resourceLists: 'ResourceList',
-            routineInputs: 'Routine',
-            routineOutputs: 'Routine',
             starredBy: 'User',
             tags: 'Tag',
         },
@@ -99,8 +94,9 @@ export const StandardModel: ModelLogic<{
         },
         joinMap: { tags: 'tag', starredBy: 'user' },//{ labels: 'label', tags: 'tag', starredBy: 'user' },
         countFields: {
-            commentsCount: true,
-            reportsCount: true,
+            forksCount: true,
+            issuesCount: true,
+            versionsCount: true,
         },
         supplemental: {
             graphqlFields: suppFields,
@@ -309,67 +305,6 @@ export const StandardModel: ModelLogic<{
             // // If no standards match, then data is unique. Return null
             // return null;
         },
-        /**
-         * Checks if a standard exists that has the same createdByUserId, 
-         * createdByOrganizationId, and name
-         * @param prisma Prisma client
-         * @param data StandardCreateData to check
-         * @param userId The ID of the user creating the standard
-         * @returns data of matching standard, or null if no match
-         */
-        async findMatchingStandardName(
-            prisma: PrismaType,
-            data: StandardCreateInput & { name: string },
-            userId: string
-        ): Promise<{ [x: string]: any } | null> {
-            // Find all standards that match the given standard
-            const standards = await prisma.standard.findMany({
-                where: {
-                    name: data.name,
-                    ownedByUserId: !data.organizationConnect ? userId : undefined,
-                    ownedByOrganizationId: data.organizationConnect ? data.organizationConnect : undefined,
-                }
-            });
-            // If any standards match (should only ever be 0 or 1, but you never know) return the first one
-            if (standards.length > 0) {
-                return standards[0];
-            }
-            // If no standards match, then data is unique. Return null
-            return null;
-        },
-        /**
-         * Generates a valid name for a standard.
-         * Standards must have a unique name per user/organization
-         * @param prisma Prisma client
-         * @param userId The user's ID
-         * @param data The standard create data
-         * @returns A valid name for the standard
-         */
-        async generateName(prisma: PrismaType, userId: string, data: StandardCreateInput): Promise<string> {
-            // Created by query
-            const id = noNull(data.organizationConnect, data.userConnect, userId)
-            const createdBy = { [`createdBy${data.organizationConnect ? 'Organization' : 'User'}Id`]: id };
-            // Calculate optional standard name
-            const name = data.name ? data.name : `${data.type} ${randomString(5)}`;
-            // Loop until a unique name is found, or a max of 20 tries
-            let success = false;
-            let i = 0;
-            while (!success && i < 20) {
-                // Check for case-insensitive duplicate
-                const existing = await prisma.standard.findMany({
-                    where: {
-                        ...createdBy,
-                        name: {
-                            contains: (i === 0 ? name : `${name}${i}`).toLowerCase(),
-                            mode: 'insensitive',
-                        },
-                    }
-                });
-                if (existing.length > 0) i++;
-                else success = true;
-            }
-            return i === 0 ? name : `${name}${i}`;
-        }
     },
     search: {
         defaultSort: StandardSortBy.ScoreDesc,
@@ -377,19 +312,21 @@ export const StandardModel: ModelLogic<{
         searchFields: {
             createdById: true,
             createdTimeFrame: true,
-            issuesId: true,
+            excludeIds: true,
+            hasCompleteVersion: true,
+            // issuesId: true,
             labelsId: true,
+            maxScore: true,
+            maxStars: true,
+            maxViews: true,
             minScore: true,
             minStars: true,
             minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
             parentId: true,
-            pullRequestsId: true,
-            questionsId: true,
-            standardTypeLatestVersion: true,
+            // pullRequestsId: true,
             tags: true,
-            transfersId: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
             visibility: true,

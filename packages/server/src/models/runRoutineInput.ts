@@ -30,6 +30,7 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
     gqlRelMap: {
         __typename,
         input: 'RoutineVersionInput',
+        runRoutine: 'RunRoutine',
     },
     prismaRelMap: {
         __typename,

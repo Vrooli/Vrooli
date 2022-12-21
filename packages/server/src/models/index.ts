@@ -59,6 +59,15 @@ import { SmartContractVersionModel } from './smartContractVersion';
 import { StandardModel } from './standard';
 import { StandardVersionModel } from './standardVersion';
 import { StarModel } from './star';
+import { StatsApiModel } from './statsApi';
+import { StatsOrganizationModel } from './statsOrganization';
+import { StatsProjectModel } from './statsProject';
+import { StatsQuizModel } from './statsQuiz';
+import { StatsRoutineModel } from './statsRoutine';
+import { StatsSiteModel } from './statsSite';
+import { StatsSmartContractModel } from './statsSmartContract';
+import { StatsStandardModel } from './statsStandard';
+import { StatsUserModel } from './statsUser';
 import { TagModel } from './tag';
 import { TransferModel } from './transfer';
 import { GraphQLModelType, ModelLogic } from './types';
@@ -134,6 +143,15 @@ export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any> } = {
     Standard: StandardModel,
     StandardVersion: StandardVersionModel,
     Star: StarModel,
+    StatsApi: StatsApiModel,
+    StatsOrganization: StatsOrganizationModel,
+    StatsProject: StatsProjectModel,
+    StatsQuiz: StatsQuizModel,
+    StatsRoutine: StatsRoutineModel,
+    StatsSite: StatsSiteModel,
+    StatsSmartContract: StatsSmartContractModel,
+    StatsStandard: StatsStandardModel,
+    StatsUser: StatsUserModel,
     Tag: TagModel,
     Transfer: TransferModel,
     User: UserModel,
@@ -208,6 +226,15 @@ export * from './smartContractVersion';
 export * from './standard';
 export * from './standardVersion';
 export * from './star';
+export * from './statsApi';
+export * from './statsOrganization';
+export * from './statsProject';
+export * from './statsQuiz';
+export * from './statsRoutine';
+export * from './statsSite';
+export * from './statsSmartContract';
+export * from './statsStandard';
+export * from './statsUser';
 export * from './runRoutineStep';
 export * from './runRoutineInput';
 export * from './tag';

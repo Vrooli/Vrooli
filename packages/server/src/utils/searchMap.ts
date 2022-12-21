@@ -189,7 +189,7 @@ export const SearchMap = {
     smartContractVersionsId: (id: Maybe<string>) => oneToManyId(id, 'smartContractVersions'),
     standardId: (id: Maybe<string>) => oneToOneId(id, 'standard'),
     standardIds: (ids: Maybe<string[]>) => oneToOneIds(ids, 'standard'),
-    standardType: (type: Maybe<string>) => type ? ({ type: { contains: type.trim(), mode: 'insensitive' } }) : {},
+    type: (type: Maybe<string>) => type ? ({ type: { contains: type.trim(), mode: 'insensitive' } }) : {},
     standardTypeLatestVersion: (type: Maybe<string>) => type ? ({
         versions: {
             some: {

@@ -6,7 +6,7 @@ import { readFiles, saveFiles } from '../utils';
 import { Context, rateLimit } from '../middleware';
 import { CustomError } from '../events/error';
 import { resolveUnion } from './resolvers';
-import { ReadAssetsInput, RunStatus, VisibilityType, WriteAssetsInput } from './types';
+import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from './types';
 import { GQLEndpoint, UnionResolver } from '../types';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
@@ -78,6 +78,13 @@ export const typeDef = gql`
         Cancelled
     }
 
+    enum StatPeriodType {
+        Daily
+        Weekly
+        Monthly
+        Yearly
+    }
+
     input ReadAssetsInput {
         files: [String!]!
     }
@@ -130,6 +137,7 @@ export const typeDef = gql`
 
 export const resolvers: {
     RunStatus: typeof RunStatus;
+    StatPeriodType: typeof StatPeriodType;
     VisibilityType: typeof VisibilityType;
     Upload: typeof GraphQLUpload;
     Date: GraphQLScalarType;
@@ -142,6 +150,7 @@ export const resolvers: {
     }
 } = {
     RunStatus,
+    StatPeriodType,
     VisibilityType: VisibilityType,
     Upload: GraphQLUpload,
     Date: new GraphQLScalarType({

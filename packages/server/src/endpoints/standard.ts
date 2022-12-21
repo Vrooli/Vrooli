@@ -30,127 +30,85 @@ export const typeDef = gql`
 
     input StandardCreateInput {
         id: ID!
-        default: String
-        isInternal: Boolean
+        name: String!
         isPrivate: Boolean
-        name: String
-        type: String!
-        props: String!
-        yup: String
-        versionLabel: String
+        permissions: String!
+        parentConnect: ID
         userConnect: ID
         organizationConnect: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        tagsConnect: [String!]
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
-        translationsCreate: [StandardTranslationCreateInput!]
+        versionsCreate: [StandardVersionCreateInput!]
     }
     input StandardUpdateInput {
         id: ID!
-        makeAnonymous: Boolean
         isPrivate: Boolean
-        default: String
-        type: String!
-        props: String!
-        yup: String
+        permissions: String
         userConnect: ID
         organizationConnect: ID
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        tagsConnect: [ID!]
+        tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
-        translationsCreate: [StandardTranslationCreateInput!]
-        translationsUpdate: [StandardTranslationUpdateInput!]
-        versionConnect: ID # If versionId passed, then we're updating an existing version. NOTE: This will throw an error if you try to update a completed version
-        versionLabel: String # If version label passed, then we're creating a new version
+        versionsCreate: [StandardVersionCreateInput!]
+        versionsUpdate: [StandardVersionUpdateInput!]
+        versionsDelete: [ID!]
     }
     type Standard {
         id: ID!
+        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        default: String
-        name: String!
+        hasCompletedVersion: Boolean!
         isDeleted: Boolean!
-        isInternal: Boolean!
         isPrivate: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
-        type: String!
-        props: String!
-        yup: String
-        versionLabel: String!
-        rootId: ID!
-        # versions: [Version!]!
         score: Int!
         stars: Int!
         views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
+        name: String!
         createdBy: User
+        forks: [Standard!]!
+        forksCount: Int!
+        issues: [Issue!]!
+        issuesCount: Int!
+        labels: [Label!]!
         owner: Owner
+        parent: Standard
         permissionsRoot: RootPermission!
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]!
-        routineInputs: [Routine!]!
-        routineOutputs: [Routine!]!
+        pullRequests: [PullRequest!]!
+        pullRequestsCount: Int!
         starredBy: [User!]!
         tags: [Tag!]!
-        translations: [StandardTranslation!]!
-    }
-
-    type StandardPermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
-    }
-
-    input StandardTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        jsonVariable: String
-    }
-    input StandardTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        jsonVariable: String
-    }
-    type StandardTranslation {
-        id: ID!
-        language: String!
-        description: String
-        jsonVariable: String
+        versions: [StandardVersion!]!
+        versionsCount: Int
     }
 
     input StandardSearchInput {
         after: String
         createdById: ID
         createdTimeFrame: TimeFrame
+        excludeIds: [ID!]
         ids: [ID!]
+        hasCompleteVersion: Boolean
+        labelsId: ID
+        maxScore: Int
+        maxStars: Int
+        maxViews: Int
         minScore: Int
         minStars: Int
         minViews: Int
-        ownedByOrganizationId: ID
         ownedByUserId: ID
-        issuesId: ID
-        labelsId: ID
+        ownedByOrganizationId: ID
         parentId: ID
-        pullRequestsId: ID
-        questionsId: ID
-        transfersId: ID
         searchString: String
         sortBy: StandardSortBy
-        standardTypeLatestVersion: String
         tags: [String!]
         take: Int
         translationLanguagesLatestVersion: [String!]

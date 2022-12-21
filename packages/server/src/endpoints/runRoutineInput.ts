@@ -12,10 +12,21 @@ export const typeDef = gql`
         DateUpdatedDesc
     }
 
+    input RunRoutineInputCreateInput {
+        id: ID!
+        data: String!
+        inputConnect: ID!
+        runRoutineConnect: ID!
+    }
+    input RunRoutineInputUpdateInput {
+        id: ID!
+        data: String!
+    }
     type RunRoutineInput {
         id: ID!
         data: String!
         input: RoutineVersionInput!
+        runRoutine: RunRoutine!
     }
 
     input RunRoutineInputSearchInput {
@@ -28,26 +39,13 @@ export const typeDef = gql`
         take: Int
         updatedTimeFrame: TimeFrame
     }
-
     type RunRoutineInputSearchResult {
         pageInfo: PageInfo!
         edges: [RunRoutineInputEdge!]!
     }
-
     type RunRoutineInputEdge {
         cursor: String!
         node: RunRoutineInput!
-    }
-
-    input RunRoutineInputCreateInput {
-        id: ID!
-        data: String!
-        inputConnect: ID!
-    }
-
-    input RunRoutineInputUpdateInput {
-        id: ID!
-        data: String!
     }
 
     extend type Query {

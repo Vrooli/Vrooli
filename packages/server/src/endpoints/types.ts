@@ -2393,7 +2393,6 @@ export type Note = {
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
-  stats: Array<StatsNote>;
   tags: Array<Tag>;
   transfers: Array<Transfer>;
   transfersCount: Scalars['Int'];
@@ -3823,7 +3822,15 @@ export type Query = {
   standardVersions: StandardVersionSearchResult;
   standards: StandardSearchResult;
   stars: StarSearchResult;
+  statsApi: StatsApiSearchResult;
+  statsOrganization: StatsOrganizationSearchResult;
+  statsProject: StatsProjectSearchResult;
+  statsQuiz: StatsQuizSearchResult;
+  statsRoutine: StatsRoutineSearchResult;
   statsSite: StatsSiteSearchResult;
+  statsSmartContract: StatsSmartContractSearchResult;
+  statsStandard: StatsStandardSearchResult;
+  statsUser: StatsUserSearchResult;
   tag?: Maybe<Tag>;
   tags: TagSearchResult;
   transfer?: Maybe<Transfer>;
@@ -4298,8 +4305,48 @@ export type QueryStarsArgs = {
 };
 
 
+export type QueryStatsApiArgs = {
+  input: StatsApiSearchInput;
+};
+
+
+export type QueryStatsOrganizationArgs = {
+  input: StatsOrganizationSearchInput;
+};
+
+
+export type QueryStatsProjectArgs = {
+  input: StatsProjectSearchInput;
+};
+
+
+export type QueryStatsQuizArgs = {
+  input: StatsQuizSearchInput;
+};
+
+
+export type QueryStatsRoutineArgs = {
+  input: StatsRoutineSearchInput;
+};
+
+
 export type QueryStatsSiteArgs = {
   input: StatsSiteSearchInput;
+};
+
+
+export type QueryStatsSmartContractArgs = {
+  input: StatsSmartContractSearchInput;
+};
+
+
+export type QueryStatsStandardArgs = {
+  input: StatsStandardSearchInput;
+};
+
+
+export type QueryStatsUserArgs = {
+  input: StatsUserSearchInput;
 };
 
 
@@ -5804,6 +5851,9 @@ export type RoutineVersion = {
   translations: Array<RoutineVersionTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
+  versionIndex: Scalars['Int'];
+  versionLabel: Scalars['String'];
+  versionNotes?: Maybe<Scalars['String']>;
 };
 
 export type RoutineVersionCreateInput = {
@@ -5826,6 +5876,7 @@ export type RoutineVersionCreateInput = {
   smartContractCallData?: InputMaybe<Scalars['String']>;
   smartContractVersionConnect?: InputMaybe<Scalars['ID']>;
   suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars['ID']>>;
+  translationsCreate?: InputMaybe<Array<RoutineVersionTranslationCreateInput>>;
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: InputMaybe<Scalars['String']>;
@@ -6086,6 +6137,9 @@ export type RoutineVersionUpdateInput = {
   smartContractVersionDisconnect?: InputMaybe<Scalars['ID']>;
   suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars['ID']>>;
   suggestedNextByRoutineVersionDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  translationsCreate?: InputMaybe<Array<RoutineVersionTranslationCreateInput>>;
+  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<RoutineVersionTranslationUpdateInput>>;
   versionIndex: Scalars['Int'];
   versionLabel?: InputMaybe<Scalars['String']>;
   versionNotes?: InputMaybe<Scalars['String']>;
@@ -6423,12 +6477,14 @@ export type RunRoutineInput = {
   data: Scalars['String'];
   id: Scalars['ID'];
   input: RoutineVersionInput;
+  runRoutine: RunRoutine;
 };
 
 export type RunRoutineInputCreateInput = {
   data: Scalars['String'];
   id: Scalars['ID'];
   inputConnect: Scalars['ID'];
+  runRoutineConnect: Scalars['ID'];
 };
 
 export type RunRoutineInputEdge = {
@@ -6734,44 +6790,46 @@ export type SessionUser = {
 
 export type SmartContract = {
   __typename?: 'SmartContract';
-  comments: Array<Comment>;
-  commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
-  forks: Array<Project>;
-  handle?: Maybe<Scalars['String']>;
+  forks: Array<SmartContract>;
+  forksCount: Scalars['Int'];
+  hasCompletedVersion: Scalars['Boolean'];
   id: Scalars['ID'];
-  isComplete: Scalars['Boolean'];
+  isDeleted: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
+  issues: Array<Issue>;
+  issuesCount: Scalars['Int'];
+  labels: Array<Label>;
   owner?: Maybe<Owner>;
-  parent?: Maybe<Project>;
-  reports: Array<Report>;
-  reportsCount: Scalars['Int'];
-  resourceLists?: Maybe<Array<ResourceList>>;
-  routines: Array<Routine>;
+  parent?: Maybe<SmartContract>;
+  permissionsRoot: RootPermission;
   score: Scalars['Int'];
-  starredBy?: Maybe<Array<User>>;
+  starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
   updated_at: Scalars['Date'];
+  versions: Array<SmartContractVersion>;
+  versionsCount?: Maybe<Scalars['Int']>;
   views: Scalars['Int'];
-  wallets?: Maybe<Array<Wallet>>;
 };
 
 export type SmartContractCreateInput = {
-  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  organizationConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
-  resourceListCreate: ResourceListCreateInput;
-  rootConnect: Scalars['ID'];
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
+  permissions: Scalars['String'];
+  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  userConnect?: InputMaybe<Scalars['ID']>;
+  versionsCreate?: InputMaybe<Array<SmartContractVersionCreateInput>>;
 };
 
 export type SmartContractEdge = {
@@ -6780,38 +6838,29 @@ export type SmartContractEdge = {
   node: SmartContract;
 };
 
-export type SmartContractPermission = {
-  __typename?: 'SmartContractPermission';
-  canComment: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
-};
-
 export type SmartContractSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  hasCompleteVersion?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
-  languages?: InputMaybe<Array<Scalars['String']>>;
+  labelsId?: InputMaybe<Scalars['ID']>;
+  maxScore?: InputMaybe<Scalars['Int']>;
+  maxStars?: InputMaybe<Scalars['Int']>;
+  maxViews?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
+  ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
-  reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<ProjectSortBy>;
+  sortBy?: InputMaybe<SmartContractSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
-  userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
 };
 
@@ -6844,42 +6893,21 @@ export enum SmartContractSortBy {
   ViewsDesc = 'ViewsDesc'
 }
 
-export type SmartContractTranslation = {
-  __typename?: 'SmartContractTranslation';
-  description?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  name: Scalars['String'];
-};
-
-export type SmartContractTranslationCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language: Scalars['String'];
-  name: Scalars['String'];
-};
-
-export type SmartContractTranslationUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  language?: InputMaybe<Scalars['String']>;
-  name?: InputMaybe<Scalars['String']>;
-};
-
 export type SmartContractUpdateInput = {
-  handle?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isComplete?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
-  resourceListCreate: ResourceListCreateInput;
-  resourceListDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourceListUpdate: ResourceListUpdateInput;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
+  permissions?: InputMaybe<Scalars['String']>;
+  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   userConnect?: InputMaybe<Scalars['ID']>;
+  versionsCreate?: InputMaybe<Array<SmartContractVersionCreateInput>>;
+  versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  versionsUpdate?: InputMaybe<Array<SmartContractVersionUpdateInput>>;
 };
 
 export type SmartContractVersion = {
@@ -6887,81 +6915,70 @@ export type SmartContractVersion = {
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
-  createdBy?: Maybe<User>;
+  content: Scalars['String'];
   created_at: Scalars['Date'];
-  forks: Array<Project>;
-  handle?: Maybe<Scalars['String']>;
+  default?: Maybe<Scalars['String']>;
+  directoryListings: Array<ProjectVersionDirectory>;
+  directoryListingsCount: Scalars['Int'];
+  forks: Array<SmartContract>;
+  forksCount: Scalars['Int'];
   id: Scalars['ID'];
   isComplete: Scalars['Boolean'];
+  isDeleted: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
-  owner?: Maybe<Owner>;
-  parent?: Maybe<Project>;
+  permissions: VersionPermission;
+  pullRequest?: Maybe<PullRequest>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
-  resourceLists?: Maybe<Array<ResourceList>>;
+  resourceList?: Maybe<ResourceList>;
   root: SmartContract;
-  routines: Array<Routine>;
-  score: Scalars['Int'];
-  starredBy?: Maybe<Array<User>>;
-  stars: Scalars['Int'];
-  tags: Array<Tag>;
+  translations: Array<SmartContractVersionTranslation>;
+  translationsCount: Scalars['Int'];
+  type: Scalars['String'];
   updated_at: Scalars['Date'];
-  views: Scalars['Int'];
-  wallets?: Maybe<Array<Wallet>>;
+  versionIndex: Scalars['Int'];
+  versionLabel: Scalars['String'];
+  versionNotes?: Maybe<Scalars['String']>;
 };
 
 export type SmartContractVersionCreateInput = {
-  handle?: InputMaybe<Scalars['String']>;
+  content: Scalars['String'];
+  default?: InputMaybe<Scalars['String']>;
+  directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  parentConnect?: InputMaybe<Scalars['ID']>;
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  rootConnect?: InputMaybe<Scalars['ID']>;
+  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
+  rootConnect: Scalars['ID'];
   rootCreate?: InputMaybe<SmartContractCreateInput>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
+  translationsCreate?: InputMaybe<Array<SmartContractVersionTranslationCreateInput>>;
+  type: Scalars['String'];
+  versionIndex: Scalars['Int'];
+  versionLabel: Scalars['String'];
+  versionNotes?: InputMaybe<Scalars['String']>;
 };
 
 export type SmartContractVersionEdge = {
   __typename?: 'SmartContractVersionEdge';
   cursor: Scalars['String'];
-  node: SmartContract;
-};
-
-export type SmartContractVersionPermission = {
-  __typename?: 'SmartContractVersionPermission';
-  canComment: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
+  node: SmartContractVersion;
 };
 
 export type SmartContractVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  completedTimeFrame?: InputMaybe<TimeFrame>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isCompleteExceptions?: InputMaybe<Array<SearchException>>;
   languages?: InputMaybe<Array<Scalars['String']>>;
-  minScore?: InputMaybe<Scalars['Int']>;
-  minStars?: InputMaybe<Scalars['Int']>;
-  minViews?: InputMaybe<Scalars['Int']>;
-  organizationId?: InputMaybe<Scalars['ID']>;
-  parentId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
-  resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
+  rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
-  sortBy?: InputMaybe<ProjectSortBy>;
+  sortBy?: InputMaybe<SmartContractVersionSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  type?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -6969,7 +6986,7 @@ export type SmartContractVersionSearchInput = {
 
 export type SmartContractVersionSearchResult = {
   __typename?: 'SmartContractVersionSearchResult';
-  edges: Array<SmartContractEdge>;
+  edges: Array<SmartContractVersionEdge>;
   pageInfo: PageInfo;
 };
 
@@ -6994,90 +7011,87 @@ export type SmartContractVersionTranslation = {
   __typename?: 'SmartContractVersionTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
+  jsonVariable?: Maybe<Scalars['String']>;
   language: Scalars['String'];
-  name: Scalars['String'];
 };
 
 export type SmartContractVersionTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  jsonVariable?: InputMaybe<Scalars['String']>;
   language: Scalars['String'];
-  name: Scalars['String'];
 };
 
 export type SmartContractVersionTranslationUpdateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
+  jsonVariable?: InputMaybe<Scalars['String']>;
   language?: InputMaybe<Scalars['String']>;
-  name?: InputMaybe<Scalars['String']>;
 };
 
 export type SmartContractVersionUpdateInput = {
-  handle?: InputMaybe<Scalars['String']>;
+  content?: InputMaybe<Scalars['String']>;
+  default?: InputMaybe<Scalars['String']>;
+  directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   isComplete?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
+  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
+  resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
+  translationsCreate?: InputMaybe<Array<SmartContractVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  translationsUpdate?: InputMaybe<Array<SmartContractVersionTranslationUpdateInput>>;
+  type?: InputMaybe<Scalars['String']>;
+  versionIndex: Scalars['Int'];
+  versionLabel?: InputMaybe<Scalars['String']>;
+  versionNotes?: InputMaybe<Scalars['String']>;
 };
 
 export type Standard = {
   __typename?: 'Standard';
-  comments: Array<Comment>;
-  commentsCount: Scalars['Int'];
+  completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
-  default?: Maybe<Scalars['String']>;
+  forks: Array<Standard>;
+  forksCount: Scalars['Int'];
+  hasCompletedVersion: Scalars['Boolean'];
   id: Scalars['ID'];
   isDeleted: Scalars['Boolean'];
-  isInternal: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
   isViewed: Scalars['Boolean'];
-  name: Scalars['String'];
+  issues: Array<Issue>;
+  issuesCount: Scalars['Int'];
+  labels: Array<Label>;
   owner?: Maybe<Owner>;
+  parent?: Maybe<Standard>;
   permissionsRoot: RootPermission;
-  props: Scalars['String'];
-  reports: Array<Report>;
-  reportsCount: Scalars['Int'];
-  resourceLists: Array<ResourceList>;
-  rootId: Scalars['ID'];
-  routineInputs: Array<Routine>;
-  routineOutputs: Array<Routine>;
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
-  translations: Array<StandardTranslation>;
-  type: Scalars['String'];
   updated_at: Scalars['Date'];
-  versionLabel: Scalars['String'];
+  versions: Array<StandardVersion>;
+  versionsCount?: Maybe<Scalars['Int']>;
   views: Scalars['Int'];
-  yup?: Maybe<Scalars['String']>;
 };
 
 export type StandardCreateInput = {
-  default?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  isInternal?: InputMaybe<Scalars['Boolean']>;
+  name: any
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  name?: InputMaybe<Scalars['String']>;
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
-  props: Scalars['String'];
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
+  parentConnect?: InputMaybe<Scalars['ID']>;
+  permissions: Scalars['String'];
+  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
-  type: Scalars['String'];
   userConnect?: InputMaybe<Scalars['ID']>;
-  versionLabel?: InputMaybe<Scalars['String']>;
-  yup?: InputMaybe<Scalars['String']>;
+  versionsCreate?: InputMaybe<Array<StandardVersionCreateInput>>;
 };
 
 export type StandardEdge = {
@@ -7086,38 +7100,27 @@ export type StandardEdge = {
   node: Standard;
 };
 
-export type StandardPermission = {
-  __typename?: 'StandardPermission';
-  canComment: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
-};
-
 export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  hasCompleteVersion?: InputMaybe<Scalars['Boolean']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  issuesId?: InputMaybe<Scalars['ID']>;
   labelsId?: InputMaybe<Scalars['ID']>;
+  maxScore?: InputMaybe<Scalars['Int']>;
+  maxStars?: InputMaybe<Scalars['Int']>;
+  maxViews?: InputMaybe<Scalars['Int']>;
   minScore?: InputMaybe<Scalars['Int']>;
   minStars?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
   parentId?: InputMaybe<Scalars['ID']>;
-  pullRequestsId?: InputMaybe<Scalars['ID']>;
-  questionsId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardSortBy>;
-  standardTypeLatestVersion?: InputMaybe<Scalars['String']>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
-  transfersId?: InputMaybe<Scalars['ID']>;
   translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7152,103 +7155,73 @@ export enum StandardSortBy {
   ViewsDesc = 'ViewsDesc'
 }
 
-export type StandardTranslation = {
-  __typename?: 'StandardTranslation';
-  description?: Maybe<Scalars['String']>;
-  id: Scalars['ID'];
-  jsonVariable?: Maybe<Scalars['String']>;
-  language: Scalars['String'];
-};
-
-export type StandardTranslationCreateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  jsonVariable?: InputMaybe<Scalars['String']>;
-  language: Scalars['String'];
-};
-
-export type StandardTranslationUpdateInput = {
-  description?: InputMaybe<Scalars['String']>;
-  id: Scalars['ID'];
-  jsonVariable?: InputMaybe<Scalars['String']>;
-  language?: InputMaybe<Scalars['String']>;
-};
-
 export type StandardUpdateInput = {
-  default?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  makeAnonymous?: InputMaybe<Scalars['Boolean']>;
+  labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
-  props: Scalars['String'];
-  resourceListsCreate?: InputMaybe<Array<ResourceListCreateInput>>;
-  resourceListsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  resourceListsUpdate?: InputMaybe<Array<ResourceListUpdateInput>>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
+  permissions?: InputMaybe<Scalars['String']>;
+  tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
-  translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
-  translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<StandardTranslationUpdateInput>>;
-  type: Scalars['String'];
+  tagsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   userConnect?: InputMaybe<Scalars['ID']>;
-  versionConnect?: InputMaybe<Scalars['ID']>;
-  versionLabel?: InputMaybe<Scalars['String']>;
-  yup?: InputMaybe<Scalars['String']>;
+  versionsCreate?: InputMaybe<Array<StandardVersionCreateInput>>;
+  versionsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  versionsUpdate?: InputMaybe<Array<StandardVersionUpdateInput>>;
 };
 
 export type StandardVersion = {
   __typename?: 'StandardVersion';
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
+  completedAt?: Maybe<Scalars['Date']>;
   created_at: Scalars['Date'];
   default?: Maybe<Scalars['String']>;
   directoryListings: Array<ProjectVersionDirectory>;
   directoryListingsCount: Scalars['Int'];
+  forks: Array<Standard>;
+  forksCount: Scalars['Int'];
   id: Scalars['ID'];
+  isComplete: Scalars['Boolean'];
   isDeleted: Scalars['Boolean'];
-  isInternal: Scalars['Boolean'];
+  isFile?: Maybe<Scalars['Boolean']>;
   isPrivate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
-  name: Scalars['String'];
-  permissionsStandard: StandardPermission;
+  permissions: VersionPermission;
   props: Scalars['String'];
+  pullRequest?: Maybe<PullRequest>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   resourceList?: Maybe<ResourceList>;
   root: Standard;
-  rootId: Scalars['ID'];
-  routineInputs: Array<Routine>;
-  routineOutputs: Array<Routine>;
-  score: Scalars['Int'];
-  starredBy: Array<User>;
-  stars: Scalars['Int'];
-  tags: Array<Tag>;
-  translations: Array<StandardTranslation>;
+  translations: Array<StandardVersionTranslation>;
+  translationsCount: Scalars['Int'];
   type: Scalars['String'];
   updated_at: Scalars['Date'];
+  versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
-  views: Scalars['Int'];
+  versionNotes?: Maybe<Scalars['String']>;
   yup?: Maybe<Scalars['String']>;
 };
 
 export type StandardVersionCreateInput = {
   default?: InputMaybe<Scalars['String']>;
+  directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
-  isInternal?: InputMaybe<Scalars['Boolean']>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
+  isFile?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  name?: InputMaybe<Scalars['String']>;
   props: Scalars['String'];
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-  rootConnect?: InputMaybe<Scalars['ID']>;
+  rootConnect: Scalars['ID'];
   rootCreate?: InputMaybe<StandardCreateInput>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
+  translationsCreate?: InputMaybe<Array<StandardVersionTranslationCreateInput>>;
   type: Scalars['String'];
-  versionLabel?: InputMaybe<Scalars['String']>;
+  versionIndex: Scalars['Int'];
+  versionLabel: Scalars['String'];
+  versionNotes?: InputMaybe<Scalars['String']>;
   yup?: InputMaybe<Scalars['String']>;
 };
 
@@ -7258,29 +7231,20 @@ export type StandardVersionEdge = {
   node: StandardVersion;
 };
 
-export type StandardVersionPermission = {
-  __typename?: 'StandardVersionPermission';
-  canComment: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
-};
-
 export type StandardVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  completedTimeFrame?: InputMaybe<TimeFrame>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isComplete?: InputMaybe<Scalars['Boolean']>;
   languages?: InputMaybe<Array<Scalars['String']>>;
   reportId?: InputMaybe<Scalars['ID']>;
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardVersionSortBy>;
-  standardType?: InputMaybe<Scalars['String']>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
+  type?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7288,7 +7252,7 @@ export type StandardVersionSearchInput = {
 
 export type StandardVersionSearchResult = {
   __typename?: 'StandardVersionSearchResult';
-  edges: Array<StandardEdge>;
+  edges: Array<StandardVersionEdge>;
   pageInfo: PageInfo;
 };
 
@@ -7333,21 +7297,23 @@ export type StandardVersionTranslationUpdateInput = {
 
 export type StandardVersionUpdateInput = {
   default?: InputMaybe<Scalars['String']>;
+  directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
+  directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
+  isComplete?: InputMaybe<Scalars['Boolean']>;
+  isFile?: InputMaybe<Scalars['Boolean']>;
+  isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
-  makeAnonymous?: InputMaybe<Scalars['Boolean']>;
-  props: Scalars['String'];
-  resourceListsCreate?: InputMaybe<ResourceListCreateInput>;
-  resourceListsUpdate?: InputMaybe<ResourceListUpdateInput>;
-  tagsConnect?: InputMaybe<Array<Scalars['String']>>;
-  tagsCreate?: InputMaybe<Array<TagCreateInput>>;
-  tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
-  translationsCreate?: InputMaybe<Array<StandardTranslationCreateInput>>;
+  props?: InputMaybe<Scalars['String']>;
+  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
+  resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
+  translationsCreate?: InputMaybe<Array<StandardVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  translationsUpdate?: InputMaybe<Array<StandardTranslationUpdateInput>>;
-  type: Scalars['String'];
-  versionConnect?: InputMaybe<Scalars['ID']>;
+  translationsUpdate?: InputMaybe<Array<StandardVersionTranslationUpdateInput>>;
+  type?: InputMaybe<Scalars['String']>;
+  versionIndex: Scalars['Int'];
   versionLabel?: InputMaybe<Scalars['String']>;
+  versionNotes?: InputMaybe<Scalars['String']>;
   yup?: InputMaybe<Scalars['String']>;
 };
 
@@ -7410,73 +7376,380 @@ export enum StarSortBy {
 
 export type StarTo = Api | Comment | Issue | Note | Organization | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard | Tag | User;
 
-export type StatisticsTimeFrame = {
-  __typename?: 'StatisticsTimeFrame';
-  organizations: Array<Scalars['Int']>;
-  projects: Array<Scalars['Int']>;
-  routines: Array<Scalars['Int']>;
-  standards: Array<Scalars['Int']>;
-  users: Array<Scalars['Int']>;
-};
+export enum StatPeriodType {
+  Daily = 'Daily',
+  Monthly = 'Monthly',
+  Weekly = 'Weekly',
+  Yearly = 'Yearly'
+}
 
 export type StatsApi = {
   __typename?: 'StatsApi';
+  calls: Scalars['Int'];
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
 };
 
-export type StatsNote = {
-  __typename?: 'StatsNote';
-  id: Scalars['ID'];
+export type StatsApiEdge = {
+  __typename?: 'StatsApiEdge';
+  cursor: Scalars['String'];
+  node: StatsApi;
 };
+
+export type StatsApiSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsApiSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatsApiSearchResult = {
+  __typename?: 'StatsApiSearchResult';
+  edges: Array<StatsApiEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StatsApiSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export type StatsOrganization = {
   __typename?: 'StatsOrganization';
+  apis: Scalars['Int'];
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
+  members: Scalars['Int'];
+  notes: Scalars['Int'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
+  projects: Scalars['Int'];
+  routines: Scalars['Int'];
+  smartContracts: Scalars['Int'];
+  standards: Scalars['Int'];
 };
+
+export type StatsOrganizationEdge = {
+  __typename?: 'StatsOrganizationEdge';
+  cursor: Scalars['String'];
+  node: StatsOrganization;
+};
+
+export type StatsOrganizationSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsOrganizationSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatsOrganizationSearchResult = {
+  __typename?: 'StatsOrganizationSearchResult';
+  edges: Array<StatsOrganizationEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StatsOrganizationSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export type StatsProject = {
   __typename?: 'StatsProject';
+  created_at: Scalars['Date'];
+  directories: Scalars['Int'];
   id: Scalars['ID'];
+  notes: Scalars['Int'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
+  routines: Scalars['Int'];
+  smartContracts: Scalars['Int'];
+  standards: Scalars['Int'];
 };
+
+export type StatsProjectEdge = {
+  __typename?: 'StatsProjectEdge';
+  cursor: Scalars['String'];
+  node: StatsProject;
+};
+
+export type StatsProjectSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsProjectSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatsProjectSearchResult = {
+  __typename?: 'StatsProjectSearchResult';
+  edges: Array<StatsProjectEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StatsProjectSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export type StatsQuiz = {
   __typename?: 'StatsQuiz';
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
+  scoreAverage: Scalars['Float'];
+  timesFailed: Scalars['Int'];
+  timesPassed: Scalars['Int'];
+  timesStarted: Scalars['Int'];
 };
+
+export type StatsQuizEdge = {
+  __typename?: 'StatsQuizEdge';
+  cursor: Scalars['String'];
+  node: StatsQuiz;
+};
+
+export type StatsQuizSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsQuizSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatsQuizSearchResult = {
+  __typename?: 'StatsQuizSearchResult';
+  edges: Array<StatsQuizEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StatsQuizSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export type StatsRoutine = {
   __typename?: 'StatsRoutine';
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
+};
+
+export type StatsRoutineEdge = {
+  __typename?: 'StatsRoutineEdge';
+  cursor: Scalars['String'];
+  node: StatsRoutine;
+};
+
+export type StatsRoutineSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsRoutineSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatsRoutineSearchResult = {
+  __typename?: 'StatsRoutineSearchResult';
+  edges: Array<StatsRoutineEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StatsRoutineSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
+export type StatsSite = {
+  __typename?: 'StatsSite';
+  activeUsers: Scalars['Int'];
+  apiCallsPeriod: Scalars['Int'];
+  apis: Scalars['Int'];
+  created_at: Scalars['Date'];
+  id: Scalars['ID'];
+  organizations: Scalars['Int'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
+  projects: Scalars['Int'];
+  projectsCompleted: Scalars['Int'];
+  projectsCompletionTimeAverageInPeriod: Scalars['Float'];
+  quizScoreAverageInPeriod: Scalars['Float'];
+  quizzes: Scalars['Int'];
+  quizzesCompleted: Scalars['Int'];
+  routines: Scalars['Int'];
+  routinesCompleted: Scalars['Int'];
+  routinesCompletionTimeAverageInPeriod: Scalars['Float'];
+  routinesComplexityAverage: Scalars['Float'];
+  routinesSimplicityAverage: Scalars['Float'];
+  runsCompleted: Scalars['Int'];
+  runsCompletionTimeAverageInPerid: Scalars['Float'];
+  runsStarted: Scalars['Int'];
+  smartContractCalls: Scalars['Int'];
+  smartContractsCompleted: Scalars['Int'];
+  smartContractsCompletionTimeAverageInPeriod: Scalars['Float'];
+  smartContractsCreated: Scalars['Int'];
+  standardsCompleted: Scalars['Int'];
+  standardsCompletionTimeAverageInPeriod: Scalars['Float'];
+  standardsCreated: Scalars['Int'];
+  verifiedEmails: Scalars['Int'];
+  verifiedWallets: Scalars['Int'];
+};
+
+export type StatsSiteEdge = {
+  __typename?: 'StatsSiteEdge';
+  cursor: Scalars['String'];
+  node: StatsSite;
 };
 
 export type StatsSiteSearchInput = {
-  searchString: Scalars['String'];
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsSiteSortBy>;
   take?: InputMaybe<Scalars['Int']>;
 };
 
 export type StatsSiteSearchResult = {
   __typename?: 'StatsSiteSearchResult';
-  allTime: StatisticsTimeFrame;
-  daily: StatisticsTimeFrame;
-  monthly: StatisticsTimeFrame;
-  weekly: StatisticsTimeFrame;
-  yearly: StatisticsTimeFrame;
+  edges: Array<StatsSiteEdge>;
+  pageInfo: PageInfo;
 };
+
+export enum StatsSiteSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export type StatsSmartContract = {
   __typename?: 'StatsSmartContract';
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
 };
+
+export type StatsSmartContractEdge = {
+  __typename?: 'StatsSmartContractEdge';
+  cursor: Scalars['String'];
+  node: StatsSmartContract;
+};
+
+export type StatsSmartContractSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsSmartContractSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatsSmartContractSearchResult = {
+  __typename?: 'StatsSmartContractSearchResult';
+  edges: Array<StatsSmartContractEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StatsSmartContractSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export type StatsStandard = {
   __typename?: 'StatsStandard';
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
 };
+
+export type StatsStandardEdge = {
+  __typename?: 'StatsStandardEdge';
+  cursor: Scalars['String'];
+  node: StatsStandard;
+};
+
+export type StatsStandardSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsStandardSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatsStandardSearchResult = {
+  __typename?: 'StatsStandardSearchResult';
+  edges: Array<StatsStandardEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StatsStandardSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export type StatsUser = {
   __typename?: 'StatsUser';
+  created_at: Scalars['Date'];
   id: Scalars['ID'];
+  periodEnd: Scalars['Date'];
+  periodStart: Scalars['Date'];
+  periodType: StatPeriodType;
 };
+
+export type StatsUserEdge = {
+  __typename?: 'StatsUserEdge';
+  cursor: Scalars['String'];
+  node: StatsUser;
+};
+
+export type StatsUserSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  periodTimeFrame?: InputMaybe<TimeFrame>;
+  periodType: StatPeriodType;
+  searchString?: InputMaybe<Scalars['String']>;
+  sortBy?: InputMaybe<StatsUserSortBy>;
+  take?: InputMaybe<Scalars['Int']>;
+};
+
+export type StatsUserSearchResult = {
+  __typename?: 'StatsUserSearchResult';
+  edges: Array<StatsUserEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum StatsUserSortBy {
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
 
 export enum SubscribableObject {
   Api = 'Api',

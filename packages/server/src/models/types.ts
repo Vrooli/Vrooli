@@ -1,5 +1,5 @@
 import { Count, SessionUser } from "../endpoints/types";
-import { PrismaType, PromiseOrValue, RecursivePartial, SingleOrArray } from "../types";
+import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
 import { ObjectSchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 import { SortMap } from "../utils/sortMap";
@@ -81,11 +81,11 @@ export type GraphQLModelType =
     'StandardVersion' |
     'Star' |
     'StatsApi' |
-    'StatsNote' |
     'StatsOrganization' |
     'StatsProject' |
     'StatsQuiz' |
     'StatsRoutine' |
+    'StatsSite' |
     'StatsSmartContract' |
     'StatsStandard' |
     'StatsUser' |
@@ -307,8 +307,8 @@ export type Searcher<
      * Also ensures that each field is in the SearchMap object
      * (i.e. SearchMap is a superset of Model['GqlSearch'])
      * 
-     * NOTE: Excludes fields which are common to all models (or have special logic), such as "take", "after", 
-     * "visibility", etc.
+     * NOTE: Excludes fields which are common to all models 
+     * (or have special logic), such as "take", "after", etc.
      */
     searchFields: StringArrayMap<(keyof Model['GqlSearch'] extends infer R ?
         R extends keyof typeof SearchMap ?

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { SmartContract, SmartContractCreateInput, SmartContractPermission, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput } from "../endpoints/types";
+import { RootPermission, SmartContract, SmartContractCreateInput, SmartContractSearchInput, SmartContractSortBy, SmartContractUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { SmartContractVersionModel } from "./smartContractVersion";
 import { Displayer, ModelLogic } from "./types";
@@ -13,7 +13,7 @@ type Model = {
     GqlModel: SmartContract,
     GqlSearch: SmartContractSearchInput,
     GqlSort: SmartContractSortBy,
-    GqlPermission: SmartContractPermission,
+    GqlPermission: RootPermission,
     PrismaCreate: Prisma.smart_contractUpsertArgs['create'],
     PrismaUpdate: Prisma.smart_contractUpsertArgs['update'],
     PrismaModel: Prisma.smart_contractGetPayload<SelectWrap<Prisma.smart_contractSelect>>,

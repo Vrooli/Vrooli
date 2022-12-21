@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionPermission, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput } from "../endpoints/types";
+import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionSearchInput, SmartContractVersionSortBy, SmartContractVersionUpdateInput, VersionPermission } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { Displayer, ModelLogic } from "./types";
@@ -13,7 +13,7 @@ type Model = {
     GqlModel: SmartContractVersion,
     GqlSearch: SmartContractVersionSearchInput,
     GqlSort: SmartContractVersionSortBy,
-    GqlPermission: SmartContractVersionPermission,
+    GqlPermission: VersionPermission,
     PrismaCreate: Prisma.smart_contract_versionUpsertArgs['create'],
     PrismaUpdate: Prisma.smart_contract_versionUpsertArgs['update'],
     PrismaModel: Prisma.smart_contract_versionGetPayload<SelectWrap<Prisma.smart_contract_versionSelect>>,

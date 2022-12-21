@@ -1,13 +1,13 @@
 import { Displayer, Formatter, ModelLogic, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardPermission, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, VersionPermission, StandardVersionCreateInput, StandardVersionUpdateInput } from "../endpoints/types";
+import { Standard, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, VersionPermission, StandardVersionCreateInput, StandardVersionUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { padSelect, permissionsSelectHelper } from "../builders";
-import { oneIsPublic } from "../utils";
+import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 
 type Model = {
@@ -61,10 +61,12 @@ const searcher = (): Searcher<Model> => ({
     defaultSort: StandardVersionSortBy.DateCompletedDesc,
     sortBy: StandardVersionSortBy,
     searchFields: {
+        completedTimeFrame: true,
         createdTimeFrame: true,
+        isComplete: true,
         reportId: true,
         rootId: true,
-        standardType: true,
+        type: true,
         tags: true,
         updatedTimeFrame: true,
         userId: true,
@@ -254,65 +256,20 @@ const querier = () => ({
         // return null;
     },
     /**
-     * Checks if a standard exists that has the same createdByUserId, 
-     * createdByOrganizationId, and name
-     * @param prisma Prisma client
-     * @param data StandardCreateData to check
-     * @param userId The ID of the user creating the standard
-     * @returns data of matching standard, or null if no match
-     */
-    async findMatchingStandardName(
-        prisma: PrismaType,
-        data: StandardCreateInput & { name: string },
-        userId: string
-    ): Promise<{ [x: string]: any } | null> {
-        // Find all standards that match the given standard
-        const standards = await prisma.standard.findMany({
-            where: {
-                name: data.name,
-                ownedByUserId: !data.organizationConnect ? userId : undefined,
-                ownedByOrganizationId: data.organizationConnect ? data.organizationConnect : undefined,
-            }
-        });
-        // If any standards match (should only ever be 0 or 1, but you never know) return the first one
-        if (standards.length > 0) {
-            return standards[0];
-        }
-        // If no standards match, then data is unique. Return null
-        return null;
-    },
-    /**
-     * Generates a valid name for a standard.
-     * Standards must have a unique name per user/organization
+     * Generates a name for a standard.
      * @param prisma Prisma client
      * @param userId The user's ID
+     * @param languages The user's preferred languages
      * @param data The standard create data
      * @returns A valid name for the standard
      */
-    async generateName(prisma: PrismaType, userId: string, data: StandardCreateInput): Promise<string> {
-        // Created by query
-        const id = data.organizationConnect ?? data.userConnect ?? userId
-        const createdBy = { [`createdBy${data.organizationConnect ? 'Organization' : 'User'}Id`]: id };
-        // Calculate optional standard name
-        const name = data.name ? data.name : `${data.type} ${randomString(5)}`;
-        // Loop until a unique name is found, or a max of 20 tries
-        let success = false;
-        let i = 0;
-        while (!success && i < 20) {
-            // Check for case-insensitive duplicate
-            const existing = await prisma.standard.findMany({
-                where: {
-                    ...createdBy,
-                    name: {
-                        contains: (i === 0 ? name : `${name}${i}`).toLowerCase(),
-                        mode: 'insensitive',
-                    },
-                }
-            });
-            if (existing.length > 0) i++;
-            else success = true;
-        }
-        return i === 0 ? name : `${name}${i}`;
+    async generateName(prisma: PrismaType, userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
+        // First, check if name was already provided
+        const translatedName = '' ;//bestLabel(data.translationsCreate ?? [], 'name', languages);
+        if (translatedName.length > 0) return translatedName;
+        // Otherwise, generate name based on type and random string
+        const name = `${data.type} ${randomString(5)}`
+        return name;
     }
 })
 
@@ -482,15 +439,13 @@ const querier = () => ({
 //     // },
 // })
 
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, root: { select: { name: true } } }),
-    label: (select) => select.root.name ?? '',
-})
-
 export const StandardVersionModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard_version,
-    display: displayer(),
+    display: {
+        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+    },
     format: {} as any,//formatter(),
     mutate: {} as any, //mutater(),
     query: querier(),

@@ -1807,7 +1807,6 @@ model standard {
     updated_at            DateTime                    @default(now()) @db.Timestamptz(6)
     hasCompleteVersion    Boolean                     @default(false)
     completedAt           DateTime?                   @db.Timestamptz(6)
-    name                  String                      @db.VarChar(128)
     score                 Int                         @default(0)
     stars                 Int                         @default(0)
     views                 Int                         @default(0)
@@ -1836,8 +1835,6 @@ model standard {
     transfers             transfer[]                  @relation("transfer_standard")
     quizQuestions         quiz_question[]
     subscriptions         notification_subscription[]
-
-    @@unique([ownedByUserId, ownedByOrganizationId, name], name: "standard_ownedByUserId_ownedByOrganizationId_name_unique")
 }
 
 model standard_version {
@@ -1877,6 +1874,7 @@ model standard_version {
 
 model standard_version_translation {
     id                String           @id @default(uuid()) @db.Uuid
+    name              String           @db.VarChar(128)
     description       String?          @db.VarChar(2048)
     jsonVariable      String?          @db.VarChar(8192)
     standardVersionId String           @db.Uuid
@@ -1963,8 +1961,8 @@ model stats_site {
     routines                                    Int
     routinesCompleted                           Int
     routinesCompletionTimeAverageInPeriod       Float
-    routinesSimplicityAverage                   Int
-    routinesComplexityAverage                   Int
+    routinesSimplicityAverage                   Float
+    routinesComplexityAverage                   Float
     runsStarted                                 Int
     runsCompleted                               Int
     runsCompletionTimeAverageInPeriod           Float
@@ -1997,6 +1995,7 @@ model stats_organization {
     periodType     PeriodType
     apis           Int
     members        Int
+    notes          Int
     projects       Int
     routines       Int
     smartContracts Int
@@ -2010,6 +2009,8 @@ model stats_project {
     periodStart    DateTime   @db.Timestamptz(6)
     periodEnd      DateTime   @db.Timestamptz(6)
     periodType     PeriodType
+    directories    Int
+    notes          Int
     routines       Int
     smartContracts Int
     standards      Int

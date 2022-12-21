@@ -49,6 +49,7 @@ export const typeDef = gql`
         inputsCreate: [RoutineVersionInputCreateInput!]
         outputsCreate: [RoutineVersionOutputCreateInput!]
         suggestedNextByRoutineVersionConnect: [ID!]
+        translationsCreate: [RoutineVersionTranslationCreateInput!]
     }
     input RoutineVersionUpdateInput {
         id: ID!
@@ -84,6 +85,9 @@ export const typeDef = gql`
         outputsDelete: [ID!]
         suggestedNextByRoutineVersionConnect: [ID!]
         suggestedNextByRoutineVersionDisconnect: [ID!]
+        translationsCreate: [RoutineVersionTranslationCreateInput!]
+        translationsUpdate: [RoutineVersionTranslationUpdateInput!]
+        translationsDelete: [ID!]
     }
     type RoutineVersion {
         id: ID!
@@ -102,6 +106,9 @@ export const typeDef = gql`
         timesCompleted: Int!
         smartContractCallData: String
         apiCallData: String
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
         runs: [RunRoutine!]! # Calculated field - only shows your runs
         api: Api
         comments: [Comment!]!

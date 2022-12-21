@@ -226,12 +226,10 @@ export async function init(prisma: PrismaType) {
     //==============================================================
     /* #region Create Standards */
     //==============================================================
+    const standardCip0025Id = '3a038a3b-f8a9-4fab-8fab-c8a4baaab8d2'
     let standardCip0025 = await prisma.standard_version.findFirst({
         where: {
-            AND: [
-                { root: { createdById: admin.id } },
-                { root: { name: 'CIP-0025 - NFT Metadata Standard' } },
-            ]
+            id: standardCip0025Id,
         }
     })
     if (!standardCip0025) {
@@ -241,7 +239,6 @@ export async function init(prisma: PrismaType) {
                 root: {
                     create: {
                         id: uuid(),
-                        name: "CIP-0025 - NFT Metadata Standard",
                         permissions: JSON.stringify({}),
                         createdById: admin.id,
                         tags: {
@@ -256,6 +253,7 @@ export async function init(prisma: PrismaType) {
                     create: [
                         {
                             language: EN,
+                            name: "CIP-0025 - NFT Metadata Standard",
                             description: "A metadata standard for Native Token NFTs on Cardano.",
                         }
                     ]

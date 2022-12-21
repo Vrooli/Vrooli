@@ -2,7 +2,6 @@ import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
 import { DeleteType, CopyType, StarFor, VoteFor } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
 import { getLogic } from "../getters";
-import { ObjectMap, OrganizationModel } from "../models";
 import { GraphQLModelType, Validator } from "../models/types";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";

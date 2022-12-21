@@ -24,85 +24,74 @@ export const typeDef = gql`
 
     input StandardVersionCreateInput {
         id: ID!
-        default: String
-        isInternal: Boolean
+        isComplete: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
-        name: String
+        isFile: Boolean
+        default: String
         type: String!
         props: String!
         yup: String
-        versionLabel: String
-        resourceListCreate: ResourceListCreateInput
-        rootConnect: ID
+        rootConnect: ID!
         rootCreate: StandardCreateInput
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
-        translationsCreate: [StandardTranslationCreateInput!]
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
+        directoryListingsConnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
+        translationsCreate: [StandardVersionTranslationCreateInput!]
     }
     input StandardVersionUpdateInput {
         id: ID!
-        makeAnonymous: Boolean
+        isComplete: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
+        isFile: Boolean
         default: String
-        type: String!
-        props: String!
+        type: String
+        props: String
         yup: String
-        resourceListsCreate: ResourceListCreateInput
-        resourceListsUpdate: ResourceListUpdateInput
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        versionIndex: Int!
+        versionLabel: String
+        versionNotes: String
+        directoryListingsConnect: [ID!]
+        directoryListingsDisconnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
+        resourceListUpdate: ResourceListUpdateInput
+        translationsCreate: [StandardVersionTranslationCreateInput!]
+        translationsUpdate: [StandardVersionTranslationUpdateInput!]
         translationsDelete: [ID!]
-        translationsCreate: [StandardTranslationCreateInput!]
-        translationsUpdate: [StandardTranslationUpdateInput!]
-        versionConnect: ID # If versionId passed, then we're updating an existing version. NOTE: This will throw an error if you try to update a completed version
-        versionLabel: String # If version label passed, then we're creating a new version
     }
     type StandardVersion {
         id: ID!
         created_at: Date!
         updated_at: Date!
-        default: String
-        name: String!
+        completedAt: Date
+        isComplete: Boolean!
         isDeleted: Boolean!
-        isInternal: Boolean!
         isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
+        isFile: Boolean
+        default: String
         type: String!
         props: String!
         yup: String
+        versionIndex: Int!
         versionLabel: String!
-        rootId: ID!
-        # versions: [Version!]!
-        score: Int!
-        stars: Int!
-        views: Int!
+        versionNotes: String
         comments: [Comment!]!
         commentsCount: Int!
         directoryListings: [ProjectVersionDirectory!]!
         directoryListingsCount: Int!
-        permissionsStandard: StandardPermission!
+        forks: [Standard!]!
+        forksCount: Int!
+        pullRequest: PullRequest
+        resourceList: ResourceList
         reports: [Report!]!
         reportsCount: Int!
-        resourceList: ResourceList
         root: Standard!
-        routineInputs: [Routine!]!
-        routineOutputs: [Routine!]!
-        starredBy: [User!]!
-        tags: [Tag!]!
-        translations: [StandardTranslation!]!
-    }
-
-    type StandardVersionPermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        translations: [StandardVersionTranslation!]!
+        translationsCount: Int!
+        permissions: VersionPermission!
     }
 
     input StandardVersionTranslationCreateInput {
@@ -127,13 +116,15 @@ export const typeDef = gql`
     input StandardVersionSearchInput {
         after: String
         createdTimeFrame: TimeFrame
+        completedTimeFrame: TimeFrame
         ids: [ID!]
+        isComplete: Boolean
         languages: [String!]
         reportId: ID
         rootId: ID
         searchString: String
         sortBy: StandardVersionSortBy
-        standardType: String
+        type: String
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
@@ -143,7 +134,7 @@ export const typeDef = gql`
 
     type StandardVersionSearchResult {
         pageInfo: PageInfo!
-        edges: [StandardEdge!]!
+        edges: [StandardVersionEdge!]!
     }
 
     type StandardVersionEdge {

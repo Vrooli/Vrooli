@@ -84,6 +84,8 @@ export const typeDef = gql`
         owner: Owner
         parent: Routine
         permissionsRoutine: RoutinePermission!
+        pullRequests: [PullRequest!]!
+        pullRequestsCount: Int!
         starredBy: [User!]!
         tags: [Tag!]!
         versions: [RoutineVersion!]!

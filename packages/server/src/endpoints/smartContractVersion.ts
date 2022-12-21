@@ -24,105 +24,101 @@ export const typeDef = gql`
 
     input SmartContractVersionCreateInput {
         id: ID!
-        handle: String
         isComplete: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
-        parentConnect: ID
-        resourceListsCreate: [ResourceListCreateInput!]
-        rootConnect: ID
+        default: String
+        type: String!
+        content: String!
+        rootConnect: ID!
         rootCreate: SmartContractCreateInput
-        tagsConnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
+        directoryListingsConnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
+        translationsCreate: [SmartContractVersionTranslationCreateInput!]
     }
     input SmartContractVersionUpdateInput {
         id: ID!
-        handle: String
         isComplete: Boolean
+        isLatest: Boolean
         isPrivate: Boolean
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
-        tagsCreate: [TagCreateInput!]
+        default: String
+        type: String
+        content: String
+        versionIndex: Int!
+        versionLabel: String
+        versionNotes: String
+        directoryListingsConnect: [ID!]
+        directoryListingsDisconnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
+        resourceListUpdate: ResourceListUpdateInput
+        translationsCreate: [SmartContractVersionTranslationCreateInput!]
+        translationsUpdate: [SmartContractVersionTranslationUpdateInput!]
         translationsDelete: [ID!]
     }
     type SmartContractVersion {
         id: ID!
-        completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
+        completedAt: Date
         isComplete: Boolean!
+        isDeleted: Boolean!
         isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
-        score: Int!
-        stars: Int!
-        views: Int!
+        default: String
+        type: String!
+        content: String!
+        versionIndex: Int!
+        versionLabel: String!
+        versionNotes: String
         comments: [Comment!]!
         commentsCount: Int!
-        createdBy: User
-        forks: [Project!]!
-        owner: Owner
-        parent: Project
+        directoryListings: [ProjectVersionDirectory!]!
+        directoryListingsCount: Int!
+        forks: [SmartContract!]!
+        forksCount: Int!
+        pullRequest: PullRequest
+        resourceList: ResourceList
         reports: [Report!]!
         reportsCount: Int!
-        resourceLists: [ResourceList!]
         root: SmartContract!
-        routines: [Routine!]!
-        starredBy: [User!]
-        tags: [Tag!]!
-        wallets: [Wallet!]
-    }
-
-    type SmartContractVersionPermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        translations: [SmartContractVersionTranslation!]!
+        translationsCount: Int!
+        permissions: VersionPermission!
     }
 
     input SmartContractVersionTranslationCreateInput {
         id: ID!
         language: String!
         description: String
-        name: String!
+        jsonVariable: String
     }
     input SmartContractVersionTranslationUpdateInput {
         id: ID!
         language: String
         description: String
-        name: String
+        jsonVariable: String
     }
     type SmartContractVersionTranslation {
         id: ID!
         language: String!
         description: String
-        name: String!
+        jsonVariable: String
     }
 
     input SmartContractVersionSearchInput {
         after: String
         createdTimeFrame: TimeFrame
+        completedTimeFrame: TimeFrame
         ids: [ID!]
         isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
         languages: [String!]
-        minScore: Int
-        minStars: Int
-        minViews: Int
-        organizationId: ID
-        parentId: ID
         reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
+        rootId: ID
         searchString: String
-        sortBy: ProjectSortBy
+        sortBy: SmartContractVersionSortBy
+        type: String
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
@@ -132,12 +128,12 @@ export const typeDef = gql`
 
     type SmartContractVersionSearchResult {
         pageInfo: PageInfo!
-        edges: [SmartContractEdge!]!
+        edges: [SmartContractVersionEdge!]!
     }
 
     type SmartContractVersionEdge {
         cursor: String!
-        node: SmartContract!
+        node: SmartContractVersion!
     }
 
     extend type Query {

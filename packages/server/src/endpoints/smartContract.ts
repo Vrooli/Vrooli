@@ -30,37 +30,40 @@ export const typeDef = gql`
 
     input SmartContractCreateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
         isPrivate: Boolean
+        permissions: String!
         parentConnect: ID
-        resourceListCreate: ResourceListCreateInput!
-        rootConnect: ID!
-        tagsConnect: [String!]
+        userConnect: ID
+        organizationConnect: ID
+        labelsConnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        tagsConnect: [ID!]
         tagsCreate: [TagCreateInput!]
+        versionsCreate: [SmartContractVersionCreateInput!]
     }
     input SmartContractUpdateInput {
         id: ID!
-        handle: String
-        isComplete: Boolean
         isPrivate: Boolean
-        organizationConnect: ID
+        permissions: String
         userConnect: ID
-        resourceListDelete: [ID!]
-        resourceListCreate: ResourceListCreateInput!
-        resourceListUpdate: ResourceListUpdateInput!
-        tagsConnect: [String!]
-        tagsDisconnect: [String!]
+        organizationConnect: ID
+        labelsConnect: [ID!]
+        labelsDisconnect: [ID!]
+        labelsCreate: [LabelCreateInput!]
+        tagsConnect: [ID!]
+        tagsDisconnect: [ID!]
         tagsCreate: [TagCreateInput!]
-        translationsDelete: [ID!]
+        versionsCreate: [SmartContractVersionCreateInput!]
+        versionsUpdate: [SmartContractVersionUpdateInput!]
+        versionsDelete: [ID!]
     }
     type SmartContract {
         id: ID!
         completedAt: Date
         created_at: Date!
         updated_at: Date!
-        handle: String
-        isComplete: Boolean!
+        hasCompletedVersion: Boolean!
+        isDeleted: Boolean!
         isPrivate: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean
@@ -68,71 +71,46 @@ export const typeDef = gql`
         score: Int!
         stars: Int!
         views: Int!
-        comments: [Comment!]!
-        commentsCount: Int!
         createdBy: User
-        forks: [Project!]!
+        forks: [SmartContract!]!
+        forksCount: Int!
+        issues: [Issue!]!
+        issuesCount: Int!
+        labels: [Label!]!
         owner: Owner
-        parent: Project
-        reports: [Report!]!
-        reportsCount: Int!
-        resourceLists: [ResourceList!]
-        routines: [Routine!]!
-        starredBy: [User!]
+        parent: SmartContract
+        permissionsRoot: RootPermission!
+        pullRequests: [PullRequest!]!
+        pullRequestsCount: Int!
+        starredBy: [User!]!
         tags: [Tag!]!
-        wallets: [Wallet!]
-    }
-
-    type SmartContractPermission {
-        canComment: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
-    }
-
-    input SmartContractTranslationCreateInput {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
-    }
-    input SmartContractTranslationUpdateInput {
-        id: ID!
-        language: String
-        description: String
-        name: String
-    }
-    type SmartContractTranslation {
-        id: ID!
-        language: String!
-        description: String
-        name: String!
+        versions: [SmartContractVersion!]!
+        versionsCount: Int
     }
 
     input SmartContractSearchInput {
         after: String
+        createdById: ID
         createdTimeFrame: TimeFrame
+        excludeIds: [ID!]
         ids: [ID!]
-        isComplete: Boolean
-        isCompleteExceptions: [SearchException!]
-        languages: [String!]
+        hasCompleteVersion: Boolean
+        labelsId: ID
+        maxScore: Int
+        maxStars: Int
+        maxViews: Int
         minScore: Int
         minStars: Int
         minViews: Int
-        organizationId: ID
+        ownedByUserId: ID
+        ownedByOrganizationId: ID
         parentId: ID
-        reportId: ID
-        resourceLists: [String!]
-        resourceTypes: [ResourceUsedFor!]
         searchString: String
-        sortBy: ProjectSortBy
+        sortBy: SmartContractSortBy
         tags: [String!]
         take: Int
+        translationLanguagesLatestVersion: [String!]
         updatedTimeFrame: TimeFrame
-        userId: ID
         visibility: VisibilityType
     }
 

@@ -54,7 +54,6 @@ export const NoteModel: ModelLogic<{
             parent: 'Note',
             pullRequests: 'PullRequest',
             questions: 'Question',
-            stats: 'StatsNote',
             tags: 'Tag',
             transfers: 'Transfer',
             versions: 'NoteVersion',
