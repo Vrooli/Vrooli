@@ -9,7 +9,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
-import { addSupplementalFields, combineQueries, modelToGraphQL, noNull, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, combineQueries, lowercaseFirstLetter, modelToGraphQL, noNull, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
@@ -19,20 +19,6 @@ import { SortMap } from "../utils/sortMap";
 const __typename = 'Comment' as const;
 
 const suppFields = ['isStarred', 'isUpvoted', 'permissionsComment'] as const;
-
-const forMapper: { [key in CommentFor]: (keyof Prisma.commentUpsertArgs['create']) } = {
-    ApiVersion: 'apiVersionId',
-    Issue: 'issueId',
-    NoteVersion: 'noteVersionId',
-    Post: 'postId',
-    ProjectVersion: 'projectVersionId',
-    PullRequest: 'pullRequestId',
-    Question: 'questionId',
-    QuestionAnswer: 'questionAnswerId',
-    RoutineVersion: 'routineVersionId',
-    SmartContractVersion: 'smartContractVersionId',
-    StandardVersion: 'standardVersionId',
-}
 
 export const CommentModel: ModelLogic<{
     IsTransferable: false,
@@ -115,8 +101,7 @@ export const CommentModel: ModelLogic<{
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
                 userId: userData.id,
-                [forMapper[data.createdFor]]: data.forId,
-                parentId: noNull(data.parentId),
+                [lowercaseFirstLetter(data.createdFor)]: { connect: { id: data.forConnect } },
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
             }),
             update: async ({ data, prisma, userData }) => ({

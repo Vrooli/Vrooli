@@ -78,6 +78,8 @@ export const typeDef = gql`
         createdBy: User
         forks: [Routine!]!
         forksCount: Int!
+        issues: [Issue!]!
+        issuesCount: Int!
         labels: [Label!]!
         owner: Owner
         parent: Routine

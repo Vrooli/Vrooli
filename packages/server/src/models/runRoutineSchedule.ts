@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { RunRoutineSchedule, RunRoutineScheduleCreateInput, RunRoutineSchedulePermission, RunRoutineScheduleSearchInput, RunRoutineScheduleSortBy, RunRoutineScheduleUpdateInput } from "../endpoints/types";
+import { RunRoutineSchedule, RunRoutineScheduleCreateInput, RunRoutineScheduleSearchInput, RunRoutineScheduleSortBy, RunRoutineScheduleUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { Displayer, ModelLogic } from "./types";
@@ -13,7 +13,7 @@ type Model = {
     GqlModel: RunRoutineSchedule,
     GqlSearch: RunRoutineScheduleSearchInput,
     GqlSort: RunRoutineScheduleSortBy,
-    GqlPermission: RunRoutineSchedulePermission,
+    GqlPermission: any,
     PrismaCreate: Prisma.run_routine_scheduleUpsertArgs['create'],
     PrismaUpdate: Prisma.run_routine_scheduleUpsertArgs['update'],
     PrismaModel: Prisma.run_routine_scheduleGetPayload<SelectWrap<Prisma.run_routine_scheduleSelect>>,

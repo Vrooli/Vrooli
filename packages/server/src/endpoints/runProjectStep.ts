@@ -3,19 +3,6 @@ import { RunStepStatus } from '@shared/consts';
 import { RunProjectStepSortBy } from './types';
 
 export const typeDef = gql`
-    enum RunProjectStepSortBy {
-        ContextSwitchesAsc
-        ContextSwitchesDesc
-        OrderAsc
-        OrderDesc
-        TimeCompletedAsc
-        TimeCompletedDesc
-        TimeStartedAsc
-        TimeStartedDesc
-        TimeElapsedAsc
-        TimeElapsedDesc
-    }
-
     enum RunProjectStepStatus {
         InProgress
         Completed

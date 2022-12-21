@@ -106,6 +106,8 @@ export const typeDef = gql`
         api: Api
         comments: [Comment!]!
         commentsCount: Int!
+        directoryListings: [ProjectVersionDirectory!]!
+        directoryListingsCount: Int!
         forks: [Routine!]!
         forksCount: Int!
         inputs: [RoutineVersionInput!]!

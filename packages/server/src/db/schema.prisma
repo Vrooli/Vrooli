@@ -1538,27 +1538,27 @@ model routine_labels {
 }
 
 model run_project {
-    id                   String                @id @default(uuid()) @db.Uuid
-    created_at           DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at           DateTime              @default(now()) @db.Timestamptz(6)
-    completedComplexity  Int                   @default(0)
-    contextSwitches      Int                   @default(0)
-    isPrivate            Boolean               @default(false)
-    scheduleId           String?               @db.Uuid
-    startedAt            DateTime?             @db.Timestamptz(6)
-    timeElapsed          Int?
-    completedAt          DateTime?             @db.Timestamptz(6)
-    name                 String                @db.VarChar(128)
-    status               RunStatus             @default(Scheduled)
-    projectVersionId     String?               @db.Uuid
-    userId               String?               @db.Uuid
-    organizationId       String?               @db.Uuid
-    projectVersion       project_version?      @relation("run_project_version", fields: [projectVersionId], references: [id])
-    runProjectSchedule   run_project_schedule?
-    user                 user?                 @relation("run_project_user", fields: [userId], references: [id], onDelete: Cascade)
-    organization         organization?         @relation("run_project_organization", fields: [organizationId], references: [id], onDelete: Cascade)
-    steps                run_project_step[]    @relation("run_project_step_run")
-    runRoutines          run_routine[]         @relation("run_routine_run_project")
+    id                  String                @id @default(uuid()) @db.Uuid
+    created_at          DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+    completedComplexity Int                   @default(0)
+    contextSwitches     Int                   @default(0)
+    isPrivate           Boolean               @default(false)
+    scheduleId          String?               @db.Uuid
+    startedAt           DateTime?             @db.Timestamptz(6)
+    timeElapsed         Int?
+    completedAt         DateTime?             @db.Timestamptz(6)
+    name                String                @db.VarChar(128)
+    status              RunStatus             @default(Scheduled)
+    projectVersionId    String?               @db.Uuid
+    userId              String?               @db.Uuid
+    organizationId      String?               @db.Uuid
+    projectVersion      project_version?      @relation("run_project_version", fields: [projectVersionId], references: [id])
+    runProjectSchedule  run_project_schedule?
+    user                user?                 @relation("run_project_user", fields: [userId], references: [id], onDelete: Cascade)
+    organization        organization?         @relation("run_project_organization", fields: [organizationId], references: [id], onDelete: Cascade)
+    steps               run_project_step[]    @relation("run_project_step_run")
+    runRoutines         run_routine[]         @relation("run_routine_run_project")
 }
 
 model run_project_step {
@@ -1612,30 +1612,30 @@ model run_project_schedule_translation {
 }
 
 model run_routine {
-    id                   String                @id @default(uuid()) @db.Uuid
-    created_at           DateTime              @default(now()) @db.Timestamptz(6)
-    updated_at           DateTime              @default(now()) @db.Timestamptz(6)
-    completedComplexity  Int                   @default(0)
-    contextSwitches      Int                   @default(0)
-    isPrivate            Boolean               @default(false)
-    scheduleId           String?               @db.Uuid
-    wasRunAutomatically  Boolean               @default(false)
-    startedAt            DateTime?             @db.Timestamptz(6)
-    timeElapsed          Int?
-    completedAt          DateTime?             @db.Timestamptz(6)
-    name                 String                @db.VarChar(128)
-    status               RunStatus             @default(Scheduled)
-    routineVersionId     String?               @db.Uuid
-    userId               String?               @db.Uuid
-    organizationId       String?               @db.Uuid
-    runProjectId         String?               @db.Uuid
-    routineVersion       routine_version?      @relation("run_routine_version", fields: [routineVersionId], references: [id])
-    runRoutineSchedule   run_routine_schedule?
-    runProject           run_project?          @relation("run_routine_run_project", fields: [runProjectId], references: [id], onDelete: SetNull)
-    user                 user?                 @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
-    organization         organization?         @relation("run_routine_organization", fields: [organizationId], references: [id], onDelete: SetNull)
-    steps                run_routine_step[]    @relation("run_routine_step_run")
-    inputs               run_routine_input[]   @relation("run_routine_input_run")
+    id                  String                @id @default(uuid()) @db.Uuid
+    created_at          DateTime              @default(now()) @db.Timestamptz(6)
+    updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+    completedComplexity Int                   @default(0)
+    contextSwitches     Int                   @default(0)
+    isPrivate           Boolean               @default(false)
+    scheduleId          String?               @db.Uuid
+    wasRunAutomatically Boolean               @default(false)
+    startedAt           DateTime?             @db.Timestamptz(6)
+    timeElapsed         Int?
+    completedAt         DateTime?             @db.Timestamptz(6)
+    name                String                @db.VarChar(128)
+    status              RunStatus             @default(Scheduled)
+    routineVersionId    String?               @db.Uuid
+    userId              String?               @db.Uuid
+    organizationId      String?               @db.Uuid
+    runProjectId        String?               @db.Uuid
+    routineVersion      routine_version?      @relation("run_routine_version", fields: [routineVersionId], references: [id])
+    runRoutineSchedule  run_routine_schedule?
+    runProject          run_project?          @relation("run_routine_run_project", fields: [runProjectId], references: [id], onDelete: SetNull)
+    user                user?                 @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
+    organization        organization?         @relation("run_routine_organization", fields: [organizationId], references: [id], onDelete: SetNull)
+    steps               run_routine_step[]    @relation("run_routine_step_run")
+    inputs              run_routine_input[]   @relation("run_routine_input_run")
 }
 
 model run_routine_input {
@@ -1841,36 +1841,36 @@ model standard {
 }
 
 model standard_version {
-    id                  String                         @id @default(uuid()) @db.Uuid
-    created_at          DateTime                       @default(now()) @db.Timestamptz(6)
-    updated_at          DateTime                       @default(now()) @db.Timestamptz(6)
-    completedAt         DateTime?                      @db.Timestamptz(6)
-    default             String?                        @db.VarChar(1024)
-    type                String
-    props               String                         @db.VarChar(8192)
-    isLatest            Boolean                        @default(false)
-    resourceListId      String?                        @unique @db.Uuid
-    rootId              String                         @db.Uuid
-    yup                 String?                        @db.VarChar(8192)
-    versionIndex        Int                            @default(0)
-    versionLabel        String                         @default("1.0.0") @db.VarChar(16)
-    versionNotes        String?                        @db.VarChar(4096)
-    intendToPullRequest Boolean                        @default(false)
-    pullRequestId       String?                        @unique @db.Uuid
-    isComplete          Boolean                        @default(false)
-    isDeleted           Boolean                        @default(false)
-    isPrivate           Boolean                        @default(false)
-    isFile              Boolean                        @default(false)
-    comments            comment[]
-    forks               standard[]                     @relation("standard_version_fork")
-    pullRequest         pull_request?                  @relation("pull_request_from_standard_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
-    reports             report[]
-    root                standard                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
-    resourceList        resource_list?                 @relation("resource_list_standard_version", fields: [resourceListId], references: [id], onDelete: SetNull)
-    routineInputs       routine_version_input[]
-    routineOutputs      routine_version_output[]
-    translations        standard_version_translation[]
-    directoryListings   project_version_directory[]
+    id                    String                         @id @default(uuid()) @db.Uuid
+    created_at            DateTime                       @default(now()) @db.Timestamptz(6)
+    updated_at            DateTime                       @default(now()) @db.Timestamptz(6)
+    completedAt           DateTime?                      @db.Timestamptz(6)
+    default               String?                        @db.VarChar(1024)
+    type                  String
+    props                 String                         @db.VarChar(8192)
+    isLatest              Boolean                        @default(false)
+    resourceListId        String?                        @unique @db.Uuid
+    rootId                String                         @db.Uuid
+    yup                   String?                        @db.VarChar(8192)
+    versionIndex          Int                            @default(0)
+    versionLabel          String                         @default("1.0.0") @db.VarChar(16)
+    versionNotes          String?                        @db.VarChar(4096)
+    intendToPullRequest   Boolean                        @default(false)
+    pullRequestId         String?                        @unique @db.Uuid
+    isComplete            Boolean                        @default(false)
+    isDeleted             Boolean                        @default(false)
+    isPrivate             Boolean                        @default(false)
+    isFile                Boolean                        @default(false)
+    comments              comment[]
+    directoryListings     project_version_directory[]
+    forks                 standard[]                     @relation("standard_version_fork")
+    pullRequest           pull_request?                  @relation("pull_request_from_standard_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
+    reports               report[]
+    resourceList          resource_list?                 @relation("resource_list_standard_version", fields: [resourceListId], references: [id], onDelete: SetNull)
+    root                  standard                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
+    routineVersionInputs  routine_version_input[]
+    routineVersionOutputs routine_version_output[]
+    translations          standard_version_translation[]
 
     @@unique([rootId, versionIndex], name: "standard_version_rootId_versionIndex_unique")
 }
@@ -1910,7 +1910,7 @@ model star {
     id               String           @id @default(uuid()) @db.Uuid
     created_at       DateTime         @default(now()) @db.Timestamptz(6)
     updated_at       DateTime         @default(now()) @db.Timestamptz(6)
-    byId           String           @db.Uuid
+    byId             String           @db.Uuid
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid
@@ -2326,7 +2326,7 @@ model view {
     id              String          @id @default(uuid()) @db.Uuid
     lastViewedAt    DateTime        @default(now()) @db.Timestamptz(6)
     name            String          @db.VarChar(128)
-    byId          String          @db.Uuid
+    byId            String          @db.Uuid
     apiId           String?         @db.Uuid
     issueId         String?         @db.Uuid
     organizationId  String?         @db.Uuid
@@ -2357,7 +2357,7 @@ model vote {
     created_at       DateTime         @default(now()) @db.Timestamptz(6)
     updated_at       DateTime         @default(now()) @db.Timestamptz(6)
     isUpvote         Boolean          @default(true)
-    byId           String           @db.Uuid
+    byId             String           @db.Uuid
     apiId            String?          @db.Uuid
     commentId        String?          @db.Uuid
     issueId          String?          @db.Uuid

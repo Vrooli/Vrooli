@@ -132,14 +132,14 @@ const star = async (prisma: PrismaType, userData: SessionUser, input: StarInput)
     // Get prisma delegate for type of object being starred
     const { delegate } = getLogic(['delegate'], input.starFor, userData.languages, 'star');
     // Check if object being starred exists
-    const starringFor: null | { id: string, stars: number } = await delegate(prisma).findUnique({ where: { id: input.forId }, select: { id: true, stars: true } }) as any;
+    const starringFor: null | { id: string, stars: number } = await delegate(prisma).findUnique({ where: { id: input.forConnect }, select: { id: true, stars: true } }) as any;
     if (!starringFor)
-        throw new CustomError('0110', 'ErrorUnknown', userData.languages, { starFor: input.starFor, forId: input.forId });
+        throw new CustomError('0110', 'ErrorUnknown', userData.languages, { starFor: input.starFor, forId: input.forConnect });
     // Check if star already exists on object by this user TODO fix for tags
     const star = await prisma.star.findFirst({
         where: {
             byId: userData.id,
-            [`${forMapper[input.starFor]}Id`]: input.forId
+            [`${forMapper[input.starFor]}Id`]: input.forConnect
         }
     })
     // If star already existed and we want to star, 
@@ -151,16 +151,16 @@ const star = async (prisma: PrismaType, userData: SessionUser, input: StarInput)
         await prisma.star.create({
             data: {
                 byId: userData.id,
-                [`${forMapper[input.starFor]}Id`]: input.forId
+                [`${forMapper[input.starFor]}Id`]: input.forConnect
             }
         })
         // Increment star count on object
         await delegate(prisma).update({
-            where: { id: input.forId },
+            where: { id: input.forConnect },
             data: { stars: starringFor.stars + 1 }
         })
         // Handle trigger
-        await Trigger(prisma, userData.languages).objectStar(true, input.starFor, input.forId, userData.id);
+        await Trigger(prisma, userData.languages).objectStar(true, input.starFor, input.forConnect, userData.id);
     }
     // If star did exist and we don't want to star, delete
     else if (star && !input.isStar) {
@@ -168,11 +168,11 @@ const star = async (prisma: PrismaType, userData: SessionUser, input: StarInput)
         await prisma.star.delete({ where: { id: star.id } })
         // Decrement star count on object
         await delegate(prisma).update({
-            where: { id: input.forId },
+            where: { id: input.forConnect },
             data: { stars: starringFor.stars - 1 }
         })
         // Handle trigger
-        await Trigger(prisma, userData.languages).objectStar(false, input.starFor, input.forId, userData.id);
+        await Trigger(prisma, userData.languages).objectStar(false, input.starFor, input.forConnect, userData.id);
     }
     return true;
 }

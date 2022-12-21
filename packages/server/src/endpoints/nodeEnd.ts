@@ -4,13 +4,14 @@ export const typeDef = gql`
     input NodeEndCreateInput {
         id: ID!
         wasSuccessful: Boolean
-        suggestedNextRoutineVersionConnect: ID
+        nodeConnect: ID!
+        suggestedNextRoutineVersionsConnect: [ID!]
     }
     input NodeEndUpdateInput {
         id: ID!
         wasSuccessful: Boolean
-        suggestedNextRoutineVersionConnect: ID
-        suggestedNextRoutineVersionDisconnect: ID
+        suggestedNextRoutineVersionsConnect: [ID!]
+        suggestedNextRoutineVersionsDisconnect: [ID!]
     }
     type NodeEnd {
         id: ID!

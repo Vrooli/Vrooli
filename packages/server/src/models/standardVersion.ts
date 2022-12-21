@@ -29,26 +29,33 @@ type Model = {
 const __typename = 'StandardVersion' as const;
 
 const suppFields = [] as const;
-// const formatter = (): Formatter<Model, typeof suppFields> => ({
-//     relationshipMap: {
-//         __typename,
-//         comments: 'Comment',
-//         // creator: {
-//         //     root: {
-//         //         User: 'User',
-//         //         Organization: 'Organization',
-//         //     }
-//         // },
-//         reports: 'Report',
-//         resourceLists: 'ResourceList',
-//         routineInputs: 'Routine',
-//         routineOutputs: 'Routine',
-//         starredBy: 'User',
-//         tags: 'Tag',
-//     },
-//     joinMap: { tags: 'tag', starredBy: 'user' },
-//     countFields: ['commentsCount', 'reportsCount'],
-// })
+const formatter = (): Formatter<Model, typeof suppFields> => ({
+    gqlRelMap: {
+        __typename,
+        comments: 'Comment',
+        directoryListings: 'ProjectVersionDirectory',
+        forks: 'Standard',
+        pullRequest: 'PullRequest',
+        reports: 'Report',
+        resourceList: 'ResourceList',
+        root: 'Standard',
+        routineVersionInputs: 'RoutineVersionInput',
+        routineVersionOutputs: 'RoutineVersionOutput',
+    },
+    prismaRelMap: {
+        __typename,
+        comments: 'Comment',
+        directoryListings: 'ProjectVersionDirectory',
+        forks: 'Standard',
+        pullRequest: 'PullRequest',
+        reports: 'Report',
+        root: 'Standard',
+        resourceList: 'ResourceList',
+        // routineVersionInputs: 'RoutineVersionInput',
+        // routineVersionOutputs: 'RoutineVersionOutput',
+    },
+    // countFields: ['commentsCount', 'reportsCount'],
+})
 
 const searcher = (): Searcher<Model> => ({
     defaultSort: StandardVersionSortBy.DateCompletedDesc,
@@ -263,8 +270,8 @@ const querier = () => ({
         const standards = await prisma.standard.findMany({
             where: {
                 name: data.name,
-                ownedByUserId: !data.createdByOrganizationId ? userId : undefined,
-                ownedByOrganizationId: data.createdByOrganizationId ? data.createdByOrganizationId : undefined,
+                ownedByUserId: !data.organizationConnect ? userId : undefined,
+                ownedByOrganizationId: data.organizationConnect ? data.organizationConnect : undefined,
             }
         });
         // If any standards match (should only ever be 0 or 1, but you never know) return the first one
@@ -284,8 +291,8 @@ const querier = () => ({
      */
     async generateName(prisma: PrismaType, userId: string, data: StandardCreateInput): Promise<string> {
         // Created by query
-        const id = data.createdByOrganizationId ?? data.createdByUserId ?? userId
-        const createdBy = { [`createdBy${data.createdByOrganizationId ? 'Organization' : 'User'}Id`]: id };
+        const id = data.organizationConnect ?? data.userConnect ?? userId
+        const createdBy = { [`createdBy${data.organizationConnect ? 'Organization' : 'User'}Id`]: id };
         // Calculate optional standard name
         const name = data.name ? data.name : `${data.type} ${randomString(5)}`;
         // Loop until a unique name is found, or a max of 20 tries
@@ -339,8 +346,8 @@ const querier = () => ({
 //                 isInternal: data.isInternal ?? undefined,
 //                 name: data.name ?? await querier().generateName(prisma, userData.id, data),
 //                 permissions: JSON.stringify({}), //TODO
-//                 createdByOrganization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
-//                 organization: data.createdByOrganizationId ? { connect: { id: data.createdByOrganizationId } } : undefined,
+//                 createdByOrganization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
+//                 organization: data.organizationConnect ? { connect: { id: data.organizationConnect } } : undefined,
 //                 createdByUser: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
 //                 user: data.createdByUserId ? { connect: { id: data.createdByUserId } } : undefined,
 //                 versions: {

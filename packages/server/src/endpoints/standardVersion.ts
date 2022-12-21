@@ -32,7 +32,7 @@ export const typeDef = gql`
         props: String!
         yup: String
         versionLabel: String
-        resourceListsCreate: [ResourceListCreateInput!]
+        resourceListCreate: ResourceListCreateInput
         rootConnect: ID
         rootCreate: StandardCreateInput
         tagsConnect: [String!]
@@ -47,9 +47,8 @@ export const typeDef = gql`
         type: String!
         props: String!
         yup: String
-        resourceListsDelete: [ID!]
-        resourceListsCreate: [ResourceListCreateInput!]
-        resourceListsUpdate: [ResourceListUpdateInput!]
+        resourceListsCreate: ResourceListCreateInput
+        resourceListsUpdate: ResourceListUpdateInput
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
@@ -85,7 +84,8 @@ export const typeDef = gql`
         permissionsStandard: StandardPermission!
         reports: [Report!]!
         reportsCount: Int!
-        resourceLists: [ResourceList!]!
+        resourceList: ResourceList
+        root: Standard!
         routineInputs: [Routine!]!
         routineOutputs: [Routine!]!
         root: Standard!

@@ -6,7 +6,7 @@ import { UserModel } from "./user";
 import { StandardModel } from "./standard";
 import { CustomError } from "../events";
 import { initializeRedis } from "../redisConn";
-import { User, ViewSearchInput, Count, SessionUser, View } from "../endpoints/types";
+import {  ViewSearchInput, Count, SessionUser, View } from "../endpoints/types";
 import { PrismaType } from "../types";
 import { Displayer, Formatter, ModelLogic, Searcher } from "./types";
 import { Prisma } from "@prisma/client";

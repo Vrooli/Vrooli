@@ -125,7 +125,7 @@ const validator = (): Validator<Model> => ({
                     status: 'Open',
                     user: { id: userData.id },
                     OR: createMany.map((x) => ({
-                        [`${forMapper[x.createdFor]}Id`]: { id: x.createdForId },
+                        [`${forMapper[x.createdFor]}Id`]: { id: x.createdForConnect },
                     })),
                 },
             });
@@ -150,7 +150,7 @@ const mutater = (): Mutater<Model> => ({
                 details: data.details,
                 status: ReportStatus.Open,
                 createdBy: { connect: { id: userData.id } },
-                [forMapper[data.createdFor]]: { connect: { id: data.createdForId } },
+                [forMapper[data.createdFor]]: { connect: { id: data.createdForConnect } },
             }
         },
         update: async ({ data }) => {

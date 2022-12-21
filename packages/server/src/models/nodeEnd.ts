@@ -1,12 +1,16 @@
 import { NodeEnd, NodeEndCreateInput, NodeEndUpdateInput } from "../endpoints/types";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { NodeModel } from "./node";
-import { padSelect } from "../builders";
+import { noNull, padSelect, shapeHelper } from "../builders";
 import { SelectWrap } from "../builders/types";
+import { nodeEndValidation } from "@shared/validation";
+import { nodeEndNextShapeHelper } from "../utils";
 
-type Model = {
+const __typename = 'NodeEnd' as const;
+const suppFields = [] as const;
+export const NodeEndModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: NodeEndCreateInput,
@@ -20,51 +24,42 @@ type Model = {
     PrismaModel: Prisma.node_endGetPayload<SelectWrap<Prisma.node_endSelect>>,
     PrismaSelect: Prisma.node_endSelect,
     PrismaWhere: Prisma.node_endWhereInput,
-}
-
-const __typename = 'NodeEnd' as const;
-
-const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    gqlRelMap: {
-        __typename,
-        suggestedNextRoutineVersion: 'RoutineVersion',
-    },
-    prismaRelMap: {
-        __typename,
-        suggestedNextRoutineVersion: 'RoutineVersion',
-        node: 'Node',
-    },
-    joinMap: { suggestedNextRoutineVersion: 'toRoutineVersion' },
-})
-
-const mutater = (): Mutater<Model> => ({
-    shape: {
-        create: async ({ data }) => {
-            return {
-                id: data.id,
-                nodeId: data.nodeId,
-                wasSuccessful: data.wasSuccessful ?? undefined,
-            }
-        },
-        update: async ({ data }) => {
-            return {
-                wasSuccessful: data.wasSuccessful ?? undefined,
-            }
-        },
-    },
-    yup: { create: {} as any, update: {} as any },
-})
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
-    label: (select, languages) => NodeModel.display.label(select.node as any, languages),
-})
-
-export const NodeEndModel: ModelLogic<Model, typeof suppFields> = ({
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.node_end,
-    display: displayer(),
-    format: formatter(),
-    mutate: {} as any,//mutater(),
+    display: {
+        select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
+        label: (select, languages) => NodeModel.display.label(select.node as any, languages),
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            suggestedNextRoutineVersion: 'RoutineVersion',
+        },
+        prismaRelMap: {
+            __typename,
+            suggestedNextRoutineVersion: 'RoutineVersion',
+            node: 'Node',
+        },
+        joinMap: { suggestedNextRoutineVersion: 'toRoutineVersion' },
+    },
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => {
+                return {
+                    id: data.id,
+                    wasSuccessful: noNull(data.wasSuccessful),
+                    ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'nodeEnd', data, prisma, userData })),
+                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect'], data, prisma, userData })),
+                }
+            },
+            update: async ({ data, prisma, userData }) => {
+                return {
+                    wasSuccessful: noNull(data.wasSuccessful),
+                    ...(await nodeEndNextShapeHelper({ relTypes: ['Connect', 'Disconnect'], data, prisma, userData })),
+                }
+            },
+        },
+        yup: nodeEndValidation,
+    }
 })

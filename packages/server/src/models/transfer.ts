@@ -83,7 +83,7 @@ const transfer = (prisma: PrismaType) => ({
         userData: SessionUser,
     ): Promise<string> => {
         // Find the object and its owner
-        const object: { __typename: TransferObjectType, id: string } = { __typename: input.objectType, id: input.objectId };
+        const object: { __typename: TransferObjectType, id: string } = { __typename: input.objectType, id: input.objectConnect };
         const { delegate, validate } = getLogic(['delegate', 'validate'], object.__typename, userData.languages, 'Transfer.request-object');
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
@@ -94,8 +94,8 @@ const transfer = (prisma: PrismaType) => ({
         if (!owner || !isOwnerAdminCheck(owner, userData.id))
             throw new CustomError('0286', 'NotAuthorizedToTransfer', userData.languages);
         // Check if the user is transferring to themselves
-        const toType = input.toOrganizationId ? 'Organization' : 'User';
-        const toId: string = input.toOrganizationId || input.toUserId as string;
+        const toType = input.toOrganizationConnect ? 'Organization' : 'User';
+        const toId: string = input.toOrganizationConnect || input.toUserConnect as string;
         const { delegate: toDelegate, validate: toValidate } = getLogic(['delegate', 'validate'], toType, userData.languages, 'Transfer.request-validator');
         const toPermissionData = await toDelegate(prisma).findUnique({
             where: { id: toId },

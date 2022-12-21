@@ -87,14 +87,14 @@ const vote = async (prisma: PrismaType, userData: SessionUser, input: VoteInput)
     // Define prisma type for voted-on object
     const prismaFor = (prisma[forMapper[input.voteFor] as keyof PrismaType] as any);
     // Check if object being voted on exists
-    const votingFor: null | { id: string, score: number } = await prismaFor.findUnique({ where: { id: input.forId }, select: { id: true, score: true } });
+    const votingFor: null | { id: string, score: number } = await prismaFor.findUnique({ where: { id: input.forConnect }, select: { id: true, score: true } });
     if (!votingFor)
-        throw new CustomError('0118', 'NotFound', userData.languages, { voteFor: input.voteFor, forId: input.forId });
+        throw new CustomError('0118', 'NotFound', userData.languages, { voteFor: input.voteFor, forId: input.forConnect });
     // Check if vote exists
     const vote = await prisma.vote.findFirst({
         where: {
             byId: userData.id,
-            [`${forMapper[input.voteFor]}Id`]: input.forId
+            [`${forMapper[input.voteFor]}Id`]: input.forConnect
         }
     })
     // If vote already existed
@@ -106,7 +106,7 @@ const vote = async (prisma: PrismaType, userData: SessionUser, input: VoteInput)
             // Delete vote
             await prisma.vote.delete({ where: { id: vote.id } })
             // Handle trigger
-            await Trigger(prisma, userData.languages).objectVote(false, input.voteFor, input.forId, userData.id);
+            await Trigger(prisma, userData.languages).objectVote(false, input.voteFor, input.forConnect, userData.id);
         }
         // Otherwise, update the vote
         else {
@@ -115,14 +115,14 @@ const vote = async (prisma: PrismaType, userData: SessionUser, input: VoteInput)
                 data: { isUpvote: input.isUpvote }
             })
             // Handle trigger
-            await Trigger(prisma, userData.languages).objectVote(input.isUpvote ?? null, input.voteFor, input.forId, userData.id);
+            await Trigger(prisma, userData.languages).objectVote(input.isUpvote ?? null, input.voteFor, input.forConnect, userData.id);
         }
         // Update the score
         const oldVoteCount = vote.isUpvote ? 1 : vote.isUpvote === null ? 0 : -1;
         const newVoteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
         const deltaVoteCount = newVoteCount - oldVoteCount;
         await prismaFor.update({
-            where: { id: input.forId },
+            where: { id: input.forConnect },
             data: { score: votingFor.score + deltaVoteCount }
         })
         return true;
@@ -136,15 +136,15 @@ const vote = async (prisma: PrismaType, userData: SessionUser, input: VoteInput)
             data: {
                 byId: userData.id,
                 isUpvote: input.isUpvote,
-                [`${forMapper[input.voteFor]}Id`]: input.forId
+                [`${forMapper[input.voteFor]}Id`]: input.forConnect
             }
         })
         // Handle trigger
-        await Trigger(prisma, userData.languages).objectVote(input.isUpvote, input.voteFor, input.forId, userData.id);
+        await Trigger(prisma, userData.languages).objectVote(input.isUpvote, input.voteFor, input.forConnect, userData.id);
         // Update the score
         const voteCount = input.isUpvote ? 1 : input.isUpvote === null ? 0 : -1;
         await prismaFor.update({
-            where: { id: input.forId },
+            where: { id: input.forConnect },
             data: { score: votingFor.score + voteCount }
         })
         return true;
