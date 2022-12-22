@@ -2757,6 +2757,7 @@ export type Organization = {
   __typename?: 'Organization';
   apis: Array<Api>;
   apisCount: Scalars['Int'];
+  translatedName: any;
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   created_at: Scalars['Date'];
@@ -3145,6 +3146,7 @@ export type Project = {
   handle?: Maybe<Scalars['String']>;
   hasCompleteVersion: Scalars['Boolean'];
   id: Scalars['ID'];
+  translatedName: any
   isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -5678,6 +5680,7 @@ export type Routine = {
   forksCount: Scalars['Int'];
   hasCompletedVersion: Scalars['Boolean'];
   id: Scalars['ID'];
+  translatedName: any;
   isDeleted: Scalars['Boolean'];
   isInternal?: Maybe<Scalars['Boolean']>;
   isPrivate: Scalars['Boolean'];
@@ -6796,6 +6799,7 @@ export type SmartContract = {
   forks: Array<SmartContract>;
   forksCount: Scalars['Int'];
   hasCompletedVersion: Scalars['Boolean'];
+  translatedName: any;
   id: Scalars['ID'];
   isDeleted: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
@@ -7067,6 +7071,7 @@ export type Standard = {
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
   owner?: Maybe<Owner>;
+  translatedName: any
   parent?: Maybe<Standard>;
   permissionsRoot: RootPermission;
   score: Scalars['Int'];

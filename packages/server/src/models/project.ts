@@ -13,6 +13,7 @@ import { noNull, padSelect, permissionsSelectHelper } from "../builders";
 import { oneIsPublic } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
+import { getLabels } from "../getters";
 
 type Model = {
     IsTransferable: true,
@@ -32,7 +33,7 @@ type Model = {
 
 const __typename = 'Project' as const;
 
-const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoot'] as const;
+const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoot', 'translatedName'] as const;
 
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ProjectCreateInput | ProjectUpdateInput, isAdd: boolean) => {
@@ -117,6 +118,7 @@ export const ProjectModel: ModelLogic<Model, typeof suppFields> = ({
                 isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                 isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                 permissionsRoot: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+                translatedName: async () => await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName'),
             }),
         },
     },

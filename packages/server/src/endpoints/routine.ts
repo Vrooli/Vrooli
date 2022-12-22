@@ -72,6 +72,7 @@ export const typeDef = gql`
         isStarred: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
+        translatedName: String!
         score: Int!
         stars: Int!
         views: Int!

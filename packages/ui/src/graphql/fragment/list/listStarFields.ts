@@ -1,4 +1,5 @@
 import { gql } from 'graphql-tag';
+import { organizationName, projectName, routineName, standardName, tagTranslation, userName } from 'graphql/partial';
 
 export const listStarFields = gql`
     fragment listStarTagFields on Tag {
@@ -7,11 +8,7 @@ export const listStarFields = gql`
         isStarred
         stars
         tag
-        translations {
-            id
-            language
-            description
-        }
+        translations ${tagTranslation}
     }
     fragment listStarCommentFields on Comment {
         id
@@ -21,43 +18,13 @@ export const listStarFields = gql`
         isUpvoted
         isStarred
         commentedOn {
-            ... on Project {
-                id
-                handle
-                translations {
-                    id
-                    language
-                    name
-                }
-            }
-            ... on Routine {
-                id
-                translations {
-                    id
-                    language
-                    title
-                }
-            }
-            ... on Standard {
-                id
-                name
-            }
+            ... on Project ${projectName}
+            ... on Routine ${routineName}
+            ... on Standard ${standardName}
         }
         creator {
-            ... on Organization {
-                id
-                handle
-                translations {
-                    id
-                    language
-                    name
-                }
-            }
-            ... on User {
-                id
-                name
-                handle
-            }
+            ... on Organization ${organizationName}
+            ... on User ${userName}
         }
         permissionsComment {
             canDelete

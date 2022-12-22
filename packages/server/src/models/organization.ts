@@ -10,10 +10,11 @@ import { getSingleTypePermissions } from "../validators";
 import { noNull, onlyValidIds, shapeHelper } from "../builders";
 import { bestLabel, tagShapeHelper, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
+import { getLabels } from "../getters";
 
 const __typename = 'Organization' as const;
 
-const suppFields = ['isStarred', 'isViewed', 'permissionsOrganization'] as const;
+const suppFields = ['isStarred', 'isViewed', 'permissionsOrganization', 'translatedName'] as const;
 export const OrganizationModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -120,6 +121,7 @@ export const OrganizationModel: ModelLogic<{
                 isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
                 isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                 permissionsOrganization: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+                translatedName: async () => await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'organization.translatedName'),
             }),
         },
     },

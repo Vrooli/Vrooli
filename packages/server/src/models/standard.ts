@@ -15,11 +15,12 @@ import { noNull, padSelect, permissionsSelectHelper } from "../builders";
 import { oneIsPublic } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
+import { getLabels } from "../getters";
 
 
 const __typename = 'Standard' as const;
 
-const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoot'] as const;
+const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoot', 'translatedName'] as const;
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: StandardCreateInput | StandardUpdateInput, isAdd: boolean) => {
     return {
@@ -105,6 +106,7 @@ export const StandardModel: ModelLogic<{
                 isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                 isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                 permissionsRoot: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+                translatedName: async () => await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'standard.translatedName'),
             }),
         },
     },

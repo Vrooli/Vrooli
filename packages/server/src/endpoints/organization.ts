@@ -56,6 +56,7 @@ export const typeDef = gql`
         views: Int!
         isStarred: Boolean!
         isViewed: Boolean!
+        translatedName: String!
         apis: [Api!]!
         apisCount: Int!
         comments: [Comment!]!

@@ -13,6 +13,7 @@ import { SelectWrap } from "../builders/types";
 import { padSelect, permissionsSelectHelper } from "../builders";
 import { oneIsPublic } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
+import { getLabels } from "../getters";
 
 type Model = {
     IsTransferable: true,
@@ -32,7 +33,7 @@ type Model = {
 
 const __typename = 'Routine' as const;
 
-const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoutine'] as const;
+const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoutine', 'translatedName'] as const;
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
 //     select: {
@@ -304,6 +305,7 @@ export const RoutineModel: ModelLogic<Model, typeof suppFields> = ({
                 isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                 isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                 permissionsRoutine: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
+                translatedName: async () => await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'routine.translatedName'),
             }),
         },
     },
