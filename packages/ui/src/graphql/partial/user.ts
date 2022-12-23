@@ -18,4 +18,15 @@ export const listUserFields = ['User', `{
 }`] as const;
 export const userFields = ['User', `{
     id
+    handle
+    name
+    created_at
+    stars
+    isStarred
+    reportsCount
+    translations {
+        id
+        language
+        bio
+    }
 }`] as const;

@@ -9,13 +9,20 @@ export const notificationFields = ['Notification', `{
     imgLink
 }`] as const;
 export const notificationSettingsFields = ['NotificationSettings', `{
-    includedEmails
-    includedSms
-    includedPush
-    toEmails
-    toSms
-    toPush
+    categories {
+        category
+        enabled
+        dailyLimit
+        toEmails
+        toSms
+        toPush
+    }
     dailyLimit
     enabled
-    categories
+    includedEmails
+    includedPush
+    includedSms
+    toEmails
+    toPush
+    toSms
 }`] as const;

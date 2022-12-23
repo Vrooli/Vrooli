@@ -3,4 +3,8 @@ export const listReportFields = ['Report', `{
 }`] as const;
 export const reportFields = ['Report', `{
     id
+    language
+    reason
+    details
+    isOwn
 }`] as const;
