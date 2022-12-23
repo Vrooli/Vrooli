@@ -1,7 +1,7 @@
-import { emailFields as fullFields } from 'graphql/fragment';
-import { toGql } from 'graphql/utils';
+import { emailFields as fullFields } from 'graphql/partial';
+import { toMutation } from 'graphql/utils';
 
 export const emailEndpoint = {
-    create: toGql('mutation', 'emailCreate', 'EmailCreateInput', [fullFields], `...fullFields`),
-    verify: toGql('mutation', 'sendVerificationEmail', 'SendVerificationEmailInput', [], `success`)
+    create: toMutation('emailCreate', 'PhoneCreateInput', [fullFields], `...fullFields`),
+    update: toMutation('sendVerificationEmail', 'SendVerificationEmailInput', [], `success`)
 }

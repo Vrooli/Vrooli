@@ -1,17 +1,17 @@
-import { sessionFields } from 'graphql/fragment';
-import { toGql } from 'graphql/utils';
+import { sessionFields, walletFields } from 'graphql/partial';
+import { toMutation } from 'graphql/utils';
 
 export const authEndpoint = {
-    emailLogIn: toGql('mutation', 'emailLogIn', 'EmailLogInInput', [sessionFields], `...sessionFields`),
-    emailSignUp: toGql('mutation', 'emailSignUp', 'EmailSignUpInput', [sessionFields], `...sessionFields`),
-    emailRequestPasswordChange: toGql('mutation', 'emailRequestPasswordChange', 'EmailRequestPasswordChangeInput', [], `success`),
-    emailResetPassword: toGql('mutation', 'emailResetPassword', 'EmailResetPasswordInput', [sessionFields], `...sessionFields`),
-    guestLogIn: toGql('mutation', 'guestLogIn', null, [sessionFields], `...sessionFields`),
-    logOut: toGql('mutation', 'logOut', 'LogOutInput', [sessionFields], `...sessionFields`),
-    validateSession: toGql('mutation', 'validateSession', 'ValidateSessionInput', [sessionFields], `...sessionFields`),
-    switchCurrentAccount: toGql('mutation', 'switchCurrentAccount', 'SwitchCurrentAccountInput', [sessionFields], `...sessionFields`),
-    walletInit: toGql('mutation', 'walletInit', 'WalletInitInput', [], null),
-    walletComplete: toGql('mutation', 'walletComplete', 'WalletCompleteInput', [], `
+    emailLogIn: toMutation('emailLogIn', 'EmailLogInInput', [sessionFields], `...sessionFields`),
+    emailSignUp: toMutation('emailSignUp', 'EmailSignUpInput', [sessionFields], `...sessionFields`),
+    emailRequestPasswordChange: toMutation('emailRequestPasswordChange', 'EmailRequestPasswordChangeInput', [], `success`),
+    emailResetPassword: toMutation('emailResetPassword', 'EmailResetPasswordInput', [sessionFields], `...sessionFields`),
+    guestLogIn: toMutation('guestLogIn', null, [sessionFields], `...sessionFields`),
+    logOut: toMutation('logOut', 'LogOutInput', [sessionFields], `...sessionFields`),
+    validateSession: toMutation('validateSession', 'ValidateSessionInput', [sessionFields], `...sessionFields`),
+    switchCurrentAccount: toMutation('switchCurrentAccount', 'SwitchCurrentAccountInput', [sessionFields], `...sessionFields`),
+    walletInit: toMutation('walletInit', 'WalletInitInput', [], null),
+    walletComplete: toMutation('walletComplete', 'WalletCompleteInput', [sessionFields, walletFields], `
         firstLogIn
         session {
             ...sessionFields

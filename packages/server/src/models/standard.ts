@@ -93,10 +93,11 @@ export const StandardModel: ModelLogic<{
             transfers: 'Transfer',
             quizQuestions: 'QuizQuestion',
         },
-        joinMap: { tags: 'tag', starredBy: 'user' },//{ labels: 'label', tags: 'tag', starredBy: 'user' },
+        joinMap: { labels: 'label', tags: 'tag', starredBy: 'user' },
         countFields: {
             forksCount: true,
             issuesCount: true,
+            pullRequestsCount: true,
             versionsCount: true,
         },
         supplemental: {

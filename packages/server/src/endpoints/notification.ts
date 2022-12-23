@@ -81,12 +81,10 @@ export const typeDef = gql`
         take: Int
         visibility: VisibilityType
     }
-
     type NotificationSearchResult {
         pageInfo: PageInfo!
         edges: [NotificationEdge!]!
     }
-
     type NotificationEdge {
         cursor: String!
         node: Notification!

@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, ReportResponseSortBy } from './types';
+import { FindByIdInput, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, ReportResponseSortBy, ReportResponseSearchInput, ReportResponse, ReportResponseCreateInput, ReportResponseUpdateInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -86,12 +86,12 @@ const objectType = 'ReportResponse';
 export const resolvers: {
     ReportResponseSortBy: typeof ReportResponseSortBy;
     Query: {
-        reportResponse: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        reportResponses: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        reportResponse: GQLEndpoint<FindByIdInput, FindOneResult<ReportResponse>>;
+        reportResponses: GQLEndpoint<ReportResponseSearchInput, FindManyResult<ReportResponse>>;
     },
     Mutation: {
-        reportResponseCreate: GQLEndpoint<LabelCreateInput, CreateOneResult<Label>>;
-        reportResponseUpdate: GQLEndpoint<LabelUpdateInput, UpdateOneResult<Label>>;
+        reportResponseCreate: GQLEndpoint<ReportResponseCreateInput, CreateOneResult<ReportResponse>>;
+        reportResponseUpdate: GQLEndpoint<ReportResponseUpdateInput, UpdateOneResult<ReportResponse>>;
     }
 } = {
     ReportResponseSortBy,

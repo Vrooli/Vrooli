@@ -1,8 +1,8 @@
-import { listOrganizationFields, listProjectFields, listRoutineFields, listStandardFields, listUserFields } from 'graphql/fragment';
-import { toGql } from 'graphql/utils';
+import { listOrganizationFields, listProjectFields, listRoutineFields, listStandardFields, listUserFields } from 'graphql/partial';
+import { toQuery } from 'graphql/utils';
 
 export const feedEndpoint = {
-    popular: toGql('query', 'popular', 'PopularInput', [listOrganizationFields, listProjectFields, listRoutineFields, listStandardFields, listUserFields], `
+    popular: toQuery('popular', 'PopularInput', [listOrganizationFields, listProjectFields, listRoutineFields, listStandardFields, listUserFields], `
         organizations {
             ...listOrganizationFields
         }
@@ -19,7 +19,7 @@ export const feedEndpoint = {
             ...listUserFields
         }
     `),
-    learn: toGql('query', 'learn', null, [listProjectFields, listRoutineFields], `
+    learn: toQuery('learn', null, [listProjectFields, listRoutineFields], `
         learn {
             courses {
                 ...listProjectFields
@@ -29,7 +29,7 @@ export const feedEndpoint = {
             }
         }
     `),
-    research: toGql('query', 'research', null, [listOrganizationFields, listProjectFields, listRoutineFields], `
+    research: toQuery('research', null, [listOrganizationFields, listProjectFields, listRoutineFields], `
         processes {
             ...listRoutineFields
         }
@@ -51,7 +51,7 @@ export const feedEndpoint = {
             ...listOrganizationFields
         }
     `),
-    develop: toGql('query', 'develop', null, [listProjectFields, listRoutineFields], `
+    develop: toQuery('develop', null, [listProjectFields, listRoutineFields], `
         completed {
             ... on Project {
                 ...listProjectFields

@@ -14,7 +14,7 @@ export const typeDef = gql`
         LastViewedDesc
     }
 
-    union ViewTo = Api | Issue | Organization | Question | Note | Post | Project | Routine | SmartContract | Standard | User
+    union ViewTo = Api | Issue | Note | Organization | Post | Project | Question | Routine | SmartContract | Standard | User
   
     type View {
         id: ID!

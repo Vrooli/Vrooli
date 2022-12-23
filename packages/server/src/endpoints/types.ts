@@ -1312,7 +1312,9 @@ export type Mutation = {
   meetingInviteDecline: MeetingInvite;
   meetingInviteUpdate: MeetingInvite;
   meetingUpdate: Meeting;
+  memberInviteAccept: MemberInvite;
   memberInviteCreate: MemberInvite;
+  memberInviteDecline: MemberInvite;
   memberInviteUpdate: MemberInvite;
   memberUpdate: Member;
   nodeCreate: Node;
@@ -1566,8 +1568,18 @@ export type MutationMeetingUpdateArgs = {
 };
 
 
+export type MutationMemberInviteAcceptArgs = {
+  input: FindByIdInput;
+};
+
+
 export type MutationMemberInviteCreateArgs = {
   input: MemberInviteCreateInput;
+};
+
+
+export type MutationMemberInviteDeclineArgs = {
+  input: FindByIdInput;
 };
 
 
@@ -2757,7 +2769,6 @@ export type Organization = {
   __typename?: 'Organization';
   apis: Array<Api>;
   apisCount: Scalars['Int'];
-  translatedName: any;
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   created_at: Scalars['Date'];
@@ -2806,6 +2817,7 @@ export type Organization = {
   tags: Array<Tag>;
   transfersIncoming: Array<Transfer>;
   transfersOutgoing: Array<Transfer>;
+  translatedName: Scalars['String'];
   translations: Array<OrganizationTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
@@ -3146,7 +3158,6 @@ export type Project = {
   handle?: Maybe<Scalars['String']>;
   hasCompleteVersion: Scalars['Boolean'];
   id: Scalars['ID'];
-  translatedName: any
   isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -3171,6 +3182,7 @@ export type Project = {
   stats: Array<StatsProject>;
   tags: Array<Tag>;
   transfers: Array<Transfer>;
+  translatedName: Scalars['String'];
   updated_at: Scalars['Date'];
   versions: Array<ProjectVersion>;
   versionsCount: Scalars['Int'];
@@ -4639,6 +4651,7 @@ export type QuizAttempt = {
   pointsEarned: Scalars['Int'];
   quiz: Quiz;
   responses: Array<QuizQuestionResponse>;
+  responsesCount: Scalars['Int'];
   status: QuizAttemptStatus;
   timeTaken?: Maybe<Scalars['Int']>;
   updated_at: Scalars['Date'];
@@ -4750,6 +4763,7 @@ export type QuizQuestion = {
   points: Scalars['Int'];
   quiz: Quiz;
   responses?: Maybe<Array<QuizQuestionResponse>>;
+  responsesCount: Scalars['Int'];
   standard?: Maybe<Standard>;
   translations?: Maybe<Array<QuizQuestionTranslation>>;
   updated_at: Scalars['Date'];
@@ -5313,9 +5327,12 @@ export type ReportUpdateInput = {
 
 export type ReputationHistory = {
   __typename?: 'ReputationHistory';
-  amound: Scalars['Int'];
+  amount: Scalars['Int'];
   created_at: Scalars['Date'];
+  event: Scalars['String'];
   id: Scalars['ID'];
+  objectId1?: Maybe<Scalars['ID']>;
+  objectId2?: Maybe<Scalars['ID']>;
   updated_at: Scalars['Date'];
 };
 
@@ -5581,6 +5598,7 @@ export type Role = {
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   members?: Maybe<Array<Member>>;
+  membersCount: Scalars['Int'];
   name: Scalars['String'];
   organization: Organization;
   permissions: Scalars['String'];
@@ -5680,7 +5698,6 @@ export type Routine = {
   forksCount: Scalars['Int'];
   hasCompletedVersion: Scalars['Boolean'];
   id: Scalars['ID'];
-  translatedName: any;
   isDeleted: Scalars['Boolean'];
   isInternal?: Maybe<Scalars['Boolean']>;
   isPrivate: Scalars['Boolean'];
@@ -5693,10 +5710,13 @@ export type Routine = {
   owner?: Maybe<Owner>;
   parent?: Maybe<Routine>;
   permissionsRoutine: RoutinePermission;
+  pullRequests: Array<PullRequest>;
+  pullRequestsCount: Scalars['Int'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
+  translatedName: Scalars['String'];
   updated_at: Scalars['Date'];
   versions: Array<RoutineVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
@@ -6799,7 +6819,6 @@ export type SmartContract = {
   forks: Array<SmartContract>;
   forksCount: Scalars['Int'];
   hasCompletedVersion: Scalars['Boolean'];
-  translatedName: any;
   id: Scalars['ID'];
   isDeleted: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
@@ -6812,10 +6831,13 @@ export type SmartContract = {
   owner?: Maybe<Owner>;
   parent?: Maybe<SmartContract>;
   permissionsRoot: RootPermission;
+  pullRequests: Array<PullRequest>;
+  pullRequestsCount: Scalars['Int'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
+  translatedName: Scalars['String'];
   updated_at: Scalars['Date'];
   versions: Array<SmartContractVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
@@ -7070,14 +7092,17 @@ export type Standard = {
   issues: Array<Issue>;
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
+  name: Scalars['String'];
   owner?: Maybe<Owner>;
-  translatedName: any
   parent?: Maybe<Standard>;
   permissionsRoot: RootPermission;
+  pullRequests: Array<PullRequest>;
+  pullRequestsCount: Scalars['Int'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
+  translatedName: Scalars['String'];
   updated_at: Scalars['Date'];
   versions: Array<StandardVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
@@ -7086,10 +7111,10 @@ export type Standard = {
 
 export type StandardCreateInput = {
   id: Scalars['ID'];
-  name: any
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  name: Scalars['String'];
   organizationConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
   permissions: Scalars['String'];

@@ -1,46 +1,12 @@
-import { gql } from 'graphql-tag';
-import { apiFields as fullFields, listApiFields as listFields } from 'graphql/fragment';
+import { runRoutineFields as fullFields, listRunRoutineFields as listFields } from 'graphql/partial';
+import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
-export const apiEndpoint = {
-    findOne: gql`
-        ${fullFields}
-        query api($input: FindByIdInput!) {
-            api(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    findMany: gql`
-        ${listFields}
-        query apis($input: ApiSearchInput!) {
-            apis(input: $input) {
-                pageInfo {
-                    endCursor
-                    hasNextPage
-                }
-                edges {
-                    cursor
-                    node {
-                        ...listFields
-                    }
-                }
-            }
-        }
-    `,
-    create: gql`
-        ${fullFields}
-        mutation apiCreate($input: ApiCreateInput!) {
-            apiCreate(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    update: gql`
-        ${fullFields}
-        mutation apiUpdate($input: ApiUpdateInput!) {
-            apiUpdate(input: $input) {
-                ...fullFields
-            }
-        }
-    `
+export const runRoutineEndpoint = {
+    findOne: toQuery('runRoutine', 'FindByIdInput', [fullFields], `...fullFields`),
+    findMany: toQuery('runRoutines', 'RunRoutineSearchInput', [listFields], toSearch(listFields)),
+    create: toMutation('runRoutineCreate', 'RunRoutineCreateInput', [fullFields], `...fullFields`),
+    update: toMutation('runRoutineUpdate', 'RunRoutineUpdateInput', [fullFields], `...fullFields`),
+    deleteAll: toMutation('runRoutineDeleteAll', null, [], `count`),
+    complete: toMutation('runRoutineComplete', 'RunRoutineCompleteInput', [fullFields], `...fullFields`),
+    cancel: toMutation('runRoutineCancel', 'RunRoutineCancelInput', [fullFields], `...fullFields`),
 }

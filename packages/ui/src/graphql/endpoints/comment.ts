@@ -1,15 +1,9 @@
-import { commentFields, threadFields } from 'graphql/fragment';
-import { toGql } from 'graphql/utils';
+import { commentFields, commentThreadFields } from 'graphql/partial';
+import { toMutation, toQuery } from 'graphql/utils';
 
 export const commentEndpoint = {
-    findOne: toGql('query', 'comment', 'FindByIdInput', [commentFields], `...commentFields`),
-    findMany: toGql('query', 'comments', 'CommentSearchInput', [threadFields], `
-        endCursor
-        totalThreads
-        threads {
-            ...threadFields
-        }
-    `),
-    create: toGql('mutation', 'commentCreate', 'CommentCreateInput', [commentFields], `...commentFields`),
-    update: toGql('mutation', 'commentUpdate', 'CommentUpdateInput', [commentFields], `...commentFields`)
+    findOne: toQuery('comment', 'FindByIdInput', [commentFields], `...commentFields`),
+    findMany: toQuery('comments', 'CommentSearchInput', [commentThreadFields], `...commentThreadFields`),
+    create: toMutation('commentCreate', 'CommentCreateInput', [commentFields], `...commentFields`),
+    update: toMutation('commentUpdate', 'CommentUpdateInput', [commentFields], `...commentFields`)
 }

@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
-import { FindByIdInput, Label, LabelSearchInput, ReputationHistorySortBy } from './types';
+import { FindByIdInput, Label, LabelSearchInput, ReputationHistory, ReputationHistorySearchInput, ReputationHistorySortBy } from './types';
 import { rateLimit } from '../middleware';
 import { readManyHelper, readOneHelper } from '../actions';
 
@@ -16,7 +16,10 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        amound: Int!
+        amount: Int!
+        event: String!
+        objectId1: ID
+        objectId2: ID
     }
 
     input ReputationHistorySearchInput {
@@ -51,8 +54,8 @@ const objectType = 'ReputationHistory';
 export const resolvers: {
     ReputationHistorySortBy: typeof ReputationHistorySortBy;
     Query: {
-        reputationHistory: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        reputationHistories: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        reputationHistory: GQLEndpoint<FindByIdInput, FindOneResult<ReputationHistory>>;
+        reputationHistories: GQLEndpoint<ReputationHistorySearchInput, FindManyResult<ReputationHistory>>;
     },
 } = {
     ReputationHistorySortBy,

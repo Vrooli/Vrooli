@@ -1,46 +1,9 @@
-import { gql } from 'graphql-tag';
-import { apiFields as fullFields, listApiFields as listFields } from 'graphql/fragment';
+import { questionFields as fullFields, listQuestionFields as listFields } from 'graphql/partial';
+import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
-export const apiEndpoint = {
-    findOne: gql`
-        ${fullFields}
-        query api($input: FindByIdInput!) {
-            api(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    findMany: gql`
-        ${listFields}
-        query apis($input: ApiSearchInput!) {
-            apis(input: $input) {
-                pageInfo {
-                    endCursor
-                    hasNextPage
-                }
-                edges {
-                    cursor
-                    node {
-                        ...listFields
-                    }
-                }
-            }
-        }
-    `,
-    create: gql`
-        ${fullFields}
-        mutation apiCreate($input: ApiCreateInput!) {
-            apiCreate(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    update: gql`
-        ${fullFields}
-        mutation apiUpdate($input: ApiUpdateInput!) {
-            apiUpdate(input: $input) {
-                ...fullFields
-            }
-        }
-    `
+export const questionEndpoint = {
+    findOne: toQuery('question', 'FindByIdInput', [fullFields], `...fullFields`),
+    findMany: toQuery('questions', 'QuestionSearchInput', [listFields], toSearch(listFields)),
+    create: toMutation('questionCreate', 'QuestionCreateInput', [fullFields], `...fullFields`),
+    update: toMutation('questionUpdate', 'QuestionUpdateInput', [fullFields], `...fullFields`)
 }

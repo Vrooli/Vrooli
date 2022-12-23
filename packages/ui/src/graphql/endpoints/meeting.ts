@@ -1,46 +1,9 @@
-import { gql } from 'graphql-tag';
-import { apiFields as fullFields, listApiFields as listFields } from 'graphql/fragment';
+import { meetingFields as fullFields, listMeetingFields as listFields } from 'graphql/partial';
+import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
-export const apiEndpoint = {
-    findOne: gql`
-        ${fullFields}
-        query api($input: FindByIdInput!) {
-            api(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    findMany: gql`
-        ${listFields}
-        query apis($input: ApiSearchInput!) {
-            apis(input: $input) {
-                pageInfo {
-                    endCursor
-                    hasNextPage
-                }
-                edges {
-                    cursor
-                    node {
-                        ...listFields
-                    }
-                }
-            }
-        }
-    `,
-    create: gql`
-        ${fullFields}
-        mutation apiCreate($input: ApiCreateInput!) {
-            apiCreate(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    update: gql`
-        ${fullFields}
-        mutation apiUpdate($input: ApiUpdateInput!) {
-            apiUpdate(input: $input) {
-                ...fullFields
-            }
-        }
-    `
+export const meetingEndpoint = {
+    findOne: toQuery('meeting', 'FindByIdInput', [fullFields], `...fullFields`),
+    findMany: toQuery('meetings', 'MeetingSearchInput', [listFields], toSearch(listFields)),
+    create: toMutation('meetingCreate', 'MeetingCreateInput', [fullFields], `...fullFields`),
+    update: toMutation('meetingUpdate', 'MeetingUpdateInput', [fullFields], `...fullFields`)
 }

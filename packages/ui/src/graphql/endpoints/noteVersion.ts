@@ -1,46 +1,9 @@
-import { gql } from 'graphql-tag';
-import { apiFields as fullFields, listApiFields as listFields } from 'graphql/fragment';
+import { noteVersionFields as fullFields, listNoteVersionFields as listFields } from 'graphql/partial';
+import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
-export const apiEndpoint = {
-    findOne: gql`
-        ${fullFields}
-        query api($input: FindByIdInput!) {
-            api(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    findMany: gql`
-        ${listFields}
-        query apis($input: ApiSearchInput!) {
-            apis(input: $input) {
-                pageInfo {
-                    endCursor
-                    hasNextPage
-                }
-                edges {
-                    cursor
-                    node {
-                        ...listFields
-                    }
-                }
-            }
-        }
-    `,
-    create: gql`
-        ${fullFields}
-        mutation apiCreate($input: ApiCreateInput!) {
-            apiCreate(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    update: gql`
-        ${fullFields}
-        mutation apiUpdate($input: ApiUpdateInput!) {
-            apiUpdate(input: $input) {
-                ...fullFields
-            }
-        }
-    `
+export const noteVersionEndpoint = {
+    findOne: toQuery('noteVersion', 'FindByIdInput', [fullFields], `...fullFields`),
+    findMany: toQuery('noteVersions', 'NoteVersionSearchInput', [listFields], toSearch(listFields)),
+    create: toMutation('noteVersionCreate', 'NoteVersionCreateInput', [fullFields], `...fullFields`),
+    update: toMutation('noteVersionUpdate', 'NoteVersionUpdateInput', [fullFields], `...fullFields`)
 }

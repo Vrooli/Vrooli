@@ -50,6 +50,7 @@ export const typeDef = gql`
         timeTaken: Int
         quiz: Quiz!
         responses: [QuizQuestionResponse!]!
+        responsesCount: Int!
     }
 
     type QuizAttemptPermission {

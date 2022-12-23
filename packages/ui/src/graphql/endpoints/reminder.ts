@@ -1,46 +1,9 @@
-import { gql } from 'graphql-tag';
-import { apiFields as fullFields, listApiFields as listFields } from 'graphql/fragment';
+import { reminderFields as fullFields, listReminderFields as listFields } from 'graphql/partial';
+import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
-export const apiEndpoint = {
-    findOne: gql`
-        ${fullFields}
-        query api($input: FindByIdInput!) {
-            api(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    findMany: gql`
-        ${listFields}
-        query apis($input: ApiSearchInput!) {
-            apis(input: $input) {
-                pageInfo {
-                    endCursor
-                    hasNextPage
-                }
-                edges {
-                    cursor
-                    node {
-                        ...listFields
-                    }
-                }
-            }
-        }
-    `,
-    create: gql`
-        ${fullFields}
-        mutation apiCreate($input: ApiCreateInput!) {
-            apiCreate(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    update: gql`
-        ${fullFields}
-        mutation apiUpdate($input: ApiUpdateInput!) {
-            apiUpdate(input: $input) {
-                ...fullFields
-            }
-        }
-    `
+export const reminderEndpoint = {
+    findOne: toQuery('reminder', 'FindByIdInput', [fullFields], `...fullFields`),
+    findMany: toQuery('reminders', 'ReminderSearchInput', [listFields], toSearch(listFields)),
+    create: toMutation('reminderCreate', 'ReminderCreateInput', [fullFields], `...fullFields`),
+    update: toMutation('reminderUpdate', 'ReminderUpdateInput', [fullFields], `...fullFields`)
 }

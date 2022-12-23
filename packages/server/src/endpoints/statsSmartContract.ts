@@ -2,6 +2,7 @@ import { gql } from 'apollo-server-express';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { readManyHelper } from '../actions';
+import { StatsSmartContractSearchInput, StatsSmartContractSearchResult } from './types';
 
 export const typeDef = gql`
     enum StatsSmartContractSortBy {
@@ -43,7 +44,7 @@ export const typeDef = gql`
 const objectType = 'StatsSmartContract';
 export const resolvers: {
     Query: {
-        statsSmartContract: GQLEndpoint<any, any>;
+        statsSmartContract: GQLEndpoint<StatsSmartContractSearchInput, StatsSmartContractSearchResult>;
     },
 } = {
     Query: {

@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Label, LabelSearchInput, RunRoutineScheduleSortBy, RunRoutineSchedule } from './types';
+import { FindByIdInput, Label, LabelSearchInput, RunRoutineScheduleSortBy, RunRoutineSchedule, RunRoutineScheduleSearchInput, RunRoutineScheduleCreateInput, RunRoutineScheduleUpdateInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -124,12 +124,12 @@ const objectType = 'RunRoutineSchedule';
 export const resolvers: {
     RunRoutineScheduleSortBy: typeof RunRoutineScheduleSortBy;
     Query: {
-        runRoutineSchedule: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        runRoutineSchedules: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        runRoutineSchedule: GQLEndpoint<FindByIdInput, FindOneResult<RunRoutineSchedule>>;
+        runRoutineSchedules: GQLEndpoint<RunRoutineScheduleSearchInput, FindManyResult<RunRoutineSchedule>>;
     },
     Mutation: {
-        runRoutineScheduleCreate: GQLEndpoint<any, CreateOneResult<RunRoutineSchedule>>;
-        runRoutineScheduleUpdate: GQLEndpoint<any, UpdateOneResult<RunRoutineSchedule>>;
+        runRoutineScheduleCreate: GQLEndpoint<RunRoutineScheduleCreateInput, CreateOneResult<RunRoutineSchedule>>;
+        runRoutineScheduleUpdate: GQLEndpoint<RunRoutineScheduleUpdateInput, UpdateOneResult<RunRoutineSchedule>>;
     }
 } = {
     RunRoutineScheduleSortBy,

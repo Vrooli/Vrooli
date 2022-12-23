@@ -1,46 +1,11 @@
-import { gql } from 'graphql-tag';
-import { apiFields as fullFields, listApiFields as listFields } from 'graphql/fragment';
+import { memberInviteFields as fullFields, listMemberInviteFields as listFields } from 'graphql/partial';
+import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
-export const apiEndpoint = {
-    findOne: gql`
-        ${fullFields}
-        query api($input: FindByIdInput!) {
-            api(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    findMany: gql`
-        ${listFields}
-        query apis($input: ApiSearchInput!) {
-            apis(input: $input) {
-                pageInfo {
-                    endCursor
-                    hasNextPage
-                }
-                edges {
-                    cursor
-                    node {
-                        ...listFields
-                    }
-                }
-            }
-        }
-    `,
-    create: gql`
-        ${fullFields}
-        mutation apiCreate($input: ApiCreateInput!) {
-            apiCreate(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    update: gql`
-        ${fullFields}
-        mutation apiUpdate($input: ApiUpdateInput!) {
-            apiUpdate(input: $input) {
-                ...fullFields
-            }
-        }
-    `
+export const memberInviteEndpoint = {
+    findOne: toQuery('memberInvite', 'FindByIdInput', [fullFields], `...fullFields`),
+    findMany: toQuery('memberInvites', 'MemberInviteSearchInput', [listFields], toSearch(listFields)),
+    create: toMutation('memberInviteCreate', 'MemberInviteCreateInput', [fullFields], `...fullFields`),
+    update: toMutation('memberInviteUpdate', 'MemberInviteUpdateInput', [fullFields], `...fullFields`),
+    accept: toMutation('memberInviteAccept', 'FindByIdInput', [fullFields], `...fullFields`),
+    decline: toMutation('memberInviteDecline', 'FindByIdInput', [fullFields], `...fullFields`)
 }

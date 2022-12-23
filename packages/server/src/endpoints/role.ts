@@ -41,6 +41,7 @@ export const typeDef = gql`
         translations: [RoleTranslation!]!
         organization: Organization!
         members: [Member!]
+        membersCount: Int!
     }
 
     #type Permission {

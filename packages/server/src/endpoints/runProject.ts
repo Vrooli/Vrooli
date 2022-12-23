@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
-import { FindByIdInput, Label, LabelSearchInput, RunProjectSortBy, RunProjectCreateInput, RunProjectUpdateInput, RunStatus, Count, RunProject } from './types';
+import { FindByIdInput, RunProjectSearchInput, RunProjectSortBy, RunProjectCreateInput, RunProjectUpdateInput, RunStatus, Count, RunProject, RunProjectCompleteInput, RunProjectCancelInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { assertRequestFrom } from '../auth';
@@ -133,15 +133,15 @@ export const resolvers: {
     RunProjectSortBy: typeof RunProjectSortBy;
     RunStatus: typeof RunStatus;
     Query: {
-        runProject: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        runProjects: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        runProject: GQLEndpoint<FindByIdInput, FindOneResult<RunProject>>;
+        runProjects: GQLEndpoint<RunProjectSearchInput, FindManyResult<RunProject>>;
     },
     Mutation: {
         runProjectCreate: GQLEndpoint<RunProjectCreateInput, CreateOneResult<RunProject>>;
         runProjectUpdate: GQLEndpoint<RunProjectUpdateInput, UpdateOneResult<RunProject>>;
         runProjectDeleteAll: GQLEndpoint<{}, Count>;
-        runProjectComplete: GQLEndpoint<any, RecursivePartial<RunProject>>;
-        runProjectCancel: GQLEndpoint<any, RecursivePartial<RunProject>>;
+        runProjectComplete: GQLEndpoint<RunProjectCompleteInput, RecursivePartial<RunProject>>;
+        runProjectCancel: GQLEndpoint<RunProjectCancelInput, RecursivePartial<RunProject>>;
     }
 } = {
     RunProjectSortBy,

@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { FindByIdInput, IssueSortBy, Issue, IssueSearchInput, IssueCreateInput, IssueUpdateInput, IssueStatus, IssueFor } from './types';
+import { FindByIdInput, IssueSortBy, Issue, IssueSearchInput, IssueCreateInput, IssueUpdateInput, IssueStatus, IssueFor, IssueCloseInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { resolveUnion } from './resolvers';
@@ -182,7 +182,7 @@ export const resolvers: {
     Mutation: {
         issueCreate: GQLEndpoint<IssueCreateInput, CreateOneResult<Issue>>;
         issueUpdate: GQLEndpoint<IssueUpdateInput, UpdateOneResult<Issue>>;
-        issueClose: GQLEndpoint<any, UpdateOneResult<Issue>>;
+        issueClose: GQLEndpoint<IssueCloseInput, UpdateOneResult<Issue>>;
     }
 } = {
     IssueSortBy,

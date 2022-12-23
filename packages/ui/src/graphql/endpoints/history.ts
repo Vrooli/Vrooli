@@ -1,8 +1,8 @@
-import { listRunRoutineFields, listStarFields, listViewFields } from 'graphql/fragment';
-import { toGql } from 'graphql/utils';
+import { listRunRoutineFields, listStarFields, listViewFields } from 'graphql/partial';
+import { toQuery } from 'graphql/utils';
 
 export const historyEndpoint = {
-    history: toGql('query', 'history', 'HistoryInput', [listRunRoutineFields, listStarFields, listViewFields], `
+    history: toQuery('history', 'HistoryInput', [listRunRoutineFields, listStarFields, listViewFields], `
         activeRuns {
             ...listRunRoutineFields
         }

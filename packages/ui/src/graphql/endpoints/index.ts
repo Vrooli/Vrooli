@@ -24,7 +24,7 @@ export * from './nodeRoutineList';
 export * from './nodeRoutineListItem';
 export * from './note';
 export * from './noteVersion';
-export * from './notificiation';
+export * from './notification';
 export * from './notificationSubscription';
 export * from './organization';
 export * from './payment';

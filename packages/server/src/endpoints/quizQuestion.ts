@@ -44,6 +44,7 @@ export const typeDef = gql`
         quiz: Quiz!
         standard: Standard
         responses: [QuizQuestionResponse!]
+        responsesCount: Int!
         translations: [QuizQuestionTranslation!]
     }
 
@@ -86,12 +87,10 @@ export const typeDef = gql`
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }
-
     type QuizQuestionSearchResult {
         pageInfo: PageInfo!
         edges: [QuizQuestionEdge!]!
     }
-
     type QuizQuestionEdge {
         cursor: String!
         node: QuizQuestion!

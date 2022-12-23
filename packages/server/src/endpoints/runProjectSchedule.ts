@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Label, LabelSearchInput, RunProjectScheduleSortBy, RunProjectSchedule } from './types';
+import { FindByIdInput, Label, LabelSearchInput, RunProjectScheduleSortBy, RunProjectSchedule, RunProjectScheduleSearchInput, RunProjectScheduleCreateInput, RunProjectScheduleUpdateInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -124,12 +124,12 @@ const objectType = 'RunProjectSchedule';
 export const resolvers: {
     RunProjectScheduleSortBy: typeof RunProjectScheduleSortBy;
     Query: {
-        runProjectSchedule: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        runProjectSchedules: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        runProjectSchedule: GQLEndpoint<FindByIdInput, FindOneResult<RunProjectSchedule>>;
+        runProjectSchedules: GQLEndpoint<RunProjectScheduleSearchInput, FindManyResult<RunProjectSchedule>>;
     },
     Mutation: {
-        runProjectScheduleCreate: GQLEndpoint<any, CreateOneResult<RunProjectSchedule>>;
-        runProjectScheduleUpdate: GQLEndpoint<any, UpdateOneResult<RunProjectSchedule>>;
+        runProjectScheduleCreate: GQLEndpoint<RunProjectScheduleCreateInput, CreateOneResult<RunProjectSchedule>>;
+        runProjectScheduleUpdate: GQLEndpoint<RunProjectScheduleUpdateInput, UpdateOneResult<RunProjectSchedule>>;
     }
 } = {
     RunProjectScheduleSortBy,

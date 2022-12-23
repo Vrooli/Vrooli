@@ -2,6 +2,7 @@ import { gql } from 'apollo-server-express';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { readManyHelper } from '../actions';
+import { StatsRoutineSearchInput, StatsRoutineSearchResult } from './types';
 
 export const typeDef = gql`
     enum StatsRoutineSortBy {
@@ -43,7 +44,7 @@ export const typeDef = gql`
 const objectType = 'StatsRoutine';
 export const resolvers: {
     Query: {
-        statsRoutine: GQLEndpoint<any, any>;
+        statsRoutine: GQLEndpoint<StatsRoutineSearchInput, StatsRoutineSearchResult>;
     },
 } = {
     Query: {

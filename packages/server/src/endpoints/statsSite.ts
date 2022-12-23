@@ -2,6 +2,7 @@ import { gql } from 'apollo-server-express';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { readManyHelper } from '../actions';
+import { StatsSiteSearchInput, StatsSiteSearchResult } from './types';
 
 export const typeDef = gql`
     enum StatsSiteSortBy {
@@ -70,7 +71,7 @@ export const typeDef = gql`
 const objectType = 'StatsSite';
 export const resolvers: {
     Query: {
-        statsSite: GQLEndpoint<any, any>;
+        statsSite: GQLEndpoint<StatsSiteSearchInput, StatsSiteSearchResult>;
     },
 } = {
     Query: {

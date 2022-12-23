@@ -120,8 +120,18 @@ export async function getReputationGainedToday(userId: string, delta: number): P
  * @param delta The amount of reputation to add to the user's reputation
  * @param prisma The prisma client
  * @param userId The id of the user
+ * @param event The event which caused the reputation change
+ * @param objectId1 The id of the first object involved in the event, if applicable
+ * @param objectId2 The id of the second object involved in the event, if applicable
  */
-const updateReputationHelper = async (delta: number, prisma: PrismaType, userId: string) => {
+const updateReputationHelper = async (
+    delta: number,
+    prisma: PrismaType,
+    userId: string,
+    event: ReputationEvent,
+    objectId1?: string,
+    objectId2?: string
+) => {
     // Determine how much reputation the user will have gained today. 
     // Should not be able to gain more than 100 reputation per day, 
     // or lose more than 100 reputation per day.
@@ -149,6 +159,9 @@ const updateReputationHelper = async (delta: number, prisma: PrismaType, userId:
         data: {
             userId,
             amount,
+            event,
+            objectId1,
+            objectId2,
         },
     });
 }
@@ -170,7 +183,7 @@ export const Reputation = () => ({
         // Determine reputation delta
         const delta = reputationMap[event] || 0;
         // Update reputation
-        await updateReputationHelper(delta, prisma, userId);
+        await updateReputationHelper(delta, prisma, userId, event);
     },
     /**
      * Custom reputation update function for votes
@@ -181,7 +194,7 @@ export const Reputation = () => ({
      */
     updateVote: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaVote(v0, v1);
-        await updateReputationHelper(delta, prisma, userId);
+        await updateReputationHelper(delta, prisma, userId, 'ReceivedVote');
     },
     /**
      * Custom reputation update function for stars
@@ -192,7 +205,7 @@ export const Reputation = () => ({
      */
     updateStar: async (v0: number, v1: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaStar(v0, v1);
-        await updateReputationHelper(delta, prisma, userId);
+        await updateReputationHelper(delta, prisma, userId, 'ReceivedStar');
     },
     /**
      * Custom reputation update function for report contributions
@@ -202,6 +215,6 @@ export const Reputation = () => ({
      */
     updateReportContribute: async (totalContributions: number, prisma: PrismaType, userId: string) => {
         const delta = reputationDeltaReportContribute(totalContributions);
-        await updateReputationHelper(delta, prisma, userId);
+        await updateReputationHelper(delta, prisma, userId, 'ContributedToReport');
     }
 });

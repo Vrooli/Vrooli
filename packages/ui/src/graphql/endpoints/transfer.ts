@@ -1,46 +1,13 @@
-import { gql } from 'graphql-tag';
-import { apiFields as fullFields, listApiFields as listFields } from 'graphql/fragment';
+import { transferFields as fullFields, listTransferFields as listFields } from 'graphql/partial';
+import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
-export const apiEndpoint = {
-    findOne: gql`
-        ${fullFields}
-        query api($input: FindByIdInput!) {
-            api(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    findMany: gql`
-        ${listFields}
-        query apis($input: ApiSearchInput!) {
-            apis(input: $input) {
-                pageInfo {
-                    endCursor
-                    hasNextPage
-                }
-                edges {
-                    cursor
-                    node {
-                        ...listFields
-                    }
-                }
-            }
-        }
-    `,
-    create: gql`
-        ${fullFields}
-        mutation apiCreate($input: ApiCreateInput!) {
-            apiCreate(input: $input) {
-                ...fullFields
-            }
-        }
-    `,
-    update: gql`
-        ${fullFields}
-        mutation apiUpdate($input: ApiUpdateInput!) {
-            apiUpdate(input: $input) {
-                ...fullFields
-            }
-        }
-    `
+export const transferEndpoint = {
+    findOne: toQuery('transfer', 'FindByIdInput', [fullFields], `...fullFields`),
+    findMany: toQuery('transfers', 'TransferSearchInput', [listFields], toSearch(listFields)),
+    requestSend: toMutation('transferRequestSend', 'TransferRequestSendInput', [fullFields], `...fullFields`),
+    requestReceive: toMutation('transferRequestReceive', 'TransferRequestReceiveInput', [fullFields], `...fullFields`),
+    transferUpdate: toMutation('transferUpdate', 'TransferUpdateInput', [fullFields], `...fullFields`),
+    transferCancel: toMutation('transferCancel', 'FindByIdInput', [fullFields], `...fullFields`),
+    transferAccept: toMutation('transferAccept', 'FindByIdInput', [fullFields], `...fullFields`),
+    transferDeny: toMutation('transferDeny', 'TransferDenyInput', [fullFields], `...fullFields`),
 }

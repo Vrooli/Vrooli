@@ -3,6 +3,7 @@ import { CreateOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from 
 import { rateLimit } from '../middleware';
 import { createHelper, updateHelper } from '../actions';
 import { assertRequestFrom } from '../auth';
+import { PushDeviceCreateInput, PushDeviceUpdateInput } from './types';
 
 export const typeDef = gql`
     input PushDeviceKeysInput {
@@ -39,11 +40,11 @@ export const typeDef = gql`
 const objectType = 'PushDevice';
 export const resolvers: {
     Query: {
-        pushDevices: GQLEndpoint<any, RecursivePartial<any>>;
+        pushDevices: GQLEndpoint<never, RecursivePartial<any>>;
     }
     Mutation: {
-        pushDeviceCreate: GQLEndpoint<any, CreateOneResult<any>>;
-        pushDeviceUpdate: GQLEndpoint<any, UpdateOneResult<any>>;
+        pushDeviceCreate: GQLEndpoint<PushDeviceCreateInput, CreateOneResult<any>>;
+        pushDeviceUpdate: GQLEndpoint<PushDeviceUpdateInput, UpdateOneResult<any>>;
     }
 } = {
     Query: {

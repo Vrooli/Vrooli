@@ -3,6 +3,7 @@ import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneR
 import { FindByIdInput, MeetingInviteSortBy, MeetingInviteStatus, MeetingInvite, MeetingInviteSearchInput, MeetingInviteCreateInput, MeetingInviteUpdateInput } from './types';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
+import { CustomError } from '../events';
 
 export const typeDef = gql`
     enum MemberInviteSortBy {
@@ -86,6 +87,8 @@ export const typeDef = gql`
     extend type Mutation {
         memberInviteCreate(input: MemberInviteCreateInput!): MemberInvite!
         memberInviteUpdate(input: MemberInviteUpdateInput!): MemberInvite!
+        memberInviteAccept(input: FindByIdInput!): MemberInvite!
+        memberInviteDecline(input: FindByIdInput!): MemberInvite!
     }
 `
 
@@ -100,6 +103,8 @@ export const resolvers: {
     Mutation: {
         memberInviteCreate: GQLEndpoint<MeetingInviteCreateInput, CreateOneResult<MeetingInvite>>;
         memberInviteUpdate: GQLEndpoint<MeetingInviteUpdateInput, UpdateOneResult<MeetingInvite>>;
+        memberInviteAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<MeetingInvite>>;
+        memberInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<MeetingInvite>>;
     }
 } = {
     MemberInviteSortBy: MeetingInviteSortBy,
@@ -123,5 +128,13 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 250, req });
             return updateHelper({ info, input, objectType, prisma, req })
         },
+        memberInviteAccept: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 250, req });
+            throw new CustomError('0000', 'NotImplemented', ['en']);
+        },
+        memberInviteDecline: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 250, req });
+            throw new CustomError('0000', 'NotImplemented', ['en']);
+        }
     }
 }

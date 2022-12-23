@@ -296,6 +296,7 @@ export const RoutineModel: ModelLogic<Model, typeof suppFields> = ({
         countFields: {
             forksCount: true,
             issuesCount: true,
+            pullRequestsCount: true,
             versionsCount: true,
         },
         supplemental: {
