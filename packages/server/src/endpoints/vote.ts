@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { VoteInput, Success, VoteFor, VoteSortBy, VoteSearchInput, Vote } from './types';
+import { VoteInput, Success, VoteFor, VoteSortBy, VoteSearchInput, Vote } from '@shared/consts';
 import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
 import { rateLimit } from '../middleware';
 import { VoteModel } from '../models';

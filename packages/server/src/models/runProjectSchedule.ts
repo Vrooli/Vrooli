@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { RunProjectSchedule, RunProjectScheduleCreateInput, RunProjectScheduleSearchInput, RunProjectScheduleSortBy, RunProjectScheduleUpdateInput } from "../endpoints/types";
+import { RunProjectSchedule, RunProjectScheduleCreateInput, RunProjectScheduleSearchInput, RunProjectScheduleSortBy, RunProjectScheduleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";

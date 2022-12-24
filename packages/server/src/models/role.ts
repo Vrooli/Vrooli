@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Role, RoleCreateInput, RoleUpdateInput } from "../endpoints/types";
+import { Role, RoleCreateInput, RoleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { Displayer, Formatter, ModelLogic } from "./types";

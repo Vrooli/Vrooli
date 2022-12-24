@@ -1,10 +1,10 @@
 import { blankToUndefined, id, minNumErr, name, opt, req } from '../utils';
 import * as yup from 'yup';
-import { RunStepStatus } from '@shared/consts';
+import { RunRoutineStepStatus } from '@shared/consts';
 
 const order = yup.number().integer().min(0, minNumErr);
 const contextSwitches = yup.number().integer().min(0, minNumErr);
-const stepStatus = yup.string().transform(blankToUndefined).oneOf(Object.values(RunStepStatus))
+const stepStatus = yup.string().transform(blankToUndefined).oneOf(Object.values(RunRoutineStepStatus))
 const timeElapsed = yup.number().integer().min(0, minNumErr);
 const step = yup.array().of(yup.number().integer().min(0, minNumErr));
 

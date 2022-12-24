@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { FindManyResult, FindOneResult, GQLEndpoint } from '../types';
-import { FindByIdInput, NotificationSortBy, Notification, NotificationSearchInput, Success, Count, NotificationSettingsUpdateInput, NotificationSettings } from './types';
+import { FindByIdInput, NotificationSortBy, Notification, NotificationSearchInput, Success, Count, NotificationSettingsUpdateInput, NotificationSettings } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { readManyHelper, readOneHelper } from '../actions';
 import { CustomError } from '../events';

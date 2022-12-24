@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from "../endpoints/types";
+import { Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { Displayer, ModelLogic } from "./types";

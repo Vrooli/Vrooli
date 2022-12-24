@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Quiz, QuizCreateInput, QuizPermission, QuizSearchInput, QuizSortBy, QuizUpdateInput } from "../endpoints/types";
+import { Quiz, QuizCreateInput, QuizPermission, QuizSearchInput, QuizSortBy, QuizUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { Displayer, ModelLogic } from "./types";

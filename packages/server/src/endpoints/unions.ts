@@ -2,7 +2,7 @@
  * Endpoints optimized for specific pages
  */
 import { gql } from 'apollo-server-express';
-import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutine, ProjectOrOrganization } from './types';
+import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutine, ProjectOrOrganization } from '@shared/consts';
 import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
 import { rateLimit } from '../middleware';
 import { resolveUnion } from './resolvers';

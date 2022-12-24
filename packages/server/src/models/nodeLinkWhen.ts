@@ -1,4 +1,4 @@
-import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput } from "../endpoints/types";
+import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";

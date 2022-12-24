@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from "../endpoints/types";
+import { PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, ModelLogic } from "./types";
 

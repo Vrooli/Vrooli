@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CustomError } from '../events/error';
-import { Translate, TranslateInput } from './types';
+import { Translate, TranslateInput } from '@shared/consts';
 import { GQLEndpoint } from '../types';
 import fetch from 'node-fetch';
 

@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { SelectWrap } from "../builders/types";
-import { Premium } from "../endpoints/types";
+import { Premium } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, ModelLogic } from "./types";
 

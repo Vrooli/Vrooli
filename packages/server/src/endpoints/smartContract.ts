@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { SmartContractSortBy, FindByIdInput, SmartContract, SmartContractSearchInput, SmartContractCreateInput, SmartContractUpdateInput } from './types';
+import { SmartContractSortBy, FindByIdInput, SmartContract, SmartContractSearchInput, SmartContractCreateInput, SmartContractUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 

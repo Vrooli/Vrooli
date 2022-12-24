@@ -1,5 +1,5 @@
 import { CustomError, Trigger } from "../events";
-import { SessionUser, Vote, VoteFor, VoteInput, VoteSearchInput, VoteSortBy } from "../endpoints/types";
+import { SessionUser, Vote, VoteFor, VoteInput, VoteSearchInput, VoteSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { ApiModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel, QuestionAnswerModel, QuestionModel, QuizModel, RoutineModel, SmartContractModel, StandardModel } from ".";

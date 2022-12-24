@@ -1,6 +1,6 @@
 import { reportValidation } from "@shared/validation";
 import { ReportFor, ReportSortBy } from '@shared/consts';
-import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../endpoints/types";
+import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";

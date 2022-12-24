@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, CopyInput, SessionUser, VisibilityType } from "../endpoints/types";
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, CopyInput, SessionUser, VisibilityType } from '@shared/consts';
 import { PrismaType, RecursivePartial } from "../types";
 import { GraphQLModelType } from "../models/types";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";

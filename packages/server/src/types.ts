@@ -1,5 +1,5 @@
 import pkg from '@prisma/client';
-import { SessionUser } from './endpoints/types';
+import { SessionUser } from '@shared/consts';
 import { TFuncKey } from 'i18next';
 import { Context } from './middleware';
 import { GraphQLResolveInfo } from 'graphql';

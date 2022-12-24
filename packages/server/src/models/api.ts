@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, RootPermission } from "../endpoints/types";
+import { Api, ApiCreateInput, ApiSearchInput, ApiSortBy, ApiUpdateInput, RootPermission } from '@shared/consts';
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { ApiVersionModel } from "./apiVersion";

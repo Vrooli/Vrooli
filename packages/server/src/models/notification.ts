@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Notification, NotificationSearchInput, NotificationSortBy } from "../endpoints/types";
+import { Notification, NotificationSearchInput, NotificationSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 

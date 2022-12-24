@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, Project, Routine, PopularInput, PopularResult, LearnResult, ResearchResult, DevelopResult } from './types';
+import { OrganizationSortBy, ProjectSortBy, ResourceUsedFor, RoutineSortBy, StandardSortBy, UserSortBy, Project, Routine, PopularInput, PopularResult, LearnResult, ResearchResult, DevelopResult } from '@shared/consts';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { getUser } from '../auth/request';

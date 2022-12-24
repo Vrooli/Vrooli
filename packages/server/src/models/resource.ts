@@ -1,5 +1,5 @@
 import { ResourceSortBy } from "@shared/consts";
-import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput } from "../endpoints/types";
+import { Resource, ResourceSearchInput, ResourceCreateInput, ResourceUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";

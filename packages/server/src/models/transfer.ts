@@ -1,5 +1,5 @@
 import { CustomError } from "../events";
-import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, Vote } from "../endpoints/types";
+import { SessionUser, Transfer, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSortBy, TransferUpdateInput, Vote } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { ApiModel, NoteModel, ProjectModel, RoutineModel, SmartContractModel, StandardModel } from ".";

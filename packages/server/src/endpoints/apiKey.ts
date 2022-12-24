@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { ApiKey, ApiKeyCreateInput, ApiKeyDeleteOneInput, ApiKeyUpdateInput, ApiKeyValidateInput, Success } from './types';
+import { ApiKey, ApiKeyCreateInput, ApiKeyDeleteOneInput, ApiKeyUpdateInput, ApiKeyValidateInput, Success } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, deleteOneHelper, updateHelper } from '../actions';
 import { assertRequestFrom } from '../auth';

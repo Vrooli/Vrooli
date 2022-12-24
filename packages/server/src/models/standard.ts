@@ -5,7 +5,7 @@ import { ViewModel } from "./view";
 import { ModelLogic } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, RootPermission } from "../endpoints/types";
+import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, RootPermission } from '@shared/consts';
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";

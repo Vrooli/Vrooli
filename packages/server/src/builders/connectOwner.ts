@@ -1,4 +1,4 @@
-import { SessionUser } from "../endpoints/types";
+import { SessionUser } from '@shared/consts';
 
 type ConnectOwnerInput = {
     userConnect?: string | null | undefined;

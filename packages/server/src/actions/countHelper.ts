@@ -1,4 +1,4 @@
-import { VisibilityType } from "../endpoints/types";
+import { VisibilityType } from '@shared/consts';
 import { CountHelperProps } from "./types";
 import { CountInputBase } from "../builders/types";
 import { getUser } from "../auth";

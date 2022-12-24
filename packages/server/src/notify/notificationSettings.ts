@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { NotificationSettings, NotificationSettingsUpdateInput } from "../endpoints/types";
+import { NotificationSettings, NotificationSettingsUpdateInput } from '@shared/consts';
 import { logger } from "../events";
 import { PrismaType } from "../types";
 import { NotificationCategory } from "./notify";

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Issue, IssueCreateInput, IssuePermission, IssueSearchInput, IssueSortBy, IssueUpdateInput } from "../endpoints/types";
+import { Issue, IssueCreateInput, IssuePermission, IssueSearchInput, IssueSortBy, IssueUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";

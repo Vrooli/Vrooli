@@ -1,6 +1,6 @@
 import { ViewFor } from "@shared/consts";
 import { CustomError } from "../events";
-import { FindByIdOrHandleInput, FindByVersionInput } from "../endpoints/types";
+import { FindByIdOrHandleInput, FindByVersionInput } from '@shared/consts';
 import { RecursivePartial } from "../types";
 import { getAuthenticatedData } from "../utils";
 import { permissionsCheck } from "../validators";

@@ -1,7 +1,7 @@
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { UserSortBy } from "@shared/consts";
-import { ProfileUpdateInput, User, UserSearchInput } from "../endpoints/types";
+import { ProfileUpdateInput, User, UserSearchInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";

@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { Count, DeleteManyInput, DeleteOneInput, Success } from './types';
+import { Count, DeleteManyInput, DeleteOneInput, Success } from '@shared/consts';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { DeleteType } from '@shared/consts';

@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { rateLimit } from '../middleware';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizUpdateInput, RoleSortBy } from './types';
+import { FindByIdInput, Quiz, QuizCreateInput, QuizSearchInput, QuizUpdateInput, RoleSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum RoleSortBy {

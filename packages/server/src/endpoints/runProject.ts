@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from '../types';
-import { FindByIdInput, RunProjectSearchInput, RunProjectSortBy, RunProjectCreateInput, RunProjectUpdateInput, RunStatus, Count, RunProject, RunProjectCompleteInput, RunProjectCancelInput } from './types';
+import { FindByIdInput, RunProjectSearchInput, RunProjectSortBy, RunProjectCreateInput, RunProjectUpdateInput, RunStatus, Count, RunProject, RunProjectCompleteInput, RunProjectCancelInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 import { assertRequestFrom } from '../auth';

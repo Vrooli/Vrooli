@@ -1,5 +1,5 @@
 import { PrismaType } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationPermission, SessionUser } from "../endpoints/types";
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationPermission, SessionUser } from '@shared/consts';
 import { organizationValidation } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { StarModel } from "./star";

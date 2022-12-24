@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { ReminderList, ReminderListCreateInput, ReminderListSearchInput, ReminderListSortBy, ReminderListUpdateInput } from "../endpoints/types";
+import { ReminderList, ReminderListCreateInput, ReminderListSearchInput, ReminderListSortBy, ReminderListUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, ModelLogic } from "./types";
 import { UserScheduleModel } from "./userSchedule";

@@ -4,7 +4,7 @@ import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
 import { RoutineModel } from "./routine";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
-import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput } from "../endpoints/types";
+import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput } from '@shared/consts';
 
 type Model = {
     IsTransferable: false,

@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { COOKIE } from '@shared/consts';
 import { CustomError } from '../events/error';
-import { Session, SessionUser } from '../endpoints/types';
+import { Session, SessionUser } from '@shared/consts';
 import { RecursivePartial } from '../types';
 import { logger } from '../events/logger';
 import { isSafeOrigin } from '../utils';

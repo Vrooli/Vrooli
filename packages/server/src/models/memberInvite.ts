@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MemberInvite, MemberInviteCreateInput, MemberInvitePermission, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput } from "../endpoints/types";
+import { MemberInvite, MemberInviteCreateInput, MemberInvitePermission, MemberInviteSearchInput, MemberInviteSortBy, MemberInviteUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { UserModel } from "./user";

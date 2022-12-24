@@ -2,7 +2,7 @@ import { gql } from 'apollo-server-express';
 import { FindManyResult, GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { readManyHelper } from '../actions';
-import { RunRoutineInput, RunRoutineInputSearchInput, RunRoutineInputSortBy } from './types';
+import { RunRoutineInput, RunRoutineInputSearchInput, RunRoutineInputSortBy } from '@shared/consts';
 
 export const typeDef = gql`
     enum RunRoutineInputSortBy {

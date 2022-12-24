@@ -1,4 +1,4 @@
-import { RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from "../endpoints/types";
+import { RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputSearchInput, RunRoutineInputSortBy, RunRoutineInputUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, Formatter, ModelLogic, Mutater, Searcher, Validator } from "./types";
 import { Prisma } from "@prisma/client";

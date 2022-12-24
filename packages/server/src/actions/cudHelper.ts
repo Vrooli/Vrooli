@@ -1,4 +1,4 @@
-import { Count } from "../endpoints/types";
+import { Count } from '@shared/consts';
 import { getAuthenticatedData, getAuthenticatedIds } from "../utils";
 import { maxObjectsCheck, permissionsCheck, profanityCheck } from "../validators";
 import { CUDHelperInput, CUDResult } from "./types";

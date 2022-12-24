@@ -1,5 +1,5 @@
 import { PrismaType, RecursivePartial } from "../types";
-import { ProfileEmailUpdateInput, SessionUser, Success, UserDeleteInput } from "../endpoints/types";
+import { ProfileEmailUpdateInput, SessionUser, Success, UserDeleteInput } from '@shared/consts';
 import { EmailModel } from "./email";
 import { Request } from "express";
 import { CustomError } from "../events";

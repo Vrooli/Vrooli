@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from './types';
+import { FindByIdInput, Tag, TagCreateInput, TagUpdateInput, TagSearchInput, TagSortBy } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 

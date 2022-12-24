@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, ReminderSortBy, Reminder, ReminderSearchInput, ReminderCreateInput, ReminderUpdateInput } from './types';
+import { FindByIdInput, ReminderSortBy, Reminder, ReminderSearchInput, ReminderCreateInput, ReminderUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 

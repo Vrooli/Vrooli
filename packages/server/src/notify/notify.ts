@@ -8,7 +8,7 @@ import i18next, { TFuncKey } from 'i18next';
 import { OrganizationModel, subscriberMapper } from "../models";
 import { getLogic } from "../getters";
 import { GraphQLModelType } from "../models/types";
-import { NotificationSettings } from "../endpoints/types";
+import { NotificationSettings } from '@shared/consts';
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
 

@@ -1,5 +1,5 @@
 import { ObjectMap } from "../models";
-import { SessionUser } from "../endpoints/types";
+import { SessionUser } from '@shared/consts';
 import { PrismaType, RecursivePartial } from "../types";
 import { PartialGraphQLInfo } from "./types";
 import { GraphQLModelType, SupplementalConverter } from "../models/types";

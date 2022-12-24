@@ -1,11 +1,13 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, NotificationSubscriptionSortBy, SubscribableObject, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionUpdateInput, NotificationSubscriptionSearchInput } from './types';
+import { FindByIdInput, NotificationSubscriptionSortBy, SubscribableObject, NotificationSubscription, NotificationSubscriptionCreateInput, NotificationSubscriptionUpdateInput, NotificationSubscriptionSearchInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
 export const typeDef = gql`
     enum NotificationSubscriptionSortBy {
+        DateCreatedAsc
+        DateCreatedDesc
         ObjectTypeAsc
         ObjectTypeDesc
     }

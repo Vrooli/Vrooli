@@ -9,7 +9,7 @@ import { CustomError } from '../events/error';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
 import { generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
 import { GQLEndpoint, RecursivePartial } from '../types';
-import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, LogOutInput, SwitchCurrentAccountInput, ValidateSessionInput } from './types';
+import { WalletCompleteInput, EmailLogInInput, EmailSignUpInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, WalletInitInput, Session, Success, WalletComplete, LogOutInput, SwitchCurrentAccountInput, ValidateSessionInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { hasProfanity } from '../utils/censor';
 import pkg from '@prisma/client';

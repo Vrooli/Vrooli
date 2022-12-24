@@ -1,7 +1,7 @@
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { GraphQLModelType } from "../models/types";
-import { SessionUser } from "../endpoints/types";
+import { SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";

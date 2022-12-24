@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput } from "../endpoints/types";
+import { NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 

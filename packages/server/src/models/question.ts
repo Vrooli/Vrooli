@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Question, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from "../endpoints/types";
+import { Question, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { Displayer, ModelLogic } from "./types";

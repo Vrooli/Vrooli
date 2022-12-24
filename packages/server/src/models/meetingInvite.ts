@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MeetingInvite, MeetingInviteCreateInput, MeetingInvitePermission, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput } from "../endpoints/types";
+import { MeetingInvite, MeetingInviteCreateInput, MeetingInvitePermission, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { MeetingModel } from "./meeting";
 import { ModelLogic } from "./types";

@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from './types';
+import { Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentUpdateInput, FindByIdInput } from '@shared/consts';
 import { CreateOneResult, FindOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
 import { rateLimit } from '../middleware';
 import { resolveUnion } from './resolvers';

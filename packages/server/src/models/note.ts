@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, RootPermission } from "../endpoints/types";
+import { Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, RootPermission } from '@shared/consts';
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { NoteVersionModel } from "./noteVersion";

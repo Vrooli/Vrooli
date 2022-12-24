@@ -1,4 +1,4 @@
-import { Node, NodeCreateInput, NodeUpdateInput } from "../endpoints/types";
+import { Node, NodeCreateInput, NodeUpdateInput } from '@shared/consts';
 import { nodeValidation } from "@shared/validation";
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";

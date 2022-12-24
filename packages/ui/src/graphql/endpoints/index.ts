@@ -58,6 +58,7 @@ export * from './runProject';
 export * from './runProjectSchedule';
 export * from './runProjectStep';
 export * from './runRoutine';
+export * from './runRoutineInput';
 export * from './runRoutineSchedule';
 export * from './runRoutineStep';
 export * from './smartContract';

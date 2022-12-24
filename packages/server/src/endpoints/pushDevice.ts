@@ -3,7 +3,7 @@ import { CreateOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from 
 import { rateLimit } from '../middleware';
 import { createHelper, updateHelper } from '../actions';
 import { assertRequestFrom } from '../auth';
-import { PushDeviceCreateInput, PushDeviceUpdateInput } from './types';
+import { PushDeviceCreateInput, PushDeviceUpdateInput } from '@shared/consts';
 
 export const typeDef = gql`
     input PushDeviceKeysInput {

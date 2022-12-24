@@ -20,7 +20,7 @@
         "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "start-production": "yarn build && node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
-        "graphql-generate": "graphql-codegen && mv generatedTypes.ts src/endpoints/types.ts"
+        "graphql-generate": "graphql-codegen --config codegen.yml && mv generatedTypes.ts ../shared/consts/src/graphqlTypes.ts"
     },
     "dependencies": {
         "@blockfrost/blockfrost-js": "^4.1.0",
@@ -55,8 +55,9 @@
         "winston": "^3.7.2"
     },
     "devDependencies": {
-        "@graphql-codegen/cli": "^2.3.0",
-        "@graphql-codegen/typescript": "^2.6.0",
+        "@graphql-codegen/cli": "^2.16.1",
+        "@graphql-codegen/typescript": "^2.8.5",
+        "@graphql-codegen/typescript-resolvers": "^2.7.10",
         "@types/bcrypt": "^5.0.0",
         "@types/bull": "^3.15.5",
         "@types/cookie-parser": "^1.4.2",

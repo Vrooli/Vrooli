@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, MeetingSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, Meeting, MeetingSearchInput, MeetingCreateInput, MeetingUpdateInput } from './types';
+import { FindByIdInput, MeetingSortBy, Label, LabelSearchInput, LabelCreateInput, LabelUpdateInput, Meeting, MeetingSearchInput, MeetingCreateInput, MeetingUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 

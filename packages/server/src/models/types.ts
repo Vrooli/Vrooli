@@ -1,4 +1,4 @@
-import { Count, SessionUser } from "../endpoints/types";
+import { Count, SessionUser } from "@shared/consts";
 import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
 import { ObjectSchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";

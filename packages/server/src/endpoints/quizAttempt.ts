@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, QuizSortBy, QuizAttemptStatus, QuizAttempt, QuizAttemptSearchInput, QuizAttemptCreateInput, QuizAttemptUpdateInput } from './types';
+import { FindByIdInput, QuizSortBy, QuizAttemptStatus, QuizAttempt, QuizAttemptSearchInput, QuizAttemptCreateInput, QuizAttemptUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 

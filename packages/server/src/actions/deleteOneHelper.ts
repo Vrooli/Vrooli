@@ -1,5 +1,5 @@
 import { assertRequestFrom } from "../auth/request";
-import { Success } from "../endpoints/types";
+import { Success } from '@shared/consts';
 import { cudHelper } from "./cudHelper";
 import { DeleteOneHelperProps } from "./types";
 

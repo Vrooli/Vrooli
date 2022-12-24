@@ -1,33 +1,27 @@
 // Defines common props
-import { organization_organization, organization_organization_translations } from 'graphql/generated/organization';
-import { profile_profile, profile_profile_translations, profile_profile_emails, profile_profile_wallets, profile_profile_pushDevices } from 'graphql/generated/profile';
-import { project_project, project_project_translations } from 'graphql/generated/project';
-import { reportCreate_reportCreate } from 'graphql/generated/reportCreate';
-import { resource_resource, resource_resource_translations } from 'graphql/generated/resource';
-import { routine_routine, routine_routine_inputs, routine_routine_inputs_translations, routine_routine_nodeLinks, routine_routine_nodeLinks_whens, routine_routine_nodeLinks_whens_translations, routine_routine_nodes, routine_routine_nodes_data_NodeEnd, routine_routine_nodes_data_NodeRoutineList, routine_routine_nodes_data_NodeRoutineList_routines, routine_routine_nodes_data_NodeRoutineList_routines_translations, routine_routine_nodes_translations, routine_routine_outputs, routine_routine_outputs_translations, routine_routine_runs, routine_routine_translations } from 'graphql/generated/routine';
-import { standard_standard, standard_standard_translations } from 'graphql/generated/standard';
-import { tag_tag, tag_tag_translations } from 'graphql/generated/tag';
-import { user_user } from 'graphql/generated/user';
 import { ListObjectType, RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
-import { comment_comment, comment_comment_translations } from 'graphql/generated/comment';
-import { comments_comments_threads } from 'graphql/generated/comments';
-import { SearchException } from 'graphql/generated/globalTypes';
-import { validateSession_validateSession, validateSession_validateSession_users } from 'graphql/generated/validateSession';
 import { Path } from '@shared/route/src/useLocation';
 import { TFuncKey } from 'i18next';
-import { runRoutine_runRoutine_inputs, runRoutine_runRoutine_steps } from 'graphql/generated/runRoutine';
-import { popular_popular_organizations, popular_popular_projects, popular_popular_routines, popular_popular_standards, popular_popular_users } from 'graphql/generated/popular';
-import { history_history_activeRuns, history_history_recentlyStarred, history_history_recentlyViewed } from 'graphql/generated/history';
+import { NodeLink, Routine, RoutineVersion, SearchException, Session } from '@shared/consts';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
-export type Session = validateSession_validateSession;
-export type SessionUser = validateSession_validateSession_users;
 export interface CommonProps {
     session: Session;
     sessionChecked: SessionChecked;
 }
+
+/**
+ * Wraps an object with a field
+ */
+export type Wrap<T, K extends string> = { [P in K]: T };
+
+/**
+ * Wrapper for GraphQL input types
+ */
+export type IWrap<T> = { input: T }
+
 
 /**
  * An object connected to routing
@@ -47,66 +41,6 @@ export type NavigableObject = {
         id: string,
     }
 }
-
-// Renamed list objects
-export type ListOrganization = popular_popular_organizations;
-export type ListProject = popular_popular_projects;
-export type ListRoutine = popular_popular_routines;
-export type ListRun = history_history_activeRuns
-export type ListStandard = popular_popular_standards;
-export type ListStar = history_history_recentlyStarred;
-export type ListUser = popular_popular_users;
-export type ListView = history_history_recentlyViewed;
-
-// Rename auto-generated query objects
-export type Comment = comment_comment;
-export type CommentThread = comments_comments_threads;
-export type CommentTranslation = comment_comment_translations;
-export type Email = profile_profile_emails;
-export type Handle = string;
-export type Node = routine_routine_nodes;
-export type NodeTranslation = routine_routine_nodes_translations;
-export type NodeDataEnd = routine_routine_nodes_data_NodeEnd;
-export type NodeEnd = Node & { data: NodeDataEnd | null };
-export type NodeDataLoop = any;//routine_routine_nodes_data_NodeLoop;
-export type NodeLoop = Node & { data: NodeDataLoop | null };
-export type NodeDataRoutineList = routine_routine_nodes_data_NodeRoutineList;
-export type NodeRoutineList = Node & { data: NodeDataRoutineList | null };
-export type NodeDataRoutineListItem = routine_routine_nodes_data_NodeRoutineList_routines;
-export type NodeDataRoutineListItemTranslation = routine_routine_nodes_data_NodeRoutineList_routines_translations;
-export type NodeLink = routine_routine_nodeLinks;
-export type NodeLinkWhen = routine_routine_nodeLinks_whens;
-export type NodeLinkWhenTranslation = routine_routine_nodeLinks_whens_translations;
-export type Organization = organization_organization;
-export type OrganizationTranslation = organization_organization_translations;
-export type Profile = profile_profile;
-export type ProfileTranslation = profile_profile_translations;
-export type Project = project_project;
-export type ProjectTranslation = project_project_translations;
-export type PushDevice = profile_profile_pushDevices;
-export type Report = reportCreate_reportCreate;
-export type Resource = resource_resource;
-export type ResourceTranslation = resource_resource_translations;
-export type ResourceList = profile_profile_resourceLists;
-export type ResourceListTranslation = profile_profile_resourceLists_translations;
-export type Routine = routine_routine;
-export type RoutineTranslation = routine_routine_translations;
-export type Run = routine_routine_runs;
-export type RunRoutineInput = runRoutine_runRoutine_inputs;
-export type RunStep = runRoutine_runRoutine_steps;
-export type RoutineInput = routine_routine_inputs;
-export type RoutineInputTranslation = routine_routine_inputs_translations;
-export type RoutineInputList = RoutineInput[];
-export type RoutineOutput = routine_routine_outputs;
-export type RoutineOutputTranslation = routine_routine_outputs_translations;
-export type RoutineOutputList = RoutineOutput[];
-export type Standard = standard_standard;
-export type StandardTranslation = standard_standard_translations;
-export type Tag = tag_tag;
-export type TagHidden = profile_profile_hiddenTags;
-export type TagTranslation = tag_tag_translations;
-export type User = user_user;
-export type Wallet = profile_profile_wallets;
 
 /**
  * Wrapper type for helping convert objects in the shape of a query result, 
@@ -143,7 +77,7 @@ export interface DecisionStep extends BaseStep {
 export interface SubroutineStep extends BaseStep {
     type: RoutineStepType.Subroutine,
     index: number,
-    routine: Routine
+    routineVersion: RoutineVersion
 }
 export interface RoutineListStep extends BaseStep {
     /**
@@ -153,7 +87,7 @@ export interface RoutineListStep extends BaseStep {
     /**
      * Subroutine's ID if object was created from a subroutine
      */
-    routineId?: string | null,
+    routineVersionId?: string | null,
     isOrdered: boolean,
     type: RoutineStepType.RoutineList,
     steps: RoutineStep[],
@@ -170,7 +104,7 @@ export interface ObjectOption {
     label: string;
     stars?: number;
     [key: string]: any;
-    routine?: {
+    routineVersion?: {
         __typename: string
         id: string
     } | null,

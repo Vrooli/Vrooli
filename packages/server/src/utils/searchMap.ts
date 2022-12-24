@@ -1,5 +1,5 @@
 import { timeFrameToPrisma, visibilityBuilder } from "../builders";
-import { InputMaybe, SessionUser, TimeFrame, VisibilityType } from "../endpoints/types";
+import { InputMaybe, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
 import { GraphQLModelType } from "../models/types";
 
 type Maybe<T> = InputMaybe<T> | undefined

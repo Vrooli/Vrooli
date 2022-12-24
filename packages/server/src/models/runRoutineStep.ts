@@ -1,5 +1,5 @@
-import { RunStepStatus } from "@shared/consts";
-import { RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from "../endpoints/types";
+import { RunRoutineStepStatus } from "@shared/consts";
+import { RunRoutineSearchInput, RunRoutineSortBy, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, Formatter, GraphQLModelType, ModelLogic, Mutater, Validator } from "./types";
 import { Prisma } from "@prisma/client";
@@ -83,7 +83,7 @@ const mutater = (): Mutater<Model> => ({
                 // nodeId: data.nodeId,
                 // subroutineVersionId: data.subroutineVersionId,
                 // order: data.order,
-                // status: RunStepStatus.InProgress,
+                // status: RunRoutineStepStatus.InProgress,
                 // step: data.step,
                 // name: data.name,
             } as any;

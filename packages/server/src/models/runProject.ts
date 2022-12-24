@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { RunProject, RunProjectCreateInput, RunProjectPermission, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput } from "../endpoints/types";
+import { RunProject, RunProjectCreateInput, RunProjectPermission, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, ModelLogic } from "./types";
 

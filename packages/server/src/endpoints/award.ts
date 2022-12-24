@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { AwardCategory } from './types';
+import { AwardCategory } from '@shared/consts';
 
 export const typeDef = gql`
     enum AwardCategory {

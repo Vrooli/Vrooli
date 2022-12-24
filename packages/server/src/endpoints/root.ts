@@ -6,7 +6,7 @@ import { readFiles, saveFiles } from '../utils';
 import { Context, rateLimit } from '../middleware';
 import { CustomError } from '../events/error';
 import { resolveUnion } from './resolvers';
-import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from './types';
+import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from '@shared/consts';
 import { GQLEndpoint, UnionResolver } from '../types';
 
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.

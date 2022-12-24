@@ -1,4 +1,4 @@
-import { Email, EmailCreateInput } from "../endpoints/types";
+import { Email, EmailCreateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { CustomError, Trigger } from "../events";
 import { ModelLogic } from "./types";

@@ -1,5 +1,5 @@
 import { getLogic } from "../getters";
-import { SessionUser } from "../endpoints/types";
+import { SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { CustomError } from "./error";
 import { subscriberMapper } from "../models";

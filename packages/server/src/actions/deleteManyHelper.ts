@@ -1,6 +1,6 @@
 import { assertRequestFrom } from "../auth/request";
 import { CustomError } from "../events";
-import { Count } from "../endpoints/types";
+import { Count } from '@shared/consts';
 import { cudHelper } from "./cudHelper";
 import { DeleteManyHelperProps } from "./types";
 

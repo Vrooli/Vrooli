@@ -31,8 +31,8 @@
                     * [full](./packages/ui/src/graphql/fragment/full) - Fragments for returning all fields of a model
                     * [list](./packages/ui/src/graphql/fragment/list) - Fragments for returning the fields required to display a list item of a model
                 * [generated](./packages/ui/src/graphql/generated) - Code automatically generated from `yarn graphql-generate` script
-                * [mutation](./packages/ui/src/graphql/mutation) - GraphQL mutations
-                * [query](./packages/ui/src/graphql/query) - GraphQL queries
+                * [endpoints](./packages/ui/src/graphql/endpoints) - GraphQL endpoints
+                * [partial](./packages/ui/src/graphql/partial) - Partial GraphQL selections
                 * [utils](./packages/ui/src/graphql/utils) - GraphQL-specific utility functions
             * [pages](./packages/ui/src/pages) - Website pages
             * [utils](./packages/ui/src/utils) - Miscellaneous utility functions

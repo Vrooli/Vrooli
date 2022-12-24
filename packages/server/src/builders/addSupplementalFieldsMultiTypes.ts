@@ -1,4 +1,4 @@
-import { SessionUser } from "../endpoints/types";
+import { SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { addSupplementalFields } from "./addSupplementalFields";
 import { PartialGraphQLInfo } from "./types";

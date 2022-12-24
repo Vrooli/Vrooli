@@ -1,14 +1,11 @@
-import { CommentSortBy, InputType, OrganizationSortBy, ProjectOrOrganizationSortBy, ProjectOrRoutineSortBy, ProjectSortBy, RoutineSortBy, RunSortBy, StandardSortBy, StarSortBy, UserSortBy, ViewSortBy } from '@shared/consts';
-import { Session, Tag } from 'types';
+import { ApiSortBy, ApiVersionSortBy, CommentSortBy, InputType, IssueSortBy, LabelSortBy, MeetingInviteSortBy, MeetingSortBy, MemberInviteSortBy, MemberSortBy, NoteSortBy, NoteVersionSortBy, NotificationSortBy, NotificationSubscriptionSortBy, OrganizationSortBy, PostSortBy, ProjectOrOrganizationSortBy, ProjectOrRoutineSortBy, ProjectSortBy, ProjectVersionSortBy, PullRequestSortBy, QuestionAnswerSortBy, QuestionSortBy, QuizAttemptSortBy, QuizQuestionResponseSortBy, QuizQuestionSortBy, QuizSortBy, ReminderListSortBy, ReminderSortBy, ReportResponseSortBy, ReportSortBy, ReputationHistorySortBy, ResourceListSortBy, ResourceSortBy, RoleSortBy, RoutineSortBy, RoutineVersionSortBy, RunProjectScheduleSortBy, RunProjectSortBy, RunRoutineInputSortBy, RunRoutineScheduleSortBy, RunRoutineSortBy, RunStatus, Session, SmartContractSortBy, SmartContractVersionSortBy, StandardSortBy, StandardVersionSortBy, StarSortBy, StatsApiSortBy, StatsOrganizationSortBy, StatsProjectSortBy, StatsQuizSortBy, StatsRoutineSortBy, StatsSiteSortBy, StatsSmartContractSortBy, StatsStandardSortBy, StatsUserSortBy, Tag, TagSortBy, TransferSortBy, UserScheduleSortBy, UserSortBy, ViewSortBy, VoteSortBy } from '@shared/consts';
 import { FormSchema } from 'forms/types';
-import { commentsQuery, organizationsQuery, projectOrOrganizationsQuery, projectsQuery, routinesQuery, runRoutinesQuery, standardsQuery, starsQuery, usersQuery, viewsQuery } from 'graphql/query';
 import { DocumentNode } from 'graphql';
-import { projectOrRoutinesQuery } from 'graphql/query/projectOrRoutines';
-import { RunStatus } from 'graphql/generated/globalTypes';
 import { getLocalStorageKeys } from 'utils/localStorage';
 import { PubSub } from 'utils/pubsub';
 import { SnackSeverity } from 'components';
 import { getCurrentUser } from 'utils/authentication';
+import { apiEndpoint, apiVersionEndpoint, commentEndpoint, issueEndpoint, labelEndpoint, meetingEndpoint, meetingInviteEndpoint, memberEndpoint, memberInviteEndpoint, noteEndpoint, noteVersionEndpoint, notificationEndpoint, notificationSubscriptionEndpoint, organizationEndpoint, postEndpoint, projectEndpoint, projectVersionEndpoint, pullRequestEndpoint, questionAnswerEndpoint, questionEndpoint, quizAttemptEndpoint, quizEndpoint, quizQuestionEndpoint, quizQuestionResponseEndpoint, reminderEndpoint, reminderListEndpoint, reportEndpoint, reportResponseEndpoint, reputationHistoryEndpoint, resourceEndpoint, resourceListEndpoint, roleEndpoint, routineEndpoint, routineVersionEndpoint, runProjectEndpoint, runProjectScheduleEndpoint, runRoutineEndpoint, runRoutineInputEndpoint, runRoutineScheduleEndpoint, smartContractEndpoint, smartContractVersionEndpoint, standardEndpoint, standardVersionEndpoint, starEndpoint, statsApiEndpoint, statsOrganizationEndpoint, statsProjectEndpoint, statsQuizEndpoint, statsRoutineEndpoint, statsSiteEndpoint, statsSmartContractEndpoint, statsStandardEndpoint, statsUserEndpoint, tagEndpoint, transferEndpoint, unionEndpoint, userEndpoint, userScheduleEndpoint, viewEndpoint, voteEndpoint } from 'graphql/endpoints';
 
 const starsDescription = `Stars are a way to bookmark an object. They don't affect the ranking of an object in default searches, but are still useful to get a feel for how popular an object is.`;
 const votesDescription = `Votes are a way to show support for an object, which affect the ranking of an object in default searches.`;
@@ -20,6 +17,13 @@ For the curious, it is calculated using a weighted, directed, cyclic graph. Each
 const complexityDescription = `Complexity is a mathematical measure of the longest path to complete a routine.
 
 For the curious, it is calculated using a weighted, directed, cyclic graph. Each node is a subroutine list or decision, and each weight represents the number of steps the node takes to complete`;
+
+export const apiSearchSchema: FormSchema = {
+
+}
+
+export const apiVersionSearchSchema: FormSchema = {
+}
 
 export const commentSearchSchema: FormSchema = {
     formLayout: {
@@ -92,6 +96,36 @@ export const commentSearchSchema: FormSchema = {
     ]
 }
 
+export const issueSearchSchema: FormSchema = {
+}
+
+export const labelSearchSchema: FormSchema = {
+}
+
+export const meetingSearchSchema: FormSchema = {
+}
+
+export const meetingInviteSearchSchema: FormSchema = {
+}
+
+export const memberSearchSchema: FormSchema = {
+}
+
+export const memberInviteSearchSchema: FormSchema = {
+}
+
+export const noteSearchSchema: FormSchema = {
+}
+
+export const noteVersionSearchSchema: FormSchema = {
+}
+
+export const notificationSearchSchema: FormSchema = {
+}
+
+export const notificationSubscriptionSearchSchema: FormSchema = {
+}
+
 export const organizationSearchSchema: FormSchema = {
     formLayout: {
         title: "Search Organizations",
@@ -156,6 +190,9 @@ export const organizationSearchSchema: FormSchema = {
             props: {}
         },
     ]
+}
+
+export const postSearchSchema: FormSchema = {
 }
 
 export const projectOrOrganizationSearchSchema: FormSchema = {
@@ -469,6 +506,54 @@ export const projectSearchSchema: FormSchema = {
     ]
 }
 
+export const projectVersionSearchSchema: FormSchema = {
+}
+
+export const pullRequestSearchSchema: FormSchema = {
+}
+
+export const questionSearchSchema: FormSchema = {
+}
+
+export const questionAnswerSearchSchema: FormSchema = {
+}
+
+export const quizSearchSchema: FormSchema = {
+}
+
+export const quizAttemptSearchSchema: FormSchema = {
+}
+
+export const quizQuestionSearchSchema: FormSchema = {
+}
+
+export const quizQuestionResponseSearchSchema: FormSchema = {
+}
+
+export const reminderSearchSchema: FormSchema = {
+}
+
+export const reminderListSearchSchema: FormSchema = {
+}
+
+export const reportSearchSchema: FormSchema = {
+}
+
+export const reportResponseSearchSchema: FormSchema = {
+}
+
+export const reputationHistorySearchSchema: FormSchema = {
+}
+
+export const resourceSearchSchema: FormSchema = {
+}
+
+export const resourceListSearchSchema: FormSchema = {
+}
+
+export const roleSearchSchema: FormSchema = {
+}
+
 export const routineSearchSchema: FormSchema = {
     formLayout: {
         title: "Search Routines",
@@ -616,6 +701,15 @@ export const routineSearchSchema: FormSchema = {
     ]
 }
 
+export const routineVersionSearchSchema: FormSchema = {
+}
+
+export const runProjectSearchSchema: FormSchema = {
+}
+
+export const runProjectScheduleSearchSchema: FormSchema = {
+}
+
 export const runRoutineSearchSchema: FormSchema = {
     formLayout: {
         title: "Search Routine Runs",
@@ -646,6 +740,18 @@ export const runRoutineSearchSchema: FormSchema = {
             }
         },
     ]
+}
+
+export const runRoutineInputSearchSchema: FormSchema = {
+}
+
+export const runRoutineScheduleSearchSchema: FormSchema = {
+}
+
+export const smartContractSearchSchema: FormSchema = {
+}
+
+export const smartContractVersionSearchSchema: FormSchema = {
 }
 
 export const standardSearchSchema: FormSchema = {
@@ -712,6 +818,48 @@ export const standardSearchSchema: FormSchema = {
     ]
 }
 
+export const standardVersionSearchSchema: FormSchema = {
+}
+
+export const starSearchSchema: FormSchema = {
+}
+
+export const statsApiSearchSchema: FormSchema = {
+}
+
+export const statsOrganizationSearchSchema: FormSchema = {
+}
+
+export const statsProjectSearchSchema: FormSchema = {
+}
+
+export const statsQuizSearchSchema: FormSchema = {
+}
+
+export const statsRoutineSearchSchema: FormSchema = {
+}
+
+export const statsSiteSearchSchema: FormSchema = {
+}
+
+export const statsSmartContractSearchSchema: FormSchema = {
+}
+
+export const statsStandardSearchSchema: FormSchema = {
+}
+
+export const statsUserSearchSchema: FormSchema = {
+}
+
+export const tagSearchSchema: FormSchema = {
+}
+
+export const transferSearchSchema: FormSchema = {
+}
+
+export const userScheduleSearchSchema: FormSchema = {
+}
+
 export const userSearchSchema: FormSchema = {
     formLayout: {
         title: "Search Users",
@@ -750,26 +898,74 @@ export const userSearchSchema: FormSchema = {
     ]
 }
 
+export const viewSearchSchema: FormSchema = {
+}
+
+export const voteSearchSchema: FormSchema = {
+}
+
 export enum SearchType {
     Api = 'Api',
+    ApiVersion = 'ApiVersion',
     Comment = 'Comment',
     Issue = 'Issue',
+    Label = 'Label',
+    MeetingInvite = 'MeetingInvite',
+    Meeting = 'Meeting',
+    MemberInvite = 'MemberInvite',
+    Member = 'Member',
     Note = 'Note',
+    NoteVersion = 'NoteVersion',
+    Notification = 'Notification',
+    NotificationSubscription = 'NotificationSubscription',
     Organization = 'Organization',
-    Project = 'Project',
+    Post = 'Post',
     ProjectOrOrganization = 'ProjectOrOrganization',
     ProjectOrRoutine = 'ProjectOrRoutine',
+    Project = 'Project',
+    ProjectVersion = 'ProjectVersion',
     PullRequest = 'PullRequest',
     Question = 'Question',
     QuestionAnswer = 'QuestionAnswer',
+    Quiz = 'Quiz',
+    QuizAttempt = 'QuizAttempt',
+    QuizQuestion = 'QuizQuestion',
+    QuizQuestionResponse = 'QuizQuestionResponse',
+    ReminderList = 'ReminderList',
+    Reminder = 'Reminder',
+    ReportResponse = 'ReportResponse',
+    Report = 'Report',
+    ReputationHistory = 'ReputationHistory',
+    ResourceList = 'ResourceList',
+    Resource = 'Resource',
+    Role = 'Role',
     Routine = 'Routine',
+    RoutineVersion = 'RoutineVersion',
     RunProject = 'RunProject',
+    RunProjectSchedule = 'RunProjectSchedule',
     RunRoutine = 'RunRoutine',
+    RunRoutineSchedule = 'RunRoutineSchedule',
+    RunRoutineInput = 'RunRoutineInput',
     SmartContract = 'SmartContract',
+    SmartContractVersion = 'SmartContractVersion',
     Standard = 'Standard',
+    StandardVersion = 'StandardVersion',
     Star = 'Star',
+    StatsApi = 'StatsApi',
+    StatsOrganization = 'StatsOrganization',
+    StatsProject = 'StatsProject',
+    StatsQuiz = 'StatsQuiz',
+    StatsRoutine = 'StatsRoutine',
+    StatsSite = 'StatsSite',
+    StatsSmartContract = 'StatsSmartContract',
+    StatsStandard = 'StatsStandard',
+    StatsUser = 'StatsUser',
+    Tag = 'Tag',
+    Transfer = 'Transfer',
     User = 'User',
+    UserSchedule = 'UserSchedule',
     View = 'View',
+    Vote = 'Vote',
 }
 
 export enum DevelopSearchPageTabOption {
@@ -807,115 +1003,367 @@ export const searchTypeToParams: { [key in SearchType]: SearchParams } = {
         advancedSearchSchema: apiSearchSchema,
         defaultSortBy: ApiSortBy.ScoreDesc,
         sortByOptions: ApiSortBy,
-        query: apisQuery,
+        query: apiEndpoint.findMany,
+    },
+    [SearchType.ApiVersion]: {
+        advancedSearchSchema: apiVersionSearchSchema,
+        defaultSortBy: ApiVersionSortBy.DateCreatedDesc,
+        sortByOptions: ApiVersionSortBy,
+        query: apiVersionEndpoint.findMany,
     },
     [SearchType.Comment]: {
         advancedSearchSchema: commentSearchSchema,
         defaultSortBy: CommentSortBy.ScoreDesc,
         sortByOptions: CommentSortBy,
-        query: commentsQuery,
+        query: commentEndpoint.findMany,
     },
     [SearchType.Issue]: {
         advancedSearchSchema: issueSearchSchema,
         defaultSortBy: IssueSortBy.ScoreDesc,
         sortByOptions: IssueSortBy,
-        query: issuesQuery,
+        query: issueEndpoint.findMany,
+    },
+    [SearchType.Label]: {
+        advancedSearchSchema: labelSearchSchema,
+        defaultSortBy: LabelSortBy.DateCreatedDesc,
+        sortByOptions: LabelSortBy,
+        query: labelEndpoint.findMany,
+    },
+    [SearchType.Meeting]: {
+        advancedSearchSchema: meetingSearchSchema,
+        defaultSortBy: MeetingSortBy.EventStartDesc,
+        sortByOptions: MeetingSortBy,
+        query: meetingEndpoint.findMany,
+    },
+    [SearchType.MeetingInvite]: {
+        advancedSearchSchema: meetingInviteSearchSchema,
+        defaultSortBy: MeetingInviteSortBy.DateCreatedDesc,
+        sortByOptions: MeetingInviteSortBy,
+        query: meetingInviteEndpoint.findMany,
+    },
+    [SearchType.Member]: {
+        advancedSearchSchema: memberSearchSchema,
+        defaultSortBy: MemberSortBy.DateCreatedDesc,
+        sortByOptions: MemberSortBy,
+        query: memberEndpoint.findMany,
+    },
+    [SearchType.MemberInvite]: {
+        advancedSearchSchema: memberInviteSearchSchema,
+        defaultSortBy: MemberInviteSortBy.DateCreatedDesc,
+        sortByOptions: MemberInviteSortBy,
+        query: memberInviteEndpoint.findMany,
     },
     [SearchType.Note]: {
         advancedSearchSchema: noteSearchSchema,
         defaultSortBy: NoteSortBy.ScoreDesc,
         sortByOptions: NoteSortBy,
-        query: notesQuery,
+        query: noteEndpoint.findMany,
+    },
+    [SearchType.NoteVersion]: {
+        advancedSearchSchema: noteVersionSearchSchema,
+        defaultSortBy: NoteVersionSortBy.DateCreatedDesc,
+        sortByOptions: NoteVersionSortBy,
+        query: noteVersionEndpoint.findMany,
+    },
+    [SearchType.Notification]: {
+        advancedSearchSchema: notificationSearchSchema,
+        defaultSortBy: NotificationSortBy.DateCreatedDesc,
+        sortByOptions: NotificationSortBy,
+        query: notificationEndpoint.findMany,
+    },
+    [SearchType.NotificationSubscription]: {
+        advancedSearchSchema: notificationSubscriptionSearchSchema,
+        defaultSortBy: NotificationSubscriptionSortBy.DateCreatedDesc,
+        sortByOptions: NotificationSubscriptionSortBy,
+        query: notificationSubscriptionEndpoint.findMany,
     },
     [SearchType.Organization]: {
         advancedSearchSchema: organizationSearchSchema,
         defaultSortBy: OrganizationSortBy.StarsDesc,
         sortByOptions: OrganizationSortBy,
-        query: organizationsQuery,
+        query: organizationEndpoint.findMany,
+    },
+    [SearchType.Post]: {
+        advancedSearchSchema: postSearchSchema,
+        defaultSortBy: PostSortBy.DateCreatedDesc,
+        sortByOptions: PostSortBy,
+        query: postEndpoint.findMany,
     },
     [SearchType.Project]: {
         advancedSearchSchema: projectSearchSchema,
         defaultSortBy: ProjectSortBy.ScoreDesc,
         sortByOptions: ProjectSortBy,
-        query: projectsQuery,
+        query: projectEndpoint.findMany,
+    },
+    [SearchType.ProjectVersion]: {
+        advancedSearchSchema: projectVersionSearchSchema,
+        defaultSortBy: ProjectVersionSortBy.DateCreatedDesc,
+        sortByOptions: ProjectVersionSortBy,
+        query: projectVersionEndpoint.findMany,
     },
     [SearchType.ProjectOrOrganization]: {
         advancedSearchSchema: projectOrOrganizationSearchSchema,
         defaultSortBy: ProjectOrOrganizationSortBy.StarsDesc,
         sortByOptions: ProjectOrOrganizationSortBy,
-        query: projectOrOrganizationsQuery,
+        query: unionEndpoint.projectOrOrganizations,
     },
     [SearchType.ProjectOrRoutine]: {
         advancedSearchSchema: projectOrRoutineSearchSchema,
         defaultSortBy: ProjectOrRoutineSortBy.StarsDesc,
         sortByOptions: ProjectOrRoutineSortBy,
-        query: projectOrRoutinesQuery,
+        query: unionEndpoint.projectOrRoutines,
     },
     [SearchType.PullRequest]: {
         advancedSearchSchema: pullRequestSearchSchema,
-        defaultSortBy: PullRequestSortBy.ScoreDesc,
+        defaultSortBy: PullRequestSortBy.DateCreatedDesc,
         sortByOptions: PullRequestSortBy,
-        query: pullRequestsQuery,
+        query: pullRequestEndpoint.findMany,
     },
     [SearchType.Question]: {
         advancedSearchSchema: questionSearchSchema,
         defaultSortBy: QuestionSortBy.ScoreDesc,
         sortByOptions: QuestionSortBy,
-        query: questionsQuery,
+        query: questionEndpoint.findMany,
     },
     [SearchType.QuestionAnswer]: {
         advancedSearchSchema: questionAnswerSearchSchema,
         defaultSortBy: QuestionAnswerSortBy.ScoreDesc,
         sortByOptions: QuestionAnswerSortBy,
-        query: questionAnswersQuery,
+        query: questionAnswerEndpoint.findMany,
+    },
+    [SearchType.Quiz]: {
+        advancedSearchSchema: quizSearchSchema,
+        defaultSortBy: QuizSortBy.StarsDesc,
+        sortByOptions: QuizSortBy,
+        query: quizEndpoint.findMany,
+    },
+    [SearchType.QuizQuestion]: {
+        advancedSearchSchema: quizQuestionSearchSchema,
+        defaultSortBy: QuizQuestionSortBy.OrderAsc,
+        sortByOptions: QuizQuestionSortBy,
+        query: quizQuestionEndpoint.findMany,
+    },
+    [SearchType.QuizQuestionResponse]: {
+        advancedSearchSchema: quizQuestionResponseSearchSchema,
+        defaultSortBy: QuizQuestionResponseSortBy.DateCreatedDesc,
+        sortByOptions: QuizQuestionResponseSortBy,
+        query: quizQuestionResponseEndpoint.findMany,
+    },
+    [SearchType.QuizAttempt]: {
+        advancedSearchSchema: quizAttemptSearchSchema,
+        defaultSortBy: QuizAttemptSortBy.DateCreatedDesc,
+        sortByOptions: QuizAttemptSortBy,
+        query: quizAttemptEndpoint.findMany,
+    },
+    [SearchType.Reminder]: {
+        advancedSearchSchema: reminderSearchSchema,
+        defaultSortBy: ReminderSortBy.DueDateAsc,
+        sortByOptions: ReminderSortBy,
+        query: reminderEndpoint.findMany,
+    },
+    [SearchType.ReminderList]: {
+        advancedSearchSchema: reminderListSearchSchema,
+        defaultSortBy: ReminderListSortBy.DateCreatedDesc,
+        sortByOptions: ReminderListSortBy,
+        query: reminderListEndpoint.findMany,
+    },
+    [SearchType.Report]: {
+        advancedSearchSchema: reportSearchSchema,
+        defaultSortBy: ReportSortBy.DateCreatedDesc,
+        sortByOptions: ReportSortBy,
+        query: reportEndpoint.findMany,
+    },
+    [SearchType.ReportResponse]: {
+        advancedSearchSchema: reportResponseSearchSchema,
+        defaultSortBy: ReportResponseSortBy.DateCreatedDesc,
+        sortByOptions: ReportResponseSortBy,
+        query: reportResponseEndpoint.findMany,
+    },
+    [SearchType.ReputationHistory]: {
+        advancedSearchSchema: reputationHistorySearchSchema,
+        defaultSortBy: ReputationHistorySortBy.DateCreatedDesc,
+        sortByOptions: ReputationHistorySortBy,
+        query: reputationHistoryEndpoint.findMany,
+    },
+    [SearchType.Resource]: {
+        advancedSearchSchema: resourceSearchSchema,
+        defaultSortBy: ResourceSortBy.DateCreatedDesc,
+        sortByOptions: ResourceSortBy,
+        query: resourceEndpoint.findMany,
+    },
+    [SearchType.ResourceList]: {
+        advancedSearchSchema: resourceListSearchSchema,
+        defaultSortBy: ResourceListSortBy.DateCreatedDesc,
+        sortByOptions: ResourceListSortBy,
+        query: resourceListEndpoint.findMany,
+    },
+    [SearchType.Role]: {
+        advancedSearchSchema: roleSearchSchema,
+        defaultSortBy: RoleSortBy.DateCreatedDesc,
+        sortByOptions: RoleSortBy,
+        query: roleEndpoint.findMany,
     },
     [SearchType.Routine]: {
         advancedSearchSchema: routineSearchSchema,
         defaultSortBy: RoutineSortBy.ScoreDesc,
         sortByOptions: RoutineSortBy,
-        query: routinesQuery,
+        query: routineEndpoint.findMany,
+    },
+    [SearchType.RoutineVersion]: {
+        advancedSearchSchema: routineVersionSearchSchema,
+        defaultSortBy: RoutineVersionSortBy.DateCreatedDesc,
+        sortByOptions: RoutineVersionSortBy,
+        query: routineVersionEndpoint.findMany,
     },
     [SearchType.RunProject]: {
         advancedSearchSchema: runProjectSearchSchema,
-        defaultSortBy: RunSortBy.DateStartedAsc,
-        sortByOptions: RunSortBy,
-        query: runProjectsQuery,
+        defaultSortBy: RunProjectSortBy.DateStartedAsc,
+        sortByOptions: RunProjectSortBy,
+        query: runProjectEndpoint.findMany,
+    },
+    [SearchType.RunProjectSchedule]: {
+        advancedSearchSchema: runProjectScheduleSearchSchema,
+        defaultSortBy: RunProjectScheduleSortBy.WindowStartAsc,
+        sortByOptions: RunProjectScheduleSortBy,
+        query: runProjectScheduleEndpoint.findMany,
     },
     [SearchType.RunRoutine]: {
         advancedSearchSchema: runRoutineSearchSchema,
-        defaultSortBy: RunSortBy.DateStartedAsc,
-        sortByOptions: RunSortBy,
-        query: runRoutinesQuery,
+        defaultSortBy: RunRoutineSortBy.DateStartedAsc,
+        sortByOptions: RunRoutineSortBy,
+        query: runRoutineEndpoint.findMany,
+    },
+    [SearchType.RunRoutineInput]: {
+        advancedSearchSchema: runRoutineInputSearchSchema,
+        defaultSortBy: RunRoutineInputSortBy.DateCreatedDesc,
+        sortByOptions: RunRoutineInputSortBy,
+        query: runRoutineInputEndpoint.findMany,
+    },
+    [SearchType.RunRoutineSchedule]: {
+        advancedSearchSchema: runRoutineScheduleSearchSchema,
+        defaultSortBy: RunRoutineScheduleSortBy.WindowStartAsc,
+        sortByOptions: RunRoutineScheduleSortBy,
+        query: runRoutineScheduleEndpoint.findMany,
     },
     [SearchType.SmartContract]: {
         advancedSearchSchema: smartContractSearchSchema,
         defaultSortBy: SmartContractSortBy.ScoreDesc,
         sortByOptions: SmartContractSortBy,
-        query: smartContractsQuery,
+        query: smartContractEndpoint.findMany,
+    },
+    [SearchType.SmartContractVersion]: {
+        advancedSearchSchema: smartContractVersionSearchSchema,
+        defaultSortBy: SmartContractVersionSortBy.DateCreatedDesc,
+        sortByOptions: SmartContractVersionSortBy,
+        query: smartContractVersionEndpoint.findMany,
     },
     [SearchType.Standard]: {
         advancedSearchSchema: standardSearchSchema,
         defaultSortBy: StandardSortBy.ScoreDesc,
         sortByOptions: StandardSortBy,
-        query: standardsQuery,
+        query: standardEndpoint.findMany,
+    },
+    [SearchType.StandardVersion]: {
+        advancedSearchSchema: standardVersionSearchSchema,
+        defaultSortBy: StandardVersionSortBy.DateCreatedDesc,
+        sortByOptions: StandardVersionSortBy,
+        query: standardVersionEndpoint.findMany,
     },
     [SearchType.Star]: {
         advancedSearchSchema: null,
         defaultSortBy: StarSortBy.DateUpdatedDesc,
         sortByOptions: StarSortBy,
-        query: starsQuery,
+        query: starEndpoint.stars,
+    },
+    [SearchType.StatsApi]: {
+        advancedSearchSchema: statsApiSearchSchema,
+        defaultSortBy: StatsApiSortBy.DateUpdatedDesc,
+        sortByOptions: StatsApiSortBy,
+        query: statsApiEndpoint.findMany,
+    },
+    [SearchType.StatsOrganization]: {
+        advancedSearchSchema: statsOrganizationSearchSchema,
+        defaultSortBy: StatsOrganizationSortBy.DateUpdatedDesc,
+        sortByOptions: StatsOrganizationSortBy,
+        query: statsOrganizationEndpoint.findMany,
+    },
+    [SearchType.StatsProject]: {
+        advancedSearchSchema: statsProjectSearchSchema,
+        defaultSortBy: StatsProjectSortBy.DateUpdatedDesc,
+        sortByOptions: StatsProjectSortBy,
+        query: statsProjectEndpoint.findMany,
+    },
+    [SearchType.StatsQuiz]: {
+        advancedSearchSchema: statsQuizSearchSchema,
+        defaultSortBy: StatsQuizSortBy.DateUpdatedDesc,
+        sortByOptions: StatsQuizSortBy,
+        query: statsQuizEndpoint.findMany,
+    },
+    [SearchType.StatsRoutine]: {
+        advancedSearchSchema: statsRoutineSearchSchema,
+        defaultSortBy: StatsRoutineSortBy.DateUpdatedDesc,
+        sortByOptions: StatsRoutineSortBy,
+        query: statsRoutineEndpoint.findMany,
+    },
+    [SearchType.StatsSite]: {
+        advancedSearchSchema: statsSiteSearchSchema,
+        defaultSortBy: StatsSiteSortBy.DateUpdatedDesc,
+        sortByOptions: StatsSiteSortBy,
+        query: statsSiteEndpoint.findMany,
+    },
+    [SearchType.StatsSmartContract]: {
+        advancedSearchSchema: statsSmartContractSearchSchema,
+        defaultSortBy: StatsSmartContractSortBy.DateUpdatedDesc,
+        sortByOptions: StatsSmartContractSortBy,
+        query: statsSmartContractEndpoint.findMany,
+    },
+    [SearchType.StatsStandard]: {
+        advancedSearchSchema: statsStandardSearchSchema,
+        defaultSortBy: StatsStandardSortBy.DateUpdatedDesc,
+        sortByOptions: StatsStandardSortBy,
+        query: statsStandardEndpoint.findMany,
+    },
+    [SearchType.StatsUser]: {
+        advancedSearchSchema: statsUserSearchSchema,
+        defaultSortBy: StatsUserSortBy.DateUpdatedDesc,
+        sortByOptions: StatsUserSortBy,
+        query: statsUserEndpoint.findMany,
+    },
+    [SearchType.Tag]: {
+        advancedSearchSchema: tagSearchSchema,
+        defaultSortBy: TagSortBy.StarsDesc,
+        sortByOptions: TagSortBy,
+        query: tagEndpoint.findMany,
+    },
+    [SearchType.Transfer]: {
+        advancedSearchSchema: transferSearchSchema,
+        defaultSortBy: TransferSortBy.DateCreatedDesc,
+        sortByOptions: TransferSortBy,
+        query: transferEndpoint.findMany,
+    },
+    [SearchType.UserSchedule]: {
+        advancedSearchSchema: userScheduleSearchSchema,
+        defaultSortBy: UserScheduleSortBy.EventStartAsc,
+        sortByOptions: UserScheduleSortBy,
+        query: userScheduleEndpoint.findMany,
     },
     [SearchType.User]: {
         advancedSearchSchema: userSearchSchema,
         defaultSortBy: UserSortBy.StarsDesc,
         sortByOptions: UserSortBy,
-        query: usersQuery,
+        query: userEndpoint.findMany,
     },
     [SearchType.View]: {
         advancedSearchSchema: null,
         defaultSortBy: ViewSortBy.LastViewedDesc,
         sortByOptions: ViewSortBy,
-        query: viewsQuery,
+        query: viewEndpoint.views,
+    },
+    [SearchType.Vote]: {
+        advancedSearchSchema: voteSearchSchema,
+        defaultSortBy: VoteSortBy.DateUpdatedDesc,
+        sortByOptions: VoteSortBy,
+        query: voteEndpoint.votes,
     },
 };
 

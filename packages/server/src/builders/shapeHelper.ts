@@ -1,4 +1,4 @@
-import { SessionUser } from "../endpoints/types";
+import { SessionUser } from '@shared/consts';
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";
 import { GraphQLModelType } from "../models/types";

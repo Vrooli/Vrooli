@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput } from "../endpoints/types";
+import { ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 

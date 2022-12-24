@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { GQLEndpoint, UpdateOneResult } from '../types';
-import { FindHandlesInput, Wallet, WalletUpdateInput } from './types';
+import { FindHandlesInput, Wallet, WalletUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { CustomError } from '../events/error';
 import { serializedAddressToBech32 } from '../auth/wallet';

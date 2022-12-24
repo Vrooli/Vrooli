@@ -1,6 +1,6 @@
 import { CommentSortBy } from "@shared/consts";
 import { commentValidation } from "@shared/validation";
-import { Comment, CommentCreateInput, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from "../endpoints/types";
+import { Comment, CommentCreateInput, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";

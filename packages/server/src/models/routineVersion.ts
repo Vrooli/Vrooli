@@ -1,6 +1,6 @@
 import { routineVersionValidation } from "@shared/validation";
 import { CustomError, Trigger } from "../events";
-import { NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionPermission, RoutineVersionUpdateInput } from "../endpoints/types";
+import { NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionPermission, RoutineVersionUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";

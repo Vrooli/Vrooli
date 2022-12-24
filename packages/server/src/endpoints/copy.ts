@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { CopyInput, CopyResult } from './types';
+import { CopyInput, CopyResult } from '@shared/consts';
 import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { CopyType } from '@shared/consts';

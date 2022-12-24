@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { StarSortBy } from '@shared/consts';
-import { Star, StarFor, StarInput, StarSearchInput, Success } from './types';
+import { Star, StarFor, StarInput, StarSearchInput, Success } from '@shared/consts';
 import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
 import { rateLimit } from '../middleware';
 import { StarModel } from '../models';

@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { PaymentStatus } from './types';
+import { PaymentStatus } from '@shared/consts';
 
 export const typeDef = gql`
     enum PaymentStatus {

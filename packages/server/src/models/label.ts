@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Label, LabelCreateInput, LabelPermission, LabelSearchInput, LabelSortBy, LabelUpdateInput } from "../endpoints/types";
+import { Label, LabelCreateInput, LabelPermission, LabelSearchInput, LabelSortBy, LabelUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 

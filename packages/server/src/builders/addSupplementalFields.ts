@@ -1,6 +1,6 @@
 import { ObjectMap } from "../models";
 import { Formatter, GraphQLModelType } from "../models/types";
-import { SessionUser } from "../endpoints/types";
+import { SessionUser } from '@shared/consts';
 import { PrismaType, SingleOrArray } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";

@@ -4,7 +4,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { assertRequestFrom } from '../auth/request';
 import { Context, rateLimit } from '../middleware';
 import { FindManyResult, GQLEndpoint, IWrap, UnionResolver } from '../types';
-import { View, ViewSearchInput, ViewSearchResult } from './types';
+import { View, ViewSearchInput, ViewSearchResult } from '@shared/consts';
 import { readManyHelper } from '../actions';
 import { resolveUnion } from './resolvers';
 

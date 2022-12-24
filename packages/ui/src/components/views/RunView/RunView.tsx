@@ -1,4 +1,4 @@
-import { RunStepStatus } from "@shared/consts";
+import { Node, NodeEnd, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, Routine, RoutineVersion, RunRoutine, RunRoutineStep, RunRoutineStepStatus } from "@shared/consts";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
@@ -7,16 +7,10 @@ import { RunViewProps } from "../types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
 import { useLazyQuery, useMutation } from "@apollo/client";
-import { routine, routineVariables } from "graphql/generated/routine";
-import { routineQuery } from "graphql/query";
 import { uuidValidate } from '@shared/uuid';
-import { DecisionStep, Node, NodeDataEnd, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine, RoutineListStep, RoutineStep, Run, RunInput, RunStep, SubroutineStep } from "types";
+import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { addSearchParams, base36ToUuid, removeSearchParams } from "utils/navigation/urlTools";
-import { NodeType } from "graphql/generated/globalTypes";
-import { runCompleteVariables, runComplete_runComplete } from "graphql/generated/runComplete";
-import { runCompleteMutation, runUpdateMutation } from "graphql/mutation";
 import { mutationWrapper } from "graphql/utils";
-import { runUpdateVariables, runUpdate_runUpdate } from "graphql/generated/runUpdate";
 import { uuid } from '@shared/uuid';
 import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
 
@@ -40,7 +34,7 @@ const insertStep = (stepData: RoutineListStep, steps: RoutineListStep): RoutineL
         // If step is a subroutine step, check if it matches the stepData
         if (currentStep.type === RoutineStepType.Subroutine) {
             // If it matches, replace with stepData
-            if ((currentStep as SubroutineStep).routine.id === stepData.routineId) {
+            if ((currentStep as SubroutineStep).routineVersion.id === stepData.routineVersionId) {
                 step.steps[i] = stepData;
             }
         }
@@ -86,7 +80,7 @@ const locationFromRoutineId = (routineId: string, step: RoutineStep | null, loca
     if (!step) return null;
     // If step is a subroutine, check if it matches the routineId
     if (step.type === RoutineStepType.Subroutine) {
-        if ((step as SubroutineStep)?.routine?.id === routineId) return [...location, 1];
+        if ((step as SubroutineStep)?.routineVersion?.id === routineId) return [...location, 1];
     }
     // If step is a routine list, recurse over every subroutine
     else if (step.type === RoutineStepType.RoutineList) {
@@ -136,7 +130,7 @@ const stepFromLocation = (locationArray: number[], steps: RoutineStep | null): R
 const subroutineNeedsQuerying = (step: RoutineStep | null | undefined): boolean => {
     // Check for valid parameters
     if (!step || step.type !== RoutineStepType.Subroutine) return false;
-    const currSubroutine: Partial<Routine> = (step as SubroutineStep).routine;
+    const currSubroutine: Partial<Routine> = (step as SubroutineStep).routineVersion;
     // If routine has its own subrotines, then it needs querying (since it would be a RoutineList 
     // if it was loaded)
     return routineHasSubroutines(currSubroutine);
@@ -154,7 +148,7 @@ const getStepComplexity = (step: RoutineStep): number => {
             return 1;
         // Complexity of subroutines stored in routine data
         case RoutineStepType.Subroutine:
-            return (step as SubroutineStep).routine.complexity;
+            return (step as SubroutineStep).routineVersion.complexity;
         // Complexity of a list is the sum of its children's complexities
         case RoutineStepType.RoutineList:
             return (step as RoutineListStep).steps.reduce((acc, curr) => acc + getStepComplexity(curr), 0);
@@ -162,24 +156,24 @@ const getStepComplexity = (step: RoutineStep): number => {
 };
 
 /**
- * Converts a routine (can be the main routine or a subroutine) into a RoutineStep
- * @param routine The routine to convert
+ * Converts a routine version (can be the main routine or a subroutine) into a RoutineStep
+ * @param routineVersion The routineVersion to convert
  * @param languages Preferred languages to display step data in
  * @returns RoutineStep for the given routine, or null if invalid
  */
 const convertRoutineToStep = (
-    routine: Routine | null | undefined,
+    routineVersion: RoutineVersion | null | undefined,
     languages: string[]
 ): RoutineListStep | null => {
     // Check for required data to calculate steps
-    if (!routine || !routine.nodes || !routine.nodeLinks) {
-        console.log('routine does not have enough data to calculate steps');
+    if (!routineVersion || !routineVersion.nodes || !routineVersion.nodeLinks) {
+        console.log('routineVersion does not have enough data to calculate steps');
         return null;
     }
     // Find all nodes that are routine lists
-    let routineListNodes: Node[] = routine.nodes.filter((node: Node) => node.data?.__typename === 'NodeRoutineList');
+    let routineListNodes: Node[] = routineVersion.nodes.filter((node: Node) => node.data?.__typename === 'NodeRoutineList');
     // Also find the start node
-    const startNode = routine.nodes.find((node: Node) => node.type === NodeType.Start);
+    const startNode = routineVersion.nodes.find((node: Node) => node.type === NodeType.Start);
     // Sort by column, then row
     routineListNodes = routineListNodes.sort((a, b) => {
         const aCol = a.columnIndex ?? 0;
@@ -192,7 +186,7 @@ const convertRoutineToStep = (
     // Create result steps array
     let resultSteps: RoutineStep[] = [];
     // If multiple links from start node, create decision step
-    const startLinks = routine.nodeLinks.filter((link: NodeLink) => link.fromId === startNode?.id);
+    const startLinks = routineVersion.nodeLinks.filter((link: NodeLink) => link.fromId === startNode?.id);
     if (startLinks.length > 1) {
         resultSteps.push({
             type: RoutineStepType.Decision,
@@ -204,17 +198,17 @@ const convertRoutineToStep = (
     // Loop through all nodes
     for (const node of routineListNodes) {
         // Find all subroutine steps, and sort by index
-        const subroutineSteps: SubroutineStep[] = [...(node.data as NodeDataRoutineList).routines]
+        const subroutineSteps: SubroutineStep[] = [...(node.data as NodeRoutineList).items]
             .sort((r1, r2) => r1.index - r2.index)
-            .map((item: NodeDataRoutineListItem) => ({
+            .map((item: NodeRoutineListItem) => ({
                 type: RoutineStepType.Subroutine,
                 index: item.index,
-                routine: item.routine as any,
-                name: getTranslation(item.routine, languages, true).name ?? 'Untitled',
-                description: getTranslation(item.routine, languages, true).description ?? 'Description not found matching selected language',
+                routine: item.routineVersion,
+                name: getTranslation(item.routineVersion, languages, true).name ?? 'Untitled',
+                description: getTranslation(item.routineVersion, languages, true).description ?? 'Description not found matching selected language',
             }))
         // Find decision step
-        const links = routine.nodeLinks.filter((link: NodeLink) => link.fromId === node.id);
+        const links = routineVersion.nodeLinks.filter((link: NodeLink) => link.fromId === node.id);
         const decisionSteps: DecisionStep[] = links.length > 1 ? [{
             type: RoutineStepType.Decision,
             links,
@@ -224,7 +218,7 @@ const convertRoutineToStep = (
         resultSteps.push({
             type: RoutineStepType.RoutineList,
             nodeId: node.id,
-            isOrdered: (node.data as NodeDataRoutineList).isOrdered ?? false,
+            isOrdered: (node.data as NodeRoutineList).isOrdered ?? false,
             name: getTranslation(node, languages, true).name ?? 'Untitled',
             description: getTranslation(node, languages, true).description ?? 'Description not found matching selected language',
             steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
@@ -233,10 +227,10 @@ const convertRoutineToStep = (
     // Return result steps
     return {
         type: RoutineStepType.RoutineList,
-        routineId: routine.id,
+        routineVersionId: routineVersion.id,
         isOrdered: true,
-        name: getTranslation(routine, languages, true).name ?? 'Untitled',
-        description: getTranslation(routine, languages, true).description ?? 'Description not found matching selected language',
+        name: getTranslation(routineVersion, languages, true).name ?? 'Untitled',
+        description: getTranslation(routineVersion, languages, true).description ?? 'Description not found matching selected language',
         steps: resultSteps,
     };
 }
@@ -259,7 +253,7 @@ export const RunView = ({
             testMode: params.run === 'test',
         }
     }, [params])
-    const [run, setRun] = useState<Run | undefined>(undefined);
+    const [run, setRun] = useState<RunRoutine | undefined>(undefined);
     useEffect(() => {
         if (!routine?.runs) return undefined;
         const run = routine.runs.find(run => run.id === runId);
@@ -347,8 +341,8 @@ export const RunView = ({
     /**
      * Current step run data
      */
-    const currStepRunData = useMemo<RunStep | undefined>(() => {
-        const runStep = run?.steps?.find((s: RunStep) => locationArraysMatch(s.step, currStepLocation));
+    const currStepRunData = useMemo<RunRoutineStep | undefined>(() => {
+        const runStep = run?.steps?.find((s: RunRoutineStep) => locationArraysMatch(s.step, currStepLocation));
         return runStep;
     }, [run?.steps, currStepLocation]);
 
@@ -554,7 +548,7 @@ export const RunView = ({
                     break;
                 // If current step is a subroutine, this is either the end or more data needs to be fetched
                 case RoutineStepType.Subroutine:
-                    if (!routineHasSubroutines((currNextStep as SubroutineStep).routine)) {
+                    if (!routineHasSubroutines((currNextStep as SubroutineStep).routineVersion)) {
                         endFound = true;
                     } else {
                         endFound = true;
@@ -612,7 +606,7 @@ export const RunView = ({
         // Current step will be updated if it already exists in logged data, or created if not
         const stepsUpdate = currStepRunData ? [{
             id: currStepRunData.id,
-            status: RunStepStatus.Completed,
+            status: RunRoutineStepStatus.Completed,
             timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed.current,
             contextSwitches: currStepRunData.contextSwitches + contextSwitches.current,
         }] : undefined
@@ -621,7 +615,7 @@ export const RunView = ({
             order: newProgress.length,
             name: currStep?.name ?? '',
             nodeId: currParentListStep.nodeId,
-            subroutineId: currParentListStep.routineId,
+            subroutineId: currParentListStep.routineVersionId,
             step: currStepLocation,
             timeElapsed: timeElapsed.current,
             contextSwitches: contextSwitches.current,
@@ -635,7 +629,7 @@ export const RunView = ({
                     completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
                     stepsCreate,
                     stepsUpdate,
-                    ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
+                    ...runInputsUpdate(run?.inputs as RunRoutineInput[], currUserInputs.current),
                 },
                 onSuccess: (data) => {
                     setRun(data);
@@ -647,7 +641,7 @@ export const RunView = ({
             // Find node data
             const currNodeId = currStepRunData?.node?.id;
             const currNode = routine.nodes?.find(n => n.id === currNodeId);
-            const wasSuccessful = (currNode?.data as NodeDataEnd)?.wasSuccessful ?? true;
+            const wasSuccessful = (currNode?.data as NodeEnd)?.wasSuccessful ?? true;
             console.log('wasuccessful', wasSuccessful, currNode?.data)
             mutationWrapper<runComplete_runComplete, runCompleteVariables>({
                 mutation: logRunComplete,
@@ -683,7 +677,7 @@ export const RunView = ({
             return;
         }
         // Check if end was successfully reached
-        const data = endNode.data as NodeDataEnd;
+        const data = endNode.data as NodeEnd;
         const success = data?.wasSuccessful ?? true;
         // Don't actually do it if in test mode
         if (testMode || !run) {
@@ -702,7 +696,7 @@ export const RunView = ({
                 name: getTranslation(routine, getUserLanguages(session), true).name ?? 'Unnamed Routine',
                 version: routine.version ?? '',
                 wasSuccessful: success,
-                ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
+                ...runInputsUpdate(run?.inputs as RunRoutineInput[], currUserInputs.current),
             },
             successMessage: () => ({ key: 'RoutineCompleted' }),
             onSuccess: () => {
@@ -731,7 +725,7 @@ export const RunView = ({
             input: {
                 id: run.id,
                 stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
-                ...runInputsUpdate(run?.inputs as RunInput[], currUserInputs.current),
+                ...runInputsUpdate(run?.inputs as RunRoutineInput[], currUserInputs.current),
             },
             onSuccess: (data) => {
                 setRun(data);
@@ -778,7 +772,7 @@ export const RunView = ({
                     handleUserInputsUpdate={handleUserInputsUpdate}
                     handleSaveProgress={saveProgress}
                     owner={routine.owner}
-                    routine={(currentStep as SubroutineStep).routine}
+                    routine={(currentStep as SubroutineStep).routineVersion}
                     run={run}
                     loading={subroutineLoading}
                     zIndex={zIndex}

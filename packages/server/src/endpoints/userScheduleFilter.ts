@@ -1,5 +1,5 @@
 import { gql } from 'apollo-server-express';
-import { UserScheduleFilterType } from './types';
+import { UserScheduleFilterType } from '@shared/consts';
 
 export const typeDef = gql`
     enum UserScheduleFilterType {

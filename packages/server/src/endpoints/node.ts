@@ -1,7 +1,7 @@
 import { gql } from 'apollo-server-express';
 import { createHelper, updateHelper } from '../actions';
 import { CreateOneResult, GQLEndpoint, UnionResolver, UpdateOneResult } from '../types';
-import { Node, NodeCreateInput, NodeUpdateInput } from './types';
+import { Node, NodeCreateInput, NodeUpdateInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import pkg from '@prisma/client';
 import { resolveUnion } from './resolvers';

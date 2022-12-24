@@ -1,5 +1,5 @@
 import { PrismaType } from "../types";
-import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from "../endpoints/types";
+import { Member, MemberSearchInput, MemberSortBy, MemberUpdateInput } from '@shared/consts';
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { UserModel } from "./user";

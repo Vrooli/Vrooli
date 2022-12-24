@@ -1,5 +1,5 @@
 import { projectVersionValidation } from "@shared/validation";
-import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput, ProjectVersion, VersionPermission, ProjectVersionCreateInput, ProjectVersionUpdateInput } from "../endpoints/types";
+import { ProjectCreateInput, ProjectUpdateInput, ProjectVersionSortBy, SessionUser, RootPermission, ProjectVersionSearchInput, ProjectVersion, VersionPermission, ProjectVersionCreateInput, ProjectVersionUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";

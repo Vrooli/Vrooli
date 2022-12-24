@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CustomError } from '../events/error';
-import { UserDeleteInput, Success, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, User, ProfileEmailUpdateInput, UserSortBy } from './types';
+import { UserDeleteInput, Success, ProfileUpdateInput, FindByIdOrHandleInput, UserSearchInput, User, ProfileEmailUpdateInput, UserSortBy } from '@shared/consts';
 import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
 import { rateLimit } from '../middleware';
 import { assertRequestFrom } from '../auth/request';

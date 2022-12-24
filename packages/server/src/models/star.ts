@@ -6,7 +6,7 @@ import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
 import { CommentModel } from "./comment";
 import { CustomError, Trigger } from "../events";
-import { Star, StarSearchInput, StarInput, SessionUser } from "../endpoints/types";
+import { Star, StarSearchInput, StarInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { Displayer, Formatter, ModelLogic, Searcher } from "./types";
 import { Prisma } from "@prisma/client";
