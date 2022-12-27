@@ -9,7 +9,6 @@ import { NodeColumn, NodeEdge, SnackSeverity } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NodeGraphProps } from '../types';
 import { Node } from 'types';
-import { NodeType } from 'graphql/generated/globalTypes';
 import { firstString, PubSub, usePinchZoom } from 'utils';
 
 type DragRefs = {

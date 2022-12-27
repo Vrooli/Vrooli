@@ -6,11 +6,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { Resource } from 'types';
 import { Box, Button } from '@mui/material';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { updateArray } from 'utils';
 import { AddIcon } from '@shared/icons';
-import { deleteManyMutation } from 'graphql/mutation';
-import { deleteManyVariables, deleteMany_deleteMany } from 'graphql/generated/deleteMany';
 
 export const ResourceListVertical = ({
     title = '📌 Resources',

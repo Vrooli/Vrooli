@@ -9,8 +9,6 @@ import { CommonKey } from 'types';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useQuery } from '@apollo/client';
-import { notificationsQuery } from 'graphql/query';
-import { notifications, notificationsVariables } from 'graphql/generated/notifications';
 
 export const NotificationsPage = ({
     session

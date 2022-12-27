@@ -1,4 +1,3 @@
-import { NodeType } from 'graphql/generated/globalTypes';
 
 export * from './AddAfterLinkDialog/AddAfterLinkDialog';
 export * from './AddBeforeLinkDialog/AddBeforeLinkDialog';

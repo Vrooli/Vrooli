@@ -1,5 +1,4 @@
-import { NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhenCreateInput, NodeLinkWhenTranslationCreateInput, NodeLinkWhenTranslationUpdateInput, NodeLinkWhenUpdateInput } from "graphql/generated/globalTypes";
-import { NodeLink, NodeLinkWhen, NodeLinkWhenTranslation, ShapeWrapper } from "types";
+import { ShapeWrapper } from "types";
 import { hasObjectChanged } from "utils";
 import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 

@@ -3,10 +3,7 @@
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
 import { SnackSeverity } from 'components';
-import { walletComplete_walletComplete as WalletCompleteResult } from 'graphql/generated/walletComplete';
-import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
-import { errorToCode } from 'graphql/utils/errorParser';
-import { initializeApollo } from 'graphql/utils/initialize';
+import { errorToCode, initializeApollo } from 'graphql/utils';
 import { ApolloError } from 'types';
 import { PubSub } from 'utils';
 

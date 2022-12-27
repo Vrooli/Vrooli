@@ -1,5 +1,3 @@
-import { RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "graphql/generated/globalTypes";
-import { RunRoutineInput } from "types";
 import { shapeUpdate } from "./shapeTools";
 
 export type RunRoutineInputShape = {

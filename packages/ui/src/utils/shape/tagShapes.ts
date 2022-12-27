@@ -1,5 +1,4 @@
-import { TagCreateInput, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "graphql/generated/globalTypes";
-import { ShapeWrapper, Tag, TagTranslation } from "types";
+import { ShapeWrapper } from "types";
 import { hasObjectChanged } from "./objectTools";
 import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 

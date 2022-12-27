@@ -3,8 +3,6 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS, StarFor } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
 import { useLazyQuery } from "@apollo/client";
-import { user, userVariables } from "graphql/generated/user";
-import { userQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { UserViewProps } from "../types";
@@ -12,7 +10,6 @@ import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, 
 import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
-import { VisibilityType } from "graphql/generated/globalTypes";
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";

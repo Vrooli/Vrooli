@@ -1,23 +1,19 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { useCallback, useState } from "react";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
-import { profileEmailUpdateMutation } from "graphql/mutation";
 import { PubSub, usePromptBeforeUnload } from "utils";
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
-import { logOutMutation } from 'graphql/mutation';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
 import { Email, Wallet } from "types";
 import { DeleteAccountDialog, PageTitle, PasswordTextField, SnackSeverity } from "components";
-import { profileEmailUpdateVariables, profileEmailUpdate_profileEmailUpdate } from "graphql/generated/profileEmailUpdate";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
-import { logOutVariables, logOut_logOut } from "graphql/generated/logOut";
 import { SettingsFormData } from "pages";
 
 const walletHelpText =

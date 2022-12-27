@@ -1,19 +1,14 @@
 import { Box, Button, CircularProgress, Dialog, Grid, Stack, TextField, Typography } from "@mui/material"
 import { useMutation, useLazyQuery } from "@apollo/client";
-import { routine, routineVariables } from "graphql/generated/routine";
-import { routineQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
-import { routineUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
-import { ResourceList, Routine } from "types";
 import { InputOutputContainer } from "components/lists/inputOutput";
-import { routineUpdateVariables, routineUpdate_routineUpdate } from "graphql/generated/routineUpdate";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 import { RoutineIcon } from "@shared/icons";
 

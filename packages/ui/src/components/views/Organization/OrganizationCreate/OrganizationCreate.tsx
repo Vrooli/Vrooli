@@ -1,16 +1,13 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { organizationCreate as validationSchema, organizationTranslationCreate } from '@shared/validation';
+import { mutationWrapper } from 'graphql/utils';
+import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { organizationCreateMutation } from "graphql/mutation";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeOrganizationCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
-import { ResourceList } from "types";
 import { uuid } from '@shared/uuid';
-import { organizationCreateVariables, organizationCreate_organizationCreate } from "graphql/generated/organizationCreate";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 

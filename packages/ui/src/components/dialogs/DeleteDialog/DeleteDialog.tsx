@@ -11,8 +11,6 @@ import { DeleteDialogProps } from '../types';
 import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'graphql/utils';
 import { useMutation } from '@apollo/client';
-import { deleteOneMutation } from 'graphql/mutation';
-import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
 import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';

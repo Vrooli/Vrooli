@@ -6,13 +6,10 @@ import { useCallback, useState } from 'react';
 import { Wallet } from 'types';
 import { Box, Button } from '@mui/material';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { PubSub, updateArray } from 'utils';
-import { deleteOneMutation, walletUpdateMutation } from 'graphql/mutation';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
-import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
-import { walletUpdateVariables, walletUpdate_walletUpdate } from 'graphql/generated/walletUpdate';
 import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
 

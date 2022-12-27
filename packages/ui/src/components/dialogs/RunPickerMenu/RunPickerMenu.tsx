@@ -9,14 +9,9 @@ import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
 import { base36ToUuid, getRunPercentComplete, parseSearchParams, PubSub } from "utils";
 import { useMutation } from "@apollo/client";
-import { runRoutineCreateVariables, runRoutineCreate_runRoutineCreate } from "graphql/generated/runRoutineCreate";
-import { deleteOneMutation, runRoutineCreateMutation } from "graphql/mutation";
-import { Run } from "types";
-import { deleteOneVariables, deleteOne_deleteOne } from "graphql/generated/deleteOne";
 import { DeleteType } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
-import { RunStatus } from "graphql/generated/globalTypes";
 import { DeleteIcon } from "@shared/icons";
 import { SnackSeverity } from "components";
 

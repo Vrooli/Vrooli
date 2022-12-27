@@ -1,15 +1,12 @@
 import { useMutation } from "@apollo/client";
 import { DUMMY_ID, uuid } from "@shared/uuid";
-import { commentTranslationCreate } from "@shared/validation";
 import { CommentDialog } from "components/dialogs"
 import { useCallback, useMemo } from "react";
 import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationChange, shapeCommentCreate, usePromptBeforeUnload, useWindowSize } from "utils";
 import { CommentCreateInputProps } from "../types"
-import { commentCreate as validationSchema } from '@shared/validation';
-import { commentCreateMutation } from "graphql/mutation";
+import { commentValidation, commentTranslationValidation } from '@shared/validation';
 import { getCurrentUser } from "utils/authentication";
 import { mutationWrapper } from "graphql/utils";
-import { commentCreateVariables, commentCreate_commentCreate } from "graphql/generated/commentCreate";
 import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
@@ -46,7 +43,7 @@ export const CommentCreateInput = ({
                 text: '',
             }],
         },
-        validationSchema,
+        validationSchema: commentValidation.create,
         onSubmit: (values) => {
             // If not logged in, open login dialog
             //TODO

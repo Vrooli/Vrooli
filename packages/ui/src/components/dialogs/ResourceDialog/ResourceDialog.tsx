@@ -2,21 +2,15 @@ import { useMutation, useQuery } from '@apollo/client';
 import { resourceValidation } from '@shared/validation';
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
-import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ResourceDialogProps } from '../types';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectUrl, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
-import { resourceCreateVariables, resourceCreate_resourceCreate } from 'graphql/generated/resourceCreate';
-import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { resourceUpdateVariables, resourceUpdate_resourceUpdate } from 'graphql/generated/resourceUpdate';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
-import { AutocompleteOption, Resource } from 'types';
+import { AutocompleteOption } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
-import { popularQuery } from 'graphql/query';
-import { popular, popularVariables } from 'graphql/generated/popular';
+import { ResourceUsedFor } from '@shared/consts';
 
 const helpText =
     `## What are resources?

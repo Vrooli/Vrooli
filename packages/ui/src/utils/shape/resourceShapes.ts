@@ -1,5 +1,4 @@
-import { ResourceCreateInput, ResourceListCreateInput, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput } from "graphql/generated/globalTypes";
-import { Resource, ResourceList, ResourceListTranslation, ResourceTranslation, ShapeWrapper } from "types";
+import { ShapeWrapper } from "types";
 import { hasObjectChanged } from "./objectTools";
 import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 

@@ -1,17 +1,13 @@
 import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { routineCreate as validationSchema, routineTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
-import { routineCreateMutation } from "graphql/mutation";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, parseSearchParams, PubSub, removeTranslation, shapeRoutineCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
-import { ResourceList, Routine } from "types";
 import { uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
-import { routineCreateVariables, routineCreate_routineCreate } from "graphql/generated/routineCreate";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { RoutineIcon } from "@shared/icons";

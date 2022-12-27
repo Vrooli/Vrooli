@@ -10,11 +10,9 @@ import { APP_LINKS } from '@shared/consts';
 import { AutocompleteOption } from 'types';
 import { useLazyQuery } from '@apollo/client';
 import { CommandPaletteProps } from '../types';
-import { popularQuery } from 'graphql/query';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { uuidValidate } from '@shared/uuid';
-import { popular, popularVariables } from 'graphql/generated/popular';
 
 const helpText =
     `Use this dialog to quickly navigate to other pages.

@@ -1,5 +1,4 @@
 import { uniqBy } from "@shared/utils";
-import { NodeType, RunInputCreateInput, RunInputUpdateInput } from "graphql/generated/globalTypes";
 import { Node, NodeDataRoutineList, NodeLink, Routine, RunInput } from "types";
 import { uuid } from '@shared/uuid';
 import { Status } from "./consts";

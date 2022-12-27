@@ -12,7 +12,6 @@ import { ResourceList, Routine } from "types";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { uuid } from "@shared/uuid";
-import { CommentFor } from "graphql/generated/globalTypes";
 import { SuccessIcon } from "@shared/icons";
 
 const containerProps = (palette: Palette) => ({

@@ -1,19 +1,15 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
 import { useMutation, useLazyQuery } from "@apollo/client";
-import { project, projectVariables } from "graphql/generated/project";
-import { projectQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { projectTranslationUpdate, projectUpdate as validationSchema } from '@shared/validation';
+import { mutationWrapper } from 'graphql/utils';
+import { projectValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { projectUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeProjectUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
-import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
-import { projectUpdateVariables, projectUpdate_projectUpdate } from "graphql/generated/projectUpdate";
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
+import { projectEndpoint } from "graphql/endpoints";
 
 export const ProjectUpdate = ({
     onCancel,
@@ -66,7 +62,7 @@ export const ProjectUpdate = ({
     }, [project]);
 
     // Handle update
-    const [mutation] = useMutation(projectUpdateMutation);
+    const [mutation] = useMutation(projectEndpoint.update);
     const formik = useFormik({
         initialValues: {
             id: project?.id ?? uuid(),
@@ -78,7 +74,7 @@ export const ProjectUpdate = ({
             }],
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema,
+        validationSchema: projectValidation.update,
         onSubmit: (values) => {
             if (!project) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: SnackSeverity.Error });

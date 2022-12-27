@@ -5,7 +5,6 @@ import { Box, Stack } from '@mui/material';
 import { useMemo } from 'react';
 import { NodeColumnProps } from '../types';
 import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
-import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { getTranslation } from 'utils';
 

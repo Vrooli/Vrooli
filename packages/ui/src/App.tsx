@@ -10,19 +10,17 @@ import {
     SnackSeverity,
     SnackStack,
 } from 'components';
-import { getUserLanguages, PubSub, themes, useReactHash } from 'utils';
+import { PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
 import { useMutation } from '@apollo/client';
-import { validateSessionMutation } from 'graphql/mutation';
 import SakBunderan from './assets/font/SakBunderan.woff';
-import { Session } from 'types';
 import Confetti from 'react-confetti';
 import { guestSession } from 'utils/authentication';
 import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
+import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'graphql/utils';
-import { validateSessionVariables, validateSession_validateSession } from 'graphql/generated/validateSession';
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -211,7 +209,7 @@ export function App() {
             return;
         }
         // Check if previous log in exists
-        mutationWrapper<validateSession_validateSession, validateSessionVariables>({
+        mutationWrapper<Session, ValidateSessionInput>({
             mutation: validateSession,
             input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             onSuccess: (data) => { setSession(data) },

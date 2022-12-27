@@ -24,13 +24,10 @@ import {
     SignUpForm,
     ResetPasswordForm,
 } from 'forms';
-import { emailLogInMutation, guestLogInMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { emailLogInVariables, emailLogIn_emailLogIn } from 'graphql/generated/emailLogIn';
+import { mutationWrapper } from 'graphql/utils';
 import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'graphql/utils';
-import { guestLogIn_guestLogIn } from 'graphql/generated/guestLogIn';
 import { getCurrentUser } from 'utils/authentication';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
 

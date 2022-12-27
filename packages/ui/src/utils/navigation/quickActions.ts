@@ -1,9 +1,7 @@
 import { APP_LINKS } from "@shared/consts";
 import { SnackSeverity } from "components";
-import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
-import { profileUpdateMutation } from "graphql/mutation";
 import { documentNodeWrapper, errorToCode } from "graphql/utils";
-import { ActionOption, Session, ShortcutOption } from "types";
+import { ActionOption, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
 import { PubSub } from "utils/pubsub";

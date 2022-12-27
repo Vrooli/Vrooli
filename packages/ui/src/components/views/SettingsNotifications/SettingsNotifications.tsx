@@ -1,10 +1,9 @@
-import { Box, Grid, Stack, Switch, Typography } from "@mui/material"
+import { Grid, Stack, Switch, Typography } from "@mui/material"
 import { SettingsNotificationsProps } from "../types";
 import { PageTitle } from "components/text";
 import { SettingsFormData } from "pages";
 import { PubSub, usePromptBeforeUnload } from "utils";
 import { mutationWrapper } from "graphql/utils";
-import { notificationSettingsUpdateMutation } from "graphql/mutation";
 import { useMutation } from "@apollo/client";
 import { useFormik } from "formik";
 

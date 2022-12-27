@@ -1,18 +1,13 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
-import { organization, organizationVariables } from "graphql/generated/organization";
-import { organizationQuery } from "graphql/query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { OrganizationUpdateProps } from "../types";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { organizationTranslationUpdate, organizationUpdate as validationSchema } from '@shared/validation';
+import { mutationWrapper } from 'graphql/utils';
+import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { organizationUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getPreferredLanguage, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeOrganizationUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
-import { ResourceList } from "types";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
-import { organizationUpdateVariables, organizationUpdate_organizationUpdate } from "graphql/generated/organizationUpdate";
 import { RelationshipsObject } from "components/inputs/types";
 
 export const OrganizationUpdate = ({

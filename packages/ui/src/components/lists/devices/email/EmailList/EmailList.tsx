@@ -3,19 +3,13 @@
  */
 import { EmailListProps } from '../types';
 import { useCallback } from 'react';
-import { Email } from 'types';
 import { Box, Stack, TextField, useTheme } from '@mui/material';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { PubSub, updateArray } from 'utils';
-import { emailCreateMutation, deleteOneMutation, emailUpdateMutation, sendVerificationEmailMutation } from 'graphql/mutation';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
 import { emailCreateButton as validationSchema } from '@shared/validation';
-import { emailCreateVariables, emailCreate_emailCreate } from 'graphql/generated/emailCreate';
-import { emailUpdateVariables, emailUpdate_emailUpdate } from 'graphql/generated/emailUpdate';
-import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
-import { sendVerificationEmailVariables, sendVerificationEmail_sendVerificationEmail } from 'graphql/generated/sendVerificationEmail';
 import { AddIcon } from '@shared/icons';
 import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';

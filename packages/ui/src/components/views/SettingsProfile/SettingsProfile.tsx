@@ -1,19 +1,15 @@
 import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "@apollo/client";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { profileUpdateSchema as validationSchema, userTranslationUpdate } from '@shared/validation';
 import { APP_LINKS } from '@shared/consts';
 import { useFormik } from 'formik';
-import { profileUpdateMutation } from "graphql/mutation";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfileUpdate, usePromptBeforeUnload } from "utils";
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
 import { ColorIconButton, GridSubmitButtons } from "components/buttons";
-import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
-import { findHandlesQuery } from "graphql/query";
-import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';

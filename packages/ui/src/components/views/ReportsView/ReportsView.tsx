@@ -1,6 +1,4 @@
 import { useQuery } from "@apollo/client";
-import { reports, reportsVariables, reports_reports_edges_node } from "graphql/generated/reports";
-import { reportsQuery } from "graphql/query";
 import { useMemo } from "react";
 import { Box, useTheme } from "@mui/material";
 import { base36ToUuid, getLastUrlPart } from "utils";

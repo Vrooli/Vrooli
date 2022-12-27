@@ -12,7 +12,6 @@ import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
 import { ListProject, ListRoutine, ListStandard } from 'types';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
-import { RunStatus } from 'graphql/generated/globalTypes';
 
 function CompletionBar(props) {
     return (

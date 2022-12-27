@@ -1,15 +1,13 @@
 import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "@apollo/client";
 import { useCallback, useEffect, useState } from "react";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
-import { profileUpdateMutation } from "graphql/mutation";
 import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, usePromptBeforeUnload } from "utils";
 import { SettingsDisplayProps } from "../types";
 import { GridSubmitButtons, HelpButton, PageTitle, SnackSeverity, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
-import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";

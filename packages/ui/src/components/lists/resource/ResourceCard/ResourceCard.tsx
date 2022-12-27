@@ -11,7 +11,6 @@ import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
 import { multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from '..';
-import { ResourceUsedFor } from 'graphql/generated/globalTypes';
 import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
 import { DeleteIcon, EditIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';

@@ -1,5 +1,4 @@
-import { ProfileUpdateInput, TagHiddenCreateInput, TagHiddenUpdateInput, UserTranslationCreateInput, UserTranslationUpdateInput } from "graphql/generated/globalTypes";
-import { Profile, ProfileTranslation, ShapeWrapper, TagHidden } from "types";
+import { ShapeWrapper } from "types";
 import { hasObjectChanged } from "./objectTools";
 import { ResourceListShape } from "./resourceShapes";
 import { shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";

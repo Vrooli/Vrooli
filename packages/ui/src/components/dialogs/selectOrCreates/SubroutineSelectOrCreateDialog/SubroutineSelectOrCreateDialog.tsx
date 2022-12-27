@@ -11,15 +11,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubroutineSelectOrCreateDialogProps } from '../types';
 import { IsCompleteInput, IsInternalInput, Routine } from 'types';
 import { SearchList } from 'components/lists';
-import { routineQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
-import { routine, routineVariables } from 'graphql/generated/routine';
 import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
 import { uuidValidate } from '@shared/uuid';
 import { SearchType, routineSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
-import { SearchException, VisibilityType } from 'graphql/generated/globalTypes';
 
 const helpText =
     `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`

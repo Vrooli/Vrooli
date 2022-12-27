@@ -1,5 +1,3 @@
-import { Session } from "types";
-import { CommentFor } from "graphql/generated/globalTypes";
 import { TextFieldProps } from "@mui/material";
 import { MarkdownInputProps } from "components/inputs/types";
 

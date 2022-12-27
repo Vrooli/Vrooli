@@ -1,16 +1,13 @@
 import { Grid, TextField } from "@mui/material";
 import { useMutation } from "@apollo/client";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { projectValidation, projectTranslationCreate } from '@shared/validation';
+import { mutationWrapper } from 'graphql/utils';
+import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { projectCreateMutation } from "graphql/mutation";
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeProjectCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
-import { ResourceList } from "types";
 import { uuid } from '@shared/uuid';
-import { projectCreateVariables, projectCreate_projectCreate } from "graphql/generated/projectCreate";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 

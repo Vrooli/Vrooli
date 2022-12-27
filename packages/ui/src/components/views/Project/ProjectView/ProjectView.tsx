@@ -3,18 +3,14 @@ import { useLocation } from '@shared/route';
 import { APP_LINKS, StarFor } from "@shared/consts";
 import { adaHandleRegex } from "@shared/validation";
 import { useLazyQuery } from "@apollo/client";
-import { project, projectVariables } from "graphql/generated/project";
-import { projectQuery } from "graphql/query";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { ProjectViewProps } from "../types";
-import { Project, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, SearchType, uuidToBase36 } from "utils";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { VisibilityType } from "graphql/generated/globalTypes";
 
 enum TabOptions {
     Resources = "Resources",

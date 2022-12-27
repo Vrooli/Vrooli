@@ -1,4 +1,3 @@
-import { emailResetPasswordMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { emailResetPasswordSchema } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -8,9 +7,8 @@ import {
     Paper,
 } from '@mui/material';
 import { APP_LINKS } from '@shared/consts';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { useLocation } from '@shared/route';
-import { emailResetPasswordVariables, emailResetPassword_emailResetPassword } from 'graphql/generated/emailResetPassword';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
 import { PasswordTextField, SnackSeverity } from 'components';

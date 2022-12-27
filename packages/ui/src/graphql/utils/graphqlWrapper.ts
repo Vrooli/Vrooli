@@ -33,21 +33,21 @@ interface BaseWrapperProps<Output extends object> {
     spinnerDelay?: number | null;
 }
 
-interface DocumentNodeWrapperProps<Output extends object, Input extends InputType> extends BaseWrapperProps<Output> {
+interface DocumentNodeWrapperProps<Output extends object, Input extends Record<string, any>> extends BaseWrapperProps<Output> {
     // DocumentNode used to create useMutation or useLazyQuery function
     node: DocumentNode;
     // data to pass into useMutation or useLazyQuery function
     input?: Input['input'];
 }
 
-interface MutationWrapperProps<Output extends object, Input extends InputType> extends BaseWrapperProps<Output> {
+interface MutationWrapperProps<Output extends object, Input extends Record<string, any>> extends BaseWrapperProps<Output> {
     // useMutation function
     mutation: (options?: any) => Promise<any>;
     // data to pass into useMutation function
     input?: Input['input'];
 }
 
-interface QueryWrapperProps<Output extends object, Input extends InputType> extends BaseWrapperProps<Output> {
+interface QueryWrapperProps<Output extends object, Input extends Record<string, any>> extends BaseWrapperProps<Output> {
     // useLazyQuery function
     query: (options?: any) => Promise<any>;
     // data to pass into useLazyQuery function
@@ -137,7 +137,7 @@ export const graphqlWrapperHelper = <Output extends object>({
  * Calls a useMutation or useLazyQuery function and handles response and catch, using the DocumentNode. 
  * This is useful when you want to query or mutate outside of a component (i.e. you can't create a hook)
  */
-export const documentNodeWrapper = <Output extends object, Input extends InputType>(props: DocumentNodeWrapperProps<Output, Input>) => {
+export const documentNodeWrapper = <Output extends object, Input extends Record<string, any>>(props: DocumentNodeWrapperProps<Output, Input>) => {
     const { node, ...rest } = props;
     // Initialize apollo client
     const client = initializeApollo();
@@ -146,8 +146,8 @@ export const documentNodeWrapper = <Output extends object, Input extends InputTy
     const isMutation = node.definitions.some((def) => def.kind === 'OperationDefinition' && def.operation === 'mutation');
     return graphqlWrapperHelper({
         call: () => isMutation ?
-            client.mutate({ mutation: node, variables: rest.input ? { input: rest.input } as Input : undefined }) :
-            client.query({ query: node, variables: rest.input ? { input: rest.input } as Input : undefined }),
+            client.mutate({ mutation: node, variables: rest.input ? { input: rest.input } as InputType : undefined }) :
+            client.query({ query: node, variables: rest.input ? { input: rest.input } as InputType : undefined }),
         ...rest
     });
 }
@@ -155,10 +155,10 @@ export const documentNodeWrapper = <Output extends object, Input extends InputTy
 /**
  * Wraps a useMutation function and handles response and catch
  */
-export const mutationWrapper = <Output extends object, Input extends InputType>(props: MutationWrapperProps<Output, Input>) => {
+export const mutationWrapper = <Output extends object, Input extends Record<string, any>>(props: MutationWrapperProps<Output, Input>) => {
     const { mutation, ...rest } = props;
     return graphqlWrapperHelper({
-        call: () => mutation({ variables: rest.input ? { input: rest.input } as Input : undefined }),
+        call: () => mutation({ variables: rest.input ? { input: rest.input } as InputType : undefined }),
         ...rest
     });
 }
@@ -166,10 +166,10 @@ export const mutationWrapper = <Output extends object, Input extends InputType>(
 /**
  * Wraps a useLazyQuery function and handles response and catch
  */
-export const queryWrapper = <Output extends object, Input extends InputType>(props: QueryWrapperProps<Output, Input>) => {
+export const queryWrapper = <Output extends object, Input extends Record<string, any>>(props: QueryWrapperProps<Output, Input>) => {
     const { query, ...rest } = props;
     return graphqlWrapperHelper({
-        call: () => query({ variables: rest.input ? { input: rest.input } as Input : undefined }),
+        call: () => query({ variables: rest.input ? { input: rest.input } as InputType : undefined }),
         ...rest
     });
 }

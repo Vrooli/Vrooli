@@ -5,7 +5,6 @@ import { deleteArrayIndex, BuildAction, Status, updateArray, NodeShape, NodeLink
 import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import { useLocation } from '@shared/route';
 import { isEqual } from '@shared/utils';
-import { NodeType } from 'graphql/generated/globalTypes';
 import { BuildViewProps } from '../types';
 import { uuid, uuidValidate } from '@shared/uuid';
 import { StatusMessageArray } from 'components/buttons/types';

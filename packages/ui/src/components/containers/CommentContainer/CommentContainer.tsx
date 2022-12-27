@@ -15,7 +15,7 @@ import { AdvancedSearchDialog } from 'components/dialogs';
 import { SortMenu, TimeMenu } from 'components/lists';
 import { BuildIcon, SortIcon, HistoryIcon as TimeIcon, CreateIcon } from '@shared/icons';
 import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
-import { CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread as ThreadType, TimeFrame } from '@shared/consts';
+import { CommentThread as ThreadType, CommentSearchInput, CommentSearchResult, CommentSortBy, TimeFrame } from '@shared/consts';
 import { commentEndpoint } from 'graphql/endpoints';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = searchTypeToParams.Comment;

@@ -1,15 +1,10 @@
 import { useMutation } from "@apollo/client";
-import { copyVariables, copy_copy } from 'graphql/generated/copy';
-import { starVariables, star_star } from 'graphql/generated/star';
-import { voteVariables, vote_vote } from 'graphql/generated/vote';
-import { copyMutation, starMutation, voteMutation } from "graphql/mutation";
 import { useCallback, useMemo, useState } from "react";
 import { ReportFor, StarFor, VoteFor } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
-import { mutationWrapper } from "graphql/utils/graphqlWrapper";
+import { mutationWrapper } from "graphql/utils";
 import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
-import { DeleteType, CopyType } from "graphql/generated/globalTypes";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 
 export const ObjectActionMenu = ({

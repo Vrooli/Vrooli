@@ -7,13 +7,10 @@ import { CommentCreateInput } from 'components/inputs';
 import { useMutation } from '@apollo/client';
 import { mutationWrapper } from 'graphql/utils';
 import { DeleteType, ReportFor, StarFor, VoteFor } from '@shared/consts';
-import { deleteOneMutation } from 'graphql/mutation';
-import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
-import { CommentFor } from 'graphql/generated/globalTypes';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { getCurrentUser } from 'utils/authentication';
 

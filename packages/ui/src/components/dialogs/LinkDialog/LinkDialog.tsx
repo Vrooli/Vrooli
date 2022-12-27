@@ -17,7 +17,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { Node } from 'types';
 import { getTranslation, PubSub } from 'utils';
-import { NodeType } from 'graphql/generated/globalTypes';
 import { uuid } from '@shared/uuid';
 
 const helpText =

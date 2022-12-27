@@ -1,5 +1,4 @@
-import { OrganizationCreateInput, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from "graphql/generated/globalTypes";
-import { ShapeWrapper, Organization, OrganizationTranslation } from "types";
+import { ShapeWrapper } from "types";
 import { hasObjectChanged, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
 import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 

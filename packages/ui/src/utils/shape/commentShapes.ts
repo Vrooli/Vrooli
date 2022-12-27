@@ -1,5 +1,4 @@
-import { CommentCreateInput, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentFor, CommentUpdateInput } from "graphql/generated/globalTypes";
-import { Comment, CommentTranslation, ShapeWrapper } from "types";
+import { ShapeWrapper } from "types";
 import { hasObjectChanged } from "utils";
 import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
 

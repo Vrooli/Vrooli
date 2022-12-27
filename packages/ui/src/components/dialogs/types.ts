@@ -1,8 +1,7 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { DeleteType } from '@shared/consts';
-import { Comment, NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
-import { ReportFor } from 'graphql/generated/globalTypes';
+import { DeleteType, ReportFor } from '@shared/consts';
+import { NavigableObject } from 'types';
 import { ListObjectType, SearchType } from 'utils';
 import { SvgComponent } from '@shared/icons';
 import { ObjectAction, ObjectActionComplete } from 'utils/actions/objectActions';

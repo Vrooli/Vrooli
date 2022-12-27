@@ -17,8 +17,6 @@ import { APP_LINKS } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle, PasswordTextField, SnackSeverity } from 'components';
 import { DeleteIcon } from '@shared/icons';
-import { userDeleteOneMutation } from 'graphql/mutation/userDeleteOne';
-import { userDeleteOneVariables, userDeleteOne_userDeleteOne } from 'graphql/generated/userDeleteOne';
 import { getCurrentUser } from 'utils/authentication';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
 import { PubSub } from 'utils';

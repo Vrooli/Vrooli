@@ -1,6 +1,5 @@
 import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
 import { JSONVariable } from 'forms/types';
-import { CommentFor } from 'graphql/generated/globalTypes';
 import { ChangeEvent, FocusEventHandler } from 'react';
 import { AutocompleteOption, Comment, Organization, Project, Routine, Session, Standard, Tag, User } from 'types';
 import { ObjectType, TagShape } from 'utils';

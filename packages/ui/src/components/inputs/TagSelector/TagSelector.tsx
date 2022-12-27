@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { tags, tagsVariables } from 'graphql/generated/tags';
-import { tagsQuery } from 'graphql/query';
 import { useQuery } from '@apollo/client';
 import { StarFor, TagSortBy } from '@shared/consts';
 import { TagSelectorProps } from '../types';

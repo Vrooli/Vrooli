@@ -5,10 +5,9 @@ import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils
 import { FixedSizeList } from 'react-window';
 import { ListMenu, MenuTitle, SnackSeverity } from 'components';
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
-import { translateVariables, translate_translate } from 'graphql/generated/translate';
-import { translateQuery } from 'graphql/query';
 import { useLazyQuery } from '@apollo/client';
 import { queryWrapper } from 'graphql/utils';
+import { translateEndpoint } from 'graphql/endpoints';
 
 /**
  * Languages which support auto-translations through LibreTranslate. 
@@ -65,7 +64,7 @@ export const SelectLanguageMenu = ({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useLazyQuery(translateQuery);
+    const [getAutoTranslation] = useLazyQuery(translateEndpoint.translate);
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
         const sourceTranslation = translations.find(t => t.language === source);

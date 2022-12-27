@@ -12,7 +12,6 @@ import {
 import { UnlinkedNodesDialogProps } from '../types';
 import { noSelect } from 'styles';
 import { useCallback } from 'react';
-import { NodeType } from 'graphql/generated/globalTypes';
 import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';

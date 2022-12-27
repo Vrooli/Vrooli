@@ -2,7 +2,6 @@ import { Box, Button, Grid, Stack, Tab, Tabs, Typography, useTheme } from '@mui/
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { centeredDiv, linkColors } from 'styles';
 import { useQuery } from '@apollo/client';
-import { popularQuery } from 'graphql/query';
 import { AutocompleteSearchBar, ListTitleContainer, TitleContainer, ListMenu, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
@@ -13,7 +12,6 @@ import { AutocompleteOption, NavigableObject } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
-import { popular, popularVariables } from 'graphql/generated/popular';
 
 const faqText =
     `## What is This?

@@ -1,4 +1,3 @@
-import { emailSignUpMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { APP_LINKS, BUSINESS_NAME } from '@shared/consts';
 import { useFormik } from 'formik';
@@ -15,15 +14,13 @@ import {
 } from '@mui/material';
 import { Forms, PubSub } from 'utils';
 import { emailSignUpSchema } from '@shared/validation';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { hasErrorCode, mutationWrapper } from 'graphql/utils';
 import { useLocation } from '@shared/route';
-import { emailSignUpVariables, emailSignUp_emailSignUp } from 'graphql/generated/emailSignUp';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
-import { hasErrorCode } from 'graphql/utils';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
 
 export const SignUpForm = ({

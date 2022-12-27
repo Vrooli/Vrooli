@@ -5,7 +5,6 @@ import { Node, NodeDataEnd, NodeLink } from "types";
 import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
 import { HelpButton } from "components/buttons";
-import { NodeType } from "graphql/generated/globalTypes";
 import { OpenInNewIcon } from "@shared/icons";
 
 const helpText = 

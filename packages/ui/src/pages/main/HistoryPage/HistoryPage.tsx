@@ -1,7 +1,6 @@
 import { Box, Stack, Tab, Tabs, Typography } from '@mui/material';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client';
-import { historyQuery } from 'graphql/query';
 import { AutocompleteSearchBar, ListTitleContainer, PageContainer } from 'components';
 import { useLocation } from '@shared/route';
 import { APP_LINKS } from '@shared/consts';
@@ -9,8 +8,6 @@ import { HistoryPageProps } from '../types';
 import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption } from 'types';
 import { centeredDiv } from 'styles';
-import { RunStatus } from 'graphql/generated/globalTypes';
-import { history, historyVariables } from 'graphql/generated/history';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 

@@ -1,4 +1,3 @@
-import { emailRequestPasswordChangeMutation } from 'graphql/mutation';
 import { useMutation } from '@apollo/client';
 import { emailRequestPasswordChangeSchema } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -12,9 +11,8 @@ import {
 } from '@mui/material';
 import { APP_LINKS } from '@shared/consts';
 import { Forms } from 'utils';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { useLocation } from '@shared/route';
-import { emailRequestPasswordChangeVariables, emailRequestPasswordChange_emailRequestPasswordChange } from 'graphql/generated/emailRequestPasswordChange';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';

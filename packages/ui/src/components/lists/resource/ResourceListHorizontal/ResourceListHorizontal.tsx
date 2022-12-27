@@ -9,10 +9,8 @@ import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
 import { useMutation } from '@apollo/client';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { mutationWrapper } from 'graphql/utils';
 import { AddIcon } from '@shared/icons';
-import { deleteManyMutation } from 'graphql/mutation';
-import { deleteManyVariables, deleteMany_deleteMany } from 'graphql/generated/deleteMany';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
