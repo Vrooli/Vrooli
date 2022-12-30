@@ -1,11 +1,12 @@
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { useCallback, useMemo, useState } from "react";
-import { ReportFor, StarFor, VoteFor } from "@shared/consts";
+import { CopyInput, CopyResult, CopyType, DeleteType, ReportFor, StarFor, StarInput, Success, VoteFor, VoteInput } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
 import { mutationWrapper } from "graphql/utils";
 import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
+import { copyEndpoint, starEndpoint, voteEndpoint } from "graphql/endpoints";
 
 export const ObjectActionMenu = ({
     anchorEl,
@@ -44,9 +45,9 @@ export const ObjectActionMenu = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [fork] = useMutation(copyMutation);
-    const [star] = useMutation(starMutation);
-    const [vote] = useMutation(voteMutation);
+    const [fork] = useMutation<CopyResult, CopyInput, 'copy'>(...copyEndpoint.copy);
+    const [star] = useMutation<Success, StarInput, 'star'>(...starEndpoint.star);
+    const [vote] = useMutation<Success, VoteInput, 'vote'>(...voteEndpoint.vote);
 
     const handleFork = useCallback(() => {
         if (!id) return;
@@ -55,7 +56,7 @@ export const ObjectActionMenu = ({
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper<copy_copy, copyVariables>({
+        mutationWrapper<CopyResult, CopyInput>({
             mutation: fork,
             input: { id, intendToPullRequest: true, objectType: objectType as CopyType },
             successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
@@ -65,18 +66,18 @@ export const ObjectActionMenu = ({
 
     const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
         if (!id) return;
-        mutationWrapper<star_star, starVariables>({
+        mutationWrapper<Success, StarInput>({
             mutation: star,
-            input: { isStar, starFor, forId: id },
+            input: { isStar, starFor, forConnect: id },
             onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
         })
     }, [id, onActionComplete, star]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
         if (!id) return;
-        mutationWrapper<vote_vote, voteVariables>({
+        mutationWrapper<Success, VoteInput>({
             mutation: vote,
-            input: { isUpvote, voteFor, forId: id },
+            input: { isUpvote, voteFor, forConnect: id },
             onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
         })
     }, [id, onActionComplete, vote]);

@@ -17,17 +17,16 @@ import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
 import React, { useCallback, useMemo, useState } from 'react';
-import { profileUpdateSchema as validationSchema, userValidation } from '@shared/validation';
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { PubSub, shapeProfileUpdate } from 'utils';
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { APP_LINKS, LogOutInput, ProfileUpdateInput, Session, SwitchCurrentAccountInput, User } from '@shared/consts';
+import { APP_LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { getCurrentUser, guestSession } from 'utils/authentication';
-import { SessionUser } from 'types';
 import { ContactInfo } from 'components/navigation';
-import { authEndpoint } from 'graphql/endpoints';
+import { authEndpoint, userEndpoint } from 'graphql/endpoints';
+import { userValidation } from '@shared/validation';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;
@@ -48,13 +47,13 @@ export const AccountMenu = ({
     const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false) }, []);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
-    const [mutation] = useMutation(userValidation.update);
+    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...userEndpoint.profileUpdate);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? 'light',
         },
         enableReinitialize: true,
-        validationSchema,
+        validationSchema: userValidation.update!(),
         onSubmit: (values) => {
             // If not logged in, do nothing
             if (!userId) {
@@ -88,7 +87,7 @@ export const AccountMenu = ({
         closeAdditionalResources();
     }, [closeAdditionalResources, formik, onClose]);
 
-    const [switchCurrentAccount] = useMutation(authEndpoint.switchCurrentAccount);
+    const [switchCurrentAccount] = useMutation<Session, SwitchCurrentAccountInput, 'switchCurrentAccount'>(...authEndpoint.switchCurrentAccount);
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
         // Close menu
         handleClose(event);
@@ -112,7 +111,7 @@ export const AccountMenu = ({
         handleClose(event);
     }, [handleClose, setLocation]);
 
-    const [logOut] = useMutation(authEndpoint.logOut);
+    const [logOut] = useMutation<Session, LogOutInput, 'logOut'>(...authEndpoint.logOut);
     const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
         handleClose(event);
         const user = getCurrentUser(session);

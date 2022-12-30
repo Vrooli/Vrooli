@@ -1,8 +1,8 @@
 import { Box, CircularProgress, Collapse, Divider, Grid, List, ListItem, ListItemIcon, ListItemText, Typography, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
-import { useLazyQuery } from '@apollo/client';
-import { APP_LINKS } from '@shared/consts';
+import { useLazyQuery } from 'graphql/hooks';
+import { APP_LINKS, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
 import { SettingsAuthentication } from 'components/views/SettingsAuthentication/SettingsAuthentication';
@@ -15,6 +15,7 @@ import { getCurrentUser } from 'utils/authentication';
 import { noSelect } from 'styles';
 import { CommonKey } from 'types';
 import { useTranslation } from 'react-i18next';
+import { userEndpoint } from 'graphql/endpoints';
 
 /**
  * Describes a settings page button
@@ -58,15 +59,15 @@ export function SettingsPage({
     }), [searchParams]);
 
     // Fetch profile data
-    const [getData, { data, loading }] = useLazyQuery<profile>(profileQuery, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<User, null, 'profile'>(...userEndpoint.profile, { errorPolicy: 'all' });
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
     }, [getData, session])
-    const [profile, setProfile] = useState<profile_profile | undefined>(undefined);
+    const [profile, setProfile] = useState<User | undefined>(undefined);
     useEffect(() => {
         if (data?.profile) setProfile(data.profile);
     }, [data]);
-    const onUpdated = useCallback((updatedProfile: profile_profile | undefined) => {
+    const onUpdated = useCallback((updatedProfile: User | undefined) => {
         if (updatedProfile) setProfile(updatedProfile);
     }, []);
 

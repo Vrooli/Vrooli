@@ -4,9 +4,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
 import { displayDate, getTranslation, getUserLanguages, PubSub } from 'utils';
 import { CommentCreateInput } from 'components/inputs';
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { mutationWrapper } from 'graphql/utils';
-import { DeleteType, ReportFor, StarFor, VoteFor } from '@shared/consts';
+import { DeleteOneInput, DeleteType, ReportFor, StarFor, Success, VoteFor } from '@shared/consts';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { ReportButton, StarButton } from 'components/buttons';
@@ -40,7 +40,7 @@ export function CommentThreadItem({
         return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };
     }, [data, session]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneMutation);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
@@ -49,7 +49,7 @@ export function CommentThreadItem({
             buttons: [
                 {
                     labelKey: 'Yes', onClick: () => {
-                        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
+                        mutationWrapper<Success, DeleteOneInput>({
                             mutation: deleteMutation,
                             input: { id: data.id, objectType: DeleteType.Comment },
                             successCondition: (data) => data.success,

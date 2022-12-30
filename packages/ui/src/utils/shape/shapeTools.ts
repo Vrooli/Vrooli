@@ -1,4 +1,5 @@
 import { SnackSeverity } from "components";
+import { fi } from "date-fns/locale";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -269,22 +270,18 @@ export const shapeUpdateList = <
 
 /**
  * Helper function for formatting an object for an update mutation
- * @param original The original object
  * @param updated The updated object
- * @param formatForUpdate The function to format the updated object for the update mutation
+ * @param shape Shapes the updated object for the update mutation
  */
 export const shapeUpdate = <
-    IDField extends string,
-    Input extends { [key in IDField]: string },
+    Input extends {},
     Output extends {}
 >(
-    original: Input,
     updated: Input | null | undefined,
-    formatForUpdate: (original: Input, updated: Input) => Output | undefined,
-    idField: IDField = 'id' as IDField
+    shape: Output | (() => Output),
 ): Output | undefined => {
-    if (!updated || !updated[idField]) return undefined;
-    let result = formatForUpdate(original, updated);
+    if (!updated) return undefined;
+    let result = typeof shape === 'function' ? (shape as () => Output)() : shape;
     // Remove every value from the result that is undefined
     if (result) result = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined)) as Output;
     // Return result if it is not empty
@@ -292,15 +289,40 @@ export const shapeUpdate = <
 }
 
 /**
- * Helper function for settings a primitive field of an update 
+ * Helper function for setting a list of primitive fields of an update 
  * shape. If updated is different from original, return updated,
  * otherwise return undefined
+ * 
+ * NOTE: Due to TypeScript limitations, return type assumes that every field 
+ * will be defined, even if it's undefined
+ * @param original The original object
+ * @param updated The updated object
+ * @param primary The primary key of the object, which is always returned
+ * @param fields The fields to check, which are returned if they are different
  */
-export const shapePrim = <T, K extends keyof T>(
+export const shapeUpdatePrims = <T, K extends keyof T, PK extends keyof T>(
     original: T | null | undefined,
     updated: T | null | undefined,
-    field: K
-): { [F in K]: T[K] | undefined } => {
-    if (!updated || !original) return { [field]: undefined } as { [F in K]: undefined };
-    return { [field]: updated[field] !== original[field] ? updated[field] : undefined } as { [F in K]: T[K] | undefined };
+    primary: PK | null
+    ...fields: K[]
+): ({ [F in K]: Exclude<T[F], null | undefined> } & { [F in PK]: T[F] }) => {
+    if (!updated || !original) return fields.reduce((acc, field) => ({ ...acc, [field]: undefined }), {}) as any;
+    const changedFields = fields.reduce((acc, field) => ({ ...acc, [field]: updated[field] !== original[field] ? updated[field] : undefined }), {});
+    if (!primary) return changedFields as any;
+    return { ...changedFields, [primary]: original[primary] } as any;
+}
+
+/**
+ * Helper function for setting a list of primitive fields of a create 
+ * shape. Essentially, adds every field that's defined, and converts nulls to 
+ * undefined
+ * 
+ * NOTE: Due to TypeScript limitations, return type assumes that every field 
+ * will be defined, even if it's undefined
+ */
+export const shapeCreatePrims = <T, K extends keyof T>(
+    object: T,
+    ...fields: K[]
+): { [F in K]: Exclude<T[F], null | undefined> } => {
+    return fields.reduce((acc, field) => ({ ...acc, [field]: object[field] !== null ? object[field] : undefined }), {}) as any;
 }

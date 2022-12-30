@@ -4,13 +4,14 @@ import { Box, CircularProgress, Stack, Tooltip, Typography, useTheme } from '@mu
 import { ResourceCard, ResourceListItemContextMenu } from 'components';
 import { ResourceListHorizontalProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
-import { Resource } from 'types';
 import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { mutationWrapper } from 'graphql/utils';
 import { AddIcon } from '@shared/icons';
+import { Count, DeleteManyInput } from '@shared/consts';
+import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
@@ -44,12 +45,12 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation(deleteManyMutation);
+    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(...deleteOneOrManyEndpoint.deleteMany);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
-            mutationWrapper<deleteMany_deleteMany, deleteManyVariables>({
+            mutationWrapper<Count, DeleteManyInput>({
                 mutation: deleteMutation,
                 input: { ids: [resource.id], objectType: 'Resource' as any },
                 onSuccess: () => {

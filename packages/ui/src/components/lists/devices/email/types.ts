@@ -1,4 +1,4 @@
-import { Email } from "types";
+import { Email } from "@shared/consts";
 
 export interface EmailListProps {
     handleUpdate: (emails: Email[]) => void;
@@ -8,7 +8,6 @@ export interface EmailListProps {
 
 export interface EmailListItemProps {
     handleDelete: (email: Email) => void;
-    handleUpdate: (index: number, email: Email) => void;
     handleVerify: (email: Email) => void;
     index: number;
     data: Email;

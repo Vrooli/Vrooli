@@ -14,13 +14,14 @@ import { PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import Confetti from 'react-confetti';
 import { guestSession } from 'utils/authentication';
 import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'graphql/utils';
+import { authEndpoint } from 'graphql/endpoints';
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -83,7 +84,7 @@ export function App() {
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useMutation<any>(validateSessionMutation);
+    const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(...authEndpoint.validateSession);
 
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to

@@ -9,15 +9,15 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { OrganizationSelectOrCreateDialogProps } from '../types';
-import { IWrap, Wrap } from 'types';
 import { SearchList } from 'components/lists';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from 'graphql/hooks';
 import { OrganizationCreate } from 'components/views/Organization/OrganizationCreate/OrganizationCreate';
 import { SearchType, organizationSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
-import { FindByIdInput } from '@shared/consts';
+import { FindByIdInput, Organization } from '@shared/consts';
+import { organizationEndpoint } from 'graphql/endpoints';
 
 const helpText =
     `This dialog allows you to connect a new or existing organization to an object.
@@ -66,7 +66,7 @@ export const OrganizationSelectOrCreateDialog = ({
     }, [setIsCreateOpen]);
 
     // If organization selected from search, query for full data
-    const [getOrganization, { data: organizationData }] = useLazyQuery<Wrap<Organization, 'organization'>, IWrap<FindByIdInput>>(organizationQuery);
+    const [getOrganization, { data: organizationData }] = useLazyQuery<Organization, FindByIdInput, 'organization'>(...organizationEndpoint.findOne);
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((organization: Organization) => {
         // Query for full organization data, if not already known (would be known if the same organization was selected last time)
@@ -75,7 +75,7 @@ export const OrganizationSelectOrCreateDialog = ({
             onClose();
         } else {
             queryingRef.current = true;
-            getOrganization({ variables: { input: { id: organization.id } } });
+            getOrganization({ variables: { id: organization.id } });
         }
         // Return false so the list item does not navigate
         return false;

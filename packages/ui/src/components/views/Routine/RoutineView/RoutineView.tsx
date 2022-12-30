@@ -1,7 +1,7 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS } from "@shared/consts";
-import { useMutation, useLazyQuery } from "@apollo/client";
+import { APP_LINKS, FindByIdInput, Routine, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
+import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
@@ -16,6 +16,7 @@ import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { RelationshipsObject } from "components/inputs/types";
+import { routineEndpoint, runRoutineEndpoint } from "graphql/endpoints";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -55,9 +56,9 @@ export const RoutineView = ({
             versionGroupId: uuidValidate(secondLast) ? secondLast : last,
         }
     }, []);
-    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<Routine, FindByIdInput, 'routine'>(...routineEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
-        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
+        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
         // If IDs are not invalid, throw error if we are not creating a new routine
         else {
             const { build } = parseSearchParams();
@@ -195,10 +196,10 @@ export const RoutineView = ({
         onSubmit: () => { },
     });
 
-    const [runComplete] = useMutation(runRoutineCompleteMutation);
+    const [runComplete] = useMutation<RunRoutine, RunRoutineCompleteInput, 'runRoutineComplete'>(...runRoutineEndpoint.complete);
     const markAsComplete = useCallback(() => {
         if (!routine) return;
-        mutationWrapper<runComplete_runComplete, runCompleteVariables>({
+        mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
             mutation: runComplete,
             input: {
                 id: '' as any,//routineVersion.id, TODO TODO TODO

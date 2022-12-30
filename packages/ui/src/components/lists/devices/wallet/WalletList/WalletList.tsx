@@ -5,13 +5,15 @@ import { WalletListProps } from '../types';
 import { useCallback, useState } from 'react';
 import { Wallet } from 'types';
 import { Box, Button } from '@mui/material';
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { mutationWrapper } from 'graphql/utils';
 import { PubSub, updateArray } from 'utils';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
+import { DeleteOneInput, Success, WalletUpdateInput } from '@shared/consts';
+import { deleteOneOrManyEndpoint, walletEndpoint } from 'graphql/endpoints';
 
 export const WalletList = ({
     handleUpdate,
@@ -19,10 +21,10 @@ export const WalletList = ({
     list,
 }: WalletListProps) => {
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation(walletUpdateMutation);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<Wallet, WalletUpdateInput, 'walletUpdate'>(...walletEndpoint.update);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
-        mutationWrapper<walletUpdate_walletUpdate, walletUpdateVariables>({
+        mutationWrapper<Wallet, WalletUpdateInput>({
             mutation: updateMutation,
             input: {
                 id: updatedWallet.id,
@@ -34,7 +36,7 @@ export const WalletList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
@@ -51,7 +53,7 @@ export const WalletList = ({
                 {
                     labelKey: 'Yes',
                     onClick: () => {
-                        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
+                        mutationWrapper<Success, DeleteOneInput>({
                             mutation: deleteMutation,
                             input: { id: wallet.id, objectType: 'Wallet' as any },
                             onSuccess: () => {

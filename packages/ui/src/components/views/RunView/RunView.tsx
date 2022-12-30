@@ -1,4 +1,4 @@
-import { Node, NodeEnd, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, Routine, RoutineVersion, RunRoutine, RunRoutineStep, RunRoutineStepStatus } from "@shared/consts";
+import { FindByIdInput, Node, NodeEnd, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, Routine, RoutineVersion, RunRoutine, RunRoutineCompleteInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput } from "@shared/consts";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
@@ -6,13 +6,14 @@ import { useLocation } from '@shared/route';
 import { RunViewProps } from "../types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
-import { useLazyQuery, useMutation } from "@apollo/client";
+import { useLazyQuery, useMutation } from "graphql/hooks";
 import { uuidValidate } from '@shared/uuid';
 import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { addSearchParams, base36ToUuid, removeSearchParams } from "utils/navigation/urlTools";
 import { mutationWrapper } from "graphql/utils";
 import { uuid } from '@shared/uuid';
 import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
+import { routineEndpoint, runRoutineEndpoint } from "graphql/endpoints";
 
 /**
  * Maximum routine nesting supported
@@ -403,7 +404,7 @@ export const RunView = ({
     const progressPercentage = useMemo(() => getRunPercentComplete(completedComplexity, routine.complexity), [completedComplexity, routine]);
 
     // Query current subroutine, if needed. Main routine may have the data
-    const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
+    const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<Routine, FindByIdInput, 'routine'>(...routineEndpoint.findOne, { errorPolicy: 'all' });
     const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
     useEffect(() => {
         console.log('find step 1', currStepLocation)
@@ -577,8 +578,8 @@ export const RunView = ({
         setCurrStepLocation(previousStep);
     }, [previousStep, setCurrStepLocation]);
 
-    const [logRunUpdate] = useMutation(runUpdateMutation);
-    const [logRunComplete] = useMutation(runCompleteMutation);
+    const [logRunUpdate] = useMutation<RunRoutine, RunRoutineUpdateInput, 'runRoutineUpdate'>(...runRoutineEndpoint.update);
+    const [logRunComplete] = useMutation<RunRoutine, RunRoutineCompleteInput, 'runRoutineComplete'>(...runRoutineEndpoint.complete);
     /**
      * Navigate to the next subroutine, or complete the routine.
      * Also log progress, time elapsed, and other metrics
@@ -622,7 +623,7 @@ export const RunView = ({
         }];
         // If a next step exists, update
         if (nextStep) {
-            mutationWrapper<runUpdate_runUpdate, runUpdateVariables>({
+            mutationWrapper<RunRoutine, RunRoutineUpdateInput>({
                 mutation: logRunUpdate,
                 input: {
                     id: run.id,
@@ -643,7 +644,7 @@ export const RunView = ({
             const currNode = routine.nodes?.find(n => n.id === currNodeId);
             const wasSuccessful = (currNode?.data as NodeEnd)?.wasSuccessful ?? true;
             console.log('wasuccessful', wasSuccessful, currNode?.data)
-            mutationWrapper<runComplete_runComplete, runCompleteVariables>({
+            mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
                 mutation: logRunComplete,
                 input: {
                     id: run.id,

@@ -1,38 +1,23 @@
-import { ShapeWrapper } from "types";
+import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputTranslation, RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput, RoutineVersionOutputUpdateInput } from "@shared/consts";
+import { OmitCalculated } from "types";
 import { hasObjectChanged, shapeStandardCreate, StandardShape } from "utils";
-import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapeCreatePrims, shapeUpdatePrims, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
-export type OutputTranslationShape = Omit<ShapeWrapper<RoutineOutputTranslation>, 'language' | 'description'> & {
-    id: string;
-    language: OutputItemTranslationCreateInput['language'];
-    description: OutputItemTranslationCreateInput['description'];
-    helpText: OutputItemTranslationCreateInput['helpText'];
-}
+export type RoutineVersionOutputTranslationShape = OmitCalculated<RoutineVersionOutputTranslation>
 
-export type OutputShape = Omit<ShapeWrapper<RoutineInput>, 'translations' | 'standard'> & {
+export type OutputShape = Omit<OmitCalculated<RoutineVersionOutput>, 'translations' | 'standard'> & {
     id: string;
-    translations: OutputTranslationShape[];
+    translations: RoutineVersionOutputTranslationShape[];
     standard: StandardShape | null;
 }
 
-export const shapeOutputTranslationCreate = (item: OutputTranslationShape): OutputItemTranslationCreateInput => ({
-    id: item.id,
-    language: item.language,
-    description: item.description,
-    helpText: item.helpText,
-})
+export const shapeOutputTranslationCreate = (item: RoutineVersionOutputTranslationShape): RoutineVersionOutputTranslationCreateInput =>
+    shapeCreatePrims(item, 'id', 'language', 'description', 'helpText')
 
-export const shapeOutputTranslationUpdate = (
-    original: OutputTranslationShape,
-    updated: OutputTranslationShape
-): OutputItemTranslationUpdateInput | undefined =>
-    shapeUpdate(original, updated, (o, u) => ({
-        id: u.id,
-        ...shapePrim(o, u, 'description'),
-        ...shapePrim(o, u, 'helpText'),
-    }), 'id')
+export const shapeOutputTranslationUpdate = (o: RoutineVersionOutputTranslationShape, u: RoutineVersionOutputTranslationShape): RoutineVersionOutputTranslationUpdateInput | undefined =>
+    shapeUpdate(u, shapeUpdatePrims(o, u, 'id', 'description', 'helpText'))
 
-export const shapeOutputCreate = (item: OutputShape): OutputItemCreateInput => {
+export const shapeOutputCreate = (item: OutputShape): RoutineVersionOutputCreateInput => {
     // Connect to standard if it's marked as external. 
     // Otherwise, set as create. The backend will handle the rest
     const shouldConnectToStandard = item.standard && !item.standard.isInternal && item.standard.id;
@@ -45,11 +30,8 @@ export const shapeOutputCreate = (item: OutputShape): OutputItemCreateInput => {
     }
 }
 
-export const shapeOutputUpdate = (
-    original: OutputShape,
-    updated: OutputShape
-): OutputItemUpdateInput | undefined =>
-    shapeUpdate(original, updated, (o, u) => {
+export const shapeOutputUpdate = (o: OutputShape, u: OutputShape): RoutineVersionOutputUpdateInput | undefined =>
+    shapeUpdate(u, () => {
         // Connect to standard if it's marked as external. 
         // Otherwise, set as create. The backend will handle the rest, even if 
         // you're updating.
@@ -61,4 +43,4 @@ export const shapeOutputUpdate = (
             standardCreate: u.standard && !shouldConnectToStandard ? shapeStandardCreate(u.standard as StandardShape) : undefined,
             ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOutputTranslationCreate, shapeOutputTranslationUpdate, 'id'),
         }
-    }, 'id')
+    })

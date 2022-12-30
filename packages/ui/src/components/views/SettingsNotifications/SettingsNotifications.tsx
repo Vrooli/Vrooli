@@ -2,10 +2,12 @@ import { Grid, Stack, Switch, Typography } from "@mui/material"
 import { SettingsNotificationsProps } from "../types";
 import { PageTitle } from "components/text";
 import { SettingsFormData } from "pages";
-import { PubSub, usePromptBeforeUnload } from "utils";
+import { getUserLanguages, PubSub, usePromptBeforeUnload } from "utils";
 import { mutationWrapper } from "graphql/utils";
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { useFormik } from "formik";
+import { NotificationSettings, NotificationSettingsUpdateInput } from "@shared/consts";
+import { DUMMY_ID } from "@shared/uuid";
 
 export const SettingsNotifications = ({
     profile,
@@ -14,7 +16,7 @@ export const SettingsNotifications = ({
 }: SettingsNotificationsProps) => {
 
     // Handle update
-    const [mutation] = useMutation(notificationSettingsUpdateMutation);
+    const [mutation] = useMutation<NotificationSettings, NotificationSettingsUpdateInput, 'notificationSettingsUpdate'>(notificationSettingsUpdateMutation);
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',
@@ -48,7 +50,7 @@ export const SettingsNotifications = ({
                 PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });
                 return;
             }
-            mutationWrapper<notificationSettingsUpdate_notificationSettingsUpdate, notificationSettingsUpdateVariables>({
+            mutationWrapper<NotificationSettings, NotificationSettingsUpdateInput>({
                 mutation,
                 input,
                 onError: () => { formik.setSubmitting(false) },

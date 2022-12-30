@@ -1,12 +1,13 @@
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
-import { DeleteType, CopyType, ReportFor, StarFor, VoteFor } from "@shared/consts";
+import { DeleteType, CopyType, ReportFor, StarFor, VoteFor, CopyResult, CopyInput, Success, StarInput, VoteInput } from "@shared/consts";
 import { EllipsisIcon } from "@shared/icons";
 import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog, SnackSeverity } from "components/dialogs";
 import { mutationWrapper } from "graphql/utils";
 import React, { useCallback, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
+import { copyEndpoint, starEndpoint, voteEndpoint } from "graphql/endpoints";
 
 const commonButtonSx = (palette: Palette) => ({
     color: 'inherit',
@@ -76,11 +77,11 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [fork] = useMutation(copyMutation);
-    const [star] = useMutation(starMutation);
-    const [vote] = useMutation(voteMutation);
+    const [copy] = useMutation<CopyResult, CopyInput, 'copy'>(...copyEndpoint.copy);
+    const [star] = useMutation<Success, StarInput, 'star'>(...starEndpoint.star);
+    const [vote] = useMutation<Success, VoteInput, 'vote'>(...voteEndpoint.vote);
 
-    const handleFork = useCallback(() => {
+    const handleCopy = useCallback(() => {
         if (!id) return;
         // Check if objectType can be converted to CopyType
         const copyType = objectType ? CopyType[objectType] : undefined;
@@ -88,17 +89,17 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper<fork_fork, forkVariables>({
-            mutation: fork,
+        mutationWrapper<CopyResult, CopyInput>({
+            mutation: copy,
             input: { id, intendToPullRequest: true, objectType: copyType },
             successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
-    }, [fork, id, name, objectType, onActionComplete]);
+    }, [copy, id, name, objectType, onActionComplete]);
 
     const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
         if (!id) return;
-        mutationWrapper<star_star, starVariables>({
+        mutationWrapper<Success, StarInput>({
             mutation: star,
             input: { isStar, starFor, forId: id },
             onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
@@ -107,7 +108,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
         if (!id) return;
-        mutationWrapper<vote_vote, voteVariables>({
+        mutationWrapper<Success, VoteInput>({
             mutation: vote,
             input: { isUpvote, voteFor, forId: id },
             onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
@@ -132,7 +133,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 PubSub.get().publishFindInPage();
                 break;
             case ObjectAction.Fork:
-                handleFork();
+                handleCopy();
                 break;
             case ObjectAction.Report:
                 openReport();
@@ -152,7 +153,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 handleVote(action === ObjectAction.VoteUp, objectType as string as VoteFor);
                 break;
         }
-    }, [handleFork, handleStar, handleVote, objectType, onActionStart, openDelete, openDonate, openReport, openShare]);
+    }, [handleCopy, handleStar, handleVote, objectType, onActionStart, openDelete, openDonate, openReport, openShare]);
 
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const openOverflowMenu = useCallback((event: React.MouseEvent) => {

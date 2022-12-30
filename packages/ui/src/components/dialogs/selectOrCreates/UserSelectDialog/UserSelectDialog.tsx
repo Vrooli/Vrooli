@@ -1,6 +1,5 @@
 import {
     Dialog,
-    DialogContent,
     IconButton,
     Stack,
     Tooltip,
@@ -10,13 +9,14 @@ import {
 import { DialogTitle, ShareSiteDialog } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UserSelectDialogProps } from '../types';
-import { User } from 'types';
 import { SearchList } from 'components/lists';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from 'graphql/hooks';
 import { SearchType, userSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
+import { FindByIdInput, User } from '@shared/consts';
+import { userEndpoint } from 'graphql/endpoints';
 
 const helpText =
     `This dialog allows you to connect a user to an object.
@@ -56,14 +56,14 @@ export const UserSelectDialog = ({
     const closeShareDialog = useCallback(() => { setShareDialogOpen(false) }, []);
 
     // If user selected from search, query for full data
-    const [getUser, { data: userData }] = useLazyQuery<user, userVariables>(userQuery);
+    const [getUser, { data: userData }] = useLazyQuery<User, FindByIdInput, 'user'>(...userEndpoint.findOne);
     const fetchFullData = useCallback((user: User) => {
         // Query for full user data, if not already known (would be known if the same user was selected last time)
         if (userData?.user?.id === user.id) {
             handleAdd(userData?.user);
             onClose();
         } else {
-            getUser({ variables: { input: { id: user.id } } });
+            getUser({ variables: { id: user.id } });
         }
         // Return false so the list item does not navigate
         return false;

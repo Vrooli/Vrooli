@@ -8,12 +8,13 @@ import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
 import { base36ToUuid, getRunPercentComplete, parseSearchParams, PubSub } from "utils";
-import { useMutation } from "@apollo/client";
-import { DeleteType } from "@shared/consts";
+import { useMutation } from "graphql/hooks";
+import { DeleteOneInput, DeleteType, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { DeleteIcon } from "@shared/icons";
 import { SnackSeverity } from "components";
+import { deleteOneOrManyEndpoint, runRoutineEndpoint } from "graphql/endpoints";
 
 const titleAria = 'run-picker-dialog-title';
 
@@ -42,20 +43,20 @@ export const RunPickerMenu = ({
         }
     }, [routine, onSelect, handleClose]);
 
-    const [runCreate] = useMutation(runRoutineCreateMutation);
+    const [runCreate] = useMutation<RunRoutine, RunRoutineCreateInput, 'runRoutineCreate'>(...runRoutineEndpoint.create);
     const createNewRun = useCallback(() => {
         if (!routine) {
             PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper<runRoutineCreate_runRoutineCreate, runRoutineCreateVariables>({
+        mutationWrapper<RunRoutine, RunRoutineCreateInput>({
             mutation: runCreate,
             input: {
-                // id: uuid(),
-                // routineId: routine.id,
-                // version: routine.version ?? '',
-                // name: getTranslation(routine, getUserLanguages(session)).title ?? 'Unnamed Routine',
-            } as any, //TODO will break
+                id: uuid(),
+                routine: routine.id,
+                version: routine.version ?? '',
+                name: getTranslation(routine, getUserLanguages(session)).title ?? 'Unnamed Routine',
+            },
             successCondition: (data) => data !== null,
             onSuccess: (data) => {
                 onAdd(data);
@@ -66,11 +67,11 @@ export const RunPickerMenu = ({
         })
     }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
 
-    const [deleteOne] = useMutation(deleteOneMutation)
-    const deleteRun = useCallback((run: Run) => {
-        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
+    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne)
+    const deleteRun = useCallback((run: RunRoutine) => {
+        mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,
-            input: { id: run.id, objectType: DeleteType.Run },
+            input: { id: run.id, objectType: DeleteType.RunRoutine },
             successCondition: (data) => data.success,
             successMessage: () => ({ key: 'RunDeleted', variables: { runName: displayDate(run.startedAt) } }),
             onSuccess: (data) => {
@@ -93,17 +94,17 @@ export const RunPickerMenu = ({
         }
     }, [open, routine, createNewRun, onSelect, session.isLoggedIn, handleClose]);
 
-    const runOptions: ListMenuItemData<Run>[] = useMemo(() => {
+    const runOptions: ListMenuItemData<RunRoutine>[] = useMemo(() => {
         if (!routine || !routine.runs) return [];
         // Find incomplete runs
         const runs = routine.runs.filter(run => run.status === RunStatus.InProgress);
         return runs.map((run) => ({
             label: `Started: ${displayDate(run.startedAt)} (${getRunPercentComplete(run.completedComplexity, routine.complexity)}%)`,
-            value: run as Run,
+            value: run as RunRoutine,
         }));
     }, [routine]);
 
-    const handleDelete = useCallback((event: any, run: Run) => {
+    const handleDelete = useCallback((event: any, run: RunRoutine) => {
         // Prevent the click from opening the menu
         event.stopPropagation();
         if (!routine) return;
@@ -122,7 +123,7 @@ export const RunPickerMenu = ({
         }
     }, [deleteRun, routine]);
 
-    const items = useMemo(() => runOptions.map((data: ListMenuItemData<Run>, index) => {
+    const items = useMemo(() => runOptions.map((data: ListMenuItemData<RunRoutine>, index) => {
         const itemText = <ListItemText primary={data.label} />;
         return (
             <ListItem button onClick={() => { onSelect(data.value); handleClose(); }} key={index}>

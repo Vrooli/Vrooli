@@ -9,14 +9,15 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ProjectSelectOrCreateDialogProps } from '../types';
-import { Project } from 'types';
 import { SearchList } from 'components/lists';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from 'graphql/hooks';
 import { ProjectCreate } from 'components/views/Project/ProjectCreate/ProjectCreate';
 import { SearchType, projectSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
+import { FindByIdInput, Project } from '@shared/consts';
+import { projectEndpoint } from 'graphql/endpoints';
 
 const helpText =
     `This dialog allows you to connect a new or existing project to an object.
@@ -63,7 +64,7 @@ export const ProjectSelectOrCreateDialog = ({
     }, [setIsCreateOpen]);
 
     // If project selected from search, query for full data
-    const [getProject, { data: projectData }] = useLazyQuery<project, projectVariables>(projectQuery);
+    const [getProject, { data: projectData }] = useLazyQuery<Project, FindByIdInput, 'project'>(...projectEndpoint.findOne);
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((project: Project) => {
         // Query for full project data, if not already known (would be known if the same project was selected last time)
@@ -72,7 +73,7 @@ export const ProjectSelectOrCreateDialog = ({
             onClose();
         } else {
             queryingRef.current = true;
-            getProject({ variables: { input: { id: project.id } } });
+            getProject({ variables: { id: project.id } });
         }
         // Return false so the list item does not navigate
         return false;

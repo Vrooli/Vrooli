@@ -1,5 +1,5 @@
 import { Grid, TextField } from "@mui/material";
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { mutationWrapper } from 'graphql/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -10,6 +10,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
+import { projectEndpoint } from "graphql/endpoints";
+import { Project, ProjectCreateInput } from "@shared/consts";
 
 export const ProjectCreate = ({
     onCreated,
@@ -50,7 +52,7 @@ export const ProjectCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation(projectCreateMutation);
+    const [mutation] = useMutation<Project, ProjectCreateInput, 'projectCreate'>(...projectEndpoint.create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),
@@ -63,7 +65,7 @@ export const ProjectCreate = ({
         },
         validationSchema: projectValidation.create!(),
         onSubmit: (values) => {
-            mutationWrapper<projectCreate_projectCreate, projectCreateVariables>({
+            mutationWrapper<Project, ProjectCreateInput>({
                 mutation,
                 input: shapeProjectCreate({
                     id: values.id,
@@ -93,7 +95,7 @@ export const ProjectCreate = ({
             errorName: error?.name ?? '',
             touchedDescription: touched?.description ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', projectTranslationCreate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', projectVersionTranslationValidation.create!()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);

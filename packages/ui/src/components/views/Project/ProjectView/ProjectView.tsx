@@ -1,8 +1,7 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, StarFor } from "@shared/consts";
-import { adaHandleRegex } from "@shared/validation";
-import { useLazyQuery } from "@apollo/client";
+import { APP_LINKS, FindByIdInput, Project, StarFor } from "@shared/consts";
+import { useLazyQuery } from "graphql/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { ProjectViewProps } from "../types";
@@ -11,6 +10,7 @@ import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, 
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { projectEndpoint } from "graphql/endpoints";
 
 enum TabOptions {
     Resources = "Resources",
@@ -27,11 +27,10 @@ export const ProjectView = ({
     const [, setLocation] = useLocation();
     // Fetch data
     const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<Project, FindByIdInput, 'project'>(...projectEndpoint.findOne, { errorPolicy: 'all' });
     const [project, setProject] = useState<Project | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id)) getData({ variables: { input: { id } } })
-        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
+        if (uuidValidate(id)) getData({ variables: { id } })
     }, [getData, id]);
     useEffect(() => {
         setProject(data?.project);

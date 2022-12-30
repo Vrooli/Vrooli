@@ -3,12 +3,12 @@
  */
 import { Box, Button, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from 'graphql/hooks';
 import { CommentCreateInput } from 'components/inputs';
 import { addSearchParams, labelledSortOptions, parseSearchParams, removeSearchParams, SearchType, searchTypeToParams, SortValueToLabelMap, useWindowSize } from 'utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from '@shared/route';
-import { IWrap, Wrap } from 'types';
+import { Wrap } from 'types';
 import { CommentThread } from 'components/lists/comment';
 import { uuidValidate } from '@shared/uuid';
 import { AdvancedSearchDialog } from 'components/dialogs';
@@ -98,20 +98,18 @@ export function CommentContainer({
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<Wrap<CommentSearchResult, 'comments'>, IWrap<CommentSearchInput>>(commentEndpoint.findMany, {
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<CommentSearchResult, CommentSearchInput, 'comments'>(...commentEndpoint.findMany, {
         variables: {
-            input: {
-                after: after.current,
-                take: 20,
-                sortBy: sortBy as CommentSortBy,
-                searchString,
-                createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
-                    after: timeFrame.after?.toISOString(),
-                    before: timeFrame.before?.toISOString(),
-                } : undefined,
-                [`${objectType.toLowerCase()}Id`]: objectId,
-                ...advancedSearchParams
-            }
+            after: after.current,
+            take: 20,
+            sortBy: sortBy as CommentSortBy,
+            searchString,
+            createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
+                after: timeFrame.after?.toISOString(),
+                before: timeFrame.before?.toISOString(),
+            } : undefined,
+            [`${objectType.toLowerCase()}Id`]: objectId,
+            ...advancedSearchParams
         },
         errorPolicy: 'all',
     });

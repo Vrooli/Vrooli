@@ -9,14 +9,16 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SubroutineSelectOrCreateDialogProps } from '../types';
-import { IsCompleteInput, IsInternalInput, Routine } from 'types';
+import { IsCompleteInput, IsInternalInput } from 'types';
 import { SearchList } from 'components/lists';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from 'graphql/hooks';
 import { RoutineCreate } from 'components/views/Routine/RoutineCreate/RoutineCreate';
 import { uuidValidate } from '@shared/uuid';
 import { SearchType, routineSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
+import { FindByIdInput, Routine, SearchException, VisibilityType } from '@shared/consts';
+import { routineEndpoint } from 'graphql/endpoints';
 
 const helpText =
     `This dialog allows you to connect a new or existing subroutine. Each subroutine becomes a page when executing the routine (or if it contains its own subroutines, then those subroutines become pages).`
@@ -63,11 +65,11 @@ export const SubroutineSelectOrCreateDialog = ({
     }, [setIsCreateOpen]);
 
     // If routine selected from search, query for full data
-    const [getRoutine, { data: routineData }] = useLazyQuery<routine, routineVariables>(routineQuery);
+    const [getRoutine, { data: routineData }] = useLazyQuery<Routine, FindByIdInput, 'routine'>(...routineEndpoint.findOne);
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((routine: Routine) => {
         queryingRef.current = true;
-        getRoutine({ variables: { input: { id: routine.id } } });
+        getRoutine({ variables: { id: routine.id } });
         // Return false so the list item does not navigate
         return false;
     }, [getRoutine]);

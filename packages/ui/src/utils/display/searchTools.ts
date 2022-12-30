@@ -19,10 +19,23 @@ const complexityDescription = `Complexity is a mathematical measure of the longe
 For the curious, it is calculated using a weighted, directed, cyclic graph. Each node is a subroutine list or decision, and each weight represents the number of steps the node takes to complete`;
 
 export const apiSearchSchema: FormSchema = {
-
+    formLayout: {
+        title: "Search Apis",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const apiVersionSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Api Versions",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const commentSearchSchema: FormSchema = {
@@ -97,33 +110,103 @@ export const commentSearchSchema: FormSchema = {
 }
 
 export const issueSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Issues",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const labelSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Labels",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const meetingSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Meetings",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const meetingInviteSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Meeting Invites",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const memberSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Members",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const memberInviteSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Member Invites",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const noteSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Notes",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const noteVersionSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Note Versions",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const notificationSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Notifications",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const notificationSubscriptionSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Subscriptions",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const organizationSearchSchema: FormSchema = {
@@ -193,6 +276,13 @@ export const organizationSearchSchema: FormSchema = {
 }
 
 export const postSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Posts",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const projectOrOrganizationSearchSchema: FormSchema = {
@@ -507,51 +597,163 @@ export const projectSearchSchema: FormSchema = {
 }
 
 export const projectVersionSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Project Versions",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const pullRequestSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Pull Requests",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const questionSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Questions",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const questionAnswerSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Answers",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const quizSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Quizzes",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const quizAttemptSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search QuizAttempts",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const quizQuestionSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Quiz Questions",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const quizQuestionResponseSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Quiz Question Responses",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const reminderSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Reminders",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const reminderListSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Reminder Lists",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const reportSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Reports",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const reportResponseSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Report Responses",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const reputationHistorySearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Reputation History",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const resourceSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Resources",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const resourceListSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Resource Lists",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const roleSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Roles",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const routineSearchSchema: FormSchema = {
@@ -702,17 +904,38 @@ export const routineSearchSchema: FormSchema = {
 }
 
 export const routineVersionSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Routine Versions",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const runProjectSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Runs (Projects)",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const runProjectScheduleSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Run Schedules (Projects)",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const runRoutineSearchSchema: FormSchema = {
     formLayout: {
-        title: "Search Routine Runs",
+        title: "Search Runs (Routines)",
         direction: "column",
         spacing: 4,
     },
@@ -743,15 +966,43 @@ export const runRoutineSearchSchema: FormSchema = {
 }
 
 export const runRoutineInputSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Run Inputs (Routine)",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const runRoutineScheduleSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Run Schedules (Routine)",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const smartContractSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Smart Contracts",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const smartContractVersionSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Smart Contract Versions",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const standardSearchSchema: FormSchema = {
@@ -819,45 +1070,143 @@ export const standardSearchSchema: FormSchema = {
 }
 
 export const standardVersionSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Standard Versions",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const starSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Stars",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const statsApiSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Api Stats",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const statsOrganizationSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Organization Stats",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const statsProjectSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Project Stats",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const statsQuizSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Quiz Stats",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const statsRoutineSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Routine Stats",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const statsSiteSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Site Stats",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const statsSmartContractSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Smart Contract Stats",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const statsStandardSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Standard Stats",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const statsUserSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search User Stats",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const tagSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Tags",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const transferSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Transfers",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const userScheduleSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Your Schedules",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const userSearchSchema: FormSchema = {
@@ -899,9 +1248,23 @@ export const userSearchSchema: FormSchema = {
 }
 
 export const viewSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Views",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export const voteSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Votes",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [], //TODO
 }
 
 export enum SearchType {
@@ -991,6 +1354,7 @@ export enum SearchPageTabOption {
 export type SearchParams = {
     advancedSearchSchema: FormSchema | null;
     defaultSortBy: any;
+    endpoint: string;
     sortByOptions: any;
     query: DocumentNode;
 }
@@ -1002,368 +1366,429 @@ export const searchTypeToParams: { [key in SearchType]: SearchParams } = {
     [SearchType.Api]: {
         advancedSearchSchema: apiSearchSchema,
         defaultSortBy: ApiSortBy.ScoreDesc,
+        endpoint: apiEndpoint.findMany[1],
+        query: apiEndpoint.findMany[0],
         sortByOptions: ApiSortBy,
-        query: apiEndpoint.findMany,
     },
     [SearchType.ApiVersion]: {
         advancedSearchSchema: apiVersionSearchSchema,
         defaultSortBy: ApiVersionSortBy.DateCreatedDesc,
+        endpoint: apiVersionEndpoint.findMany[1],
+        query: apiVersionEndpoint.findMany[0],
         sortByOptions: ApiVersionSortBy,
-        query: apiVersionEndpoint.findMany,
     },
     [SearchType.Comment]: {
         advancedSearchSchema: commentSearchSchema,
         defaultSortBy: CommentSortBy.ScoreDesc,
+        endpoint: commentEndpoint.findMany[1],
+        query: commentEndpoint.findMany[0],
         sortByOptions: CommentSortBy,
-        query: commentEndpoint.findMany,
     },
     [SearchType.Issue]: {
         advancedSearchSchema: issueSearchSchema,
         defaultSortBy: IssueSortBy.ScoreDesc,
+        endpoint: issueEndpoint.findMany[1],
+        query: issueEndpoint.findMany[0],
         sortByOptions: IssueSortBy,
-        query: issueEndpoint.findMany,
     },
     [SearchType.Label]: {
         advancedSearchSchema: labelSearchSchema,
         defaultSortBy: LabelSortBy.DateCreatedDesc,
+        endpoint: labelEndpoint.findMany[1],
+        query: labelEndpoint.findMany[0],
         sortByOptions: LabelSortBy,
-        query: labelEndpoint.findMany,
     },
     [SearchType.Meeting]: {
         advancedSearchSchema: meetingSearchSchema,
         defaultSortBy: MeetingSortBy.EventStartDesc,
+        endpoint: meetingEndpoint.findMany[1],
+        query: meetingEndpoint.findMany[0],
         sortByOptions: MeetingSortBy,
-        query: meetingEndpoint.findMany,
     },
     [SearchType.MeetingInvite]: {
         advancedSearchSchema: meetingInviteSearchSchema,
         defaultSortBy: MeetingInviteSortBy.DateCreatedDesc,
+        endpoint: meetingInviteEndpoint.findMany[1],
+        query: meetingInviteEndpoint.findMany[0],
         sortByOptions: MeetingInviteSortBy,
-        query: meetingInviteEndpoint.findMany,
     },
     [SearchType.Member]: {
         advancedSearchSchema: memberSearchSchema,
         defaultSortBy: MemberSortBy.DateCreatedDesc,
+        endpoint: memberEndpoint.findMany[1],
+        query: memberEndpoint.findMany[0],
         sortByOptions: MemberSortBy,
-        query: memberEndpoint.findMany,
     },
     [SearchType.MemberInvite]: {
         advancedSearchSchema: memberInviteSearchSchema,
         defaultSortBy: MemberInviteSortBy.DateCreatedDesc,
+        endpoint: memberInviteEndpoint.findMany[1],
+        query: memberInviteEndpoint.findMany[0],
         sortByOptions: MemberInviteSortBy,
-        query: memberInviteEndpoint.findMany,
     },
     [SearchType.Note]: {
         advancedSearchSchema: noteSearchSchema,
         defaultSortBy: NoteSortBy.ScoreDesc,
+        endpoint: noteEndpoint.findMany[1],
+        query: noteEndpoint.findMany[0],
         sortByOptions: NoteSortBy,
-        query: noteEndpoint.findMany,
     },
     [SearchType.NoteVersion]: {
         advancedSearchSchema: noteVersionSearchSchema,
         defaultSortBy: NoteVersionSortBy.DateCreatedDesc,
+        endpoint: noteVersionEndpoint.findMany[1],
+        query: noteVersionEndpoint.findMany[0],
         sortByOptions: NoteVersionSortBy,
-        query: noteVersionEndpoint.findMany,
     },
     [SearchType.Notification]: {
         advancedSearchSchema: notificationSearchSchema,
         defaultSortBy: NotificationSortBy.DateCreatedDesc,
+        endpoint: notificationEndpoint.findMany[1],
+        query: notificationEndpoint.findMany[0],
         sortByOptions: NotificationSortBy,
-        query: notificationEndpoint.findMany,
     },
     [SearchType.NotificationSubscription]: {
         advancedSearchSchema: notificationSubscriptionSearchSchema,
         defaultSortBy: NotificationSubscriptionSortBy.DateCreatedDesc,
+        endpoint: notificationSubscriptionEndpoint.findMany[1],
+        query: notificationSubscriptionEndpoint.findMany[0],
         sortByOptions: NotificationSubscriptionSortBy,
-        query: notificationSubscriptionEndpoint.findMany,
     },
     [SearchType.Organization]: {
         advancedSearchSchema: organizationSearchSchema,
         defaultSortBy: OrganizationSortBy.StarsDesc,
+        endpoint: organizationEndpoint.findMany[1],
+        query: organizationEndpoint.findMany[0],
         sortByOptions: OrganizationSortBy,
-        query: organizationEndpoint.findMany,
     },
     [SearchType.Post]: {
         advancedSearchSchema: postSearchSchema,
         defaultSortBy: PostSortBy.DateCreatedDesc,
+        endpoint: postEndpoint.findMany[1],
+        query: postEndpoint.findMany[0],
         sortByOptions: PostSortBy,
-        query: postEndpoint.findMany,
     },
     [SearchType.Project]: {
         advancedSearchSchema: projectSearchSchema,
         defaultSortBy: ProjectSortBy.ScoreDesc,
+        endpoint: projectEndpoint.findMany[1],
+        query: projectEndpoint.findMany[0],
         sortByOptions: ProjectSortBy,
-        query: projectEndpoint.findMany,
     },
     [SearchType.ProjectVersion]: {
         advancedSearchSchema: projectVersionSearchSchema,
         defaultSortBy: ProjectVersionSortBy.DateCreatedDesc,
+        endpoint: projectVersionEndpoint.findMany[1],
+        query: projectVersionEndpoint.findMany[0],
         sortByOptions: ProjectVersionSortBy,
-        query: projectVersionEndpoint.findMany,
     },
     [SearchType.ProjectOrOrganization]: {
         advancedSearchSchema: projectOrOrganizationSearchSchema,
         defaultSortBy: ProjectOrOrganizationSortBy.StarsDesc,
+        endpoint: unionEndpoint.projectOrOrganizations[1],
+        query: unionEndpoint.projectOrOrganizations[0],
         sortByOptions: ProjectOrOrganizationSortBy,
-        query: unionEndpoint.projectOrOrganizations,
     },
     [SearchType.ProjectOrRoutine]: {
         advancedSearchSchema: projectOrRoutineSearchSchema,
         defaultSortBy: ProjectOrRoutineSortBy.StarsDesc,
+        endpoint: unionEndpoint.projectOrRoutines[1],
+        query: unionEndpoint.projectOrRoutines[0],
         sortByOptions: ProjectOrRoutineSortBy,
-        query: unionEndpoint.projectOrRoutines,
     },
     [SearchType.PullRequest]: {
         advancedSearchSchema: pullRequestSearchSchema,
         defaultSortBy: PullRequestSortBy.DateCreatedDesc,
+        endpoint: pullRequestEndpoint.findMany[1],
+        query: pullRequestEndpoint.findMany[0],
         sortByOptions: PullRequestSortBy,
-        query: pullRequestEndpoint.findMany,
     },
     [SearchType.Question]: {
         advancedSearchSchema: questionSearchSchema,
         defaultSortBy: QuestionSortBy.ScoreDesc,
+        endpoint: questionEndpoint.findMany[1],
+        query: questionEndpoint.findMany[0],
         sortByOptions: QuestionSortBy,
-        query: questionEndpoint.findMany,
     },
     [SearchType.QuestionAnswer]: {
         advancedSearchSchema: questionAnswerSearchSchema,
         defaultSortBy: QuestionAnswerSortBy.ScoreDesc,
+        endpoint: questionAnswerEndpoint.findMany[1],
+        query: questionAnswerEndpoint.findMany[0],
         sortByOptions: QuestionAnswerSortBy,
-        query: questionAnswerEndpoint.findMany,
     },
     [SearchType.Quiz]: {
         advancedSearchSchema: quizSearchSchema,
         defaultSortBy: QuizSortBy.StarsDesc,
+        endpoint: quizEndpoint.findMany[1],
+        query: quizEndpoint.findMany[0],
         sortByOptions: QuizSortBy,
-        query: quizEndpoint.findMany,
     },
     [SearchType.QuizQuestion]: {
         advancedSearchSchema: quizQuestionSearchSchema,
         defaultSortBy: QuizQuestionSortBy.OrderAsc,
+        endpoint: quizQuestionEndpoint.findMany[1],
+        query: quizQuestionEndpoint.findMany[0],
         sortByOptions: QuizQuestionSortBy,
-        query: quizQuestionEndpoint.findMany,
     },
     [SearchType.QuizQuestionResponse]: {
         advancedSearchSchema: quizQuestionResponseSearchSchema,
         defaultSortBy: QuizQuestionResponseSortBy.DateCreatedDesc,
+        endpoint: quizQuestionResponseEndpoint.findMany[1],
+        query: quizQuestionResponseEndpoint.findMany[0],
         sortByOptions: QuizQuestionResponseSortBy,
-        query: quizQuestionResponseEndpoint.findMany,
     },
     [SearchType.QuizAttempt]: {
         advancedSearchSchema: quizAttemptSearchSchema,
         defaultSortBy: QuizAttemptSortBy.DateCreatedDesc,
+        endpoint: quizAttemptEndpoint.findMany[1],
+        query: quizAttemptEndpoint.findMany[0],
         sortByOptions: QuizAttemptSortBy,
-        query: quizAttemptEndpoint.findMany,
     },
     [SearchType.Reminder]: {
         advancedSearchSchema: reminderSearchSchema,
         defaultSortBy: ReminderSortBy.DueDateAsc,
+        endpoint: reminderEndpoint.findMany[1],
+        query: reminderEndpoint.findMany[0],
         sortByOptions: ReminderSortBy,
-        query: reminderEndpoint.findMany,
     },
     [SearchType.ReminderList]: {
         advancedSearchSchema: reminderListSearchSchema,
         defaultSortBy: ReminderListSortBy.DateCreatedDesc,
+        endpoint: reminderListEndpoint.findMany[1],
+        query: reminderListEndpoint.findMany[0],
         sortByOptions: ReminderListSortBy,
-        query: reminderListEndpoint.findMany,
     },
     [SearchType.Report]: {
         advancedSearchSchema: reportSearchSchema,
         defaultSortBy: ReportSortBy.DateCreatedDesc,
+        endpoint: reportEndpoint.findMany[1],
+        query: reportEndpoint.findMany[0],
         sortByOptions: ReportSortBy,
-        query: reportEndpoint.findMany,
     },
     [SearchType.ReportResponse]: {
         advancedSearchSchema: reportResponseSearchSchema,
         defaultSortBy: ReportResponseSortBy.DateCreatedDesc,
+        endpoint: reportResponseEndpoint.findMany[1],
+        query: reportResponseEndpoint.findMany[0],
         sortByOptions: ReportResponseSortBy,
-        query: reportResponseEndpoint.findMany,
     },
     [SearchType.ReputationHistory]: {
         advancedSearchSchema: reputationHistorySearchSchema,
         defaultSortBy: ReputationHistorySortBy.DateCreatedDesc,
+        endpoint: reputationHistoryEndpoint.findMany[1],
+        query: reputationHistoryEndpoint.findMany[0],
         sortByOptions: ReputationHistorySortBy,
-        query: reputationHistoryEndpoint.findMany,
     },
     [SearchType.Resource]: {
         advancedSearchSchema: resourceSearchSchema,
         defaultSortBy: ResourceSortBy.DateCreatedDesc,
+        endpoint: resourceEndpoint.findMany[1],
+        query: resourceEndpoint.findMany[0],
         sortByOptions: ResourceSortBy,
-        query: resourceEndpoint.findMany,
     },
     [SearchType.ResourceList]: {
         advancedSearchSchema: resourceListSearchSchema,
         defaultSortBy: ResourceListSortBy.DateCreatedDesc,
+        endpoint: resourceListEndpoint.findMany[1],
+        query: resourceListEndpoint.findMany[0],
         sortByOptions: ResourceListSortBy,
-        query: resourceListEndpoint.findMany,
     },
     [SearchType.Role]: {
         advancedSearchSchema: roleSearchSchema,
         defaultSortBy: RoleSortBy.DateCreatedDesc,
+        endpoint: roleEndpoint.findMany[1],
+        query: roleEndpoint.findMany[0],
         sortByOptions: RoleSortBy,
-        query: roleEndpoint.findMany,
     },
     [SearchType.Routine]: {
         advancedSearchSchema: routineSearchSchema,
         defaultSortBy: RoutineSortBy.ScoreDesc,
+        endpoint: routineEndpoint.findMany[1],
+        query: routineEndpoint.findMany[0],
         sortByOptions: RoutineSortBy,
-        query: routineEndpoint.findMany,
     },
     [SearchType.RoutineVersion]: {
         advancedSearchSchema: routineVersionSearchSchema,
         defaultSortBy: RoutineVersionSortBy.DateCreatedDesc,
+        endpoint: routineVersionEndpoint.findMany[1],
+        query: routineVersionEndpoint.findMany[0],
         sortByOptions: RoutineVersionSortBy,
-        query: routineVersionEndpoint.findMany,
     },
     [SearchType.RunProject]: {
         advancedSearchSchema: runProjectSearchSchema,
         defaultSortBy: RunProjectSortBy.DateStartedAsc,
+        endpoint: runProjectEndpoint.findMany[1],
+        query: runProjectEndpoint.findMany[0],
         sortByOptions: RunProjectSortBy,
-        query: runProjectEndpoint.findMany,
     },
     [SearchType.RunProjectSchedule]: {
         advancedSearchSchema: runProjectScheduleSearchSchema,
         defaultSortBy: RunProjectScheduleSortBy.WindowStartAsc,
+        endpoint: runProjectScheduleEndpoint.findMany[1],
+        query: runProjectScheduleEndpoint.findMany[0],
         sortByOptions: RunProjectScheduleSortBy,
-        query: runProjectScheduleEndpoint.findMany,
     },
     [SearchType.RunRoutine]: {
         advancedSearchSchema: runRoutineSearchSchema,
         defaultSortBy: RunRoutineSortBy.DateStartedAsc,
+        endpoint: runRoutineEndpoint.findMany[1],
+        query: runRoutineEndpoint.findMany[0],
         sortByOptions: RunRoutineSortBy,
-        query: runRoutineEndpoint.findMany,
     },
     [SearchType.RunRoutineInput]: {
         advancedSearchSchema: runRoutineInputSearchSchema,
         defaultSortBy: RunRoutineInputSortBy.DateCreatedDesc,
+        endpoint: runRoutineInputEndpoint.findMany[1],
+        query: runRoutineInputEndpoint.findMany[0],
         sortByOptions: RunRoutineInputSortBy,
-        query: runRoutineInputEndpoint.findMany,
     },
     [SearchType.RunRoutineSchedule]: {
         advancedSearchSchema: runRoutineScheduleSearchSchema,
         defaultSortBy: RunRoutineScheduleSortBy.WindowStartAsc,
+        endpoint: runRoutineScheduleEndpoint.findMany[1],
+        query: runRoutineScheduleEndpoint.findMany[0],
         sortByOptions: RunRoutineScheduleSortBy,
-        query: runRoutineScheduleEndpoint.findMany,
     },
     [SearchType.SmartContract]: {
         advancedSearchSchema: smartContractSearchSchema,
         defaultSortBy: SmartContractSortBy.ScoreDesc,
+        endpoint: smartContractEndpoint.findMany[1],
+        query: smartContractEndpoint.findMany[0],
         sortByOptions: SmartContractSortBy,
-        query: smartContractEndpoint.findMany,
     },
     [SearchType.SmartContractVersion]: {
         advancedSearchSchema: smartContractVersionSearchSchema,
         defaultSortBy: SmartContractVersionSortBy.DateCreatedDesc,
+        endpoint: smartContractVersionEndpoint.findMany[1],
+        query: smartContractVersionEndpoint.findMany[0],
         sortByOptions: SmartContractVersionSortBy,
-        query: smartContractVersionEndpoint.findMany,
     },
     [SearchType.Standard]: {
         advancedSearchSchema: standardSearchSchema,
         defaultSortBy: StandardSortBy.ScoreDesc,
+        endpoint: standardEndpoint.findMany[1],
+        query: standardEndpoint.findMany[0],
         sortByOptions: StandardSortBy,
-        query: standardEndpoint.findMany,
     },
     [SearchType.StandardVersion]: {
         advancedSearchSchema: standardVersionSearchSchema,
         defaultSortBy: StandardVersionSortBy.DateCreatedDesc,
+        endpoint: standardVersionEndpoint.findMany[1],
+        query: standardVersionEndpoint.findMany[0],
         sortByOptions: StandardVersionSortBy,
-        query: standardVersionEndpoint.findMany,
     },
     [SearchType.Star]: {
         advancedSearchSchema: null,
         defaultSortBy: StarSortBy.DateUpdatedDesc,
+        endpoint: starEndpoint.stars[1],
+        query: starEndpoint.stars[0],
         sortByOptions: StarSortBy,
-        query: starEndpoint.stars,
     },
     [SearchType.StatsApi]: {
         advancedSearchSchema: statsApiSearchSchema,
         defaultSortBy: StatsApiSortBy.DateUpdatedDesc,
+        endpoint: statsApiEndpoint.findMany[1],
+        query: statsApiEndpoint.findMany[0],
         sortByOptions: StatsApiSortBy,
-        query: statsApiEndpoint.findMany,
     },
     [SearchType.StatsOrganization]: {
         advancedSearchSchema: statsOrganizationSearchSchema,
         defaultSortBy: StatsOrganizationSortBy.DateUpdatedDesc,
+        endpoint: statsOrganizationEndpoint.findMany[1],
+        query: statsOrganizationEndpoint.findMany[0],
         sortByOptions: StatsOrganizationSortBy,
-        query: statsOrganizationEndpoint.findMany,
     },
     [SearchType.StatsProject]: {
         advancedSearchSchema: statsProjectSearchSchema,
         defaultSortBy: StatsProjectSortBy.DateUpdatedDesc,
+        endpoint: statsProjectEndpoint.findMany[1],
+        query: statsProjectEndpoint.findMany[0],
         sortByOptions: StatsProjectSortBy,
-        query: statsProjectEndpoint.findMany,
     },
     [SearchType.StatsQuiz]: {
         advancedSearchSchema: statsQuizSearchSchema,
         defaultSortBy: StatsQuizSortBy.DateUpdatedDesc,
+        endpoint: statsQuizEndpoint.findMany[1],
+        query: statsQuizEndpoint.findMany[0],
         sortByOptions: StatsQuizSortBy,
-        query: statsQuizEndpoint.findMany,
     },
     [SearchType.StatsRoutine]: {
         advancedSearchSchema: statsRoutineSearchSchema,
         defaultSortBy: StatsRoutineSortBy.DateUpdatedDesc,
+        endpoint: statsRoutineEndpoint.findMany[1],
+        query: statsRoutineEndpoint.findMany[0],
         sortByOptions: StatsRoutineSortBy,
-        query: statsRoutineEndpoint.findMany,
     },
     [SearchType.StatsSite]: {
         advancedSearchSchema: statsSiteSearchSchema,
         defaultSortBy: StatsSiteSortBy.DateUpdatedDesc,
+        endpoint: statsSiteEndpoint.findMany[1],
+        query: statsSiteEndpoint.findMany[0],
         sortByOptions: StatsSiteSortBy,
-        query: statsSiteEndpoint.findMany,
     },
     [SearchType.StatsSmartContract]: {
         advancedSearchSchema: statsSmartContractSearchSchema,
         defaultSortBy: StatsSmartContractSortBy.DateUpdatedDesc,
+        endpoint: statsSmartContractEndpoint.findMany[1],
+        query: statsSmartContractEndpoint.findMany[0],
         sortByOptions: StatsSmartContractSortBy,
-        query: statsSmartContractEndpoint.findMany,
     },
     [SearchType.StatsStandard]: {
         advancedSearchSchema: statsStandardSearchSchema,
         defaultSortBy: StatsStandardSortBy.DateUpdatedDesc,
+        endpoint: statsStandardEndpoint.findMany[1],
+        query: statsStandardEndpoint.findMany[0],
         sortByOptions: StatsStandardSortBy,
-        query: statsStandardEndpoint.findMany,
     },
     [SearchType.StatsUser]: {
         advancedSearchSchema: statsUserSearchSchema,
         defaultSortBy: StatsUserSortBy.DateUpdatedDesc,
+        endpoint: statsUserEndpoint.findMany[1],
+        query: statsUserEndpoint.findMany[0],
         sortByOptions: StatsUserSortBy,
-        query: statsUserEndpoint.findMany,
     },
     [SearchType.Tag]: {
         advancedSearchSchema: tagSearchSchema,
         defaultSortBy: TagSortBy.StarsDesc,
+        endpoint: tagEndpoint.findMany[1],
+        query: tagEndpoint.findMany[0],
         sortByOptions: TagSortBy,
-        query: tagEndpoint.findMany,
     },
     [SearchType.Transfer]: {
         advancedSearchSchema: transferSearchSchema,
         defaultSortBy: TransferSortBy.DateCreatedDesc,
+        endpoint: transferEndpoint.findMany[1],
+        query: transferEndpoint.findMany[0],
         sortByOptions: TransferSortBy,
-        query: transferEndpoint.findMany,
     },
     [SearchType.UserSchedule]: {
         advancedSearchSchema: userScheduleSearchSchema,
         defaultSortBy: UserScheduleSortBy.EventStartAsc,
+        endpoint: userScheduleEndpoint.findMany[1],
+        query: userScheduleEndpoint.findMany[0],
         sortByOptions: UserScheduleSortBy,
-        query: userScheduleEndpoint.findMany,
     },
     [SearchType.User]: {
         advancedSearchSchema: userSearchSchema,
         defaultSortBy: UserSortBy.StarsDesc,
+        endpoint: userEndpoint.findMany[1],
+        query: userEndpoint.findMany[0],
         sortByOptions: UserSortBy,
-        query: userEndpoint.findMany,
     },
     [SearchType.View]: {
         advancedSearchSchema: null,
         defaultSortBy: ViewSortBy.LastViewedDesc,
+        endpoint: viewEndpoint.views[1],
+        query: viewEndpoint.views[0],
         sortByOptions: ViewSortBy,
-        query: viewEndpoint.views,
     },
     [SearchType.Vote]: {
         advancedSearchSchema: voteSearchSchema,
         defaultSortBy: VoteSortBy.DateUpdatedDesc,
+        endpoint: voteEndpoint.votes[1],
+        query: voteEndpoint.votes[0],
         sortByOptions: VoteSortBy,
-        query: voteEndpoint.votes,
     },
 };
 

@@ -1,8 +1,6 @@
-import { MessageParams } from 'yup/lib/types';
-
 /**
  * Error message for max number
  */
-export const maxNumErr = (params: { max: number } & MessageParams) => {
+export const maxNumErr = (params: { max: number }) => {
     return `Minimum value is ${params.max}`;
 }

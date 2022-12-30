@@ -1,9 +1,9 @@
 import { Box, Button, CircularProgress, Dialog, Grid, Stack, TextField, Typography } from "@mui/material"
-import { useMutation, useLazyQuery } from "@apollo/client";
+import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
-import { routineTranslationUpdate, routineUpdate as validationSchema } from '@shared/validation';
+import { routineTranslationUpdate, routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
@@ -11,6 +11,8 @@ import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 import { RoutineIcon } from "@shared/icons";
+import { FindByIdInput, ResourceList, Routine, RoutineUpdateInput } from "@shared/consts";
+import { routineEndpoint } from "graphql/endpoints";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).
 
@@ -34,9 +36,9 @@ export const RoutineUpdate = ({
             versionGroupId: uuidValidate(secondLast) ? secondLast : last,
         }
     }, []);
-    const [getData, { data, loading }] = useLazyQuery<routine, routineVariables>(routineQuery, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<Routine, FindByIdInput, 'routine'>(...routineEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
-        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
+        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
     }, [getData, id, versionGroupId])
     const routine = useMemo(() => data?.routine, [data]);
@@ -93,7 +95,7 @@ export const RoutineUpdate = ({
     }, [routine]);
 
     // Handle update
-    const [mutation] = useMutation(routineUpdateMutation);
+    const [mutation] = useMutation<Routine, RoutineUpdateInput, 'routineUpdate'>(...routineEndpoint.update);
     const formik = useFormik({
         initialValues: {
             id: id ?? DUMMY_ID,
@@ -115,7 +117,7 @@ export const RoutineUpdate = ({
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper<routineUpdate_routineUpdate, routineUpdateVariables>({
+            mutationWrapper<Routine, RoutineUpdateInput>({
                 mutation,
                 input: shapeRoutineUpdate(routine, {
                     id: routine.id,
@@ -155,7 +157,7 @@ export const RoutineUpdate = ({
             touchedDescription: touched?.description ?? false,
             touchedInstructions: touched?.instructions ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineTranslationUpdate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineVersionTranslationValidation.update!()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

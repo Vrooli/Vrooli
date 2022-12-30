@@ -6,13 +6,14 @@ import {
 } from '@mui/material';
 import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSub, shortcutsItems } from 'utils';
 import { AutocompleteSearchBar } from 'components/inputs';
-import { APP_LINKS } from '@shared/consts';
+import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { AutocompleteOption } from 'types';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from 'graphql/hooks';
 import { CommandPaletteProps } from '../types';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { uuidValidate } from '@shared/uuid';
+import { feedEndpoint } from 'graphql/endpoints';
 
 const helpText =
     `Use this dialog to quickly navigate to other pages.
@@ -63,7 +64,10 @@ export const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const [refetch, { data, loading }] = useLazyQuery<popular, popularVariables>(popularQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const [refetch, { data, loading }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(...feedEndpoint.popular, {
+        variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') },
+        errorPolicy: 'all'
+    });
     useEffect(() => { open && refetch() }, [open, refetch, searchString]);
 
 
@@ -81,8 +85,8 @@ export const CommandPalette = ({
                 id: APP_LINKS.FAQ,
             });
         }
-        // Group all query results and sort by number of stars
-        const flattened = (Object.values(data?.popular ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        // Group all query results and sort by number of stars. Ignore any value that isn't an array
+        const flattened = (Object.values(data?.popular ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });

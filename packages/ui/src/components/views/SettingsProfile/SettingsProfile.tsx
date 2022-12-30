@@ -1,9 +1,8 @@
 import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
-import { useLazyQuery, useMutation } from "@apollo/client";
+import { useLazyQuery, useMutation } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
-import { profileUpdateSchema as validationSchema, userTranslationUpdate } from '@shared/validation';
-import { APP_LINKS } from '@shared/consts';
+import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfileUpdate, usePromptBeforeUnload } from "utils";
 import { SettingsProfileProps } from "../types";
@@ -15,6 +14,8 @@ import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { PageTitle, SnackSeverity } from "components";
 import { SettingsFormData } from "pages";
+import { userEndpoint, walletEndpoint } from "graphql/endpoints";
+import { userTranslationValidation, userValidation } from "@shared/validation";
 
 export const SettingsProfile = ({
     onUpdated,
@@ -26,7 +27,7 @@ export const SettingsProfile = ({
     const [, setLocation] = useLocation();
 
     // Query for handles associated with the user
-    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyQuery<findHandles, findHandlesVariables>(findHandlesQuery);
+    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyQuery<string[], FindHandlesInput, 'findHandles'>(...walletEndpoint.findHandles);
     const [handles, setHandles] = useState<string[]>([]);
     const fetchHandles = useCallback(() => {
         const verifiedWallets = profile?.wallets?.filter(w => w.verified) ?? [];
@@ -56,7 +57,7 @@ export const SettingsProfile = ({
     }, [profile, session]);
 
     // Handle update
-    const [mutation] = useMutation(profileUpdateMutation);
+    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...userEndpoint.profileUpdate);
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',
@@ -67,7 +68,7 @@ export const SettingsProfile = ({
             }],
         },
         enableReinitialize: true,
-        validationSchema,
+        validationSchema: userValidation.update!(),
         onSubmit: (values) => {
             if (!profile) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
@@ -107,7 +108,7 @@ export const SettingsProfile = ({
             bio: value?.bio ?? '',
             errorBio: error?.bio ?? '',
             touchedBio: touched?.bio ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', userTranslationUpdate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', userTranslationValidation.update!()),
         }
     }, [formik, language]);
     // Handles blur on translation fields

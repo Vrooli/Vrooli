@@ -1,18 +1,18 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, StarFor } from "@shared/consts";
+import { APP_LINKS, FindByIdOrHandleInput, StarFor, User } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
-import { useLazyQuery } from "@apollo/client";
+import { useLazyQuery } from "graphql/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { UserViewProps } from "../types";
 import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, placeholderColor, SearchType } from "utils";
-import { ResourceList, User } from "types";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
+import { userEndpoint } from "graphql/endpoints";
 
 enum TabOptions {
     Resources = "Resources",
@@ -40,11 +40,11 @@ export const UserView = ({
     }, [session]);
     const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session).id === id), [id, session]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<User, FindByIdOrHandleInput>(...userEndpoint.findOne, { errorPolicy: 'all' });
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id)) getData({ variables: { input: { id } } })
-        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
+        if (uuidValidate(id)) getData({ variables: { id } })
+        else if (adaHandleRegex.test(id)) getData({ variables: { handle: id } })
     }, [getData, id]);
     useEffect(() => {
         setUser((data?.user as User) ?? partialData);

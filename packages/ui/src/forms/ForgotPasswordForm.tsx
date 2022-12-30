@@ -1,4 +1,4 @@
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { emailRequestPasswordChangeSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import {
@@ -9,7 +9,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { APP_LINKS } from '@shared/consts';
+import { APP_LINKS, EmailRequestPasswordChangeInput, Success } from '@shared/consts';
 import { Forms } from 'utils';
 import { mutationWrapper } from 'graphql/utils';
 import { useLocation } from '@shared/route';
@@ -17,12 +17,13 @@ import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { CSSProperties } from '@mui/styles';
+import { authEndpoint } from 'graphql/endpoints';
 
 export const ForgotPasswordForm = ({
     onFormChange = () => { }
 }: FormProps) => {
     const [, setLocation] = useLocation();
-    const [emailRequestPasswordChange, { loading }] = useMutation(emailRequestPasswordChangeMutation);
+    const [emailRequestPasswordChange, { loading }] = useMutation<Success, EmailRequestPasswordChangeInput, 'emailRequestPasswordChange'>(...authEndpoint.emailRequestPasswordChange);
 
     const formik = useFormik({
         initialValues: {
@@ -30,7 +31,7 @@ export const ForgotPasswordForm = ({
         },
         validationSchema: emailRequestPasswordChangeSchema,
         onSubmit: (values) => {
-            mutationWrapper<emailRequestPasswordChange_emailRequestPasswordChange, emailRequestPasswordChangeVariables>({
+            mutationWrapper<Success, EmailRequestPasswordChangeInput>({
                 mutation: emailRequestPasswordChange,
                 input: { ...values },
                 successCondition: (data) => data.success === true,

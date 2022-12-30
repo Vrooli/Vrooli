@@ -1,5 +1,5 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { mutationWrapper } from 'graphql/utils';
 import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
@@ -10,6 +10,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
+import { Organization, OrganizationCreateInput, ResourceList } from "@shared/consts";
+import { organizationEndpoint } from "graphql/endpoints";
 
 export const OrganizationCreate = ({
     onCreated,
@@ -49,7 +51,7 @@ export const OrganizationCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation(organizationCreateMutation);
+    const [mutation] = useMutation<Organization, OrganizationCreateInput, 'organizationCreate'>(...organizationEndpoint.create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),
@@ -61,9 +63,9 @@ export const OrganizationCreate = ({
                 bio: '',
             }]
         },
-        validationSchema,
+        validationSchema: organizationValidation.create!(),
         onSubmit: (values) => {
-            mutationWrapper<organizationCreate_organizationCreate, organizationCreateVariables>({
+            mutationWrapper<Organization, OrganizationCreateInput>({
                 mutation,
                 input: shapeOrganizationCreate({
                     id: values.id,
@@ -91,7 +93,7 @@ export const OrganizationCreate = ({
             errorName: error?.name ?? '',
             touchedBio: touched?.bio ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', organizationTranslationCreate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', organizationTranslationValidation.create!()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);

@@ -1,20 +1,19 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { useCallback, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
-import { profileUpdateSchema as validationSchema } from '@shared/validation';
-import { APP_LINKS } from '@shared/consts';
+import { APP_LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User } from '@shared/consts';
 import { useFormik } from 'formik';
 import { PubSub, usePromptBeforeUnload } from "utils";
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
-import { Email, Wallet } from "types";
 import { DeleteAccountDialog, PageTitle, PasswordTextField, SnackSeverity } from "components";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { SettingsFormData } from "pages";
+import { authEndpoint, userEndpoint } from "graphql/endpoints";
 
 const walletHelpText =
     `This list contains all of your connected wallets. If a custom name has not been set, 
@@ -38,10 +37,10 @@ export const SettingsAuthentication = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [logOut] = useMutation(logOutMutation);
+    const [logOut] = useMutation<Session, LogOutInput>(...authEndpoint.logOut);
     const onLogOut = useCallback(() => {
         const { id } = getCurrentUser(session);
-        mutationWrapper<logOut_logOut, logOutVariables>({ 
+        mutationWrapper<Session, LogOutInput>({ 
             mutation: logOut,
             input: { id },
             onSuccess: (data) => { PubSub.get().publishSession(data) },
@@ -77,7 +76,7 @@ export const SettingsAuthentication = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation] = useMutation(profileEmailUpdateMutation);
+    const [mutation] = useMutation<User, ProfileEmailUpdateInput, 'profileEmailUpdate'>(...userEndpoint.profileEmailUpdate);
     const formik = useFormik({
         initialValues: {
             currentPassword: '',
@@ -92,7 +91,7 @@ export const SettingsAuthentication = ({
                 return;
             }
             if (!formik.isValid) return;
-            mutationWrapper<profileEmailUpdate_profileEmailUpdate, profileEmailUpdateVariables>({
+            mutationWrapper<User, ProfileEmailUpdateInput>({
                 mutation,
                 input: {
                     currentPassword: values.currentPassword,

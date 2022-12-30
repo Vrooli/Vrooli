@@ -15,8 +15,6 @@ export const typeDef = gql`
         Start
     }
 
-    union NodeData = NodeEnd | NodeRoutineList
-
     input NodeCreateInput {
         id: ID!
         columnIndex: Int
@@ -52,6 +50,8 @@ export const typeDef = gql`
         rowIndex: Int
         type: NodeType!
         loop: NodeLoop
+        nodeEnd: NodeEnd
+        nodeRoutineList: NodeRoutineList
         data: NodeData
         routineVersion: RoutineVersion!
         translations: [NodeTranslation!]!

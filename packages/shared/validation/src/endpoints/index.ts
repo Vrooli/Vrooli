@@ -2,6 +2,7 @@ export * from './api';
 export * from './apiKey';
 export * from './apiVersion';
 export * from './comment';
+export * from './email';
 export * from './issue';
 export * from './label';
 export * from './meeting';

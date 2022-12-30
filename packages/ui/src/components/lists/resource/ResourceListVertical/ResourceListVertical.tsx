@@ -3,12 +3,13 @@
 import { ResourceDialog, ResourceListItem, ResourceListItemContextMenu } from 'components';
 import { ResourceListVerticalProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
-import { Resource } from 'types';
 import { Box, Button } from '@mui/material';
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { mutationWrapper } from 'graphql/utils';
 import { updateArray } from 'utils';
 import { AddIcon } from '@shared/icons';
+import { Count, DeleteManyInput, Resource } from '@shared/consts';
+import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
 
 export const ResourceListVertical = ({
     title = '📌 Resources',
@@ -41,12 +42,12 @@ export const ResourceListVertical = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation(deleteManyMutation);
+    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(...deleteOneOrManyEndpoint.deleteMany);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
-            mutationWrapper<deleteMany_deleteMany, deleteManyVariables>({
+            mutationWrapper<Count, DeleteManyInput>({
                 mutation: deleteMutation,
                 input: { ids: [resource.id], objectType: 'Resource' as any },
                 onSuccess: () => {

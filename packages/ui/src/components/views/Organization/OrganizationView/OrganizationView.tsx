@@ -1,8 +1,8 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, StarFor } from "@shared/consts";
+import { APP_LINKS, FindByIdOrHandleInput, Organization, ResourceList, StarFor, VisibilityType } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
-import { useLazyQuery } from "@apollo/client";
+import { useLazyQuery } from "graphql/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { OrganizationViewProps } from "../types";
@@ -12,6 +12,7 @@ import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { organizationEndpoint } from "graphql/endpoints";
 
 enum TabOptions {
     Resources = "Resources",
@@ -31,11 +32,11 @@ export const OrganizationView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     // Fetch data
     const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdOrHandleInput, 'organization'>(...organizationEndpoint.findOne, { errorPolicy: 'all' });
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id)) getData({ variables: { input: { id } } })
-        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
+        if (uuidValidate(id)) getData({ variables: { id } })
+        else if (adaHandleRegex.test(id)) getData({ variables: { handle: id } })
     }, [getData, id]);
     useEffect(() => {
         setOrganization(data?.organization);

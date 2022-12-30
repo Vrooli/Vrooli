@@ -12,7 +12,6 @@ const Status = {
 
 export function EmailListItem({
     handleDelete,
-    handleUpdate,
     handleVerify,
     index,
     data,

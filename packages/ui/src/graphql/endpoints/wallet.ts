@@ -3,5 +3,5 @@ import { toMutation, toQuery } from 'graphql/utils';
 
 export const walletEndpoint = {
     findHandles: toQuery('findHandles', 'FindHandlesInput', [], null),
-    update: toMutation('walletUpdateUpdate', 'WalletUpdateInput', [fullFields], `...fullFields`)
+    update: toMutation('walletUpdate', 'WalletUpdateInput', [fullFields], `...fullFields`)
 }

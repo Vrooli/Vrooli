@@ -5,9 +5,10 @@ import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils
 import { FixedSizeList } from 'react-window';
 import { ListMenu, MenuTitle, SnackSeverity } from 'components';
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from 'graphql/hooks';
 import { queryWrapper } from 'graphql/utils';
 import { translateEndpoint } from 'graphql/endpoints';
+import { Translate, TranslateInput } from '@shared/consts';
 
 /**
  * Languages which support auto-translations through LibreTranslate. 
@@ -64,7 +65,7 @@ export const SelectLanguageMenu = ({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useLazyQuery(translateEndpoint.translate);
+    const [getAutoTranslation] = useLazyQuery<Translate, TranslateInput, 'translate'>(...translateEndpoint.translate);
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
         const sourceTranslation = translations.find(t => t.language === source);
@@ -72,7 +73,7 @@ export const SelectLanguageMenu = ({
             PubSub.get().publishSnack({ messageKey: 'CouldNotFindTranslation', severity: SnackSeverity.Error })
             return;
         }
-        queryWrapper<translate_translate, translateVariables>({
+        queryWrapper<Translate, TranslateInput>({
             query: getAutoTranslation,
             input: { fields: JSON.stringify(sourceTranslation), languageSource: source, languageTarget: target },
             onSuccess: (data) => {

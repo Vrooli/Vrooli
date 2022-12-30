@@ -1,4 +1,4 @@
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { DUMMY_ID } from "@shared/uuid";
 import { CommentDialog } from "components/dialogs"
 import { useCallback, useMemo } from "react";
@@ -11,7 +11,8 @@ import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
-
+import { Comment, CommentCreateInput as CommentUpdateInputType } from "@shared/consts";
+import { commentEndpoint } from "graphql/endpoints";
 
 /**
  * MarkdownInput/CommentContainer wrapper for creating comments
@@ -31,7 +32,7 @@ export const CommentUpdateInput = ({
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
     const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
-    const [updateMutation, { loading: loadingAdd }] = useMutation(commentUpdateMutation);
+    const [updateMutation, { loading: loadingAdd }] = useMutation<Comment, CommentUpdateInputType, 'commentUpdate'>(...commentEndpoint.update);
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,
@@ -44,11 +45,11 @@ export const CommentUpdateInput = ({
                 text: '',
             }],
         },
-        validationSchema: commentValidation.update,
+        validationSchema: commentValidation.update!(),
         onSubmit: (values) => {
             // If not logged in, open login dialog
             //TODO
-            mutationWrapper<commentUpdate_commentUpdate, commentUpdateVariables>({
+            mutationWrapper<Comment, CommentUpdateInputType>({
                 mutation: updateMutation,
                 input: shapeCommentUpdate(comment as any, {
                     ...comment,
@@ -71,7 +72,7 @@ export const CommentUpdateInput = ({
         return {
             text: value?.text ?? '',
             errorText: error?.text ?? '',
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', commentTranslationUpdate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', commentTranslationValidation.update!()),
         }
     }, [formik, language]);
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {

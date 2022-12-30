@@ -43,10 +43,27 @@ export type NavigableObject = {
 }
 
 /**
- * Wrapper type for helping convert objects in the shape of a query result, 
- * to a create/update input object.
+ * Omits fields from an object which are NEVER used in a create/update input, but may appear
+ * in the full object shape.
  */
-export type ShapeWrapper<T> = Partial<Omit<T, '__typename' | 'createdAt' | 'created_at' | 'updatedAt' | 'updated_at' | 'completedAt' | 'completed_at' | 'commentsCount' | 'isUpvoted' | 'isStarred' | 'reportsCount' | 'role' | 'score' | 'stars'>> & { __typename?: string };
+export type OmitCalculated<T extends object> = Omit<{ [key in keyof T]: key extends `${string}Count` ? never : T[key] },
+    '__typename' |
+    'createdAt' |
+    'created_at' |
+    'updatedAt' |
+    'updated_at' |
+    'completedAt' |
+    'completed_at' |
+    'isUpvoted' |
+    'isStarred' |
+    'isViewed' |
+    'permissions' |
+    'role' |
+    'score' |
+    'stars' |
+    'type' |
+    'views'
+>
 
 // Common query input groups
 export type IsCompleteInput = {

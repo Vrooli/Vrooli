@@ -12,8 +12,8 @@ import {
 import { DeleteAccountDialogProps } from '../types';
 import { useCallback, useMemo } from 'react';
 import { mutationWrapper } from 'graphql/utils';
-import { useMutation } from '@apollo/client';
-import { APP_LINKS } from '@shared/consts';
+import { useMutation } from 'graphql/hooks';
+import { APP_LINKS, Success, UserDeleteInput } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle, PasswordTextField, SnackSeverity } from 'components';
 import { DeleteIcon } from '@shared/icons';
@@ -21,6 +21,7 @@ import { getCurrentUser } from 'utils/authentication';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
 import { PubSub } from 'utils';
 import { useFormik } from 'formik';
+import { userEndpoint } from 'graphql/endpoints';
 
 const titleAria = 'delete-object-dialog-title';
 
@@ -39,7 +40,7 @@ export const DeleteAccountDialog = ({
 
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
 
-    const [deleteAccount] = useMutation(userDeleteOneMutation);
+    const [deleteAccount] = useMutation<Success, UserDeleteInput, 'userDeleteOne'>(...userEndpoint.deleteOne);
     const formik = useFormik({
         initialValues: {
             password: '',
@@ -51,7 +52,7 @@ export const DeleteAccountDialog = ({
                 PubSub.get().publishSnack({ messageKey: 'NoUserIdFound', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper<userDeleteOne_userDeleteOne, userDeleteOneVariables>({
+            mutationWrapper<Success, UserDeleteInput>({
                 mutation: deleteAccount,
                 input: values,
                 successCondition: (data) => data.success,

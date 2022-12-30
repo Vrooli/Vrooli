@@ -1,5 +1,5 @@
 import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
 import { profileUpdateSchema as validationSchema } from '@shared/validation';
@@ -12,6 +12,8 @@ import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { SettingsFormData } from "pages";
+import { ProfileUpdateInput, User } from "@shared/consts";
+import { userEndpoint } from "graphql/endpoints";
 
 const interestsHelpText =
     `Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.
@@ -65,7 +67,7 @@ export const SettingsDisplay = ({
     }, [profile]);
 
     // Handle update
-    const [mutation] = useMutation(profileUpdateMutation);
+    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...userEndpoint.profileUpdate);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? 'light',
@@ -93,7 +95,7 @@ export const SettingsDisplay = ({
                 formik.setSubmitting(false);
                 return;
             }
-            mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
+            mutationWrapper<User, ProfileUpdateInput>({
                 mutation,
                 input,
                 successMessage: () => ({ key: 'DisplayPreferencesUpdated' }),

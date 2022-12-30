@@ -1,5 +1,5 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useLazyQuery, useMutation } from "@apollo/client";
+import { useLazyQuery, useMutation } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { OrganizationUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
@@ -9,6 +9,8 @@ import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, get
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
+import { FindByIdInput, Organization, OrganizationUpdateInput, ResourceList } from "@shared/consts";
+import { organizationEndpoint } from "graphql/endpoints";
 
 export const OrganizationUpdate = ({
     onCancel,
@@ -18,8 +20,8 @@ export const OrganizationUpdate = ({
 }: OrganizationUpdateProps) => {
     // Fetch existing data
     const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
-    useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
+    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdInput, 'organization'>(...organizationEndpoint.findOne);
+    useEffect(() => { uuidValidate(id) && getData({ variables: { id } }) }, [getData, id])
     const organization = useMemo(() => data?.organization, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -47,7 +49,7 @@ export const OrganizationUpdate = ({
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle update
-    const [mutation] = useMutation(organizationUpdateMutation);
+    const [mutation] = useMutation<Organization, OrganizationUpdateInput, 'organizationUpdate'>(...organizationEndpoint.update);
     const formik = useFormik({
         initialValues: {
             id: organization?.id ?? uuid(),
@@ -60,19 +62,19 @@ export const OrganizationUpdate = ({
             }],
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema,
+        validationSchema: organizationValidation.update!(),
         onSubmit: (values) => {
             if (!organization) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadOrganization', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper<organizationUpdate_organizationUpdate, organizationUpdateVariables>({
+            mutationWrapper<Organization, OrganizationUpdateInput>({
                 mutation,
                 input: shapeOrganizationUpdate(organization, {
                     id: organization.id,
                     isOpenToNewMembers: values.isOpenToNewMembers,
                     isPrivate: relationships.isPrivate,
-                    resourceLists: [resourceList],
+                    resourceList: resourceList,
                     tags: tags,
                     translations: values.translationsUpdate.map(t => ({
                         ...t,
@@ -97,7 +99,7 @@ export const OrganizationUpdate = ({
             errorName: error?.name ?? '',
             touchedBio: touched?.bio ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', organizationTranslationUpdate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', organizationTranslationValidation.update!()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

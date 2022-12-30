@@ -11,11 +11,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StandardSelectOrCreateDialogProps } from '../types';
 import { Standard } from 'types';
 import { SearchList } from 'components/lists';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from 'graphql/hooks';
 import { StandardCreate } from 'components/views/Standard/StandardCreate/StandardCreate';
 import { SearchType, standardSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
+import { FindByIdInput } from '@shared/consts';
 
 const helpText =
     `This dialog allows you to connect a new or existing standard to a routine input/output.
@@ -61,7 +62,7 @@ export const StandardSelectOrCreateDialog = ({
     }, [setIsCreateOpen]);
 
     // If standard selected from search, query for full data
-    const [getStandard, { data: standardData }] = useLazyQuery<standard, standardVariables>(standardQuery);
+    const [getStandard, { data: standardData }] = useLazyQuery<Standard, FindByIdInput, 'standard'>(...standardEndpoint.findOne);
     const queryingRef = useRef(false);
     const fetchFullData = useCallback((standard: Standard) => {
         // Query for full standard data, if not already known (would be known if the same standard was selected last time)
@@ -70,7 +71,7 @@ export const StandardSelectOrCreateDialog = ({
             onClose();
         } else {
             queryingRef.current = true;
-            getStandard({ variables: { input: { id: standard.id } } });
+            getStandard({ variables: { id: standard.id } });
         }
         // Return false so the list item does not navigate
         return false;

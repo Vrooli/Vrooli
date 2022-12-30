@@ -1,8 +1,8 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useMutation, useLazyQuery } from "@apollo/client";
+import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
-import { projectValidation } from '@shared/validation';
+import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeProjectUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
@@ -10,6 +10,7 @@ import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
 import { projectEndpoint } from "graphql/endpoints";
+import { FindByIdInput, Project, ProjectUpdateInput, ResourceList } from "@shared/consts";
 
 export const ProjectUpdate = ({
     onCancel,
@@ -19,8 +20,8 @@ export const ProjectUpdate = ({
 }: ProjectUpdateProps) => {
     // Fetch existing data
     const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<project, projectVariables>(projectQuery);
-    useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
+    const [getData, { data, loading }] = useLazyQuery<Project, FindByIdInput, 'project'>(...projectEndpoint.findOne);
+    useEffect(() => { uuidValidate(id) && getData({ variables: { id } }) }, [getData, id])
     const project = useMemo(() => data?.project, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -62,7 +63,7 @@ export const ProjectUpdate = ({
     }, [project]);
 
     // Handle update
-    const [mutation] = useMutation(projectEndpoint.update);
+    const [mutation] = useMutation<Project, ProjectUpdateInput, 'projectUpdate'>(...projectEndpoint.update);
     const formik = useFormik({
         initialValues: {
             id: project?.id ?? uuid(),
@@ -74,13 +75,13 @@ export const ProjectUpdate = ({
             }],
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: projectValidation.update,
+        validationSchema: projectValidation.update!(),
         onSubmit: (values) => {
             if (!project) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper<projectUpdate_projectUpdate, projectUpdateVariables>({
+            mutationWrapper<Project, ProjectUpdateInput>({
                 mutation,
                 input: shapeProjectUpdate(project, {
                     id: project.id,
@@ -113,7 +114,7 @@ export const ProjectUpdate = ({
             errorName: error?.name ?? '',
             touchedDescription: touched?.description ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', projectTranslationUpdate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', projectVersionTranslationValidation.update!()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useMutation, useLazyQuery } from "@apollo/client";
+import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
@@ -9,6 +9,8 @@ import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, get
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
+import { FindByIdInput, Standard, StandardUpdateInput } from "@shared/consts";
+import { standardEndpoint } from "graphql/endpoints";
 
 export const StandardUpdate = ({
     onCancel,
@@ -26,9 +28,9 @@ export const StandardUpdate = ({
             versionGroupId: uuidValidate(secondLast) ? secondLast : last,
         }
     }, []);
-    const [getData, { data, loading }] = useLazyQuery<standard, standardVariables>(standardQuery, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<Standard, FindByIdInput, 'standard'>(...standardEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
-        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { input: { id, versionGroupId } } });
+        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
     }, [getData, id, versionGroupId])
     const standard = useMemo(() => data?.standard, [data]);
@@ -71,7 +73,7 @@ export const StandardUpdate = ({
     }, [standard]);
 
     // Handle update
-    const [mutation] = useMutation(standardUpdateMutation);
+    const [mutation] = useMutation<Standard, StandardUpdateInput, 'standardUpdate'>(...standardEndpoint.update);
     const formik = useFormik({
         initialValues: {
             translationsUpdate: standard?.translations ?? [{
@@ -89,7 +91,7 @@ export const StandardUpdate = ({
                 return;
             }
             // Update
-            mutationWrapper<standardUpdate_standardUpdate, standardUpdateVariables>({
+            mutationWrapper<Standard, StandardUpdateInput>({
                 mutation,
                 input: shapeStandardUpdate(standard, {
                     id: standard.id,
@@ -115,7 +117,7 @@ export const StandardUpdate = ({
             description: value?.description ?? '',
             errorDescription: error?.description ?? '',
             touchedDescription: touched?.description ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', standardTranslationUpdate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', standardVersionTranslationValidation.update!()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

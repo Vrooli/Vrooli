@@ -1,4 +1,4 @@
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { emailResetPasswordSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import {
@@ -6,20 +6,21 @@ import {
     Grid,
     Paper,
 } from '@mui/material';
-import { APP_LINKS } from '@shared/consts';
+import { APP_LINKS, EmailResetPasswordInput, Session } from '@shared/consts';
 import { mutationWrapper } from 'graphql/utils';
 import { useLocation } from '@shared/route';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
 import { PasswordTextField, SnackSeverity } from 'components';
 import { PubSub } from 'utils';
+import { authEndpoint } from 'graphql/endpoints';
 
 export const ResetPasswordForm = ({
     userId,
     code,
 }: ResetPasswordFormProps) => {
     const [, setLocation] = useLocation();
-    const [emailResetPassword, { loading }] = useMutation(emailResetPasswordMutation);
+    const [emailResetPassword, { loading }] = useMutation<Session, EmailResetPasswordInput, 'emailResetPassword'>(...authEndpoint.emailResetPassword);
 
     const formik = useFormik({
         initialValues: {
@@ -33,7 +34,7 @@ export const ResetPasswordForm = ({
                 PubSub.get().publishSnack({ messageKey: 'InvalidResetPasswordUrl', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper<emailResetPassword_emailResetPassword, emailResetPasswordVariables>({
+            mutationWrapper<Session, EmailResetPasswordInput>({
                 mutation: emailResetPassword,
                 input: { id: userId, code, newPassword: values.newPassword },
                 onSuccess: (data) => {

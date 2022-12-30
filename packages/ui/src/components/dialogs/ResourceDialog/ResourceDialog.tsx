@@ -1,5 +1,5 @@
-import { useMutation, useQuery } from '@apollo/client';
-import { resourceValidation } from '@shared/validation';
+import { useMutation, useQuery } from 'graphql/hooks';
+import { resourceTranslationValidation, resourceValidation } from '@shared/validation';
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { ResourceDialogProps } from '../types';
@@ -10,7 +10,9 @@ import { AutocompleteOption } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
-import { ResourceUsedFor } from '@shared/consts';
+import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
+import { feedEndpoint, resourceEndpoint } from 'graphql/endpoints';
+import { mutationWrapper } from 'graphql/utils';
 
 const helpText =
     `## What are resources?
@@ -63,8 +65,8 @@ export const ResourceDialog = ({
 }: ResourceDialogProps) => {
     const { palette } = useTheme();
 
-    const [addMutation, { loading: addLoading }] = useMutation(resourceCreateMutation);
-    const [updateMutation, { loading: updateLoading }] = useMutation(resourceUpdateMutation);
+    const [addMutation, { loading: addLoading }] = useMutation<Resource, ResourceCreateInput, 'resourceCreate'>(...resourceEndpoint.create);
+    const [updateMutation, { loading: updateLoading }] = useMutation<Resource, ResourceUpdateInput, 'resourceUpdate'>(...resourceEndpoint.update);
 
     const formik = useFormik({
         initialValues: {
@@ -80,7 +82,7 @@ export const ResourceDialog = ({
             }],
         },
         enableReinitialize: true,
-        validationSchema: resourceValidation.update,
+        validationSchema: resourceValidation.update!(),
         onSubmit: (values) => {
             const input: ResourceShape = {
                 id: partialData?.id ?? uuid(),
@@ -94,14 +96,14 @@ export const ResourceDialog = ({
                 })),
             };
             if (mutate) {
-                const onSuccess = (data: resourceCreate_resourceCreate | resourceUpdate_resourceUpdate) => {
+                const onSuccess = (data: Resource) => {
                     (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
                     formik.resetForm();
                     onClose();
                 }
                 // If index is negative, create
                 if (index < 0) {
-                    mutationWrapper<resourceCreate_resourceCreate, resourceCreateVariables>({
+                    mutationWrapper<Resource, ResourceCreateInput>({
                         mutation: addMutation,
                         input: shapeResourceCreate(input),
                         successMessage: () => ({ key: 'ResourceCreated' }),
@@ -116,7 +118,7 @@ export const ResourceDialog = ({
                         PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: SnackSeverity.Error });
                         return;
                     }
-                    mutationWrapper<resourceUpdate_resourceUpdate, resourceUpdateVariables>({
+                    mutationWrapper<Resource, ResourceUpdateInput>({
                         mutation: updateMutation,
                         input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
                         successMessage: () => ({ key: 'ResourceUpdated' }),
@@ -145,7 +147,7 @@ export const ResourceDialog = ({
             errorName: error?.name ?? '',
             touchedDescription: touched?.description ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', resourceTranslationUpdate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', resourceTranslationValidation.update!()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
@@ -179,7 +181,7 @@ export const ResourceDialog = ({
     const closeSearch = useCallback(() => {
         setSearchOpen(false)
     }, []);
-    const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<popular, popularVariables>(popularQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<PopularResult, PopularInput>(...feedEndpoint.popular, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { open && refetchSearch() }, [open, refetchSearch, searchString]);
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];

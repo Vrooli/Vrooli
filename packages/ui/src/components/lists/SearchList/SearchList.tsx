@@ -1,7 +1,7 @@
 /**
  * Search list for a single object type
  */
-import { useLazyQuery } from "@apollo/client";
+import { useLazyQuery } from "graphql/hooks";
 import { Box, Button, List, Palette, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -44,7 +44,13 @@ const parseData = (data: any) => {
     return queryData.edges.map((edge, index) => edge.node);
 };
 
-export function SearchList<DataType extends ObjectListItemType, SortBy, Query, QueryVariables extends SearchQueryVariablesInput<SortBy>>({
+export function SearchList<
+    DataType extends ObjectListItemType,
+    SortBy,
+    Endpoint extends string,
+    QueryResult extends string | number | boolean | object,
+    QueryVariables extends SearchQueryVariablesInput<SortBy>
+>({
     beforeNavigation,
     canSearch = true,
     handleAdd,
@@ -63,7 +69,7 @@ export function SearchList<DataType extends ObjectListItemType, SortBy, Query, Q
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const { advancedSearchSchema, defaultSortBy, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
+    const { advancedSearchSchema, defaultSortBy, endpoint, sortByOptions, query } = useMemo<SearchParams>(() => searchTypeToParams[searchType], [searchType]);
 
     const [sortBy, setSortBy] = useState<string>(defaultSortBy);
     const [searchString, setSearchString] = useState<string>('');
@@ -110,20 +116,18 @@ export function SearchList<DataType extends ObjectListItemType, SortBy, Query, Q
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object | null>(null);
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<Query, QueryVariables>(query, {
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<QueryResult, QueryVariables, Endpoint>(query, endpoint as any, {
         variables: ({
-            input: {
-                after: after.current,
-                take,
-                sortBy,
-                searchString,
-                createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
-                    after: timeFrame.after?.toISOString(),
-                    before: timeFrame.before?.toISOString(),
-                } : undefined,
-                ...where,
-                ...advancedSearchParams
-            }
+            after: after.current,
+            take,
+            sortBy,
+            searchString,
+            createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
+                after: timeFrame.after?.toISOString(),
+                before: timeFrame.before?.toISOString(),
+            } : undefined,
+            ...where,
+            ...advancedSearchParams
         } as any),
         errorPolicy: 'all',
     });

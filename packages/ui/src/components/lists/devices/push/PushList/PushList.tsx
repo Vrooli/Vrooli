@@ -3,18 +3,18 @@
  */
 import { PushListProps } from '../types';
 import { useCallback } from 'react';
-import { Email, PushDevice } from 'types';
 import { Box, Stack, TextField, useTheme } from '@mui/material';
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { mutationWrapper } from 'graphql/utils';
 import { getDeviceName, PubSub, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { PushListItem } from '../PushListItem/PushListItem';
-import { emailCreateButton as validationSchema } from '@shared/validation';
 import { AddIcon } from '@shared/icons';
 import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
-import { DeleteType } from '@shared/consts';
+import { DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Success } from '@shared/consts';
+import { deleteOneOrManyEndpoint, pushDeviceEndpoint } from 'graphql/endpoints';
+import { pushDeviceValidation } from '@shared/validation';
 
 //TODO copied from emaillist. need to rewrite
 export const PushList = ({
@@ -24,21 +24,21 @@ export const PushList = ({
     const { palette } = useTheme();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useMutation(emailCreateMutation);
+    const [addMutation, { loading: loadingAdd }] = useMutation<PushDevice, PushDeviceCreateInput, 'pushDeviceCreate'>(...pushDeviceEndpoint.create);
     const formik = useFormik({
         initialValues: {
             emailAddress: '',
         },
         enableReinitialize: true,
-        validationSchema,
+        validationSchema: pushDeviceValidation.create!(),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
-            mutationWrapper<emailCreate_emailCreate, emailCreateVariables>({
+            mutationWrapper<PushDevice, PushDeviceCreateInput>({
                 mutation: addMutation,
                 input: {
-                    emailAddress: values.emailAddress,
-                    receivesAccountUpdates: true,
-                    receivesBusinessUpdates: true,
+                    endpoint: values.endpoint,
+                    expires: values.expires,
+                    keys: values.keys,
                     name: getDeviceName(),
                 },
                 onSuccess: (data) => {
@@ -51,37 +51,36 @@ export const PushList = ({
         },
     });
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation(emailUpdateMutation);
-    const onUpdate = useCallback((index: number, updatedEmail: Email) => {
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<PushDevice, PushDeviceUpdateInput, 'pushDeviceUpdate'>(...pushDeviceEndpoint.update);
+    const onUpdate = useCallback((index: number, updatedDevice: PushDevice) => {
         if (loadingUpdate) return;
-        mutationWrapper<emailUpdate_emailUpdate, emailUpdateVariables>({
+        mutationWrapper<PushDevice, PushDeviceUpdateInput>({
             mutation: updateMutation,
             input: {
-                id: updatedEmail.id,
-                receivesAccountUpdates: updatedEmail.receivesAccountUpdates,
-                receivesBusinessUpdates: updatedEmail.receivesBusinessUpdates,
+                id: updatedDevice.id,
+                name: updatedDevice.name,
             },
             onSuccess: () => {
-                handleUpdate(updateArray(list, index, updatedEmail));
+                handleUpdate(updateArray(list, index, updatedDevice));
             },
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation(deleteOneMutation);
-    const onDelete = useCallback((email: Email) => {
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
+    const onDelete = useCallback((device: PushDevice) => {
         if (loadingDelete) return;
-        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
+        mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteMutation,
-            input: { id: email.id, objectType: DeleteType.Email },
+            input: { id: device.id, objectType: DeleteType.Email },
             onSuccess: () => {
-                handleUpdate([...list.filter(w => w.id !== email.id)])
+                handleUpdate([...list.filter(w => w.id !== device.id)])
             },
         })
     }, [deleteMutation, handleUpdate, list, loadingDelete]);
 
     return (
         <form onSubmit={formik.handleSubmit}>
-            {list.length > 0 && <Box id='email-list' sx={{
+            {list.length > 0 && <Box id='push-device-list' sx={{
                 overflow: 'overlay',
                 border: '1px solid #e0e0e0',
                 borderRadius: '8px',
@@ -100,7 +99,7 @@ export const PushList = ({
                     />
                 ))}
             </Box>}
-            {/* Add new email */}
+            {/* Add new push-device */}
             <Stack direction="row" sx={{
                 display: 'flex',
                 justifyContent: 'center',

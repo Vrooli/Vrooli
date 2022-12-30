@@ -24,10 +24,13 @@ export const typeDef = gql`
     }
 
     type CopyResult {
+        apiVersion: ApiVersion
+        noteVersion: NoteVersion
         organization: Organization
-        project: Project
-        routine: Routine
-        standard: Standard
+        projectVersion: ProjectVersion
+        routineVersion: RoutineVersion
+        smartContractVersion: SmartContractVersion
+        standardVersion: StandardVersion
     }
  
     extend type Mutation {

@@ -1,6 +1,6 @@
 import { useLocation } from '@shared/route';
-import { useMutation } from '@apollo/client';
-import { APP_LINKS } from '@shared/consts';
+import { useMutation } from 'graphql/hooks';
+import { APP_LINKS, EmailLogInInput } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -18,6 +18,7 @@ import { PasswordTextField, SnackSeverity } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
 import { errorToCode, hasErrorCode, mutationWrapper } from 'graphql/utils';
+import { authEndpoint } from 'graphql/endpoints';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -29,7 +30,7 @@ export const LogInForm = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn, { loading }] = useMutation(emailLogInMutation);  
+    const [emailLogIn, { loading }] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(...authEndpoint.emailLogIn);  
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);
@@ -41,7 +42,7 @@ export const LogInForm = ({
         },
         validationSchema: emailLogInForm,
         onSubmit: (values) => {
-            mutationWrapper<emailLogIn_emailLogIn, emailLogInVariables>({
+            mutationWrapper<Session, EmailLogInInput>({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode },
                 successCondition: (data) => data !== null,

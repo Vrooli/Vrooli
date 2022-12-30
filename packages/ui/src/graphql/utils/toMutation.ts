@@ -14,28 +14,28 @@ import { toFragment } from './toFragment';
  *      }
  *  `
  * 
- * @param operationName The name of the operation.
+ * @param endpointName The name of the operation (endpoint).
  * @param inputType The name of the input type.
  * @param fragments An array of GraphQL fragments to include in the operation.
  * @param selectionSet The selection set for the operation.
- * @returns a graphql-tag string for the endpoint.
+ * @returns a tuple of: a graphql-tag string for the endpoint, and the endpoint's name.
  */
-export const toMutation = (
-    operationName: string,
+export const toMutation = <Endpoint extends string>(
+    endpointName: Endpoint,
     inputType: string | null,
     fragments: Array<readonly [string, string]>,
     selectionSet: string | null
 ) => {
     let fragmentStrings: string[] = [];
     for (let i = 0; i < fragments.length; i++) {
-        fragmentStrings.push(`${toFragment(operationName + i, fragments[i])}\n`);
+        fragmentStrings.push(`${toFragment(endpointName + i, fragments[i])}\n`);
     }
     const selection = selectionSet ? `{\n${selectionSet}\n}` : '';
     const signature = inputType ? `($input: ${inputType}!)` : '';
-    return gql`
+    return [gql`
         ${fragmentStrings}
-        mutation ${operationName}($input: ${inputType}!) {
-            ${operationName}${signature} ${selection}
+        mutation ${endpointName}($input: ${inputType}!) {
+            ${endpointName}${signature} ${selection}
         }
-    `;
+    `, endpointName] as const;
 }

@@ -1,7 +1,6 @@
 import { Box, Grid, TextField } from "@mui/material";
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { mutationWrapper } from 'graphql/utils';
-import { standardCreate as validationSchema, standardTranslationCreate } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { StandardCreateProps } from "../types";
@@ -13,6 +12,8 @@ import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession 
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
+import { Standard, StandardCreateInput } from "@shared/consts";
+import { standardEndpoint } from "graphql/endpoints";
 
 export const StandardCreate = ({
     onCreated,
@@ -75,7 +76,7 @@ export const StandardCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation(standardCreateMutation);
+    const [mutation] = useMutation<Standard, StandardCreateInput, 'standardCreate'>(...standardEndpoint.create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),
@@ -89,9 +90,9 @@ export const StandardCreate = ({
             }],
             version: '1.0',
         },
-        validationSchema,
+        validationSchema: standardValidation.create!(),
         onSubmit: (values) => {
-            mutationWrapper<standardCreate_standardCreate, standardCreateVariables>({
+            mutationWrapper<Standard, StandardCreateInput>({
                 mutation,
                 input: shapeStandardCreate({
                     id: values.id,
@@ -123,7 +124,7 @@ export const StandardCreate = ({
             description: value?.description ?? '',
             errorDescription: error?.description ?? '',
             touchedDescription: touched?.description ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', standardTranslationCreate),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', standardVersionTranslationValidation.create!()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);

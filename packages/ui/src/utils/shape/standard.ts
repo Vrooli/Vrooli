@@ -1,21 +1,18 @@
-import { ShapeWrapper } from "types";
+import { Standard, StandardCreateInput, StandardUpdateInput, StandardVersionTranslation, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput } from "@shared/consts";
+import { OmitCalculated } from "types";
 import { hasObjectChanged, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape } from "utils";
-import { shapeCreateList, shapePrim, shapeUpdate, shapeUpdateList } from "./shapeTools";
+import { shapeCreateList, shapeCreatePrims, shapeUpdatePrims, shapeUpdate, shapeUpdateList } from "./shapeTools";
 
-export type StandardTranslationShape = Omit<ShapeWrapper<StandardTranslation>, 'language' | 'jsonVariable'> & {
-    id: string;
-    language: StandardTranslationCreateInput['language'];
-    jsonVariable: StandardTranslationCreateInput['jsonVariable'];
-}
+export type StandardVersionTranslationShape = OmitCalculated<StandardVersionTranslation>
 
-export type StandardShape = Omit<ShapeWrapper<Standard>, 'props' | 'type' | 'name' | 'resourceLists' | 'tags' | 'translations' | 'creator'> & {
+export type StandardShape = Omit<OmitCalculated<Standard>, 'props' | 'type' | 'name' | 'resourceLists' | 'tags' | 'translations' | 'creator'> & {
     id: string;
     props: StandardCreateInput['props'];
     type: StandardCreateInput['type'];
     name: StandardCreateInput['name'];
     resourceLists?: ResourceListShape[];
     tags?: TagShape[];
-    translations: StandardTranslationShape[];
+    translations: StandardVersionTranslationShape[];
     creator?: {
         __typename: 'User' | 'Organization';
         id: string;
@@ -24,22 +21,11 @@ export type StandardShape = Omit<ShapeWrapper<Standard>, 'props' | 'type' | 'nam
 
 export type StandardShapeUpdate = Omit<StandardShape, 'default' | 'isInternal' | 'name' | 'props' | 'yup' | 'type' | 'version' | 'creator'>;
 
-export const shapeStandardTranslationCreate = (item: StandardTranslationShape): StandardTranslationCreateInput => ({
-    id: item.id,
-    language: item.language,
-    description: item.description,
-    jsonVariable: item.jsonVariable,
-})
+export const shapeStandardTranslationCreate = (item: StandardVersionTranslationShape): StandardVersionTranslationCreateInput =>
+    shapeCreatePrims(item, 'id', 'language', 'description', 'jsonVariable')
 
-export const shapeStandardTranslationUpdate = (
-    original: StandardTranslationShape,
-    updated: StandardTranslationShape
-): StandardTranslationUpdateInput | undefined =>
-    shapeUpdate(original, updated, (o, u) => ({
-        id: u.id,
-        ...shapePrim(o, u, 'description'),
-        ...shapePrim(o, u, 'jsonVariable'),
-    }), 'id')
+export const shapeStandardTranslationUpdate = (o: StandardVersionTranslationShape, u: StandardVersionTranslationShape): StandardVersionTranslationUpdateInput | undefined =>
+    shapeUpdate(u, shapeUpdatePrims(o, u, 'id', 'description', 'jsonVariable'))
 
 export const shapeStandardCreate = (item: StandardShape): StandardCreateInput => ({
     id: item.id,
@@ -59,14 +45,10 @@ export const shapeStandardCreate = (item: StandardShape): StandardCreateInput =>
     ...shapeCreateList(item, 'tags', shapeTagCreate),
 })
 
-export const shapeStandardUpdate = (
-    original: StandardShapeUpdate,
-    updated: StandardShapeUpdate
-): StandardUpdateInput | undefined => 
-    shapeUpdate(original, updated, (o, u) => ({
-        id: o.id,
-        ...shapePrim(o, u, 'isPrivate'),
+export const shapeStandardUpdate = (o: StandardShapeUpdate, u: StandardShapeUpdate): StandardUpdateInput | undefined =>
+    shapeUpdate(u, {
+        ...shapeUpdatePrims(o, u, 'id', 'isPrivate'),
         ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeStandardTranslationCreate, shapeStandardTranslationUpdate, 'id'),
         ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
         ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
-    }), 'id') as any //TODO
+    }) as any //TODO
