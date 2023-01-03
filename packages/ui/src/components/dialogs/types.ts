@@ -1,7 +1,7 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { DeleteType, ReportFor } from '@shared/consts';
-import { NavigableObject } from 'types';
+import { DeleteType, NodeLink, NodeRoutineList, NodeRoutineListItem, Organization, Project, ReportFor, Resource, Session, Standard, User } from '@shared/consts';
+import { NavigableObject, RoutineStep } from 'types';
 import { ListObjectType, SearchType } from 'utils';
 import { SvgComponent } from '@shared/icons';
 import { ObjectAction, ObjectActionComplete } from 'utils/actions/objectActions';
@@ -235,9 +235,9 @@ export interface LinkDialogProps {
 }
 
 export interface SubroutineInfoDialogProps {
-    data: { node: NodeDataRoutineList, routineItemId: string } | null;
+    data: { node: NodeRoutineList, routineItemId: string } | null;
     defaultLanguage: string;
-    handleUpdate: (updatedSubroutine: NodeDataRoutineListItem) => any;
+    handleUpdate: (updatedSubroutine: NodeRoutineListItem) => any;
     handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => any;
     handleViewFull: () => any;
     isEditing: boolean;

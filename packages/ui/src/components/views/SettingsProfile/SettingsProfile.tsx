@@ -68,7 +68,7 @@ export const SettingsProfile = ({
             }],
         },
         enableReinitialize: true,
-        validationSchema: userValidation.update!(),
+        validationSchema: userValidation.update(),
         onSubmit: (values) => {
             if (!profile) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
@@ -108,7 +108,7 @@ export const SettingsProfile = ({
             bio: value?.bio ?? '',
             errorBio: error?.bio ?? '',
             touchedBio: touched?.bio ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', userTranslationValidation.update!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', userTranslationValidation.update()),
         }
     }, [formik, language]);
     // Handles blur on translation fields

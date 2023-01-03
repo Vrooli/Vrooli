@@ -34,14 +34,14 @@ export const NodeEndModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            suggestedNextRoutineVersion: 'RoutineVersion',
+            suggestedNextRoutineVersions: 'RoutineVersion',
         },
         prismaRelMap: {
             __typename,
-            suggestedNextRoutineVersion: 'RoutineVersion',
+            suggestedNextRoutineVersions: 'RoutineVersion',
             node: 'Node',
         },
-        joinMap: { suggestedNextRoutineVersion: 'toRoutineVersion' },
+        joinMap: { suggestedNextRoutineVersions: 'toRoutineVersion' },
         countFields: {},
     },
     mutate: {

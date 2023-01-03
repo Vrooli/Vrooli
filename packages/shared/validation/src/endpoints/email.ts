@@ -3,7 +3,7 @@ import * as yup from 'yup';
 
 const emailAddress = yup.string().transform(blankToUndefined).email()
 
-export const emailValidation: YupModel = {
+export const emailValidation: YupModel<true, false> = {
     create: () => yup.object().shape({
         emailAddress: req(emailAddress),
     }),

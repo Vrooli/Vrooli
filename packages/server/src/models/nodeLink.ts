@@ -63,8 +63,8 @@ export const NodeLinkModel: ModelLogic<{
             }),
             update: async ({ prisma, userData, data }) => ({
                 operation: noNull(data.operation),
-                ...(await shapeHelper({ relation: 'from', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'next', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'to', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'previous', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'from', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'next', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'to', relTypes: ['Connect', 'Disconnect'], isOneToOne: true, isRequired: false, objectType: 'Node', parentRelationshipName: 'previous', data, prisma, userData })),
                 ...(await shapeHelper({ relation: 'whens', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeLinkWhen', parentRelationshipName: 'link', data, prisma, userData })),
             }),
         },

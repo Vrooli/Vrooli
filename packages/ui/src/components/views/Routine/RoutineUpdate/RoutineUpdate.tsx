@@ -157,7 +157,7 @@ export const RoutineUpdate = ({
             touchedDescription: touched?.description ?? false,
             touchedInstructions: touched?.instructions ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineVersionTranslationValidation.update!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineVersionTranslationValidation.update()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

@@ -8,7 +8,7 @@ const userScheduleFilterType = yup.string().transform(blankToUndefined).oneOf([
     'ShowMore',
 ]);
 
-export const userScheduleFilterValidation: YupModel = {
+export const userScheduleFilterValidation: YupModel<true, false> = {
     create: () => yup.object().shape({
         id: req(id),
         filterType: req(userScheduleFilterType),

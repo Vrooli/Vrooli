@@ -63,7 +63,7 @@ export const OrganizationCreate = ({
                 bio: '',
             }]
         },
-        validationSchema: organizationValidation.create!(),
+        validationSchema: organizationValidation.create(),
         onSubmit: (values) => {
             mutationWrapper<Organization, OrganizationCreateInput>({
                 mutation,
@@ -93,7 +93,7 @@ export const OrganizationCreate = ({
             errorName: error?.name ?? '',
             touchedBio: touched?.bio ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', organizationTranslationValidation.create!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', organizationTranslationValidation.create()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);

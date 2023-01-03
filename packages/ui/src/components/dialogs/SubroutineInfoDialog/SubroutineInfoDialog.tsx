@@ -18,7 +18,6 @@ import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationDat
 import { routineTranslationUpdate, routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
 import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
-import { NodeDataRoutineListItem, ResourceList } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
 import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
@@ -161,7 +160,7 @@ export const SubroutineInfoDialog = ({
             touchedDescription: touched?.description ?? false,
             touchedInstructions: touched?.instructions ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineVersionTranslationValidation.update!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineVersionTranslationValidation.update()),
         }
     }, [formik, language]);
     // Handles blur on translation fields

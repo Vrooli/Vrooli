@@ -27,8 +27,8 @@ export const userTranslationValidation: YupModel = transRel({
     },
 })
 
-export const userValidation: YupModel = {
-    create: () => yup.object().shape({}), // Can't create a user directly - must use sign up form(s)
+export const userValidation: YupModel<false, true> = {
+    // Can't create a user directly - must use sign up form(s)
     update: () => yup.object().shape({
         handle: opt(handle),
         name: opt(name),

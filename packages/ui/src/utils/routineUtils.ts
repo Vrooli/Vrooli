@@ -3,7 +3,7 @@ import { Node, NodeDataRoutineList, NodeLink, Routine, RunInput } from "types";
 import { uuid } from '@shared/uuid';
 import { Status } from "./consts";
 import { shapeRunInputCreate, shapeRunInputUpdate } from "./shape";
-import { shapeUpdateList } from "./shape/shapeTools";
+import { shapeUpdateList } from "./shape/models/tools/shapeOLD";
 
 /**
  * Calculates the percentage of the run that has been completed.

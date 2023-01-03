@@ -317,7 +317,7 @@ model node_translation {
 model node_end {
     id                          String          @id @default(uuid()) @db.Uuid
     wasSuccessful               Boolean         @default(true)
-    suggestedNextRoutineVersion node_end_next[] @relation("node_end_next_from")
+    suggestedNextRoutineVersions node_end_next[] @relation("node_end_next_from")
     nodeId                      String          @unique @db.Uuid
     node                        node            @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }

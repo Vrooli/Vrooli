@@ -16,7 +16,7 @@ export const typeDef = gql`
     type NodeEnd {
         id: ID!
         wasSuccessful: Boolean!
-        suggestedNextRoutineVersion: RoutineVersion
+        suggestedNextRoutineVersions: [RoutineVersion!]
     }
 `
 export const resolvers: {

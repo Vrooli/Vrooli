@@ -3,7 +3,6 @@ import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
-import { standardTranslationUpdate, standardUpdate as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeStandardUpdate, TagShape, usePromptBeforeUnload } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
@@ -84,7 +83,7 @@ export const StandardUpdate = ({
             }],
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema,
+        validationSchema: standardValidation.update(),
         onSubmit: (values) => {
             if (!standard) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadStandard', severity: SnackSeverity.Error });
@@ -117,7 +116,7 @@ export const StandardUpdate = ({
             description: value?.description ?? '',
             errorDescription: error?.description ?? '',
             touchedDescription: touched?.description ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', standardVersionTranslationValidation.update!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', standardVersionTranslationValidation.update()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

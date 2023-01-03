@@ -45,7 +45,7 @@ export const CommentCreateInput = ({
                 text: '',
             }],
         },
-        validationSchema: commentValidation.create!(),
+        validationSchema: commentValidation.create(),
         onSubmit: (values) => {
             // If not logged in, open login dialog
             //TODO
@@ -73,7 +73,7 @@ export const CommentCreateInput = ({
         return {
             text: value?.text ?? '',
             errorText: error?.text ?? '',
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationValidation.create!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', commentTranslationValidation.create()),
         }
     }, [formik, language]);
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {

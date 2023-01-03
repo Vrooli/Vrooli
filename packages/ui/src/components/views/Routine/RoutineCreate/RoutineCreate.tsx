@@ -1,6 +1,6 @@
 import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import { useMutation } from "graphql/hooks";
-import { routineCreate as validationSchema, routineTranslationCreate, routineValidation, routineVersionTranslationValidation } from '@shared/validation';
+import { routineValidation, routineVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, parseSearchParams, PubSub, removeTranslation, shapeRoutineCreate, TagShape, usePromptBeforeUnload } from "utils";
 import { RoutineCreateProps } from "../types";
@@ -11,8 +11,9 @@ import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { RoutineIcon } from "@shared/icons";
-import { Routine, RoutineCreateInput } from "@shared/consts";
+import { ResourceList, Routine, RoutineCreateInput } from "@shared/consts";
 import { routineEndpoint } from "graphql/endpoints";
+import { mutationWrapper } from "graphql/utils";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).
 
@@ -86,7 +87,7 @@ export const RoutineCreate = ({
             }],
             version: '1.0.0',
         },
-        validationSchema: routineValidation.update!(),
+        validationSchema: routineValidation.update(),
         onSubmit: (values) => {
             mutationWrapper<Routine, RoutineCreateInput>({
                 mutation,
@@ -129,7 +130,7 @@ export const RoutineCreate = ({
             touchedDescription: touched?.description ?? false,
             touchedInstructions: touched?.instructions ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', routineVersionTranslationValidation.create!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', routineVersionTranslationValidation.create()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);

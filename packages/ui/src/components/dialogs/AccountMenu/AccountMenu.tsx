@@ -53,7 +53,7 @@ export const AccountMenu = ({
             theme: getCurrentUser(session).theme ?? 'light',
         },
         enableReinitialize: true,
-        validationSchema: userValidation.update!(),
+        validationSchema: userValidation.update(),
         onSubmit: (values) => {
             // If not logged in, do nothing
             if (!userId) {

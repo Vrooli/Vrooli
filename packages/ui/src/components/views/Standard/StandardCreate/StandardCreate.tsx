@@ -90,7 +90,7 @@ export const StandardCreate = ({
             }],
             version: '1.0',
         },
-        validationSchema: standardValidation.create!(),
+        validationSchema: standardValidation.create(),
         onSubmit: (values) => {
             mutationWrapper<Standard, StandardCreateInput>({
                 mutation,
@@ -124,7 +124,7 @@ export const StandardCreate = ({
             description: value?.description ?? '',
             errorDescription: error?.description ?? '',
             touchedDescription: touched?.description ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', standardVersionTranslationValidation.create!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', standardVersionTranslationValidation.create()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);

@@ -62,7 +62,7 @@ export const OrganizationUpdate = ({
             }],
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: organizationValidation.update!(),
+        validationSchema: organizationValidation.update(),
         onSubmit: (values) => {
             if (!organization) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadOrganization', severity: SnackSeverity.Error });
@@ -99,7 +99,7 @@ export const OrganizationUpdate = ({
             errorName: error?.name ?? '',
             touchedBio: touched?.bio ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', organizationTranslationValidation.update!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', organizationTranslationValidation.update()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

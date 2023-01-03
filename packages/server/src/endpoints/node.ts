@@ -52,7 +52,6 @@ export const typeDef = gql`
         loop: NodeLoop
         nodeEnd: NodeEnd
         nodeRoutineList: NodeRoutineList
-        data: NodeData
         routineVersion: RoutineVersion!
         translations: [NodeTranslation!]!
     }
@@ -84,14 +83,12 @@ export const typeDef = gql`
 const objectType = 'Node';
 export const resolvers: {
     NodeType: typeof NodeType;
-    NodeData: UnionResolver,
     Mutation: {
         nodeCreate: GQLEndpoint<NodeCreateInput, CreateOneResult<Node>>;
         nodeUpdate: GQLEndpoint<NodeUpdateInput, UpdateOneResult<Node>>;
     }
 } = {
     NodeType: NodeType,
-    NodeData: { __resolveType(obj: any) { return resolveUnion(obj) } },
     Mutation: {
         nodeCreate: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });

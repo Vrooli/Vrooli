@@ -42,29 +42,6 @@ export type NavigableObject = {
     }
 }
 
-/**
- * Omits fields from an object which are NEVER used in a create/update input, but may appear
- * in the full object shape.
- */
-export type OmitCalculated<T extends object> = Omit<{ [key in keyof T]: key extends `${string}Count` ? never : T[key] },
-    '__typename' |
-    'createdAt' |
-    'created_at' |
-    'updatedAt' |
-    'updated_at' |
-    'completedAt' |
-    'completed_at' |
-    'isUpvoted' |
-    'isStarred' |
-    'isViewed' |
-    'permissions' |
-    'role' |
-    'score' |
-    'stars' |
-    'type' |
-    'views'
->
-
 // Common query input groups
 export type IsCompleteInput = {
     isComplete?: boolean;
@@ -81,6 +58,19 @@ export type IsInternalInput = {
  */
 export type NoTypename<T> = T extends { __typename: string } ? Omit<T, '__typename'> : T;
 
+/**
+ * Converts objects as represented in the UI (especially forms) to create/update 
+ * input objects for the GraphQL API.
+ */
+export type ShapeModel<
+    T extends {},
+    TCreate extends {} | null,
+    TUpdate extends {} | null
+> = (TCreate extends null ? {} : { create: (item: T) => TCreate }) &
+    (TUpdate extends null ? {} : { 
+        update: (o: T, u: T) => TUpdate | undefined,
+        hasObjectChanged?: (o: T, u: T) => boolean,
+    })
 
 // Routine-related props
 export interface BaseStep {

@@ -473,10 +473,13 @@ export type CopyInput = {
 
 export type CopyResult = {
   __typename?: 'CopyResult';
+  apiVersion?: Maybe<ApiVersion>;
+  noteVersion?: Maybe<NoteVersion>;
   organization?: Maybe<Organization>;
-  project?: Maybe<Project>;
-  routine?: Maybe<Routine>;
-  standard?: Maybe<Standard>;
+  projectVersion?: Maybe<ProjectVersion>;
+  routineVersion?: Maybe<RoutineVersion>;
+  smartContractVersion?: Maybe<SmartContractVersion>;
+  standardVersion?: Maybe<StandardVersion>;
 };
 
 export enum CopyType {
@@ -2074,9 +2077,10 @@ export type Node = {
   __typename?: 'Node';
   columnIndex?: Maybe<Scalars['Int']>;
   created_at: Scalars['Date'];
-  data?: Maybe<NodeData>;
   id: Scalars['ID'];
   loop?: Maybe<NodeLoop>;
+  nodeEnd?: Maybe<NodeEnd>;
+  nodeRoutineList?: Maybe<NodeRoutineList>;
   routineVersion: RoutineVersion;
   routineVersionId: Scalars['ID'];
   rowIndex?: Maybe<Scalars['Int']>;
@@ -2097,12 +2101,10 @@ export type NodeCreateInput = {
   type: NodeType;
 };
 
-export type NodeData = NodeEnd | NodeRoutineList;
-
 export type NodeEnd = {
   __typename?: 'NodeEnd';
   id: Scalars['ID'];
-  suggestedNextRoutineVersion?: Maybe<RoutineVersion>;
+  suggestedNextRoutineVersions?: Maybe<Array<RoutineVersion>>;
   wasSuccessful: Scalars['Boolean'];
 };
 
@@ -2759,10 +2761,10 @@ export type NotificationSubscriptionSearchResult = {
 };
 
 export enum NotificationSubscriptionSortBy {
-  ObjectTypeAsc = 'ObjectTypeAsc',
-  ObjectTypeDesc = 'ObjectTypeDesc',
   DateCreatedAsc = 'DateCreatedAsc',
-    DateCreatedDesc = 'DateCreatedDesc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  ObjectTypeAsc = 'ObjectTypeAsc',
+  ObjectTypeDesc = 'ObjectTypeDesc'
 }
 
 export type NotificationSubscriptionUpdateInput = {
@@ -8646,9 +8648,8 @@ export type ResolversTypes = {
   MemberSortBy: MemberSortBy;
   MemberUpdateInput: MemberUpdateInput;
   Mutation: ResolverTypeWrapper<{}>;
-  Node: ResolverTypeWrapper<Omit<Node, 'data'> & { data?: Maybe<ResolversTypes['NodeData']> }>;
+  Node: ResolverTypeWrapper<Node>;
   NodeCreateInput: NodeCreateInput;
-  NodeData: ResolversTypes['NodeEnd'] | ResolversTypes['NodeRoutineList'];
   NodeEnd: ResolverTypeWrapper<NodeEnd>;
   NodeEndCreateInput: NodeEndCreateInput;
   NodeEndUpdateInput: NodeEndUpdateInput;
@@ -9309,9 +9310,8 @@ export type ResolversParentTypes = {
   MemberSearchResult: MemberSearchResult;
   MemberUpdateInput: MemberUpdateInput;
   Mutation: {};
-  Node: Omit<Node, 'data'> & { data?: Maybe<ResolversParentTypes['NodeData']> };
+  Node: Node;
   NodeCreateInput: NodeCreateInput;
-  NodeData: ResolversParentTypes['NodeEnd'] | ResolversParentTypes['NodeRoutineList'];
   NodeEnd: NodeEnd;
   NodeEndCreateInput: NodeEndCreateInput;
   NodeEndUpdateInput: NodeEndUpdateInput;
@@ -9952,10 +9952,13 @@ export type CommentedOnResolvers<ContextType = any, ParentType extends Resolvers
 };
 
 export type CopyResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['CopyResult'] = ResolversParentTypes['CopyResult']> = {
+  apiVersion?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
+  noteVersion?: Resolver<Maybe<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
-  project?: Resolver<Maybe<ResolversTypes['Project']>, ParentType, ContextType>;
-  routine?: Resolver<Maybe<ResolversTypes['Routine']>, ParentType, ContextType>;
-  standard?: Resolver<Maybe<ResolversTypes['Standard']>, ParentType, ContextType>;
+  projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
+  routineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
+  smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
+  standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10403,9 +10406,10 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
 export type NodeResolvers<ContextType = any, ParentType extends ResolversParentTypes['Node'] = ResolversParentTypes['Node']> = {
   columnIndex?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  data?: Resolver<Maybe<ResolversTypes['NodeData']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   loop?: Resolver<Maybe<ResolversTypes['NodeLoop']>, ParentType, ContextType>;
+  nodeEnd?: Resolver<Maybe<ResolversTypes['NodeEnd']>, ParentType, ContextType>;
+  nodeRoutineList?: Resolver<Maybe<ResolversTypes['NodeRoutineList']>, ParentType, ContextType>;
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   routineVersionId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   rowIndex?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
@@ -10415,13 +10419,9 @@ export type NodeResolvers<ContextType = any, ParentType extends ResolversParentT
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type NodeDataResolvers<ContextType = any, ParentType extends ResolversParentTypes['NodeData'] = ResolversParentTypes['NodeData']> = {
-  __resolveType: TypeResolveFn<'NodeEnd' | 'NodeRoutineList', ParentType, ContextType>;
-};
-
 export type NodeEndResolvers<ContextType = any, ParentType extends ResolversParentTypes['NodeEnd'] = ResolversParentTypes['NodeEnd']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  suggestedNextRoutineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
+  suggestedNextRoutineVersions?: Resolver<Maybe<Array<ResolversTypes['RoutineVersion']>>, ParentType, ContextType>;
   wasSuccessful?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12915,7 +12915,6 @@ export type Resolvers<ContextType = any> = {
   MemberSearchResult?: MemberSearchResultResolvers<ContextType>;
   Mutation?: MutationResolvers<ContextType>;
   Node?: NodeResolvers<ContextType>;
-  NodeData?: NodeDataResolvers<ContextType>;
   NodeEnd?: NodeEndResolvers<ContextType>;
   NodeLink?: NodeLinkResolvers<ContextType>;
   NodeLinkWhen?: NodeLinkWhenResolvers<ContextType>;

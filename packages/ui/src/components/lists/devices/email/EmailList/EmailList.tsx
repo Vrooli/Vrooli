@@ -30,7 +30,7 @@ export const EmailList = ({
             emailAddress: '',
         },
         enableReinitialize: true,
-        validationSchema: emailValidation.create!(),
+        validationSchema: emailValidation.create(),
         onSubmit: (values) => {
             if (!formik.isValid || loadingAdd) return;
             mutationWrapper<Email, EmailCreateInput>({

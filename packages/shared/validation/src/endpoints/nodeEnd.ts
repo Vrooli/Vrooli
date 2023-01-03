@@ -8,11 +8,11 @@ export const nodeEndValidation: YupModel = {
         id: req(id),
         wasSuccessful: opt(wasSuccessful),
         ...rel('node', ['Connect'], 'one', 'req'),
-        ...rel('suggestedNextRoutineVersion', ['Connect'], 'many', 'opt'),
+        ...rel('suggestedNextRoutineVersions', ['Connect'], 'many', 'opt'),
     }),
     update: () => yup.object().shape({
         id: req(id),
         wasSuccessful: opt(wasSuccessful),
-        ...rel('suggestedNextRoutineVersion', ['Connect', 'Disconnect'], 'many', 'opt'),
+        ...rel('suggestedNextRoutineVersions', ['Connect', 'Disconnect'], 'many', 'opt'),
     }),
 }

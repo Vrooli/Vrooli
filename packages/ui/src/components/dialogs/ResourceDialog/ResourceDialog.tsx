@@ -82,7 +82,7 @@ export const ResourceDialog = ({
             }],
         },
         enableReinitialize: true,
-        validationSchema: resourceValidation.update!(),
+        validationSchema: resourceValidation.update(),
         onSubmit: (values) => {
             const input: ResourceShape = {
                 id: partialData?.id ?? uuid(),
@@ -147,7 +147,7 @@ export const ResourceDialog = ({
             errorName: error?.name ?? '',
             touchedDescription: touched?.description ?? false,
             touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', resourceTranslationValidation.update!()),
+            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', resourceTranslationValidation.update()),
         }
     }, [formik, language]);
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

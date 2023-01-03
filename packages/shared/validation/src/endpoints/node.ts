@@ -35,7 +35,7 @@ export const nodeValidation: YupModel = {
         ...rel('nodeRoutineList', ['Create'], 'one', 'opt', nodeRoutineListValidation),
         ...rel('routineVersion', ['Connect'], 'one', 'req'),
         ...rel('translations', ['Create'], 'many', 'opt', nodeTranslationValidation),
-    }, [['loopCreate', 'nodeEndCreate']]),
+    }, [['nodeEndCreate', 'nodeRoutineListCreate']]),
     update: () => yup.object().shape({
         id: req(id),
         columnIndex: opt(columnIndex),
