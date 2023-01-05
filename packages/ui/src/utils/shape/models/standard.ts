@@ -1,46 +1,34 @@
-import { Standard, StandardCreateInput, StandardUpdateInput, StandardVersionTranslation, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput } from "@shared/consts";
+import { Standard, StandardCreateInput, StandardUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { hasObjectChanged, ResourceListShape, shapeCreateList, createPrims, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, shapeUpdate, shapeUpdateList, updatePrims, TagShape } from "utils";
+import { shapeUpdate, updatePrims, TagShape, createRel, updateRel, shapeTag, createOwner, updateOwner, LabelShape, StandardVersionShape, shapeStandardVersion, shapeLabel, createPrims, createVersion, updateVersion } from "utils";
 
 
-export type StandardShape = Omit<OmitCalculated<Standard>, 'props' | 'type' | 'name' | 'resourceLists' | 'tags' | 'translations' | 'creator'> & {
-    id: string;
-    props: StandardCreateInput['props'];
-    type: StandardCreateInput['type'];
-    name: StandardCreateInput['name'];
-    resourceLists?: ResourceListShape[];
-    tags?: TagShape[];
-    translations: StandardVersionTranslationShape[];
-    creator?: {
-        __typename: 'User' | 'Organization';
-        id: string;
-    } | null;
+export type StandardShape = Pick<Standard, 'id' | 'name' | 'isInternal' | 'isPrivate' | 'permissions'> & {
+    parent?: { id: string };
+    owner?: { __typename: 'User' | 'Organization', id: string } | null;
+    labels?: ({ id: string } | LabelShape)[];
+    tags?: ({ tag: string } | TagShape)[];
+    // Updating, deleting, and reordering versions must be done separately. 
+    // This only creates/updates a single version, which is most often the case
+    versionData?: StandardVersionShape | null;
 }
 
 export type StandardShapeUpdate = Omit<StandardShape, 'default' | 'isInternal' | 'name' | 'props' | 'yup' | 'type' | 'version' | 'creator'>;
 
 export const shapeStandard: ShapeModel<StandardShape, StandardCreateInput, StandardUpdateInput> = {
-    create: (item) => ({
-        id: item.id,
-        default: item.default + '', // Make sure default is a string
-        isInternal: item.isInternal,
-        isPrivate: item.isPrivate,
-        name: item.name,
-        props: item.props,
-        yup: item.yup,
-        type: item.type,
-        // version: item.version,TODO
-        // parentId: u.parent?.id, TODO
-        createdByUserId: item.creator?.__typename === 'User' ? item.creator.id : undefined,
-        createdByOrganizationId: item.creator?.__typename === 'Organization' ? item.creator.id : undefined,
-        ...shapeCreateList(item, 'translations', shapeStandardTranslationCreate),
-        ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
-        ...shapeCreateList(item, 'tags', shapeTagCreate),
+    create: (d) => ({
+        ...createPrims(d, 'id', 'name', 'isInternal', 'isPrivate', 'permissions'),
+        ...createOwner(d),
+        ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
+        ...createRel(d, 'parent', ['Connect'], 'one'),
+        ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
+        ...createVersion(d, shapeStandardVersion, (v) => ({ ...v, root: { id: d.id } })),
     }),
     update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'isPrivate'),
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeStandardTranslationCreate, shapeStandardTranslationUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
-    }) //TODO
+        ...updatePrims(o, u, 'id', 'name', 'isInternal', 'isPrivate', 'permissions'),
+        ...updateOwner(o, u),
+        ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
+        ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
+        ...updateVersion(o, u, shapeStandardVersion, (v, i) => ({ ...v, root: { id: i.id } })),
+    })
 }

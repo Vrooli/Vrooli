@@ -1,6 +1,6 @@
 import { ShapeModel } from 'types';
-import { createRel } from './createRel';
 import { hasObjectChanged } from 'utils/shape/general';
+import { createRel } from './createRel';
 
 /**
  * Finds items which have been added to the array, and connects them to the parent.
@@ -32,24 +32,33 @@ const findConnectedItems = <
  * the create mutation
  * @param original The original array
  * @param updated The updated array
- * @param formatForCreate The function to format an object for the create mutation
  * @returns Created objects formatted for the create mutation,
  * or undefined if no objects have been created.
  */
 const findCreatedItems = <
-    IDField extends string,
-    Input extends { [key in IDField]?: string | null },
-    Output
+    Item extends { [x in FieldName]: Record<string, any> | Record<string, any>[] },
+    FieldName extends string,
+    Shape extends ShapeModel<any, {}, any>,
+    Output extends {}
 >(
-    original: Input[],
-    updated: Input[],
-    formatForCreate: (item: Input) => Output,
-    idField: IDField = 'id' as IDField,
+    original: Item,
+    updated: Item,
+    relation: FieldName,
+    shape: Shape,
+    preShape?: (item: any, originalOrUpdated: Item) => any,
 ): Output[] | undefined => {
+    const idField = shape.idField ?? 'id';
+    const preShaper = preShape ?? ((x: any) => x);
+    const originalDataArray = asArray(original[relation]);
+    const updatedDataArray = asArray(updated[relation]);
     const createdItems: Output[] = [];
-    for (const updatedItem of updated) {
-        const oi = original.find(item => item[idField] === updatedItem[idField]);
-        if (!oi) createdItems.push(formatForCreate(updatedItem));
+    for (const updatedItem of updatedDataArray) {
+        if (!updatedItem || !updatedItem[idField]) continue;
+        const oi = originalDataArray.find(item => item[idField] === updatedItem[idField]);
+        // Add if not found in original, and has more than just the id field (if only ID, must be a connect)
+        if (!oi && Object.values(updatedItem).length > 1) {
+            createdItems.push(shape.create(preShaper(updatedItem, updated)) as Output);
+        }
     }
     return createdItems.length > 0 ? createdItems : undefined;
 }
@@ -59,27 +68,32 @@ const findCreatedItems = <
  * the update mutation
  * @param original The original array
  * @param updated The updated array
- * @param hasObjectChanged A function which returns true if the object has changed
- * @param formatForUpdate The function to format the updated object for the update mutation
  * @returns An array of the updated objects formatted for the update mutation, 
  * or undefined if no objects have been updated.
  */
 const findUpdatedItems = <
-    IDField extends string,
-    Input extends { [key in IDField]?: string | null },
-    Output
+    Item extends { [x in FieldName]: Record<string, any> | Record<string, any>[] },
+    FieldName extends string,
+    Shape extends ShapeModel<any, null, {}>,
+    Output extends {}
 >(
-    original: Input[],
-    updated: Input[],
-    hasObjectChanged: (original: Input & { [key in IDField]: string }, updated: Input & { [key in IDField]: string }) => boolean,
-    formatForUpdate: (original: Input & { [key in IDField]: string }, updated: Input & { [key in IDField]: string }) => Output,
-    idField: IDField = 'id' as IDField,
+    original: Item,
+    updated: Item,
+    relation: FieldName,
+    shape: Shape,
+    preShape?: (item: any, originalOrUpdated: Item) => any,
 ): Output[] | undefined => {
+    const idField = shape.idField ?? 'id';
+    const preShaper = preShape ?? ((x: any) => x);
+    const originalDataArray = asArray(original[relation]);
+    const updatedDataArray = asArray(updated[relation]);
     const updatedItems: Output[] = [];
-    for (const updatedItem of updated) {
+    for (const updatedItem of updatedDataArray) {
         if (!updatedItem || !updatedItem[idField]) continue;
-        const oi: Input & { [key in IDField]: string } | undefined = original.find(item => item && item[idField] && item[idField] === updatedItem[idField]) as Input & { [key in IDField]: string } | undefined;
-        if (oi && hasObjectChanged(oi, updatedItem as Input & { [key in IDField]: string })) updatedItems.push(formatForUpdate(oi, updatedItem as Input & { [key in IDField]: string }));
+        const oi = originalDataArray.find(item => item && item[idField] && item[idField] === updatedItem[idField]);
+        if (oi && (shape.hasObjectChanged ?? hasObjectChanged)(preShaper(oi, original), preShaper(updatedItem, updated))) {
+            updatedItems.push(shape.update(preShaper(oi, original), preShaper(updatedItem, updated)) as Output);
+        }
     }
     return updatedItems.length > 0 ? updatedItems : undefined;
 }
@@ -142,7 +156,7 @@ type RelationshipType = 'Connect' | 'Create' | 'Delete' | 'Disconnect' | 'Update
 // Array if isOneToOne is false, otherwise single
 type MaybeArray<T extends 'object' | 'id', IsOneToOne extends 'one' | 'many'> =
     T extends 'object' ?
-    IsOneToOne extends 'one' ? object : object[] :
+    IsOneToOne extends 'one' ? any : any[] :
     IsOneToOne extends 'one' ? string : string[]
 
 // Array if isOneToOne is false, otherwise boolean
@@ -168,88 +182,95 @@ type UpdateRelOutput<
  * @param relTypes The allowed operations on the relations (e.g. create, connect)
  * @param isOneToOne "one" if the relationship is one-to-one, and "many" otherwise. This makes the results a single object instead of an array
  * @param shape The relationship's shape object
- * @param idField The name of the id field in the relationship (defaults to "id")
+ * @param preShape A function to convert the item before passing it to the shape function
  * @returns The shaped object, ready to be passed to the mutation endpoint
  */
 export const updateRel = <
     Item extends (IsOneToOne extends 'one' ?
-        { [x in FieldName]?: { [y in IdFieldName]: string } | null | undefined } :
-        { [x in FieldName]?: { [y in IdFieldName]: string }[] | null | undefined }),
+        { [x in FieldName]?: {} | null | undefined } :
+        { [x in FieldName]?: {}[] | null | undefined }),
     FieldName extends string,
     RelTypes extends readonly RelationshipType[],
     // Shape object only required when RelTypes includes 'Create' or 'Update'
     Shape extends ('Create' extends RelTypes[number] ?
         'Update' extends RelTypes[number] ?
-        ShapeModel<any, any, any> :
-        ShapeModel<any, any, null> :
+        ShapeModel<any, {}, {}> :
+        ShapeModel<any, {}, null> :
         'Update' extends RelTypes[number] ?
-        ShapeModel<any, null, any> :
+        ShapeModel<any, null, {}> :
         never),
     IsOneToOne extends 'one' | 'many',
-    IdFieldName extends string = 'id'
 >(
-    originalItem: Item,
-    updatedItem: Item,
+    original: Item,
+    updated: Item,
     relation: FieldName,
     relTypes: RelTypes,
     isOneToOne: IsOneToOne,
     shape?: Shape,
-    idField?: IdFieldName,
+    preShape?: (item: Record<string, any>, originalOrUpdated: Record<string, any>) => any,
 ): UpdateRelOutput<IsOneToOne, RelTypes[number], FieldName> => {
     // Check if shape is required
     if (relTypes.includes('Create') || relTypes.includes('Update')) {
         if (!shape) throw new Error('Model is required if relTypes includes "Create" or "Update"');
     }
     // Find relation data in item
-    const originalRelationData = originalItem[relation];
-    const updatedRelationData = updatedItem[relation];
+    const originalRelationData = original[relation];
+    const updatedRelationData = updated[relation];
     // If not original or updated, return empty object
     if (originalRelationData === undefined && updatedRelationData === undefined) return {} as any;
     // If no original, treat as create/connect
     if (originalRelationData === undefined) {
-        return createRel(updatedItem, relation, relTypes.filter(x => x === 'Create' || x === 'Connect') as any, isOneToOne, shape as any, idField) as any;
+        return createRel(
+            updated,
+            relation,
+            relTypes.filter(x => x === 'Create' || x === 'Connect') as any,
+            isOneToOne,
+            shape as any,
+        ) as any;
     }
     // Initialize result
     const result: { [x: string]: any } = {};
+    const idField = (shape as ShapeModel<any, any, any> | undefined)?.idField ?? 'id';
     // Loop through relation types
     for (const t of relTypes) {
         // If type is connect, add IDs to result
         if (t === 'Connect') {
             const shaped = findConnectedItems(
-                asArray(originalRelationData as any), 
-                asArray(updatedRelationData as any), 
-                idField ?? 'id');
+                asArray(originalRelationData as any),
+                asArray(updatedRelationData as any),
+                idField);
             result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
         }
         else if (t === 'Create') {
             const shaped = findCreatedItems(
-                asArray(originalRelationData as object), 
-                asArray(updatedRelationData as object), 
-                (shape as ShapeModel<any, true, any>).create,
-                idField ?? 'id');
+                original as any,
+                updated as any,
+                relation,
+                shape as ShapeModel<any, {}, null>,
+                preShape as any);
             result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
         }
         else if (t === 'Delete') {
             const shaped = findDeletedItems(
                 asArray(originalRelationData as any),
                 asArray(updatedRelationData as any),
-                idField ?? 'id');
+                idField);
             result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
         }
         else if (t === 'Disconnect') {
             const shaped = findDisconnectedItems(
                 asArray(originalRelationData as any),
                 asArray(updatedRelationData as any),
-                idField ?? 'id');
+                idField);
             result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
         }
         else if (t === 'Update') {
             const shaped = findUpdatedItems(
-                asArray(originalRelationData as any),
-                asArray(updatedRelationData as any),
-                (shape as ShapeModel<any, any, true>).hasObjectChanged ?? hasObjectChanged,
-                (shape as ShapeModel<any, any, true>).update,
-                idField ?? 'id');
+                original as any,
+                updated as any,
+                relation,
+                shape as ShapeModel<any, null, {}>,
+                preShape as any);
             result[`${relation}${t}`] = isOneToOne === 'one' ? shaped && shaped[0] : shaped;
         }
     }

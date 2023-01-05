@@ -12,7 +12,7 @@ export const userScheduleFilterValidation: YupModel<true, false> = {
     create: () => yup.object().shape({
         id: req(id),
         filterType: req(userScheduleFilterType),
-        ...rel('userSchedule', ['Connect'], 'one', 'opt'),
+        ...rel('userSchedule', ['Connect'], 'one', 'req'),
         ...rel('tags', ['Create', 'Connect'], 'one', 'opt', tagValidation),
     }),
     // Can only create and delete

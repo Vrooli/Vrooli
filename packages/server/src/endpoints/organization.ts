@@ -19,31 +19,32 @@ export const typeDef = gql`
         handle: String
         isOpenToNewMembers: Boolean
         isPrivate: Boolean
+        memberInvitesCreate: [MemberInviteCreateInput!]
         resourceListCreate: ResourceListCreateInput
+        rolesCreate: [RoleCreateInput!]
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsCreate: [OrganizationTranslationCreateInput!]
-        rolesCreate: [RoleCreateInput!]
-        memberInvitesCreate: [MemberInviteCreateInput!]
     }
     input OrganizationUpdateInput {
         id: ID!
         handle: String
         isOpenToNewMembers: Boolean
         isPrivate: Boolean
-        membersDisconnect: [ID!]
+        membersDelete: [ID!]
         memberInvitesDelete: [ID!]
         memberInvitesCreate: [MemberInviteCreateInput!]
+        resourceListCreate: ResourceListCreateInput
         resourceListUpdate: ResourceListUpdateInput
+        rolesDelete: [ID!]
+        rolesCreate: [RoleCreateInput!]
+        rolesUpdate: [RoleUpdateInput!]
         tagsConnect: [String!]
         tagsDisconnect: [String!]
         tagsCreate: [TagCreateInput!]
         translationsDelete: [ID!]
         translationsCreate: [OrganizationTranslationCreateInput!]
         translationsUpdate: [OrganizationTranslationUpdateInput!]
-        rolesDelete: [ID!]
-        rolesCreate: [RoleCreateInput!]
-        rolesUpdate: [RoleUpdateInput!]
     }
     type Organization {
         id: ID!

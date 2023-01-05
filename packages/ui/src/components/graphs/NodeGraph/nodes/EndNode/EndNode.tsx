@@ -1,12 +1,11 @@
 import { Box, Tooltip, Typography } from '@mui/material';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
 import { calculateNodeSize, DraggableNode, EndNodeDialog, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { CSSProperties } from '@mui/styles';
 import { BuildAction, firstString, usePress } from 'utils';
-import { NodeEnd } from 'types';
 
 /**
  * Distance before a click is considered a drag
@@ -123,7 +122,7 @@ export const EndNode = ({
                         height: `max(${outerCircleSize}px, 48px)`,
                         position: 'relative',
                         display: 'block',
-                        backgroundColor: node.data?.wasSuccessful === false ? '#7c262a' : '#387e30',
+                        backgroundColor: node.nodeEnd?.wasSuccessful === false ? '#7c262a' : '#387e30',
                         color: 'white',
                         borderRadius: '100%',
                         boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
@@ -146,7 +145,7 @@ export const EndNode = ({
                             left: '50%',
                             transform: 'translate(-50%, -50%)',
                             borderRadius: '100%',
-                            border: `2px solid ${node.data?.wasSuccessful === false ? '#e97691' : '#9ce793'}`,
+                            border: `2px solid ${node.nodeEnd?.wasSuccessful === false ? '#e97691' : '#9ce793'}`,
                         } as const}
                     >
                     </Box>

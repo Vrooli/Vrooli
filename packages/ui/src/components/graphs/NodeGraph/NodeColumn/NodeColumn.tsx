@@ -5,8 +5,8 @@ import { Box, Stack } from '@mui/material';
 import { useMemo } from 'react';
 import { NodeColumnProps } from '../types';
 import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from '../nodes';
-import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { getTranslation } from 'utils';
+import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
 
 export const NodeColumn = ({
     handleAction,
@@ -58,7 +58,7 @@ export const NodeColumn = ({
                 handleAction,
                 isLinked: true,
                 scale,
-                label: getTranslation(node, [language], false).title ?? undefined,
+                label: getTranslation(node, [language], false).name ?? undefined,
                 labelVisible,
                 isEditing,
                 canDrag: isEditing,
@@ -72,12 +72,12 @@ export const NodeColumn = ({
                         handleUpdate={handleNodeUpdate}
                         language={language}
                         linksIn={links.filter(l => l.toId === node.id)}
-                        node={node as NodeEnd}
+                        node={node as Node & { nodeEnd: NodeEnd }}
                     />
                 case NodeType.Redirect:
                     return <RedirectNode
                         {...nodeProps}
-                        node={node as Node}//as NodeRedirect}
+                        node={node}
                     />
                 case NodeType.RoutineList:
                     return (<RoutineListNode
@@ -87,13 +87,13 @@ export const NodeColumn = ({
                         language={language}
                         linksIn={links.filter(l => l.toId === node.id)}
                         linksOut={links.filter(l => l.fromId === node.id)}
-                        node={node as NodeRoutineList}
+                        node={node as Node & { nodeRoutineList: NodeRoutineList }}
                     />)
                 case NodeType.Start:
                     return <StartNode
                         {...nodeProps}
                         linksOut={links.filter(l => l.fromId === node.id)}
-                        node={node as Node}
+                        node={node}
                     />
                 default:
                     return null;

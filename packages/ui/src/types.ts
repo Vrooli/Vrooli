@@ -70,7 +70,7 @@ export type ShapeModel<
     (TUpdate extends null ? {} : { 
         update: (o: T, u: T) => TUpdate | undefined,
         hasObjectChanged?: (o: T, u: T) => boolean,
-    })
+    }) & { idField?: keyof T & string }
 
 // Routine-related props
 export interface BaseStep {

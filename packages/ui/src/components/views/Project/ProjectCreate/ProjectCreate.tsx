@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { projectEndpoint } from "graphql/endpoints";
-import { Project, ProjectCreateInput } from "@shared/consts";
+import { Project, ProjectCreateInput, ResourceList } from "@shared/consts";
 
 export const ProjectCreate = ({
     onCreated,

@@ -10,17 +10,17 @@ export type NodeLinkShape = Pick<NodeLink, 'id' | 'operation'> & {
 }
 
 export const shapeNodeLink: ShapeModel<NodeLinkShape, NodeLinkCreateInput, NodeLinkUpdateInput> = {
-    create: (item) => ({
-        ...createPrims(item, 'id', 'operation'),
-        ...createRel(item, 'from', ['Connect'], 'one'),
-        ...createRel(item, 'to', ['Connect'], 'one'),
-        ...createRel(item, 'routineVersion', ['Connect'], 'one'),
-        ...createRel(item, 'whens', ['Create'], shapeNodeLinkWhen),
+    create: (d) => ({
+        ...createPrims(d, 'id', 'operation'),
+        ...createRel(d, 'from', ['Connect'], 'one'),
+        ...createRel(d, 'to', ['Connect'], 'one'),
+        ...createRel(d, 'routineVersion', ['Connect'], 'one'),
+        ...createRel(d, 'whens', ['Create'], 'many', shapeNodeLinkWhen),
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'operation'),
         ...updateRel(o, u, 'from', ['Connect', 'Disconnect'], 'one'),
         ...updateRel(o, u, 'to', ['Connect', 'Disconnect'], 'one'),
-        ...updateRel(o, u, 'whens', ['Create', 'Update', 'Delete'], shapeNodeLinkWhen),
+        ...updateRel(o, u, 'whens', ['Create', 'Update', 'Delete'], 'many', shapeNodeLinkWhen),
     })
 }

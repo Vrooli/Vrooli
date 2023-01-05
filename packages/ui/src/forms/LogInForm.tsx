@@ -1,6 +1,6 @@
 import { useLocation } from '@shared/route';
 import { useMutation } from 'graphql/hooks';
-import { APP_LINKS, EmailLogInInput } from '@shared/consts';
+import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,

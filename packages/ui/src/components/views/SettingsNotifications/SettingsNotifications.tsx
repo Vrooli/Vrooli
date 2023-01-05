@@ -7,7 +7,8 @@ import { mutationWrapper } from "graphql/utils";
 import { useMutation } from "graphql/hooks";
 import { useFormik } from "formik";
 import { NotificationSettings, NotificationSettingsUpdateInput } from "@shared/consts";
-import { DUMMY_ID } from "@shared/uuid";
+import { DUMMY_ID, uuid } from "@shared/uuid";
+import { SnackSeverity } from "components";
 
 export const SettingsNotifications = ({
     profile,
@@ -16,7 +17,7 @@ export const SettingsNotifications = ({
 }: SettingsNotificationsProps) => {
 
     // Handle update
-    const [mutation] = useMutation<NotificationSettings, NotificationSettingsUpdateInput, 'notificationSettingsUpdate'>(notificationSettingsUpdateMutation);
+    const [mutation] = useMutation<NotificationSettings, NotificationSettingsUpdateInput, 'notificationSettingsUpdate'>(...notificationSettingsEndpoint.update);
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',

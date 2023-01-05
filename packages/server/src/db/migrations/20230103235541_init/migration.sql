@@ -1008,7 +1008,7 @@ CREATE TABLE "quiz_question" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "order" INTEGER,
     "points" INTEGER NOT NULL DEFAULT 1,
-    "standardId" UUID,
+    "standardVersionId" UUID,
     "quizId" UUID NOT NULL,
 
     CONSTRAINT "quiz_question_pkey" PRIMARY KEY ("id")
@@ -2968,7 +2968,7 @@ ALTER TABLE "quiz_question_response" ADD CONSTRAINT "quiz_question_response_quiz
 ALTER TABLE "quiz_question_response_translation" ADD CONSTRAINT "quiz_question_response_translation_responseId_fkey" FOREIGN KEY ("responseId") REFERENCES "quiz_question_response"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "quiz_question" ADD CONSTRAINT "quiz_question_standardId_fkey" FOREIGN KEY ("standardId") REFERENCES "standard"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "quiz_question" ADD CONSTRAINT "quiz_question_standardVersionId_fkey" FOREIGN KEY ("standardVersionId") REFERENCES "standard_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "quiz_question" ADD CONSTRAINT "quiz_question_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "quiz"("id") ON DELETE CASCADE ON UPDATE CASCADE;

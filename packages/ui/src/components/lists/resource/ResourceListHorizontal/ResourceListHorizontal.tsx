@@ -10,7 +10,7 @@ import { updateArray } from 'utils';
 import { useMutation } from 'graphql/hooks';
 import { mutationWrapper } from 'graphql/utils';
 import { AddIcon } from '@shared/icons';
-import { Count, DeleteManyInput } from '@shared/consts';
+import { Count, DeleteManyInput, Resource } from '@shared/consts';
 import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
 
 export const ResourceListHorizontal = ({

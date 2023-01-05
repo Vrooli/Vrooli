@@ -1,4 +1,5 @@
 import { TextFieldProps } from "@mui/material";
+import { CommentFor, Session } from "@shared/consts";
 import { MarkdownInputProps } from "components/inputs/types";
 
 export interface CommentContainerProps {

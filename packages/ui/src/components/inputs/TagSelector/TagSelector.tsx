@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@apollo/client';
-import { StarFor, TagSortBy } from '@shared/consts';
+import { StarFor, Tag, TagSearchInput, TagSearchResult, TagSortBy } from '@shared/consts';
 import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
 import { SnackSeverity, StarButton } from 'components';
 import { PubSub, TagShape } from 'utils';
-import { Tag } from 'types';
+import { tagEndpoint } from 'graphql/endpoints';
+import { Wrap } from 'types';
 
 export const TagSelector = ({
     disabled,
@@ -85,7 +86,7 @@ export const TagSelector = ({
         });
     }, [tags]);
 
-    const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<tags, tagsVariables>(tagsQuery, {
+    const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<Wrap<TagSearchResult, 'tags'>, Wrap<TagSearchInput, 'input'>>(tagEndpoint.findMany[0], {
         variables: {
             input: {
                 // Exclude tags that have already been fully queried, and match the search string

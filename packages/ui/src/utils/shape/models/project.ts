@@ -1,47 +1,31 @@
-import { Project, ProjectCreateInput, ProjectUpdateInput, ProjectVersionTranslation, ProjectVersionTranslationCreateInput, ProjectVersionTranslationUpdateInput } from "@shared/consts";
+import { Project, ProjectCreateInput, ProjectUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, ResourceListShape, shapeTagCreate, shapeUpdate, TagShape, updatePrims } from "utils";
+import { createOwner, createRel, ProjectVersionShape, LabelShape, shapeTag, shapeUpdate, TagShape, updateOwner, updatePrims, updateRel, shapeProjectVersion, shapeLabel, createVersion, updateVersion, createPrims } from "utils";
 
-export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, 'id' | 'language' | 'description' | 'name'>
-
-export type ProjectShape = Omit<OmitCalculated<Project>, 'resourceLists' | 'tags' | 'translations' | 'owner'> & {
-    id: string;
-    // handle: string | null; TODO
-    resourceLists?: ResourceListShape[] | null;
-    tags?: TagShape[];
-    translations: ProjectVersionTranslationShape[];
-    parent?: {
-        id: string
-    } | null;
-    owner?: {
-        __typename: 'User' | 'Organization';
-        id: string;
-    } | null;
-}
-
-export const shapeProjectVersionTranslation: ShapeModel<ProjectVersionTranslationShape, ProjectVersionTranslationCreateInput, ProjectVersionTranslationUpdateInput> = {
-    create: (item) => createPrims(item, 'id', 'language', 'description', 'name'),
-    update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'))
+export type ProjectShape = Pick<Project, 'id' | 'handle' | 'isPrivate' | 'permissions'> & {
+    labels?: ({ id: string } | LabelShape)[];
+    owner?: { __typename: 'User' | 'Organization', id: string } | null;
+    parent?: { id: string } | null;
+    tags?: ({ tag: string } | TagShape)[];
+    // Updating, deleting, and reordering versions must be done separately. 
+    // This only creates/updates a single version, which is most often the case
+    versionData?: ProjectVersionShape | null;
 }
 
 export const shapeProject: ShapeModel<ProjectShape, ProjectCreateInput, ProjectUpdateInput> = {
-    create: (item) => ({
-        id: item.id,
-        isComplete: item.isComplete,
-        isPrivate: item.isPrivate,
-        parentId: item.parent?.id,
-        createdByUserId: item.owner?.__typename === 'User' ? item.owner.id : undefined,
-        createdByOrganizationId: item.owner?.__typename === 'Organization' ? item.owner.id : undefined,
-        ...shapeCreateList(item, 'translations', shapeProjectTranslation),
-        ...shapeCreateList(item, 'resourceLists', shapeResourceList),
-        ...shapeCreateList(item, 'tags', shapeTagCreate),
+    create: (d) => ({
+        ...createPrims(d, 'id'),
+        ...createOwner(d),
+        ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
+        ...createRel(d, 'parent', ['Connect'], 'one'),
+        ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
+        ...createVersion(d, shapeProjectVersion, (v) => ({ ...v, root: { id: d.id } })),
     }),
-    update: shapeUpdate(u, {
-        ...shapeUpdatePrims(o, u, 'id', 'isComplete', 'isPrivate'),
-        userId: u.owner?.__typename === 'User' ? u.owner.id : undefined,
-        organizationId: u.owner?.__typename === 'Organization' ? u.owner.id : undefined,
-        ...shapeUpdateList(o, u, 'translations', shapeProjectVersionTranslation, 'id'),
-        ...shapeUpdateList(o, u, 'resourceLists', shapeResourceList, 'id'),
-        ...shapeUpdateList(o, u, 'tags', shapeTag, 'tag', true),
+    update: (o, u) => shapeUpdate(u, {
+        ...updatePrims(o, u, 'id'),
+        ...updateOwner(o, u),
+        ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
+        ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
+        ...updateVersion(o, u, shapeProjectVersion, (v, i) => ({ ...v, root: { id: i.id } })),
     })
 }

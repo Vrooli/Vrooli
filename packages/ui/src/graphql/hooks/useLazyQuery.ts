@@ -72,6 +72,7 @@ export function useLazyQuery<
         }
 
         return eagerMethods;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     Object.assign(result, eagerMethods);
@@ -97,6 +98,7 @@ export function useLazyQuery<
         promise.catch(() => { });
 
         return promise as any;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return [execute, result] as any;

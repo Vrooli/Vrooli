@@ -1,5 +1,6 @@
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
 import { SnackSeverity } from "components";
+import { userEndpoint } from "graphql/endpoints";
 import { documentNodeWrapper, errorToCode } from "graphql/utils";
 import { ActionOption, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
@@ -206,16 +207,16 @@ export const performAction = async (option: ActionOption, session: Session): Pro
             clearSearchHistory(session);
             break;
         case 'activate-dark-mode':
-            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
-                node: profileUpdateMutation,
+            documentNodeWrapper<User, ProfileUpdateInput>({
+                node: userEndpoint.profileUpdate[0],
                 input: { theme: 'dark' },
                 onSuccess: () => { PubSub.get().publishTheme('dark'); },
                 onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
             })
             break;
         case 'activate-light-mode':
-            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
-                node: profileUpdateMutation,
+            documentNodeWrapper<User, ProfileUpdateInput>({
+                node: userEndpoint.profileUpdate[0],
                 input: { theme: 'light' },
                 onSuccess: () => { PubSub.get().publishTheme('light'); },
                 onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }

@@ -1,7 +1,8 @@
 import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
+import { CommentFor, Organization, Project, Routine, Session, Standard, Tag, User } from '@shared/consts';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent, FocusEventHandler } from 'react';
-import { AutocompleteOption, Comment, Organization, Project, Routine, Session, Standard, Tag, User } from 'types';
+import { AutocompleteOption } from 'types';
 import { ObjectType, TagShape } from 'utils';
 import { StringSchema } from 'yup';
 

@@ -1,7 +1,7 @@
 import { BoxProps } from '@mui/material';
-import { Node, NodeDataRoutineListItem, NodeEnd, NodeLink, NodeLoop, NodeRoutineList } from "types";
 import { BuildAction } from 'utils';
 import { MouseEvent } from 'react';
+import { Node, NodeEnd, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from '@shared/consts';
 
 /**
  * Props for all scalable objects
@@ -49,10 +49,10 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
  */
 export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     handleAction: (action: BuildAction, nodeId: string) => void;
-    handleUpdate: (updatedNode: NodeEnd) => void; 
+    handleUpdate: (updatedNode: Node & { nodeEnd: NodeEnd }) => void; 
     language: string;
     linksIn: NodeLink[];
-    node: NodeEnd;
+    node: Node & { nodeEnd: NodeEnd };
     zIndex: number;
 }
 
@@ -60,7 +60,7 @@ export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps, 
  * Props for the Loop node
  */
 export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    node: NodeLoop;
+    node: Node & { loop: NodeLoop };
     zIndex: number;
 }
 
@@ -69,7 +69,7 @@ export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps,
  */
 export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     handleAction: (action: NodeContextMenuAction, nodeId: string) => void;
-    node: Node;// NodeRedirect;
+    node: Node;// & { redirect: NodeRedirect }; TODO
     zIndex: number;
 }
 
@@ -79,11 +79,11 @@ export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditablePr
 export interface RoutineListNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     canExpand: boolean;
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
-    handleUpdate: (updatedNode: NodeRoutineList) => void; 
+    handleUpdate: (updatedNode: Node & { nodeRoutineList: NodeRoutineList }) => void; 
     language: string;
     linksIn: NodeLink[];
     linksOut: NodeLink[];
-    node: NodeRoutineList;
+    node: Node & { nodeRoutineList: NodeRoutineList };
     zIndex: number;
 }
 
@@ -91,10 +91,10 @@ export interface RoutineListNodeProps extends ScaleProps, LabelledProps, Editabl
  * Props for a Routine List's subroutine
  */
 export interface SubroutineNodeProps extends ScaleProps, LabelledProps, EditableProps {
-    data: NodeDataRoutineListItem;
+    data: NodeRoutineListItem;
     isOpen: boolean;
     handleAction: (action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine, subroutineId: string) => void;
-    handleUpdate: (subroutineId: string, updatedSubroutine: NodeDataRoutineListItem) => void; 
+    handleUpdate: (subroutineId: string, updatedItem: NodeRoutineListItem) => void; 
     language: string;
     zIndex: number;
 }

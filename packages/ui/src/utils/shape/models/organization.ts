@@ -1,35 +1,39 @@
 import { Organization, OrganizationCreateInput, OrganizationTranslation, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput, OrganizationUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, hasObjectChanged, ResourceListShape, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, shapeUpdate, TagShape, updatePrims } from "utils";
+import { createPrims, createRel, MemberInviteShape, ResourceListShape, RoleShape, shapeMemberInvite, shapeResourceList, shapeRole, shapeTag, shapeUpdate, TagShape, updatePrims, updateRel } from "utils";
 
 export type OrganizationTranslationShape = Pick<OrganizationTranslation, 'id' | 'language' | 'bio' | 'name'>
 
-export type OrganizationShape = Omit<OmitCalculated<Organization>, 'handle' | 'isOpenToNewMembers' | 'resourceLists' | 'resourceLists' | 'tags' | 'translations'> & {
-    id: string;
-    handle: OrganizationCreateInput['handle'];
-    isOpenToNewMembers: OrganizationCreateInput['isOpenToNewMembers'];
-    resourceLists?: ResourceListShape[];
-    tags?: TagShape[];
-    translations: OrganizationTranslationShape[];
+export type OrganizationShape = Pick<Organization, 'id' | 'handle' | 'isOpenToNewMembers' | 'isPrivate'> & {
+    memberInvites?: MemberInviteShape[];
+    membersDelete?: { id: string }[];
+    resourceList?: ResourceListShape;
+    roles?: RoleShape[];
+    tags?: ({ tag: string } | TagShape)[];
+    translations?: OrganizationTranslationShape[];
 }
 
 export const shapeOrganizationTranslation: ShapeModel<OrganizationTranslationShape, OrganizationTranslationCreateInput, OrganizationTranslationUpdateInput> = {
-    create: (item) => createPrims(item, 'id', 'language', 'bio', 'name'),
+    create: (d) => createPrims(d, 'id', 'language', 'bio', 'name'),
     update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'bio', 'name'))
 }
 
 export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreateInput, OrganizationUpdateInput> = {
-    create: (item) => ({
-        ...createPrims(item, 'id', 'handle', 'isOpenToNewMembers', 'isPrivate'),
-        ...shapeCreateList(item, 'translations', shapeOrganizationTranslationCreate),
-        ...shapeCreateList(item, 'resourceLists', shapeResourceListCreate),
-        ...shapeCreateList(item, 'tags', shapeTagCreate),
+    create: (d) => ({
+        ...createPrims(d, 'id', 'handle', 'isOpenToNewMembers', 'isPrivate'),
+        ...createRel(d, 'memberInvites', ['Create'], 'many', shapeMemberInvite),
+        ...createRel(d, 'resourceList', ['Create'], 'one', shapeResourceList),
+        ...createRel(d, 'roles', ['Create'], 'many', shapeRole),
+        ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
+        ...createRel(d, 'translations', ['Create'], 'many', shapeOrganizationTranslation),
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'handle', 'isOpenToNewMembers', 'isPrivate'),
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOrganizationTranslationCreate, shapeOrganizationTranslationUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
-        ...shapeUpdateList(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
-        // TODO members
+        ...updateRel(o, u, 'memberInvites', ['Create', 'Delete'], 'many', shapeMemberInvite),
+        ...updateRel(o, u, 'resourceList', ['Create', 'Update'], 'one', shapeResourceList),
+        ...updateRel(o, u, 'roles', ['Create', 'Update', 'Delete'], 'many', shapeRole),
+        ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
+        ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeOrganizationTranslation),
+        ...(u.membersDelete ? { membersDelete: u.membersDelete.map(id => ({ id })) } : {}),
     })
 }

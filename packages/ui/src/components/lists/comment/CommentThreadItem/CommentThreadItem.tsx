@@ -6,13 +6,14 @@ import { displayDate, getTranslation, getUserLanguages, PubSub } from 'utils';
 import { CommentCreateInput } from 'components/inputs';
 import { useMutation } from 'graphql/hooks';
 import { mutationWrapper } from 'graphql/utils';
-import { DeleteOneInput, DeleteType, ReportFor, StarFor, Success, VoteFor } from '@shared/consts';
+import { CommentFor, DeleteOneInput, DeleteType, ReportFor, StarFor, Success, VoteFor } from '@shared/consts';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { getCurrentUser } from 'utils/authentication';
+import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
 
 export function CommentThreadItem({
     data,
@@ -40,7 +41,7 @@ export function CommentThreadItem({
         return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };
     }, [data, session]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog

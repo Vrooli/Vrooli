@@ -8,7 +8,7 @@ import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, get
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { FindByIdInput, Standard, StandardUpdateInput } from "@shared/consts";
+import { FindByIdInput, ResourceList, Standard, StandardUpdateInput } from "@shared/consts";
 import { standardEndpoint } from "graphql/endpoints";
 
 export const StandardUpdate = ({
@@ -62,7 +62,7 @@ export const StandardUpdate = ({
         setRelationships({
             isComplete: false, //TODO
             isPrivate: standard?.isPrivate ?? false,
-            owner: standard?.creator ?? null,
+            owner: standard?.owner ?? null,
             parent: null,
             // parent: standard?.parent ?? null, TODO
             project: null // TODO

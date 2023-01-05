@@ -23,8 +23,8 @@ type ShapeHelperOptionalInput<
     RelFields extends string,
     FieldName extends string,
 > = (
-        ({ [x in `${FieldName}Delete`]?: 'Delete' extends RelFields ? MaybeArray<string, IsOneToOne> | null | undefined : never }) &
-        ({ [x in `${FieldName}Disconnect`]?: 'Disconnect' extends RelFields ? MaybeArray<string, IsOneToOne> | null | undefined : never }) &
+        ({ [x in `${FieldName}Delete`]?: 'Delete' extends RelFields ? MaybeArrayBoolean<string, IsOneToOne> | null | undefined : never }) &
+        ({ [x in `${FieldName}Disconnect`]?: 'Disconnect' extends RelFields ? MaybeArrayBoolean<string, IsOneToOne> | null | undefined : never }) &
         ({ [x in `${FieldName}Update`]?: 'Update' extends RelFields ? MaybeArray<any, IsOneToOne> | null | undefined : never })
     )
 

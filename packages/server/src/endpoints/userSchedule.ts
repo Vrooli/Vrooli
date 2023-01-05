@@ -46,7 +46,7 @@ export const typeDef = gql`
         recurrStart: Date
         recurrEnd: Date
         reminderListConnect: ID
-        reminderListDisconnect: ID
+        reminderListDisconnect: Boolean
         reminderListCreate: ReminderListCreateInput
         reminderListUpdate: ReminderListUpdateInput
         resourceListCreate: ResourceListCreateInput

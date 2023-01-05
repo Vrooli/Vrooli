@@ -15,13 +15,14 @@ import {
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
 import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload } from 'utils';
-import { routineTranslationUpdate, routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
+import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
 import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
 import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
 import { getCurrentUser } from 'utils/authentication';
+import { NodeRoutineListItem, ResourceList } from '@shared/consts';
 
 export const SubroutineInfoDialog = ({
     data,
@@ -38,9 +39,9 @@ export const SubroutineInfoDialog = ({
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
-    const subroutine = useMemo<NodeDataRoutineListItem | undefined>(() => {
+    const subroutine = useMemo<NodeRoutineListItem | undefined>(() => {
         if (!data?.node || !data?.routineItemId) return undefined;
-        return data.node.routines.find(r => r.id === data.routineItemId);
+        return data.node.items.find(r => r.id === data.routineItemId);
     }, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -87,7 +88,7 @@ export const SubroutineInfoDialog = ({
         setRelationships({
             isComplete: subroutine?.routineVersion?.isComplete ?? false,
             isPrivate: subroutine?.routineVersion?.isPrivate ?? false,
-            owner: subroutine?.routineVersion?.owner ?? null,
+            owner: subroutine?.routineVersion?.root?.owner ?? null,
             parent: null,
             // parent: subroutine?.routineVersion?.parent ?? null, TODO
             project: null //TODO
@@ -95,7 +96,7 @@ export const SubroutineInfoDialog = ({
         setInputsList(subroutine?.routineVersion?.inputs ?? []);
         setOutputsList(subroutine?.routineVersion?.outputs ?? []);
         setResourceList(subroutine?.routineVersion?.resourceList ?? { id: uuid() } as any);
-        setTags(subroutine?.routineVersion?.tags ?? []);
+        setTags(subroutine?.routineVersion?.root?.tags ?? []);
     }, [subroutine?.routineVersion]);
 
     // Handle languages
@@ -115,7 +116,7 @@ export const SubroutineInfoDialog = ({
                 instructions: '',
                 name: '',
             }],
-            version: subroutine?.routineVersion?.version ?? '',
+            version: subroutine?.routineVersion?.versionLabel ?? '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: validationSchema({ minVersion: subroutine?.routineVersion?.version ?? '0.0.1' }),
@@ -125,7 +126,7 @@ export const SubroutineInfoDialog = ({
                 ...subroutine,
                 index: Math.max(values.index - 1, 0), // Formik index starts at 1, for user convenience
                 routine: {
-                    ...subroutine.routine,
+                    ...subroutine.routineVersion,
                     isInternal: values.isInternal,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
@@ -193,7 +194,7 @@ export const SubroutineInfoDialog = ({
         removeTranslation(formik, 'translationsUpdate', language);
     }, [formik, languages]);
 
-    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.isInternal || subroutine?.routineVersion?.owner?.id === userId || subroutine?.routineVersion?.permissionsRoutine?.canEdit === true), [isEditing, subroutine?.routineVersion?.isInternal, subroutine?.routineVersion?.owner?.id, subroutine?.routineVersion?.permissionsRoutine?.canEdit, userId]);
+    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.permissionsRoutine?.canEdit === true), [isEditing, subroutine?.routineVersion?.isInternal, subroutine?.routineVersion?.owner?.id, subroutine?.routineVersion?.permissionsRoutine?.canEdit, userId]);
 
     /**
      * Navigate to the subroutine's build page
@@ -250,9 +251,9 @@ export const SubroutineInfoDialog = ({
                 <Typography variant="h6" ml={1} mr={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
                 {/* Version */}
                 <VersionDisplay
-                    currentVersion={subroutine?.routineVersion?.version}
+                    currentVersion={subroutine?.routineVersion?.versionLabel}
                     prefix={" - "}
-                    versions={subroutine?.routineVersion?.version ? [subroutine?.routineVersion?.version] : []} //TODO need to query versions
+                    versions={subroutine?.routineVersion?.versionLabel ? [subroutine?.routineVersion?.version] : []} //TODO need to query versions
                 />
                 {/* Button to open in full page */}
                 {!subroutine?.routineVersion?.isInternal && (
@@ -321,7 +322,7 @@ export const SubroutineInfoDialog = ({
                                         disabled={!canEdit}
                                         label="Order"
                                         min={1}
-                                        max={data?.node?.routines?.length ?? 1}
+                                        max={data?.node?.items?.length ?? 1}
                                         tooltip="The order of this subroutine in its parent routine"
                                         value={formik.values.index}
                                         handleChange={(value: number) => {
@@ -450,7 +451,7 @@ export const SubroutineInfoDialog = ({
                                     session={session}
                                     tags={tags}
                                 /> :
-                                    <TagList session={session} parentId={''} tags={subroutine?.routineVersion?.tags ?? []} />
+                                    <TagList session={session} parentId={''} tags={subroutine?.routineVersion?.root?.tags ?? []} />
                             }
                         </Grid>
                     </Grid>

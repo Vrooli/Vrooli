@@ -17,17 +17,6 @@ export const typeDef = gql`
         label: String!
         color: String
         organizationConnect: ID
-        apisConnect: [ID!]
-        issuesConnect: [ID!]
-        notesConnect: [ID!]
-        projectsConnect: [ID!]
-        routinesConnect: [ID!]
-        smartContractsConnect: [ID!]
-        standardsConnect: [ID!]
-        meetingsConnect: [ID!]
-        runProjectSchedulesConnect: [ID!]
-        runRoutineSchedulesConnect: [ID!]
-        userSchedulesConnect: [ID!]
         translationsCreate: [LabelTranslationCreateInput!]
     }
     input LabelUpdateInput {

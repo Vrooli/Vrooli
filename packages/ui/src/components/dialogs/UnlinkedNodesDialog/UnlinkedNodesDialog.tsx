@@ -12,10 +12,10 @@ import {
 import { UnlinkedNodesDialogProps } from '../types';
 import { noSelect } from 'styles';
 import { useCallback } from 'react';
-import { Node, NodeEnd, NodeRoutineList } from 'types';
 import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
+import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -51,7 +51,7 @@ export const UnlinkedNodesDialog = ({
                     handleUpdate={() => { }} // Intentionally blank
                     language={language}
                     linksIn={[]}
-                    node={node as NodeEnd}
+                    node={node as Node & { nodeEnd: NodeEnd }}
                 />
             case NodeType.Redirect:
                 return <RedirectNode
@@ -67,7 +67,7 @@ export const UnlinkedNodesDialog = ({
                     handleUpdate={() => { }} // Intentionally blank
                     linksIn={[]}
                     linksOut={[]}
-                    node={node as NodeRoutineList}
+                    node={node as Node & { nodeRoutineList: NodeRoutineList }}
                 />
             default:
                 return null;

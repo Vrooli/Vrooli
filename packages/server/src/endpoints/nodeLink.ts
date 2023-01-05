@@ -16,9 +16,9 @@ export const typeDef = gql`
         whensDelete: [ID!]
         operation: String
         fromConnect: ID
-        fromDisconnect: ID
+        fromDisconnect: Boolean
         toConnect: ID
-        toDisconnect: ID
+        toDisconnect: Boolean
     }
     type NodeLink{
         id: ID!

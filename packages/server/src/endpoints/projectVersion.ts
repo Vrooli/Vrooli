@@ -34,11 +34,11 @@ export const typeDef = gql`
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
+        directoryListingsCreate: [ProjectVersionDirectoryCreateInput!]
         rootConnect: ID
         rootCreate: ProjectCreateInput
-        translationsCreate: [ProjectVersionTranslationCreateInput!]
-        directoryListingsCreate: [ProjectVersionDirectoryCreateInput!]
         suggestedNextByProjectConnect: [ID!]
+        translationsCreate: [ProjectVersionTranslationCreateInput!]
     }
     input ProjectVersionUpdateInput {
         id: ID!

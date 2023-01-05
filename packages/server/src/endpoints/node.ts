@@ -31,7 +31,7 @@ export const typeDef = gql`
         columnIndex: Int
         rowIndex: Int
         type: NodeType
-        loopDelete: ID
+        loopDelete: Boolean
         loopCreate: NodeLoopCreateInput
         loopUpdate: NodeLoopUpdateInput
         nodeEndUpdate: NodeEndUpdateInput

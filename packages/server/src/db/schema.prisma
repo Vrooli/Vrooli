@@ -1175,9 +1175,9 @@ model quiz_question {
     updated_at   DateTime                    @default(now()) @db.Timestamptz(6)
     order        Int?
     points       Int                         @default(1)
-    standardId   String?                     @db.Uuid
+    standardVersionId   String?                     @db.Uuid
     quizId       String                      @db.Uuid
-    standard     standard?                   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    standardVersion     standard_version?                   @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
     quiz         quiz                        @relation(fields: [quizId], references: [id], onDelete: Cascade)
     responses    quiz_question_response[]
     translations quiz_question_translation[]
@@ -1836,7 +1836,6 @@ model standard {
     stats                 stats_standard[]
     questions             question[]
     transfers             transfer[]                  @relation("transfer_standard")
-    quizQuestions         quiz_question[]
     subscriptions         notification_subscription[]
 }
 
@@ -1865,6 +1864,7 @@ model standard_version {
     directoryListings     project_version_directory[]
     forks                 standard[]                     @relation("standard_version_fork")
     pullRequest           pull_request?                  @relation("pull_request_from_standard_version", fields: [pullRequestId], references: [id], onDelete: SetNull)
+    quizQuestions         quiz_question[]
     reports               report[]
     resourceList          resource_list?                 @relation("resource_list_standard_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     root                  standard                       @relation(fields: [rootId], references: [id], onDelete: Cascade)

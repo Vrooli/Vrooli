@@ -8,10 +8,10 @@ export type NodeEndShape = Pick<NodeEnd, 'id' | 'wasSuccessful' | 'suggestedNext
 }
 
 export const shapeNodeEnd: ShapeModel<NodeEndShape, NodeEndCreateInput, NodeEndUpdateInput> = {
-    create: (item) => ({
-        ...createPrims(item, 'id', 'wasSuccessful'),
-        ...createRel(item, 'node', ['Connect'], 'one'),
-        ...createRel(item, 'suggestedNextRoutineVersions', ['Connect'], 'many'),
+    create: (d) => ({
+        ...createPrims(d, 'id', 'wasSuccessful'),
+        ...createRel(d, 'node', ['Connect'], 'one'),
+        ...createRel(d, 'suggestedNextRoutineVersions', ['Connect'], 'many'),
     }),
     update: (o, u) => shapeUpdate(u, ({
         ...updatePrims(o, u, 'id', 'wasSuccessful'),

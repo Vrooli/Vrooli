@@ -8,8 +8,8 @@ import { Box, Stack, useTheme } from '@mui/material';
 import { NodeColumn, NodeEdge, SnackSeverity } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NodeGraphProps } from '../types';
-import { Node } from 'types';
 import { firstString, PubSub, usePinchZoom } from 'utils';
+import { Node, NodeType } from '@shared/consts';
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor

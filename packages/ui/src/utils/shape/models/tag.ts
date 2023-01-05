@@ -1,6 +1,6 @@
 import { Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { hasObjectChanged, shapeCreateList, createPrims, shapeUpdate, shapeUpdateList, updatePrims } from "utils";
+import { createPrims, shapeUpdate, updatePrims, createRel, updateRel } from "utils";
 
 export type TagTranslationShape = Pick<TagTranslation, 'id' | 'language' | 'description'>
 
@@ -10,19 +10,20 @@ export type TagShape = Pick<Tag, 'tag'> & {
 }
 
 export const shapeTagTranslation: ShapeModel<TagTranslationShape, TagTranslationCreateInput, TagTranslationUpdateInput> = {
-    create: (item) => createPrims(item, 'id', 'language', 'description'),
+    create: (d) => createPrims(d, 'id', 'language', 'description'),
     update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description'))
 }
 
 export const shapeTag: ShapeModel<TagShape, TagCreateInput, TagUpdateInput> = {
-    create: (item) => ({
+    idField: 'tag',
+    create: (d) => ({
         // anonymous?: boolean | null; TODO
-        tag: item.tag,
-        ...shapeCreateList(item, 'translations', shapeTagTranslation),
+        tag: d.tag,
+        ...createRel(d, 'translations', ['Create'], 'many', shapeTagTranslation),
     }),
     update: (o, u) => shapeUpdate(u, {
         // anonymous: TODO
         tag: o.tag,
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeTagTranslation, 'id'),
+        ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeTagTranslation),
     })
 }

@@ -2,7 +2,7 @@ import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/
 import { useMutation } from "graphql/hooks";
 import { useCallback, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
-import { APP_LINKS, LogOutInput, ProfileEmailUpdateInput, Session, User } from '@shared/consts';
+import { APP_LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { useFormik } from 'formik';
 import { PubSub, usePromptBeforeUnload } from "utils";
 import { SettingsAuthenticationProps } from "../types";

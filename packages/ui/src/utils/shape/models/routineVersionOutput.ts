@@ -1,44 +1,43 @@
 import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputTranslation, RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput, RoutineVersionOutputUpdateInput } from "@shared/consts";
-import { createPrims, hasObjectChanged, shapeStandardCreate, shapeUpdate, StandardShape, updatePrims } from "utils";
+import { ShapeModel } from "types";
+import { createPrims, createRel, hasObjectChanged, shapeStandardVersion, shapeUpdate, StandardVersionShape, updatePrims, updateRel } from "utils";
 
 export type RoutineVersionOutputTranslationShape = Pick<RoutineVersionOutputTranslation, 'id' | 'language' | 'description' | 'helpText'>
 
-export type OutputShape = Omit<OmitCalculated<RoutineVersionOutput>, 'translations' | 'standard'> & {
-    id: string;
-    translations: RoutineVersionOutputTranslationShape[];
-    standard: StandardShape | null;
+export type RoutineVersionOutputShape = Pick<RoutineVersionOutput, 'id' | 'index' | 'isRequired' | 'name'> & {
+    routineVersion: { id: string };
+    standardVersion?: StandardVersionShape;
+    translations?: RoutineVersionOutputTranslationShape[];
 }
 
-export const shapeRoutineVersionOutputTranslation: ShapeModel<RoutineVersionOutputTranslationShape, RoutineVersionOutputTranslationCreateOutput, RoutineVersionInputTranslationUpdateInput> = {
-    create: (item) => createPrims(item, 'id', 'language', 'description', 'helpText'),
+export const shapeRoutineVersionOutputTranslation: ShapeModel<RoutineVersionOutputTranslationShape, RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput> = {
+    create: (d) => createPrims(d, 'id', 'language', 'description', 'helpText'),
     update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'helpText'))
 }
 
 export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput> = {
-    create: (item) => {
+    create: (d) => {
         // Connect to standard if it's marked as external. 
         // Otherwise, set as create. The backend will handle the rest
-        const shouldConnectToStandard = item.standard && !item.standard.isInternal && item.standard.id;
+        const shouldConnectToStandard = d.standardVersion && !d.standardVersion.root.isInternal && d.standardVersion.id;
         return {
-            id: item.id,
-            name: item.name,
-            standardVersionConnect: {} as any,//TODO shouldConnectToStandard ? item.standard?.id as string : undefined,
-            standardCreate: item.standard && !shouldConnectToStandard ? shapeStandardCreate(item.standard) : undefined,
-            ...shapeCreateList(item, 'translations', shapeOutputTranslationCreate),
+            ...createPrims(d, 'id', 'index', 'isRequired', 'name'),
+            ...createRel(d, 'routineVersion', ['Connect'], 'one'),
+            standardVersionConnect: shouldConnectToStandard ? d.standardVersion!.id : undefined,
+            standardCreate: d.standardVersion && !shouldConnectToStandard ? shapeStandardVersion.create(d.standardVersion) : undefined,
+            ...createRel(d, 'translations', ['Create'], 'many', shapeRoutineVersionOutputTranslation),
         }
     },
     update: (o, u) => shapeUpdate(u, () => {
         // Connect to standard if it's marked as external. 
-        // Otherwise, set as create. The backend will handle the rest, even if 
-        // you're updating.
-        const shouldConnectToStandard = u.standard && !u.standard.isInternal && u.standard.id;
+        // Otherwise, set as create. The backend will handle the rest
+        const shouldConnectToStandard = u.standardVersion && !u.standardVersion.root.isInternal && u.standardVersion.id;
+        const hasStandardChanged = hasObjectChanged(o.standardVersion, u.standardVersion);
         return {
-            id: o.id,
-            name: u.name,
-            standardConnect: shouldConnectToStandard ? u.standard?.id as string : undefined,
-            standardCreate: u.standard && !shouldConnectToStandard ? shapeStandardCreate(u.standard as StandardShape) : undefined,
-            ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeOutputTranslationCreate, shapeOutputTranslationUpdate, 'id'),
+            ...updatePrims(o, u, 'id', 'index', 'isRequired', 'name'),
+            standardConnect: (hasStandardChanged && shouldConnectToStandard) ? u.standardVersion!.id : undefined,
+            standardCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.update(o.standardVersion!, u.standardVersion!) : undefined,
+            ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionOutputTranslation),
         }
     })
 }
-    

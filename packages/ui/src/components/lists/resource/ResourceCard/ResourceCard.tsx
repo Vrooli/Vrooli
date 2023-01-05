@@ -14,6 +14,7 @@ import { getResourceIcon } from '..';
 import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
 import { DeleteIcon, EditIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
+import { ResourceUsedFor } from '@shared/consts';
 
 export const ResourceCard = ({
     canEdit,

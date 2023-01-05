@@ -30,17 +30,17 @@ export const typeDef = gql`
 
     input ProjectCreateInput {
         id: ID!
-        userConnect: ID
-        organizationConnect: ID
         handle: String
         isPrivate: Boolean
-        parentConnect: ID
         permissions: String
+        userConnect: ID
+        organizationConnect: ID
+        parentConnect: ID
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
-        versionsCreate: [ProjectVersionCreateInput!]
         tagsConnect: [String!]
         tagsCreate: [TagCreateInput!]
+        versionsCreate: [ProjectVersionCreateInput!]
     }
     input ProjectUpdateInput {
         id: ID!

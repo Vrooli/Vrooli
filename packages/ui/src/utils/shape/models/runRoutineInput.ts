@@ -8,10 +8,10 @@ export type RunRoutineInputShape = Pick<RunRoutineInput, 'id' | 'data'> & {
 }
 
 export const shapeRunRoutineInput: ShapeModel<RunRoutineInputShape, RunRoutineInputCreateInput, RunRoutineInputUpdateInput> = {
-    create: (item) => ({
-        ...createPrims(item, 'id', 'data'),
-        ...createRel(item, 'input', ['Connect'], 'one'),
-        ...createRel(item, 'runRoutine', ['Connect'], 'one'),
+    create: (d) => ({
+        ...createPrims(d, 'id', 'data'),
+        ...createRel(d, 'input', ['Connect'], 'one'),
+        ...createRel(d, 'runRoutine', ['Connect'], 'one'),
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'data')

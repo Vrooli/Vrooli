@@ -27,30 +27,30 @@ export const typeDef = gql`
         callLink: String!
         documentationLink: String
         isLatest: Boolean
-        resourceListCreate: ResourceListCreateInput
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
+        directoryListingsConnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
         rootConnect: ID
         rootCreate: ApiCreateInput
         translationsCreate: [ApiVersionTranslationCreateInput!]
-        directoryListingsConnect: [ID!]
     }
     input ApiVersionUpdateInput {
         id: ID!
         callLink: String
         documentationLink: String
         isLatest: Boolean
-        resourceListCreate: ResourceListCreateInput
-        resourceListUpdate: ResourceListUpdateInput
         versionIndex: Int
         versionLabel: String
         versionNotes: String
+        directoryListingsConnect: [ID!]
+        directoryListingsDisconnect: [ID!]
+        resourceListCreate: ResourceListCreateInput
+        resourceListUpdate: ResourceListUpdateInput
         translationsCreate: [ApiVersionTranslationCreateInput!]
         translationsUpdate: [ApiVersionTranslationUpdateInput!]
         translationsDelete: [ID!]
-        directoryListingsConnect: [ID!]
-        directoryListingsDisconnect: [ID!]
     }
     type ApiVersion {
         id: ID!
@@ -93,7 +93,7 @@ export const typeDef = gql`
         id: ID!
         language: String!
         summary: String
-        details: String
+        details: String!
     }
 
     input ApiVersionSearchInput {

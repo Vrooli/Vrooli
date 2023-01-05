@@ -4,6 +4,9 @@ import { Box, useTheme } from "@mui/material";
 import { base36ToUuid, getLastUrlPart } from "utils";
 import { PageTitle } from "components/text";
 import { ReportsViewPageProps } from "pages/view/types";
+import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
+import { Wrap } from "types";
+import { reportEndpoint } from "graphql/endpoints";
 
 /**
  * Maps object types to the correct id fields
@@ -25,11 +28,11 @@ export const ReportsView = ({
     const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
     const objectType = useMemo(() => getLastUrlPart(1), []);
 
-    const { data } = useQuery<reports, reportsVariables>(
-        reportsQuery,
+    const { data } = useQuery<Wrap<ReportSearchResult, 'reports'>, Wrap<ReportSearchInput, 'input'>>(
+        reportEndpoint.findMany[0],
         { variables: { input: { [objectTypeToIdField[objectType]]: id } } },
     );
-    const reports = useMemo<reports_reports_edges_node[]>(() => {
+    const reports = useMemo<Report[]>(() => {
         if (!data) return []
         return data.reports.edges.map(edge => edge.node);
     }, [data]);

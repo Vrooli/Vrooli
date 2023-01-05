@@ -31,6 +31,7 @@ export const typeDef = gql`
     input StandardCreateInput {
         id: ID!
         name: String!
+        isInternal: Boolean
         isPrivate: Boolean
         permissions: String!
         parentConnect: ID
@@ -44,6 +45,7 @@ export const typeDef = gql`
     }
     input StandardUpdateInput {
         id: ID!
+        isInternal: Boolean
         isPrivate: Boolean
         permissions: String
         userConnect: ID
@@ -65,10 +67,12 @@ export const typeDef = gql`
         updated_at: Date!
         hasCompletedVersion: Boolean!
         isDeleted: Boolean!
+        isInternal: Boolean!
         isPrivate: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean
         isViewed: Boolean!
+        permissions: String!
         translatedName: String!
         score: Int!
         stars: Int!

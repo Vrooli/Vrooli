@@ -1,12 +1,11 @@
 import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { FindByIdInput, InputType } from "@shared/consts";
+import { CommentFor, FindByIdInput, InputType, ResourceList, Standard } from "@shared/consts";
 import { useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, SnackSeverity, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
 import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, standardToFieldData, TagShape } from "utils";
-import { ResourceList, Standard } from "types";
 import { uuid, uuidValidate } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";

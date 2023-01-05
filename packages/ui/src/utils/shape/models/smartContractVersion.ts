@@ -1,9 +1,10 @@
 import { SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
+import { shapeUpdate } from "./tools";
 
 export type SmartContractVersionShape = Pick<SmartContractVersion, 'id'>
 
 export const shapeSmartContractVersion: ShapeModel<SmartContractVersionShape, SmartContractVersionCreateInput, SmartContractVersionUpdateInput> = {
-    create: (item) => ({}) as any,
-    update: (o, u) => ({}) as any
+    create: (d) => ({}) as any,
+    update: (o, u) => shapeUpdate(u, {}) as any
 }

@@ -1,6 +1,6 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdInput, Routine, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
+import { APP_LINKS, CommentFor, FindByIdInput, ResourceList, Routine, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
 import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
@@ -100,7 +100,7 @@ export const RoutineView = ({
         setIsBuildOpen(false)
     }, []);
 
-    const handleRunDelete = useCallback((run: Run) => {
+    const handleRunDelete = useCallback((run: RunRoutine) => {
         if (!routine) return;
         setRoutine({
             ...routine,
@@ -108,7 +108,7 @@ export const RoutineView = ({
         });
     }, [routine]);
 
-    const handleRunAdd = useCallback((run: Run) => {
+    const handleRunAdd = useCallback((run: RunRoutine) => {
         if (!routine) return;
         setRoutine({
             ...routine,
@@ -445,7 +445,7 @@ export const RoutineView = ({
                     forceAddCommentOpen={isAddCommentOpen}
                     language={language}
                     objectId={id ?? ''}
-                    objectType={CommentFor.Routine}
+                    objectType={CommentFor.RoutineVersion}
                     onAddCommentClose={closeAddCommentDialog}
                     session={session}
                     zIndex={zIndex}

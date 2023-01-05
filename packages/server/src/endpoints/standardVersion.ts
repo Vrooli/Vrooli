@@ -32,12 +32,12 @@ export const typeDef = gql`
         type: String!
         props: String!
         yup: String
-        rootConnect: ID!
-        rootCreate: StandardCreateInput
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
+        rootConnect: ID!
+        rootCreate: StandardCreateInput
         resourceListCreate: ResourceListCreateInput
         translationsCreate: [StandardVersionTranslationCreateInput!]
     }
@@ -68,6 +68,7 @@ export const typeDef = gql`
         updated_at: Date!
         completedAt: Date
         isComplete: Boolean!
+        isLatest: Boolean!
         isDeleted: Boolean!
         isPrivate: Boolean!
         isFile: Boolean

@@ -2,14 +2,13 @@ import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typo
 import { ObjectListItemProps, ObjectListItemType } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { StarFor, VoteFor } from '@shared/consts';
+import { Project, Routine, RunStatus, Standard, StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
 import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
-import { ListProject, ListRoutine, ListStandard } from 'types';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
 
@@ -207,7 +206,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     stars={getListItemStars(object)}
                 />}
                 {commentableObjects.includes(object?.__typename ?? '') && (<CommentsButton
-                    commentsCount={(object as ListProject | ListRoutine | ListStandard)?.commentsCount ?? 0}
+                    commentsCount={(object as Project | Routine | Standard)?.commentsCount ?? 0}
                     disabled={!permissions.canComment}
                     object={object}
                 />)}
@@ -223,7 +222,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * Run list items may get a progress bar
      */
     const progressBar = useMemo(() => {
-        if (!object || object.__typename !== 'Run') return null;
+        if (!object || object.__typename !== 'RunRoutine') return null;
         const completedComplexity = object?.completedComplexity ?? null;
         const totalComplexity = object?.routine?.complexity ?? null;
         const percentComplete = object?.status === RunStatus.Completed ? 100 :

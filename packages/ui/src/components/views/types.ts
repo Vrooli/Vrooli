@@ -1,6 +1,7 @@
+import { Routine, RoutineVersion, RunRoutine, Session, User } from "@shared/consts";
 import { RelationshipsObject } from "components/inputs/types";
 import React from "react";
-import { DecisionStep, Node, Profile, Routine, Run, Session, User } from "types";
+import { DecisionStep } from "types";
 
 export interface CreateProps<T> {
     onCancel: () => void;
@@ -31,8 +32,8 @@ export interface UserViewProps extends ViewProps<User> {}
 
 
 interface SettingsBaseProps {
-    profile: Profile | undefined;
-    onUpdated: (profile: Profile) => void;
+    profile: User | undefined;
+    onUpdated: (profile: User) => void;
     session: Session;
     zIndex: number;
 }
@@ -50,7 +51,7 @@ export interface SubroutineViewProps {
      */
     owner: Routine['owner'] | null | undefined;
     routine: Routine | null | undefined;
-    run: Run | null | undefined;
+    run: RunRoutine | null | undefined;
     session: Session;
     zIndex: number;
 }
@@ -63,9 +64,9 @@ export interface DecisionViewProps {
     zIndex: number;
 }
 
-export interface RunViewProps extends ViewProps<Routine> {
+export interface RunViewProps extends ViewProps<RoutineVersion> {
     handleClose: () => void;
-    routine: Routine;
+    routineVersion: RoutineVersion;
 }
 
 export interface BuildViewProps extends ViewProps<Routine> {

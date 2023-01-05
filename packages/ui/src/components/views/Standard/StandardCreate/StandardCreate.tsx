@@ -12,7 +12,7 @@ import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession 
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
-import { Standard, StandardCreateInput } from "@shared/consts";
+import { ResourceList, Standard, StandardCreateInput } from "@shared/consts";
 import { standardEndpoint } from "graphql/endpoints";
 
 export const StandardCreate = ({

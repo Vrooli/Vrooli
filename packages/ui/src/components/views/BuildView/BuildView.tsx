@@ -2,7 +2,6 @@ import { Box, IconButton, Stack, useTheme } from '@mui/material';
 import { LinkDialog, NodeGraph, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, HelpButton, SnackSeverity, GraphActions, LanguageInput, SelectLanguageMenu } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { deleteArrayIndex, BuildAction, Status, updateArray, NodeShape, NodeLinkShape, PubSub, getRoutineStatus, keepSearchParams, usePromptBeforeUnload } from 'utils';
-import { Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Routine } from 'types';
 import { useLocation } from '@shared/route';
 import { isEqual } from '@shared/utils';
 import { BuildViewProps } from '../types';
@@ -11,6 +10,7 @@ import { StatusMessageArray } from 'components/buttons/types';
 import { BuildEditButtons, StatusButton } from 'components/buttons';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { CloseIcon } from '@shared/icons';
+import { Node, NodeLink, NodeRoutineList, NodeType } from '@shared/consts';
 
 const helpText =
     `## What am I looking at?
@@ -205,10 +205,10 @@ export const BuildView = ({
     const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
 
     // Subroutine info drawer
-    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: NodeDataRoutineList, routineItemId: string } | null>(null);
+    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: Node & { nodeRoutineList: NodeRoutineList }, routineItemId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
-        if (node) setOpenedSubroutine({ node: (node.data as NodeDataRoutineList), routineItemId: subroutineId });
+        if (node) setOpenedSubroutine({ node: node.nodeRoutineList, routineItemId: subroutineId });
     }, [nodesById]);
     const closeRoutineInfo = useCallback(() => {
         setOpenedSubroutine(null);

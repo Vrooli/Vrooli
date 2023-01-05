@@ -1,11 +1,11 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { hasObjectChanged, InputShape, NodeLinkShape, NodeShape, OutputShape, ResourceListShape, shapeInputCreate, shapeInputUpdate, shapeNodeCreate, shapeNodeUpdate, shapeNodeLinkCreate, shapeNodeLinkUpdate, shapeOutputCreate, shapeOutputUpdate, shapeResourceListCreate, shapeResourceListUpdate, shapeTagCreate, shapeTagUpdate, TagShape, createPrims, updatePrims, shapeUpdate } from "utils";
+import { NodeLinkShape, NodeShape, OutputShape, ResourceListShape, TagShape, createPrims, updatePrims, shapeUpdate, shapeRoutineVersionInput, shapeNodeLink, shapeRoutineVersionOutput, shapeRoutineVersionTranslation, shapeResourceList, updateRel, createRel, shapeTag, shapeResourceListTranslation, RoutineVersionInputShape, updateOwner, createOwner, shapeNode } from "utils";
 
 
 export type RoutineShape = Omit<OmitCalculated<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'parent' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags' | 'translations'> & {
     id: string;
-    inputs: InputShape[];
+    inputs: RoutineVersionInputShape[];
     nodeLinks?: NodeLinkShape[] | null;
     nodes?: Omit<NodeShape, 'routineId'>[] | null;
     outputs?: OutputShape[] | null;
@@ -20,49 +20,41 @@ export type RoutineShape = Omit<OmitCalculated<Routine>, 'complexity' | 'simplic
         id: string
     } | null;
     resourceLists?: ResourceListShape[] | null;
-    tags?: TagShape[] | null;
+    tags?: ({ tag: string } | TagShape)[] | null;
     translations: RoutineVersionTranslationShape[];
 }
 
 export const shapeRoutine: ShapeModel<RoutineShape, RoutineCreateInput, RoutineUpdateInput> = {
-    create: (item) => ({
-        id: item.id,
-        isAutomatable: item.isAutomatable,
-        isComplete: item.isComplete,
-        isInternal: item.isInternal,
-        isPrivate: item.isPrivate,
-        // version: item.version,TODO
-        parentId: item.parent?.id,
-        projectId: item.project?.id,
-        createdByUserId: item.owner?.__typename === 'User' ? item.owner.id : undefined,
-        createdByOrganizationId: item.owner?.__typename === 'Organization' ? item.owner.id : undefined,
-        ...createRel({
-            nodes: item.nodes?.map(n => ({ ...n, routineId: item.id }))
-        }, 'nodes', shapeNodeCreate),
-        ...createRel(item, 'nodeLinks', shapeNodeLinkCreate),
-        ...createRel(item, 'inputs', shapeInputCreate),
-        ...createRel(item, 'outputs', shapeOutputCreate),
-        ...createRel(item, 'translations', shapeRoutineTranslationCreate),
-        ...createRel(item, 'resourceLists', shapeResourceListCreate),
-        ...createRel(item, 'tags', shapeTagCreate),
+    create: (d) => ({
+        id: d.id,
+        isAutomatable: d.isAutomatable,
+        isComplete: d.isComplete,
+        isInternal: d.isInternal,
+        isPrivate: d.isPrivate,
+        // version: d.version,TODO
+        parentId: d.parent?.id,
+        projectId: d.project?.id,
+        ...createOwner(d),
+        ...createRel(d, 'nodes', ['Create'], 'many', shapeNode, (n) => ({ ...n, routineVersion: { id: d.id } })),
+        ...createRel(d, 'nodeLinks', ['Create'], 'many', shapeNodeLink),
+        ...createRel(d, 'inputs', ['Create'], 'many', shapeRoutineVersionInput),
+        ...createRel(d, 'outputs', ['Create'], 'many', shapeRoutineVersionOutput),
+        ...createRel(d, 'resourceList', ['Create'], 'one', shapeResourceList),
+        ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
+        ...createRel(d, 'translations', ['Create'], 'many', shapeRoutineVersionTranslation),
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'isAutomatable', 'isComplete', 'isInternal', 'isPrivate'),
         // ...shapePrim(o, u, 'version'),TODO
         // ...shapePrim(o, u, 'parentId'),
         // ...shapePrim(o, u, 'projectId'),
-        userId: u.owner?.__typename === 'User' ? u.owner.id : undefined,
-        organizationId: u.owner?.__typename === 'Organization' ? u.owner.id : undefined,
-        ...updateRel({
-            nodes: o.nodes?.map(n => ({ ...n, routineId: o.id }))
-        }, {
-            nodes: u.nodes?.map(n => ({ ...n, routineId: u.id }))
-        }, 'nodes', hasObjectChanged, shapeNodeCreate, shapeNodeUpdate, 'id'),
-        ...updateRel(o, u, 'nodeLinks', hasObjectChanged, shapeNodeLinkCreate, shapeNodeLinkUpdate, 'id'),
-        ...updateRel(o, u, 'inputs', hasObjectChanged, shapeInputCreate, shapeInputUpdate, 'id'),
-        ...updateRel(o, u, 'outputs', hasObjectChanged, shapeOutputCreate, shapeOutputUpdate, 'id'),
-        ...updateRel(o, u, 'translations', hasObjectChanged, shapeRoutineTranslationCreate, shapeRoutineTranslationUpdate, 'id'),
-        ...updateRel(o, u, 'resourceLists', hasObjectChanged, shapeResourceListCreate, shapeResourceListUpdate, 'id'),
-        ...updateRel(o, u, 'tags', hasObjectChanged, shapeTagCreate, shapeTagUpdate, 'tag', true, true),
+        ...updateOwner(o, u),
+        ...updateRel(o, u, 'nodes', ['Create', 'Update', 'Delete'], 'many', shapeNode, (d, i) => ({ ...d, routineVersion: { id: i.id } })),
+        ...updateRel(o, u, 'nodeLinks', ['Create', 'Update', 'Delete'], 'many', shapeNodeLink),
+        ...updateRel(o, u, 'inputs', ['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionInput),
+        ...updateRel(o, u, 'outputs',['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionOutput),
+        ...updateRel(o, u, 'resourceList', ['Create', 'Update'], 'one', shapeResourceList),
+        ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
+        ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeResourceListTranslation),
     })
 }

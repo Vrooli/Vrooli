@@ -1,45 +1,29 @@
-import { ResourceList, ResourceListCreateInput, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListUpdateInput } from "@shared/consts";
-import { ResourceShape } from "./resource";
-import { createPrims, shapeUpdate, updatePrims } from "utils";
+import { ResourceList, ResourceListCreateInput, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput } from "@shared/consts";
+import { ResourceShape, shapeResource } from "./resource";
+import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "utils";
 import { ShapeModel } from "types";
 
 export type ResourceListTranslationShape = Pick<ResourceListTranslation, 'id' | 'language' | 'description' | 'name'>
 
-export type ResourceListShape = Omit<OmitCalculated<ResourceList>, 'translations' | 'resources'> & {
-    id: string;
-    resources: Omit<ResourceShape, 'listId'>[] | null;
-    translations: ResourceListTranslationShape[] | null;
+export type ResourceListShape = Pick<ResourceList, 'id'> & {
+    resources?: ResourceShape[];
+    translations?: ResourceListTranslationShape[];
 }
 
 export const shapeResourceListTranslation: ShapeModel<ResourceListTranslationShape, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput> = {
-    create: (item) => createPrims(item, 'id', 'language', 'description', 'name'),
+    create: (d) => createPrims(d, 'id', 'language', 'description', 'name'),
     update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'))
 }
 
 export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreateInput, ResourceListUpdateInput> = {
-    create: (item) => ({
-        ...createPrims(item, 'id'),
-        ...shapeCreateList(item, 'translations', shapeResourceListTranslationCreate),
-        ...shapeCreateList({
-            resources: item.resources?.map(r => ({
-                ...r,
-                listId: item.id,
-            }))
-        }, 'resources', shapeResourceCreate),
+    create: (d) => ({
+        ...createPrims(d, 'id'),
+        ...createRel(d, 'resources', ['Create'], 'many', shapeResource, (r) => ({ list: { id: d.id }, ...r })),
+        ...createRel(d, 'translations', ['Create'], 'many', shapeResourceListTranslation),
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id'),
-        ...shapeUpdateList(o, u, 'translations', hasObjectChanged, shapeResourceListTranslationCreate, shapeResourceListTranslationUpdate, 'id'),
-        ...shapeUpdateList({
-            resources: o.resources?.map(r => ({
-                ...r,
-                listId: o.id,
-            }))
-        }, {
-            resources: u.resources?.map(r => ({
-                ...r,
-                listId: u.id,
-            }))
-        }, 'resources', hasObjectChanged, shapeResourceCreate, shapeResourceUpdate, 'id'),
+        ...updateRel(o, u, 'resources', ['Create', 'Update', 'Delete'], 'many', shapeResource, (r, i) => ({ list: { id: i.id} , ...r })),
+        ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeResourceListTranslation),
     })
 }

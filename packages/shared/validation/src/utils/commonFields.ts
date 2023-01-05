@@ -40,11 +40,19 @@ const MAX_INT = 2 ** 32 - 1;
 const MAX_DOUBLE = 2 ** 32 - 1;
 const MIN_INT = -(2 ** 32);
 const MIN_DOUBLE = -(2 ** 32);
-export const doublePositiveOrZero = yup.number().transform((v) => v || undefined).min(0, minNumErr).max(MAX_DOUBLE, maxNumErr);
-export const intPositiveOrZero = yup.number().transform((v) => v || undefined).min(0, minNumErr).max(MAX_INT, maxNumErr).integer();
-export const double = yup.number().transform((v) => v || undefined).min(MIN_DOUBLE, minNumErr).max(MAX_DOUBLE, maxNumErr);
-export const int = yup.number().transform((v) => v || undefined).min(MIN_INT, minNumErr).max(MAX_INT, maxNumErr).integer();
+export const doublePositiveOrZero = yup.number().min(0, minNumErr).max(MAX_DOUBLE, maxNumErr);
+export const intPositiveOrZero = yup.number().min(0, minNumErr).max(MAX_INT, maxNumErr).integer();
+export const intPositiveOrOne = yup.number().min(1, minNumErr).max(MAX_INT, maxNumErr).integer();
+export const double = yup.number().min(MIN_DOUBLE, minNumErr).max(MAX_DOUBLE, maxNumErr);
+export const int = yup.number().min(MIN_INT, minNumErr).max(MAX_INT, maxNumErr).integer();
 export const index = intPositiveOrZero;
+
+// dates
+export const timeZone = yup.string().transform(blankToUndefined).max(64, maxStrErr)
+export const eventStart = yup.date().min(new Date(), 'Start date must be in the future');
+export const eventEnd = yup.date().min(yup.ref('eventStart'), 'End date must be after start date');
+export const recurrStart = yup.date().min(new Date(), 'Start date must be in the future');
+export const recurrEnd = yup.date().min(yup.ref('recurrStart'), 'End date must be after start date');
 
 // strings
 export const bio = yup.string().transform(blankToUndefined).max(2048, maxStrErr);
@@ -60,11 +68,7 @@ export const tagArray = reqArr(tag)
 export const nodeCondition = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
 export const nodeOperation = yup.string().transform(blankToUndefined).max(512, maxStrErr)
 export const permissions = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
-export const timeZone = yup.string().transform(blankToUndefined).max(64, maxStrErr)
-export const eventStart = yup.string().transform(blankToUndefined).max(64, maxStrErr)
-export const eventEnd = yup.string().transform(blankToUndefined).max(64, maxStrErr)
-export const recurrStart = yup.string().transform(blankToUndefined).max(64, maxStrErr)
-export const recurrEnd = yup.string().transform(blankToUndefined).max(64, maxStrErr)
+export const response = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
 export const message = yup.string().transform(blankToUndefined).max(4096, maxStrErr)
 export const theme = yup.string().transform(blankToUndefined).max(128, maxStrErr);
 export const password = yup.string().min(8).max(50).matches(passwordRegex, passwordErr);

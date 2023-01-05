@@ -1,9 +1,8 @@
 import { uniqBy } from "@shared/utils";
-import { Node, NodeDataRoutineList, NodeLink, Routine, RunInput } from "types";
 import { uuid } from '@shared/uuid';
 import { Status } from "./consts";
-import { shapeRunInputCreate, shapeRunInputUpdate } from "./shape";
-import { shapeUpdateList } from "./shape/models/tools/shapeOLD";
+import { Node, NodeLink, NodeType, Routine, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
+import { shapeRunRoutineInput, updateRel } from "./shape";
 
 /**
  * Calculates the percentage of the run that has been completed.
@@ -36,16 +35,16 @@ export const locationArraysMatch = (locationA: number[], locationB: number[]): b
 }
 
 /**
- * Determines if a routine has subroutines. This may be simple, depending on 
+ * Determines if a routine version has subroutines. This may be simple, depending on 
  * how much information is provided
- * @param routine The routine to check
- * @return True if the routine has subroutines, false otherwise
+ * @param routine The routine version to check
+ * @return True if the routine version has subroutines, false otherwise
  */
-export const routineHasSubroutines = (routine: Partial<Routine>): boolean => {
-    // If routine has nodes or links, we know it has subroutines
-    if (routine.nodes && routine.nodes.length > 0) return true;
-    if (routine.nodeLinks && routine.nodeLinks.length > 0) return true;
-    if ((routine as any).nodesCount && (routine as any).nodesCount > 0) return true;
+export const routineVersionHasSubroutines = (routineVersion: Partial<RoutineVersion>): boolean => {
+    // If routineVersion has nodes or links, we know it has subroutines
+    if (routineVersion.nodes && routineVersion.nodes.length > 0) return true;
+    if (routineVersion.nodeLinks && routineVersion.nodeLinks.length > 0) return true;
+    if ((routineVersion as any).nodesCount && (routineVersion as any).nodesCount > 0) return true;
     return false;
 }
 
@@ -87,7 +86,7 @@ export const runInputsToFormik = (runInputs: { input: { id: string }, data: stri
  * @param runInputs The run inputs object
  * @returns The run input create input object
  */
-export const runInputsCreate = (runInputs: { [x: string]: string }): { inputsCreate: RunInputCreateInput[] } => {
+export const runInputsCreate = (runInputs: { [x: string]: string }): { inputsCreate: RunRoutineInputCreateInput[] } => {
     return {
         inputsCreate: Object.entries(runInputs).map(([inputId, data]) => ({
             id: uuid(),
@@ -104,11 +103,11 @@ export const runInputsCreate = (runInputs: { [x: string]: string }): { inputsCre
  * @returns The run input update input object
  */
 export const runInputsUpdate = (
-    original: RunInput[],
+    original: RunRoutineInput[],
     updated: { [x: string]: string },
 ): {
-    inputsCreate?: RunInputCreateInput[],
-    inputsUpdate?: RunInputUpdateInput[],
+    inputsCreate?: RunRoutineInputCreateInput[],
+    inputsUpdate?: RunRoutineInputUpdateInput[],
     inputsDelete?: string[],
 } => {
     // Convert user inputs object to RunInput[]
@@ -124,15 +123,7 @@ export const runInputsUpdate = (
             updatedInputs[currUpdated].id = currOriginal.id;
         }
     }
-    return shapeUpdateList(
-        { inputs: original },
-        { inputs: updatedInputs },
-        'inputs',
-        (o, u) => o.data !== u.data,
-        shapeRunInputCreate,
-        shapeRunInputUpdate,
-        'id'
-    );
+    return updateRel({ inputs: original }, { inputs: updatedInputs }, 'inputs', ['Create', 'Update', 'Delete'], 'many', shapeRunRoutineInput);
 }
 
 type GetRoutineStatusResult = {
@@ -213,7 +204,7 @@ export const getRoutineStatus = (routine?: Partial<Routine> | null): GetRoutineS
         statuses.push([Status.Incomplete, 'Some nodes are not linked']);
     }
     // Check 2
-    if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && (node.data as NodeDataRoutineList)?.routines?.length === 0)) {
+    if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && node.nodeRoutineList?.items?.length === 0)) {
         statuses.push([Status.Incomplete, 'At least one routine list is empty']);
     }
     // Return statuses, or valid if no statuses
@@ -232,7 +223,7 @@ export const getRoutineStatus = (routine?: Partial<Routine> | null): GetRoutineS
  * @param language The language of the routine
  * @returns Initial data for a new routine
  */
-export const initializeRoutineGraph = (language: string): { nodes: Routine['nodes'], nodeLinks: Routine['nodeLinks'] } => {
+export const initializeRoutineGraph = (language: string): { nodes: Node[], nodeLinks: NodeLink[] } => {
     const startNode: Node = {
         id: uuid(),
         type: NodeType.Start,

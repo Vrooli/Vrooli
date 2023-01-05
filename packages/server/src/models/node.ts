@@ -36,10 +36,8 @@ export const NodeModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
-            data: {
-                nodeEnd: 'NodeEnd',
-                nodeRoutineList: 'NodeRoutineList',
-            },
+            nodeEnd: 'NodeEnd',
+            nodeRoutineList: 'NodeRoutineList',
             loop: 'NodeLoop',
             routineVersion: 'RoutineVersion',
         },

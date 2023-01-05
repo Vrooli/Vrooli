@@ -1,6 +1,6 @@
 import { Node, NodeCreateInput, NodeTranslation, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { createPrims, createRel, NodeEndShape, NodeRoutineListShape, shapeUpdate, updatePrims, updateRel } from "utils";
+import { createPrims, createRel, NodeEndShape, NodeRoutineListShape, shapeNodeEnd, shapeNodeRoutineList, shapeUpdate, updatePrims, updateRel } from "utils";
 
 export type NodeTranslationShape = Pick<NodeTranslation, 'id' | 'language' | 'description' | 'name'>
 
@@ -8,23 +8,23 @@ export type NodeShape = Pick<Node, 'id' | 'columnIndex' | 'rowIndex' | 'type'> &
     // loop: LoopShape
     nodeEnd: NodeEndShape;
     nodeRoutineList: NodeRoutineListShape;
-    routineVersionId: string;
+    routineVersion: { id: string };
     translations: NodeTranslationShape[];
 }
 
 export const shapeNodeTranslation: ShapeModel<NodeTranslationShape, NodeTranslationCreateInput, NodeTranslationUpdateInput> = {
-    create: (item) => createPrims(item, 'id', 'language', 'description', 'name'),
+    create: (d) => createPrims(d, 'id', 'language', 'description', 'name'),
     update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'))
 }
 
 export const shapeNode: ShapeModel<NodeShape, NodeCreateInput, NodeUpdateInput> = {
-    create: (item) => ({
-        ...createPrims(item, 'id', 'columnIndex', 'rowIndex', 'type'),
-        ...createRel(item, 'routineVersion', ['Connect'], 'one'),
-        // ...createRel(item, 'loop', ['Create'], 'one', shapeLoop),
-        ...createRel(item, 'nodeEnd', ['Create'], 'one', shapeNodeEnd),
-        ...createRel(item, 'nodeRoutineList', ['Create'], 'one', shapeNodeRoutineList),
-        ...createRel(item, 'translations', ['Create'], 'many', shapeNodeTranslation),
+    create: (d) => ({
+        ...createPrims(d, 'id', 'columnIndex', 'rowIndex', 'type'),
+        ...createRel(d, 'routineVersion', ['Connect'], 'one'),
+        // ...createRel(d, 'loop', ['Create'], 'one', shapeLoop),
+        ...createRel(d, 'nodeEnd', ['Create'], 'one', shapeNodeEnd),
+        ...createRel(d, 'nodeRoutineList', ['Create'], 'one', shapeNodeRoutineList),
+        ...createRel(d, 'translations', ['Create'], 'many', shapeNodeTranslation),
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'columnIndex', 'rowIndex', 'type'),

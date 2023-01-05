@@ -1,11 +1,11 @@
 import { ListItem, ListItemButton, ListItemText, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
-import { Node, NodeDataEnd, NodeLink } from "types";
 import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
 import { HelpButton } from "components/buttons";
 import { OpenInNewIcon } from "@shared/icons";
+import { Node, NodeType } from "@shared/consts";
 
 const helpText = 
 `The routine has encountered multiple possible paths to take, with no way to decide automatically which one to take. 
@@ -63,10 +63,10 @@ export const DecisionView = ({
                 <Typography variant="h4" sx={{ textAlign: 'center' }}>What would you like to do next?</Typography>
                 <HelpButton markdown={helpText} sx={{ width: '40px', height: '40px' }} />
             </Stack>
-            {/* Each decision as its own ListItem, with title and description */}
+            {/* Each decision as its own ListItem, with name and description */}
             {decisions.map((decision, index) => {
                 const languages = getUserLanguages(session);
-                const { description, title } = getTranslation(decision.node, languages, true);
+                const { description, name } = getTranslation(decision.node, languages, true);
                 return (<ListItem
                     disablePadding
                     onClick={() => { toDecision(index); }}
@@ -82,7 +82,7 @@ export const DecisionView = ({
                         <Stack direction="column" spacing={1} pl={2} sx={{ width: '-webkit-fill-available', alignItems: 'center' }}>
                             {/* Name/Title */}
                             <ListItemText
-                                primary={title}
+                                primary={name}
                                 sx={{ 
                                     ...multiLineEllipsis(1), 
                                     fontWeight: 'bold',

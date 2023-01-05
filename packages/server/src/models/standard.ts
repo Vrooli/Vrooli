@@ -91,7 +91,6 @@ export const StandardModel: ModelLogic<{
             stats: 'StatsStandard',
             questions: 'Question',
             transfers: 'Transfer',
-            quizQuestions: 'QuizQuestion',
         },
         joinMap: { labels: 'label', tags: 'tag', starredBy: 'user' },
         countFields: {

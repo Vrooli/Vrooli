@@ -9,14 +9,14 @@ import {
 import { BaseObjectDialog, DialogTitle } from 'components';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StandardSelectOrCreateDialogProps } from '../types';
-import { Standard } from 'types';
 import { SearchList } from 'components/lists';
 import { useLazyQuery } from 'graphql/hooks';
 import { StandardCreate } from 'components/views/Standard/StandardCreate/StandardCreate';
 import { SearchType, standardSearchSchema, removeSearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';
-import { FindByIdInput } from '@shared/consts';
+import { FindByIdInput, Standard } from '@shared/consts';
+import { standardEndpoint } from 'graphql/endpoints';
 
 const helpText =
     `This dialog allows you to connect a new or existing standard to a routine input/output.

@@ -28,7 +28,6 @@ export const typeDef = gql`
         order: Int
         points: Int
         standardConnect: ID
-        standardDisconnect: ID
         standardCreate: StandardCreateInput
         standardUpdate: StandardUpdateInput
         translationsCreate: [QuizQuestionTranslationCreateInput!]

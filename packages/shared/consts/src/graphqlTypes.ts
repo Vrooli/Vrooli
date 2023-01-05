@@ -257,7 +257,7 @@ export enum ApiVersionSortBy {
 
 export type ApiVersionTranslation = {
   __typename?: 'ApiVersionTranslation';
-  details?: Maybe<Scalars['String']>;
+  details: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
   summary?: Maybe<Scalars['String']>;
@@ -816,22 +816,11 @@ export type Label = {
 };
 
 export type LabelCreateInput = {
-  apisConnect?: InputMaybe<Array<Scalars['ID']>>;
   color?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  issuesConnect?: InputMaybe<Array<Scalars['ID']>>;
   label: Scalars['String'];
-  meetingsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  notesConnect?: InputMaybe<Array<Scalars['ID']>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
-  projectsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  routinesConnect?: InputMaybe<Array<Scalars['ID']>>;
-  runProjectSchedulesConnect?: InputMaybe<Array<Scalars['ID']>>;
-  runRoutineSchedulesConnect?: InputMaybe<Array<Scalars['ID']>>;
-  smartContractsConnect?: InputMaybe<Array<Scalars['ID']>>;
-  standardsConnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<LabelTranslationCreateInput>>;
-  userSchedulesConnect?: InputMaybe<Array<Scalars['ID']>>;
 };
 
 export type LabelEdge = {
@@ -2142,9 +2131,11 @@ export type NodeLinkCreateInput = {
 
 export type NodeLinkUpdateInput = {
   fromConnect?: InputMaybe<Scalars['ID']>;
+  fromDisconnect?: InputMaybe<Scalars['Boolean']>;
   id: Scalars['ID'];
   operation?: InputMaybe<Scalars['String']>;
   toConnect?: InputMaybe<Scalars['ID']>;
+  toDisconnect?: InputMaybe<Scalars['Boolean']>;
   whensCreate?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
   whensDelete?: InputMaybe<Array<Scalars['ID']>>;
   whensUpdate?: InputMaybe<Array<NodeLinkWhenUpdateInput>>;
@@ -2376,7 +2367,7 @@ export type NodeUpdateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
   id: Scalars['ID'];
   loopCreate?: InputMaybe<NodeLoopCreateInput>;
-  loopDelete?: InputMaybe<Scalars['ID']>;
+  loopDelete?: InputMaybe<Scalars['Boolean']>;
   loopUpdate?: InputMaybe<NodeLoopUpdateInput>;
   nodeEndUpdate?: InputMaybe<NodeEndUpdateInput>;
   nodeRoutineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
@@ -2929,7 +2920,8 @@ export type OrganizationUpdateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
   memberInvitesDelete?: InputMaybe<Array<Scalars['ID']>>;
-  membersDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  membersDelete?: InputMaybe<Array<Scalars['ID']>>;
+  resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
   rolesDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -4811,6 +4803,7 @@ export type QuizQuestionResponse = {
 
 export type QuizQuestionResponseCreateInput = {
   id: Scalars['ID'];
+  quizAttemptConnect: Scalars['ID'];
   quizQuestionConnect: Scalars['ID'];
   response?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<QuizQuestionResponseTranslationCreateInput>>;
@@ -4939,7 +4932,6 @@ export type QuizQuestionUpdateInput = {
   points?: InputMaybe<Scalars['Int']>;
   standardConnect?: InputMaybe<Scalars['ID']>;
   standardCreate?: InputMaybe<StandardCreateInput>;
-  standardDisconnect?: InputMaybe<Scalars['ID']>;
   standardUpdate?: InputMaybe<StandardUpdateInput>;
   translationsCreate?: InputMaybe<Array<QuizQuestionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -5392,7 +5384,7 @@ export type Resource = {
   listId: Scalars['ID'];
   translations: Array<ResourceTranslation>;
   updated_at: Scalars['Date'];
-  usedFor?: Maybe<ResourceUsedFor>;
+  usedFor: ResourceUsedFor;
 };
 
 export type ResourceCreateInput = {
@@ -7092,6 +7084,7 @@ export type Standard = {
   hasCompletedVersion: Scalars['Boolean'];
   id: Scalars['ID'];
   isDeleted: Scalars['Boolean'];
+  isInternal: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -7102,6 +7095,7 @@ export type Standard = {
   name: Scalars['String'];
   owner?: Maybe<Owner>;
   parent?: Maybe<Standard>;
+  permissions: Scalars['String'];
   permissionsRoot: RootPermission;
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
@@ -7118,6 +7112,7 @@ export type Standard = {
 
 export type StandardCreateInput = {
   id: Scalars['ID'];
+  isInternal?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
@@ -7194,6 +7189,7 @@ export enum StandardSortBy {
 
 export type StandardUpdateInput = {
   id: Scalars['ID'];
+  isInternal?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
@@ -7224,6 +7220,7 @@ export type StandardVersion = {
   isComplete: Scalars['Boolean'];
   isDeleted: Scalars['Boolean'];
   isFile?: Maybe<Scalars['Boolean']>;
+  isLatest: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   permissions: VersionPermission;
   props: Scalars['String'];
@@ -8245,7 +8242,7 @@ export type UserScheduleUpdateInput = {
   recurring?: InputMaybe<Scalars['Boolean']>;
   reminderListConnect?: InputMaybe<Scalars['ID']>;
   reminderListCreate?: InputMaybe<ReminderListCreateInput>;
-  reminderListDisconnect?: InputMaybe<Scalars['ID']>;
+  reminderListDisconnect?: InputMaybe<Scalars['Boolean']>;
   reminderListUpdate?: InputMaybe<ReminderListUpdateInput>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
@@ -9878,7 +9875,7 @@ export type ApiVersionSearchResultResolvers<ContextType = any, ParentType extend
 };
 
 export type ApiVersionTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['ApiVersionTranslation'] = ResolversParentTypes['ApiVersionTranslation']> = {
-  details?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  details?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   summary?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -11585,7 +11582,7 @@ export type ResourceResolvers<ContextType = any, ParentType extends ResolversPar
   listId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ResourceTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  usedFor?: Resolver<Maybe<ResolversTypes['ResourceUsedFor']>, ParentType, ContextType>;
+  usedFor?: Resolver<ResolversTypes['ResourceUsedFor'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12194,6 +12191,7 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   hasCompletedVersion?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isInternal?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -12204,6 +12202,7 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['Standard']>, ParentType, ContextType>;
+  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   permissionsRoot?: Resolver<ResolversTypes['RootPermission'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12245,6 +12244,7 @@ export type StandardVersionResolvers<ContextType = any, ParentType extends Resol
   isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isFile?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['VersionPermission'], ParentType, ContextType>;
   props?: Resolver<ResolversTypes['String'], ParentType, ContextType>;

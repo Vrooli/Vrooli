@@ -48,6 +48,7 @@ const suppFields = [] as const;
 //         directoryListings: 'ProjectVersionDirectory',
 //         forks: 'Standard',
 //         pullRequest: 'PullRequest',
+//         quizQuestions: 'QuizQuestion',
 //         reports: 'Report',
 //         root: 'Standard',
 //         resourceList: 'ResourceList',

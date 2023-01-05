@@ -15,9 +15,9 @@ import {
 import { DialogTitle, GridSubmitButtons, SnackSeverity } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
-import { Node } from 'types';
 import { getTranslation, PubSub } from 'utils';
 import { uuid } from '@shared/uuid';
+import { Node, NodeType } from '@shared/consts';
 
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.

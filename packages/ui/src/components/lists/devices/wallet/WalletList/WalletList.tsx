@@ -3,7 +3,6 @@
  */
 import { WalletListProps } from '../types';
 import { useCallback, useState } from 'react';
-import { Wallet } from 'types';
 import { Box, Button } from '@mui/material';
 import { useMutation } from 'graphql/hooks';
 import { mutationWrapper } from 'graphql/utils';
@@ -12,7 +11,7 @@ import { hasWalletExtension, validateWallet } from 'utils/authentication/walletI
 import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
-import { DeleteOneInput, Success, WalletUpdateInput } from '@shared/consts';
+import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from '@shared/consts';
 import { deleteOneOrManyEndpoint, walletEndpoint } from 'graphql/endpoints';
 
 export const WalletList = ({

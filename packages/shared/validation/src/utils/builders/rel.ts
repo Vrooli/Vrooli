@@ -48,7 +48,13 @@ export const rel = <
     RelTypes extends readonly RelationshipType[],
     FieldName extends string,
     // Model only required when RelTypes includes 'Create' or 'Update'
-    Model extends 'Create' extends RelTypes[number] ? YupModel : 'Update' extends RelTypes[number] ? YupModel : never
+    Model extends ('Create' extends RelTypes[number] ?
+        'Update' extends RelTypes[number] ?
+        YupModel<true, true> :
+        YupModel<true, false> :
+        'Update' extends RelTypes[number] ?
+        YupModel<false, true> :
+        never)
 >(
     relation: FieldName,
     relTypes: RelTypes,

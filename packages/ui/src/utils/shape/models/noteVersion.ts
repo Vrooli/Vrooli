@@ -1,9 +1,10 @@
 import { NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
+import { shapeUpdate } from "./tools";
 
 export type NoteVersionShape = Pick<NoteVersion, 'id'>
 
 export const shapeNoteVersion: ShapeModel<NoteVersionShape, NoteVersionCreateInput, NoteVersionUpdateInput> = {
-    create: (item) => ({}) as any,
-    update: (o, u) => ({}) as any
+    create: (d) => ({}) as any,
+    update: (o, u) => shapeUpdate(u, {}) as any
 }

@@ -1,6 +1,6 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { DeleteType, NodeLink, NodeRoutineList, NodeRoutineListItem, Organization, Project, ReportFor, Resource, Session, Standard, User } from '@shared/consts';
+import { DeleteType, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, Organization, Project, ReportFor, Resource, Routine, RoutineVersion, RunRoutine, Session, Standard, User } from '@shared/consts';
 import { NavigableObject, RoutineStep } from 'types';
 import { ListObjectType, SearchType } from 'utils';
 import { SvgComponent } from '@shared/icons';
@@ -230,7 +230,7 @@ export interface LinkDialogProps {
     link?: NodeLink; // Link to display on open, if editing
     nodeFrom?: Node | null; // Initial "from" node
     nodeTo?: Node | null; // Initial "to" node
-    routine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>;
+    routine: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>;
     zIndex: number;
 }
 
@@ -308,9 +308,9 @@ export interface AdvancedSearchDialogProps {
 export interface RunPickerMenuProps {
     anchorEl: HTMLElement | null;
     handleClose: () => any;
-    onAdd: (run: Run) => any;
-    onDelete: (run: Run) => any;
-    onSelect: (run: Run | null) => any;
+    onAdd: (run: RunRoutine) => any;
+    onDelete: (run: RunRoutine) => any;
+    onSelect: (run: RunRoutine | null) => any;
     routine?: Routine | null;
     session: Session;
 }

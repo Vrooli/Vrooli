@@ -15,6 +15,7 @@ export const typeDef = gql`
     input QuizQuestionResponseCreateInput {
         id: ID!
         response: String
+        quizAttemptConnect: ID!
         quizQuestionConnect: ID!
         translationsCreate: [QuizQuestionResponseTranslationCreateInput!]
     }
