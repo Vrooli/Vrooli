@@ -65,18 +65,7 @@ export const typeDef = gql`
         forksCount: Int!
         comments: [Comment!]!
         commentsCount: Int!
-        permissionsVersion: VersionPermission!
-    }
-
-    type NoteVersionPermission {
-        canComment: Boolean!
-        canCopy: Boolean!
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canReport: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
+        you: VersionYou!
     }
 
     input NoteVersionTranslationCreateInput {

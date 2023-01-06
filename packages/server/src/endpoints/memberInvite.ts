@@ -47,10 +47,10 @@ export const typeDef = gql`
         status: MemberInviteStatus!
         willBeAdmin: Boolean!
         willHavePermissions: String
-        permissionsMemberInvite: MemberInvitePermission!
+        you: MemberInviteYou!
     }
 
-    type MemberInvitePermission {
+    type MemberInviteYou {
         canDelete: Boolean!
         canEdit: Boolean!
     }

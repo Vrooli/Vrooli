@@ -18,8 +18,8 @@ export const typeDef = gql`
         id: ID!
         order: Int
         points: Int
-        standardConnect: ID
-        standardCreate: StandardCreateInput
+        standardVersionConnect: ID
+        standardVersionCreate: StandardVersionCreateInput
         quizConnect: ID
         translationsCreate: [QuizQuestionTranslationCreateInput!]
     }
@@ -27,9 +27,9 @@ export const typeDef = gql`
         id: ID!
         order: Int
         points: Int
-        standardConnect: ID
-        standardCreate: StandardCreateInput
-        standardUpdate: StandardUpdateInput
+        standardVersionConnect: ID
+        standardVersionCreate: StandardVersionCreateInput
+        standardVersionUpdate: StandardVersionUpdateInput
         translationsCreate: [QuizQuestionTranslationCreateInput!]
         translationsUpdate: [QuizQuestionTranslationUpdateInput!]
         translationsDelete: [ID!]
@@ -41,13 +41,14 @@ export const typeDef = gql`
         order: Int
         points: Int!
         quiz: Quiz!
-        standard: Standard
         responses: [QuizQuestionResponse!]
         responsesCount: Int!
+        standardVersion: StandardVersion
         translations: [QuizQuestionTranslation!]
+        you: QuizQuestionYou!
     }
 
-    type QuizQuestionPermission {
+    type QuizQuestionYou {
         canDelete: Boolean!
         canEdit: Boolean!
     }

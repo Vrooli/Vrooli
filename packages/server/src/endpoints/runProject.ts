@@ -66,10 +66,10 @@ export const typeDef = gql`
         steps: [RunProjectStep!]!
         user: User
         organization: Organization
-        permissionsRun: RunProjectPermission!
+        you: RunProjectYou!
     }
 
-    type RunProjectPermission {
+    type RunProjectYou {
         canDelete: Boolean!
         canEdit: Boolean!
         canView: Boolean!

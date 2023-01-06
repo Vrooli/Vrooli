@@ -27,6 +27,7 @@ model api {
     score                 Int                         @default(0)
     stars                 Int                         @default(0)
     views                 Int                         @default(0)
+    permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     ownedByUserId         String?                     @db.Uuid
     ownedByOrganizationId String?                     @db.Uuid
@@ -315,11 +316,11 @@ model node_translation {
 }
 
 model node_end {
-    id                          String          @id @default(uuid()) @db.Uuid
-    wasSuccessful               Boolean         @default(true)
+    id                           String          @id @default(uuid()) @db.Uuid
+    wasSuccessful                Boolean         @default(true)
     suggestedNextRoutineVersions node_end_next[] @relation("node_end_next_from")
-    nodeId                      String          @unique @db.Uuid
-    node                        node            @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+    nodeId                       String          @unique @db.Uuid
+    node                         node            @relation(fields: [nodeId], references: [id], onDelete: Cascade)
 }
 
 model node_end_next {
@@ -430,6 +431,7 @@ model note {
     score                   Int                         @default(0)
     stars                   Int                         @default(0)
     views                   Int                         @default(0)
+    permissions             String                      @db.VarChar(4096)
     parentId                String?                     @db.Uuid
     createdById             String?                     @db.Uuid
     ownedByUserId           String?                     @db.Uuid
@@ -1170,17 +1172,17 @@ model quiz_question_response_translation {
 }
 
 model quiz_question {
-    id           String                      @id @default(uuid()) @db.Uuid
-    created_at   DateTime                    @default(now()) @db.Timestamptz(6)
-    updated_at   DateTime                    @default(now()) @db.Timestamptz(6)
-    order        Int?
-    points       Int                         @default(1)
-    standardVersionId   String?                     @db.Uuid
-    quizId       String                      @db.Uuid
-    standardVersion     standard_version?                   @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
-    quiz         quiz                        @relation(fields: [quizId], references: [id], onDelete: Cascade)
-    responses    quiz_question_response[]
-    translations quiz_question_translation[]
+    id                String                      @id @default(uuid()) @db.Uuid
+    created_at        DateTime                    @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime                    @default(now()) @db.Timestamptz(6)
+    order             Int?
+    points            Int                         @default(1)
+    standardVersionId String?                     @db.Uuid
+    quizId            String                      @db.Uuid
+    standardVersion   standard_version?           @relation(fields: [standardVersionId], references: [id], onDelete: Cascade)
+    quiz              quiz                        @relation(fields: [quizId], references: [id], onDelete: Cascade)
+    responses         quiz_question_response[]
+    translations      quiz_question_translation[]
 }
 
 model quiz_question_translation {

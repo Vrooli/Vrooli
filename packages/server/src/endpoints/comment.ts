@@ -54,9 +54,6 @@ export const typeDef = gql`
         updated_at: Date!
         commentedOn: CommentedOn!
         owner: Owner
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        permissionsComment: CommentPermission
         reports: [Report!]!
         reportsCount: Int!
         score: Int!
@@ -64,16 +61,18 @@ export const typeDef = gql`
         starredBy: [User!]
         translations: [CommentTranslation!]!
         translationsCount: Int!
+        you: CommentYou!
     }
 
-    type CommentPermission {
+    type CommentYou {
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!
         canReply: Boolean!
         canReport: Boolean!
-        canView: Boolean!
         canVote: Boolean!
+        isStarred: Boolean!
+        isUpvoted: Boolean
     }
 
     input CommentTranslationCreateInput {

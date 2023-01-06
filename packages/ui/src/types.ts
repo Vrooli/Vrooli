@@ -3,7 +3,7 @@ import { ListObjectType, RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { Path } from '@shared/route/src/useLocation';
 import { TFuncKey } from 'i18next';
-import { NodeLink, Routine, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;

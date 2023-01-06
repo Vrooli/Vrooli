@@ -19,6 +19,7 @@ export const typeDef = gql`
         handle: String
         isOpenToNewMembers: Boolean
         isPrivate: Boolean
+        permissions: String
         memberInvitesCreate: [MemberInviteCreateInput!]
         resourceListCreate: ResourceListCreateInput
         rolesCreate: [RoleCreateInput!]
@@ -31,6 +32,7 @@ export const typeDef = gql`
         handle: String
         isOpenToNewMembers: Boolean
         isPrivate: Boolean
+        permissions: String
         membersDelete: [ID!]
         memberInvitesDelete: [ID!]
         memberInvitesCreate: [MemberInviteCreateInput!]
@@ -55,8 +57,6 @@ export const typeDef = gql`
         isPrivate: Boolean!
         stars: Int!
         views: Int!
-        isStarred: Boolean!
-        isViewed: Boolean!
         translatedName: String!
         apis: [Api!]!
         apisCount: Int!
@@ -76,7 +76,7 @@ export const typeDef = gql`
         notesCount: Int!
         parent: Organization
         paymentHistory: [Payment!]!
-        permissionsOrganization: OrganizationPermission
+        permissions: String!
         posts: [Post!]!
         postsCount: Int!
         premium: Premium
@@ -103,17 +103,19 @@ export const typeDef = gql`
         translations: [OrganizationTranslation!]!
         translationsCount: Int!
         wallets: [Wallet!]!
+        you: OrganizationYou!
     }
-
-    # Will beef this up later
-    type OrganizationPermission {
+        
+    type OrganizationYou {
         canAddMembers: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!
         canReport: Boolean!
         canView: Boolean!
-        isMember: Boolean!
+        isStarred: Boolean!
+        isViewed: Boolean!
+        yourMembership: Member
     }
 
     input OrganizationTranslationCreateInput {

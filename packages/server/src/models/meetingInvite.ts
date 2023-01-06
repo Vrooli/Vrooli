@@ -1,12 +1,14 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { MeetingInvite, MeetingInviteCreateInput, MeetingInvitePermission, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput } from '@shared/consts';
+import { MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSortBy, MeetingInviteUpdateInput, MeetingInviteYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { MeetingModel } from "./meeting";
 import { ModelLogic } from "./types";
+import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'MeetingInvite' as const;
-const suppFields = [] as const;
+type Permissions = Pick<MeetingInviteYou, 'canDelete' | 'canEdit'>;
+const suppFields = ['you.canDelete', 'you.canEdit'] as const;
 export const MeetingInviteModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -15,7 +17,7 @@ export const MeetingInviteModel: ModelLogic<{
     GqlModel: MeetingInvite,
     GqlSearch: MeetingInviteSearchInput,
     GqlSort: MeetingInviteSortBy,
-    GqlPermission: MeetingInvitePermission,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.meeting_inviteUpsertArgs['create'],
     PrismaUpdate: Prisma.meeting_inviteUpsertArgs['update'],
     PrismaModel: Prisma.meeting_inviteGetPayload<SelectWrap<Prisma.meeting_inviteSelect>>,
@@ -41,6 +43,15 @@ export const MeetingInviteModel: ModelLogic<{
             user: 'User',
         },
         countFields: {},
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                }
+            },
+        },
     },
     mutate: {} as any,
     search: {} as any,

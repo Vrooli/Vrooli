@@ -1,5 +1,5 @@
 import { PrismaType } from "../types";
-import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationPermission, SessionUser } from '@shared/consts';
+import { Organization, OrganizationCreateInput, OrganizationUpdateInput, OrganizationSearchInput, OrganizationSortBy, OrganizationYou, PrependString } from '@shared/consts';
 import { organizationValidation } from "@shared/validation";
 import { Prisma, role } from "@prisma/client";
 import { StarModel } from "./star";
@@ -13,8 +13,8 @@ import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 
 const __typename = 'Organization' as const;
-
-const suppFields = ['isStarred', 'isViewed', 'permissionsOrganization', 'translatedName'] as const;
+type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canEdit' | 'canStar' | 'canView'>;
+const suppFields = ['you.canAddMembers', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canView', 'you.isStarred', 'you.isViewed', 'translatedName'] as const;
 export const OrganizationModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -23,7 +23,7 @@ export const OrganizationModel: ModelLogic<{
     GqlModel: Organization,
     GqlSearch: OrganizationSearchInput,
     GqlSort: OrganizationSortBy,
-    GqlPermission: OrganizationPermission,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.organizationUpsertArgs['create'],
     PrismaUpdate: Prisma.organizationUpsertArgs['update'],
     PrismaModel: Prisma.organizationGetPayload<SelectWrap<Prisma.organizationSelect>>,
@@ -117,12 +117,15 @@ export const OrganizationModel: ModelLogic<{
         },
         supplemental: {
             graphqlFields: suppFields,
-            toGraphQL: ({ ids, prisma, userData }) => ({
-                isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                permissionsOrganization: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
-                translatedName: async () => await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'organization.translatedName'),
-            }),
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
+                }
+            },
         },
     },
     mutate: {

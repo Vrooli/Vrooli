@@ -28,6 +28,7 @@ export const typeDef = gql`
 
     input ApiCreateInput {
         id: ID!
+        permissions: String
         userConnect: ID
         organizationConnect: ID
         parentConnect: ID
@@ -39,6 +40,7 @@ export const typeDef = gql`
     }
     input ApiUpdateInput {
         id: ID!
+        permissions: String
         userConnect: ID
         organizationConnect: ID
         tagsConnect: [String!]
@@ -55,6 +57,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        permissions: String!
         createdBy: User
         owner: Owner
         parent: Api
@@ -65,11 +68,7 @@ export const typeDef = gql`
         stars: Int!
         views: Int!
         score: Int!
-        isStarred: Boolean!
-        isViewed: Boolean!
-        isUpvoted: Boolean
         issues: [Issue!]!
-        permissionsRoot: RootPermission!
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         stats: [StatsApi!]!
@@ -78,6 +77,19 @@ export const typeDef = gql`
         transfers: [Transfer!]!
         transfersCount: Int!
         starredBy: [User!]!
+        you: ApiYou!
+    }
+
+    type ApiYou {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canTransfer: Boolean!
+        canView: Boolean!
+        canVote: Boolean!
+        isStarred: Boolean!
+        isUpvoted: Boolean
+        isViewed: Boolean!
     }
 
     input ApiSearchInput {

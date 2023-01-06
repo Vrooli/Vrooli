@@ -85,7 +85,7 @@ export const typeDef = gql`
         root: SmartContract!
         translations: [SmartContractVersionTranslation!]!
         translationsCount: Int!
-        permissions: VersionPermission!
+        you: VersionYou!
     }
 
     input SmartContractVersionTranslationCreateInput {

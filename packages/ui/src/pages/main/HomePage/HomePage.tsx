@@ -130,8 +130,8 @@ export const HomePage = ({
                 id: APP_LINKS.FAQ,
             });
         }
-        // Group all query results and sort by number of stars
-        const flattened = (Object.values(data?.popular ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        // Group all query results and sort by number of stars. Ignore any value that isn't an array
+        const flattened = (Object.values(data?.popular ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });

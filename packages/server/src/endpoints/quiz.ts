@@ -54,28 +54,29 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
-        isStarred: Boolean!
-        isUpvoted: Boolean
         isCompleted: Boolean!
         score: Int!
         stars: Int!
         views: Int!
+        attempts: [QuizAttempt!]!
         createdBy: User
-        routine: Routine
         project: Project
         quizQuestions: [QuizQuestion!]!
+        routine: Routine
         starredBy: [User!]!
-        translations: [QuizTranslation!]!
-        attempts: [QuizAttempt!]!
         stats: [StatsQuiz!]!
+        translations: [QuizTranslation!]!
+        you: QuizYou!
     }
 
-    type QuizPermission {
+    type QuizYou {
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!
         canView: Boolean!
         canVote: Boolean!
+        isStarred: Boolean!
+        isUpvoted: Boolean
     }
 
     input QuizTranslationCreateInput {

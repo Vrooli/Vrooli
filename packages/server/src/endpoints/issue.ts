@@ -82,12 +82,10 @@ export const typeDef = gql`
         stars: Int!
         views: Int!
         starredBy: [Star!]
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        permissionsIssue: IssuePermission!
+        you: IssueYou!
     }
 
-    type IssuePermission {
+    type IssueYou {
         canComment: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
@@ -95,6 +93,8 @@ export const typeDef = gql`
         canReport: Boolean!
         canView: Boolean!
         canVote: Boolean!
+        isStarred: Boolean!
+        isUpvoted: Boolean
     }
 
     input IssueTranslationCreateInput {

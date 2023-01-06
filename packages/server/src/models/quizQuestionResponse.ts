@@ -1,10 +1,14 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponsePermission, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput } from '@shared/consts';
+import { PrependString, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseSearchInput, QuizQuestionResponseSortBy, QuizQuestionResponseUpdateInput, QuizQuestionResponseYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
+import { getSingleTypePermissions } from "../validators";
 
-type Model = {
+const __typename = 'QuizQuestionResponse' as const;
+type Permissions = Pick<QuizQuestionResponseYou, 'canDelete' | 'canEdit'>;
+const suppFields = ['you.canDelete', 'you.canEdit'] as const;
+export const QuizQuestionResponseModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizQuestionResponseCreateInput,
@@ -12,29 +16,38 @@ type Model = {
     GqlModel: QuizQuestionResponse,
     GqlSearch: QuizQuestionResponseSearchInput,
     GqlSort: QuizQuestionResponseSortBy,
-    GqlPermission: QuizQuestionResponsePermission,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.quiz_question_responseUpsertArgs['create'],
     PrismaUpdate: Prisma.quiz_question_responseUpsertArgs['update'],
     PrismaModel: Prisma.quiz_question_responseGetPayload<SelectWrap<Prisma.quiz_question_responseSelect>>,
     PrismaSelect: Prisma.quiz_question_responseSelect,
     PrismaWhere: Prisma.quiz_question_responseWhereInput,
-}
-
-const __typename = 'QuizQuestionResponse' as const;
-
-const suppFields = [] as const;
-
-// TODO
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true }),
-    label: () => '',
-})
-
-export const QuizQuestionResponseModel: ModelLogic<Model, typeof suppFields> = ({
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_question_response,
-    display: displayer(),
-    format: {} as any,
+    display: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            quizAttempt: 'QuizAttempt',
+            quizQuestion: 'QuizQuestion',
+        },
+        prismaRelMap: {
+            __typename,
+            quizAttempt: 'QuizAttempt',
+            quizQuestion: 'QuizQuestion',
+        },
+        countFields: {},
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                }
+            },
+        },
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

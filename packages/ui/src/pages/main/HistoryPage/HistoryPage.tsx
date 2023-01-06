@@ -95,7 +95,7 @@ export const HistoryPage = ({
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
-        const flattened = (Object.values(data?.history ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        const flattened = (Object.values(data?.history ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         return listToAutocomplete(flattened, languages);
     }, [data?.history, languages]);
 

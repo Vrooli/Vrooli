@@ -92,7 +92,7 @@ export const typeDef = gql`
         root: Standard!
         translations: [StandardVersionTranslation!]!
         translationsCount: Int!
-        permissions: VersionPermission!
+        you: VersionYou!
     }
 
     input StandardVersionTranslationCreateInput {

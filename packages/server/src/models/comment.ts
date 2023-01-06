@@ -1,6 +1,6 @@
-import { CommentSortBy } from "@shared/consts";
+import { CommentSortBy, CommentYou, PrependString } from "@shared/consts";
 import { commentValidation } from "@shared/validation";
-import { Comment, CommentCreateInput, CommentPermission, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from '@shared/consts';
+import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, CommentThread, CommentUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
@@ -17,16 +17,15 @@ import { getUser } from "../auth";
 import { SortMap } from "../utils/sortMap";
 
 const __typename = 'Comment' as const;
-
-const suppFields = ['isStarred', 'isUpvoted', 'permissionsComment'] as const;
-
+type Permissions = Pick<CommentYou, 'canDelete' | 'canEdit' | 'canStar' | 'canReply' | 'canReport' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canReply', 'you.canReport', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
 export const CommentModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: CommentCreateInput,
     GqlUpdate: CommentUpdateInput,
     GqlModel: Comment,
-    GqlPermission: CommentPermission,
+    GqlPermission: Permissions,
     GqlSearch: CommentSearchInput,
     GqlSort: CommentSortBy,
     PrismaCreate: Prisma.commentUpsertArgs['create'],
@@ -92,11 +91,14 @@ export const CommentModel: ModelLogic<{
         },
         supplemental: {
             graphqlFields: suppFields,
-            toGraphQL: ({ ids, prisma, userData }) => ({
-                isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
-                permissionsComment: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
-            }),
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                }
+            },
         },
     },
     mutate: {

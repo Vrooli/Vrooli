@@ -61,7 +61,6 @@ export const typeDef = gql`
         issuesCount: Int!
         notes: [Note!]
         notesCount: Int!
-        permissionsLabel: LabelPermission!
         projects: [Project!]
         projectsCount: Int!
         routines: [Routine!]
@@ -80,9 +79,10 @@ export const typeDef = gql`
         userSchedulesCount: Int!
         translations: [LabelTranslation!]!
         translationsCount: Int!
+        you: LabelYou!
     }
 
-    type LabelPermission {
+    type LabelYou {
         canDelete: Boolean!
         canEdit: Boolean!
     }

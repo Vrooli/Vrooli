@@ -29,14 +29,11 @@ export type Api = {
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
   issues: Array<Issue>;
   labels: Array<Label>;
   owner?: Maybe<Owner>;
   parent?: Maybe<Api>;
-  permissionsRoot: RootPermission;
+  permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
   questions: Array<Question>;
@@ -52,6 +49,7 @@ export type Api = {
   versions: Array<ApiVersion>;
   versionsCount: Scalars['Int'];
   views: Scalars['Int'];
+  you: ApiYou;
 };
 
 export type ApiCreateInput = {
@@ -60,6 +58,7 @@ export type ApiCreateInput = {
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
+  permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   userConnect?: InputMaybe<Scalars['ID']>;
@@ -157,6 +156,7 @@ export type ApiUpdateInput = {
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
+  permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
@@ -179,7 +179,6 @@ export type ApiVersion = {
   forksCount: Scalars['Int'];
   id: Scalars['ID'];
   isLatest: Scalars['Boolean'];
-  permissionsVersion: VersionPermission;
   pullRequest?: Maybe<PullRequest>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
@@ -190,6 +189,7 @@ export type ApiVersion = {
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: Maybe<Scalars['String']>;
+  you: VersionYou;
 };
 
 export type ApiVersionCreateInput = {
@@ -294,6 +294,19 @@ export type ApiVersionUpdateInput = {
   versionNotes?: InputMaybe<Scalars['String']>;
 };
 
+export type ApiYou = {
+  __typename?: 'ApiYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canTransfer: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
+  isViewed: Scalars['Boolean'];
+};
+
 export type Award = {
   __typename?: 'Award';
   category: AwardCategory;
@@ -339,10 +352,7 @@ export type Comment = {
   commentedOn: CommentedOn;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
   owner?: Maybe<Owner>;
-  permissionsComment?: Maybe<CommentPermission>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
@@ -351,6 +361,7 @@ export type Comment = {
   translations: Array<CommentTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
+  you: CommentYou;
 };
 
 export type CommentCreateInput = {
@@ -374,17 +385,6 @@ export enum CommentFor {
   SmartContractVersion = 'SmartContractVersion',
   StandardVersion = 'StandardVersion'
 }
-
-export type CommentPermission = {
-  __typename?: 'CommentPermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReply: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
-};
 
 export type CommentSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -461,6 +461,18 @@ export type CommentUpdateInput = {
   translationsCreate?: InputMaybe<Array<CommentTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<CommentTranslationUpdateInput>>;
+};
+
+export type CommentYou = {
+  __typename?: 'CommentYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReply: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
 };
 
 export type CommentedOn = Project | Routine | Standard;
@@ -631,11 +643,8 @@ export type Issue = {
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
   labels: Array<Label>;
   labelsCount: Scalars['Int'];
-  permissionsIssue: IssuePermission;
   referencedVersionConnect?: Maybe<Scalars['ID']>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
@@ -648,6 +657,7 @@ export type Issue = {
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
+  you: IssueYou;
 };
 
 export type IssueCloseInput = {
@@ -679,17 +689,6 @@ export enum IssueFor {
   SmartContract = 'SmartContract',
   Standard = 'Standard'
 }
-
-export type IssuePermission = {
-  __typename?: 'IssuePermission';
-  canComment: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
-};
 
 export type IssueSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -781,6 +780,19 @@ export type IssueUpdateInput = {
   translationsUpdate?: InputMaybe<Array<IssueTranslationUpdateInput>>;
 };
 
+export type IssueYou = {
+  __typename?: 'IssueYou';
+  canComment: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
+};
+
 export type Label = {
   __typename?: 'Label';
   apis?: Maybe<Array<Api>>;
@@ -795,7 +807,6 @@ export type Label = {
   meetingsCount: Scalars['Int'];
   notes?: Maybe<Array<Note>>;
   notesCount: Scalars['Int'];
-  permissionsLabel: LabelPermission;
   projects?: Maybe<Array<Project>>;
   projectsCount: Scalars['Int'];
   routines?: Maybe<Array<Routine>>;
@@ -813,6 +824,7 @@ export type Label = {
   updated_at: Scalars['Date'];
   userSchedules?: Maybe<Array<UserSchedule>>;
   userSchedulesCount: Scalars['Int'];
+  you: LabelYou;
 };
 
 export type LabelCreateInput = {
@@ -827,12 +839,6 @@ export type LabelEdge = {
   __typename?: 'LabelEdge';
   cursor: Scalars['String'];
   node: Label;
-};
-
-export type LabelPermission = {
-  __typename?: 'LabelPermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
 };
 
 export type LabelSearchInput = {
@@ -913,6 +919,12 @@ export type LabelUpdateInput = {
   userSchedulesDisconnect?: InputMaybe<Array<Scalars['ID']>>;
 };
 
+export type LabelYou = {
+  __typename?: 'LabelYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+};
+
 export type LearnResult = {
   __typename?: 'LearnResult';
   courses: Array<Project>;
@@ -936,7 +948,6 @@ export type Meeting = {
   labelsCount: Scalars['Int'];
   openToAnyoneWithInvite: Scalars['Boolean'];
   organization: Organization;
-  permissionsMeeting: MeetingPermission;
   recurrEnd?: Maybe<Scalars['Date']>;
   recurrStart?: Maybe<Scalars['Date']>;
   recurring: Scalars['Boolean'];
@@ -945,6 +956,7 @@ export type Meeting = {
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<MeetingTranslation>;
   translationsCount: Scalars['Int'];
+  you: MeetingYou;
 };
 
 export type MeetingCreateInput = {
@@ -976,10 +988,10 @@ export type MeetingInvite = {
   id: Scalars['ID'];
   meeting: Meeting;
   message?: Maybe<Scalars['String']>;
-  permissionsMeetingInvite: MeetingInvitePermission;
   status: MeetingInviteStatus;
   updated_at: Scalars['Date'];
   user: User;
+  you: MeetingInviteYou;
 };
 
 export type MeetingInviteCreateInput = {
@@ -993,12 +1005,6 @@ export type MeetingInviteEdge = {
   __typename?: 'MeetingInviteEdge';
   cursor: Scalars['String'];
   node: MeetingInvite;
-};
-
-export type MeetingInvitePermission = {
-  __typename?: 'MeetingInvitePermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
 };
 
 export type MeetingInviteSearchInput = {
@@ -1044,11 +1050,10 @@ export type MeetingInviteUpdateInput = {
   message?: InputMaybe<Scalars['String']>;
 };
 
-export type MeetingPermission = {
-  __typename?: 'MeetingPermission';
+export type MeetingInviteYou = {
+  __typename?: 'MeetingInviteYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
-  canInvite: Scalars['Boolean'];
 };
 
 export type MeetingSearchInput = {
@@ -1143,6 +1148,13 @@ export type MeetingUpdateInput = {
   translationsUpdate?: InputMaybe<Array<MeetingTranslationUpdateInput>>;
 };
 
+export type MeetingYou = {
+  __typename?: 'MeetingYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canInvite: Scalars['Boolean'];
+};
+
 export type Member = {
   __typename?: 'Member';
   created_at: Scalars['Date'];
@@ -1166,12 +1178,12 @@ export type MemberInvite = {
   id: Scalars['ID'];
   message?: Maybe<Scalars['String']>;
   organization: Organization;
-  permissionsMemberInvite: MemberInvitePermission;
   status: MemberInviteStatus;
   updated_at: Scalars['Date'];
   user: User;
   willBeAdmin: Scalars['Boolean'];
   willHavePermissions?: Maybe<Scalars['String']>;
+  you: MemberInviteYou;
 };
 
 export type MemberInviteCreateInput = {
@@ -1187,12 +1199,6 @@ export type MemberInviteEdge = {
   __typename?: 'MemberInviteEdge';
   cursor: Scalars['String'];
   node: MemberInvite;
-};
-
-export type MemberInvitePermission = {
-  __typename?: 'MemberInvitePermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
 };
 
 export type MemberInviteSearchInput = {
@@ -1237,6 +1243,12 @@ export type MemberInviteUpdateInput = {
   message?: InputMaybe<Scalars['String']>;
   willBeAdmin?: InputMaybe<Scalars['Boolean']>;
   willHavePermissions?: InputMaybe<Scalars['String']>;
+};
+
+export type MemberInviteYou = {
+  __typename?: 'MemberInviteYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
 };
 
 export type MemberSearchInput = {
@@ -2384,16 +2396,13 @@ export type Note = {
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
   issues: Array<Issue>;
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
   labelsCount: Scalars['Int'];
   owner?: Maybe<Owner>;
   parent?: Maybe<Note>;
-  permissionsRoot: RootPermission;
+  permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
   questions: Array<Question>;
@@ -2408,6 +2417,7 @@ export type Note = {
   versions: Array<NoteVersion>;
   versionsCount: Scalars['Int'];
   views: Scalars['Int'];
+  you: NoteYou;
 };
 
 export type NoteCreateInput = {
@@ -2417,6 +2427,7 @@ export type NoteCreateInput = {
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
+  permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   userConnect?: InputMaybe<Scalars['ID']>;
@@ -2482,6 +2493,7 @@ export type NoteUpdateInput = {
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
+  permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   tagsDisconnect?: InputMaybe<Array<Scalars['String']>>;
@@ -2503,7 +2515,6 @@ export type NoteVersion = {
   id: Scalars['ID'];
   isLatest: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
-  permissionsVersion: VersionPermission;
   pullRequest?: Maybe<PullRequest>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
@@ -2513,6 +2524,7 @@ export type NoteVersion = {
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: Maybe<Scalars['String']>;
+  you: VersionYou;
 };
 
 export type NoteVersionCreateInput = {
@@ -2532,18 +2544,6 @@ export type NoteVersionEdge = {
   __typename?: 'NoteVersionEdge';
   cursor: Scalars['String'];
   node: NoteVersion;
-};
-
-export type NoteVersionPermission = {
-  __typename?: 'NoteVersionPermission';
-  canComment: Scalars['Boolean'];
-  canCopy: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
 };
 
 export type NoteVersionSearchInput = {
@@ -2620,6 +2620,19 @@ export type NoteVersionUpdateInput = {
   versionIndex?: InputMaybe<Scalars['Int']>;
   versionLabel?: InputMaybe<Scalars['String']>;
   versionNotes?: InputMaybe<Scalars['String']>;
+};
+
+export type NoteYou = {
+  __typename?: 'NoteYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canTransfer: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
+  isViewed: Scalars['Boolean'];
 };
 
 export type Notification = {
@@ -2776,8 +2789,6 @@ export type Organization = {
   id: Scalars['ID'];
   isOpenToNewMembers: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isViewed: Scalars['Boolean'];
   issues: Array<Issue>;
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
@@ -2790,7 +2801,7 @@ export type Organization = {
   notesCount: Scalars['Int'];
   parent?: Maybe<Organization>;
   paymentHistory: Array<Payment>;
-  permissionsOrganization?: Maybe<OrganizationPermission>;
+  permissions: Scalars['String'];
   posts: Array<Post>;
   postsCount: Scalars['Int'];
   premium?: Maybe<Premium>;
@@ -2821,6 +2832,7 @@ export type Organization = {
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
   wallets: Array<Wallet>;
+  you: OrganizationYou;
 };
 
 export type OrganizationCreateInput = {
@@ -2829,6 +2841,7 @@ export type OrganizationCreateInput = {
   isOpenToNewMembers?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
+  permissions?: InputMaybe<Scalars['String']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
   tagsConnect?: InputMaybe<Array<Scalars['String']>>;
@@ -2840,17 +2853,6 @@ export type OrganizationEdge = {
   __typename?: 'OrganizationEdge';
   cursor: Scalars['String'];
   node: Organization;
-};
-
-export type OrganizationPermission = {
-  __typename?: 'OrganizationPermission';
-  canAddMembers: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  isMember: Scalars['Boolean'];
 };
 
 export type OrganizationSearchInput = {
@@ -2921,6 +2923,7 @@ export type OrganizationUpdateInput = {
   memberInvitesCreate?: InputMaybe<Array<MemberInviteCreateInput>>;
   memberInvitesDelete?: InputMaybe<Array<Scalars['ID']>>;
   membersDelete?: InputMaybe<Array<Scalars['ID']>>;
+  permissions?: InputMaybe<Scalars['String']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   rolesCreate?: InputMaybe<Array<RoleCreateInput>>;
@@ -2932,6 +2935,19 @@ export type OrganizationUpdateInput = {
   translationsCreate?: InputMaybe<Array<OrganizationTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<OrganizationTranslationUpdateInput>>;
+};
+
+export type OrganizationYou = {
+  __typename?: 'OrganizationYou';
+  canAddMembers: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isViewed: Scalars['Boolean'];
+  yourMembership?: Maybe<Member>;
 };
 
 export type Owner = Organization | User;
@@ -3158,17 +3174,13 @@ export type Project = {
   hasCompleteVersion: Scalars['Boolean'];
   id: Scalars['ID'];
   isPrivate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
   issues: Array<Issue>;
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
   labelsCount: Scalars['Int'];
   owner?: Maybe<Owner>;
   parent?: Maybe<Project>;
-  permissions?: Maybe<Scalars['String']>;
-  permissionsRoot: RootPermission;
+  permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
   questions: Array<Question>;
@@ -3186,6 +3198,7 @@ export type Project = {
   versions: Array<ProjectVersion>;
   versionsCount: Scalars['Int'];
   views: Scalars['Int'];
+  you: ProjectYou;
 };
 
 export type ProjectCreateInput = {
@@ -3432,12 +3445,10 @@ export type ProjectVersion = {
   isComplete: Scalars['Boolean'];
   isLatest: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
-  permissionsVersion: VersionPermission;
   pullRequest?: Maybe<PullRequest>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   root: Project;
-  runs: Array<RunProject>;
   runsCount: Scalars['Int'];
   suggestedNextByProject: Array<Project>;
   translations: Array<ProjectVersionTranslation>;
@@ -3446,6 +3457,7 @@ export type ProjectVersion = {
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: Maybe<Scalars['String']>;
+  you: ProjectVersionYou;
 };
 
 export type ProjectVersionCreateInput = {
@@ -3621,6 +3633,31 @@ export type ProjectVersionUpdateInput = {
   versionNotes?: InputMaybe<Scalars['String']>;
 };
 
+export type ProjectVersionYou = {
+  __typename?: 'ProjectVersionYou';
+  canComment: Scalars['Boolean'];
+  canCopy: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canUse: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  runs: Array<RunProject>;
+};
+
+export type ProjectYou = {
+  __typename?: 'ProjectYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canTransfer: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
+  isViewed: Scalars['Boolean'];
+};
+
 export type PullRequest = {
   __typename?: 'PullRequest';
   comments: Array<Comment>;
@@ -3629,10 +3666,10 @@ export type PullRequest = {
   from: PullRequestFrom;
   id: Scalars['ID'];
   mergedOrRejectedAt?: Maybe<Scalars['Date']>;
-  permissionsPullRequest: PullRequestPermission;
   status: PullRequestStatus;
   to: PullRequestTo;
   updated_at: Scalars['Date'];
+  you: PullRequestYou;
 };
 
 export type PullRequestCreateInput = {
@@ -3649,14 +3686,6 @@ export type PullRequestEdge = {
 };
 
 export type PullRequestFrom = ApiVersion | NoteVersion | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion;
-
-export type PullRequestPermission = {
-  __typename?: 'PullRequestPermission';
-  canComment: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-};
 
 export type PullRequestSearchInput = {
   after?: InputMaybe<Scalars['String']>;
@@ -3710,6 +3739,14 @@ export enum PullRequestToObjectType {
 export type PullRequestUpdateInput = {
   id: Scalars['ID'];
   status?: InputMaybe<PullRequestStatus>;
+};
+
+export type PullRequestYou = {
+  __typename?: 'PullRequestYou';
+  canComment: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
 };
 
 export type PushDevice = {
@@ -4628,8 +4665,6 @@ export type Quiz = {
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   isCompleted: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
   project?: Maybe<Project>;
   quizQuestions: Array<QuizQuestion>;
   routine?: Maybe<Routine>;
@@ -4640,6 +4675,7 @@ export type Quiz = {
   translations: Array<QuizTranslation>;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
+  you: QuizYou;
 };
 
 export type QuizAttempt = {
@@ -4654,6 +4690,8 @@ export type QuizAttempt = {
   status: QuizAttemptStatus;
   timeTaken?: Maybe<Scalars['Int']>;
   updated_at: Scalars['Date'];
+  user: User;
+  you: QuizAttemptYou;
 };
 
 export type QuizAttemptCreateInput = {
@@ -4668,12 +4706,6 @@ export type QuizAttemptEdge = {
   __typename?: 'QuizAttemptEdge';
   cursor: Scalars['String'];
   node: QuizAttempt;
-};
-
-export type QuizAttemptPermission = {
-  __typename?: 'QuizAttemptPermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
 };
 
 export type QuizAttemptSearchInput = {
@@ -4726,6 +4758,12 @@ export type QuizAttemptUpdateInput = {
   timeTaken?: InputMaybe<Scalars['Int']>;
 };
 
+export type QuizAttemptYou = {
+  __typename?: 'QuizAttemptYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+};
+
 export type QuizCreateInput = {
   id: Scalars['ID'];
   maxAttempts?: InputMaybe<Scalars['Int']>;
@@ -4745,15 +4783,6 @@ export type QuizEdge = {
   node: Quiz;
 };
 
-export type QuizPermission = {
-  __typename?: 'QuizPermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
-};
-
 export type QuizQuestion = {
   __typename?: 'QuizQuestion';
   created_at: Scalars['Date'];
@@ -4763,9 +4792,10 @@ export type QuizQuestion = {
   quiz: Quiz;
   responses?: Maybe<Array<QuizQuestionResponse>>;
   responsesCount: Scalars['Int'];
-  standard?: Maybe<Standard>;
+  standardVersion?: Maybe<StandardVersion>;
   translations?: Maybe<Array<QuizQuestionTranslation>>;
   updated_at: Scalars['Date'];
+  you: QuizQuestionYou;
 };
 
 export type QuizQuestionCreateInput = {
@@ -4773,8 +4803,8 @@ export type QuizQuestionCreateInput = {
   order?: InputMaybe<Scalars['Int']>;
   points?: InputMaybe<Scalars['Int']>;
   quizConnect?: InputMaybe<Scalars['ID']>;
-  standardConnect?: InputMaybe<Scalars['ID']>;
-  standardCreate?: InputMaybe<StandardCreateInput>;
+  standardVersionConnect?: InputMaybe<Scalars['ID']>;
+  standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
   translationsCreate?: InputMaybe<Array<QuizQuestionTranslationCreateInput>>;
 };
 
@@ -4784,21 +4814,15 @@ export type QuizQuestionEdge = {
   node: QuizQuestion;
 };
 
-export type QuizQuestionPermission = {
-  __typename?: 'QuizQuestionPermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-};
-
 export type QuizQuestionResponse = {
   __typename?: 'QuizQuestionResponse';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  permissionsQuizQuestionResponse: QuizQuestionResponsePermission;
   quizAttempt: QuizAttempt;
   quizQuestion: QuizQuestion;
   response?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
+  you: QuizQuestionResponseYou;
 };
 
 export type QuizQuestionResponseCreateInput = {
@@ -4813,12 +4837,6 @@ export type QuizQuestionResponseEdge = {
   __typename?: 'QuizQuestionResponseEdge';
   cursor: Scalars['String'];
   node: QuizQuestionResponse;
-};
-
-export type QuizQuestionResponsePermission = {
-  __typename?: 'QuizQuestionResponsePermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
 };
 
 export type QuizQuestionResponseSearchInput = {
@@ -4871,6 +4889,12 @@ export type QuizQuestionResponseUpdateInput = {
   translationsCreate?: InputMaybe<Array<QuizQuestionResponseTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<QuizQuestionResponseTranslationUpdateInput>>;
+};
+
+export type QuizQuestionResponseYou = {
+  __typename?: 'QuizQuestionResponseYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
 };
 
 export type QuizQuestionSearchInput = {
@@ -4930,12 +4954,18 @@ export type QuizQuestionUpdateInput = {
   id: Scalars['ID'];
   order?: InputMaybe<Scalars['Int']>;
   points?: InputMaybe<Scalars['Int']>;
-  standardConnect?: InputMaybe<Scalars['ID']>;
-  standardCreate?: InputMaybe<StandardCreateInput>;
-  standardUpdate?: InputMaybe<StandardUpdateInput>;
+  standardVersionConnect?: InputMaybe<Scalars['ID']>;
+  standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
+  standardVersionUpdate?: InputMaybe<StandardVersionUpdateInput>;
   translationsCreate?: InputMaybe<Array<QuizQuestionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<QuizQuestionTranslationUpdateInput>>;
+};
+
+export type QuizQuestionYou = {
+  __typename?: 'QuizQuestionYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
 };
 
 export type QuizSearchInput = {
@@ -5016,6 +5046,17 @@ export type QuizUpdateInput = {
   translationsCreate?: InputMaybe<Array<QuizTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<QuizTranslationUpdateInput>>;
+};
+
+export type QuizYou = {
+  __typename?: 'QuizYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
 };
 
 export type ReadAssetsInput = {
@@ -5173,10 +5214,10 @@ export type Report = {
   __typename?: 'Report';
   details?: Maybe<Scalars['String']>;
   id?: Maybe<Scalars['ID']>;
-  isOwn: Scalars['Boolean'];
   language: Scalars['String'];
   reason: Scalars['String'];
   responses: Array<ReportResponse>;
+  you: ReportYou;
 };
 
 export type ReportCreateInput = {
@@ -5215,9 +5256,9 @@ export type ReportResponse = {
   details?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: Maybe<Scalars['String']>;
-  permissionsReportResponse: ReportResponsePermission;
   report: Report;
   updated_at: Scalars['Date'];
+  you: ReportResponseYou;
 };
 
 export type ReportResponseCreateInput = {
@@ -5232,12 +5273,6 @@ export type ReportResponseEdge = {
   __typename?: 'ReportResponseEdge';
   cursor: Scalars['String'];
   node: ReportResponse;
-};
-
-export type ReportResponsePermission = {
-  __typename?: 'ReportResponsePermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
 };
 
 export type ReportResponseSearchInput = {
@@ -5270,6 +5305,12 @@ export type ReportResponseUpdateInput = {
   details?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
+};
+
+export type ReportResponseYou = {
+  __typename?: 'ReportResponseYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
 };
 
 export type ReportSearchInput = {
@@ -5322,6 +5363,13 @@ export type ReportUpdateInput = {
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
   reason?: InputMaybe<Scalars['String']>;
+};
+
+export type ReportYou = {
+  __typename?: 'ReportYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canRespond: Scalars['Boolean'];
 };
 
 export type ReputationHistory = {
@@ -5678,16 +5726,6 @@ export type RoleUpdateInput = {
   translationsUpdate?: InputMaybe<Array<RoleTranslationUpdateInput>>;
 };
 
-export type RootPermission = {
-  __typename?: 'RootPermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canTransfer: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
-};
-
 export type Routine = {
   __typename?: 'Routine';
   completedAt?: Maybe<Scalars['Date']>;
@@ -5700,15 +5738,12 @@ export type Routine = {
   isDeleted: Scalars['Boolean'];
   isInternal?: Maybe<Scalars['Boolean']>;
   isPrivate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
   issues: Array<Issue>;
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
   owner?: Maybe<Owner>;
   parent?: Maybe<Routine>;
-  permissionsRoutine: RoutinePermission;
+  permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
   score: Scalars['Int'];
@@ -5720,6 +5755,7 @@ export type Routine = {
   versions: Array<RoutineVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
   views: Scalars['Int'];
+  you: RoutineYou;
 };
 
 export type RoutineCreateInput = {
@@ -5730,7 +5766,7 @@ export type RoutineCreateInput = {
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
-  permissions: Scalars['String'];
+  permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   userConnect?: InputMaybe<Scalars['ID']>;
@@ -5741,16 +5777,6 @@ export type RoutineEdge = {
   __typename?: 'RoutineEdge';
   cursor: Scalars['String'];
   node: Routine;
-};
-
-export type RoutinePermission = {
-  __typename?: 'RoutinePermission';
-  canComment: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
 };
 
 export type RoutineSearchInput = {
@@ -5856,13 +5882,11 @@ export type RoutineVersion = {
   nodesCount: Scalars['Int'];
   outputs: Array<RoutineVersionOutput>;
   outputsCount: Scalars['Int'];
-  permissions: RoutineVersionPermission;
   pullRequest?: Maybe<PullRequest>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   resourceList?: Maybe<ResourceList>;
   root: Routine;
-  runs: Array<RunRoutine>;
   simplicity: Scalars['Int'];
   smartContract?: Maybe<SmartContract>;
   smartContractCallData?: Maybe<Scalars['String']>;
@@ -5876,6 +5900,7 @@ export type RoutineVersion = {
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: Maybe<Scalars['String']>;
+  you: RoutineVersionYou;
 };
 
 export type RoutineVersionCreateInput = {
@@ -6028,19 +6053,6 @@ export type RoutineVersionOutputUpdateInput = {
   translationsUpdate?: InputMaybe<Array<RoutineVersionOutputTranslationUpdateInput>>;
 };
 
-export type RoutineVersionPermission = {
-  __typename?: 'RoutineVersionPermission';
-  canComment: Scalars['Boolean'];
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canFork: Scalars['Boolean'];
-  canReport: Scalars['Boolean'];
-  canRun: Scalars['Boolean'];
-  canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
-  canVote: Scalars['Boolean'];
-};
-
 export type RoutineVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   createdById?: InputMaybe<Scalars['ID']>;
@@ -6167,6 +6179,33 @@ export type RoutineVersionUpdateInput = {
   versionNotes?: InputMaybe<Scalars['String']>;
 };
 
+export type RoutineVersionYou = {
+  __typename?: 'RoutineVersionYou';
+  canComment: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canFork: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
+  canRun: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  runs: Array<RunRoutine>;
+};
+
+export type RoutineYou = {
+  __typename?: 'RoutineYou';
+  canComment: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
+  isViewed: Scalars['Boolean'];
+};
+
 export type RunProject = {
   __typename?: 'RunProject';
   completedAt?: Maybe<Scalars['Date']>;
@@ -6176,7 +6215,6 @@ export type RunProject = {
   isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   organization?: Maybe<Organization>;
-  permissionsRun: RunProjectPermission;
   projectVersion?: Maybe<ProjectVersion>;
   runProjectSchedule?: Maybe<RunProjectSchedule>;
   startedAt?: Maybe<Scalars['Date']>;
@@ -6185,6 +6223,7 @@ export type RunProject = {
   timeElapsed?: Maybe<Scalars['Int']>;
   user?: Maybe<User>;
   wasRunAutomaticaly: Scalars['Boolean'];
+  you: RunProjectYou;
 };
 
 export type RunProjectCancelInput = {
@@ -6219,13 +6258,6 @@ export type RunProjectEdge = {
   __typename?: 'RunProjectEdge';
   cursor: Scalars['String'];
   node: RunProject;
-};
-
-export type RunProjectPermission = {
-  __typename?: 'RunProjectPermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
 };
 
 export type RunProjectSchedule = {
@@ -6433,6 +6465,13 @@ export type RunProjectUpdateInput = {
   timeElapsed?: InputMaybe<Scalars['Int']>;
 };
 
+export type RunProjectYou = {
+  __typename?: 'RunProjectYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+};
+
 export type RunRoutine = {
   __typename?: 'RunRoutine';
   completedAt?: Maybe<Scalars['Date']>;
@@ -6443,7 +6482,6 @@ export type RunRoutine = {
   isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
   organization?: Maybe<Organization>;
-  permissionsRun: RunRoutinePermission;
   routineVersion?: Maybe<RoutineVersion>;
   runProject?: Maybe<RunProject>;
   runRoutineSchedule?: Maybe<RunRoutineSchedule>;
@@ -6453,6 +6491,7 @@ export type RunRoutine = {
   timeElapsed?: Maybe<Scalars['Int']>;
   user?: Maybe<User>;
   wasRunAutomaticaly: Scalars['Boolean'];
+  you: RunRoutineYou;
 };
 
 export type RunRoutineCancelInput = {
@@ -6542,13 +6581,6 @@ export enum RunRoutineInputSortBy {
 export type RunRoutineInputUpdateInput = {
   data: Scalars['String'];
   id: Scalars['ID'];
-};
-
-export type RunRoutinePermission = {
-  __typename?: 'RunRoutinePermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
 };
 
 export type RunRoutineSchedule = {
@@ -6772,6 +6804,13 @@ export type RunRoutineUpdateInput = {
   timeElapsed?: InputMaybe<Scalars['Int']>;
 };
 
+export type RunRoutineYou = {
+  __typename?: 'RunRoutineYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+};
+
 export enum RunStatus {
   Cancelled = 'Cancelled',
   Completed = 'Completed',
@@ -6815,32 +6854,30 @@ export type SmartContract = {
   completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
-  forks: Array<SmartContract>;
-  forksCount: Scalars['Int'];
   hasCompletedVersion: Scalars['Boolean'];
   id: Scalars['ID'];
   isDeleted: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
   issues: Array<Issue>;
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
   owner?: Maybe<Owner>;
   parent?: Maybe<SmartContract>;
-  permissionsRoot: RootPermission;
+  permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
+  transfers: Array<Transfer>;
+  transfersCount: Scalars['Int'];
   translatedName: Scalars['String'];
   updated_at: Scalars['Date'];
   versions: Array<SmartContractVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
   views: Scalars['Int'];
+  you: SmartContractYou;
 };
 
 export type SmartContractCreateInput = {
@@ -6850,7 +6887,7 @@ export type SmartContractCreateInput = {
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
-  permissions: Scalars['String'];
+  permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   userConnect?: InputMaybe<Scalars['ID']>;
@@ -6951,7 +6988,6 @@ export type SmartContractVersion = {
   isComplete: Scalars['Boolean'];
   isDeleted: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
-  permissions: VersionPermission;
   pullRequest?: Maybe<PullRequest>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
@@ -6964,6 +7000,7 @@ export type SmartContractVersion = {
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: Maybe<Scalars['String']>;
+  you: VersionYou;
 };
 
 export type SmartContractVersionCreateInput = {
@@ -7074,6 +7111,19 @@ export type SmartContractVersionUpdateInput = {
   versionNotes?: InputMaybe<Scalars['String']>;
 };
 
+export type SmartContractYou = {
+  __typename?: 'SmartContractYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canTransfer: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
+  isViewed: Scalars['Boolean'];
+};
+
 export type Standard = {
   __typename?: 'Standard';
   completedAt?: Maybe<Scalars['Date']>;
@@ -7086,9 +7136,6 @@ export type Standard = {
   isDeleted: Scalars['Boolean'];
   isInternal: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isUpvoted?: Maybe<Scalars['Boolean']>;
-  isViewed: Scalars['Boolean'];
   issues: Array<Issue>;
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
@@ -7096,7 +7143,6 @@ export type Standard = {
   owner?: Maybe<Owner>;
   parent?: Maybe<Standard>;
   permissions: Scalars['String'];
-  permissionsRoot: RootPermission;
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
   score: Scalars['Int'];
@@ -7108,6 +7154,7 @@ export type Standard = {
   versions: Array<StandardVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
   views: Scalars['Int'];
+  you: StandardYou;
 };
 
 export type StandardCreateInput = {
@@ -7119,7 +7166,7 @@ export type StandardCreateInput = {
   name: Scalars['String'];
   organizationConnect?: InputMaybe<Scalars['ID']>;
   parentConnect?: InputMaybe<Scalars['ID']>;
-  permissions: Scalars['String'];
+  permissions?: InputMaybe<Scalars['String']>;
   tagsConnect?: InputMaybe<Array<Scalars['ID']>>;
   tagsCreate?: InputMaybe<Array<TagCreateInput>>;
   userConnect?: InputMaybe<Scalars['ID']>;
@@ -7222,7 +7269,6 @@ export type StandardVersion = {
   isFile?: Maybe<Scalars['Boolean']>;
   isLatest: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
-  permissions: VersionPermission;
   props: Scalars['String'];
   pullRequest?: Maybe<PullRequest>;
   reports: Array<Report>;
@@ -7236,6 +7282,7 @@ export type StandardVersion = {
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: Maybe<Scalars['String']>;
+  you: VersionYou;
   yup?: Maybe<Scalars['String']>;
 };
 
@@ -7349,6 +7396,19 @@ export type StandardVersionUpdateInput = {
   versionLabel?: InputMaybe<Scalars['String']>;
   versionNotes?: InputMaybe<Scalars['String']>;
   yup?: InputMaybe<Scalars['String']>;
+};
+
+export type StandardYou = {
+  __typename?: 'StandardYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canStar: Scalars['Boolean'];
+  canTransfer: Scalars['Boolean'];
+  canView: Scalars['Boolean'];
+  canVote: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+  isUpvoted?: Maybe<Scalars['Boolean']>;
+  isViewed: Scalars['Boolean'];
 };
 
 export type Star = {
@@ -7818,8 +7878,6 @@ export type Tag = {
   apis: Array<Api>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
-  isOwn: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
   notes: Array<Note>;
   organizations: Array<Organization>;
   posts: Array<Post>;
@@ -7833,6 +7891,7 @@ export type Tag = {
   tag: Scalars['String'];
   translations: Array<TagTranslation>;
   updated_at: Scalars['Date'];
+  you: TagYou;
 };
 
 export type TagCreateInput = {
@@ -7904,6 +7963,12 @@ export type TagUpdateInput = {
   translationsUpdate?: InputMaybe<Array<TagTranslationUpdateInput>>;
 };
 
+export type TagYou = {
+  __typename?: 'TagYou';
+  isOwn: Scalars['Boolean'];
+  isStarred: Scalars['Boolean'];
+};
+
 export type TimeFrame = {
   after?: InputMaybe<Scalars['Date']>;
   before?: InputMaybe<Scalars['Date']>;
@@ -7919,6 +7984,7 @@ export type Transfer = {
   status: TransferStatus;
   toOwner?: Maybe<Owner>;
   updated_at: Scalars['Date'];
+  you: TransferYou;
 };
 
 export type TransferDenyInput = {
@@ -7942,12 +8008,6 @@ export enum TransferObjectType {
   SmartContract = 'SmartContract',
   Standard = 'Standard'
 }
-
-export type TransferPermission = {
-  __typename?: 'TransferPermission';
-  canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-};
 
 export type TransferRequestReceiveInput = {
   id: Scalars['ID'];
@@ -8011,6 +8071,12 @@ export type TransferUpdateInput = {
   message?: InputMaybe<Scalars['String']>;
 };
 
+export type TransferYou = {
+  __typename?: 'TransferYou';
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+};
+
 export type Translate = {
   __typename?: 'Translate';
   fields: Scalars['String'];
@@ -8055,8 +8121,6 @@ export type User = {
   isPrivateStandardsCreated: Scalars['Boolean'];
   isPrivateStars: Scalars['Boolean'];
   isPrivateVotes: Scalars['Boolean'];
-  isStarred: Scalars['Boolean'];
-  isViewed: Scalars['Boolean'];
   issuesClosed?: Maybe<Array<Issue>>;
   issuesCreated?: Maybe<Array<Issue>>;
   labels?: Maybe<Array<Label>>;
@@ -8114,6 +8178,7 @@ export type User = {
   views: Scalars['Int'];
   voted?: Maybe<Array<Vote>>;
   wallets?: Maybe<Array<Wallet>>;
+  you: UserYou;
 };
 
 export type UserDeleteInput = {
@@ -8296,12 +8361,18 @@ export type UserTranslationUpdateInput = {
   language?: InputMaybe<Scalars['String']>;
 };
 
+export type UserYou = {
+  __typename?: 'UserYou';
+  isStarred: Scalars['Boolean'];
+  isViewed: Scalars['Boolean'];
+};
+
 export type ValidateSessionInput = {
   timeZone: Scalars['String'];
 };
 
-export type VersionPermission = {
-  __typename?: 'VersionPermission';
+export type VersionYou = {
+  __typename?: 'VersionYou';
   canComment: Scalars['Boolean'];
   canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
@@ -8540,13 +8611,13 @@ export type ResolversTypes = {
   ApiVersionTranslationCreateInput: ApiVersionTranslationCreateInput;
   ApiVersionTranslationUpdateInput: ApiVersionTranslationUpdateInput;
   ApiVersionUpdateInput: ApiVersionUpdateInput;
+  ApiYou: ResolverTypeWrapper<ApiYou>;
   Award: ResolverTypeWrapper<Award>;
   AwardCategory: AwardCategory;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
   Comment: ResolverTypeWrapper<Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversTypes['CommentedOn'], owner?: Maybe<ResolversTypes['Owner']> }>;
   CommentCreateInput: CommentCreateInput;
   CommentFor: CommentFor;
-  CommentPermission: ResolverTypeWrapper<CommentPermission>;
   CommentSearchInput: CommentSearchInput;
   CommentSearchResult: ResolverTypeWrapper<CommentSearchResult>;
   CommentSortBy: CommentSortBy;
@@ -8555,6 +8626,7 @@ export type ResolversTypes = {
   CommentTranslationCreateInput: CommentTranslationCreateInput;
   CommentTranslationUpdateInput: CommentTranslationUpdateInput;
   CommentUpdateInput: CommentUpdateInput;
+  CommentYou: ResolverTypeWrapper<CommentYou>;
   CommentedOn: ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['Standard'];
   CopyInput: CopyInput;
   CopyResult: ResolverTypeWrapper<CopyResult>;
@@ -8586,7 +8658,6 @@ export type ResolversTypes = {
   IssueCreateInput: IssueCreateInput;
   IssueEdge: ResolverTypeWrapper<IssueEdge>;
   IssueFor: IssueFor;
-  IssuePermission: ResolverTypeWrapper<IssuePermission>;
   IssueSearchInput: IssueSearchInput;
   IssueSearchResult: ResolverTypeWrapper<IssueSearchResult>;
   IssueSortBy: IssueSortBy;
@@ -8596,10 +8667,10 @@ export type ResolversTypes = {
   IssueTranslationCreateInput: IssueTranslationCreateInput;
   IssueTranslationUpdateInput: IssueTranslationUpdateInput;
   IssueUpdateInput: IssueUpdateInput;
+  IssueYou: ResolverTypeWrapper<IssueYou>;
   Label: ResolverTypeWrapper<Label>;
   LabelCreateInput: LabelCreateInput;
   LabelEdge: ResolverTypeWrapper<LabelEdge>;
-  LabelPermission: ResolverTypeWrapper<LabelPermission>;
   LabelSearchInput: LabelSearchInput;
   LabelSearchResult: ResolverTypeWrapper<LabelSearchResult>;
   LabelSortBy: LabelSortBy;
@@ -8607,6 +8678,7 @@ export type ResolversTypes = {
   LabelTranslationCreateInput: LabelTranslationCreateInput;
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
+  LabelYou: ResolverTypeWrapper<LabelYou>;
   LearnResult: ResolverTypeWrapper<LearnResult>;
   LogOutInput: LogOutInput;
   Meeting: ResolverTypeWrapper<Meeting>;
@@ -8615,13 +8687,12 @@ export type ResolversTypes = {
   MeetingInvite: ResolverTypeWrapper<MeetingInvite>;
   MeetingInviteCreateInput: MeetingInviteCreateInput;
   MeetingInviteEdge: ResolverTypeWrapper<MeetingInviteEdge>;
-  MeetingInvitePermission: ResolverTypeWrapper<MeetingInvitePermission>;
   MeetingInviteSearchInput: MeetingInviteSearchInput;
   MeetingInviteSearchResult: ResolverTypeWrapper<MeetingInviteSearchResult>;
   MeetingInviteSortBy: MeetingInviteSortBy;
   MeetingInviteStatus: MeetingInviteStatus;
   MeetingInviteUpdateInput: MeetingInviteUpdateInput;
-  MeetingPermission: ResolverTypeWrapper<MeetingPermission>;
+  MeetingInviteYou: ResolverTypeWrapper<MeetingInviteYou>;
   MeetingSearchInput: MeetingSearchInput;
   MeetingSearchResult: ResolverTypeWrapper<MeetingSearchResult>;
   MeetingSortBy: MeetingSortBy;
@@ -8629,17 +8700,18 @@ export type ResolversTypes = {
   MeetingTranslationCreateInput: MeetingTranslationCreateInput;
   MeetingTranslationUpdateInput: MeetingTranslationUpdateInput;
   MeetingUpdateInput: MeetingUpdateInput;
+  MeetingYou: ResolverTypeWrapper<MeetingYou>;
   Member: ResolverTypeWrapper<Member>;
   MemberEdge: ResolverTypeWrapper<MemberEdge>;
   MemberInvite: ResolverTypeWrapper<MemberInvite>;
   MemberInviteCreateInput: MemberInviteCreateInput;
   MemberInviteEdge: ResolverTypeWrapper<MemberInviteEdge>;
-  MemberInvitePermission: ResolverTypeWrapper<MemberInvitePermission>;
   MemberInviteSearchInput: MemberInviteSearchInput;
   MemberInviteSearchResult: ResolverTypeWrapper<MemberInviteSearchResult>;
   MemberInviteSortBy: MemberInviteSortBy;
   MemberInviteStatus: MemberInviteStatus;
   MemberInviteUpdateInput: MemberInviteUpdateInput;
+  MemberInviteYou: ResolverTypeWrapper<MemberInviteYou>;
   MemberSearchInput: MemberSearchInput;
   MemberSearchResult: ResolverTypeWrapper<MemberSearchResult>;
   MemberSortBy: MemberSortBy;
@@ -8692,7 +8764,6 @@ export type ResolversTypes = {
   NoteVersion: ResolverTypeWrapper<NoteVersion>;
   NoteVersionCreateInput: NoteVersionCreateInput;
   NoteVersionEdge: ResolverTypeWrapper<NoteVersionEdge>;
-  NoteVersionPermission: ResolverTypeWrapper<NoteVersionPermission>;
   NoteVersionSearchInput: NoteVersionSearchInput;
   NoteVersionSearchResult: ResolverTypeWrapper<NoteVersionSearchResult>;
   NoteVersionSortBy: NoteVersionSortBy;
@@ -8700,6 +8771,7 @@ export type ResolversTypes = {
   NoteVersionTranslationCreateInput: NoteVersionTranslationCreateInput;
   NoteVersionTranslationUpdateInput: NoteVersionTranslationUpdateInput;
   NoteVersionUpdateInput: NoteVersionUpdateInput;
+  NoteYou: ResolverTypeWrapper<NoteYou>;
   Notification: ResolverTypeWrapper<Notification>;
   NotificationEdge: ResolverTypeWrapper<NotificationEdge>;
   NotificationSearchInput: NotificationSearchInput;
@@ -8719,7 +8791,6 @@ export type ResolversTypes = {
   Organization: ResolverTypeWrapper<Organization>;
   OrganizationCreateInput: OrganizationCreateInput;
   OrganizationEdge: ResolverTypeWrapper<OrganizationEdge>;
-  OrganizationPermission: ResolverTypeWrapper<OrganizationPermission>;
   OrganizationSearchInput: OrganizationSearchInput;
   OrganizationSearchResult: ResolverTypeWrapper<OrganizationSearchResult>;
   OrganizationSortBy: OrganizationSortBy;
@@ -8727,6 +8798,7 @@ export type ResolversTypes = {
   OrganizationTranslationCreateInput: OrganizationTranslationCreateInput;
   OrganizationTranslationUpdateInput: OrganizationTranslationUpdateInput;
   OrganizationUpdateInput: OrganizationUpdateInput;
+  OrganizationYou: ResolverTypeWrapper<OrganizationYou>;
   Owner: ResolversTypes['Organization'] | ResolversTypes['User'];
   PageInfo: ResolverTypeWrapper<PageInfo>;
   Payment: ResolverTypeWrapper<Payment>;
@@ -8783,11 +8855,12 @@ export type ResolversTypes = {
   ProjectVersionTranslationCreateInput: ProjectVersionTranslationCreateInput;
   ProjectVersionTranslationUpdateInput: ProjectVersionTranslationUpdateInput;
   ProjectVersionUpdateInput: ProjectVersionUpdateInput;
+  ProjectVersionYou: ResolverTypeWrapper<ProjectVersionYou>;
+  ProjectYou: ResolverTypeWrapper<ProjectYou>;
   PullRequest: ResolverTypeWrapper<Omit<PullRequest, 'from' | 'to'> & { from: ResolversTypes['PullRequestFrom'], to: ResolversTypes['PullRequestTo'] }>;
   PullRequestCreateInput: PullRequestCreateInput;
   PullRequestEdge: ResolverTypeWrapper<PullRequestEdge>;
   PullRequestFrom: ResolversTypes['ApiVersion'] | ResolversTypes['NoteVersion'] | ResolversTypes['ProjectVersion'] | ResolversTypes['RoutineVersion'] | ResolversTypes['SmartContractVersion'] | ResolversTypes['StandardVersion'];
-  PullRequestPermission: ResolverTypeWrapper<PullRequestPermission>;
   PullRequestSearchInput: PullRequestSearchInput;
   PullRequestSearchResult: ResolverTypeWrapper<PullRequestSearchResult>;
   PullRequestSortBy: PullRequestSortBy;
@@ -8795,6 +8868,7 @@ export type ResolversTypes = {
   PullRequestTo: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
   PullRequestToObjectType: PullRequestToObjectType;
   PullRequestUpdateInput: PullRequestUpdateInput;
+  PullRequestYou: ResolverTypeWrapper<PullRequestYou>;
   PushDevice: ResolverTypeWrapper<PushDevice>;
   PushDeviceCreateInput: PushDeviceCreateInput;
   PushDeviceKeysInput: PushDeviceKeysInput;
@@ -8826,23 +8900,20 @@ export type ResolversTypes = {
   QuizAttempt: ResolverTypeWrapper<QuizAttempt>;
   QuizAttemptCreateInput: QuizAttemptCreateInput;
   QuizAttemptEdge: ResolverTypeWrapper<QuizAttemptEdge>;
-  QuizAttemptPermission: ResolverTypeWrapper<QuizAttemptPermission>;
   QuizAttemptSearchInput: QuizAttemptSearchInput;
   QuizAttemptSearchResult: ResolverTypeWrapper<QuizAttemptSearchResult>;
   QuizAttemptSortBy: QuizAttemptSortBy;
   QuizAttemptStatus: QuizAttemptStatus;
   QuizAttemptUpdateInput: QuizAttemptUpdateInput;
+  QuizAttemptYou: ResolverTypeWrapper<QuizAttemptYou>;
   QuizCreateInput: QuizCreateInput;
   QuizEdge: ResolverTypeWrapper<QuizEdge>;
-  QuizPermission: ResolverTypeWrapper<QuizPermission>;
   QuizQuestion: ResolverTypeWrapper<QuizQuestion>;
   QuizQuestionCreateInput: QuizQuestionCreateInput;
   QuizQuestionEdge: ResolverTypeWrapper<QuizQuestionEdge>;
-  QuizQuestionPermission: ResolverTypeWrapper<QuizQuestionPermission>;
   QuizQuestionResponse: ResolverTypeWrapper<QuizQuestionResponse>;
   QuizQuestionResponseCreateInput: QuizQuestionResponseCreateInput;
   QuizQuestionResponseEdge: ResolverTypeWrapper<QuizQuestionResponseEdge>;
-  QuizQuestionResponsePermission: ResolverTypeWrapper<QuizQuestionResponsePermission>;
   QuizQuestionResponseSearchInput: QuizQuestionResponseSearchInput;
   QuizQuestionResponseSearchResult: ResolverTypeWrapper<QuizQuestionResponseSearchResult>;
   QuizQuestionResponseSortBy: QuizQuestionResponseSortBy;
@@ -8850,6 +8921,7 @@ export type ResolversTypes = {
   QuizQuestionResponseTranslationCreateInput: QuizQuestionResponseTranslationCreateInput;
   QuizQuestionResponseTranslationUpdateInput: QuizQuestionResponseTranslationUpdateInput;
   QuizQuestionResponseUpdateInput: QuizQuestionResponseUpdateInput;
+  QuizQuestionResponseYou: ResolverTypeWrapper<QuizQuestionResponseYou>;
   QuizQuestionSearchInput: QuizQuestionSearchInput;
   QuizQuestionSearchResult: ResolverTypeWrapper<QuizQuestionSearchResult>;
   QuizQuestionSortBy: QuizQuestionSortBy;
@@ -8857,6 +8929,7 @@ export type ResolversTypes = {
   QuizQuestionTranslationCreateInput: QuizQuestionTranslationCreateInput;
   QuizQuestionTranslationUpdateInput: QuizQuestionTranslationUpdateInput;
   QuizQuestionUpdateInput: QuizQuestionUpdateInput;
+  QuizQuestionYou: ResolverTypeWrapper<QuizQuestionYou>;
   QuizSearchInput: QuizSearchInput;
   QuizSearchResult: ResolverTypeWrapper<QuizSearchResult>;
   QuizSortBy: QuizSortBy;
@@ -8864,6 +8937,7 @@ export type ResolversTypes = {
   QuizTranslationCreateInput: QuizTranslationCreateInput;
   QuizTranslationUpdateInput: QuizTranslationUpdateInput;
   QuizUpdateInput: QuizUpdateInput;
+  QuizYou: ResolverTypeWrapper<QuizYou>;
   ReadAssetsInput: ReadAssetsInput;
   Reminder: ResolverTypeWrapper<Reminder>;
   ReminderCreateInput: ReminderCreateInput;
@@ -8889,16 +8963,17 @@ export type ResolversTypes = {
   ReportResponse: ResolverTypeWrapper<ReportResponse>;
   ReportResponseCreateInput: ReportResponseCreateInput;
   ReportResponseEdge: ResolverTypeWrapper<ReportResponseEdge>;
-  ReportResponsePermission: ResolverTypeWrapper<ReportResponsePermission>;
   ReportResponseSearchInput: ReportResponseSearchInput;
   ReportResponseSearchResult: ResolverTypeWrapper<ReportResponseSearchResult>;
   ReportResponseSortBy: ReportResponseSortBy;
   ReportResponseUpdateInput: ReportResponseUpdateInput;
+  ReportResponseYou: ResolverTypeWrapper<ReportResponseYou>;
   ReportSearchInput: ReportSearchInput;
   ReportSearchResult: ResolverTypeWrapper<ReportSearchResult>;
   ReportSortBy: ReportSortBy;
   ReportSuggestedAction: ReportSuggestedAction;
   ReportUpdateInput: ReportUpdateInput;
+  ReportYou: ResolverTypeWrapper<ReportYou>;
   ReputationHistory: ResolverTypeWrapper<ReputationHistory>;
   ReputationHistoryEdge: ResolverTypeWrapper<ReputationHistoryEdge>;
   ReputationHistorySearchInput: ReputationHistorySearchInput;
@@ -8937,11 +9012,9 @@ export type ResolversTypes = {
   RoleTranslationCreateInput: RoleTranslationCreateInput;
   RoleTranslationUpdateInput: RoleTranslationUpdateInput;
   RoleUpdateInput: RoleUpdateInput;
-  RootPermission: ResolverTypeWrapper<RootPermission>;
   Routine: ResolverTypeWrapper<Omit<Routine, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   RoutineCreateInput: RoutineCreateInput;
   RoutineEdge: ResolverTypeWrapper<RoutineEdge>;
-  RoutinePermission: ResolverTypeWrapper<RoutinePermission>;
   RoutineSearchInput: RoutineSearchInput;
   RoutineSearchResult: ResolverTypeWrapper<RoutineSearchResult>;
   RoutineSortBy: RoutineSortBy;
@@ -8961,7 +9034,6 @@ export type ResolversTypes = {
   RoutineVersionOutputTranslationCreateInput: RoutineVersionOutputTranslationCreateInput;
   RoutineVersionOutputTranslationUpdateInput: RoutineVersionOutputTranslationUpdateInput;
   RoutineVersionOutputUpdateInput: RoutineVersionOutputUpdateInput;
-  RoutineVersionPermission: ResolverTypeWrapper<RoutineVersionPermission>;
   RoutineVersionSearchInput: RoutineVersionSearchInput;
   RoutineVersionSearchResult: ResolverTypeWrapper<RoutineVersionSearchResult>;
   RoutineVersionSortBy: RoutineVersionSortBy;
@@ -8969,12 +9041,13 @@ export type ResolversTypes = {
   RoutineVersionTranslationCreateInput: RoutineVersionTranslationCreateInput;
   RoutineVersionTranslationUpdateInput: RoutineVersionTranslationUpdateInput;
   RoutineVersionUpdateInput: RoutineVersionUpdateInput;
+  RoutineVersionYou: ResolverTypeWrapper<RoutineVersionYou>;
+  RoutineYou: ResolverTypeWrapper<RoutineYou>;
   RunProject: ResolverTypeWrapper<RunProject>;
   RunProjectCancelInput: RunProjectCancelInput;
   RunProjectCompleteInput: RunProjectCompleteInput;
   RunProjectCreateInput: RunProjectCreateInput;
   RunProjectEdge: ResolverTypeWrapper<RunProjectEdge>;
-  RunProjectPermission: ResolverTypeWrapper<RunProjectPermission>;
   RunProjectSchedule: ResolverTypeWrapper<RunProjectSchedule>;
   RunProjectScheduleCreateInput: RunProjectScheduleCreateInput;
   RunProjectScheduleEdge: ResolverTypeWrapper<RunProjectScheduleEdge>;
@@ -8993,6 +9066,7 @@ export type ResolversTypes = {
   RunProjectStepStatus: RunProjectStepStatus;
   RunProjectStepUpdateInput: RunProjectStepUpdateInput;
   RunProjectUpdateInput: RunProjectUpdateInput;
+  RunProjectYou: ResolverTypeWrapper<RunProjectYou>;
   RunRoutine: ResolverTypeWrapper<RunRoutine>;
   RunRoutineCancelInput: RunRoutineCancelInput;
   RunRoutineCompleteInput: RunRoutineCompleteInput;
@@ -9005,7 +9079,6 @@ export type ResolversTypes = {
   RunRoutineInputSearchResult: ResolverTypeWrapper<RunRoutineInputSearchResult>;
   RunRoutineInputSortBy: RunRoutineInputSortBy;
   RunRoutineInputUpdateInput: RunRoutineInputUpdateInput;
-  RunRoutinePermission: ResolverTypeWrapper<RunRoutinePermission>;
   RunRoutineSchedule: ResolverTypeWrapper<RunRoutineSchedule>;
   RunRoutineScheduleCreateInput: RunRoutineScheduleCreateInput;
   RunRoutineScheduleEdge: ResolverTypeWrapper<RunRoutineScheduleEdge>;
@@ -9025,6 +9098,7 @@ export type ResolversTypes = {
   RunRoutineStepStatus: RunRoutineStepStatus;
   RunRoutineStepUpdateInput: RunRoutineStepUpdateInput;
   RunRoutineUpdateInput: RunRoutineUpdateInput;
+  RunRoutineYou: ResolverTypeWrapper<RunRoutineYou>;
   RunStatus: RunStatus;
   SearchException: SearchException;
   SendVerificationEmailInput: SendVerificationEmailInput;
@@ -9048,6 +9122,7 @@ export type ResolversTypes = {
   SmartContractVersionTranslationCreateInput: SmartContractVersionTranslationCreateInput;
   SmartContractVersionTranslationUpdateInput: SmartContractVersionTranslationUpdateInput;
   SmartContractVersionUpdateInput: SmartContractVersionUpdateInput;
+  SmartContractYou: ResolverTypeWrapper<SmartContractYou>;
   Standard: ResolverTypeWrapper<Omit<Standard, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   StandardCreateInput: StandardCreateInput;
   StandardEdge: ResolverTypeWrapper<StandardEdge>;
@@ -9065,6 +9140,7 @@ export type ResolversTypes = {
   StandardVersionTranslationCreateInput: StandardVersionTranslationCreateInput;
   StandardVersionTranslationUpdateInput: StandardVersionTranslationUpdateInput;
   StandardVersionUpdateInput: StandardVersionUpdateInput;
+  StandardYou: ResolverTypeWrapper<StandardYou>;
   Star: ResolverTypeWrapper<Omit<Star, 'to'> & { to: ResolversTypes['StarTo'] }>;
   StarEdge: ResolverTypeWrapper<StarEdge>;
   StarFor: StarFor;
@@ -9134,13 +9210,13 @@ export type ResolversTypes = {
   TagTranslationCreateInput: TagTranslationCreateInput;
   TagTranslationUpdateInput: TagTranslationUpdateInput;
   TagUpdateInput: TagUpdateInput;
+  TagYou: ResolverTypeWrapper<TagYou>;
   TimeFrame: TimeFrame;
   Transfer: ResolverTypeWrapper<Omit<Transfer, 'fromOwner' | 'object' | 'toOwner'> & { fromOwner?: Maybe<ResolversTypes['Owner']>, object: ResolversTypes['TransferObject'], toOwner?: Maybe<ResolversTypes['Owner']> }>;
   TransferDenyInput: TransferDenyInput;
   TransferEdge: ResolverTypeWrapper<TransferEdge>;
   TransferObject: ResolversTypes['Api'] | ResolversTypes['Note'] | ResolversTypes['Project'] | ResolversTypes['Routine'] | ResolversTypes['SmartContract'] | ResolversTypes['Standard'];
   TransferObjectType: TransferObjectType;
-  TransferPermission: ResolverTypeWrapper<TransferPermission>;
   TransferRequestReceiveInput: TransferRequestReceiveInput;
   TransferRequestSendInput: TransferRequestSendInput;
   TransferSearchInput: TransferSearchInput;
@@ -9148,6 +9224,7 @@ export type ResolversTypes = {
   TransferSortBy: TransferSortBy;
   TransferStatus: TransferStatus;
   TransferUpdateInput: TransferUpdateInput;
+  TransferYou: ResolverTypeWrapper<TransferYou>;
   Translate: ResolverTypeWrapper<Translate>;
   TranslateInput: TranslateInput;
   Upload: ResolverTypeWrapper<Scalars['Upload']>;
@@ -9170,8 +9247,9 @@ export type ResolversTypes = {
   UserTranslation: ResolverTypeWrapper<UserTranslation>;
   UserTranslationCreateInput: UserTranslationCreateInput;
   UserTranslationUpdateInput: UserTranslationUpdateInput;
+  UserYou: ResolverTypeWrapper<UserYou>;
   ValidateSessionInput: ValidateSessionInput;
-  VersionPermission: ResolverTypeWrapper<VersionPermission>;
+  VersionYou: ResolverTypeWrapper<VersionYou>;
   View: ResolverTypeWrapper<Omit<View, 'to'> & { to: ResolversTypes['ViewTo'] }>;
   ViewEdge: ResolverTypeWrapper<ViewEdge>;
   ViewSearchInput: ViewSearchInput;
@@ -9217,11 +9295,11 @@ export type ResolversParentTypes = {
   ApiVersionTranslationCreateInput: ApiVersionTranslationCreateInput;
   ApiVersionTranslationUpdateInput: ApiVersionTranslationUpdateInput;
   ApiVersionUpdateInput: ApiVersionUpdateInput;
+  ApiYou: ApiYou;
   Award: Award;
   Boolean: Scalars['Boolean'];
   Comment: Omit<Comment, 'commentedOn' | 'owner'> & { commentedOn: ResolversParentTypes['CommentedOn'], owner?: Maybe<ResolversParentTypes['Owner']> };
   CommentCreateInput: CommentCreateInput;
-  CommentPermission: CommentPermission;
   CommentSearchInput: CommentSearchInput;
   CommentSearchResult: CommentSearchResult;
   CommentThread: CommentThread;
@@ -9229,6 +9307,7 @@ export type ResolversParentTypes = {
   CommentTranslationCreateInput: CommentTranslationCreateInput;
   CommentTranslationUpdateInput: CommentTranslationUpdateInput;
   CommentUpdateInput: CommentUpdateInput;
+  CommentYou: CommentYou;
   CommentedOn: ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['Standard'];
   CopyInput: CopyInput;
   CopyResult: CopyResult;
@@ -9257,7 +9336,6 @@ export type ResolversParentTypes = {
   IssueCloseInput: IssueCloseInput;
   IssueCreateInput: IssueCreateInput;
   IssueEdge: IssueEdge;
-  IssuePermission: IssuePermission;
   IssueSearchInput: IssueSearchInput;
   IssueSearchResult: IssueSearchResult;
   IssueTo: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Organization'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
@@ -9265,16 +9343,17 @@ export type ResolversParentTypes = {
   IssueTranslationCreateInput: IssueTranslationCreateInput;
   IssueTranslationUpdateInput: IssueTranslationUpdateInput;
   IssueUpdateInput: IssueUpdateInput;
+  IssueYou: IssueYou;
   Label: Label;
   LabelCreateInput: LabelCreateInput;
   LabelEdge: LabelEdge;
-  LabelPermission: LabelPermission;
   LabelSearchInput: LabelSearchInput;
   LabelSearchResult: LabelSearchResult;
   LabelTranslation: LabelTranslation;
   LabelTranslationCreateInput: LabelTranslationCreateInput;
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
+  LabelYou: LabelYou;
   LearnResult: LearnResult;
   LogOutInput: LogOutInput;
   Meeting: Meeting;
@@ -9283,26 +9362,26 @@ export type ResolversParentTypes = {
   MeetingInvite: MeetingInvite;
   MeetingInviteCreateInput: MeetingInviteCreateInput;
   MeetingInviteEdge: MeetingInviteEdge;
-  MeetingInvitePermission: MeetingInvitePermission;
   MeetingInviteSearchInput: MeetingInviteSearchInput;
   MeetingInviteSearchResult: MeetingInviteSearchResult;
   MeetingInviteUpdateInput: MeetingInviteUpdateInput;
-  MeetingPermission: MeetingPermission;
+  MeetingInviteYou: MeetingInviteYou;
   MeetingSearchInput: MeetingSearchInput;
   MeetingSearchResult: MeetingSearchResult;
   MeetingTranslation: MeetingTranslation;
   MeetingTranslationCreateInput: MeetingTranslationCreateInput;
   MeetingTranslationUpdateInput: MeetingTranslationUpdateInput;
   MeetingUpdateInput: MeetingUpdateInput;
+  MeetingYou: MeetingYou;
   Member: Member;
   MemberEdge: MemberEdge;
   MemberInvite: MemberInvite;
   MemberInviteCreateInput: MemberInviteCreateInput;
   MemberInviteEdge: MemberInviteEdge;
-  MemberInvitePermission: MemberInvitePermission;
   MemberInviteSearchInput: MemberInviteSearchInput;
   MemberInviteSearchResult: MemberInviteSearchResult;
   MemberInviteUpdateInput: MemberInviteUpdateInput;
+  MemberInviteYou: MemberInviteYou;
   MemberSearchInput: MemberSearchInput;
   MemberSearchResult: MemberSearchResult;
   MemberUpdateInput: MemberUpdateInput;
@@ -9352,13 +9431,13 @@ export type ResolversParentTypes = {
   NoteVersion: NoteVersion;
   NoteVersionCreateInput: NoteVersionCreateInput;
   NoteVersionEdge: NoteVersionEdge;
-  NoteVersionPermission: NoteVersionPermission;
   NoteVersionSearchInput: NoteVersionSearchInput;
   NoteVersionSearchResult: NoteVersionSearchResult;
   NoteVersionTranslation: NoteVersionTranslation;
   NoteVersionTranslationCreateInput: NoteVersionTranslationCreateInput;
   NoteVersionTranslationUpdateInput: NoteVersionTranslationUpdateInput;
   NoteVersionUpdateInput: NoteVersionUpdateInput;
+  NoteYou: NoteYou;
   Notification: Notification;
   NotificationEdge: NotificationEdge;
   NotificationSearchInput: NotificationSearchInput;
@@ -9376,13 +9455,13 @@ export type ResolversParentTypes = {
   Organization: Organization;
   OrganizationCreateInput: OrganizationCreateInput;
   OrganizationEdge: OrganizationEdge;
-  OrganizationPermission: OrganizationPermission;
   OrganizationSearchInput: OrganizationSearchInput;
   OrganizationSearchResult: OrganizationSearchResult;
   OrganizationTranslation: OrganizationTranslation;
   OrganizationTranslationCreateInput: OrganizationTranslationCreateInput;
   OrganizationTranslationUpdateInput: OrganizationTranslationUpdateInput;
   OrganizationUpdateInput: OrganizationUpdateInput;
+  OrganizationYou: OrganizationYou;
   Owner: ResolversParentTypes['Organization'] | ResolversParentTypes['User'];
   PageInfo: PageInfo;
   Payment: Payment;
@@ -9433,15 +9512,17 @@ export type ResolversParentTypes = {
   ProjectVersionTranslationCreateInput: ProjectVersionTranslationCreateInput;
   ProjectVersionTranslationUpdateInput: ProjectVersionTranslationUpdateInput;
   ProjectVersionUpdateInput: ProjectVersionUpdateInput;
+  ProjectVersionYou: ProjectVersionYou;
+  ProjectYou: ProjectYou;
   PullRequest: Omit<PullRequest, 'from' | 'to'> & { from: ResolversParentTypes['PullRequestFrom'], to: ResolversParentTypes['PullRequestTo'] };
   PullRequestCreateInput: PullRequestCreateInput;
   PullRequestEdge: PullRequestEdge;
   PullRequestFrom: ResolversParentTypes['ApiVersion'] | ResolversParentTypes['NoteVersion'] | ResolversParentTypes['ProjectVersion'] | ResolversParentTypes['RoutineVersion'] | ResolversParentTypes['SmartContractVersion'] | ResolversParentTypes['StandardVersion'];
-  PullRequestPermission: PullRequestPermission;
   PullRequestSearchInput: PullRequestSearchInput;
   PullRequestSearchResult: PullRequestSearchResult;
   PullRequestTo: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
   PullRequestUpdateInput: PullRequestUpdateInput;
+  PullRequestYou: PullRequestYou;
   PushDevice: PushDevice;
   PushDeviceCreateInput: PushDeviceCreateInput;
   PushDeviceKeysInput: PushDeviceKeysInput;
@@ -9470,39 +9551,39 @@ export type ResolversParentTypes = {
   QuizAttempt: QuizAttempt;
   QuizAttemptCreateInput: QuizAttemptCreateInput;
   QuizAttemptEdge: QuizAttemptEdge;
-  QuizAttemptPermission: QuizAttemptPermission;
   QuizAttemptSearchInput: QuizAttemptSearchInput;
   QuizAttemptSearchResult: QuizAttemptSearchResult;
   QuizAttemptUpdateInput: QuizAttemptUpdateInput;
+  QuizAttemptYou: QuizAttemptYou;
   QuizCreateInput: QuizCreateInput;
   QuizEdge: QuizEdge;
-  QuizPermission: QuizPermission;
   QuizQuestion: QuizQuestion;
   QuizQuestionCreateInput: QuizQuestionCreateInput;
   QuizQuestionEdge: QuizQuestionEdge;
-  QuizQuestionPermission: QuizQuestionPermission;
   QuizQuestionResponse: QuizQuestionResponse;
   QuizQuestionResponseCreateInput: QuizQuestionResponseCreateInput;
   QuizQuestionResponseEdge: QuizQuestionResponseEdge;
-  QuizQuestionResponsePermission: QuizQuestionResponsePermission;
   QuizQuestionResponseSearchInput: QuizQuestionResponseSearchInput;
   QuizQuestionResponseSearchResult: QuizQuestionResponseSearchResult;
   QuizQuestionResponseTranslation: QuizQuestionResponseTranslation;
   QuizQuestionResponseTranslationCreateInput: QuizQuestionResponseTranslationCreateInput;
   QuizQuestionResponseTranslationUpdateInput: QuizQuestionResponseTranslationUpdateInput;
   QuizQuestionResponseUpdateInput: QuizQuestionResponseUpdateInput;
+  QuizQuestionResponseYou: QuizQuestionResponseYou;
   QuizQuestionSearchInput: QuizQuestionSearchInput;
   QuizQuestionSearchResult: QuizQuestionSearchResult;
   QuizQuestionTranslation: QuizQuestionTranslation;
   QuizQuestionTranslationCreateInput: QuizQuestionTranslationCreateInput;
   QuizQuestionTranslationUpdateInput: QuizQuestionTranslationUpdateInput;
   QuizQuestionUpdateInput: QuizQuestionUpdateInput;
+  QuizQuestionYou: QuizQuestionYou;
   QuizSearchInput: QuizSearchInput;
   QuizSearchResult: QuizSearchResult;
   QuizTranslation: QuizTranslation;
   QuizTranslationCreateInput: QuizTranslationCreateInput;
   QuizTranslationUpdateInput: QuizTranslationUpdateInput;
   QuizUpdateInput: QuizUpdateInput;
+  QuizYou: QuizYou;
   ReadAssetsInput: ReadAssetsInput;
   Reminder: Reminder;
   ReminderCreateInput: ReminderCreateInput;
@@ -9525,13 +9606,14 @@ export type ResolversParentTypes = {
   ReportResponse: ReportResponse;
   ReportResponseCreateInput: ReportResponseCreateInput;
   ReportResponseEdge: ReportResponseEdge;
-  ReportResponsePermission: ReportResponsePermission;
   ReportResponseSearchInput: ReportResponseSearchInput;
   ReportResponseSearchResult: ReportResponseSearchResult;
   ReportResponseUpdateInput: ReportResponseUpdateInput;
+  ReportResponseYou: ReportResponseYou;
   ReportSearchInput: ReportSearchInput;
   ReportSearchResult: ReportSearchResult;
   ReportUpdateInput: ReportUpdateInput;
+  ReportYou: ReportYou;
   ReputationHistory: ReputationHistory;
   ReputationHistoryEdge: ReputationHistoryEdge;
   ReputationHistorySearchInput: ReputationHistorySearchInput;
@@ -9565,11 +9647,9 @@ export type ResolversParentTypes = {
   RoleTranslationCreateInput: RoleTranslationCreateInput;
   RoleTranslationUpdateInput: RoleTranslationUpdateInput;
   RoleUpdateInput: RoleUpdateInput;
-  RootPermission: RootPermission;
   Routine: Omit<Routine, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   RoutineCreateInput: RoutineCreateInput;
   RoutineEdge: RoutineEdge;
-  RoutinePermission: RoutinePermission;
   RoutineSearchInput: RoutineSearchInput;
   RoutineSearchResult: RoutineSearchResult;
   RoutineUpdateInput: RoutineUpdateInput;
@@ -9588,19 +9668,19 @@ export type ResolversParentTypes = {
   RoutineVersionOutputTranslationCreateInput: RoutineVersionOutputTranslationCreateInput;
   RoutineVersionOutputTranslationUpdateInput: RoutineVersionOutputTranslationUpdateInput;
   RoutineVersionOutputUpdateInput: RoutineVersionOutputUpdateInput;
-  RoutineVersionPermission: RoutineVersionPermission;
   RoutineVersionSearchInput: RoutineVersionSearchInput;
   RoutineVersionSearchResult: RoutineVersionSearchResult;
   RoutineVersionTranslation: RoutineVersionTranslation;
   RoutineVersionTranslationCreateInput: RoutineVersionTranslationCreateInput;
   RoutineVersionTranslationUpdateInput: RoutineVersionTranslationUpdateInput;
   RoutineVersionUpdateInput: RoutineVersionUpdateInput;
+  RoutineVersionYou: RoutineVersionYou;
+  RoutineYou: RoutineYou;
   RunProject: RunProject;
   RunProjectCancelInput: RunProjectCancelInput;
   RunProjectCompleteInput: RunProjectCompleteInput;
   RunProjectCreateInput: RunProjectCreateInput;
   RunProjectEdge: RunProjectEdge;
-  RunProjectPermission: RunProjectPermission;
   RunProjectSchedule: RunProjectSchedule;
   RunProjectScheduleCreateInput: RunProjectScheduleCreateInput;
   RunProjectScheduleEdge: RunProjectScheduleEdge;
@@ -9616,6 +9696,7 @@ export type ResolversParentTypes = {
   RunProjectStepCreateInput: RunProjectStepCreateInput;
   RunProjectStepUpdateInput: RunProjectStepUpdateInput;
   RunProjectUpdateInput: RunProjectUpdateInput;
+  RunProjectYou: RunProjectYou;
   RunRoutine: RunRoutine;
   RunRoutineCancelInput: RunRoutineCancelInput;
   RunRoutineCompleteInput: RunRoutineCompleteInput;
@@ -9627,7 +9708,6 @@ export type ResolversParentTypes = {
   RunRoutineInputSearchInput: RunRoutineInputSearchInput;
   RunRoutineInputSearchResult: RunRoutineInputSearchResult;
   RunRoutineInputUpdateInput: RunRoutineInputUpdateInput;
-  RunRoutinePermission: RunRoutinePermission;
   RunRoutineSchedule: RunRoutineSchedule;
   RunRoutineScheduleCreateInput: RunRoutineScheduleCreateInput;
   RunRoutineScheduleEdge: RunRoutineScheduleEdge;
@@ -9643,6 +9723,7 @@ export type ResolversParentTypes = {
   RunRoutineStepCreateInput: RunRoutineStepCreateInput;
   RunRoutineStepUpdateInput: RunRoutineStepUpdateInput;
   RunRoutineUpdateInput: RunRoutineUpdateInput;
+  RunRoutineYou: RunRoutineYou;
   SearchException: SearchException;
   SendVerificationEmailInput: SendVerificationEmailInput;
   SendVerificationTextInput: SendVerificationTextInput;
@@ -9663,6 +9744,7 @@ export type ResolversParentTypes = {
   SmartContractVersionTranslationCreateInput: SmartContractVersionTranslationCreateInput;
   SmartContractVersionTranslationUpdateInput: SmartContractVersionTranslationUpdateInput;
   SmartContractVersionUpdateInput: SmartContractVersionUpdateInput;
+  SmartContractYou: SmartContractYou;
   Standard: Omit<Standard, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   StandardCreateInput: StandardCreateInput;
   StandardEdge: StandardEdge;
@@ -9678,6 +9760,7 @@ export type ResolversParentTypes = {
   StandardVersionTranslationCreateInput: StandardVersionTranslationCreateInput;
   StandardVersionTranslationUpdateInput: StandardVersionTranslationUpdateInput;
   StandardVersionUpdateInput: StandardVersionUpdateInput;
+  StandardYou: StandardYou;
   Star: Omit<Star, 'to'> & { to: ResolversParentTypes['StarTo'] };
   StarEdge: StarEdge;
   StarInput: StarInput;
@@ -9733,17 +9816,18 @@ export type ResolversParentTypes = {
   TagTranslationCreateInput: TagTranslationCreateInput;
   TagTranslationUpdateInput: TagTranslationUpdateInput;
   TagUpdateInput: TagUpdateInput;
+  TagYou: TagYou;
   TimeFrame: TimeFrame;
   Transfer: Omit<Transfer, 'fromOwner' | 'object' | 'toOwner'> & { fromOwner?: Maybe<ResolversParentTypes['Owner']>, object: ResolversParentTypes['TransferObject'], toOwner?: Maybe<ResolversParentTypes['Owner']> };
   TransferDenyInput: TransferDenyInput;
   TransferEdge: TransferEdge;
   TransferObject: ResolversParentTypes['Api'] | ResolversParentTypes['Note'] | ResolversParentTypes['Project'] | ResolversParentTypes['Routine'] | ResolversParentTypes['SmartContract'] | ResolversParentTypes['Standard'];
-  TransferPermission: TransferPermission;
   TransferRequestReceiveInput: TransferRequestReceiveInput;
   TransferRequestSendInput: TransferRequestSendInput;
   TransferSearchInput: TransferSearchInput;
   TransferSearchResult: TransferSearchResult;
   TransferUpdateInput: TransferUpdateInput;
+  TransferYou: TransferYou;
   Translate: Translate;
   TranslateInput: TranslateInput;
   Upload: Scalars['Upload'];
@@ -9763,8 +9847,9 @@ export type ResolversParentTypes = {
   UserTranslation: UserTranslation;
   UserTranslationCreateInput: UserTranslationCreateInput;
   UserTranslationUpdateInput: UserTranslationUpdateInput;
+  UserYou: UserYou;
   ValidateSessionInput: ValidateSessionInput;
-  VersionPermission: VersionPermission;
+  VersionYou: VersionYou;
   View: Omit<View, 'to'> & { to: ResolversParentTypes['ViewTo'] };
   ViewEdge: ViewEdge;
   ViewSearchInput: ViewSearchInput;
@@ -9788,14 +9873,11 @@ export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTy
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['Api']>, ParentType, ContextType>;
-  permissionsRoot?: Resolver<ResolversTypes['RootPermission'], ParentType, ContextType>;
+  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
@@ -9811,6 +9893,7 @@ export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTy
   versions?: Resolver<Array<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['ApiYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -9848,7 +9931,6 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   forksCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  permissionsVersion?: Resolver<ResolversTypes['VersionPermission'], ParentType, ContextType>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -9859,6 +9941,7 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   versionNotes?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['VersionYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -9882,6 +9965,19 @@ export type ApiVersionTranslationResolvers<ContextType = any, ParentType extends
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type ApiYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ApiYou'] = ResolversParentTypes['ApiYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type AwardResolvers<ContextType = any, ParentType extends ResolversParentTypes['Award'] = ResolversParentTypes['Award']> = {
   category?: Resolver<ResolversTypes['AwardCategory'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -9896,10 +9992,7 @@ export type CommentResolvers<ContextType = any, ParentType extends ResolversPare
   commentedOn?: Resolver<ResolversTypes['CommentedOn'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
-  permissionsComment?: Resolver<Maybe<ResolversTypes['CommentPermission']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -9908,17 +10001,7 @@ export type CommentResolvers<ContextType = any, ParentType extends ResolversPare
   translations?: Resolver<Array<ResolversTypes['CommentTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type CommentPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['CommentPermission'] = ResolversParentTypes['CommentPermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canReply?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['CommentYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -9941,6 +10024,18 @@ export type CommentTranslationResolvers<ContextType = any, ParentType extends Re
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type CommentYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['CommentYou'] = ResolversParentTypes['CommentYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReply?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10005,11 +10100,8 @@ export type IssueResolvers<ContextType = any, ParentType extends ResolversParent
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  permissionsIssue?: Resolver<ResolversTypes['IssuePermission'], ParentType, ContextType>;
   referencedVersionConnect?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10022,23 +10114,13 @@ export type IssueResolvers<ContextType = any, ParentType extends ResolversParent
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['IssueYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IssueEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['IssueEdge'] = ResolversParentTypes['IssueEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['Issue'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type IssuePermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['IssuePermission'] = ResolversParentTypes['IssuePermission']> = {
-  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10060,6 +10142,19 @@ export type IssueTranslationResolvers<ContextType = any, ParentType extends Reso
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type IssueYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['IssueYou'] = ResolversParentTypes['IssueYou']> = {
+  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type LabelResolvers<ContextType = any, ParentType extends ResolversParentTypes['Label'] = ResolversParentTypes['Label']> = {
   apis?: Resolver<Maybe<Array<ResolversTypes['Api']>>, ParentType, ContextType>;
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10073,7 +10168,6 @@ export type LabelResolvers<ContextType = any, ParentType extends ResolversParent
   meetingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   notes?: Resolver<Maybe<Array<ResolversTypes['Note']>>, ParentType, ContextType>;
   notesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  permissionsLabel?: Resolver<ResolversTypes['LabelPermission'], ParentType, ContextType>;
   projects?: Resolver<Maybe<Array<ResolversTypes['Project']>>, ParentType, ContextType>;
   projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   routines?: Resolver<Maybe<Array<ResolversTypes['Routine']>>, ParentType, ContextType>;
@@ -10091,18 +10185,13 @@ export type LabelResolvers<ContextType = any, ParentType extends ResolversParent
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   userSchedules?: Resolver<Maybe<Array<ResolversTypes['UserSchedule']>>, ParentType, ContextType>;
   userSchedulesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['LabelYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type LabelEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['LabelEdge'] = ResolversParentTypes['LabelEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['Label'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type LabelPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['LabelPermission'] = ResolversParentTypes['LabelPermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10116,6 +10205,12 @@ export type LabelTranslationResolvers<ContextType = any, ParentType extends Reso
   description?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type LabelYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['LabelYou'] = ResolversParentTypes['LabelYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10137,7 +10232,6 @@ export type MeetingResolvers<ContextType = any, ParentType extends ResolversPare
   labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   openToAnyoneWithInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
-  permissionsMeeting?: Resolver<ResolversTypes['MeetingPermission'], ParentType, ContextType>;
   recurrEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   recurrStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   recurring?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -10146,6 +10240,7 @@ export type MeetingResolvers<ContextType = any, ParentType extends ResolversPare
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['MeetingTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['MeetingYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10160,10 +10255,10 @@ export type MeetingInviteResolvers<ContextType = any, ParentType extends Resolve
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   meeting?: Resolver<ResolversTypes['Meeting'], ParentType, ContextType>;
   message?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  permissionsMeetingInvite?: Resolver<ResolversTypes['MeetingInvitePermission'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['MeetingInviteStatus'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['MeetingInviteYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10173,22 +10268,15 @@ export type MeetingInviteEdgeResolvers<ContextType = any, ParentType extends Res
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type MeetingInvitePermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeetingInvitePermission'] = ResolversParentTypes['MeetingInvitePermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type MeetingInviteSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeetingInviteSearchResult'] = ResolversParentTypes['MeetingInviteSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['MeetingInviteEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type MeetingPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeetingPermission'] = ResolversParentTypes['MeetingPermission']> = {
+export type MeetingInviteYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeetingInviteYou'] = ResolversParentTypes['MeetingInviteYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10204,6 +10292,13 @@ export type MeetingTranslationResolvers<ContextType = any, ParentType extends Re
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   link?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MeetingYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeetingYou'] = ResolversParentTypes['MeetingYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10229,12 +10324,12 @@ export type MemberInviteResolvers<ContextType = any, ParentType extends Resolver
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   message?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
-  permissionsMemberInvite?: Resolver<ResolversTypes['MemberInvitePermission'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['MemberInviteStatus'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   willBeAdmin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   willHavePermissions?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['MemberInviteYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10244,15 +10339,15 @@ export type MemberInviteEdgeResolvers<ContextType = any, ParentType extends Reso
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type MemberInvitePermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['MemberInvitePermission'] = ResolversParentTypes['MemberInvitePermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type MemberInviteSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['MemberInviteSearchResult'] = ResolversParentTypes['MemberInviteSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['MemberInviteEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type MemberInviteYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['MemberInviteYou'] = ResolversParentTypes['MemberInviteYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10509,16 +10604,13 @@ export type NoteResolvers<ContextType = any, ParentType extends ResolversParentT
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['Note']>, ParentType, ContextType>;
-  permissionsRoot?: Resolver<ResolversTypes['RootPermission'], ParentType, ContextType>;
+  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
@@ -10533,6 +10625,7 @@ export type NoteResolvers<ContextType = any, ParentType extends ResolversParentT
   versions?: Resolver<Array<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['NoteYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10559,7 +10652,6 @@ export type NoteVersionResolvers<ContextType = any, ParentType extends Resolvers
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  permissionsVersion?: Resolver<ResolversTypes['VersionPermission'], ParentType, ContextType>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10569,24 +10661,13 @@ export type NoteVersionResolvers<ContextType = any, ParentType extends Resolvers
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   versionNotes?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['VersionYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type NoteVersionEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['NoteVersionEdge'] = ResolversParentTypes['NoteVersionEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['NoteVersion'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type NoteVersionPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['NoteVersionPermission'] = ResolversParentTypes['NoteVersionPermission']> = {
-  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canCopy?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10601,6 +10682,19 @@ export type NoteVersionTranslationResolvers<ContextType = any, ParentType extend
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   text?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type NoteYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['NoteYou'] = ResolversParentTypes['NoteYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10683,8 +10777,6 @@ export type OrganizationResolvers<ContextType = any, ParentType extends Resolver
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isOpenToNewMembers?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
@@ -10697,7 +10789,7 @@ export type OrganizationResolvers<ContextType = any, ParentType extends Resolver
   notesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
   paymentHistory?: Resolver<Array<ResolversTypes['Payment']>, ParentType, ContextType>;
-  permissionsOrganization?: Resolver<Maybe<ResolversTypes['OrganizationPermission']>, ParentType, ContextType>;
+  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   posts?: Resolver<Array<ResolversTypes['Post']>, ParentType, ContextType>;
   postsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   premium?: Resolver<Maybe<ResolversTypes['Premium']>, ParentType, ContextType>;
@@ -10728,23 +10820,13 @@ export type OrganizationResolvers<ContextType = any, ParentType extends Resolver
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   wallets?: Resolver<Array<ResolversTypes['Wallet']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['OrganizationYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type OrganizationEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationEdge'] = ResolversParentTypes['OrganizationEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type OrganizationPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationPermission'] = ResolversParentTypes['OrganizationPermission']> = {
-  canAddMembers?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isMember?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10759,6 +10841,19 @@ export type OrganizationTranslationResolvers<ContextType = any, ParentType exten
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type OrganizationYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationYou'] = ResolversParentTypes['OrganizationYou']> = {
+  canAddMembers?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  yourMembership?: Resolver<Maybe<ResolversTypes['Member']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10859,17 +10954,13 @@ export type ProjectResolvers<ContextType = any, ParentType extends ResolversPare
   hasCompleteVersion?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['Project']>, ParentType, ContextType>;
-  permissions?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  permissionsRoot?: Resolver<ResolversTypes['RootPermission'], ParentType, ContextType>;
+  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
@@ -10887,6 +10978,7 @@ export type ProjectResolvers<ContextType = any, ParentType extends ResolversPare
   versions?: Resolver<Array<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['ProjectYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10962,12 +11054,10 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
   isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  permissionsVersion?: Resolver<ResolversTypes['VersionPermission'], ParentType, ContextType>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Project'], ParentType, ContextType>;
-  runs?: Resolver<Array<ResolversTypes['RunProject']>, ParentType, ContextType>;
   runsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   suggestedNextByProject?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ProjectVersionTranslation']>, ParentType, ContextType>;
@@ -10976,6 +11066,7 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   versionNotes?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['ProjectVersionYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11028,6 +11119,31 @@ export type ProjectVersionTranslationResolvers<ContextType = any, ParentType ext
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type ProjectVersionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersionYou'] = ResolversParentTypes['ProjectVersionYou']> = {
+  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canCopy?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUse?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  runs?: Resolver<Array<ResolversTypes['RunProject']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ProjectYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectYou'] = ResolversParentTypes['ProjectYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type PullRequestResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequest'] = ResolversParentTypes['PullRequest']> = {
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
@@ -11035,10 +11151,10 @@ export type PullRequestResolvers<ContextType = any, ParentType extends Resolvers
   from?: Resolver<ResolversTypes['PullRequestFrom'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   mergedOrRejectedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
-  permissionsPullRequest?: Resolver<ResolversTypes['PullRequestPermission'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['PullRequestStatus'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['PullRequestTo'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['PullRequestYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11052,14 +11168,6 @@ export type PullRequestFromResolvers<ContextType = any, ParentType extends Resol
   __resolveType: TypeResolveFn<'ApiVersion' | 'NoteVersion' | 'ProjectVersion' | 'RoutineVersion' | 'SmartContractVersion' | 'StandardVersion', ParentType, ContextType>;
 };
 
-export type PullRequestPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestPermission'] = ResolversParentTypes['PullRequestPermission']> = {
-  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type PullRequestSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestSearchResult'] = ResolversParentTypes['PullRequestSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['PullRequestEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
@@ -11068,6 +11176,14 @@ export type PullRequestSearchResultResolvers<ContextType = any, ParentType exten
 
 export type PullRequestToResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestTo'] = ResolversParentTypes['PullRequestTo']> = {
   __resolveType: TypeResolveFn<'Api' | 'Note' | 'Project' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
+};
+
+export type PullRequestYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestYou'] = ResolversParentTypes['PullRequestYou']> = {
+  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type PushDeviceResolvers<ContextType = any, ParentType extends ResolversParentTypes['PushDevice'] = ResolversParentTypes['PushDevice']> = {
@@ -11278,8 +11394,6 @@ export type QuizResolvers<ContextType = any, ParentType extends ResolversParentT
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isCompleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   project?: Resolver<Maybe<ResolversTypes['Project']>, ParentType, ContextType>;
   quizQuestions?: Resolver<Array<ResolversTypes['QuizQuestion']>, ParentType, ContextType>;
   routine?: Resolver<Maybe<ResolversTypes['Routine']>, ParentType, ContextType>;
@@ -11290,6 +11404,7 @@ export type QuizResolvers<ContextType = any, ParentType extends ResolversParentT
   translations?: Resolver<Array<ResolversTypes['QuizTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['QuizYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11304,6 +11419,8 @@ export type QuizAttemptResolvers<ContextType = any, ParentType extends Resolvers
   status?: Resolver<ResolversTypes['QuizAttemptStatus'], ParentType, ContextType>;
   timeTaken?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['QuizAttemptYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11313,30 +11430,21 @@ export type QuizAttemptEdgeResolvers<ContextType = any, ParentType extends Resol
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type QuizAttemptPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizAttemptPermission'] = ResolversParentTypes['QuizAttemptPermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type QuizAttemptSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizAttemptSearchResult'] = ResolversParentTypes['QuizAttemptSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['QuizAttemptEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type QuizEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizEdge'] = ResolversParentTypes['QuizEdge']> = {
-  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  node?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType>;
+export type QuizAttemptYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizAttemptYou'] = ResolversParentTypes['QuizAttemptYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type QuizPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizPermission'] = ResolversParentTypes['QuizPermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+export type QuizEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizEdge'] = ResolversParentTypes['QuizEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11348,9 +11456,10 @@ export type QuizQuestionResolvers<ContextType = any, ParentType extends Resolver
   quiz?: Resolver<ResolversTypes['Quiz'], ParentType, ContextType>;
   responses?: Resolver<Maybe<Array<ResolversTypes['QuizQuestionResponse']>>, ParentType, ContextType>;
   responsesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  standard?: Resolver<Maybe<ResolversTypes['Standard']>, ParentType, ContextType>;
+  standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Maybe<Array<ResolversTypes['QuizQuestionTranslation']>>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['QuizQuestionYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11360,32 +11469,20 @@ export type QuizQuestionEdgeResolvers<ContextType = any, ParentType extends Reso
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type QuizQuestionPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionPermission'] = ResolversParentTypes['QuizQuestionPermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type QuizQuestionResponseResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionResponse'] = ResolversParentTypes['QuizQuestionResponse']> = {
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  permissionsQuizQuestionResponse?: Resolver<ResolversTypes['QuizQuestionResponsePermission'], ParentType, ContextType>;
   quizAttempt?: Resolver<ResolversTypes['QuizAttempt'], ParentType, ContextType>;
   quizQuestion?: Resolver<ResolversTypes['QuizQuestion'], ParentType, ContextType>;
   response?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['QuizQuestionResponseYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type QuizQuestionResponseEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionResponseEdge'] = ResolversParentTypes['QuizQuestionResponseEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['QuizQuestionResponse'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type QuizQuestionResponsePermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionResponsePermission'] = ResolversParentTypes['QuizQuestionResponsePermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11399,6 +11496,12 @@ export type QuizQuestionResponseTranslationResolvers<ContextType = any, ParentTy
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   response?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type QuizQuestionResponseYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionResponseYou'] = ResolversParentTypes['QuizQuestionResponseYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11416,6 +11519,12 @@ export type QuizQuestionTranslationResolvers<ContextType = any, ParentType exten
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type QuizQuestionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionYou'] = ResolversParentTypes['QuizQuestionYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type QuizSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizSearchResult'] = ResolversParentTypes['QuizSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['QuizEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
@@ -11427,6 +11536,17 @@ export type QuizTranslationResolvers<ContextType = any, ParentType extends Resol
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type QuizYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizYou'] = ResolversParentTypes['QuizYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11493,10 +11613,10 @@ export type ReminderSearchResultResolvers<ContextType = any, ParentType extends 
 export type ReportResolvers<ContextType = any, ParentType extends ResolversParentTypes['Report'] = ResolversParentTypes['Report']> = {
   details?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
-  isOwn?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reason?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   responses?: Resolver<Array<ResolversTypes['ReportResponse']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['ReportYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11512,9 +11632,9 @@ export type ReportResponseResolvers<ContextType = any, ParentType extends Resolv
   details?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   language?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  permissionsReportResponse?: Resolver<ResolversTypes['ReportResponsePermission'], ParentType, ContextType>;
   report?: Resolver<ResolversTypes['Report'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['ReportResponseYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11524,21 +11644,28 @@ export type ReportResponseEdgeResolvers<ContextType = any, ParentType extends Re
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type ReportResponsePermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReportResponsePermission'] = ResolversParentTypes['ReportResponsePermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type ReportResponseSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReportResponseSearchResult'] = ResolversParentTypes['ReportResponseSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['ReportResponseEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type ReportResponseYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReportResponseYou'] = ResolversParentTypes['ReportResponseYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type ReportSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReportSearchResult'] = ResolversParentTypes['ReportSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['ReportEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ReportYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReportYou'] = ResolversParentTypes['ReportYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRespond?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11681,16 +11808,6 @@ export type RoleTranslationResolvers<ContextType = any, ParentType extends Resol
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type RootPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['RootPermission'] = ResolversParentTypes['RootPermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type RoutineResolvers<ContextType = any, ParentType extends ResolversParentTypes['Routine'] = ResolversParentTypes['Routine']> = {
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
@@ -11702,15 +11819,12 @@ export type RoutineResolvers<ContextType = any, ParentType extends ResolversPare
   isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isInternal?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['Routine']>, ParentType, ContextType>;
-  permissionsRoutine?: Resolver<ResolversTypes['RoutinePermission'], ParentType, ContextType>;
+  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11722,22 +11836,13 @@ export type RoutineResolvers<ContextType = any, ParentType extends ResolversPare
   versions?: Resolver<Array<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['RoutineYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type RoutineEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineEdge'] = ResolversParentTypes['RoutineEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['Routine'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type RoutinePermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutinePermission'] = ResolversParentTypes['RoutinePermission']> = {
-  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11774,13 +11879,11 @@ export type RoutineVersionResolvers<ContextType = any, ParentType extends Resolv
   nodesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   outputs?: Resolver<Array<ResolversTypes['RoutineVersionOutput']>, ParentType, ContextType>;
   outputsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  permissions?: Resolver<ResolversTypes['RoutineVersionPermission'], ParentType, ContextType>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Routine'], ParentType, ContextType>;
-  runs?: Resolver<Array<ResolversTypes['RunRoutine']>, ParentType, ContextType>;
   simplicity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   smartContract?: Resolver<Maybe<ResolversTypes['SmartContract']>, ParentType, ContextType>;
   smartContractCallData?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -11794,6 +11897,7 @@ export type RoutineVersionResolvers<ContextType = any, ParentType extends Resolv
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   versionNotes?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['RoutineVersionYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11841,19 +11945,6 @@ export type RoutineVersionOutputTranslationResolvers<ContextType = any, ParentTy
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type RoutineVersionPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersionPermission'] = ResolversParentTypes['RoutineVersionPermission']> = {
-  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canFork?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canRun?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type RoutineVersionSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersionSearchResult'] = ResolversParentTypes['RoutineVersionSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['RoutineVersionEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
@@ -11869,6 +11960,33 @@ export type RoutineVersionTranslationResolvers<ContextType = any, ParentType ext
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type RoutineVersionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersionYou'] = ResolversParentTypes['RoutineVersionYou']> = {
+  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canFork?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRun?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  runs?: Resolver<Array<ResolversTypes['RunRoutine']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type RoutineYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineYou'] = ResolversParentTypes['RoutineYou']> = {
+  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type RunProjectResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunProject'] = ResolversParentTypes['RunProject']> = {
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   completedComplexity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11877,7 +11995,6 @@ export type RunProjectResolvers<ContextType = any, ParentType extends ResolversP
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
-  permissionsRun?: Resolver<ResolversTypes['RunProjectPermission'], ParentType, ContextType>;
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   runProjectSchedule?: Resolver<Maybe<ResolversTypes['RunProjectSchedule']>, ParentType, ContextType>;
   startedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
@@ -11886,19 +12003,13 @@ export type RunProjectResolvers<ContextType = any, ParentType extends ResolversP
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   wasRunAutomaticaly?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['RunProjectYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type RunProjectEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunProjectEdge'] = ResolversParentTypes['RunProjectEdge']> = {
   cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type RunProjectPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunProjectPermission'] = ResolversParentTypes['RunProjectPermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11958,6 +12069,13 @@ export type RunProjectStepResolvers<ContextType = any, ParentType extends Resolv
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type RunProjectYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunProjectYou'] = ResolversParentTypes['RunProjectYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type RunRoutineResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutine'] = ResolversParentTypes['RunRoutine']> = {
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   completedComplexity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11967,7 +12085,6 @@ export type RunRoutineResolvers<ContextType = any, ParentType extends ResolversP
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
-  permissionsRun?: Resolver<ResolversTypes['RunRoutinePermission'], ParentType, ContextType>;
   routineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   runProject?: Resolver<Maybe<ResolversTypes['RunProject']>, ParentType, ContextType>;
   runRoutineSchedule?: Resolver<Maybe<ResolversTypes['RunRoutineSchedule']>, ParentType, ContextType>;
@@ -11977,6 +12094,7 @@ export type RunRoutineResolvers<ContextType = any, ParentType extends ResolversP
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   wasRunAutomaticaly?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['RunRoutineYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12003,13 +12121,6 @@ export type RunRoutineInputEdgeResolvers<ContextType = any, ParentType extends R
 export type RunRoutineInputSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineInputSearchResult'] = ResolversParentTypes['RunRoutineInputSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['RunRoutineInputEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
-export type RunRoutinePermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutinePermission'] = ResolversParentTypes['RunRoutinePermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12069,6 +12180,13 @@ export type RunRoutineStepResolvers<ContextType = any, ParentType extends Resolv
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type RunRoutineYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineYou'] = ResolversParentTypes['RunRoutineYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type SessionResolvers<ContextType = any, ParentType extends ResolversParentTypes['Session'] = ResolversParentTypes['Session']> = {
   isLoggedIn?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
@@ -12090,32 +12208,30 @@ export type SmartContractResolvers<ContextType = any, ParentType extends Resolve
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
-  forks?: Resolver<Array<ResolversTypes['SmartContract']>, ParentType, ContextType>;
-  forksCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   hasCompletedVersion?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['SmartContract']>, ParentType, ContextType>;
-  permissionsRoot?: Resolver<ResolversTypes['RootPermission'], ParentType, ContextType>;
+  permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
+  transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
+  transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['SmartContractYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12146,7 +12262,6 @@ export type SmartContractVersionResolvers<ContextType = any, ParentType extends 
   isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  permissions?: Resolver<ResolversTypes['VersionPermission'], ParentType, ContextType>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12159,6 +12274,7 @@ export type SmartContractVersionResolvers<ContextType = any, ParentType extends 
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   versionNotes?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['VersionYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12182,6 +12298,19 @@ export type SmartContractVersionTranslationResolvers<ContextType = any, ParentTy
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type SmartContractYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractYou'] = ResolversParentTypes['SmartContractYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type StandardResolvers<ContextType = any, ParentType extends ResolversParentTypes['Standard'] = ResolversParentTypes['Standard']> = {
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
@@ -12193,9 +12322,6 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isInternal?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
@@ -12203,7 +12329,6 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['Standard']>, ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  permissionsRoot?: Resolver<ResolversTypes['RootPermission'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12215,6 +12340,7 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   versions?: Resolver<Array<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['StandardYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12246,7 +12372,6 @@ export type StandardVersionResolvers<ContextType = any, ParentType extends Resol
   isFile?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  permissions?: Resolver<ResolversTypes['VersionPermission'], ParentType, ContextType>;
   props?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
@@ -12260,6 +12385,7 @@ export type StandardVersionResolvers<ContextType = any, ParentType extends Resol
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   versionNotes?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['VersionYou'], ParentType, ContextType>;
   yup?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12281,6 +12407,19 @@ export type StandardVersionTranslationResolvers<ContextType = any, ParentType ex
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   jsonVariable?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type StandardYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['StandardYou'] = ResolversParentTypes['StandardYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12553,8 +12692,6 @@ export type TagResolvers<ContextType = any, ParentType extends ResolversParentTy
   apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  isOwn?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   notes?: Resolver<Array<ResolversTypes['Note']>, ParentType, ContextType>;
   organizations?: Resolver<Array<ResolversTypes['Organization']>, ParentType, ContextType>;
   posts?: Resolver<Array<ResolversTypes['Post']>, ParentType, ContextType>;
@@ -12568,6 +12705,7 @@ export type TagResolvers<ContextType = any, ParentType extends ResolversParentTy
   tag?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['TagTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['TagYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12590,6 +12728,12 @@ export type TagTranslationResolvers<ContextType = any, ParentType extends Resolv
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type TagYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['TagYou'] = ResolversParentTypes['TagYou']> = {
+  isOwn?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type TransferResolvers<ContextType = any, ParentType extends ResolversParentTypes['Transfer'] = ResolversParentTypes['Transfer']> = {
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   fromOwner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
@@ -12599,6 +12743,7 @@ export type TransferResolvers<ContextType = any, ParentType extends ResolversPar
   status?: Resolver<ResolversTypes['TransferStatus'], ParentType, ContextType>;
   toOwner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['TransferYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12612,15 +12757,15 @@ export type TransferObjectResolvers<ContextType = any, ParentType extends Resolv
   __resolveType: TypeResolveFn<'Api' | 'Note' | 'Project' | 'Routine' | 'SmartContract' | 'Standard', ParentType, ContextType>;
 };
 
-export type TransferPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['TransferPermission'] = ResolversParentTypes['TransferPermission']> = {
-  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type TransferSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['TransferSearchResult'] = ResolversParentTypes['TransferSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['TransferEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type TransferYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['TransferYou'] = ResolversParentTypes['TransferYou']> = {
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12665,8 +12810,6 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   isPrivateStandardsCreated?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateStars?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivateVotes?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issuesClosed?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
   issuesCreated?: Resolver<Maybe<Array<ResolversTypes['Issue']>>, ParentType, ContextType>;
   labels?: Resolver<Maybe<Array<ResolversTypes['Label']>>, ParentType, ContextType>;
@@ -12724,6 +12867,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   voted?: Resolver<Maybe<Array<ResolversTypes['Vote']>>, ParentType, ContextType>;
   wallets?: Resolver<Maybe<Array<ResolversTypes['Wallet']>>, ParentType, ContextType>;
+  you?: Resolver<ResolversTypes['UserYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12784,7 +12928,13 @@ export type UserTranslationResolvers<ContextType = any, ParentType extends Resol
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type VersionPermissionResolvers<ContextType = any, ParentType extends ResolversParentTypes['VersionPermission'] = ResolversParentTypes['VersionPermission']> = {
+export type UserYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['UserYou'] = ResolversParentTypes['UserYou']> = {
+  isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type VersionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['VersionYou'] = ResolversParentTypes['VersionYou']> = {
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canCopy?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -12871,12 +13021,13 @@ export type Resolvers<ContextType = any> = {
   ApiVersionEdge?: ApiVersionEdgeResolvers<ContextType>;
   ApiVersionSearchResult?: ApiVersionSearchResultResolvers<ContextType>;
   ApiVersionTranslation?: ApiVersionTranslationResolvers<ContextType>;
+  ApiYou?: ApiYouResolvers<ContextType>;
   Award?: AwardResolvers<ContextType>;
   Comment?: CommentResolvers<ContextType>;
-  CommentPermission?: CommentPermissionResolvers<ContextType>;
   CommentSearchResult?: CommentSearchResultResolvers<ContextType>;
   CommentThread?: CommentThreadResolvers<ContextType>;
   CommentTranslation?: CommentTranslationResolvers<ContextType>;
+  CommentYou?: CommentYouResolvers<ContextType>;
   CommentedOn?: CommentedOnResolvers<ContextType>;
   CopyResult?: CopyResultResolvers<ContextType>;
   Count?: CountResolvers<ContextType>;
@@ -12887,31 +13038,31 @@ export type Resolvers<ContextType = any> = {
   HistoryResult?: HistoryResultResolvers<ContextType>;
   Issue?: IssueResolvers<ContextType>;
   IssueEdge?: IssueEdgeResolvers<ContextType>;
-  IssuePermission?: IssuePermissionResolvers<ContextType>;
   IssueSearchResult?: IssueSearchResultResolvers<ContextType>;
   IssueTo?: IssueToResolvers<ContextType>;
   IssueTranslation?: IssueTranslationResolvers<ContextType>;
+  IssueYou?: IssueYouResolvers<ContextType>;
   Label?: LabelResolvers<ContextType>;
   LabelEdge?: LabelEdgeResolvers<ContextType>;
-  LabelPermission?: LabelPermissionResolvers<ContextType>;
   LabelSearchResult?: LabelSearchResultResolvers<ContextType>;
   LabelTranslation?: LabelTranslationResolvers<ContextType>;
+  LabelYou?: LabelYouResolvers<ContextType>;
   LearnResult?: LearnResultResolvers<ContextType>;
   Meeting?: MeetingResolvers<ContextType>;
   MeetingEdge?: MeetingEdgeResolvers<ContextType>;
   MeetingInvite?: MeetingInviteResolvers<ContextType>;
   MeetingInviteEdge?: MeetingInviteEdgeResolvers<ContextType>;
-  MeetingInvitePermission?: MeetingInvitePermissionResolvers<ContextType>;
   MeetingInviteSearchResult?: MeetingInviteSearchResultResolvers<ContextType>;
-  MeetingPermission?: MeetingPermissionResolvers<ContextType>;
+  MeetingInviteYou?: MeetingInviteYouResolvers<ContextType>;
   MeetingSearchResult?: MeetingSearchResultResolvers<ContextType>;
   MeetingTranslation?: MeetingTranslationResolvers<ContextType>;
+  MeetingYou?: MeetingYouResolvers<ContextType>;
   Member?: MemberResolvers<ContextType>;
   MemberEdge?: MemberEdgeResolvers<ContextType>;
   MemberInvite?: MemberInviteResolvers<ContextType>;
   MemberInviteEdge?: MemberInviteEdgeResolvers<ContextType>;
-  MemberInvitePermission?: MemberInvitePermissionResolvers<ContextType>;
   MemberInviteSearchResult?: MemberInviteSearchResultResolvers<ContextType>;
+  MemberInviteYou?: MemberInviteYouResolvers<ContextType>;
   MemberSearchResult?: MemberSearchResultResolvers<ContextType>;
   Mutation?: MutationResolvers<ContextType>;
   Node?: NodeResolvers<ContextType>;
@@ -12931,9 +13082,9 @@ export type Resolvers<ContextType = any> = {
   NoteSearchResult?: NoteSearchResultResolvers<ContextType>;
   NoteVersion?: NoteVersionResolvers<ContextType>;
   NoteVersionEdge?: NoteVersionEdgeResolvers<ContextType>;
-  NoteVersionPermission?: NoteVersionPermissionResolvers<ContextType>;
   NoteVersionSearchResult?: NoteVersionSearchResultResolvers<ContextType>;
   NoteVersionTranslation?: NoteVersionTranslationResolvers<ContextType>;
+  NoteYou?: NoteYouResolvers<ContextType>;
   Notification?: NotificationResolvers<ContextType>;
   NotificationEdge?: NotificationEdgeResolvers<ContextType>;
   NotificationSearchResult?: NotificationSearchResultResolvers<ContextType>;
@@ -12944,9 +13095,9 @@ export type Resolvers<ContextType = any> = {
   NotificationSubscriptionSearchResult?: NotificationSubscriptionSearchResultResolvers<ContextType>;
   Organization?: OrganizationResolvers<ContextType>;
   OrganizationEdge?: OrganizationEdgeResolvers<ContextType>;
-  OrganizationPermission?: OrganizationPermissionResolvers<ContextType>;
   OrganizationSearchResult?: OrganizationSearchResultResolvers<ContextType>;
   OrganizationTranslation?: OrganizationTranslationResolvers<ContextType>;
+  OrganizationYou?: OrganizationYouResolvers<ContextType>;
   Owner?: OwnerResolvers<ContextType>;
   PageInfo?: PageInfoResolvers<ContextType>;
   Payment?: PaymentResolvers<ContextType>;
@@ -12974,12 +13125,14 @@ export type Resolvers<ContextType = any> = {
   ProjectVersionEdge?: ProjectVersionEdgeResolvers<ContextType>;
   ProjectVersionSearchResult?: ProjectVersionSearchResultResolvers<ContextType>;
   ProjectVersionTranslation?: ProjectVersionTranslationResolvers<ContextType>;
+  ProjectVersionYou?: ProjectVersionYouResolvers<ContextType>;
+  ProjectYou?: ProjectYouResolvers<ContextType>;
   PullRequest?: PullRequestResolvers<ContextType>;
   PullRequestEdge?: PullRequestEdgeResolvers<ContextType>;
   PullRequestFrom?: PullRequestFromResolvers<ContextType>;
-  PullRequestPermission?: PullRequestPermissionResolvers<ContextType>;
   PullRequestSearchResult?: PullRequestSearchResultResolvers<ContextType>;
   PullRequestTo?: PullRequestToResolvers<ContextType>;
+  PullRequestYou?: PullRequestYouResolvers<ContextType>;
   PushDevice?: PushDeviceResolvers<ContextType>;
   Query?: QueryResolvers<ContextType>;
   Question?: QuestionResolvers<ContextType>;
@@ -12994,22 +13147,22 @@ export type Resolvers<ContextType = any> = {
   Quiz?: QuizResolvers<ContextType>;
   QuizAttempt?: QuizAttemptResolvers<ContextType>;
   QuizAttemptEdge?: QuizAttemptEdgeResolvers<ContextType>;
-  QuizAttemptPermission?: QuizAttemptPermissionResolvers<ContextType>;
   QuizAttemptSearchResult?: QuizAttemptSearchResultResolvers<ContextType>;
+  QuizAttemptYou?: QuizAttemptYouResolvers<ContextType>;
   QuizEdge?: QuizEdgeResolvers<ContextType>;
-  QuizPermission?: QuizPermissionResolvers<ContextType>;
   QuizQuestion?: QuizQuestionResolvers<ContextType>;
   QuizQuestionEdge?: QuizQuestionEdgeResolvers<ContextType>;
-  QuizQuestionPermission?: QuizQuestionPermissionResolvers<ContextType>;
   QuizQuestionResponse?: QuizQuestionResponseResolvers<ContextType>;
   QuizQuestionResponseEdge?: QuizQuestionResponseEdgeResolvers<ContextType>;
-  QuizQuestionResponsePermission?: QuizQuestionResponsePermissionResolvers<ContextType>;
   QuizQuestionResponseSearchResult?: QuizQuestionResponseSearchResultResolvers<ContextType>;
   QuizQuestionResponseTranslation?: QuizQuestionResponseTranslationResolvers<ContextType>;
+  QuizQuestionResponseYou?: QuizQuestionResponseYouResolvers<ContextType>;
   QuizQuestionSearchResult?: QuizQuestionSearchResultResolvers<ContextType>;
   QuizQuestionTranslation?: QuizQuestionTranslationResolvers<ContextType>;
+  QuizQuestionYou?: QuizQuestionYouResolvers<ContextType>;
   QuizSearchResult?: QuizSearchResultResolvers<ContextType>;
   QuizTranslation?: QuizTranslationResolvers<ContextType>;
+  QuizYou?: QuizYouResolvers<ContextType>;
   Reminder?: ReminderResolvers<ContextType>;
   ReminderEdge?: ReminderEdgeResolvers<ContextType>;
   ReminderItem?: ReminderItemResolvers<ContextType>;
@@ -13021,9 +13174,10 @@ export type Resolvers<ContextType = any> = {
   ReportEdge?: ReportEdgeResolvers<ContextType>;
   ReportResponse?: ReportResponseResolvers<ContextType>;
   ReportResponseEdge?: ReportResponseEdgeResolvers<ContextType>;
-  ReportResponsePermission?: ReportResponsePermissionResolvers<ContextType>;
   ReportResponseSearchResult?: ReportResponseSearchResultResolvers<ContextType>;
+  ReportResponseYou?: ReportResponseYouResolvers<ContextType>;
   ReportSearchResult?: ReportSearchResultResolvers<ContextType>;
+  ReportYou?: ReportYouResolvers<ContextType>;
   ReputationHistory?: ReputationHistoryResolvers<ContextType>;
   ReputationHistoryEdge?: ReputationHistoryEdgeResolvers<ContextType>;
   ReputationHistorySearchResult?: ReputationHistorySearchResultResolvers<ContextType>;
@@ -13041,10 +13195,8 @@ export type Resolvers<ContextType = any> = {
   RoleEdge?: RoleEdgeResolvers<ContextType>;
   RoleSearchResult?: RoleSearchResultResolvers<ContextType>;
   RoleTranslation?: RoleTranslationResolvers<ContextType>;
-  RootPermission?: RootPermissionResolvers<ContextType>;
   Routine?: RoutineResolvers<ContextType>;
   RoutineEdge?: RoutineEdgeResolvers<ContextType>;
-  RoutinePermission?: RoutinePermissionResolvers<ContextType>;
   RoutineSearchResult?: RoutineSearchResultResolvers<ContextType>;
   RoutineVersion?: RoutineVersionResolvers<ContextType>;
   RoutineVersionEdge?: RoutineVersionEdgeResolvers<ContextType>;
@@ -13052,30 +13204,31 @@ export type Resolvers<ContextType = any> = {
   RoutineVersionInputTranslation?: RoutineVersionInputTranslationResolvers<ContextType>;
   RoutineVersionOutput?: RoutineVersionOutputResolvers<ContextType>;
   RoutineVersionOutputTranslation?: RoutineVersionOutputTranslationResolvers<ContextType>;
-  RoutineVersionPermission?: RoutineVersionPermissionResolvers<ContextType>;
   RoutineVersionSearchResult?: RoutineVersionSearchResultResolvers<ContextType>;
   RoutineVersionTranslation?: RoutineVersionTranslationResolvers<ContextType>;
+  RoutineVersionYou?: RoutineVersionYouResolvers<ContextType>;
+  RoutineYou?: RoutineYouResolvers<ContextType>;
   RunProject?: RunProjectResolvers<ContextType>;
   RunProjectEdge?: RunProjectEdgeResolvers<ContextType>;
-  RunProjectPermission?: RunProjectPermissionResolvers<ContextType>;
   RunProjectSchedule?: RunProjectScheduleResolvers<ContextType>;
   RunProjectScheduleEdge?: RunProjectScheduleEdgeResolvers<ContextType>;
   RunProjectScheduleSearchResult?: RunProjectScheduleSearchResultResolvers<ContextType>;
   RunProjectScheduleTranslation?: RunProjectScheduleTranslationResolvers<ContextType>;
   RunProjectSearchResult?: RunProjectSearchResultResolvers<ContextType>;
   RunProjectStep?: RunProjectStepResolvers<ContextType>;
+  RunProjectYou?: RunProjectYouResolvers<ContextType>;
   RunRoutine?: RunRoutineResolvers<ContextType>;
   RunRoutineEdge?: RunRoutineEdgeResolvers<ContextType>;
   RunRoutineInput?: RunRoutineInputResolvers<ContextType>;
   RunRoutineInputEdge?: RunRoutineInputEdgeResolvers<ContextType>;
   RunRoutineInputSearchResult?: RunRoutineInputSearchResultResolvers<ContextType>;
-  RunRoutinePermission?: RunRoutinePermissionResolvers<ContextType>;
   RunRoutineSchedule?: RunRoutineScheduleResolvers<ContextType>;
   RunRoutineScheduleEdge?: RunRoutineScheduleEdgeResolvers<ContextType>;
   RunRoutineScheduleSearchResult?: RunRoutineScheduleSearchResultResolvers<ContextType>;
   RunRoutineScheduleTranslation?: RunRoutineScheduleTranslationResolvers<ContextType>;
   RunRoutineSearchResult?: RunRoutineSearchResultResolvers<ContextType>;
   RunRoutineStep?: RunRoutineStepResolvers<ContextType>;
+  RunRoutineYou?: RunRoutineYouResolvers<ContextType>;
   Session?: SessionResolvers<ContextType>;
   SessionUser?: SessionUserResolvers<ContextType>;
   SmartContract?: SmartContractResolvers<ContextType>;
@@ -13085,6 +13238,7 @@ export type Resolvers<ContextType = any> = {
   SmartContractVersionEdge?: SmartContractVersionEdgeResolvers<ContextType>;
   SmartContractVersionSearchResult?: SmartContractVersionSearchResultResolvers<ContextType>;
   SmartContractVersionTranslation?: SmartContractVersionTranslationResolvers<ContextType>;
+  SmartContractYou?: SmartContractYouResolvers<ContextType>;
   Standard?: StandardResolvers<ContextType>;
   StandardEdge?: StandardEdgeResolvers<ContextType>;
   StandardSearchResult?: StandardSearchResultResolvers<ContextType>;
@@ -13092,6 +13246,7 @@ export type Resolvers<ContextType = any> = {
   StandardVersionEdge?: StandardVersionEdgeResolvers<ContextType>;
   StandardVersionSearchResult?: StandardVersionSearchResultResolvers<ContextType>;
   StandardVersionTranslation?: StandardVersionTranslationResolvers<ContextType>;
+  StandardYou?: StandardYouResolvers<ContextType>;
   Star?: StarResolvers<ContextType>;
   StarEdge?: StarEdgeResolvers<ContextType>;
   StarSearchResult?: StarSearchResultResolvers<ContextType>;
@@ -13129,11 +13284,12 @@ export type Resolvers<ContextType = any> = {
   TagEdge?: TagEdgeResolvers<ContextType>;
   TagSearchResult?: TagSearchResultResolvers<ContextType>;
   TagTranslation?: TagTranslationResolvers<ContextType>;
+  TagYou?: TagYouResolvers<ContextType>;
   Transfer?: TransferResolvers<ContextType>;
   TransferEdge?: TransferEdgeResolvers<ContextType>;
   TransferObject?: TransferObjectResolvers<ContextType>;
-  TransferPermission?: TransferPermissionResolvers<ContextType>;
   TransferSearchResult?: TransferSearchResultResolvers<ContextType>;
+  TransferYou?: TransferYouResolvers<ContextType>;
   Translate?: TranslateResolvers<ContextType>;
   Upload?: GraphQLScalarType;
   User?: UserResolvers<ContextType>;
@@ -13144,7 +13300,8 @@ export type Resolvers<ContextType = any> = {
   UserScheduleSearchResult?: UserScheduleSearchResultResolvers<ContextType>;
   UserSearchResult?: UserSearchResultResolvers<ContextType>;
   UserTranslation?: UserTranslationResolvers<ContextType>;
-  VersionPermission?: VersionPermissionResolvers<ContextType>;
+  UserYou?: UserYouResolvers<ContextType>;
+  VersionYou?: VersionYouResolvers<ContextType>;
   View?: ViewResolvers<ContextType>;
   ViewEdge?: ViewEdgeResolvers<ContextType>;
   ViewSearchResult?: ViewSearchResultResolvers<ContextType>;

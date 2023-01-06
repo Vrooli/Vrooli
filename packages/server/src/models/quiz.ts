@@ -1,11 +1,17 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Quiz, QuizCreateInput, QuizPermission, QuizSearchInput, QuizSortBy, QuizUpdateInput } from '@shared/consts';
+import { PrependString, Quiz, QuizCreateInput, QuizSearchInput, QuizSortBy, QuizUpdateInput, QuizYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
+import { getSingleTypePermissions } from "../validators";
+import { StarModel } from "./star";
+import { VoteModel } from "./vote";
 
-type Model = {
+const __typename = 'Quiz' as const;
+type Permissions = Pick<QuizYou, 'canDelete' | 'canEdit' | 'canStar' | 'canView' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
+export const QuizModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuizCreateInput,
@@ -13,28 +19,52 @@ type Model = {
     GqlModel: Quiz,
     GqlSearch: QuizSearchInput,
     GqlSort: QuizSortBy,
-    GqlPermission: QuizPermission,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.quizUpsertArgs['create'],
     PrismaUpdate: Prisma.quizUpsertArgs['update'],
     PrismaModel: Prisma.quizGetPayload<SelectWrap<Prisma.quizSelect>>,
     PrismaSelect: Prisma.quizSelect,
     PrismaWhere: Prisma.quizWhereInput,
-}
-
-const __typename = 'Quiz' as const;
-
-const suppFields = [] as const;
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'name', languages)
-})
-
-export const QuizModel: ModelLogic<Model, typeof suppFields> = ({
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.quiz,
-    display: displayer(),
-    format: {} as any,
+    display: {
+        select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
+        label: (select, languages) => bestLabel(select.translations, 'name', languages)
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            attempts: 'QuizAttempt',
+            createdBy: 'User',
+            project: 'Project',
+            quizQuestions: 'QuizQuestion',
+            routine: 'Routine',
+            starredBy: 'User',
+        },
+        prismaRelMap: {
+            __typename,
+            attempts: 'QuizAttempt',
+            createdBy: 'User',
+            project: 'Project',
+            quizQuestions: 'QuizQuestion',
+            routine: 'Routine',
+            starredBy: 'User',
+        },
+        joinMap: { starredBy: 'user' },
+        countFields: {},
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                }
+            },
+        },
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

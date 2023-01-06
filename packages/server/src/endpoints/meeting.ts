@@ -68,7 +68,6 @@ export const typeDef = gql`
         recurrStart: Date
         recurrEnd: Date
         organization: Organization!
-        permissionsMeeting: MeetingPermission!
         restrictedToRoles: [Role!]!
         attendees: [User!]!
         attendeesCount: Int!
@@ -78,9 +77,10 @@ export const typeDef = gql`
         labelsCount: Int!
         translations: [MeetingTranslation!]!
         translationsCount: Int!
+        you: MeetingYou!
     }
 
-    type MeetingPermission {
+    type MeetingYou {
         canDelete: Boolean!
         canEdit: Boolean!
         canInvite: Boolean!

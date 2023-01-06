@@ -1,11 +1,11 @@
-import { StandardSortBy } from "@shared/consts";
+import { PrependString, StandardSortBy, StandardYou } from "@shared/consts";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
 import { ModelLogic } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser, RootPermission } from '@shared/consts';
+import { Standard, StandardSearchInput, StandardCreateInput, StandardUpdateInput, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
@@ -16,11 +16,6 @@ import { oneIsPublic } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
-
-
-const __typename = 'Standard' as const;
-
-const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoot', 'translatedName'] as const;
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: StandardCreateInput | StandardUpdateInput, isAdd: boolean) => {
     return {
@@ -35,6 +30,9 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Standa
     } as any
 }
 
+const __typename = 'Standard' as const;
+type Permissions = Pick<StandardYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
 export const StandardModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -43,7 +41,7 @@ export const StandardModel: ModelLogic<{
     GqlModel: Standard,
     GqlSearch: StandardSearchInput,
     GqlSort: StandardSortBy,
-    GqlPermission: RootPermission,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.standardUpsertArgs['create'],
     PrismaUpdate: Prisma.standardUpsertArgs['update'],
     PrismaModel: Prisma.standardGetPayload<SelectWrap<Prisma.standardSelect>>,
@@ -101,13 +99,16 @@ export const StandardModel: ModelLogic<{
         },
         supplemental: {
             graphqlFields: suppFields,
-            toGraphQL: ({ ids, prisma, userData }) => ({
-                isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
-                isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                permissionsRoot: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
-                translatedName: async () => await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'standard.translatedName'),
-            }),
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
+                }
+            },
         },
     },
     mutate: {

@@ -24,10 +24,6 @@ type Model = {
     PrismaWhere: Prisma.resourceWhereInput,
 }
 
-const __typename = 'Resource' as const;
-
-const suppFields = [] as const;
-
 // const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ResourceCreateInput | ResourceUpdateInput, isAdd: boolean) => {
 //     return {
 //         id: data.id,
@@ -57,15 +53,15 @@ const suppFields = [] as const;
 //     yup: resourceValidation,
 // })
 
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'name', languages),
-})
-
+const __typename = 'Resource' as const;
+const suppFields = [] as const;
 export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.resource,
-    display: displayer(),
+    display: {
+        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+    },
     format: {
         gqlRelMap: { __typename },
         prismaRelMap: { __typename },
@@ -98,7 +94,7 @@ export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
                 ['list', 'ResourceList'],
             ], ...params)
         }),
-        permissionResolvers: (params) => ResourceListModel.validate!.permissionResolvers(params),
+        permissionResolvers: (params) => ResourceListModel.validate!.permissionResolvers({ ...params, data: params.data.list as any }),
         owner: (data) => ResourceListModel.validate!.owner(data.list as any),
         isDeleted: () => false,
         isPublic: (data, languages) => ResourceListModel.validate!.isPublic(data.list as any, languages),

@@ -73,10 +73,10 @@ export const typeDef = gql`
         inputs: [RunRoutineInput!]!
         user: User
         organization: Organization
-        permissionsRun: RunRoutinePermission!
+        you: RunRoutineYou!
     }
 
-    type RunRoutinePermission {
+    type RunRoutineYou {
         canDelete: Boolean!
         canEdit: Boolean!
         canView: Boolean!

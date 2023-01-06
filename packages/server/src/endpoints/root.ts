@@ -51,16 +51,7 @@ export const typeDef = gql`
         message: String!
     }
 
-    type RootPermission {
-        canDelete: Boolean!
-        canEdit: Boolean!
-        canStar: Boolean!
-        canTransfer: Boolean!
-        canView: Boolean!
-        canVote: Boolean!
-    }
-
-    type VersionPermission {
+    type VersionYou {
         canComment: Boolean!
         canCopy: Boolean!
         canDelete: Boolean!

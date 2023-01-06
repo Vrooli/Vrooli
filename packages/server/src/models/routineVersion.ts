@@ -1,33 +1,14 @@
 import { routineVersionValidation } from "@shared/validation";
-import { CustomError, Trigger } from "../events";
-import { NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineVersionSortBy, SessionUser, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionPermission, RoutineVersionUpdateInput } from '@shared/consts';
+import { Trigger } from "../events";
+import { RoutineVersionSortBy, RoutineVersionSearchInput, RoutineVersionCreateInput, RoutineVersion, RoutineVersionUpdateInput, PrependString, RoutineVersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Formatter, Searcher, Validator, Mutater, Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
-
-type Model = {
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: RoutineVersionCreateInput,
-    GqlUpdate: RoutineVersionUpdateInput,
-    GqlModel: RoutineVersion,
-    GqlSearch: RoutineVersionSearchInput,
-    GqlSort: RoutineVersionSortBy,
-    GqlPermission: RoutineVersionPermission,
-    PrismaCreate: Prisma.routine_versionUpsertArgs['create'],
-    PrismaUpdate: Prisma.routine_versionUpsertArgs['update'],
-    PrismaModel: Prisma.routine_versionGetPayload<SelectWrap<Prisma.routine_versionSelect>>,
-    PrismaSelect: Prisma.routine_versionSelect,
-    PrismaWhere: Prisma.routine_versionWhereInput,
-}
-
-const __typename = 'RoutineVersion' as const;
-
-const suppFields = ['runs'] as const;
+import { getSingleTypePermissions } from "../validators";
 
 /**
  * Validates node positions
@@ -45,7 +26,24 @@ const validateNodePositions = (input: RoutineVersionCreateInput | RoutineVersion
     return;
 }
 
-export const RoutineVersionModel: ModelLogic<Model, typeof suppFields> = ({
+const __typename = 'RoutineVersion' as const;
+type Permissions = Pick<RoutineVersionYou, 'canComment' | 'canDelete' | 'canEdit' | 'canFork' | 'canStar' | 'canReport' | 'canRun' | 'canView' | 'canVote'>;
+const suppFields = ['you.canComment', 'you.canDelete', 'you.canEdit', 'you.canFork', 'you.canStar', 'you.canReport', 'you.canRun', 'you.canView', 'you.canVote', 'you.runs'] as const;
+export const RoutineVersionModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: RoutineVersionCreateInput,
+    GqlUpdate: RoutineVersionUpdateInput,
+    GqlModel: RoutineVersion,
+    GqlSearch: RoutineVersionSearchInput,
+    GqlSort: RoutineVersionSortBy,
+    GqlPermission: Permissions,
+    PrismaCreate: Prisma.routine_versionUpsertArgs['create'],
+    PrismaUpdate: Prisma.routine_versionUpsertArgs['update'],
+    PrismaModel: Prisma.routine_versionGetPayload<SelectWrap<Prisma.routine_versionSelect>>,
+    PrismaSelect: Prisma.routine_versionSelect,
+    PrismaWhere: Prisma.routine_versionWhereInput,
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version,
     display: {
@@ -67,7 +65,7 @@ export const RoutineVersionModel: ModelLogic<Model, typeof suppFields> = ({
             root: 'Routine',
             smartContract: 'SmartContract',
             suggestedNextByRoutineVersion: 'RoutineVersion',
-            runs: 'RunRoutine',
+            // you.runs: 'RunRoutine', //TODO
         },
         prismaRelMap: {
             __typename,
@@ -105,10 +103,11 @@ export const RoutineVersionModel: ModelLogic<Model, typeof suppFields> = ({
         },
         supplemental: {
             graphqlFields: suppFields,
-            toGraphQL: ({ ids, objects, partial, prisma, userData }) => ({
-                runs: async () => {
+            toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                const runs = async () => {
                     if (!userData) return new Array(objects.length).fill([]);
-                    // Find requested fields of runs. Also add routineId, so we 
+                    // Find requested fields of runs. Also add routineVersionId, so we 
                     // can associate runs with their routine
                     const runPartial: PartialGraphQLInfo = {
                         ...toPartialGraphQLInfo(partial.runs as PartialGraphQLInfo, RunRoutineModel.format.gqlRelMap, userData.languages, true),
@@ -129,10 +128,14 @@ export const RoutineVersionModel: ModelLogic<Model, typeof suppFields> = ({
                     // Add supplemental fields
                     runs = await addSupplementalFields(prisma, userData, runs, runPartial);
                     // Split runs by id
-                    const routineRuns = ids.map((id) => runs.filter(r => r.routineId === id));
+                    const routineRuns = ids.map((id) => runs.filter(r => r.routineVersionId === id));
                     return routineRuns;
-                },
-            }),
+                };
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    'you.runs': await runs(),
+                }
+            },
         },
     },
     mutate: {

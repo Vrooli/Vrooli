@@ -43,11 +43,17 @@ export const typeDef = gql`
 
     type Report {
         id: ID
-        isOwn: Boolean!
         details: String
         language: String!
         reason: String!
         responses: [ReportResponse!]!
+        you: ReportYou!
+    }
+
+    type ReportYou {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canRespond: Boolean!
     }
 
     input ReportSearchInput {

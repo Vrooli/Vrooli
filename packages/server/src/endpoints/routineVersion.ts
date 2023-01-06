@@ -109,7 +109,6 @@ export const typeDef = gql`
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
-        runs: [RunRoutine!]! # Calculated field - only shows your runs
         api: Api
         comments: [Comment!]!
         commentsCount: Int!
@@ -135,10 +134,10 @@ export const typeDef = gql`
         suggestedNextByRoutineVersionCount: Int!
         translations: [RoutineVersionTranslation!]!
         translationsCount: Int!
-        permissions: RoutineVersionPermission!
+        you: RoutineVersionYou!
     }
 
-    type RoutineVersionPermission {
+    type RoutineVersionYou {
         canComment: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
@@ -148,6 +147,7 @@ export const typeDef = gql`
         canRun: Boolean!
         canView: Boolean!
         canVote: Boolean!
+        runs: [RunRoutine!]!
     }
 
     input RoutineVersionTranslationCreateInput {

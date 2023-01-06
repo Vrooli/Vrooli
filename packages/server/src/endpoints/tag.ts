@@ -33,8 +33,6 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         stars: Int!
-        isStarred: Boolean!
-        isOwn: Boolean!
         starredBy: [User!]!
         translations: [TagTranslation!]!
         apis: [Api!]!
@@ -46,6 +44,12 @@ export const typeDef = gql`
         routines: [Routine!]!
         smartContracts: [SmartContract!]!
         standards: [Standard!]!
+        you: TagYou!
+    }
+
+    type TagYou {
+        isOwn: Boolean!
+        isStarred: Boolean!
     }
 
     input TagTranslationCreateInput {

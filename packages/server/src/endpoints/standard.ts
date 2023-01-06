@@ -33,7 +33,7 @@ export const typeDef = gql`
         name: String!
         isInternal: Boolean
         isPrivate: Boolean
-        permissions: String!
+        permissions: String
         parentConnect: ID
         userConnect: ID
         organizationConnect: ID
@@ -69,9 +69,6 @@ export const typeDef = gql`
         isDeleted: Boolean!
         isInternal: Boolean!
         isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
         permissions: String!
         translatedName: String!
         score: Int!
@@ -86,13 +83,25 @@ export const typeDef = gql`
         labels: [Label!]!
         owner: Owner
         parent: Standard
-        permissionsRoot: RootPermission!
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         starredBy: [User!]!
         tags: [Tag!]!
         versions: [StandardVersion!]!
         versionsCount: Int
+        you: StandardYou!
+    }
+
+    type StandardYou {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canTransfer: Boolean!
+        canView: Boolean!
+        canVote: Boolean!
+        isStarred: Boolean!
+        isUpvoted: Boolean
+        isViewed: Boolean!
     }
 
     input StandardSearchInput {

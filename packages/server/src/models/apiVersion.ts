@@ -1,19 +1,20 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, VersionPermission } from '@shared/consts';
+import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { ModelLogic } from "./types";
 
 const __typename = 'ApiVersion' as const;
-const suppFields = ['permissionsVersion'] as const;
+type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
+const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView'] as const;
 export const ApiVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ApiVersionCreateInput,
     GqlUpdate: ApiVersionUpdateInput,
-    GqlPermission: VersionPermission,
+    GqlPermission: Permissions,
     GqlModel: ApiVersion,
     GqlSearch: ApiVersionSearchInput,
     GqlSort: ApiVersionSortBy,
@@ -64,9 +65,10 @@ export const ApiVersionModel: ModelLogic<{
         },
         supplemental: {
             graphqlFields: suppFields,
-            toGraphQL: ({ ids, prisma, userData }) => ({
-                permissionsVersion: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
-            }),
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
+            },
         },
     },
     mutate: {} as any,

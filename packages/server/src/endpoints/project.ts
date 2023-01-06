@@ -65,16 +65,12 @@ export const typeDef = gql`
         updated_at: Date!
         handle: String
         hasCompleteVersion: Boolean!
-        permissions: String
+        permissions: String!
         isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
         translatedName: String!
         score: Int!
         stars: Int!
         views: Int!
-        permissionsRoot: RootPermission!
         createdBy: User
         owner: Owner
         issues: [Issue!]!
@@ -94,6 +90,19 @@ export const typeDef = gql`
         transfers: [Transfer!]!
         versions: [ProjectVersion!]!
         versionsCount: Int!
+        you: ProjectYou!
+    }
+
+    type ProjectYou {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canTransfer: Boolean!
+        canView: Boolean!
+        canVote: Boolean!
+        isStarred: Boolean!
+        isUpvoted: Boolean
+        isViewed: Boolean!
     }
 
     input ProjectSearchInput {

@@ -9,7 +9,7 @@ import { userValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
 
 const __typename = 'User' as const;
-const suppFields = ['isStarred', 'isViewed'] as const;
+const suppFields = ['you.isStarred', 'you.isViewed'] as const;
 export const UserModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -100,9 +100,9 @@ export const UserModel: ModelLogic<{
         },
         supplemental: {
             graphqlFields: suppFields,
-            toGraphQL: ({ ids, prisma, userData }) => ({
-                isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+            toGraphQL: async ({ ids, prisma, userData }) => ({
+                'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
             }),
         },
     },
@@ -120,7 +120,7 @@ export const UserModel: ModelLogic<{
                     // // }, TODO
                     // translations: await translationRelationshipBuilder(prisma, userData, data, false),
                 } as any
-            } 
+            }
         },
         yup: userValidation,
     },

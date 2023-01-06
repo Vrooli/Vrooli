@@ -1,14 +1,18 @@
 import { Prisma, run_routine, RunStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
-import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, RunRoutinePermission, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy } from '@shared/consts';
+import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpdateInput, Count, RunRoutineCompleteInput, RunRoutineCancelInput, SessionUser, RunRoutineSortBy, RunRoutineYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { addSupplementalFields, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
+import { getSingleTypePermissions } from "../validators";
 
-type Model = {
+const __typename = 'RunRoutine' as const;
+type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canEdit' | 'canView'>;
+const suppFields = ['you.canDelete', 'you.canEdit', 'you.canView'] as const;
+export const RunRoutineModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RunRoutineCreateInput,
@@ -16,17 +20,13 @@ type Model = {
     GqlModel: RunRoutine,
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
-    GqlPermission: RunRoutinePermission,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.run_routineUpsertArgs['create'],
     PrismaUpdate: Prisma.run_routineUpsertArgs['update'],
     PrismaModel: Prisma.run_routineGetPayload<SelectWrap<Prisma.run_routineSelect>>,
     PrismaSelect: Prisma.run_routineSelect,
     PrismaWhere: Prisma.run_routineWhereInput,
-}
-
-const __typename = 'RunRoutine' as const;
-const suppFields = [] as const;
-export const RunRoutineModel: ModelLogic<Model, typeof suppFields> = ({
+}, typeof suppFields> = ({
     __typename,
     danger: {
         /**
@@ -88,7 +88,10 @@ export const RunRoutineModel: ModelLogic<Model, typeof suppFields> = ({
             // Add fields needed for notifications when a run is started/completed
             dbFields: ['name'],
             graphqlFields: suppFields,
-            toGraphQL: () => [],
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>;
+            },
         },
     },
     mutate: {

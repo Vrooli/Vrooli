@@ -29,6 +29,7 @@ export const typeDef = gql`
     input NoteCreateInput {
         id: ID!
         isPrivate: Boolean
+        permissions: String
         userConnect: ID
         organizationConnect: ID
         parentConnect: ID
@@ -40,6 +41,7 @@ export const typeDef = gql`
     }
     input NoteUpdateInput {
         id: ID!
+        permissions: String
         userConnect: ID
         organizationConnect: ID
         tagsConnect: [String!]
@@ -56,6 +58,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        permissions: String!
         createdBy: User
         owner: Owner
         parent: Note
@@ -67,9 +70,6 @@ export const typeDef = gql`
         stars: Int!
         views: Int!
         score: Int!
-        isStarred: Boolean!
-        isViewed: Boolean!
-        isUpvoted: Boolean
         issues: [Issue!]!
         issuesCount: Int!
         pullRequests: [PullRequest!]!
@@ -79,7 +79,19 @@ export const typeDef = gql`
         questionsCount: Int!
         transfers: [Transfer!]!
         transfersCount: Int!
-        permissionsRoot: RootPermission!
+        you: NoteYou!
+    }
+
+    type NoteYou {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canTransfer: Boolean!
+        canView: Boolean!
+        canVote: Boolean!
+        isStarred: Boolean!
+        isUpvoted: Boolean
+        isViewed: Boolean!
     }
 
     input NoteSearchInput {

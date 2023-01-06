@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, RootPermission } from '@shared/consts';
+import { Note, NoteCreateInput, NoteSearchInput, NoteSortBy, NoteUpdateInput, NoteYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { getSingleTypePermissions } from "../validators";
 import { NoteVersionModel } from "./noteVersion";
@@ -10,8 +10,8 @@ import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 
 const __typename = 'Note' as const;
-
-const suppFields = ['isStarred', 'isViewed', 'isUpvoted', 'permissionsRoot'] as const;
+type Permissions = Pick<NoteYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed'] as const;
 export const NoteModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -20,7 +20,7 @@ export const NoteModel: ModelLogic<{
     GqlModel: Note,
     GqlSearch: NoteSearchInput,
     GqlSort: NoteSortBy,
-    GqlPermission: RootPermission,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.noteUpsertArgs['create'],
     PrismaUpdate: Prisma.noteUpsertArgs['update'],
     PrismaModel: Prisma.noteGetPayload<SelectWrap<Prisma.noteSelect>>,
@@ -54,6 +54,7 @@ export const NoteModel: ModelLogic<{
             parent: 'Note',
             pullRequests: 'PullRequest',
             questions: 'Question',
+            starredBy: 'User',
             tags: 'Tag',
             transfers: 'Transfer',
             versions: 'NoteVersion',
@@ -83,12 +84,15 @@ export const NoteModel: ModelLogic<{
         },
         supplemental: {
             graphqlFields: suppFields,
-            toGraphQL: ({ ids, prisma, userData }) => ({
-                isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
-                isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                permissionsRoot: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
-            }),
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                }
+            },
         },
     },
     mutate: {} as any,

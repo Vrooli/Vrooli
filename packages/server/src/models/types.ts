@@ -1,4 +1,4 @@
-import { Count, SessionUser } from "@shared/consts";
+import { Count, DotNotation, SessionUser } from "@shared/consts";
 import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
 import { ObjectSchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
@@ -121,7 +121,7 @@ type ModelLogicType = {
 */
 export type ModelLogic<
     Model extends ModelLogicType,
-    SuppFields extends readonly (keyof Model['GqlModel'] extends infer R ? R extends string ? R : never : never)[],
+    SuppFields extends readonly DotNotation<Model['GqlModel'], 2>[]
 > = {
     __typename: GraphQLModelType;
     delegate: (prisma: PrismaType) => PrismaDelegate;
@@ -193,7 +193,7 @@ export interface SupplementalConverter<
      */
     dbFields?: string[]; // TODO make type safer
     /**
-     * An array of resolver functions, one for each calculated (supplemental) field
+     * Calculates supplemental fields from the main query results
      */
     toGraphQL: ({ ids, objects, partial, prisma, userData }: {
         ids: string[],
@@ -202,7 +202,7 @@ export interface SupplementalConverter<
         partial: PartialGraphQLInfo,
         prisma: PrismaType,
         userData: SessionUser | null,
-    }) => { [key in SuppFields[number]]: () => any };
+    }) => Promise<{ [key in SuppFields[number]]: any[] }>;
 }
 
 type StringArrayMap<T extends readonly string[]> = {
@@ -217,7 +217,7 @@ export interface Formatter<
         GqlModel: ModelLogicType['GqlModel'],
         PrismaModel: ModelLogicType['PrismaModel'],
     },
-    SuppFields extends readonly (keyof Model['GqlModel'] extends infer R ? R extends string ? R : never : never)[]
+    SuppFields extends readonly DotNotation<Model['GqlModel'], 2>[]
 > {
     /**
      * Maps GraphQL types to GraphQLModelType, with special handling for unions
@@ -384,7 +384,8 @@ export type Validator<
     /**
      * Key/value pair of permission fields and resolvers to calculate them.
      */
-    permissionResolvers: ({ isAdmin, isDeleted, isPublic }: {
+    permissionResolvers: ({ data, isAdmin, isDeleted, isPublic }: {
+        data: Model['PrismaModel'],
         isAdmin: boolean,
         isDeleted: boolean,
         isPublic: boolean,

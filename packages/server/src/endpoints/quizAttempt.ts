@@ -51,9 +51,11 @@ export const typeDef = gql`
         quiz: Quiz!
         responses: [QuizQuestionResponse!]!
         responsesCount: Int!
+        user: User!
+        you: QuizAttemptYou!
     }
 
-    type QuizAttemptPermission {
+    type QuizAttemptYou {
         canDelete: Boolean!
         canEdit: Boolean!
     }

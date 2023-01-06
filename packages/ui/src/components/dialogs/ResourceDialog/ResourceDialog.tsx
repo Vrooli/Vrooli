@@ -1,9 +1,9 @@
-import { useMutation, useQuery } from 'graphql/hooks';
+import { useMutation } from 'graphql/hooks';
 import { resourceTranslationValidation, resourceValidation } from '@shared/validation';
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { ResourceDialogProps } from '../types';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectUrl, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
+import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectUrl, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResource, usePromptBeforeUnload } from 'utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Wrap } from 'types';
@@ -13,6 +13,7 @@ import { SearchIcon } from '@shared/icons';
 import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { feedEndpoint, resourceEndpoint } from 'graphql/endpoints';
 import { mutationWrapper } from 'graphql/utils';
+import { useQuery } from '@apollo/client';
 
 const helpText =
     `## What are resources?
@@ -87,7 +88,7 @@ export const ResourceDialog = ({
             const input: ResourceShape = {
                 id: partialData?.id ?? uuid(),
                 index: Math.max(index, 0),
-                listId,
+                list: { id: listId },
                 link: values.link,
                 usedFor: values.usedFor,
                 translations: values.translationsUpdate.map(t => ({
@@ -105,7 +106,7 @@ export const ResourceDialog = ({
                 if (index < 0) {
                     mutationWrapper<Resource, ResourceCreateInput>({
                         mutation: addMutation,
-                        input: shapeResourceCreate(input),
+                        input: shapeResource.create(input),
                         successMessage: () => ({ key: 'ResourceCreated' }),
                         successCondition: (data) => data !== null,
                         onSuccess,
@@ -114,13 +115,13 @@ export const ResourceDialog = ({
                 }
                 // Otherwise, update
                 else {
-                    if (!partialData || !partialData.id || !listId) {
+                    if (!partialData || !partialData.id) {
                         PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: SnackSeverity.Error });
                         return;
                     }
                     mutationWrapper<Resource, ResourceUpdateInput>({
                         mutation: updateMutation,
-                        input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
+                        input: shapeResource.update({ ...partialData, list: { id: listId } } as ResourceShape, input),
                         successMessage: () => ({ key: 'ResourceUpdated' }),
                         successCondition: (data) => data !== null,
                         onSuccess,
@@ -185,8 +186,8 @@ export const ResourceDialog = ({
     useEffect(() => { open && refetchSearch() }, [open, refetchSearch, searchString]);
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
-        // Group all query results and sort by number of stars
-        const flattened = (Object.values(searchData?.popular ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        // Group all query results and sort by number of stars. Ignore any value that isn't an array
+        const flattened = (Object.values(searchData?.popular ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });

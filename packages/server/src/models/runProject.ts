@@ -1,10 +1,14 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { RunProject, RunProjectCreateInput, RunProjectPermission, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput } from '@shared/consts';
+import { PrependString, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectSortBy, RunProjectUpdateInput, RunProjectYou } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
+import { getSingleTypePermissions } from "../validators";
 
-type Model = {
+const __typename = 'RunProject' as const;
+type Permissions = Pick<RunProjectYou, 'canDelete' | 'canEdit' | 'canView'>;
+const suppFields = ['you.canDelete', 'you.canEdit', 'you.canView'] as const;
+export const RunProjectModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: RunProjectCreateInput,
@@ -12,28 +16,47 @@ type Model = {
     GqlModel: RunProject,
     GqlSearch: RunProjectSearchInput,
     GqlSort: RunProjectSortBy,
-    GqlPermission: RunProjectPermission,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.run_projectUpsertArgs['create'],
     PrismaUpdate: Prisma.run_projectUpsertArgs['update'],
     PrismaModel: Prisma.run_projectGetPayload<SelectWrap<Prisma.run_projectSelect>>,
     PrismaSelect: Prisma.run_projectSelect,
     PrismaWhere: Prisma.run_projectWhereInput,
-}
-
-const __typename = 'RunProject' as const;
-
-const suppFields = [] as const;
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, name: true }),
-    label: (select) => select.name,
-})
-
-export const RunProjectModel: ModelLogic<Model, typeof suppFields> = ({
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.run_project,
-    display: displayer(),
-    format: {} as any,
+    display: {
+        select: () => ({ id: true, name: true }),
+        label: (select) => select.name,
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            projectVersion: 'ProjectVersion',
+            runProjectSchedule: 'RunProjectSchedule',
+            steps: 'RunProjectStep',
+            user: 'User',
+            organization: 'Organization',
+        },
+        prismaRelMap: {
+            __typename,
+            projectVersion: 'ProjectVersion',
+            runProjectSchedule: 'RunProjectSchedule',
+            steps: 'RunProjectStep',
+            user: 'User',
+            organization: 'Organization',
+        },
+        countFields: {},
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                }
+            },
+        },
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

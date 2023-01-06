@@ -81,10 +81,20 @@ export const typeDef = gql`
         forksCount: Int!
         comments: [Comment!]!
         commentsCount: Int!
-        permissionsVersion: VersionPermission!
-        runs: [RunProject!]!
         runsCount: Int!
         suggestedNextByProject: [Project!]!
+        you: ProjectVersionYou!
+    }
+
+    type ProjectVersionYou {
+        canComment: Boolean!
+        canCopy: Boolean!
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canReport: Boolean!
+        canUse: Boolean!
+        canView: Boolean!
+        runs: [RunProject!]!
     }
 
     input ProjectVersionTranslationCreateInput {

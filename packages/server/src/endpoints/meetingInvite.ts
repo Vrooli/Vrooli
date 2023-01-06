@@ -41,10 +41,10 @@ export const typeDef = gql`
         user: User!
         message: String
         status: MeetingInviteStatus!
-        permissionsMeetingInvite: MeetingInvitePermission!
+        you: MeetingInviteYou!
     }
 
-    type MeetingInvitePermission {
+    type MeetingInviteYou {
         canDelete: Boolean!
         canEdit: Boolean!
     }

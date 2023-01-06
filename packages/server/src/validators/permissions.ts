@@ -237,7 +237,7 @@ export function getMultiTypePermissions(
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataById[id]), userData?.id);
         const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ['en']);
         const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ['en']);
-        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic });
+        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic, data: authDataById[id] });
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.
         const permissions = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));
@@ -253,15 +253,17 @@ export function getMultiTypePermissions(
  * @param ids IDs of objects to calculate permissions for
  * @param prisma Prisma client
  * @param userData Data about the user performing the action
+ * @returns Permissions object, where each field is a permission and each value is an array
+ * of that permission's value for each object (in the same order as the IDs)
  */
-export async function getSingleTypePermissions<PermissionObject extends { [x: string]: any }>(
+export async function getSingleTypePermissions<Permissions extends { [x: string]: any }>(
     type: GraphQLModelType,
     ids: string[],
     prisma: PrismaType,
     userData: SessionUser | null,
-): Promise<PermissionObject[]> {
+): Promise<{ [K in keyof Permissions]: Permissions[K][] }> {
     // Initialize result
-    const permissions: PermissionObject[] = [];
+    const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
     const { delegate, validate } = getLogic(['delegate', 'validate'], type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
     // Get auth data for all objects
@@ -274,14 +276,16 @@ export async function getSingleTypePermissions<PermissionObject extends { [x: st
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataItem), userData?.id);
         const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ['en']);
         const isPublic = validate.isPublic(authDataItem, userData?.languages ?? ['en']);
-        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic });
+        const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic, data: authDataItem });
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
         const permissionsObject = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));
         // Add permissions object to result
-        permissions.push(permissionsObject as PermissionObject);
+        for (const key of Object.keys(permissionsObject)) {
+            permissions[key as keyof Permissions] = [...(permissions[key as keyof Permissions] ?? []), permissionsObject[key]];
+        }
     }
-    return permissions;
+    return permissions as { [K in keyof Permissions]: Permissions[K][] };
 }
 
 /**

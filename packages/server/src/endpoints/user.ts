@@ -45,8 +45,6 @@ export const typeDef = gql`
         status: AccountStatus
         stars: Int!
         views: Int!
-        isStarred: Boolean!
-        isViewed: Boolean!
         apiKeys: [ApiKey!]
         apis: [Api!]!
         apisCreated: [Api!]
@@ -106,6 +104,12 @@ export const typeDef = gql`
         viewedBy: [View!]
         voted: [Vote!]
         wallets: [Wallet!]
+        you: UserYou!
+    }
+
+    type UserYou {
+        isStarred: Boolean!
+        isViewed: Boolean!
     }
 
     input UserTranslationCreateInput {

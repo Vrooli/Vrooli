@@ -32,10 +32,10 @@ export const typeDef = gql`
         response: String
         quizAttempt: QuizAttempt!
         quizQuestion: QuizQuestion!
-        permissionsQuizQuestionResponse: QuizQuestionResponsePermission!
+        you: QuizQuestionResponseYou!
     }
 
-    type QuizQuestionResponsePermission {
+    type QuizQuestionResponseYou {
         canDelete: Boolean!
         canEdit: Boolean!
     }

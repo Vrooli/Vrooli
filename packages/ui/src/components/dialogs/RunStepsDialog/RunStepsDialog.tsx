@@ -211,9 +211,9 @@ export const RunStepsDialog = ({
                         <StyledTreeItem
                             isComplete={completed}
                             isSelected={selected}
-                            label={`${realLocationLabel}. ${step.title}`}
+                            label={`${realLocationLabel}. ${step.name}`}
                             nodeId={locationLabel}
-                            onLoad={() => { handleLoadSubroutine(step.routine.id) }} // Load subroutine(s)
+                            onLoad={() => { handleLoadSubroutine(step.routineVersion.id) }} // Load subroutine(s)
                             onToStep={toLocation}
                             palette={palette}
                             type={step.type}
@@ -232,7 +232,7 @@ export const RunStepsDialog = ({
                 return <StyledTreeItem
                     isComplete={completed}
                     isSelected={selected}
-                    label={`${realLocationLabel}. ${step.title}`}
+                    label={`${realLocationLabel}. ${step.name}`}
                     nodeId={locationLabel}
                     onToStep={toLocation}
                     palette={palette}
@@ -248,7 +248,7 @@ export const RunStepsDialog = ({
                     <StyledTreeItem
                         isComplete={completed}
                         isSelected={selected}
-                        label={`${realLocationLabel}. ${step.title}`}
+                        label={`${realLocationLabel}. ${step.name}`}
                         nodeId={locationLabel}
                         palette={palette}
                         type={step.type}

@@ -1,11 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
-import { Label, LabelCreateInput, LabelPermission, LabelSearchInput, LabelSortBy, LabelUpdateInput } from '@shared/consts';
+import { Label, LabelCreateInput, LabelSearchInput, LabelSortBy, LabelUpdateInput, LabelYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'Label' as const;
-const suppFields = [] as const;
+type Permissions = Pick<LabelYou, 'canDelete' | 'canEdit'>;
+const suppFields = ['you.canDelete', 'you.canEdit'] as const;
 export const LabelModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -14,7 +16,7 @@ export const LabelModel: ModelLogic<{
     GqlModel: Label,
     GqlSearch: LabelSearchInput,
     GqlSort: LabelSortBy,
-    GqlPermission: LabelPermission,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.labelUpsertArgs['create'],
     PrismaUpdate: Prisma.labelUpsertArgs['update'],
     PrismaModel: Prisma.labelGetPayload<SelectWrap<Prisma.labelSelect>>,
@@ -76,6 +78,15 @@ export const LabelModel: ModelLogic<{
             runRoutineSchedulesCount: true,
             translationsCount: true,
             userSchedulesCount: true,
+        },
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                }
+            },
         },
     },
     mutate: {} as any,

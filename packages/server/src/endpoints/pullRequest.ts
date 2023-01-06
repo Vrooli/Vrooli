@@ -54,10 +54,10 @@ export const typeDef = gql`
         to: PullRequestTo!
         createdBy: User
         comments: [Comment!]!
-        permissionsPullRequest: PullRequestPermission!
+        you: PullRequestYou!
     }
 
-    type PullRequestPermission {
+    type PullRequestYou {
         canComment: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!

@@ -1,7 +1,7 @@
 import { Displayer, Formatter, ModelLogic, Mutater, Searcher, Validator } from "./types";
 import { randomString } from "../auth/wallet";
 import { Trigger } from "../events";
-import { Standard, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, VersionPermission, StandardVersionCreateInput, StandardVersionUpdateInput } from '@shared/consts';
+import { Standard, StandardCreateInput, StandardUpdateInput, SessionUser, StandardVersionSortBy, StandardVersionSearchInput, StandardVersion, StandardVersionCreateInput, StandardVersionUpdateInput, VersionYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
@@ -9,84 +9,7 @@ import { OrganizationModel } from "./organization";
 import { padSelect, permissionsSelectHelper } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
-
-type Model = {
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: StandardVersionCreateInput,
-    GqlUpdate: StandardVersionUpdateInput,
-    GqlModel: StandardVersion,
-    GqlSearch: StandardVersionSearchInput,
-    GqlSort: StandardVersionSortBy,
-    GqlPermission: VersionPermission,
-    PrismaCreate: Prisma.standard_versionUpsertArgs['create'],
-    PrismaUpdate: Prisma.standard_versionUpsertArgs['update'],
-    PrismaModel: Prisma.standard_versionGetPayload<SelectWrap<Prisma.standard_versionSelect>>,
-    PrismaSelect: Prisma.standard_versionSelect,
-    PrismaWhere: Prisma.standard_versionWhereInput,
-}
-
-const __typename = 'StandardVersion' as const;
-
-const suppFields = [] as const;
-// const formatter = (): Formatter<Model, typeof suppFields> => ({
-//     gqlRelMap: {
-//         __typename,
-//         comments: 'Comment',
-//         // directoryListings: 'ProjectVersionDirectory',
-//         // forks: 'Standard',
-//         // pullRequest: 'PullRequest',
-//         reports: 'Report',
-//         resourceList: 'ResourceList',
-//         root: 'Standard',
-//         // routineVersionInputs: 'RoutineVersionInput',
-//         // routineVersionOutputs: 'RoutineVersionOutput',
-//     },
-//     prismaRelMap: {
-//         __typename,
-//         comments: 'Comment',
-//         directoryListings: 'ProjectVersionDirectory',
-//         forks: 'Standard',
-//         pullRequest: 'PullRequest',
-//         quizQuestions: 'QuizQuestion',
-//         reports: 'Report',
-//         root: 'Standard',
-//         resourceList: 'ResourceList',
-//         // routineVersionInputs: 'RoutineVersionInput',
-//         // routineVersionOutputs: 'RoutineVersionOutput',
-//     },
-//     // countFields: ['commentsCount', 'reportsCount'],
-// })
-
-const searcher = (): Searcher<Model> => ({
-    defaultSort: StandardVersionSortBy.DateCompletedDesc,
-    sortBy: StandardVersionSortBy,
-    searchFields: {
-        completedTimeFrame: true,
-        createdTimeFrame: true,
-        isComplete: true,
-        reportId: true,
-        rootId: true,
-        type: true,
-        tags: true,
-        updatedTimeFrame: true,
-        userId: true,
-        visibility: true,
-    },
-    searchStringQuery: () => ({
-        OR: [
-            'transDescriptionWrapped',
-            { root: 'tagsWrapped' },
-            { root: 'labelsWrapped' },
-            { root: 'nameWrapped' },
-        ]
-    }),
-    /**
-     * isInternal routines should never appear in the query, since they are 
-     * only meant for a single input/output
-     */
-    customQueryData: () => ({ root: { isInternal: true } }),
-})
+import { getSingleTypePermissions } from "../validators";
 
 // const validator = (): Validator<Model> => ({
 //     validateMap: {
@@ -440,16 +363,94 @@ const querier = () => ({
 //     // },
 // })
 
-export const StandardVersionModel: ModelLogic<Model, typeof suppFields> = ({
+const __typename = 'StandardVersion' as const;
+type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
+const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView'] as const;
+export const StandardVersionModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: StandardVersionCreateInput,
+    GqlUpdate: StandardVersionUpdateInput,
+    GqlModel: StandardVersion,
+    GqlSearch: StandardVersionSearchInput,
+    GqlSort: StandardVersionSortBy,
+    GqlPermission: Permissions,
+    PrismaCreate: Prisma.standard_versionUpsertArgs['create'],
+    PrismaUpdate: Prisma.standard_versionUpsertArgs['update'],
+    PrismaModel: Prisma.standard_versionGetPayload<SelectWrap<Prisma.standard_versionSelect>>,
+    PrismaSelect: Prisma.standard_versionSelect,
+    PrismaWhere: Prisma.standard_versionWhereInput,
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.standard_version,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => bestLabel(select.translations, 'name', languages),
     },
-    format: {} as any,//formatter(),
+    format: {
+        gqlRelMap: {
+            __typename,
+            comments: 'Comment',
+            directoryListings: 'ProjectVersionDirectory',
+            forks: 'StandardVersion',
+            pullRequest: 'PullRequest',
+            reports: 'Report',
+            root: 'Standard',
+        },
+        prismaRelMap: {
+            __typename,
+            comments: 'Comment',
+            directoryListings: 'ProjectVersionDirectory',
+            forks: 'StandardVersion',
+            pullRequest: 'PullRequest',
+            reports: 'Report',
+            root: 'Standard',
+        },
+        countFields: {
+            commentsCount: true,
+            directoryListingsCount: true,
+            forksCount: true,
+            reportsCount: true,
+            translationsCount: true,
+        },
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
+            },
+        },
+    },
     mutate: {} as any, //mutater(),
     query: querier(),
-    search: searcher(),
+    search: {
+        defaultSort: StandardVersionSortBy.DateCompletedDesc,
+        sortBy: StandardVersionSortBy,
+        searchFields: {
+            completedTimeFrame: true,
+            createdTimeFrame: true,
+            isComplete: true,
+            reportId: true,
+            rootId: true,
+            type: true,
+            tags: true,
+            updatedTimeFrame: true,
+            userId: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transDescriptionWrapped',
+                { root: 'tagsWrapped' },
+                { root: 'labelsWrapped' },
+                { root: 'nameWrapped' },
+            ]
+        }),
+        /**
+         * isInternal routines should never appear in the query, since they are 
+         * only meant for a single input/output
+         */
+        customQueryData: () => ({ root: { isInternal: true } }),
+    },
     validate: {} as any,//validator(),
 })

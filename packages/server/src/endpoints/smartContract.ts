@@ -31,7 +31,7 @@ export const typeDef = gql`
     input SmartContractCreateInput {
         id: ID!
         isPrivate: Boolean
-        permissions: String!
+        permissions: String
         parentConnect: ID
         userConnect: ID
         organizationConnect: ID
@@ -65,28 +65,38 @@ export const typeDef = gql`
         hasCompletedVersion: Boolean!
         isDeleted: Boolean!
         isPrivate: Boolean!
-        isStarred: Boolean!
-        isUpvoted: Boolean
-        isViewed: Boolean!
+        permissions: String!
         translatedName: String!
         score: Int!
         stars: Int!
         views: Int!
         createdBy: User
-        forks: [SmartContract!]!
-        forksCount: Int!
         issues: [Issue!]!
         issuesCount: Int!
         labels: [Label!]!
         owner: Owner
         parent: SmartContract
-        permissionsRoot: RootPermission!
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         starredBy: [User!]!
         tags: [Tag!]!
+        transfers: [Transfer!]!
+        transfersCount: Int!
         versions: [SmartContractVersion!]!
         versionsCount: Int
+        you: SmartContractYou!
+    }
+
+    type SmartContractYou {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canStar: Boolean!
+        canTransfer: Boolean!
+        canView: Boolean!
+        canVote: Boolean!
+        isStarred: Boolean!
+        isUpvoted: Boolean
+        isViewed: Boolean!
     }
 
     input SmartContractSearchInput {

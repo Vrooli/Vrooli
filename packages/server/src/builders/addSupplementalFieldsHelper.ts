@@ -5,6 +5,21 @@ import { PartialGraphQLInfo } from "./types";
 import { GraphQLModelType, SupplementalConverter } from "../models/types";
 
 /**
+ * Sets value in object using dot notation
+ * @param obj Object to set value in
+ * @param path Path to set value in
+ * @param value Value to set
+ * @returns Object with value set
+ */
+const setDotNotationValue = (obj: { [x: string]: any }, path: string, value: any): { [x: string]: any } => {
+    const keys = path.split('.');
+    const lastKey = keys.pop();
+    const lastObj = keys.reduce((obj, key) => obj[key] = obj[key] || {}, obj);
+    if (lastKey) lastObj[lastKey] = value;
+    return obj;
+}
+
+/**
  * Adds supplemental fields data to the given objects
  */
 export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ languages, objects, objectType, partial, prisma, userData }: {
@@ -21,13 +36,13 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     if (!supplementer) return objects;
     // Get IDs from objects
     const ids = objects.map(({ id }) => id);
-    // Call each resolver to get supplemental data
-    const resolvers = supplementer.toGraphQL({ ids, languages, objects, partial, prisma, userData });
-    for (const [field, resolver] of Object.entries(resolvers)) {
-        // If not in partial, skip
-        if (!partial[field]) continue;
-        const supplemental = await resolver();
-        objects = objects.map((x, i) => ({ ...x, [field]: supplemental[i] }));
+    // Get supplemental data by field
+    const supplementalData = await supplementer.toGraphQL({ ids, languages, objects, partial, prisma, userData });
+    // Loop through each field in supplemental data
+    for (const [field, data] of Object.entries(supplementalData)) {
+        // Each value is an array of data for each object, in the same order as the objects
+        // Set the value for each object
+        objects = objects.map((x, i) => setDotNotationValue(x, field, data[i])) as any[];
     }
     return objects;
 }

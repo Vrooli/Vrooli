@@ -2,8 +2,8 @@ import { routineValidation } from "@shared/validation";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 import { ViewModel } from "./view";
-import { CustomError, Trigger } from "../events";
-import { Routine, RoutinePermission, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, NodeCreateInput, NodeUpdateInput, NodeRoutineListItem, NodeRoutineListCreateInput, NodeRoutineListItemCreateInput, NodeRoutineListUpdateInput, RoutineSortBy, SessionUser } from '@shared/consts';
+import { Trigger } from "../events";
+import { Routine, RoutineSearchInput, RoutineCreateInput, RoutineUpdateInput, RoutineSortBy, SessionUser, RoutineYou, PrependString } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
@@ -14,26 +14,6 @@ import { padSelect, permissionsSelectHelper } from "../builders";
 import { oneIsPublic } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels } from "../getters";
-
-type Model = {
-    IsTransferable: true,
-    IsVersioned: true,
-    GqlCreate: RoutineCreateInput,
-    GqlUpdate: RoutineUpdateInput,
-    GqlModel: Routine,
-    GqlSearch: RoutineSearchInput,
-    GqlSort: RoutineSortBy,
-    GqlPermission: RoutinePermission,
-    PrismaCreate: Prisma.routineUpsertArgs['create'],
-    PrismaUpdate: Prisma.routineUpsertArgs['update'],
-    PrismaModel: Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
-    PrismaSelect: Prisma.routineSelect,
-    PrismaWhere: Prisma.routineWhereInput,
-}
-
-const __typename = 'Routine' as const;
-
-const suppFields = ['isStarred', 'isUpvoted', 'isViewed', 'permissionsRoutine', 'translatedName'] as const;
 
 // const routineDuplicater = (): Duplicator<Prisma.routine_versionSelect, Prisma.routine_versionUpsertArgs['create']> => ({
 //     select: {
@@ -242,7 +222,24 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
     }
 }
 
-export const RoutineModel: ModelLogic<Model, typeof suppFields> = ({
+const __typename = 'Routine' as const;
+type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canEdit' | 'canStar' | 'canView' | 'canVote'>;
+const suppFields = ['you.canComment', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
+export const RoutineModel: ModelLogic<{
+    IsTransferable: true,
+    IsVersioned: true,
+    GqlCreate: RoutineCreateInput,
+    GqlUpdate: RoutineUpdateInput,
+    GqlModel: Routine,
+    GqlSearch: RoutineSearchInput,
+    GqlSort: RoutineSortBy,
+    GqlPermission: Permissions,
+    PrismaCreate: Prisma.routineUpsertArgs['create'],
+    PrismaUpdate: Prisma.routineUpsertArgs['update'],
+    PrismaModel: Prisma.routineGetPayload<SelectWrap<Prisma.routineSelect>>,
+    PrismaSelect: Prisma.routineSelect,
+    PrismaWhere: Prisma.routineWhereInput,
+}, typeof suppFields> = ({
     __typename,
     delegate: (prisma: PrismaType) => prisma.routine,
     display: {
@@ -301,13 +298,16 @@ export const RoutineModel: ModelLogic<Model, typeof suppFields> = ({
         },
         supplemental: {
             graphqlFields: suppFields,
-            toGraphQL: ({ ids, prisma, userData }) => ({
-                isStarred: async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                isUpvoted: async () => await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
-                isViewed: async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
-                permissionsRoutine: async () => await getSingleTypePermissions(__typename, ids, prisma, userData),
-                translatedName: async () => await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'routine.translatedName'),
-            }),
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
+                }
+            },
         },
     },
     mutate: {

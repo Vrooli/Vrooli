@@ -39,10 +39,10 @@ export const typeDef = gql`
         details: String
         language: String
         report: Report!
-        permissionsReportResponse: ReportResponsePermission!
+        you: ReportResponseYou!
     }
 
-    type ReportResponsePermission {
+    type ReportResponseYou {
         canDelete: Boolean!
         canEdit: Boolean!
     }

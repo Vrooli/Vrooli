@@ -62,9 +62,10 @@ export const typeDef = gql`
         fromOwner: Owner
         toOwner: Owner
         object: TransferObject!
+        you: TransferYou!
     }
 
-    type TransferPermission {
+    type TransferYou {
         canDelete: Boolean!
         canEdit: Boolean!
     }

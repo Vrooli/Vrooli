@@ -66,7 +66,6 @@ export const typeDef = gql`
         translations: [ApiVersionTranslation!]!
         directoryListings: [ProjectVersionDirectory!]!
         directoryListingsCount: Int!
-        permissionsVersion: VersionPermission!
         pullRequest: PullRequest
         reports: [Report!]!
         reportsCount: Int!
@@ -75,6 +74,7 @@ export const typeDef = gql`
         forksCount: Int!
         comments: [Comment!]!
         commentsCount: Int!
+        you: VersionYou!
     }
 
     input ApiVersionTranslationCreateInput {
