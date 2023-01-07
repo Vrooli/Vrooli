@@ -3,7 +3,11 @@
         "dist/",
         "src/auth/message_signing/"
     ],
-    "files": [
-        "src/**/*.ts"
-    ]
+    // "overrides": [
+    //     {
+    //         "files": [
+    //             "src/**/*.ts"
+    //         ]
+    //     }
+    // ]
 }

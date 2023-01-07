@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeStandardUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getLastUrlPart, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { FindByIdInput, ResourceList, Standard, StandardUpdateInput } from "@shared/consts";
-import { standardEndpoint } from "graphql/endpoints";
+import { FindByIdInput, ResourceList, Standard, StandardUpdateInput, StandardVersion } from "@shared/consts";
+import { standardEndpoint, standardVersionEndpoint } from "graphql/endpoints";
+import { standardVersionValidation } from "@shared/validation";
 
 export const StandardUpdate = ({
     onCancel,
@@ -27,12 +28,12 @@ export const StandardUpdate = ({
             versionGroupId: uuidValidate(secondLast) ? secondLast : last,
         }
     }, []);
-    const [getData, { data, loading }] = useLazyQuery<Standard, FindByIdInput, 'standard'>(...standardEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindByIdInput, 'standardVersion'>(...standardVersionEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
     }, [getData, id, versionGroupId])
-    const standard = useMemo(() => data?.standard, [data]);
+    const standardVersion = useMemo(() => data?.standardVersion, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
         isComplete: false,
@@ -61,21 +62,21 @@ export const StandardUpdate = ({
     useEffect(() => {
         setRelationships({
             isComplete: false, //TODO
-            isPrivate: standard?.isPrivate ?? false,
-            owner: standard?.owner ?? null,
+            isPrivate: standardVersion?.isPrivate ?? false,
+            owner: standardVersion?.owner ?? null,
             parent: null,
             // parent: standard?.parent ?? null, TODO
             project: null // TODO
         });
-        setResourceList(standard?.resourceList ?? { id: uuid() } as any);
-        setTags(standard?.tags ?? []);
-    }, [standard]);
+        setResourceList(standardVersion?.resourceList ?? { id: uuid() } as any);
+        setTags(standardVersion?.tags ?? []);
+    }, [standardVersion]);
 
     // Handle update
     const [mutation] = useMutation<Standard, StandardUpdateInput, 'standardUpdate'>(...standardEndpoint.update);
     const formik = useFormik({
         initialValues: {
-            translationsUpdate: standard?.translations ?? [{
+            translationsUpdate: standardVersion?.translations ?? [{
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
                 description: '',
@@ -83,18 +84,18 @@ export const StandardUpdate = ({
             }],
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: standardValidation.update(),
+        validationSchema: standardVersionValidation.update(),
         onSubmit: (values) => {
-            if (!standard) {
+            if (!standardVersion) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadStandard', severity: SnackSeverity.Error });
                 return;
             }
             // Update
             mutationWrapper<Standard, StandardUpdateInput>({
                 mutation,
-                input: shapeStandardUpdate(standard, {
-                    id: standard.id,
-                    resourceLists: [resourceList],
+                input: shapeStandardVersion.update(standardVersion, {
+                    id: standardVersion.id,
+                    resourceList: resourceList,
                     tags: tags,
                     translations: values.translationsUpdate.map(t => ({
                         ...t,
@@ -110,15 +111,13 @@ export const StandardUpdate = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { description, errorDescription, touchedDescription, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            description: value?.description ?? '',
-            errorDescription: error?.description ?? '',
-            touchedDescription: touched?.description ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', standardVersionTranslationValidation.update()),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['description'],
+        formik, 
+        formikField: 'translationsUpdate', 
+        language, 
+        validationSchema: standardVersionTranslationValidation.update(),
+    });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -173,11 +172,11 @@ export const StandardUpdate = ({
                     label="description"
                     multiline
                     minRows={4}
-                    value={description}
+                    value={translations.description}
                     onBlur={onTranslationBlur}
                     onChange={onTranslationChange}
-                    error={touchedDescription && Boolean(errorDescription)}
-                    helperText={touchedDescription && errorDescription}
+                    error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                    helperText={translations.touchedDescription && translations.errorDescription}
                 />
             </Grid>
             {/* TODO versioning */}
@@ -201,7 +200,7 @@ export const StandardUpdate = ({
                 />
             </Grid>
             <GridSubmitButtons
-                errors={errors}
+                errors={translations.errorsWithTranslations}
                 isCreate={false}
                 loading={formik.isSubmitting}
                 onCancel={onCancel}
@@ -209,7 +208,7 @@ export const StandardUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, description, onTranslationBlur, onTranslationChange, touchedDescription, errorDescription, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, onTranslationBlur, onTranslationChange, translations, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, onCancel]);
 
 
     return (

@@ -3,7 +3,7 @@ import { useMutation } from "graphql/hooks";
 import { mutationWrapper } from 'graphql/utils';
 import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeOrganizationCreate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { OrganizationCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
@@ -67,11 +67,11 @@ export const OrganizationCreate = ({
         onSubmit: (values) => {
             mutationWrapper<Organization, OrganizationCreateInput>({
                 mutation,
-                input: shapeOrganizationCreate({
+                input: shapeOrganization.create({
                     id: values.id,
                     isOpenToNewMembers: values.isOpenToNewMembers,
                     isPrivate: relationships.isPrivate,
-                    resourceLists: [resourceList],
+                    resourceList: resourceList,
                     tags,
                     translations: values.translationsCreate,
                 }),
@@ -84,18 +84,13 @@ export const OrganizationCreate = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { bio, name, errorBio, errorName, touchedBio, touchedName, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
-        return {
-            bio: value?.bio ?? '',
-            name: value?.name ?? '',
-            errorBio: error?.bio ?? '',
-            errorName: error?.name ?? '',
-            touchedBio: touched?.bio ?? false,
-            touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', organizationTranslationValidation.create()),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['bio', 'name'],
+        formik, 
+        formikField: 'translationsCreate', 
+        language, 
+        validationSchema: organizationTranslationValidation.create(),
+    });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -156,11 +151,11 @@ export const OrganizationCreate = ({
                         id="name"
                         name="name"
                         label="Name"
-                        value={name}
+                        value={translations.name}
                         onBlur={onTranslationBlur}
                         onChange={onTranslationChange}
-                        error={touchedName && Boolean(errorName)}
-                        helperText={touchedName && errorName}
+                        error={translations.touchedName && Boolean(translations.errorName)}
+                        helperText={translations.touchedName && translations.errorName}
                     />
                 </Grid>
                 <Grid item xs={12} mb={4}>
@@ -171,11 +166,11 @@ export const OrganizationCreate = ({
                         label="Bio"
                         multiline
                         minRows={4}
-                        value={bio}
+                        value={translations.bio}
                         onBlur={onTranslationBlur}
                         onChange={onTranslationChange}
-                        error={touchedBio && Boolean(errorBio)}
-                        helperText={touchedBio && errorBio}
+                        error={translations.touchedBio && Boolean(translations.errorBio)}
+                        helperText={translations.touchedBio && translations.errorBio}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -216,7 +211,7 @@ export const OrganizationCreate = ({
                 </Grid>
                 <GridSubmitButtons
                     disabledSubmit={!isLoggedIn}
-                    errors={errors}
+                    errors={translations.errorsWithTranslations}
                     isCreate={true}
                     loading={formik.isSubmitting}
                     onCancel={onCancel}

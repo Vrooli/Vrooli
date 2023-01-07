@@ -1,13 +1,12 @@
-import { Node, NodeEnd, NodeLink, Session } from 'types';
+import { Node, NodeEnd, NodeLink, Routine, Session } from '@shared/consts';
 import { BuildAction } from 'utils';
-import { NodeContextMenuAction } from './NodeContextMenu/NodeContextMenu';
 
 export interface NodeContextMenuProps {
     id: string;
     anchorEl: HTMLElement | null;
     availableActions: BuildAction[];
     handleClose: () => void;
-    handleSelect: (option: NodeContextMenuAction) => void;
+    handleSelect: (option: BuildAction) => void;
     zIndex: number;
 }
 
@@ -34,10 +33,10 @@ export interface AddBeforeLinkDialogProps {
 }
 
 export interface EndNodeDialogProps {
-    handleClose: (updatedNode?: NodeEnd) => void;
+    handleClose: (updatedNode?: Node & { end: NodeEnd }) => void;
     isEditing: boolean;
     isOpen: boolean;
-    node: NodeEnd;
+    node: Node & { end: NodeEnd };
     language: string;
     zIndex: number;
 }
@@ -100,7 +99,6 @@ export interface NodeGraphProps {
      * Delete a link between two nodes
      */
     handleLinkDelete: (link: NodeLink) => void;
-    language: string;
     /**
      * Dictionary of row and column pairs for every node ID on graph
      */

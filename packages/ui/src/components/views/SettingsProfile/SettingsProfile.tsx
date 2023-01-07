@@ -1,10 +1,10 @@
 import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
 import { useLazyQuery, useMutation } from "graphql/hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
 import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfileUpdate, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfileUpdate, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
@@ -32,7 +32,7 @@ export const SettingsProfile = ({
     const fetchHandles = useCallback(() => {
         const verifiedWallets = profile?.wallets?.filter(w => w.verified) ?? [];
         if (verifiedWallets.length > 0) {
-            findHandles({ variables: { input: {} } }); // Intentionally empty
+            findHandles({ variables: { } }); // Intentionally empty
         } else {
             PubSub.get().publishSnack({ messageKey: 'NoVerifiedWallets', severity: SnackSeverity.Error })
         }
@@ -91,7 +91,7 @@ export const SettingsProfile = ({
                 PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });
                 return;
             }
-            mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
+            mutationWrapper<User, ProfileUpdateInput>({
                 mutation,
                 input,
                 onSuccess: (data) => { onUpdated(data); setLocation(APP_LINKS.Profile, { replace: true }) },
@@ -102,15 +102,13 @@ export const SettingsProfile = ({
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     // Current bio info, as well as errors
-    const { bio, errorBio, touchedBio, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            bio: value?.bio ?? '',
-            errorBio: error?.bio ?? '',
-            touchedBio: touched?.bio ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', userTranslationValidation.update()),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['bio'],
+        formik, 
+        formikField: 'translationsUpdate', 
+        language, 
+        validationSchema: userTranslationValidation.update(),
+    });
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         handleTranslationBlur(formik, 'translationsUpdate', e, language)
@@ -215,18 +213,18 @@ export const SettingsProfile = ({
                             label="Bio"
                             multiline
                             minRows={4}
-                            value={bio}
+                            value={translations.bio}
                             onBlur={onTranslationBlur}
                             onChange={onTranslationChange}
-                            error={touchedBio && Boolean(errorBio)}
-                            helperText={touchedBio && errorBio}
+                            error={translations.touchedBio && Boolean(translations.errorBio)}
+                            helperText={translations.touchedBio && translations.errorBio}
                         />
                     </Grid>
                 </Grid>
             </Container>
             <Grid container spacing={2} p={3}>
                 <GridSubmitButtons
-                    errors={errors}
+                    errors={translations.errorsWithTranslations}
                     isCreate={false}
                     loading={formik.isSubmitting}
                     onCancel={handleCancel}

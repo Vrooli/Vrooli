@@ -68,3 +68,57 @@ export function hasObjectChanged(original: any, updated: any, fields: string[] =
     }
     return false;
 }
+
+/**
+ * Grabs and shapes strings from an object
+ * @param object The object to grab strings from
+ * @param fields The fields to grab strings from
+ * @param prefix A prefix to add to the beginning of each string
+ * @returns object with the specified fields. Each value is the original 
+ * value if it was already a string, or '' if it was null or undefined. 
+ * If a prefix was specified, it is added to the beginning of each field name, 
+ * with the letter after the prefix capitalized.
+ */
+export const stringSpread = <
+    Object extends { [key: string]: any },
+    Fields extends keyof Object & string,
+    Prefix extends string = ''
+>(
+    object: Object | null | undefined,
+    fields: readonly Fields[],
+    prefix?: Prefix
+): (Prefix extends '' ? { [key in Fields]: string } : { [key in Fields as `${Prefix}${Capitalize<key>}`]: string }) => {
+    const spread: any = {};
+    fields.forEach(field => {
+        const value = object ? object[field] : '';
+        spread[prefix ? `${prefix}${field.charAt(0).toUpperCase()}${field.slice(1)}` : field] = typeof value === 'string' ? value : '';
+    });
+    return spread;
+}
+
+/**
+ * Grabs and shapes booleans from an object
+ * @param object The object to grab booleans from
+ * @param fields The fields to grab booleans from
+ * @param prefix A prefix to add to the beginning of each string
+ * @returns object with the specified fields. Each value is the original 
+ * value if it was already a boolean, or false if it was null or undefined.
+ * If a prefix was specified, it is added to the beginning of each field name,
+ * with the letter after the prefix capitalized.
+ */
+export const booleanSpread = <
+    Object extends { [key: string]: any },
+    Fields extends keyof Object & string,
+    Prefix extends string = ''
+>(
+    object: Object | null | undefined,
+    fields: readonly Fields[],
+    prefix?: Prefix
+): (Prefix extends '' ? { [key in Fields]: boolean } : { [key in Fields as `${Prefix}${Capitalize<key>}`]: boolean }) => {
+    const spread: any = {};
+    fields.forEach(field => {
+        const value = object ? object[field] : false;
+        spread[prefix ? `${prefix}${field.charAt(0).toUpperCase()}${field.slice(1)}` : field] = typeof value === 'boolean' ? value : false;
+    });
+    return spread;
+}

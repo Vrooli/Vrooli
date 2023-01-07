@@ -68,7 +68,7 @@ export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps,
  * Props for the Redirect node
  */
 export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
-    handleAction: (action: NodeContextMenuAction, nodeId: string) => void;
+    handleAction: (action: BuildAction, nodeId: string) => void;
     node: Node;// & { redirect: NodeRedirect }; TODO
     zIndex: number;
 }
@@ -114,7 +114,7 @@ export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, 'isLi
      * ID of node in this cell. Used for drag events
      */
     nodeId: string;
-    children: React.JSX;
+    children: JSX.Element;
     /**
      * Threshold for dragging to start
      */

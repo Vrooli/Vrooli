@@ -3,16 +3,16 @@ import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
-import { routineTranslationUpdate, routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
+import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, PubSub, removeTranslation, shapeRoutineUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getLastUrlPart, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, PubSub, removeTranslation, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
-import { RelationshipItemRoutine, RelationshipsObject } from "components/inputs/types";
+import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
 import { RoutineIcon } from "@shared/icons";
-import { FindByIdInput, ResourceList, Routine, RoutineUpdateInput } from "@shared/consts";
-import { routineEndpoint } from "graphql/endpoints";
+import { FindByIdInput, ResourceList, Routine, RoutineUpdateInput, RoutineVersion } from "@shared/consts";
+import { routineEndpoint, routineVersionEndpoint } from "graphql/endpoints";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).
 
@@ -36,12 +36,12 @@ export const RoutineUpdate = ({
             versionGroupId: uuidValidate(secondLast) ? secondLast : last,
         }
     }, []);
-    const [getData, { data, loading }] = useLazyQuery<Routine, FindByIdInput, 'routine'>(...routineEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindByIdInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
     }, [getData, id, versionGroupId])
-    const routine = useMemo(() => data?.routine, [data]);
+    const routineVersion = useMemo(() => data?.routineVersion, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
         isComplete: false,
@@ -81,51 +81,51 @@ export const RoutineUpdate = ({
 
     useEffect(() => {
         setRelationships({
-            isComplete: routine?.isComplete ?? false,
-            isPrivate: routine?.isPrivate ?? false,
-            owner: routine?.owner ?? null,
+            isComplete: routineVersion?.isComplete ?? false,
+            isPrivate: routineVersion?.isPrivate ?? false,
+            owner: routineVersion?.owner ?? null,
             parent: null,
-            // parent: routine?.parent ?? null, TODO
+            // parent: routineVersion?.parent ?? null, TODO
             project: null, // TODO
         });
-        setInputsList(routine?.inputs ?? []);
-        setOutputsList(routine?.outputs ?? []);
-        setResourceList(routine?.resourceList ?? { id: uuid() } as any);
-        setTags(routine?.tags ?? []);
-    }, [routine]);
+        setInputsList(routineVersion?.inputs ?? []);
+        setOutputsList(routineVersion?.outputs ?? []);
+        setResourceList(routineVersion?.resourceList ?? { id: uuid() } as any);
+        setTags(routineVersion?.tags ?? []);
+    }, [routineVersion]);
 
     // Handle update
     const [mutation] = useMutation<Routine, RoutineUpdateInput, 'routineUpdate'>(...routineEndpoint.update);
     const formik = useFormik({
         initialValues: {
             id: id ?? DUMMY_ID,
-            nodeLinks: routine?.nodeLinks ?? [] as Routine['nodeLinks'],
-            nodes: routine?.nodes ?? [] as Routine['nodes'],
-            translationsUpdate: routine?.translations ?? [{
+            nodeLinks: routineVersion?.nodeLinks ?? [] as RoutineVersion['nodeLinks'],
+            nodes: routineVersion?.nodes ?? [] as RoutineVersion['nodes'],
+            translationsUpdate: routineVersion?.translations ?? [{
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
                 description: '',
                 instructions: '',
                 name: '',
             }],
-            version: routine?.version ?? '1.0.0',
+            version: routineVersion?.version ?? '1.0.0',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: validationSchema({ minVersion: routine?.version ?? '0.0.1' }),
+        validationSchema: validationSchema({ minVersion: routineVersion?.version ?? '0.0.1' }),
         onSubmit: (values) => {
-            if (!routine) {
+            if (!routineVersion) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper<Routine, RoutineUpdateInput>({
                 mutation,
-                input: shapeRoutineUpdate(routine, {
-                    id: routine.id,
+                input: shapeRoutineVersion.update(routineVersion, {
+                    id: routineVersion.id,
                     version: values.version,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
                     owner: relationships.owner,
-                    parent: relationships.parent as RelationshipItemRoutine | null,
+                    parent: relationships.parent as RelationshipItemRoutineVersion | null,
                     project: relationships.project,
                     inputs: inputsList,
                     outputs: outputsList,
@@ -145,21 +145,13 @@ export const RoutineUpdate = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { description, instructions, name, errorDescription, errorInstructions, errorName, touchedDescription, touchedInstructions, touchedName, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            description: value?.description ?? '',
-            instructions: value?.instructions ?? '',
-            name: value?.name ?? '',
-            errorDescription: error?.description ?? '',
-            errorInstructions: error?.instructions ?? '',
-            errorName: error?.name ?? '',
-            touchedDescription: touched?.description ?? false,
-            touchedInstructions: touched?.instructions ?? false,
-            touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineVersionTranslationValidation.update()),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['description', 'instructions', 'name'],
+        formik, 
+        formikField: 'translationsUpdate', 
+        language, 
+        validationSchema: routineVersionTranslationValidation.update(),
+    });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -194,7 +186,7 @@ export const RoutineUpdate = ({
         setIsGraphOpen(true);
     }, [formik, language]);
     const handleGraphClose = useCallback(() => { setIsGraphOpen(false); }, [setIsGraphOpen]);
-    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: Routine['nodes'], nodeLinks: Routine['nodeLinks'] }) => {
+    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: RoutineVersion['nodes'], nodeLinks: RoutineVersion['nodeLinks'] }) => {
         formik.setFieldValue('nodes', nodes);
         formik.setFieldValue('nodeLinks', nodeLinks);
         setIsGraphOpen(false);
@@ -270,11 +262,11 @@ export const RoutineUpdate = ({
                     id="name"
                     name="name"
                     label="Name"
-                    value={name}
+                    value={translations.name}
                     onBlur={onTranslationBlur}
                     onChange={onTranslationChange}
-                    error={touchedName && Boolean(errorName)}
-                    helperText={touchedName && errorName}
+                    error={translations.touchedName && Boolean(translations.errorName)}
+                    helperText={translations.touchedName && translations.errorName}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -283,24 +275,24 @@ export const RoutineUpdate = ({
                     id="description"
                     name="description"
                     label="Description"
-                    value={description}
+                    value={translations.description}
                     multiline
                     maxRows={3}
                     onBlur={onTranslationBlur}
                     onChange={onTranslationChange}
-                    error={touchedDescription && Boolean(errorDescription)}
-                    helperText={touchedDescription && errorDescription}
+                    error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                    helperText={translations.touchedDescription && translations.errorDescription}
                 />
             </Grid>
             <Grid item xs={12} mb={4}>
                 <MarkdownInput
                     id="instructions"
                     placeholder="Instructions"
-                    value={instructions}
+                    value={translations.instructions}
                     minRows={4}
                     onChange={(newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText } })}
-                    error={touchedInstructions && Boolean(errorInstructions)}
-                    helperText={touchedInstructions ? errorInstructions : null}
+                    error={translations.touchedInstructions && Boolean(translations.errorInstructions)}
+                    helperText={translations.touchedInstructions ? translations.errorInstructions : null}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -428,7 +420,7 @@ export const RoutineUpdate = ({
                 )
             }
             <GridSubmitButtons
-                errors={errors}
+                errors={translations.errorsWithTranslations}
                 isCreate={false}
                 loading={formik.isSubmitting}
                 onCancel={onCancel}
@@ -436,7 +428,7 @@ export const RoutineUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid >
-    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, name, onTranslationBlur, onTranslationChange, touchedName, errorName, description, touchedDescription, errorDescription, instructions, touchedInstructions, errorInstructions, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, isMultiStep, isGraphOpen, handleGraphClose, handleGraphSubmit, handleDeleteLanguage, handleGraphOpen, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, errors, onCancel, handleMultiStepChange]);
+    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, onTranslationBlur, onTranslationChange, translations, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, isMultiStep, isGraphOpen, handleGraphClose, handleGraphSubmit, handleDeleteLanguage, handleGraphOpen, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, onCancel, handleMultiStepChange]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

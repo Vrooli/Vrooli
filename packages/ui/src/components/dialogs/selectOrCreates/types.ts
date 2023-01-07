@@ -1,4 +1,4 @@
-import { Organization, Project, Routine, Standard, User } from "types";
+import { Organization, Project, Routine, Session, Standard, User } from "@shared/consts";
 
 export interface OrganizationSelectOrCreateDialogProps {
     handleAdd: (organization: Organization) => any;

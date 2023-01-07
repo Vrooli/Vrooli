@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, base36ToUuid, getLastUrlPart, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, SnackSeverity, TagSelector, userFromSession } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
-import { projectEndpoint, projectVersionEndpoint } from "graphql/endpoints";
-import { FindByIdInput, Project, ProjectUpdateInput, ProjectVersion } from "@shared/consts";
+import { projectVersionEndpoint } from "graphql/endpoints";
+import { FindByIdInput, Project, ProjectUpdateInput, ProjectVersion, ProjectVersionUpdateInput } from "@shared/consts";
 
 export const ProjectUpdate = ({
     onCancel,
@@ -50,11 +50,11 @@ export const ProjectUpdate = ({
     }, [projectVersion]);
 
     // Handle update
-    const [mutation] = useMutation<Project, ProjectUpdateInput, 'projectUpdate'>(...projectEndpoint.update);
+    const [mutation] = useMutation<ProjectVersion, ProjectVersionUpdateInput, 'projectVersionUpdate'>(...projectVersionEndpoint.update);
     const formik = useFormik({
         initialValues: {
-            id: project?.id ?? uuid(),
-            translationsUpdate: project?.translations ?? [{
+            id: projectVersion?.id ?? uuid(),
+            translationsUpdate: projectVersion?.translations ?? [{
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
                 name: '',
@@ -70,7 +70,7 @@ export const ProjectUpdate = ({
             }
             mutationWrapper<Project, ProjectUpdateInput>({
                 mutation,
-                input: shapeProjectUpdate(projectVersion, {
+                input: shapeProjectVersion.update(projectVersion, {
                     id: projectVersion.id,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
@@ -91,18 +91,13 @@ export const ProjectUpdate = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { description, name, errorDescription, errorName, touchedDescription, touchedName, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            description: value?.description ?? '',
-            name: value?.name ?? '',
-            errorDescription: error?.description ?? '',
-            errorName: error?.name ?? '',
-            touchedDescription: touched?.description ?? false,
-            touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', projectVersionTranslationValidation.update()),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['description', 'name'],
+        formik, 
+        formikField: 'translationsUpdate', 
+        language, 
+        validationSchema: projectVersionTranslationValidation.update(),
+    });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -151,11 +146,11 @@ export const ProjectUpdate = ({
                     id="name"
                     name="name"
                     label="Name"
-                    value={name}
+                    value={translations.name}
                     onBlur={onTranslationBlur}
                     onChange={onTranslationChange}
-                    error={touchedName && Boolean(errorName)}
-                    helperText={touchedName && errorName}
+                    error={translations.touchedName && Boolean(translations.errorName)}
+                    helperText={translations.touchedName && translations.errorName}
                 />
             </Grid>
             <Grid item xs={12} mb={4}>
@@ -166,11 +161,11 @@ export const ProjectUpdate = ({
                     label="description"
                     multiline
                     minRows={4}
-                    value={description}
+                    value={translations.description}
                     onBlur={onTranslationBlur}
                     onChange={onTranslationChange}
-                    error={touchedDescription && Boolean(errorDescription)}
-                    helperText={touchedDescription && errorDescription}
+                    error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                    helperText={translations.touchedDescription && translations.errorDescription}
                 />
             </Grid>
             <Grid item xs={12} mb={4}>
@@ -181,7 +176,7 @@ export const ProjectUpdate = ({
                 />
             </Grid>
             <GridSubmitButtons
-                errors={errors}
+                errors={translations.errorsWithTranslations}
                 isCreate={false}
                 loading={formik.isSubmitting}
                 onCancel={onCancel}
@@ -189,7 +184,7 @@ export const ProjectUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, name, onTranslationBlur, onTranslationChange, touchedName, errorName, description, touchedDescription, errorDescription, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, onTranslationBlur, onTranslationChange, translations, handleTagsUpdate, tags, onCancel]);
 
 
     return (

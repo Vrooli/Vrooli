@@ -3,7 +3,7 @@ import { useMutation } from "graphql/hooks";
 import { mutationWrapper } from 'graphql/utils';
 import { projectVersionTranslationValidation, projectVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
@@ -85,18 +85,13 @@ export const ProjectCreate = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { description, name, errorDescription, errorName, touchedDescription, touchedName, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
-        return {
-            description: value?.description ?? '',
-            name: value?.name ?? '',
-            errorDescription: error?.description ?? '',
-            errorName: error?.name ?? '',
-            touchedDescription: touched?.description ?? false,
-            touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', projectVersionTranslationValidation.create()),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['description', 'name'],
+        formik, 
+        formikField: 'translationsCreate', 
+        language, 
+        validationSchema: projectVersionTranslationValidation.create(),
+    });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -158,11 +153,11 @@ export const ProjectCreate = ({
                         id="name"
                         name="name"
                         label="Name"
-                        value={name}
+                        value={translations.name}
                         onBlur={onTranslationBlur}
                         onChange={onTranslationChange}
-                        error={touchedName && Boolean(errorName)}
-                        helperText={touchedName && errorName}
+                        error={translations.touchedName && Boolean(translations.errorName)}
+                        helperText={translations.touchedName && translations.errorName}
                     />
                 </Grid>
                 <Grid item xs={12} mb={4}>
@@ -173,11 +168,11 @@ export const ProjectCreate = ({
                         label="description"
                         multiline
                         minRows={4}
-                        value={description}
+                        value={translations.description}
                         onBlur={onTranslationBlur}
                         onChange={onTranslationChange}
-                        error={touchedDescription && Boolean(errorDescription)}
-                        helperText={touchedDescription && errorDescription}
+                        error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                        helperText={translations.touchedDescription && translations.errorDescription}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -219,7 +214,7 @@ export const ProjectCreate = ({
                 </Grid>
                 <GridSubmitButtons
                     disabledSubmit={!isLoggedIn}
-                    errors={errors}
+                    errors={translations.errorsWithTranslations}
                     isCreate={true}
                     loading={formik.isSubmitting}
                     onCancel={onCancel}

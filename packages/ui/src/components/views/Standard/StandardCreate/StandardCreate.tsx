@@ -2,7 +2,7 @@ import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "graphql/hooks";
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardCreate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardCreate, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
@@ -12,8 +12,9 @@ import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession 
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
-import { ResourceList, Standard, StandardCreateInput } from "@shared/consts";
-import { standardEndpoint } from "graphql/endpoints";
+import { ResourceList, Standard, StandardCreateInput, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
+import { standardVersionEndpoint } from "graphql/endpoints";
+import { standardVersionValidation } from "@shared/validation";
 
 export const StandardCreate = ({
     onCreated,
@@ -76,7 +77,7 @@ export const StandardCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<Standard, StandardCreateInput, 'standardCreate'>(...standardEndpoint.create);
+    const [mutation] = useMutation<StandardVersion, StandardVersionCreateInput, 'standardVersionCreate'>(...standardVersionEndpoint.create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),
@@ -90,7 +91,7 @@ export const StandardCreate = ({
             }],
             version: '1.0',
         },
-        validationSchema: standardValidation.create(),
+        validationSchema: standardVersionValidation.create(),
         onSubmit: (values) => {
             mutationWrapper<Standard, StandardCreateInput>({
                 mutation,
@@ -118,15 +119,13 @@ export const StandardCreate = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { description, errorDescription, touchedDescription, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
-        return {
-            description: value?.description ?? '',
-            errorDescription: error?.description ?? '',
-            touchedDescription: touched?.description ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', standardVersionTranslationValidation.create()),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['description'],
+        formik, 
+        formikField: 'translationsCreate', 
+        language, 
+        validationSchema: standardVersionTranslationValidation.create(),
+    });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -205,11 +204,11 @@ export const StandardCreate = ({
                         label="description"
                         multiline
                         minRows={4}
-                        value={description}
+                        value={translations.description}
                         onBlur={onTranslationBlur}
                         onChange={onTranslationChange}
-                        error={touchedDescription && Boolean(errorDescription)}
-                        helperText={touchedDescription && errorDescription}
+                        error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                        helperText={translations.touchedDescription && translations.errorDescription}
                     />
                 </Grid>
                 {/* <Grid item xs={12}>
@@ -287,7 +286,7 @@ export const StandardCreate = ({
                 </Grid>
                 <GridSubmitButtons
                     disabledSubmit={!isLoggedIn}
-                    errors={errors}
+                    errors={translations.errorsWithTranslations}
                     isCreate={true}
                     loading={formik.isSubmitting}
                     onCancel={onCancel}

@@ -14,13 +14,13 @@ import {
     useTheme,
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload } from 'utils';
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
 import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
-import { RelationshipItemRoutine, RelationshipsObject } from 'components/inputs/types';
+import { RelationshipItemRoutineVersion, RelationshipsObject } from 'components/inputs/types';
 import { getCurrentUser } from 'utils/authentication';
 import { NodeRoutineListItem, ResourceList } from '@shared/consts';
 
@@ -131,7 +131,7 @@ export const SubroutineInfoDialog = ({
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
                     owner: relationships.owner,
-                    parent: relationships.parent as RelationshipItemRoutine | null,
+                    parent: relationships.parent as RelationshipItemRoutineVersion | null,
                     project: relationships.project,
                     version: values.version,
                     inputs: inputsList,
@@ -149,21 +149,13 @@ export const SubroutineInfoDialog = ({
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     // Current description, instructions, and name info, as well as errors
-    const { description, instructions, name, errorDescription, errorInstructions, errorName, touchedDescription, touchedInstructions, touchedName, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            description: value?.description ?? '',
-            instructions: value?.instructions ?? '',
-            name: value?.name ?? '',
-            errorDescription: error?.description ?? '',
-            errorInstructions: error?.instructions ?? '',
-            errorName: error?.name ?? '',
-            touchedDescription: touched?.description ?? false,
-            touchedInstructions: touched?.instructions ?? false,
-            touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', routineVersionTranslationValidation.update()),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['description', 'instructions', 'name'],
+        formik, 
+        formikField: 'translationsUpdate', 
+        language, 
+        validationSchema: routineVersionTranslationValidation.update(),
+    });
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         handleTranslationBlur(formik, 'translationsUpdate', e, language)
@@ -247,7 +239,7 @@ export const SubroutineInfoDialog = ({
                 padding: 1,
             }}>
                 {/* Subroutine name and position */}
-                <Typography variant="h5">{name}</Typography>
+                <Typography variant="h5">{translations.name}</Typography>
                 <Typography variant="h6" ml={1} mr={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
                 {/* Version */}
                 <VersionDisplay
@@ -341,11 +333,11 @@ export const SubroutineInfoDialog = ({
                                     id="name"
                                     name="name"
                                     label="Name"
-                                    value={name}
+                                    value={translations.name}
                                     onBlur={onTranslationBlur}
                                     onChange={onTranslationChange}
-                                    error={touchedName && Boolean(errorName)}
-                                    helperText={touchedName && errorName}
+                                    error={translations.touchedName && Boolean(translations.errorName)}
+                                    helperText={translations.touchedName && translations.errorName}
                                 />
                             </Grid>
                         }
@@ -358,15 +350,15 @@ export const SubroutineInfoDialog = ({
                                     id: "description",
                                     name: "description",
                                     InputLabelProps: { shrink: true },
-                                    value: description,
+                                    value: translations.description,
                                     multiline: true,
                                     maxRows: 3,
                                     onBlur: onTranslationBlur,
                                     onChange: onTranslationChange,
-                                    error: touchedDescription && Boolean(errorDescription),
-                                    helperText: touchedDescription && errorDescription,
+                                    error: translations.touchedDescription && Boolean(translations.errorDescription),
+                                    helperText: translations.touchedDescription && translations.errorDescription,
                                 }}
-                                text={description}
+                                text={translations.description}
                                 title="Description"
                             />
                         </Grid>
@@ -377,13 +369,13 @@ export const SubroutineInfoDialog = ({
                                 propsMarkdownInput={{
                                     id: "instructions",
                                     placeholder: "Instructions",
-                                    value: instructions,
+                                    value: translations.instructions,
                                     minRows: 3,
                                     onChange: (newText: string) => onTranslationChange({ target: { name: 'instructions', value: newText } }),
-                                    error: touchedInstructions && Boolean(errorInstructions),
-                                    helperText: touchedInstructions ? errorInstructions as string : null,
+                                    error: translations.touchedInstructions && Boolean(translations.errorInstructions),
+                                    helperText: translations.touchedInstructions ? translations.errorInstructions as string : null,
                                 }}
-                                text={instructions}
+                                text={translations.instructions}
                                 title="Instructions"
                             />
                         </Grid>
@@ -459,7 +451,7 @@ export const SubroutineInfoDialog = ({
                     {
                         canEdit && <Grid container spacing={1}>
                             <GridSubmitButtons
-                                errors={errors}
+                                errors={translations.errorsWithTranslations}
                                 isCreate={false}
                                 loading={formik.isSubmitting}
                                 onCancel={handleCancel}

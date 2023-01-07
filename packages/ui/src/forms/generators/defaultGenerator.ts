@@ -1,4 +1,4 @@
-import { CheckboxProps, DropzoneProps, JSONProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps, YupField } from '../types';
+import { CheckboxProps, DropzoneProps, JsonProps, MarkdownProps, RadioProps, SelectorProps, SliderProps, SwitchProps, TextFieldProps, QuantityBoxProps, TagSelectorProps, LanguageInputProps, YupField } from '../types';
 import { FieldData } from 'forms/types';
 import { InputType } from '@shared/consts';
 
@@ -20,7 +20,7 @@ const defaultMap: { [key in InputType]: (props: any) => any } = {
         defaultValue: [],
         ...props
     }),
-    [InputType.JSON]: (props: Partial<Omit<JSONProps, 'id'>>): Omit<JSONProps, 'id'> => ({
+    [InputType.JSON]: (props: Partial<Omit<JsonProps, 'id'>>): Omit<JsonProps, 'id'> => ({
         defaultValue: '',
         ...props
     }),

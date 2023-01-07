@@ -3,7 +3,7 @@ import { resourceTranslationValidation, resourceValidation } from '@shared/valid
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
 import { ResourceDialogProps } from '../types';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectUrl, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResource, usePromptBeforeUnload } from 'utils';
+import { addEmptyTranslation, getObjectUrl, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResource, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
 import { AutocompleteOption, Wrap } from 'types';
@@ -139,18 +139,13 @@ export const ResourceDialog = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { description, name, errorDescription, errorName, touchedDescription, touchedName, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            description: value?.description ?? '',
-            name: value?.name ?? '',
-            errorDescription: error?.description ?? '',
-            errorName: error?.name ?? '',
-            touchedDescription: touched?.description ?? false,
-            touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', resourceTranslationValidation.update()),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['description', 'name'],
+        formik, 
+        formikField: 'translationsUpdate', 
+        language, 
+        validationSchema: resourceTranslationValidation.update(),
+    });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -366,11 +361,11 @@ export const ResourceDialog = ({
                                 id="name"
                                 name="name"
                                 label="Name"
-                                value={name}
+                                value={translations.name}
                                 onBlur={onTranslationBlur}
                                 onChange={onTranslationChange}
-                                error={touchedName && Boolean(errorName)}
-                                helperText={(touchedName && errorName) ?? 'Enter name (optional)'}
+                                error={translations.touchedName && Boolean(translations.errorName)}
+                                helperText={(translations.touchedName && translations.errorName) ?? 'Enter name (optional)'}
                             />
                             {/* Enter description */}
                             <TextField
@@ -380,16 +375,16 @@ export const ResourceDialog = ({
                                 label="Description"
                                 multiline
                                 maxRows={8}
-                                value={description}
+                                value={translations.description}
                                 onBlur={onTranslationBlur}
                                 onChange={onTranslationChange}
-                                error={touchedDescription && Boolean(errorDescription)}
-                                helperText={(touchedDescription && errorDescription) ?? 'Enter description (optional)'}
+                                error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                                helperText={(translationsltouchedDescription && translations.errorDescription) ?? 'Enter description (optional)'}
                             />
                             {/* Action buttons */}
                             <Grid container spacing={1}>
                                 <GridSubmitButtons
-                                    errors={errors}
+                                    errors={translations.errors}
                                     isCreate={index < 0}
                                     loading={formik.isSubmitting || addLoading || updateLoading}
                                     onCancel={handleCancel}
