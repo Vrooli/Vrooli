@@ -1,7 +1,6 @@
 import { CustomError } from "../events";
 import { getLogic } from "../getters";
-import { GraphQLModelType } from "../models/types";
-import { SessionUser } from '@shared/consts';
+import { GqlModelType, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
@@ -225,7 +224,7 @@ export type StandardPolicy = {
  * @returns Map of permissions objects, keyed by ID
  */
 export function getMultiTypePermissions(
-    authDataById: { [id: string]: { __typename: GraphQLModelType, [x: string]: any } },
+    authDataById: { [id: string]: { type: `${GqlModelType}`, [x: string]: any } },
     userData: SessionUser | null,
 ): { [id: string]: { [x: string]: any } } {
     // Initialize result
@@ -233,7 +232,7 @@ export function getMultiTypePermissions(
     // Loop through each ID and calculate permissions
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
-        const { validate } = getLogic(['validate'], authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
+        const { validate } = getLogic(['validate'], authDataById[id].type, userData?.languages ?? ['en'], 'getMultiplePermissions');
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataById[id]), userData?.id);
         const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ['en']);
         const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ['en']);
@@ -257,7 +256,7 @@ export function getMultiTypePermissions(
  * of that permission's value for each object (in the same order as the IDs)
  */
 export async function getSingleTypePermissions<Permissions extends { [x: string]: any }>(
-    type: GraphQLModelType,
+    type: `${GqlModelType}`,
     ids: string[],
     prisma: PrismaType,
     userData: SessionUser | null,
@@ -297,7 +296,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
  * @parma userId ID of user requesting permissions
  */
 export function permissionsCheck(
-    authDataById: { [id: string]: { __typename: GraphQLModelType, [x: string]: any } },
+    authDataById: { [id: string]: { type: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     userData: SessionUser | null,
 ) {
@@ -313,7 +312,7 @@ export function permissionsCheck(
             const permissions = permissionsById[id];
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
-                throw new CustomError('0297', 'Unauthorized', userData?.languages ?? ['en'], { action, id, type: authDataById[id].__typename });
+                throw new CustomError('0297', 'Unauthorized', userData?.languages ?? ['en'], { action, id, type: authDataById[id].type });
             }
         }
     }

@@ -61,6 +61,7 @@ export const typeDef = gql`
         versionsDelete: [ID!]
     }
     type Routine {
+        type: GqlModelType!
         id: ID!
         completedAt: Date
         created_at: Date!

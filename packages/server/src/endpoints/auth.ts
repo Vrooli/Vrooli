@@ -4,7 +4,7 @@
 // 3. Guest login
 import { gql } from 'apollo-server-express';
 import { emailLogInFormValidation, emailSignUpFormValidation, emailRequestPasswordChangeSchema, password as passwordValidation } from '@shared/validation';
-import { COOKIE } from "@shared/consts";
+import { COOKIE, GqlModelType } from "@shared/consts";
 import { CustomError } from '../events/error';
 import { generateNonce, randomString, serializedAddressToBech32, verifySignedMessage } from '../auth/wallet';
 import { generateSessionJwt, updateSessionTimeZone } from '../auth/request.js';
@@ -90,6 +90,7 @@ export const typeDef = gql`
     }
 
     type Session {
+        type: GqlModelType!
         isLoggedIn: Boolean!
         timeZone: String
         users: [SessionUser!]
@@ -301,11 +302,15 @@ export const resolvers: {
                 res.clearCookie(COOKIE.Jwt);
                 // Return guest session
                 await generateSessionJwt(res, { isLoggedIn: false });
-                return { isLoggedIn: false };
+                return { type: GqlModelType.Session, isLoggedIn: false };
             }
             // Otherwise, remove the specified user from the session
             else {
-                const session = { isLoggedIn: true, users: req.users.filter(u => u.id !== input.id) };
+                const session = { 
+                    type: GqlModelType.Session, 
+                    isLoggedIn: true, 
+                    users: req.users.filter(u => u.id !== input.id) 
+                };
                 await generateSessionJwt(res, session);
                 return session;
             }

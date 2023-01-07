@@ -8,7 +8,7 @@ import { Prisma } from "@prisma/client";
 import { userValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
 
-const __typename = 'User' as const;
+const type = 'User' as const;
 const suppFields = ['you.isStarred', 'you.isViewed'] as const;
 export const UserModel: ModelLogic<{
     IsTransferable: false,
@@ -25,7 +25,7 @@ export const UserModel: ModelLogic<{
     PrismaSelect: Prisma.userSelect,
     PrismaWhere: Prisma.userWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.user,
     display: {
         select: () => ({ id: true, name: true }),
@@ -33,7 +33,7 @@ export const UserModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename: 'User',
+            type: 'User',
             comments: 'Comment',
             emails: 'Email',
             // phones: 'Phone',
@@ -45,7 +45,7 @@ export const UserModel: ModelLogic<{
             routines: 'Routine',
         },
         prismaRelMap: {
-            __typename,
+            type,
             apis: 'Api',
             apiKeys: 'ApiKey',
             comments: 'Comment',
@@ -101,8 +101,8 @@ export const UserModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => ({
-                'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
+                'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, type),
             }),
         },
     },

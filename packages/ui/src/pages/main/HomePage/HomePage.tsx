@@ -121,11 +121,11 @@ export const HomePage = ({
         // If "help" typed, add help and faq shortcuts as first result
         if (searchString.toLowerCase().startsWith('help')) {
             firstResults.push({
-                __typename: "Shortcut",
+                type: "Shortcut",
                 label: `Help - Beginner's Guide`,
                 id: APP_LINKS.Welcome,
             }, {
-                __typename: "Shortcut",
+                type: "Shortcut",
                 label: 'Help - FAQ',
                 id: APP_LINKS.FAQ,
             });
@@ -145,15 +145,15 @@ export const HomePage = ({
         if (!newValue) return;
         // If selected item is an action (i.e. no navigation required), do nothing 
         // (search bar performs actions automatically)
-        if (newValue.__typename === 'Action') {
+        if (newValue.type === 'Action') {
             return;
         }
         // Replace current state with search string, so that search is not lost. 
         // Only do this if the selected item is not a shortcut
-        if (newValue.__typename !== 'Shortcut' && searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
+        if (newValue.type !== 'Shortcut' && searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
         else setLocation(APP_LINKS.Home, { replace: true });
         // If selected item is a shortcut, navigate to it
-        if (newValue.__typename === 'Shortcut') {
+        if (newValue.type === 'Shortcut') {
             setLocation(newValue.id);
         }
         // Otherwise, navigate to item page

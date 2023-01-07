@@ -102,12 +102,12 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
-        if (isMobile && !['Organization', 'User'].includes(object?.__typename as any)) return null;
+        if (isMobile && !['Organization', 'User'].includes(object?.type as any)) return null;
         // Show icons for organizations and users
-        switch (object?.__typename) {
+        switch (object?.type) {
             case 'Organization':
             case 'User':
-                const Icon: SvgComponent = object?.__typename === 'Organization' ? OrganizationIcon : UserIcon;
+                const Icon: SvgComponent = object?.type === 'Organization' ? OrganizationIcon : UserIcon;
                 return (
                     <Box
                         width={isMobile ? '40px' : '50px'}
@@ -138,7 +138,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         disabled={!permissions.canVote}
                         session={session}
                         objectId={object?.id ?? ''}
-                        voteFor={object?.__typename as VoteFor}
+                        voteFor={object?.type as VoteFor}
                         isUpvoted={object?.isUpvoted}
                         score={object?.score}
                         onChange={(isUpvoted: boolean | null, score: number) => { }}
@@ -185,13 +185,13 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
                     </Box>}
                 {/* Add upvote/downvote if mobile */}
-                {isMobile && ['Project', 'Routine', 'Standard'].includes(object?.__typename as any) && (
+                {isMobile && ['Project', 'Routine', 'Standard'].includes(object?.type as any) && (
                     <UpvoteDownvote
                         direction='row'
                         disabled={!permissions.canVote}
                         session={session}
                         objectId={object?.id ?? ''}
-                        voteFor={(object as any)?.__typename as VoteFor}
+                        voteFor={(object as any)?.type as VoteFor}
                         isUpvoted={(object as any)?.isUpvoted}
                         score={(object as any)?.score}
                         onChange={(isUpvoted: boolean | null, score: number) => { }}
@@ -205,12 +205,12 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     isStar={getListItemIsStarred(object)}
                     stars={getListItemStars(object)}
                 />}
-                {commentableObjects.includes(object?.__typename ?? '') && (<CommentsButton
+                {commentableObjects.includes(object?.type ?? '') && (<CommentsButton
                     commentsCount={(object as Project | Routine | Standard)?.commentsCount ?? 0}
                     disabled={!permissions.canComment}
                     object={object}
                 />)}
-                {object?.__typename !== 'Run' && reportsCount > 0 && <ReportsButton
+                {object?.type !== 'Run' && reportsCount > 0 && <ReportsButton
                     reportsCount={reportsCount}
                     object={object}
                 />}
@@ -222,7 +222,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * Run list items may get a progress bar
      */
     const progressBar = useMemo(() => {
-        if (!object || object.__typename !== 'RunRoutine') return null;
+        if (!object || object.type !== 'RunRoutine') return null;
         const completedComplexity = object?.completedComplexity ?? null;
         const totalComplexity = object?.routine?.complexity ?? null;
         const percentComplete = object?.status === RunStatus.Completed ? 100 :

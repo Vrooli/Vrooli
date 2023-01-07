@@ -16,6 +16,7 @@ export const typeDef = gql`
         tagCreate: TagCreateInput
     }
     type UserScheduleFilter {
+        type: GqlModelType!
         id: ID!
         filterType: UserScheduleFilterType!
         userSchedule: UserSchedule!

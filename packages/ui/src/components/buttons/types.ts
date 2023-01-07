@@ -1,8 +1,8 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ReportFor, StarFor } from '@shared/consts';
+import { ReportFor, Routine, RunRoutine, Session, StarFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import React from 'react';
-import { NavigableObject, Routine, Run, Session } from 'types';
+import { NavigableObject} from 'types';
 import { Status } from 'utils';
 
 export interface BuildEditButtonsProps {
@@ -28,7 +28,7 @@ export interface ColorIconButtonProps extends IconButtonProps {
 export interface CommentsButtonProps {
     commentsCount: number | null; // Defaults to 0
     disabled?: boolean;
-    object: { id: string, handle?: string | null, __typename: string } | null | undefined;
+    object: { id: string, handle?: string | null, type: string } | null | undefined;
 }
 
 export interface GridSubmitButtonsProps {
@@ -76,7 +76,7 @@ export interface ReportButtonProps {
 
 export interface ReportsButtonProps {
     reportsCount: number | null; // Defaults to 0
-    object: { id: string, __typename: string } | null | undefined;
+    object: { id: string, type: string } | null | undefined;
 }
 
 export interface ReportsLinkProps {
@@ -85,8 +85,8 @@ export interface ReportsLinkProps {
 
 export interface RunButtonProps {
     canEdit: boolean;
-    handleRunAdd: (run: Run) => void;
-    handleRunDelete: (run: Run) => void;
+    handleRunAdd: (run: RunRoutine) => void;
+    handleRunDelete: (run: RunRoutine) => void;
     isBuildGraphOpen: boolean;
     isEditing: boolean;
     routine: Routine | null;

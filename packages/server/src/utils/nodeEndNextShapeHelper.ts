@@ -1,3 +1,4 @@
+import { GqlModelType } from "@shared/consts";
 import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../builders";
 import { RelationshipType } from "../builders/types";
 
@@ -31,7 +32,7 @@ export const nodeEndNextShapeHelper = async <
             parentIdFieldName: 'fromEndId',
             parentId: (data as any).id ?? null,
         },
-        objectType: 'RoutineVersion',
+        objectType: 'RoutineVersion' as GqlModelType,
         parentRelationshipName: 'suggestedNextByNode',
         primaryKey: 'id',
         prisma,

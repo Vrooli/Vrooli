@@ -1,12 +1,12 @@
-import { AutocompleteOption, ListStar, ListView, NavigableObject, Session } from "types";
+import { AutocompleteOption, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { ObjectListItemType } from "components/lists/types";
 import { displayDate, firstString } from "./stringTools";
 import { getCurrentUser } from "utils/authentication";
 import { ObjectListItem } from "components";
-import { StarFor } from "@shared/consts";
+import { Star, StarFor, View, Vote } from "@shared/consts";
 
-export type ListObjectType = ObjectListItemType | ListStar | ListView;
+export type ListObjectType = ObjectListItemType | Star | Vote | View;
 
 /**
  * Gets the name (title) of a list object
@@ -20,7 +20,7 @@ export const getListItemTitle = (
 ): string => {
     if (!object) return "";
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);
-    switch (object.__typename) {
+    switch (object.type) { //TODO add new types
         case 'Organization':
             return firstString(getTranslation(object, langs, true).name, object.handle);
         case 'Project':
@@ -56,7 +56,7 @@ export const getListItemSubtitle = (
 ): string => {
     if (!object) return "";
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);
-    switch (object.__typename) {
+    switch (object.type) {
         case 'Organization':
             return firstString(getTranslation(object, langs, true).bio);
         case 'Project':
@@ -118,7 +118,7 @@ export const getListItemPermissions = (
         }
         return newObj as { [K in keyof T]: boolean };
     };
-    switch (object.__typename) {
+    switch (object.type) {
         case 'Organization':
             return { ...defaultPermissions, ...toBoolean(object.permissionsOrganization), canShare: object.isPrivate !== true };
         case 'Project':
@@ -150,7 +150,7 @@ export const getListItemStars = (
     object: ListObjectType | null | undefined,
 ): number => {
     if (!object) return 0;
-    switch (object.__typename) {
+    switch (object.type) {
         case 'Organization':
         case 'Project':
         case 'Routine':
@@ -171,13 +171,13 @@ export const getListItemStarFor = (
     object: ListObjectType | null | undefined,
 ): StarFor | null => {
     if (!object) return null;
-    switch (object.__typename) {
+    switch (object.type) {
         case 'Organization':
         case 'Project':
         case 'Routine':
         case 'Standard':
         case 'User':
-            return object.__typename as StarFor;
+            return object.type as StarFor;
         case 'RunRoutine':
             return StarFor.Routine;
         case 'Star':
@@ -197,7 +197,7 @@ export const getListItemIsStarred = (
     object: ListObjectType | null | undefined,
 ): boolean => {
     if (!object) return false;
-    switch (object.__typename) {
+    switch (object.type) {
         case 'Organization':
         case 'Project':
         case 'Routine':
@@ -223,7 +223,7 @@ export const getListItemIsUpvoted = (
     object: ListObjectType | null | undefined,
 ): boolean | null => {
     if (!object) return false;
-    switch (object.__typename) {
+    switch (object.type) {
         case 'Project':
         case 'Routine':
         case 'Standard':
@@ -247,7 +247,7 @@ export const getListItemReportsCount = (
     object: ListObjectType | null | undefined,
 ): number => {
     if (!object) return 0;
-    switch (object.__typename) {
+    switch (object.type) {
         case 'Organization':
         case 'Project':
         case 'Routine':
@@ -278,14 +278,14 @@ export function listToAutocomplete(
     languages: readonly string[]
 ): AutocompleteOption[] {
     return objects.map(o => ({
-        __typename: o.__typename,
+        type: o.type,
         id: o.id,
         isStarred: getListItemIsStarred(o),
         label: getListItemSubtitle(o, languages),
-        routine: o.__typename === 'RunRoutine' ? o.routine : undefined,
+        routine: o.type === 'RunRoutine' ? o.routine : undefined,
         stars: getListItemStars(o),
-        to: o.__typename === 'View' || o.__typename === 'Star' ? o.to : undefined,
-        versionGroupId: undefined// TODO o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,
+        to: o.type === 'View' || o.type === 'Star' ? o.to : undefined,
+        versionGroupId: undefined// TODO o.type === 'Routine' || o.type === 'Standard' ? o.versionGroupId : undefined,
     }));
 }
 
@@ -356,7 +356,7 @@ export function listToListItems({
     for (let i = 0; i < items.length; i++) {
         let curr = items[i];
         // If "View" or "Star" item, display the object it points to
-        if (curr.__typename === 'View' || curr.__typename === 'Star') {
+        if (curr.type === 'View' || curr.type === 'Star') {
             curr = (curr as ListStar | ListView).to as ObjectListItemType;
         }
         listItems.push(<ObjectListItem

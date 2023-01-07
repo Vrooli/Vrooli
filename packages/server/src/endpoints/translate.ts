@@ -40,7 +40,7 @@ export const resolvers: {
                 throw new CustomError('0329', 'InvalidArgs', req.languages);
             }
             // Grab translatable values from input
-            const filteredFields = Object.entries(fields).filter(([key, value]) => !['__typename', 'id', 'language'].includes(key) && typeof value === 'string' && value.trim().length > 0);
+            const filteredFields = Object.entries(fields).filter(([key, value]) => !['type', 'id', 'language'].includes(key) && typeof value === 'string' && value.trim().length > 0);
             // If there are no fields, return empty object
             if (Object.keys(filteredFields).length === 0) {
                 return {

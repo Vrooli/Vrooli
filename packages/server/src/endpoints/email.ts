@@ -14,6 +14,7 @@ export const typeDef = gql`
     }
 
     type Email {
+        type: GqlModelType!
         id: ID!
         emailAddress: String!
         verified: Boolean!

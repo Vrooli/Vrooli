@@ -1,5 +1,5 @@
 import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
-import { CommentFor, Organization, Project, Routine, Session, Standard, Tag, User } from '@shared/consts';
+import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, Tag, User } from '@shared/consts';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent, FocusEventHandler } from 'react';
 import { AutocompleteOption } from 'types';
@@ -265,17 +265,30 @@ export interface QuantityBoxProps extends BoxProps {
     value: number;
 }
 
-export type RelationshipItemOrganization = Pick<Organization, '__typename' | 'handle' | 'id'> & 
-    { translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[] };
-export type RelationshipItemUser = Pick<User, '__typename' | 'handle' | 'id' | 'name'>;
-export type RelationshipItemProject = Pick<Project, '__typename' | 'handle' | 'id' | 'owner'> & 
-    { translations?: Pick<Project['translations'][0], 'name' | 'id' | 'language'>[] };
-export type RelationshipItemRoutine = Pick<Routine, '__typename' | 'id' | 'owner'> &
-    { translations?: Pick<Routine['translations'][0], 'title' | 'id' | 'language'>[] };
+export type RelationshipItemOrganization = Pick<Organization, 'handle' | 'id'> &
+{
+    translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[];
+    type: 'Organization';
+};
+export type RelationshipItemUser = Pick<User, 'handle' | 'id' | 'name'> & {
+    type: 'User';
+}
+export type RelationshipItemProjectVersion = Pick<ProjectVersion, 'id'> &
+{
+    root: Pick<Project, 'id' | 'handle' | 'owner'>;
+    translations?: Pick<ProjectVersion['translations'][0], 'name' | 'id' | 'language'>[];
+    type: 'ProjectVersion';
+};
+export type RelationshipItemRoutineVersion = Pick<RoutineVersion, 'id'> &
+{
+    root: Pick<Routine, 'id' | 'owner'>;
+    translations?: Pick<RoutineVersion['translations'][0], 'name' | 'id' | 'language'>[];
+    type: 'RoutineVersion';
+};
 
 export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;
-export type RelationshipProject = RelationshipItemProject | null;
-export type RelationshipParent = RelationshipItemProject | RelationshipItemRoutine | null;
+export type RelationshipProject = RelationshipItemProjectVersion | null;
+export type RelationshipParent = RelationshipItemProjectVersion | RelationshipItemRoutineVersion | null;
 
 export type RelationshipsObject = {
     isComplete: boolean;

@@ -58,6 +58,7 @@ export const typeDef = gql`
         versionsDelete: [ID!]
     }
     type SmartContract {
+        type: GqlModelType!
         id: ID!
         completedAt: Date
         created_at: Date!

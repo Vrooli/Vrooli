@@ -4,11 +4,11 @@ import { isRelationshipObject } from "./isRelationshipObject";
 import { PartialGraphQLInfo } from "./types";
 
 /**
- * Recursively injects __typename fields into a select object
+ * Recursively injects type fields into a select object
  * @param select - GraphQL select object, partially converted without typenames
  * and keys that map to typemappers for each possible relationship
  * @param parentRelationshipMap - Relationship of last known parent
- * @return select with __typename fields
+ * @return select with type fields
  */
 export const injectTypenames = <
     GQLObject extends { [x: string]: any },
@@ -18,8 +18,8 @@ export const injectTypenames = <
     let result: any = {};
     // Iterate over select object
     for (const [selectKey, selectValue] of Object.entries(select)) {
-        // Skip __typename
-        if (selectKey === '__typename') continue;
+        // Skip type
+        if (selectKey === 'type') continue;
         // If value is not an object, just add to result
         if (typeof selectValue !== 'object') {
             result[selectKey] = selectValue;
@@ -45,7 +45,7 @@ export const injectTypenames = <
             }
         }
     }
-    // Add __typename field
-    result.__typename = parentRelationshipMap.__typename;
+    // Add type field
+    result.type = parentRelationshipMap.type;
     return result;
 }

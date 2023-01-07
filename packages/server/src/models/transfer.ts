@@ -27,12 +27,11 @@ type Model = {
     PrismaWhere: Prisma.transferWhereInput,
 }
 
-const __typename = 'Transfer' as const;
-
+const type = 'Transfer' as const;
 const suppFields = [] as const;
 // const formatter = (): Formatter<Model, typeof suppFields> => ({
 //     gqlRelMap: {
-//         __typename,
+//         type,
 //         fromOwner: {
 //             fromUser: 'User',
 //             fromOrganization: 'Organization',
@@ -83,8 +82,8 @@ const transfer = (prisma: PrismaType) => ({
         userData: SessionUser,
     ): Promise<string> => {
         // Find the object and its owner
-        const object: { __typename: TransferObjectType, id: string } = { __typename: input.objectType, id: input.objectConnect };
-        const { delegate, validate } = getLogic(['delegate', 'validate'], object.__typename, userData.languages, 'Transfer.request-object');
+        const object: { type: TransferObjectType, id: string } = { type: input.objectType, id: input.objectConnect };
+        const { delegate, validate } = getLogic(['delegate', 'validate'], object.type, userData.languages, 'Transfer.request-object');
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
             select: validate.permissionsSelect,
@@ -107,7 +106,7 @@ const transfer = (prisma: PrismaType) => ({
             data: {
                 fromUser: owner.User ? { connect: { id: owner.User.id } } : undefined,
                 fromOrganization: owner.Organization ? { connect: { id: owner.Organization.id } } : undefined,
-                [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
+                [TransferableFieldMap[object.type]]: { connect: { id: object.id } },
                 toUser: toType === 'User' ? { connect: { id: toId } } : undefined,
                 toOrganization: toType === 'Organization' ? { connect: { id: toId } } : undefined,
                 status: isAdmin ? 'Accepted' : 'Pending',
@@ -116,7 +115,7 @@ const transfer = (prisma: PrismaType) => ({
             select: { id: true }
         });
         // Notify user/org that is receiving the object
-        const pushNotification = Notify(prisma, userData.languages).pushTransferRequestSend(request.id, object.__typename, object.id);
+        const pushNotification = Notify(prisma, userData.languages).pushTransferRequestSend(request.id, object.type, object.id);
         if (toType === 'User') await pushNotification.toUser(toId);
         else await pushNotification.toOrganization(toId);
         // Return the transfer request ID
@@ -286,31 +285,29 @@ const transfer = (prisma: PrismaType) => ({
 //     yup: { update: {} as any },
 // })
 
-const displayer = (): Displayer<Model> => ({
-    select: () => ({
-        id: true,
-        api: padSelect(ApiModel.display.select),
-        note: padSelect(NoteModel.display.select),
-        project: padSelect(ProjectModel.display.select),
-        routine: padSelect(RoutineModel.display.select),
-        smartContract: padSelect(SmartContractModel.display.select),
-        standard: padSelect(StandardModel.display.select),
-    }),
-    label: (select, languages) => {
-        if (select.api) return ApiModel.display.label(select.api as any, languages);
-        if (select.note) return NoteModel.display.label(select.note as any, languages);
-        if (select.project) return ProjectModel.display.label(select.project as any, languages);
-        if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
-        if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
-        if (select.standard) return StandardModel.display.label(select.standard as any, languages);
-        return '';
-    }
-})
-
 export const TransferModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.transfer,
-    display: displayer(),
+    display: {
+        select: () => ({
+            id: true,
+            api: padSelect(ApiModel.display.select),
+            note: padSelect(NoteModel.display.select),
+            project: padSelect(ProjectModel.display.select),
+            routine: padSelect(RoutineModel.display.select),
+            smartContract: padSelect(SmartContractModel.display.select),
+            standard: padSelect(StandardModel.display.select),
+        }),
+        label: (select, languages) => {
+            if (select.api) return ApiModel.display.label(select.api as any, languages);
+            if (select.note) return NoteModel.display.label(select.note as any, languages);
+            if (select.project) return ProjectModel.display.label(select.project as any, languages);
+            if (select.routine) return RoutineModel.display.label(select.routine as any, languages);
+            if (select.smartContract) return SmartContractModel.display.label(select.smartContract as any, languages);
+            if (select.standard) return StandardModel.display.label(select.standard as any, languages);
+            return '';
+        }
+    },
     format: {} as any,// formatter(),
     mutate: {} as any,//mutater(),
     transfer,

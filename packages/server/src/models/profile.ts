@@ -4,7 +4,7 @@ import { EmailModel } from "./email";
 import { Request } from "express";
 import { CustomError } from "../events";
 import { readOneHelper } from "../actions";
-import { Formatter, GraphQLModelType } from "./types";
+import { Formatter } from "./types";
 import { assertRequestFrom } from "../auth/request";
 import { GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 import { hashPassword, setupVerificationCode, validatePassword } from "../auth";
@@ -27,7 +27,7 @@ export {}
 // type SupplementalFields = 'starredTags' | 'hiddenTags';
 // const formatter = (): Formatter<Profile, SupplementalFields> => ({
 //     relationshipMap: {
-//         __typename: 'Profile',
+//         type: 'Profile',
 //         comments: 'Comment',
 //         roles: 'Role',
 //         emails: 'Email',

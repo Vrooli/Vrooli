@@ -1,6 +1,8 @@
+import { GqlModelType } from "@shared/consts";
+import { Path } from "@shared/route";
 
 export interface AutocompleteOption {
-    __typename: string;
+    type: 'Loading' | 'Shortcut' | GqlModelType;
     id: string;
     label: string | null;
     [key: string]: any;

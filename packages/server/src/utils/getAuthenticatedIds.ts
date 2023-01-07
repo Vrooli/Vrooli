@@ -1,11 +1,12 @@
 import { isRelationshipArray, isRelationshipObject } from "../builders";
 import { PrismaUpdate } from "../builders/types";
 import { CustomError } from "../events";
-import { GraphQLModelType, PrismaRelMap } from "../models/types";
+import { PrismaRelMap } from "../models/types";
 import { PrismaType } from "../types";
 import { QueryAction } from "./types";
 import pkg from 'lodash';
 import { getLogic } from "../getters";
+import { GqlModelType } from "@shared/consts";
 const { merge } = pkg;
 // TODO was originally created for partialselect format. Now must parse data as full Prisma select
 
@@ -16,11 +17,11 @@ const { merge } = pkg;
  * Examples:
  * (ActionType.Read, relMap, {
  *     ...
- *     __typename: 'Project',
+ *     type: 'Project',
  *     id: 'abc123',
  *     parent: {
  *         ...
- *         __typename: 'Project',
+ *         type: 'Project',
  *         id: 'def456',
  *      }
  * }) => { 
@@ -30,22 +31,22 @@ const { merge } = pkg;
  * 
  * (ActionType.Update, relMap, {
  *     ...
- *     __typename: 'Routine',
+ *     type: 'Routine',
  *     id: 'abc123',
  *     parentUpdate: {
  *         ...
- *         __typename: 'Routine',
+ *         type: 'Routine',
  *         id: 'def456',
  *         organizationId: 'ghi789',
  *     }
  *     childrenUpdate: [
  *          {
  *              ...  
- *              __typename: 'Routine',
+ *              type: 'Routine',
  *              id: 'jkl012',
  *              grandChildCreate: {
  *                  ... 
- *                  __typename: 'Routine',
+ *                  type: 'Routine',
  *                  id: 'mno345',
  *                  greatGrandchildId: 'pqr678',
  *              }
@@ -63,21 +64,21 @@ const objectToIds = <T extends Record<string, any>>(
     languages: string[]
 ): {
     idsByAction: { [x in QueryAction]?: string[] },
-    idsByType: { [key in GraphQLModelType]?: string[] },
+    idsByType: { [key in GqlModelType]?: string[] },
 } => {
     // Initialize return objects
     const idsByAction: { [x in QueryAction]?: string[] } = {};
-    const idsByType: { [key in GraphQLModelType]?: string[] } = {};
+    const idsByType: { [key in GqlModelType]?: string[] } = {};
     // If object is a string, this must be a 'Delete' action, and the string is the id
     if (typeof object === 'string') {
         idsByAction['Delete'] = [object];
-        idsByType[relMap.__typename] = [object];
+        idsByType[relMap.type] = [object];
         return { idsByAction, idsByType };
     }
     // If not a 'Create' (i.e. already exists in database), add id of this object to return object
     if (actionType !== 'Create' && object.id) {
         idsByAction[actionType] = [object.id];
-        idsByType[relMap.__typename] = [object.id];
+        idsByType[relMap.type] = [object.id];
     }
     // TODO finish this
     console.log('in objectToIds', JSON.stringify(object));
@@ -185,14 +186,14 @@ const objectToIds = <T extends Record<string, any>>(
 /**
  * Helper function to convert disconnect placeholders to disconnect ids. 
  * Example: { 'Routine': ['Create-asd123', 'Disconnect-def456.organizationId', 'Disconnect-mno345.greatGrandchildId'] } => { 'Routine': ['Create-asd123', 'Disconnect-someid', 'Disconnect-someotherid'] }
- * @param idActions Map of GraphQLModelType to ${actionType}-${id}?.${key}${variation}. Anything with a '.' is a placeholder
+ * @param idActions Map of GqlModelType to ${actionType}-${id}?.${key}${variation}. Anything with a '.' is a placeholder
  * @param prisma Prisma client
  * @param languages Array of languages to use for error messages
  * @returns Map with placeholders replaced with ids
  */
-const placeholdersToIds = async (idActions: { [key in GraphQLModelType]?: string[] }, prisma: PrismaType, languages: string[]): Promise<{ [key in GraphQLModelType]?: string[] }> => {
+const placeholdersToIds = async (idActions: { [key in GqlModelType]?: string[] }, prisma: PrismaType, languages: string[]): Promise<{ [key in GqlModelType]?: string[] }> => {
     // Initialize object to hold prisma queries
-    const queries: { [key in GraphQLModelType]?: { ids: string[], select: { [x: string]: any } } } = {};
+    const queries: { [key in GqlModelType]?: { ids: string[], select: { [x: string]: any } } } = {};
     // Loop through all keys in ids
     Object.keys(idActions).forEach(key => {
         // Loop through all ids in key
@@ -213,20 +214,20 @@ const placeholdersToIds = async (idActions: { [key in GraphQLModelType]?: string
     // If there are no placeholders, return ids to save time
     if (Object.keys(queries).length === 0) return idActions;
     // Initialize object to hold query results
-    const queryData: { [key in GraphQLModelType]?: { [x: string]: any } } = {};
+    const queryData: { [key in GqlModelType]?: { [x: string]: any } } = {};
     // Loop through all keys in queries
     for (const key in Object.keys(queries)) {
         // If there are any no ids, skip
         if (queries[key as any].ids.length === 0) continue;
         // Query for ids
-        const { delegate } = getLogic(['delegate'], key as GraphQLModelType, languages, 'disconnectPlaceholdersToIds');
+        const { delegate } = getLogic(['delegate'], key as GqlModelType, languages, 'disconnectPlaceholdersToIds');
         queryData[key as any] = await delegate(prisma).findMany({
             where: { id: { in: queries[key as any].ids } },
             select: queries[key as any].select,
         });
     }
     // Initialize return object
-    const result: { [key in GraphQLModelType]?: string[] } = {};
+    const result: { [key in GqlModelType]?: string[] } = {};
     // Loop through all keys in idActions
     Object.keys(idActions).forEach(key => {
         // Get queryData for this key
@@ -257,23 +258,23 @@ const placeholdersToIds = async (idActions: { [key in GraphQLModelType]?: string
  * Finds all ids of objects in a crud request that need to be checked for permissions. 
  * In certain cases (i.e. 'Connect' and 'Disconnect' actions), 
  * ids are not included in the request, and must be queried for.
- * @returns IDs organized both by action type and GraphQLModelType
+ * @returns IDs organized both by action type and GqlModelType
  */
 export const getAuthenticatedIds = async (
     objects: {
         actionType: QueryAction,
         data: string | PrismaUpdate
     }[],
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     prisma: PrismaType,
     languages: string[]
 ): Promise<{
-    idsByType: { [key in GraphQLModelType]?: string[] }
+    idsByType: { [key in GqlModelType]?: string[] }
     idsByAction: { [key in QueryAction]?: string[] }
 }> => {
     console.log('getauthenticatedids start', JSON.stringify(objects));
     // Initialize return objects
-    let idsByType: { [key in GraphQLModelType]?: string[] } = {};
+    let idsByType: { [key in GqlModelType]?: string[] } = {};
     let idsByAction: { [key in QueryAction]?: string[] } = {};
     // Find validator for this object type
     const { format } = getLogic(['format'], objectType, languages, 'getAuthenticatedIds');

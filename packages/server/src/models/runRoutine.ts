@@ -9,7 +9,7 @@ import { oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { getSingleTypePermissions } from "../validators";
 
-const __typename = 'RunRoutine' as const;
+const type = 'RunRoutine' as const;
 type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canEdit' | 'canView'>;
 const suppFields = ['you.canDelete', 'you.canEdit', 'you.canView'] as const;
 export const RunRoutineModel: ModelLogic<{
@@ -27,16 +27,16 @@ export const RunRoutineModel: ModelLogic<{
     PrismaSelect: Prisma.run_routineSelect,
     PrismaWhere: Prisma.run_routineWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     danger: {
         /**
          * Anonymizes all public runs associated with a user or organization
          */
-        async anonymize(prisma: PrismaType, owner: { __typename: 'User' | 'Organization', id: string }): Promise<void> {
+        async anonymize(prisma: PrismaType, owner: { type: 'User' | 'Organization', id: string }): Promise<void> {
             await prisma.run_routine.updateMany({
                 where: {
-                    userId: owner.__typename === 'User' ? owner.id : undefined,
-                    organizationId: owner.__typename === 'Organization' ? owner.id : undefined,
+                    userId: owner.type === 'User' ? owner.id : undefined,
+                    organizationId: owner.type === 'Organization' ? owner.id : undefined,
                     isPrivate: false,
                 },
                 data: {
@@ -48,11 +48,11 @@ export const RunRoutineModel: ModelLogic<{
         /**
          * Deletes all runs associated with a user or organization
          */
-        async deleteAll(prisma: PrismaType, owner: { __typename: 'User' | 'Organization', id: string }): Promise<Count> {
+        async deleteAll(prisma: PrismaType, owner: { type: 'User' | 'Organization', id: string }): Promise<Count> {
             return prisma.run_routine.deleteMany({
                 where: {
-                    userId: owner.__typename === 'User' ? owner.id : undefined,
-                    organizationId: owner.__typename === 'Organization' ? owner.id : undefined,
+                    userId: owner.type === 'User' ? owner.id : undefined,
+                    organizationId: owner.type === 'Organization' ? owner.id : undefined,
                 }
             });
         }
@@ -64,7 +64,7 @@ export const RunRoutineModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             inputs: 'RunRoutineInput',
             organization: 'Organization',
             routineVersion: 'RoutineVersion',
@@ -74,7 +74,7 @@ export const RunRoutineModel: ModelLogic<{
             user: 'User',
         },
         prismaRelMap: {
-            __typename,
+            type,
             inputs: 'RunRoutineInput',
             organization: 'Organization',
             routineVersion: 'Routine',
@@ -89,7 +89,7 @@ export const RunRoutineModel: ModelLogic<{
             dbFields: ['name'],
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
                 return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>;
             },
         },

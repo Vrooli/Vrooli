@@ -16,7 +16,7 @@ import { getSearchStringQuery } from "../getters";
 import { getUser } from "../auth";
 import { SortMap } from "../utils/sortMap";
 
-const __typename = 'Comment' as const;
+const type = 'Comment' as const;
 type Permissions = Pick<CommentYou, 'canDelete' | 'canEdit' | 'canStar' | 'canReply' | 'canReport' | 'canVote'>;
 const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canReply', 'you.canReport', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
 export const CommentModel: ModelLogic<{
@@ -34,7 +34,7 @@ export const CommentModel: ModelLogic<{
     PrismaSelect: Prisma.commentSelect,
     PrismaWhere: Prisma.commentWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.comment,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
@@ -42,7 +42,7 @@ export const CommentModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             owner: {
                 ownedByUser: 'User',
                 ownedByOrganization: 'Organization',
@@ -64,7 +64,7 @@ export const CommentModel: ModelLogic<{
             starredBy: 'User',
         },
         prismaRelMap: {
-            __typename: 'Comment',
+            type: 'Comment',
             ownedByUser: 'User',
             ownedByOrganization: 'Organization',
             apiVersion: 'ApiVersion',
@@ -92,11 +92,11 @@ export const CommentModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, type),
                 }
             },
         },
@@ -213,7 +213,7 @@ export const CommentModel: ModelLogic<{
             const customQueries: { [x: string]: any }[] = [];
             for (const field of Object.keys(CommentModel.search!.searchFields)) {
                 if (input[field as string] !== undefined) {
-                    customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
+                    customQueries.push(SearchMap[field as string](input, getUser(req), type));
                 }
             }
             // Combine queries

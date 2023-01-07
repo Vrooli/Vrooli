@@ -28,6 +28,7 @@ export const typeDef = gql`
     }
 
     type ApiKey {
+        type: GqlModelType!
         id: ID!
         creditsUsed: Int!
         creditsUsedBeforeLimit: Int!

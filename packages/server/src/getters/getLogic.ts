@@ -1,6 +1,7 @@
+import { GqlModelType } from "@shared/consts";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";
-import { GraphQLModelType, ModelLogic } from "../models/types";
+import { ModelLogic } from "../models/types";
 
 type LogicProps = 'delegate' | 'display' | 'duplicate' | 'format' | 'mutate' | 'search' | 'validate';
 
@@ -23,7 +24,7 @@ export function getLogic<
     Logic extends readonly LogicProps[],
 >(
     props: Logic,
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     languages: string[],
     errorTrace: string,
 ): GetLogicReturn<Logic[number]> {

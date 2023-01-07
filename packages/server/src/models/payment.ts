@@ -2,9 +2,11 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { Payment } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 
-type Model = {
+const type = 'Payment' as const;
+const suppFields = [] as const;
+export const PaymentModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -18,22 +20,14 @@ type Model = {
     PrismaModel: Prisma.paymentGetPayload<SelectWrap<Prisma.paymentSelect>>,
     PrismaSelect: Prisma.paymentSelect,
     PrismaWhere: Prisma.paymentWhereInput,
-}
-
-const __typename = 'Payment' as const;
-
-const suppFields = [] as const;
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, description: true }),
-    // Cut off the description at 20 characters
-    label: (select) =>  select.description.length > 20 ? select.description.slice(0, 20) + '...' : select.description,
-})
-
-export const PaymentModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+}, typeof suppFields> = ({
+    type,
     delegate: (prisma: PrismaType) => prisma.payment,
-    display: displayer(),
+    display: {
+        select: () => ({ id: true, description: true }),
+        // Cut off the description at 20 characters
+        label: (select) =>  select.description.length > 20 ? select.description.slice(0, 20) + '...' : select.description,
+    },
     format: {} as any,
     mutate: {} as any,
     search: {} as any,

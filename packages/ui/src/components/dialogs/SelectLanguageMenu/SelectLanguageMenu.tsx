@@ -93,7 +93,7 @@ export const SelectLanguageMenu = ({
     const translateSourceOptions = useMemo<ListMenuItemData<string>[]>(() => {
         // Filter translations to those which have at least one non-empty translation string
         const enteredLanguages: string[] = translations
-            .filter((translation) => Object.entries(translation).some(([key, value]) => !['__typename', 'id', 'language'].includes(key) && typeof value === 'string' && value.trim().length > 0))
+            .filter((translation) => Object.entries(translation).some(([key, value]) => !['type', 'id', 'language'].includes(key) && typeof value === 'string' && value.trim().length > 0))
             .map((translation) => translation.language);
         // Find all languages which support auto-translations in selected languages
         const autoTranslateLanguagesFiltered = autoTranslateLanguages.filter(l => enteredLanguages?.indexOf(l) !== -1);

@@ -40,6 +40,7 @@ export const typeDef = gql`
         forConnect: ID!
     }
     type Star {
+        type: GqlModelType!
         id: ID!
         by: User!
         to: StarTo!

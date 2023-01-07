@@ -53,7 +53,7 @@ const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> =>
     })
 }
 
-const __typename = 'View' as const;
+const type = 'View' as const;
 const suppFields = [] as const;
 export const ViewModel: ModelLogic<{
     IsTransferable: true,
@@ -70,7 +70,7 @@ export const ViewModel: ModelLogic<{
     PrismaSelect: Prisma.viewSelect,
     PrismaWhere: Prisma.viewWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.view,
     display: {
         select: () => ({
@@ -102,7 +102,7 @@ export const ViewModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             by: 'User',
             to: {
                 api: 'Api',
@@ -119,7 +119,7 @@ export const ViewModel: ModelLogic<{
             }
         },
         prismaRelMap: {
-            __typename,
+            type,
             by: 'User',
             api: 'Api',
             issue: 'Issue',

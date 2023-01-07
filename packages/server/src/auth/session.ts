@@ -1,6 +1,6 @@
 import { Request } from "express";
 import { CustomError } from "../events";
-import { Session, SessionUser } from '@shared/consts';
+import { GqlModelType, Session, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 
 /**
@@ -52,7 +52,7 @@ import { PrismaType } from "../types";
 export const toSession = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<Session> => {
     const sessionUser = await toSessionUser(user, prisma, req);
     return {
-        __typename: 'Session',
+        type: GqlModelType.Session,
         isLoggedIn: true,
         // Make sure users are unique by id
         users: [sessionUser, ...(req.users ?? []).filter((u: SessionUser) => u.id !== sessionUser.id)],

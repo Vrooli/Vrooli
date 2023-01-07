@@ -61,6 +61,7 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type Issue {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

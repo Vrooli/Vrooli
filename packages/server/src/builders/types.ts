@@ -1,7 +1,6 @@
 import { GraphQLResolveInfo } from "graphql";
-import { GraphQLModelType, Mutater } from "../models/types";
-import { PageInfo, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
-import { PrismaType, SingleOrArray } from "../types";
+import { GqlModelType, PageInfo, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
+import { SingleOrArray } from "../types";
 
 /**
  * Recursively pads object with "select" fields
@@ -15,25 +14,25 @@ export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
 
 /**
  * Shape 2 of 4 for GraphQL to Prisma converstion. Used by many functions because it is more 
- * convenient than straight up GraphQL request data. Each level contains a __typename field. 
+ * convenient than straight up GraphQL request data. Each level contains a type field. 
  * This type of data is also easier to hard-code in a pinch.
  */
 export interface PartialGraphQLInfo {
-    [x: string]: GraphQLModelType | undefined | boolean | PartialGraphQLInfo;
-    __typename?: GraphQLModelType;
+    [x: string]: `${GqlModelType}` | undefined | boolean | PartialGraphQLInfo;
+    type?: `${GqlModelType}`;
 }
 
 /**
- * Shape 3 of 4 for GraphQL to Prisma conversion. Still contains the __typename fields, 
+ * Shape 3 of 4 for GraphQL to Prisma conversion. Still contains the type fields, 
  * but does not pad objects with a "select" field. Calculated fields, join tables, and other 
  * data transformations from the GraphqL shape are removed. This is useful when checking 
  * which fields are requested from a Prisma query.
  */
-export type PartialPrismaSelect = { __typename?: GraphQLModelType } & { [x: string]: boolean | PartialPrismaSelect };
+export type PartialPrismaSelect = { type?: `${GqlModelType}` } & { [x: string]: boolean | PartialPrismaSelect };
 
 /**
  * Shape 4 of 4 for GraphQL to Prisma conversion. This is the final shape of the requested data 
- * as it will be sent to the database. It is has __typename fields removed, and objects padded with "select"
+ * as it will be sent to the database. It is has type fields removed, and objects padded with "select"
  */
 export type PrismaSelect = {
     select: { [key: string]: boolean | PrismaSelectInside }
@@ -228,7 +227,7 @@ export type BuiltRelationship<
 ), IsRequired>
 
 export type VisibilityBuilderProps = {
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     userData: SessionUser | null | undefined,
     visibility?: VisibilityType | null | undefined,
 }

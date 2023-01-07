@@ -72,7 +72,7 @@ export const SubroutineInfoDialog = ({
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({
-        __typename: 'ResourceList',
+        type: 'ResourceList',
         id: uuid(),
         resources: [],
     } as any);

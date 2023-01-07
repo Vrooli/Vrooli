@@ -55,15 +55,15 @@ export const groupIdsByType = (data: { [x: string]: any }, partialInfo: PartialG
             }
             selectFieldsDict = merge(selectFieldsDict, childSelectFieldsDict);
         }
-        else if (key === 'id' && partialInfo.__typename) {
+        else if (key === 'id' && partialInfo.type) {
             // Add to objectIdsDict
-            const type: string = partialInfo.__typename;
+            const type: string = partialInfo.type;
             objectIdsDict[type] = objectIdsDict[type] ?? [];
             objectIdsDict[type].push(value);
         }
     }
     // Add keys to selectFieldsDict
-    const currType = partialInfo?.__typename;
+    const currType = partialInfo?.type;
     if (currType) {
         selectFieldsDict[currType] = merge(selectFieldsDict[currType] ?? {}, partialInfo);
     }

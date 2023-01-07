@@ -1,44 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { PrismaType } from "../types";
-import { Displayer, Formatter, ModelLogic, Mutater } from "./types";
+import { ModelLogic } from "./types";
 import { RoutineModel } from "./routine";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput } from '@shared/consts';
-
-type Model = {
-    IsTransferable: false,
-    IsVersioned: false,
-    GqlCreate: RoutineVersionInputCreateInput,
-    GqlUpdate: RoutineVersionInputUpdateInput,
-    GqlModel: RoutineVersionInput,
-    GqlPermission: any,
-    GqlSearch: undefined,
-    GqlSort: undefined,
-    PrismaCreate: Prisma.routine_version_inputUpsertArgs['create'],
-    PrismaUpdate: Prisma.routine_version_inputUpsertArgs['update'],
-    PrismaModel: Prisma.routine_version_inputGetPayload<SelectWrap<Prisma.routine_version_inputSelect>>,
-    PrismaSelect: Prisma.routine_version_inputSelect,
-    PrismaWhere: Prisma.routine_version_inputWhereInput,
-}
-
-const __typename = 'RoutineVersionInput' as const;
-
-const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    gqlRelMap: {
-        __typename,
-        routineVersion: 'RoutineVersion',
-        standardVersion: 'StandardVersion',
-    },
-    prismaRelMap: {
-        __typename,
-        routineVersion: 'RoutineVersion',
-        standardVersion: 'StandardVersion',
-        runInputs: 'RunRoutineInput',
-    },
-    countFields: {},
-})
 
 // const mutater = (): Mutater<Model> => ({
 //     shape: {
@@ -61,19 +27,46 @@ const formatter = (): Formatter<Model, typeof suppFields> => ({
 //     yup: { create: {} as any, update: {} as any },
 // })
 
-const displayer = (): Displayer<Model> => ({
-    select: () => ({
-        id: true,
-        name: true,
-        routineVersion: padSelect(RoutineModel.display.select),
-    }),
-    label: (select, languages) => select.name ?? RoutineModel.display.label(select.routineVersion as any, languages),
-})
-
-export const RoutineVersionInputModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+const type = 'RoutineVersionInput' as const;
+const suppFields = [] as const;
+export const RoutineVersionInputModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: RoutineVersionInputCreateInput,
+    GqlUpdate: RoutineVersionInputUpdateInput,
+    GqlModel: RoutineVersionInput,
+    GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
+    PrismaCreate: Prisma.routine_version_inputUpsertArgs['create'],
+    PrismaUpdate: Prisma.routine_version_inputUpsertArgs['update'],
+    PrismaModel: Prisma.routine_version_inputGetPayload<SelectWrap<Prisma.routine_version_inputSelect>>,
+    PrismaSelect: Prisma.routine_version_inputSelect,
+    PrismaWhere: Prisma.routine_version_inputWhereInput,
+}, typeof suppFields> = ({
+    type,
     delegate: (prisma: PrismaType) => prisma.routine_version_input,
-    display: displayer(),
-    format: formatter(),
+    display: {
+        select: () => ({
+            id: true,
+            name: true,
+            routineVersion: padSelect(RoutineModel.display.select),
+        }),
+        label: (select, languages) => select.name ?? RoutineModel.display.label(select.routineVersion as any, languages),
+    },
+    format: {
+        gqlRelMap: {
+            type,
+            routineVersion: 'RoutineVersion',
+            standardVersion: 'StandardVersion',
+        },
+        prismaRelMap: {
+            type,
+            routineVersion: 'RoutineVersion',
+            standardVersion: 'StandardVersion',
+            runInputs: 'RunRoutineInput',
+        },
+        countFields: {},
+    },
     mutate: {} as any,//mutater(),
 })

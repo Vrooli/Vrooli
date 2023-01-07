@@ -1,4 +1,5 @@
-import { GraphQLModelType, GqlRelMap } from "../models/types";
+import { GqlModelType } from "@shared/consts";
+import { GqlRelMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 
 /**
@@ -15,7 +16,7 @@ export const deconstructUnions = <
     let result: { [x: string]: any } = data;
     // Any value in the gqlRelMap which is an array is a union. 
     // All other values can be ignored.
-    const unionFields: [string, GraphQLModelType[]][] = Object.entries(gqlRelMap).filter(([_, value]) => Array.isArray(value)) as any[];
+    const unionFields: [string, GqlModelType[]][] = Object.entries(gqlRelMap).filter(([_, value]) => Array.isArray(value)) as any[];
     // For each union field
     for (const [key, value] of unionFields) {
         // If it's not in data, continue

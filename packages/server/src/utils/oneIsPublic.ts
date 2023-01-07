@@ -1,5 +1,5 @@
+import { GqlModelType } from "@shared/consts";
 import { getLogic } from "../getters";
-import { GraphQLModelType } from "../models/types";
 
 /**
  * Given permissions data and a list of fields and GraphQLModels which have validators, determines if one of the fields is public. 
@@ -7,7 +7,7 @@ import { GraphQLModelType } from "../models/types";
  */
 export const oneIsPublic = <PrismaSelect extends { [x: string]: any }>(
     permissionsData: { [key in keyof PrismaSelect]: any },
-    list: [keyof PrismaSelect, GraphQLModelType][],
+    list: [keyof PrismaSelect, `${GqlModelType}`][],
     languages: string[],
 ): boolean => {
     // Loop through each field in the list

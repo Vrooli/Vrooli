@@ -17,6 +17,7 @@ export const typeDef = gql`
     union ViewTo = Api | Issue | Note | Organization | Post | Project | Question | Routine | SmartContract | Standard | User
   
     type View {
+        type: GqlModelType!
         id: ID!
         by: User!
         lastViewedAt: Date!

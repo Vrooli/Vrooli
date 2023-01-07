@@ -290,16 +290,16 @@ model node {
     updated_at       DateTime           @default(now()) @db.Timestamptz(6)
     columnIndex      Int?
     rowIndex         Int?
-    type             NodeType
+    nodeType         NodeType
     runConditions    String?            @db.VarChar(4096)
     voteConditions   String?            @db.VarChar(4096)
     routineVersionId String             @db.Uuid
     routineVersion   routine_version    @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    nodeEnd          node_end?
+    end              node_end?
     previous         node_link[]        @relation("node_previous")
     next             node_link[]        @relation("node_next")
     loop             node_loop?
-    nodeRoutineList  node_routine_list?
+    routineList      node_routine_list?
     translations     node_translation[]
     runSteps         run_routine_step[] @relation("run_routine_step_node")
 }
@@ -1748,7 +1748,7 @@ model smart_contract_version {
     updated_at              DateTime                             @default(now()) @db.Timestamptz(6)
     completedAt             DateTime?                            @db.Timestamptz(6)
     default                 String?                              @db.VarChar(1024)
-    type                    String
+    contractType            String
     content                 String                               @db.VarChar(8192)
     isLatest                Boolean                              @default(false)
     resourceListId          String?                              @unique @db.Uuid
@@ -1847,7 +1847,7 @@ model standard_version {
     updated_at            DateTime                       @default(now()) @db.Timestamptz(6)
     completedAt           DateTime?                      @db.Timestamptz(6)
     default               String?                        @db.VarChar(1024)
-    type                  String
+    standardType          String
     props                 String                         @db.VarChar(8192)
     isLatest              Boolean                        @default(false)
     resourceListId        String?                        @unique @db.Uuid

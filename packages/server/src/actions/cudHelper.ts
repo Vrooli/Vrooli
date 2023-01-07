@@ -41,8 +41,8 @@ export async function cudHelper<
     createMany && mutate.yup.create && reqArr(mutate.yup.create()).validateSync(createMany, { abortEarly: false });
     updateMany && mutate.yup.update && reqArr(mutate.yup.update()).validateSync(updateMany.map(u => u.data), { abortEarly: false });
     // Profanity check
-    createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
-    updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
+    createMany && profanityCheck(createMany, partialInfo.type, userData.languages);
+    updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.type, userData.languages);
     // Shape create and update data. This must be done before other validations, as shaping may convert creates to connects
     const shapedCreate: { [x: string]: any }[] = [];
     const shapedUpdate: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];

@@ -41,7 +41,7 @@ interface DraggableProps {
  */
 export interface AddNodeProps extends ScaleProps, EditableProps {
     options: NodeType[];
-    onAdd: (type: NodeType) => void;
+    onAdd: (nodeType: NodeType) => void;
 }
 
 /**
@@ -49,10 +49,10 @@ export interface AddNodeProps extends ScaleProps, EditableProps {
  */
 export interface EndNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     handleAction: (action: BuildAction, nodeId: string) => void;
-    handleUpdate: (updatedNode: Node & { nodeEnd: NodeEnd }) => void; 
+    handleUpdate: (updatedNode: Node & { end: NodeEnd }) => void; 
     language: string;
     linksIn: NodeLink[];
-    node: Node & { nodeEnd: NodeEnd };
+    node: Node & { end: NodeEnd };
     zIndex: number;
 }
 
@@ -79,11 +79,11 @@ export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditablePr
 export interface RoutineListNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     canExpand: boolean;
     handleAction: (action: BuildAction, nodeId: string, subroutineId?: string) => void;
-    handleUpdate: (updatedNode: Node & { nodeRoutineList: NodeRoutineList }) => void; 
+    handleUpdate: (updatedNode: Node & { routineList: NodeRoutineList }) => void; 
     language: string;
     linksIn: NodeLink[];
     linksOut: NodeLink[];
-    node: Node & { nodeRoutineList: NodeRoutineList };
+    node: Node & { routineList: NodeRoutineList };
     zIndex: number;
 }
 

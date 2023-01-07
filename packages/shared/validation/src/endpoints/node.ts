@@ -6,7 +6,7 @@ import { nodeRoutineListValidation } from './nodeRoutineList';
 
 const columnIndex = yup.number().integer().min(0, minNumErr).nullable()
 const rowIndex = yup.number().integer().min(0, minNumErr).nullable()
-const type = yup.string().transform(blankToUndefined).oneOf([
+const nodeType = yup.string().transform(blankToUndefined).oneOf([
     'End', 
     'Loop', 
     'RoutineList', 
@@ -28,22 +28,22 @@ export const nodeValidation: YupModel = {
     create: () => yup.object().shape({
         id: req(id),
         columnIndex: opt(columnIndex),
+        nodeType: req(nodeType),
         rowIndex: opt(rowIndex),
-        type: req(type),
+        ...rel('end', ['Create'], 'one', 'opt', nodeEndValidation),
         ...rel('loop', ['Create'], 'one', 'opt', nodeLoopValidation),
-        ...rel('nodeEnd', ['Create'], 'one', 'opt', nodeEndValidation),
-        ...rel('nodeRoutineList', ['Create'], 'one', 'opt', nodeRoutineListValidation),
+        ...rel('routineList', ['Create'], 'one', 'opt', nodeRoutineListValidation),
         ...rel('routineVersion', ['Connect'], 'one', 'req'),
         ...rel('translations', ['Create'], 'many', 'opt', nodeTranslationValidation),
-    }, [['nodeEndCreate', 'nodeRoutineListCreate']]),
+    }, [['endCreate', 'routineListCreate']]),
     update: () => yup.object().shape({
         id: req(id),
         columnIndex: opt(columnIndex),
+        nodeType: opt(nodeType),
         rowIndex: opt(rowIndex),
-        type: opt(type),
+        ...rel('end', ['Update'], 'one', 'opt', nodeEndValidation),
         ...rel('loop', ['Create', 'Update', 'Delete'], 'one', 'opt', nodeLoopValidation),
-        ...rel('nodeEnd', ['Update'], 'one', 'opt', nodeEndValidation),
-        ...rel('nodeRoutineList', ['Update'], 'one', 'opt', nodeRoutineListValidation),
+        ...rel('routineList', ['Update'], 'one', 'opt', nodeRoutineListValidation),
         ...rel('routineVersion', ['Connect'], 'one', 'opt'),
         ...rel('translations', ['Create', 'Update', 'Delete'], 'many', 'opt', nodeTranslationValidation),
     })

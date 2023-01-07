@@ -2,10 +2,12 @@ import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 import { ReminderList, ReminderListCreateInput, ReminderListSearchInput, ReminderListSortBy, ReminderListUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 import { UserScheduleModel } from "./userSchedule";
 
-type Model = {
+const type = 'ReminderList' as const;
+const suppFields = [] as const;
+export const ReminderListModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: ReminderListCreateInput,
@@ -19,23 +21,14 @@ type Model = {
     PrismaModel: Prisma.reminder_listGetPayload<SelectWrap<Prisma.reminder_listSelect>>,
     PrismaSelect: Prisma.reminder_listSelect,
     PrismaWhere: Prisma.reminder_listWhereInput,
-}
-
-
-const __typename = 'ReminderList' as const;
-
-const suppFields = [] as const;
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, userSchedule: { select: UserScheduleModel.display.select() } }),
-    // Label is schedule's label
-    label: (select, languages) =>  UserScheduleModel.display.label(select.userSchedule as any, languages),
-})
-
-export const ReminderListModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+}, typeof suppFields> = ({
+    type,
     delegate: (prisma: PrismaType) => prisma.reminder_list,
-    display: displayer(),
+    display: {
+        select: () => ({ id: true, userSchedule: { select: UserScheduleModel.display.select() } }),
+        // Label is schedule's label
+        label: (select, languages) =>  UserScheduleModel.display.label(select.userSchedule as any, languages),
+    },
     format: {} as any,
     mutate: {} as any,
     search: {} as any,

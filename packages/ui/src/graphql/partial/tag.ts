@@ -1,10 +1,10 @@
-const __typename = 'Tag';
-export const tagTranslationFields = [__typename, `{
+const type = 'Tag';
+export const tagTranslationFields = [type, `{
     id
     language
     description
 }`] as const;
-export const tagFields = [__typename, `{
+export const tagFields = [type, `{
     id
     tag
     created_at

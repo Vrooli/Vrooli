@@ -64,15 +64,15 @@ export const NodeColumn = ({
                 canDrag: isEditing,
                 zIndex,
             }
-            // Determine node to display based on node type
-            switch (node.type) {
+            // Determine node to display based on nodeType
+            switch (node.nodeType) {
                 case NodeType.End:
                     return <EndNode
                         {...nodeProps}
                         handleUpdate={handleNodeUpdate}
                         language={language}
                         linksIn={links.filter(l => l.toId === node.id)}
-                        node={node as Node & { nodeEnd: NodeEnd }}
+                        node={node as Node & { end: NodeEnd }}
                     />
                 case NodeType.Redirect:
                     return <RedirectNode
@@ -87,7 +87,7 @@ export const NodeColumn = ({
                         language={language}
                         linksIn={links.filter(l => l.toId === node.id)}
                         linksOut={links.filter(l => l.fromId === node.id)}
-                        node={node as Node & { nodeRoutineList: NodeRoutineList }}
+                        node={node as Node & { routineList: NodeRoutineList }}
                     />)
                 case NodeType.Start:
                     return <StartNode

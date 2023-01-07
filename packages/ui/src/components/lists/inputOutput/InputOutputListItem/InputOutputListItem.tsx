@@ -5,7 +5,6 @@ import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTranslation, InputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, OutputTranslationShape, StandardShape, standardToFieldData, updateArray } from 'utils';
 import { useFormik } from 'formik';
-import { Standard } from 'types';
 import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
@@ -15,11 +14,11 @@ import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, ReorderIcon } from '@shared
 import { linkColors } from 'styles';
 
 const defaultStandard = (item: InputOutputListItemProps['item'], generatedSchema?: FieldData | null): StandardShape => ({
-    __typename: 'Standard',
+    type: 'Standard',
     id: uuid(),
     default: JSON.stringify(generatedSchema?.props?.defaultValue ?? null),
     isInternal: true,
-    type: generatedSchema?.type ?? InputTypeOptions[0].value,
+    standardType: generatedSchema?.standardType ?? InputTypeOptions[0].value,
     props: JSON.stringify(generatedSchema?.props ?? '{}'),
     yup: JSON.stringify(generatedSchema?.yup ?? '{}'),
     name: `${item.name}-schema`,
@@ -35,7 +34,7 @@ const toFieldData = (schemaKey: string, item: InputOutputListItemProps['item'], 
         helpText: getTranslation(item, [language], false).helpText,
         props: item.standard.props ?? '',
         name: item.standard.name ?? '',
-        type: item.standard.type ?? InputTypeOptions[0].value,
+        standardType: item.standard.standardType ?? InputTypeOptions[0].value,
         yup: item.standard.yup ?? null,
     })
 }
@@ -78,13 +77,13 @@ export const InputOutputListItem = ({
     }, [canEditStandard]);
 
     const handleInputTypeSelect = useCallback((selected: InputTypeOption) => {
-        if (selected.value === item.standard?.type) return;
+        if (selected.value === item.standard?.standardType) return;
         const existingStandard = item.standard ?? defaultStandard(item);
         setGeneratedSchema(toFieldData(schemaKey, {
             ...item,
             standard: {
                 ...existingStandard,
-                type: (selected ?? InputTypeOptions[0]).value,
+                standardType: (selected ?? InputTypeOptions[0]).value,
             }
         }, language));
     }, [item, language, schemaKey]);
@@ -316,7 +315,7 @@ export const InputOutputListItem = ({
                                             helpText: getTranslation(item, [language], false).helpText,
                                             props: standard?.props ?? '',
                                             name: standard?.name ?? '',
-                                            type: standard?.type ?? InputTypeOptions[0].value,
+                                            standardType: standard?.standardType ?? InputTypeOptions[0].value,
                                             yup: standard.yup ?? null,
                                         }) as FieldData :
                                         generatedSchema as FieldData,
@@ -330,7 +329,7 @@ export const InputOutputListItem = ({
                                     <Selector
                                         fullWidth
                                         options={InputTypeOptions}
-                                        selected={InputTypeOptions.find(option => option.value === generatedSchema?.type) ?? InputTypeOptions[0]}
+                                        selected={InputTypeOptions.find(option => option.value === generatedSchema?.standardType) ?? InputTypeOptions[0]}
                                         handleChange={handleInputTypeSelect}
                                         getOptionLabel={(option: InputTypeOption) => option.label}
                                         inputAriaLabel='input-type-selector'
@@ -339,7 +338,7 @@ export const InputOutputListItem = ({
                                     />
                                     <BaseStandardInput
                                         fieldName={schemaKey}
-                                        inputType={(generatedSchema?.type as InputType) ?? InputTypeOptions[0].value}
+                                        inputType={(generatedSchema?.standardType as InputType) ?? InputTypeOptions[0].value}
                                         isEditing={isEditing}
                                         schema={generatedSchema}
                                         onChange={handleSchemaUpdate}

@@ -45,6 +45,7 @@ export const typeDef = gql`
         status: PullRequestStatus
     }
     type PullRequest {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

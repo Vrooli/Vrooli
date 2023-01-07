@@ -38,6 +38,7 @@ export const typeDef = gql`
         willHavePermissions: String
     }
     type MemberInvite {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

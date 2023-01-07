@@ -1,5 +1,6 @@
+import { GqlModelType } from "@shared/consts";
 import { getLogic } from "../getters";
-import { GraphQLModelType, PermissionsMap } from "../models/types";
+import { PermissionsMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
 
 /**
@@ -29,10 +30,10 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
         else if (isRelationshipObject(value)) {
             result[key] = permissionsSelectHelper(value, userId, languages);
         }
-        // If the value is a GraphQLModelType, attempt to recurse using the validator for that type
+        // If the value is a GqlModelType, attempt to recurse using the validator for that type
         else if (typeof value === 'string') {
             // Check if the validator exists. If not, assume this is some other string and add it to the result
-            const { validate } = getLogic([], value as GraphQLModelType, languages, 'permissionsSelectHelper');
+            const { validate } = getLogic([], value as GqlModelType, languages, 'permissionsSelectHelper');
             if (!validate) {
                 result[key] = true;
             }

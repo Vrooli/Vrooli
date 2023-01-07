@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 
-const __typename = 'Meeting' as const;
+const type = 'Meeting' as const;
 const suppFields = [] as const;
 export const MeetingModel: ModelLogic<{
     IsTransferable: false,
@@ -22,7 +22,7 @@ export const MeetingModel: ModelLogic<{
     PrismaSelect: Prisma.meetingSelect,
     PrismaWhere: Prisma.meetingWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.meeting,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -30,7 +30,7 @@ export const MeetingModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             attendees: 'User',
             invites: 'MeetingInvite',
             labels: 'Label',
@@ -38,7 +38,7 @@ export const MeetingModel: ModelLogic<{
             restrictedToRoles: 'Role',
         },
         prismaRelMap: {
-            __typename,
+            type,
             organization: 'Organization',
             restrictedToRoles: 'Role',
             attendees: 'User',

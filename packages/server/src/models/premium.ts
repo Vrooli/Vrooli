@@ -3,9 +3,11 @@ import i18next from "i18next";
 import { SelectWrap } from "../builders/types";
 import { Premium } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 
-type Model = {
+const type = 'Premium' as const;
+const suppFields = [] as const;
+export const PremiumModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: undefined,
@@ -19,25 +21,17 @@ type Model = {
     PrismaModel: Prisma.premiumGetPayload<SelectWrap<Prisma.premiumSelect>>,
     PrismaSelect: Prisma.premiumSelect,
     PrismaWhere: Prisma.premiumWhereInput,
-}
-
-const __typename = 'Premium' as const;
-
-const suppFields = [] as const;
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, customPlan: true }),
-    label: (select, languages) => {
-        const lng = languages[0];
-        if (select.customPlan) return i18next.t(`common:PaymentPlanCustom`, { lng });
-        return i18next.t(`common:PaymentPlanBasic`, { lng });
-    }
-})
-
-export const PremiumModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+}, typeof suppFields> = ({
+    type,
     delegate: (prisma: PrismaType) => prisma.payment,
-    display: displayer(),
+    display: {
+        select: () => ({ id: true, customPlan: true }),
+        label: (select, languages) => {
+            const lng = languages[0];
+            if (select.customPlan) return i18next.t(`common:PaymentPlanCustom`, { lng });
+            return i18next.t(`common:PaymentPlanBasic`, { lng });
+        }
+    },
     format: {} as any,
     mutate: {} as any,
     search: {} as any,

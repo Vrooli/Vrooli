@@ -9,7 +9,7 @@ import { bestLabel, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { noNull, shapeHelper } from "../builders";
 
-const __typename = 'Node' as const;
+const type = 'Node' as const;
 const MAX_NODES_IN_ROUTINE = 100;
 const suppFields = [] as const;
 export const NodeModel: ModelLogic<{
@@ -27,7 +27,7 @@ export const NodeModel: ModelLogic<{
     PrismaSelect: Prisma.nodeSelect,
     PrismaWhere: Prisma.nodeWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.node,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -35,20 +35,20 @@ export const NodeModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
-            nodeEnd: 'NodeEnd',
-            nodeRoutineList: 'NodeRoutineList',
+            type,
+            end: 'NodeEnd',
             loop: 'NodeLoop',
+            routineList: 'NodeRoutineList',
             routineVersion: 'RoutineVersion',
         },
         prismaRelMap: {
-            __typename,
-            routineVersion: 'RoutineVersion',
-            nodeEnd: 'NodeEnd',
-            previous: 'NodeLink',
-            next: 'NodeLink',
+            type,
+            end: 'NodeEnd',
             loop: 'NodeLoop',
-            nodeRoutineList: 'NodeRoutineList',
+            next: 'NodeLink',
+            previous: 'NodeLink',
+            routineList: 'NodeRoutineList',
+            routineVersion: 'RoutineVersion',
             runSteps: 'RunRoutineStep',
         },
         countFields: {},
@@ -58,23 +58,23 @@ export const NodeModel: ModelLogic<{
             create: async ({ data, prisma, userData }) => ({
                 id: data.id,
                 columnIndex: noNull(data.columnIndex),
+                nodeType: data.nodeType,
                 rowIndex: noNull(data.rowIndex),
-                type: data.type,
-                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'end', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
                 ...(await shapeHelper({ relation: 'loop', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeLoop', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'nodeEnd', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'nodeRoutineList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, prisma, userData })),
                 ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
             }),
             update: async ({ data, prisma, userData }) => ({
                 id: data.id,
                 columnIndex: noNull(data.columnIndex),
+                nodeType: noNull(data.nodeType),
                 rowIndex: noNull(data.rowIndex),
-                type: noNull(data.type),
-                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'end', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
                 ...(await shapeHelper({ relation: 'loop', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: true, isRequired: false, objectType: 'NodeLoop', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'nodeEnd', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'nodeRoutineList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, prisma, userData })),
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
             })
         },

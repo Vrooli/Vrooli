@@ -14,6 +14,7 @@ export const typeDef = gql`
         suggestedNextRoutineVersionsDisconnect: [ID!]
     }
     type NodeEnd {
+        type: GqlModelType!
         id: ID!
         wasSuccessful: Boolean!
         suggestedNextRoutineVersions: [RoutineVersion!]

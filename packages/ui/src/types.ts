@@ -27,16 +27,16 @@ export type IWrap<T> = { input: T }
  * An object connected to routing
  */
 export type NavigableObject = {
-    __typename: string
+    type: string
     handle?: string | null,
     id: string,
     versionGroupId?: string | null,
     routine?: {
-        __typename: string
+        type: string
         id: string
     } | null,
     to?: {
-        __typename: string,
+        type: string,
         handle?: string | null,
         id: string,
     }
@@ -53,10 +53,10 @@ export type IsInternalInput = {
 }
 
 /**
- * Wrapper for removing __typename from any object. Useful when creating 
+ * Wrapper for removing type from any object. Useful when creating 
  * new objects, rather than using queried data.
  */
-export type NoTypename<T> = T extends { __typename: string } ? Omit<T, '__typename'> : T;
+export type NoTypename<T> = T extends { type: string } ? Omit<T, 'type'> : T;
 
 /**
  * Converts objects as represented in the UI (especially forms) to create/update 
@@ -102,7 +102,7 @@ export interface RoutineListStep extends BaseStep {
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
 export interface ObjectOption {
-    __typename: ListObjectType['__typename'];
+    type: ListObjectType['type'];
     handle?: string | null;
     id: string;
     versionGroupId?: string | null;
@@ -112,25 +112,25 @@ export interface ObjectOption {
     stars?: number;
     [key: string]: any;
     routineVersion?: {
-        __typename: string
+        type: string
         id: string
     } | null,
     to?: {
-        __typename: string,
+        type: string,
         handle?: string | null,
         id: string,
     }
 }
 
 export interface ShortcutOption {
-    __typename: 'Shortcut';
+    type: 'Shortcut';
     isFromHistory?: boolean;
     label: string;
     id: string; // Actually URL, but id makes it easier to use
 }
 
 export interface ActionOption {
-    __typename: 'Action';
+    type: 'Action';
     canPerform: (session: Session) => boolean;
     id: string;
     isFromHistory?: boolean;

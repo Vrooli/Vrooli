@@ -1,6 +1,6 @@
+import { GqlModelType } from "@shared/consts";
 import { shapeHelper, ShapeHelperInput, ShapeHelperOutput, ShapeHelperProps } from "../builders";
 import { RelationshipType } from "../builders/types";
-import { GraphQLModelType } from "../models/types";
 
 type TranslationShapeHelperProps<
     Input extends ShapeHelperInput<false, IsRequired, Types[number], 'translations'>,
@@ -27,7 +27,7 @@ export const translationShapeHelper = async <
         data,
         isOneToOne: false,
         isRequired,
-        objectType: 'Translation' as GraphQLModelType,
+        objectType: 'Translation' as GqlModelType,
         parentRelationshipName: '',
         primaryKey: 'id',
         prisma,

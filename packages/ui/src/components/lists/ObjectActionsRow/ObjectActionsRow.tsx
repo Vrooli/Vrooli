@@ -54,7 +54,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
             actionsExtra,
             id: object?.id,
             name: getListItemTitle(object, getUserLanguages(session)),
-            objectType: object?.__typename,
+            objectType: object?.type,
         }
     }, [exclude, object, session]);
 

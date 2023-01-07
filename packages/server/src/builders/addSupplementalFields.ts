@@ -1,6 +1,6 @@
 import { ObjectMap } from "../models";
-import { Formatter, GraphQLModelType } from "../models/types";
-import { SessionUser } from '@shared/consts';
+import { Formatter } from "../models/types";
+import { GqlModelType, SessionUser } from '@shared/consts';
 import { PrismaType, SingleOrArray } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
@@ -55,7 +55,7 @@ export const addSupplementalFields = async (
         // Now that we have the data for each object, we can add the supplemental fields
         const formatter: Formatter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
         const valuesWithSupplements = formatter?.supplemental ?
-            await addSupplementalFieldsHelper({ languages: userData?.languages ?? ['en'], objects: objectData, objectType: type as GraphQLModelType, partial: selectFieldsDict[type], prisma, userData }) :
+            await addSupplementalFieldsHelper({ languages: userData?.languages ?? ['en'], objects: objectData, objectType: type as GqlModelType, partial: selectFieldsDict[type], prisma, userData }) :
             objectData;
         // Add each value to objectsById
         for (const v of valuesWithSupplements) {

@@ -44,7 +44,7 @@ export const toPartialGraphQLInfo = <
     else if (select.hasOwnProperty('endCursor') && select.hasOwnProperty('totalThreads') && select.hasOwnProperty('threads')) {
         select = select.threads.comment
     }
-    // Inject __typename fields
+    // Inject type fields
     select = injectTypenames(select, gqlRelMap);
     if (!select)
         throw new CustomError('0346', 'InternalError', languages);

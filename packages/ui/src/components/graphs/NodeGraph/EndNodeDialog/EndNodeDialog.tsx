@@ -6,10 +6,10 @@ import { useFormik } from 'formik';
 import { DialogTitle } from 'components/dialogs';
 import Markdown from 'markdown-to-jsx';
 import { useCallback } from 'react';
-import { Node } from 'types';
 import { uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
 import { linkColors } from 'styles';
+import { Node } from '@shared/consts';
 
 const titleAria = 'end-node-dialog-title';
 
@@ -39,8 +39,8 @@ export const EndNodeDialog = ({
             handleClose({
                 ...node,
                 translations: newTranslations as Node['translations'],
-                data: {
-                    __typename: 'NodeEnd',
+                end: {
+                    type: 'NodeEnd',
                     id: node.data?.id ?? uuid(),
                     wasSuccessful: values.wasSuccessful,
                 }

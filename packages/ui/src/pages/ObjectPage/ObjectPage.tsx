@@ -2,10 +2,9 @@ import { useCallback, useMemo } from "react";
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useLocation } from '@shared/route';
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, Organization, Project, Routine, Session, Standard, User } from "@shared/consts";
 import { lazily } from "react-lazily";
 import { ObjectType, parseSearchParams, PubSub, uuidToBase36 } from "utils";
-import { Organization, Project, Routine, Session, Standard, User } from "types";
 import { PageContainer, ReportsView, SnackSeverity } from "components";
 
 const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('../../components/views/Organization'));
@@ -15,14 +14,14 @@ const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('..
 
 export interface CreatePageProps {
     onCancel: () => void;
-    onCreated: (item: { __typename: string, id: string }) => void;
+    onCreated: (item: { type: string, id: string }) => void;
     session: Session;
     zIndex: number;
 }
 
 export interface UpdatePageProps {
     onCancel: () => void;
-    onUpdated: (item: { __typename: string, id: string }) => void;
+    onUpdated: (item: { type: string, id: string }) => void;
     session: Session;
     zIndex: number;
 }
@@ -115,14 +114,14 @@ export const ObjectPage = ({
         return { hasPreviousPage, objectType, pageType };
     }, [location]);
 
-    const onAction = useCallback((action: ObjectDialogAction, item?: { __typename: string, id: string }) => {
+    const onAction = useCallback((action: ObjectDialogAction, item?: { type: string, id: string }) => {
         // Only navigate back if there is a previous page
         const pageRoot = window.location.pathname.split('/')[1];
         switch (action) {
             case ObjectDialogAction.Add:
                 setLocation(`${uuidToBase36(item?.id ?? '')}`, { replace: !hasPreviousPage });
                 PubSub.get().publishSnack({
-                    message: `${item?.__typename ?? ''} created!`,
+                    message: `${item?.type ?? ''} created!`,
                     severity: SnackSeverity.Success,
                     buttonText: 'Create another',
                     buttonClicked: () => { setLocation(`add`); },

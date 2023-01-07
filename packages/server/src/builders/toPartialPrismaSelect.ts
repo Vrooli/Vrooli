@@ -1,5 +1,4 @@
 import { ObjectMap } from "../models";
-import { Formatter, GraphQLModelType } from "../models/types";
 import { addCountFields } from "./addCountFields";
 import { addJoinTables } from "./addJoinTables";
 import { deconstructUnions } from "./deconstructUnions";
@@ -13,7 +12,7 @@ import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
  * but not actually query the database.
  * @param partial GraphQL info object, partially converted to Prisma select
  * @returns Prisma select object with calculated fields, unions and join tables removed, 
- * and count fields and __typenames added
+ * and count fields and types added
  */
 export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrismaSelect): PartialPrismaSelect => {
     // Create result object
@@ -30,7 +29,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
         }
     }
     // Handle base case
-    const type = partial.__typename;
+    const type = partial.type;
     const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (type && format) {
         result = removeSupplementalFields(type, result);

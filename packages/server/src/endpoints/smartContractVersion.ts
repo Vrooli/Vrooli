@@ -28,7 +28,7 @@ export const typeDef = gql`
         isLatest: Boolean
         isPrivate: Boolean
         default: String
-        type: String!
+        contractType: String!
         content: String!
         rootConnect: ID!
         rootCreate: SmartContractCreateInput
@@ -45,7 +45,7 @@ export const typeDef = gql`
         isLatest: Boolean
         isPrivate: Boolean
         default: String
-        type: String
+        contractType: String
         content: String
         versionIndex: Int!
         versionLabel: String
@@ -59,6 +59,7 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type SmartContractVersion {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!
@@ -67,7 +68,7 @@ export const typeDef = gql`
         isDeleted: Boolean!
         isPrivate: Boolean!
         default: String
-        type: String!
+        contractType: String!
         content: String!
         versionIndex: Int!
         versionLabel: String!
@@ -118,7 +119,7 @@ export const typeDef = gql`
         rootId: ID
         searchString: String
         sortBy: SmartContractVersionSortBy
-        type: String
+        contractType: String
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame

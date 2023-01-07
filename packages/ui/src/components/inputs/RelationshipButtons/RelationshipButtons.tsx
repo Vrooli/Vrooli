@@ -4,10 +4,9 @@
  */
 import { Box, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
-import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProject, RelationshipItemRoutine, RelationshipItemUser, RelationshipOwner } from '../types';
+import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProjectVersion, RelationshipItemRoutineVersion, RelationshipItemUser, RelationshipOwner } from '../types';
 import { firstString, getTranslation, getUserLanguages, openObject, PubSub } from 'utils';
 import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog, RoutineSelectOrCreateDialog, UserSelectDialog } from 'components/dialogs';
-import { Session } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { CompleteIcon as CompletedIcon, InvisibleIcon, OrganizationIcon, ProjectIcon as ProjIcon, RoutineIcon, UserIcon as SelfIcon, VisibleIcon } from '@shared/icons';
@@ -15,14 +14,15 @@ import { useLocation } from '@shared/route';
 import { getCurrentUser } from 'utils/authentication';
 import { ColorIconButton } from 'components/buttons';
 import { noSelect } from 'styles';
+import { Session } from '@shared/consts';
 
 /**
  * Converts session to user object
  * @param session Current user session
  * @returns User object
  */
-export const userFromSession = (session: Session): RelationshipOwner => ({
-    __typename: 'User',
+export const userFromSession = (session: Session): Exclude<RelationshipOwner, null> => ({
+    type: 'User',
     id: getCurrentUser(session).id as string,
     handle: null,
     name: 'Self',
@@ -147,7 +147,7 @@ export function RelationshipButtons({
         }
     }, [isEditing, isProjectAvailable, onRelationshipsChange, relationships.project, setLocation]);
     const closeProjectDialog = useCallback(() => { setProjectDialogOpen(false); }, [setProjectDialogOpen]);
-    const handleProjectSelect = useCallback((project: RelationshipItemProject) => {
+    const handleProjectSelect = useCallback((project: RelationshipItemProjectVersion) => {
         if (project?.id === relationships.project?.id) return;
         onRelationshipsChange({ project });
     }, [onRelationshipsChange, relationships.project?.id]);
@@ -181,11 +181,11 @@ export function RelationshipButtons({
         }
     }, [isEditing, isFormDirty, isParentAvailable, onRelationshipsChange, relationships.parent, setLocation]);
     const closeParentDialog = useCallback(() => { setParentDialogOpen(false); }, [setParentDialogOpen]);
-    const handleParentProjectSelect = useCallback((parent: RelationshipItemProject) => {
+    const handleParentProjectSelect = useCallback((parent: RelationshipItemProjectVersion) => {
         if (parent?.id === relationships.parent?.id) return;
         onRelationshipsChange({ parent });
     }, [onRelationshipsChange, relationships.parent?.id]);
-    const handleParentRoutineSelect = useCallback((parent: RelationshipItemRoutine) => {
+    const handleParentRoutineSelect = useCallback((parent: RelationshipItemRoutineVersion) => {
         if (parent?.id === relationships.parent?.id) return;
         onRelationshipsChange({ parent });
     }, [onRelationshipsChange, relationships.parent?.id]);
@@ -210,7 +210,7 @@ export function RelationshipButtons({
             ownerTooltip: `Marked as anonymous${isEditing ? '' : '. Press to set owner'}`
         };
         // If owner is organization, use organization icon
-        if (relationships.owner.__typename === 'Organization') {
+        if (relationships.owner.type === 'Organization') {
             const OwnerIcon = OrganizationIcon;
             const ownerName = firstString(getTranslation(relationships.owner as RelationshipItemOrganization, languages, true).name, 'organization');
             return {
@@ -235,7 +235,7 @@ export function RelationshipButtons({
             ProjectIcon: null,
             projectTooltip: isEditing ? '' : 'Press to assign to a project'
         };
-        const projectName = firstString(getTranslation(relationships.project as RelationshipItemProject, languages, true).name, 'project');
+        const projectName = firstString(getTranslation(relationships.project as RelationshipItemProjectVersion, languages, true).name, 'project');
         return {
             ProjectIcon: ProjIcon,
             projectTooltip: `Project: ${projectName}`
@@ -250,9 +250,9 @@ export function RelationshipButtons({
             parentTooltip: isEditing ? '' : 'Press to copy from a parent (will override entered data)'
         };
         // If parent is project, use project icon
-        if (relationships.parent.__typename === 'Project') {
+        if (relationships.parent.type === 'ProjectVersion') {
             const ParentIcon = ProjIcon;
-            const parentName = firstString(getTranslation(relationships.parent as RelationshipItemProject, languages, true).name, 'project');
+            const parentName = firstString(getTranslation(relationships.parent as RelationshipItemProjectVersion, languages, true).name, 'project');
             return {
                 ParentIcon,
                 parentTooltip: `Parent: ${parentName}`
@@ -260,7 +260,7 @@ export function RelationshipButtons({
         }
         // If parent is routine, use routine icon
         const ParentIcon = RoutineIcon;
-        const parentName = firstString(getTranslation(relationships.parent as RelationshipItemRoutine, languages, true).title, 'routine');
+        const parentName = firstString(getTranslation(relationships.parent as RelationshipItemRoutineVersion, languages, true).name, 'routine');
         return {
             ParentIcon,
             parentTooltip: `Parent: ${parentName}`

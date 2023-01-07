@@ -3,9 +3,13 @@ import { SelectWrap } from "../builders/types";
 import { Post, PostCreateInput, PostSearchInput, PostSortBy, PostUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 
-type Model = {
+const type = 'Post' as const;
+
+const suppFields = [] as const;
+
+export const PostModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: PostCreateInput,
@@ -19,21 +23,13 @@ type Model = {
     PrismaModel: Prisma.postGetPayload<SelectWrap<Prisma.postSelect>>,
     PrismaSelect: Prisma.postSelect,
     PrismaWhere: Prisma.postWhereInput,
-}
-
-const __typename = 'Post' as const;
-
-const suppFields = [] as const;
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'name', languages),
-})
-
-export const PostModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+}, typeof suppFields> = ({
+    type,
     delegate: (prisma: PrismaType) => prisma.post,
-    display: displayer(),
+    display: {
+        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+    },
     format: {} as any,
     mutate: {} as any,
     search: {} as any,

@@ -1,8 +1,8 @@
 import { ObjectMap } from "../models";
-import { SessionUser } from '@shared/consts';
+import { GqlModelType, SessionUser } from '@shared/consts';
 import { PrismaType, RecursivePartial } from "../types";
 import { PartialGraphQLInfo } from "./types";
-import { GraphQLModelType, SupplementalConverter } from "../models/types";
+import { SupplementalConverter } from "../models/types";
 
 /**
  * Sets value in object using dot notation
@@ -25,7 +25,7 @@ const setDotNotationValue = (obj: { [x: string]: any }, path: string, value: any
 export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ languages, objects, objectType, partial, prisma, userData }: {
     languages: string[],
     objects: ({ id: string } & { [x: string]: any })[],
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     partial: PartialGraphQLInfo,
     prisma: PrismaType,
     userData: SessionUser | null,

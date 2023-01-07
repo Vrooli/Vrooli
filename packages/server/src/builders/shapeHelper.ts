@@ -1,7 +1,6 @@
-import { SessionUser } from '@shared/consts';
+import { GqlModelType, SessionUser } from '@shared/consts';
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";
-import { GraphQLModelType } from "../models/types";
 import { PrismaType } from "../types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
 import { RelationshipType, RelConnect, RelCreate, RelDelete, RelDisconnect, RelUpdate } from "./types";
@@ -129,7 +128,7 @@ export type ShapeHelperProps<
         parentIdFieldName: string, // e.g. organization.tags.tag => 'taggedId'
         parentId: string | null, // Only needed if not a create
     }
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     /**
     * The name of the parent relationship, from the child's perspective. 
     * Used to ensure that the child does not have a circular reference to the parent.

@@ -7,8 +7,7 @@ import { sendPush } from "./push";
 import i18next, { TFuncKey } from 'i18next';
 import { OrganizationModel, subscriberMapper } from "../models";
 import { getLogic } from "../getters";
-import { GraphQLModelType } from "../models/types";
-import { NotificationSettings } from '@shared/consts';
+import { GqlModelType, NotificationSettings } from '@shared/consts';
 
 export type NotificationUrgency = 'low' | 'normal' | 'critical';
 
@@ -163,7 +162,7 @@ const getEventStartLabel = (date: Date) => {
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
     toOrganization: (organizationId: string, excludeUserId?: string) => Promise<void>,
-    toOwner: (owner: { __typename: 'User' | 'Organization', id: string }, excludeUserId?: string) => Promise<void>,
+    toOwner: (owner: { type: 'User' | 'Organization', id: string }, excludeUserId?: string) => Promise<void>,
     toSubscribers: (objectType: SubscribableObject, objectId: string, excludeUserId?: string) => Promise<void>,
 }
 
@@ -192,7 +191,7 @@ const replaceLabels = async (
     // the object's translated label
     let labelTranslations: { [key: string]: string } = {};
     // Helper function to query for label translations
-    const findTranslations = async (objectType: GraphQLModelType, objectId: string) => {
+    const findTranslations = async (objectType: `${GqlModelType}`, objectId: string) => {
         // Ignore if already translated
         if (Object.keys(labelTranslations).length > 0) return;
         const { delegate, display } = getLogic(['delegate', 'display'], objectType, languages, 'replaceLabels');
@@ -212,9 +211,9 @@ const replaceLabels = async (
                 const match = (titleVariables[key] as string).match(labelRegex);
                 if (match) {
                     // Find label translations
-                    await findTranslations(match[1] as GraphQLModelType, match[2]);
+                    await findTranslations(match[1] as GqlModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = getLogic(['display'], match[1] as GraphQLModelType, languages, 'replaceLabels');
+                    const { display } = getLogic(['display'], match[1] as GqlModelType, languages, 'replaceLabels');
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display.label(labelTranslations, result[i].languages));
                     }
@@ -232,9 +231,9 @@ const replaceLabels = async (
                 const match = (bodyVariables[key] as string).match(labelRegex);
                 if (match) {
                     // Find label translations
-                    await findTranslations(match[1] as GraphQLModelType, match[2]);
+                    await findTranslations(match[1] as GqlModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = getLogic(['display'], match[1] as GraphQLModelType, languages, 'replaceLabels');
+                    const { display } = getLogic(['display'], match[1] as GqlModelType, languages, 'replaceLabels');
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display.label(labelTranslations, result[i].languages));
                     }
@@ -293,9 +292,9 @@ const NotifyResult = ({
      * @param excludeUserId A user to exclude from the notification
      */
     toOwner: async (owner, excludeUserId) => {
-        if (owner.__typename === 'User') {
+        if (owner.type === 'User') {
             await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toUser(owner.id);
-        } else if (owner.__typename === 'Organization') {
+        } else if (owner.type === 'Organization') {
             await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toOrganization(owner.id, excludeUserId);
         }
     },
@@ -432,7 +431,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewDeviceTitle',
     }),
-    pushNewComment: (objectType: GraphQLModelType, objectId: string): NotifyResultType => NotifyResult({
+    pushNewComment: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
         category: 'ObjectActivity',
         languages,
         prisma,
@@ -446,7 +445,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewEmailVerificationTitle',
     }),
-    pushNewQuestionOnObject: (objectType: GraphQLModelType, objectId: string, questionId: string): NotifyResultType => NotifyResult({
+    pushNewQuestionOnObject: (objectType: `${GqlModelType}`, objectId: string, questionId: string): NotifyResultType => NotifyResult({
         bodyKey: 'NewQuestionOnObjectBody',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'NewQuestionOrIssue',
@@ -464,7 +463,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'NewIssueOnObjectTitle',
     }),
-    pushObjectReceivedStar: (objectType: GraphQLModelType, objectId: string, totalStars: number): NotifyResultType => NotifyResult({
+    pushObjectReceivedStar: (objectType: `${GqlModelType}`, objectId: string, totalStars: number): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedStarBody',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalStars },
         category: 'ObjectActivity',
@@ -473,7 +472,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ObjectReceivedStarTitle',
     }),
-    pushObjectReceivedUpvote: (objectType: GraphQLModelType, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
+    pushObjectReceivedUpvote: (objectType: `${GqlModelType}`, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedUpvoteBody',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalScore },
         category: 'ObjectActivity',
@@ -482,7 +481,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ObjectReceivedUpvoteTitle',
     }),
-    pushObjectReceivedFork: (objectType: GraphQLModelType, objectId: string): NotifyResultType => NotifyResult({
+    pushObjectReceivedFork: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'ObjectReceivedForkBody',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'ObjectActivity',
@@ -516,7 +515,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'ReportClosedAccountSuspendedTitle',
     }),
-    pushPullRequestAccepted: (objectType: GraphQLModelType, objectId: string): NotifyResultType => NotifyResult({
+    pushPullRequestAccepted: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'PullRequestAcceptedBody',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'PullRequestClose',
@@ -525,7 +524,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'PullRequestAcceptedTitle',
     }),
-    pushPullRequestRejected: (objectType: GraphQLModelType, objectId: string): NotifyResultType => NotifyResult({
+    pushPullRequestRejected: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'PullRequestRejectedBody',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'PullRequestClose',
@@ -618,7 +617,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'TransferRequestReceiveTitle',
     }),
-    pushTransferAccepted: (objectType: GraphQLModelType, objectId: string): NotifyResultType => NotifyResult({
+    pushTransferAccepted: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'TransferAcceptedTitle',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'Transfer',
@@ -627,7 +626,7 @@ export const Notify = (prisma: PrismaType, languages: string[]) => ({
         prisma,
         titleKey: 'TransferAcceptedTitle',
     }),
-    pushTransferRejected: (objectType: GraphQLModelType, objectId: string): NotifyResultType => NotifyResult({
+    pushTransferRejected: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
         bodyKey: 'TransferRejectedTitle',
         bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         category: 'Transfer',

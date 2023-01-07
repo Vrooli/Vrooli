@@ -8,7 +8,7 @@ import { SelectWrap } from "../builders/types";
 import { nodeEndValidation } from "@shared/validation";
 import { nodeEndNextShapeHelper } from "../utils";
 
-const __typename = 'NodeEnd' as const;
+const type = 'NodeEnd' as const;
 const suppFields = [] as const;
 export const NodeEndModel: ModelLogic<{
     IsTransferable: false,
@@ -25,7 +25,7 @@ export const NodeEndModel: ModelLogic<{
     PrismaSelect: Prisma.node_endSelect,
     PrismaWhere: Prisma.node_endWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.node_end,
     display: {
         select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
@@ -33,11 +33,11 @@ export const NodeEndModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             suggestedNextRoutineVersions: 'RoutineVersion',
         },
         prismaRelMap: {
-            __typename,
+            type,
             suggestedNextRoutineVersions: 'RoutineVersion',
             node: 'Node',
         },
@@ -50,7 +50,7 @@ export const NodeEndModel: ModelLogic<{
                 return {
                     id: data.id,
                     wasSuccessful: noNull(data.wasSuccessful),
-                    ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'nodeEnd', data, prisma, userData })),
+                    ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'end', data, prisma, userData })),
                     ...(await nodeEndNextShapeHelper({ relTypes: ['Connect'], data, prisma, userData })),
                 }
             },

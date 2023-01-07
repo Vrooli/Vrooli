@@ -4,7 +4,6 @@ import { GQLEndpoint } from '../types';
 import { rateLimit } from '../middleware';
 import { DeleteType } from '@shared/consts';
 import { deleteManyHelper, deleteOneHelper } from '../actions';
-import { GraphQLModelType } from '../models/types';
 
 export const typeDef = gql`
     enum DeleteType {
@@ -68,11 +67,11 @@ export const resolvers: {
     Mutation: {
         deleteOne: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return deleteOneHelper({ input, objectType: input.objectType as GraphQLModelType, prisma, req });
+            return deleteOneHelper({ input, objectType: input.objectType, prisma, req });
         },
         deleteMany: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 1000, req });
-            return deleteManyHelper({ input, objectType: input.objectType as GraphQLModelType, prisma, req });
+            return deleteManyHelper({ input, objectType: input.objectType, prisma, req });
         }
     }
 }

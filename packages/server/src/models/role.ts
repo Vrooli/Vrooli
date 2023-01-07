@@ -3,9 +3,11 @@ import { SelectWrap } from "../builders/types";
 import { Role, RoleCreateInput, RoleUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, Formatter, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 
-type Model = {
+const type = 'Role' as const;
+const suppFields = [] as const;
+export const RoleModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: RoleCreateInput,
@@ -19,45 +21,36 @@ type Model = {
     PrismaModel: Prisma.roleGetPayload<SelectWrap<Prisma.roleSelect>>,
     PrismaSelect: Prisma.roleSelect,
     PrismaWhere: Prisma.roleWhereInput,
-}
-
-const __typename = 'Role' as const;
-
-const suppFields = [] as const;
-const formatter = (): Formatter<Model, typeof suppFields> => ({
-    gqlRelMap: {
-        __typename,
-        members: 'Member',
-        organization: 'Organization',
-    },
-    prismaRelMap: {
-        __typename,
-        members: 'Member',
-        meetings: 'Meeting',
-        organization: 'Organization',
-    },
-    countFields: {
-        membersCount: true,
-    },
-})
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ 
-        id: true, 
-        name: true,
-        translations: { select: { language: true, name: true } } 
-    }),
-    label: (select, languages) => {
-        // Prefer translated name over default name
-        const translated = bestLabel(select.translations, 'name', languages)
-        if (translated.length > 0) return translated;
-        return select.name;
-    },
-})
-
-export const RoleModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+}, typeof suppFields> = ({
+    type,
     delegate: (prisma: PrismaType) => prisma.role,
-    display: displayer(),
-    format: formatter(),
+    display: {
+        select: () => ({ 
+            id: true, 
+            name: true,
+            translations: { select: { language: true, name: true } } 
+        }),
+        label: (select, languages) => {
+            // Prefer translated name over default name
+            const translated = bestLabel(select.translations, 'name', languages)
+            if (translated.length > 0) return translated;
+            return select.name;
+        },
+    },
+    format: {
+        gqlRelMap: {
+            type,
+            members: 'Member',
+            organization: 'Organization',
+        },
+        prismaRelMap: {
+            type,
+            members: 'Member',
+            meetings: 'Meeting',
+            organization: 'Organization',
+        },
+        countFields: {
+            membersCount: true,
+        },
+    },
 })

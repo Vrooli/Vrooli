@@ -1,6 +1,6 @@
+import { GqlModelType } from "@shared/consts";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";
-import { GraphQLModelType } from "../models/types";
 import { PrismaType } from "../types";
 
 /**
@@ -15,7 +15,7 @@ import { PrismaType } from "../types";
  */
 export async function getLabels(
     objects: { id: string, languages: string[] }[] | string[],
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     prisma: PrismaType, 
     languages: string[],
     errorTrace: string,

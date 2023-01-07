@@ -36,7 +36,7 @@ export interface SubroutineSelectOrCreateDialogProps {
     handleAdd: (nodeId: string, subroutine: Routine) => any;
     handleClose: () => any;
     isOpen: boolean;
-    owner: { __typename: 'Organization' | 'User', id: string } | null;
+    owner: { type: 'Organization' | 'User', id: string } | null;
     nodeId: string;
     routineId: string | null | undefined;
     session: Session;

@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeProjectUpdate, TagShape, usePromptBeforeUnload } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
+import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, TagShape, usePromptBeforeUnload } from "utils";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, SnackSeverity, TagSelector, userFromSession } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
-import { projectEndpoint } from "graphql/endpoints";
-import { FindByIdInput, Project, ProjectUpdateInput, ResourceList } from "@shared/consts";
+import { projectEndpoint, projectVersionEndpoint } from "graphql/endpoints";
+import { FindByIdInput, Project, ProjectUpdateInput, ProjectVersion } from "@shared/consts";
 
 export const ProjectUpdate = ({
     onCancel,
@@ -20,9 +20,9 @@ export const ProjectUpdate = ({
 }: ProjectUpdateProps) => {
     // Fetch existing data
     const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<Project, FindByIdInput, 'project'>(...projectEndpoint.findOne);
+    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindByIdInput, 'projectVersion'>(...projectVersionEndpoint.findOne);
     useEffect(() => { uuidValidate(id) && getData({ variables: { id } }) }, [getData, id])
-    const project = useMemo(() => data?.project, [data]);
+    const projectVersion = useMemo(() => data?.projectVersion, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
         isComplete: false,
@@ -31,18 +31,8 @@ export const ProjectUpdate = ({
         parent: null,
         project: null,
     });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
-
-    // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
-    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        setResourceList(updatedList);
-    }, [setResourceList]);
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => 
+        setRelationships({ ...relationships, ...newRelationshipsObject }), [relationships]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -50,17 +40,14 @@ export const ProjectUpdate = ({
 
     useEffect(() => {
         setRelationships({
-            isComplete: project?.isComplete ?? false,
-            isPrivate: project?.isPrivate ?? false,
-            owner: null,
-            // owner: project?.owner ?? null, TODO
-            parent: null,
-            // parent: project?.parent ?? null, TODO
+            isComplete: projectVersion?.isComplete ?? false,
+            isPrivate: projectVersion?.isPrivate ?? false,
+            owner: projectVersion?.root?.owner ?? null,
+            parent: projectVersion?.root?.parent ?? null,
             project: null,
         });
-        setResourceList(project?.resourceList ?? { id: uuid() } as any);
-        setTags(project?.tags ?? []);
-    }, [project]);
+        setTags(projectVersion?.root?.tags ?? []);
+    }, [projectVersion]);
 
     // Handle update
     const [mutation] = useMutation<Project, ProjectUpdateInput, 'projectUpdate'>(...projectEndpoint.update);
@@ -77,19 +64,18 @@ export const ProjectUpdate = ({
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: projectValidation.update(),
         onSubmit: (values) => {
-            if (!project) {
+            if (!projectVersion) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: SnackSeverity.Error });
                 return;
             }
             mutationWrapper<Project, ProjectUpdateInput>({
                 mutation,
-                input: shapeProjectUpdate(project, {
-                    id: project.id,
+                input: shapeProjectUpdate(projectVersion, {
+                    id: projectVersion.id,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
                     owner: relationships.owner,
                     parent: relationships.parent,
-                    resourceLists: [resourceList],
                     tags: tags,
                     translations: values.translationsUpdate.map(t => ({
                         ...t,
@@ -187,18 +173,6 @@ export const ProjectUpdate = ({
                     helperText={touchedDescription && errorDescription}
                 />
             </Grid>
-            <Grid item xs={12}>
-                <ResourceListHorizontal
-                    title={'Resources'}
-                    list={resourceList}
-                    canEdit={true}
-                    handleUpdate={handleResourcesUpdate}
-                    loading={loading}
-                    session={session}
-                    mutate={false}
-                    zIndex={zIndex}
-                />
-            </Grid>
             <Grid item xs={12} mb={4}>
                 <TagSelector
                     handleTagsUpdate={handleTagsUpdate}
@@ -215,7 +189,7 @@ export const ProjectUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, name, onTranslationBlur, onTranslationChange, touchedName, errorName, description, touchedDescription, errorDescription, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, name, onTranslationBlur, onTranslationChange, touchedName, errorName, description, touchedDescription, errorDescription, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
 
 
     return (

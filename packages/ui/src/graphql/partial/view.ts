@@ -11,8 +11,8 @@ import { listSmartContractFields } from "./smartContract";
 import { listStandardFields } from "./standard";
 import { listUserFields } from "./user";
 
-const __typename = 'View';
-export const listViewFields = [__typename, `
+const type = 'View';
+export const listViewFields = [type, `
     ${toFragment('listViewApiFields', listApiFields)}
     ${toFragment('listViewIssueFields', listIssueFields)}
     ${toFragment('listViewNoteFields', listNoteFields)}

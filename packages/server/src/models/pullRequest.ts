@@ -17,7 +17,7 @@ import { StandardVersionModel } from "./standardVersion";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 
-const __typename = 'PullRequest' as const;
+const type = 'PullRequest' as const;
 type Permissions = Pick<PullRequestYou, 'canComment' | 'canDelete' | 'canEdit' | 'canReport'>;
 const suppFields = ['you.canComment', 'you.canDelete', 'you.canEdit', 'you.canReport'] as const;
 export const PullRequestModel: ModelLogic<{
@@ -35,7 +35,7 @@ export const PullRequestModel: ModelLogic<{
     PrismaSelect: Prisma.pull_requestSelect,
     PrismaWhere: Prisma.pull_requestWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.pull_request,
     display: {
         select: () => ({
@@ -74,7 +74,7 @@ export const PullRequestModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             createdBy: 'User',
             comments: 'Comment',
             from: {
@@ -95,7 +95,7 @@ export const PullRequestModel: ModelLogic<{
             }
         },
         prismaRelMap: {
-            __typename,
+            type,
             fromApiVersion: 'ApiVersion',
             fromNoteVersion: 'NoteVersion',
             fromProjectVersion: 'ProjectVersion',
@@ -115,7 +115,7 @@ export const PullRequestModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
                 }

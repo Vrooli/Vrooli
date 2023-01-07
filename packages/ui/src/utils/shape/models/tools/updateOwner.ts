@@ -6,7 +6,7 @@ import { createOwner } from "./createOwner";
  * @returns Ownership connect object
  */
 export const updateOwner = <
-    Item extends { owner?: { __typename: 'Organization' | 'User', id: string } | null | undefined }
+    Item extends { owner?: { type: 'Organization' | 'User', id: string } | null | undefined }
 >(
     originalItem: Item,
     updatedItem: Item,

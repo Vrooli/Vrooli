@@ -33,6 +33,7 @@ export const typeDef = gql`
         translationsUpdate: [RoleTranslationUpdateInput!]
     }
     type Role {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

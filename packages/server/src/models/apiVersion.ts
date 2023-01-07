@@ -6,7 +6,7 @@ import { bestLabel } from "../utils";
 import { getSingleTypePermissions } from "../validators";
 import { ModelLogic } from "./types";
 
-const __typename = 'ApiVersion' as const;
+const type = 'ApiVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
 const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView'] as const;
 export const ApiVersionModel: ModelLogic<{
@@ -24,7 +24,7 @@ export const ApiVersionModel: ModelLogic<{
     PrismaSelect: Prisma.api_versionSelect,
     PrismaWhere: Prisma.api_versionWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.api_version,
     display: {
         select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -38,7 +38,7 @@ export const ApiVersionModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'ApiVersion',
@@ -47,7 +47,7 @@ export const ApiVersionModel: ModelLogic<{
             root: 'Api',
         },
         prismaRelMap: {
-            __typename,
+            type,
             calledByRoutineVersions: 'RoutineVersion',
             comments: 'Comment',
             reports: 'Report',
@@ -66,7 +66,7 @@ export const ApiVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
                 return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
             },
         },

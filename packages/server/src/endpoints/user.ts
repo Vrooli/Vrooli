@@ -17,6 +17,7 @@ export const typeDef = gql`
     }
 
     type User {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date

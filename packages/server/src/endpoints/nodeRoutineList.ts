@@ -17,6 +17,7 @@ export const typeDef = gql`
         itemsUpdate: [NodeRoutineListItemUpdateInput!]
     }
     type NodeRoutineList {
+        type: GqlModelType!
         id: ID!
         isOrdered: Boolean!
         isOptional: Boolean!

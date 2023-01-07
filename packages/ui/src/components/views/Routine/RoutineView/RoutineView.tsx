@@ -202,7 +202,7 @@ export const RoutineView = ({
         mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
             mutation: runComplete,
             input: {
-                id: '' as any,//routineVersion.id, TODO TODO TODO
+                id: routineVersion.id,
                 exists: false,
                 name: name ?? 'Unnamed Routine',
                 ...runInputsCreate(formikToRunInputs(formik.values)),
@@ -237,12 +237,8 @@ export const RoutineView = ({
         parent: null,
         project: null,
     });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => 
+        setRelationships({ ...relationships, ...newRelationshipsObject }), [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);

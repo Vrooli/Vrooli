@@ -4,7 +4,7 @@
  * @returns Ownership connect object
  */
 export const createOwner = <
-    Item extends { owner?: { __typename: 'Organization' | 'User', id: string } | null | undefined }
+    Item extends { owner?: { type: 'Organization' | 'User', id: string } | null | undefined }
 >(
     item: Item,
 ): {
@@ -18,7 +18,7 @@ export const createOwner = <
     // Initialize result
     const result: { [x: string]: any } = {};
     // Add connect field
-    result[`${ownerData.__typename.toLowerCase()}Connect`] = ownerData.id;
+    result[`${ownerData.type.toLowerCase()}Connect`] = ownerData.id;
     // Return result
     return result;
 };

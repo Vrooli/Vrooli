@@ -60,6 +60,7 @@ export const typeDef = gql`
         tagsCreate: [TagCreateInput!]
     }
     type Project {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

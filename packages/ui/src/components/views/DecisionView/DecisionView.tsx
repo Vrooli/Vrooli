@@ -36,8 +36,8 @@ export const DecisionView = ({
         return data.links.map(link => {
             const node = nodes.find(n => n.id === link.toId);
             let color = palette.primary.dark;
-            if (node?.type === NodeType.End) {
-                color = (node.data as NodeDataEnd)?.wasSuccessful === false ? '#7c262a' : '#387e30'
+            if (node?.nodeType === NodeType.End) {
+                color = node.end.wasSuccessful === false ? '#7c262a' : '#387e30'
             }
             return { node, link, color } as Decision;
         });

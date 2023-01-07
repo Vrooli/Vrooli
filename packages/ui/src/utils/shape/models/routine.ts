@@ -1,6 +1,6 @@
 import { Routine, RoutineCreateInput, RoutineUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { NodeLinkShape, NodeShape, OutputShape, ResourceListShape, TagShape, createPrims, updatePrims, shapeUpdate, shapeRoutineVersionInput, shapeNodeLink, shapeRoutineVersionOutput, shapeRoutineVersionTranslation, shapeResourceList, updateRel, createRel, shapeTag, shapeResourceListTranslation, RoutineVersionInputShape, updateOwner, createOwner, shapeNode } from "utils";
+import { NodeLinkShape, NodeShape, RoutineVersionOutputShape, ResourceListShape, TagShape, createPrims, updatePrims, shapeUpdate, shapeRoutineVersionInput, shapeNodeLink, shapeRoutineVersionOutput, shapeRoutineVersionTranslation, shapeResourceList, updateRel, createRel, shapeTag, shapeResourceListTranslation, RoutineVersionInputShape, updateOwner, createOwner, shapeNode, RoutineVersionTranslationShape } from "utils";
 
 
 export type RoutineShape = Omit<OmitCalculated<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'parent' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags' | 'translations'> & {
@@ -8,9 +8,9 @@ export type RoutineShape = Omit<OmitCalculated<Routine>, 'complexity' | 'simplic
     inputs: RoutineVersionInputShape[];
     nodeLinks?: NodeLinkShape[] | null;
     nodes?: Omit<NodeShape, 'routineId'>[] | null;
-    outputs?: OutputShape[] | null;
+    outputs?: RoutineVersionOutputShape[] | null;
     owner?: {
-        __typename: 'User' | 'Organization';
+        type: 'User' | 'Organization';
         id: string;
     } | null;
     parent?: {

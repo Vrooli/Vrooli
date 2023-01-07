@@ -107,7 +107,7 @@ const routineVersionSelect = ({
     nodes: {
         select: {
             id: true,
-            nodeRoutineList: {
+            routineList: {
                 select: {
                     id: true,
                     items: {
@@ -148,7 +148,7 @@ type GroupRoutineVersionDataResult = {
 }
 
 /**
- * Queries and groups data into links, nodes, and a map of nodeRoutineListItems to subroutines
+ * Queries and groups data into links, nodes, and a map of routineListItems to subroutines
  * @param data The queried data
  * @param prisma The prisma client
  * @returns Object with linkData, nodeData, subroutineItemData, and input counts by root routine
@@ -176,9 +176,9 @@ const groupRoutineVersionData = async (ids: string[], prisma: PrismaType): Promi
         }
         // Nodes and subroutineItemData
         for (const node of routine.nodes) {
-            if (node.nodeRoutineList) {
+            if (node.routineList) {
                 nodeData[node.id] = {
-                    subroutines: node.nodeRoutineList.items.map(item => {
+                    subroutines: node.routineList.items.map(item => {
                         subroutineItemData[item.id] = item.routineVersion.id;
                         return {
                             id: item.routineVersion.id,
@@ -285,9 +285,9 @@ export const calculateWeightData = async (
         }
         // Adding nodes
         for (const node of input.nodesCreate ?? []) {
-            if (node.nodeRoutineListCreate) {
+            if (node.routineListCreate) {
                 // When adding nodes, subroutines can only be connected
-                const subroutineIds = (node.nodeRoutineListCreate.itemsCreate ?? []).map(item => item.routineVersionConnect);
+                const subroutineIds = (node.routineListCreate.itemsCreate ?? []).map(item => item.routineVersionConnect);
                 connectingSubroutineDataIds.push(...subroutineIds); // This will add the full data to nodeData later
             } else {
                 nodeData[node.id] = { rootRoutineId: input.id, subroutines: [] }
@@ -297,15 +297,15 @@ export const calculateWeightData = async (
         const nodesUpdate = (input as RoutineVersionUpdateInput).nodesUpdate ?? [];
         for (const node of nodesUpdate) {
             // Ignore if routine list is not being updated
-            if (!node.nodeRoutineListUpdate) continue;
+            if (!node.routineListUpdate) continue;
             // Handle items being added. Only supports connecting existing subroutines
-            const itemsAdding = node.nodeRoutineListUpdate.itemsCreate ?? [];
+            const itemsAdding = node.routineListUpdate.itemsCreate ?? [];
             for (const item of itemsAdding) {
                 // Add to connecting subroutines so we can query data for them
                 connectingSubroutineDataIds.push(item.routineVersionConnect);
             }
             // Handle items being updated
-            const itemsUpdating = node.nodeRoutineListUpdate.itemsUpdate ?? [];
+            const itemsUpdating = node.routineListUpdate.itemsUpdate ?? [];
             for (const item of itemsUpdating) {
                 // Ignore if routine is not being updated
                 if (!item.routineVersionUpdate) continue;
@@ -313,7 +313,7 @@ export const calculateWeightData = async (
                 updatingSubroutineData.push(item.routineVersionUpdate);
             }
             // Handle items being removed
-            const itemsRemoving = node.nodeRoutineListUpdate.itemsDelete ?? [];
+            const itemsRemoving = node.routineListUpdate.itemsDelete ?? [];
             for (const itemId of itemsRemoving) {
                 // Find the subroutine being removed
                 const subroutineId = subroutineItemData[itemId];

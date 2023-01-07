@@ -35,7 +35,7 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] }
     User: "user",
 }
 
-const __typename = 'Report' as const;
+const type = 'Report' as const;
 type Permissions = Pick<ReportYou, 'canDelete' | 'canEdit' | 'canRespond'>;
 const suppFields = ['you.canDelete', 'you.canEdit', 'you.canRespond'] as const;
 export const ReportModel: ModelLogic<{
@@ -53,7 +53,7 @@ export const ReportModel: ModelLogic<{
     PrismaSelect: Prisma.reportSelect,
     PrismaWhere: Prisma.reportWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.report,
     display: {
         select: () => ({
@@ -88,14 +88,14 @@ export const ReportModel: ModelLogic<{
         }
     },
     format: {
-        gqlRelMap: { __typename },
-        prismaRelMap: { __typename },
+        gqlRelMap: { type },
+        prismaRelMap: { type },
         hiddenFields: ['userId'], // Always hide report creator
         supplemental: {
             graphqlFields: suppFields,
             dbFields: ['userId'],
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
                 return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
             },
         },

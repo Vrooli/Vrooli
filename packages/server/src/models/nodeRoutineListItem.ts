@@ -7,7 +7,7 @@ import { noNull, padSelect, shapeHelper } from "../builders";
 import { RoutineModel } from "./routine";
 import { SelectWrap } from "../builders/types";
 
-const __typename = 'NodeRoutineListItem' as const;
+const type = 'NodeRoutineListItem' as const;
 
 const suppFields = [] as const;
 export const NodeRoutineListItemModel: ModelLogic<{
@@ -25,7 +25,7 @@ export const NodeRoutineListItemModel: ModelLogic<{
     PrismaSelect: Prisma.node_routine_list_itemSelect,
     PrismaWhere: Prisma.node_routine_list_itemWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.node_routine_list_item,
     display: {
         select: () => ({
@@ -42,11 +42,11 @@ export const NodeRoutineListItemModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             routineVersion: 'RoutineVersion',
         },
         prismaRelMap: {
-            __typename,
+            type,
             list: 'NodeRoutineList',
             routineVersion: 'RoutineVersion',
         },

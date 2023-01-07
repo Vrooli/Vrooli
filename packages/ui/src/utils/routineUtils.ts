@@ -86,12 +86,13 @@ export const runInputsToFormik = (runInputs: { input: { id: string }, data: stri
  * @param runInputs The run inputs object
  * @returns The run input create input object
  */
-export const runInputsCreate = (runInputs: { [x: string]: string }): { inputsCreate: RunRoutineInputCreateInput[] } => {
+export const runInputsCreate = (runInputs: { [x: string]: string }, runRoutineId: string): { inputsCreate: RunRoutineInputCreateInput[] } => {
     return {
         inputsCreate: Object.entries(runInputs).map(([inputId, data]) => ({
             id: uuid(),
             data,
-            inputId
+            inputConnect: { id: inputId },
+            runRoutineConnect: { id: runRoutineId }
         }))
     }
 }
@@ -172,7 +173,7 @@ export const getRoutineStatus = (routine?: Partial<Routine> | null): GetRoutineS
     // 4. Validate loop TODO
     // 5. Validate redirects TODO
     // Check 1
-    const startNodes = routine.nodes.filter(node => node.type === NodeType.Start);
+    const startNodes = routine.nodes.filter(node => node.nodeType === NodeType.Start);
     if (startNodes.length === 0) {
         statuses.push([Status.Invalid, 'No start node found']);
     }
@@ -204,7 +205,7 @@ export const getRoutineStatus = (routine?: Partial<Routine> | null): GetRoutineS
         statuses.push([Status.Incomplete, 'Some nodes are not linked']);
     }
     // Check 2
-    if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && node.nodeRoutineList?.items?.length === 0)) {
+    if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && node.routineList?.items?.length === 0)) {
         statuses.push([Status.Incomplete, 'At least one routine list is empty']);
     }
     // Return statuses, or valid if no statuses
@@ -231,18 +232,18 @@ export const initializeRoutineGraph = (language: string): { nodes: Node[], nodeL
         rowIndex: 0,
     } as Node;
     const routineListNode: Node = {
-        __typename: 'Node',
+        type: 'Node',
         id: uuid(),
-        type: NodeType.RoutineList,
+        nodeType: NodeType.RoutineList,
         columnIndex: 1,
         rowIndex: 0,
-        data: {
-            __typename: 'NodeRoutineList',
+        routineList: {
+            type: 'NodeRoutineList',
             id: uuid(),
             isOptional: false,
             isOrdered: false,
             routines: [],
-        } as Node['data'],
+        },
         translations: [{
             id: uuid(),
             language,
@@ -250,14 +251,14 @@ export const initializeRoutineGraph = (language: string): { nodes: Node[], nodeL
         }] as Node['translations'],
     } as Node;
     const endNode: Node = {
-        __typename: 'Node',
+        type: 'Node',
         id: uuid(),
-        type: NodeType.End,
+        nodeType: NodeType.End,
         columnIndex: 2,
         rowIndex: 0,
     } as Node;
     const link1: NodeLink = {
-        __typename: 'NodeLink',
+        type: 'NodeLink',
         id: uuid(),
         fromId: startNode.id,
         toId: routineListNode.id,
@@ -265,7 +266,7 @@ export const initializeRoutineGraph = (language: string): { nodes: Node[], nodeL
         operation: null,
     }
     const link2: NodeLink = {
-        __typename: 'NodeLink',
+        type: 'NodeLink',
         id: uuid(),
         fromId: routineListNode.id,
         toId: endNode.id,

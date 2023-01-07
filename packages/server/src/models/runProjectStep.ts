@@ -4,7 +4,7 @@ import { RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput } 
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const __typename = 'RunProjectStep' as const;
+const type = 'RunProjectStep' as const;
 const suppFields = [] as const;
 export const RunProjectStepModel: ModelLogic<{
     IsTransferable: true,
@@ -21,7 +21,7 @@ export const RunProjectStepModel: ModelLogic<{
     PrismaSelect: Prisma.run_project_stepSelect,
     PrismaWhere: Prisma.run_project_stepWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.run_project_step,
     display: {
         select: () => ({ id: true, name: true }),

@@ -42,6 +42,7 @@ export const typeDef = gql`
     }
 
     type Report {
+        type: GqlModelType!
         id: ID
         details: String
         language: String!

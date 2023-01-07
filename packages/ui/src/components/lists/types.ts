@@ -1,8 +1,8 @@
-import { VoteFor } from '@shared/consts';
-import { ListOrganization, ListProject, ListRoutine, ListRun, ListStandard, ListUser, NavigableObject, Session, Tag } from 'types';
+import { Api, ApiVersion, Note, NoteVersion, Organization, Project, ProjectVersion, Routine, RoutineVersion, RunProject, RunRoutine, Session, SmartContract, SmartContractVersion, Standard, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
+import { NavigableObject } from 'types';
 import { ObjectAction, ObjectActionComplete, SearchType } from 'utils';
 
-export type ObjectActionsRowObject = ListProject | ListRoutine | ListStandard;
+export type ObjectActionsRowObject = Project | Routine | Standard;
 export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     exclude?: ObjectAction[];
     /**
@@ -18,7 +18,22 @@ export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     zIndex: number;
 }
 
-export type ObjectListItemType = ListOrganization | ListProject | ListRoutine | ListRun | ListStandard | ListUser;
+export type ObjectListItemType = Api |
+    ApiVersion |
+    Note |
+    NoteVersion |
+    Organization |
+    Project |
+    ProjectVersion |
+    Routine |
+    RoutineVersion |
+    RunProject |
+    RunRoutine |
+    SmartContract |
+    SmartContractVersion |
+    Standard |
+    StandardVersion |
+    User;
 
 export interface ObjectListItemProps<T extends ObjectListItemType> {
     /**

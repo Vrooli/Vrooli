@@ -35,7 +35,7 @@ export const resolvers: {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                '__typename': 'HistoryResult',
+                'type': 'HistoryResult',
                 'activeRuns': 'RunRoutine',
                 'completedRuns': 'RunRoutine',
                 'recentlyViewed': 'View',

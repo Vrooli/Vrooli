@@ -53,18 +53,18 @@ type Model = {
 //     yup: resourceValidation,
 // })
 
-const __typename = 'Resource' as const;
+const type = 'Resource' as const;
 const suppFields = [] as const;
 export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.resource,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => bestLabel(select.translations, 'name', languages),
     },
     format: {
-        gqlRelMap: { __typename },
-        prismaRelMap: { __typename },
+        gqlRelMap: { type },
+        prismaRelMap: { type },
         countFields: {},
     },
     mutate: {} as any,//mutater(),

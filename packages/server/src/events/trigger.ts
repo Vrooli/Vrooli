@@ -1,8 +1,7 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { DeleteType, CopyType, StarFor, VoteFor } from "@shared/consts";
+import { DeleteType, CopyType, StarFor, VoteFor, GqlModelType } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
 import { getLogic } from "../getters";
-import { GraphQLModelType, Validator } from "../models/types";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award } from "./awards";
@@ -26,7 +25,7 @@ export type ActionTrigger = 'AccountNew' |
     'SessionValidate' | // for checking anniversary
     'UserInvite'
 
-type Owner = { __typename: 'User' | 'Organization', id: string };
+type Owner = { type: 'User' | 'Organization', id: string };
 
 /**
  * Handles logging, notifications, achievements, and more when some action is performed.
@@ -126,14 +125,14 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If issue marked as rejected, decrease reputation of issue creator
         //asdfasdf
     },
-    objectAddedToOrganization: async (userId: string, organizationId: string, objectId: string, objectType: GraphQLModelType) => {
+    objectAddedToOrganization: async (userId: string, organizationId: string, objectId: string, objectType: `${GqlModelType}`) => {
         // const notification = Notify(prisma, languages).pushOrganizationActivity();
         // // Send notification to admins, except the user who added it
         // notification.toOrganization(organizationId, userId);
         // // Send notification to subscribers of the organization
         // notification.toSubscribers('Organization', organizationId, userId);
     },
-    objectAddedToProject: async (owner: Owner, addedByUserId: string, projectId: string, objectId: string, objectType: GraphQLModelType) => {
+    objectAddedToProject: async (owner: Owner, addedByUserId: string, projectId: string, objectId: string, objectType: `${GqlModelType}`) => {
         // const notification = Notify(prisma, languages).pushProjectActivity();
         // // Send notification to object owner
         // notification.toOwner(owner, addedByUserId)
@@ -142,7 +141,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     },
     objectNewVersion: async (
         updatedByUserId: string,
-        objectType: GraphQLModelType,
+        objectType: `${GqlModelType}`,
         objectId: string,
         owner: Owner | null,
         hasOriginalOwner: boolean,
@@ -204,7 +203,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // // Send notification to admins of organization
         // asdf
     },
-    pullRequestClose: async (objectType: GraphQLModelType, objectId: string, status: PullRequestStatus, userId: string) => {
+    pullRequestClose: async (objectType: `${GqlModelType}`, objectId: string, status: PullRequestStatus, userId: string) => {
         // // If pull request was accepted, increase award progress and reputation of pull request creator
         // asdf
         // // If pull request was rejected, decrease reputation of pull request creator

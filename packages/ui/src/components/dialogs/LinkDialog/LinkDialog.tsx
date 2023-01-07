@@ -69,7 +69,7 @@ export const LinkDialog = ({
             return;
         }
         handleClose({
-            __typename: 'NodeLink',
+            type: 'NodeLink',
             id: uuid(),
             fromId: fromNode.id,
             toId: toNode.id,
@@ -86,8 +86,8 @@ export const LinkDialog = ({
     const { fromOptions, toOptions } = useMemo(() => {
         if (!routine) return { fromOptions: [], toOptions: [] };
         // Initialize options
-        let fromNodes: Node[] = routine.nodes.filter((node: Node) => node.type === NodeType.End); // Can't link from end nodes
-        let toNodes: Node[] = routine.nodes.filter((node: Node) => node.type !== NodeType.Start); // Can't link to start node
+        let fromNodes: Node[] = routine.nodes.filter((node: Node) => node.nodeType !== NodeType.Start); // Can't link from end nodes
+        let toNodes: Node[] = routine.nodes.filter((node: Node) => node.nodeType !== NodeType.Start); // Can't link to start node
         const existingLinks = routine.nodeLinks;
         // If from node is already selected
         if (fromNode) {
@@ -112,8 +112,8 @@ export const LinkDialog = ({
     const getNodeTitle = useCallback((node: Node) => {
         const { title } = getTranslation(node, [language]);
         if (title) return title;
-        if (node.type === NodeType.Start) return 'Start';
-        if (node.type === NodeType.End) return 'End';
+        if (node.nodeType === NodeType.Start) return 'Start';
+        if (node.nodeType === NodeType.End) return 'End';
         return 'Untitled';
     }, [language]);
 

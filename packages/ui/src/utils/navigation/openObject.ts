@@ -25,7 +25,7 @@ export type ObjectType = 'Comment' |
  * @returns Search URL base for object type
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
-    switch (object.__typename) {
+    switch (object.type) {
         case 'Organization':
             return APP_LINKS.Organization;
         case 'Project':
@@ -41,7 +41,7 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
             return getObjectUrlBase(object.to as any);
         case 'Run':
             return getObjectUrlBase({
-                __typename: 'Routine',
+                type: 'Routine',
                 id: object.routine?.id,
             } as any);
         default:
@@ -76,44 +76,44 @@ export const getObjectSlug = (object: NavigableObject): string => {
  */
 export const getObjectSearchParams = (object: any) => {
     // If object is a run
-    if (object.__typename === 'Run') return stringifySearchParams({ run: uuidToBase36(object.id) });
+    if (object.type === 'RunRoutine') return stringifySearchParams({ run: uuidToBase36(object.id) });
     return '';
 }
 
 /**
- * Finds view page URL for any object with an id and __typename
+ * Finds view page URL for any object with an id and type
  * @param object Object being navigated to
  */
 export const getObjectUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
 
 /**
- * Opens any object with an id and __typename
+ * Opens any object with an id and type
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
 export const openObject = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectUrl(object));
 
 /**
- * Finds edit page URL for any object with an id and __typename
+ * Finds edit page URL for any object with an id and type
  * @param object Object being navigated to
  */
 export const getObjectEditUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/edit/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
 
 /**
- * Opens the edit page for an object with an id and __typename
+ * Opens the edit page for an object with an id and type
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
 export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectEditUrl(object));
 
 /**
- * Finds report page URL for any object with an id and __typename
+ * Finds report page URL for any object with an id and type
  * @param object Object being navigated to
  */
 export const getObjectReportUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/reports/${getObjectSlug(object)}`;
 
 /**
- * Opens the report page for an object with an id and __typename
+ * Opens the report page for an object with an id and type
  * @param object Object to open
  */
 export const openObjectReport = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectReportUrl(object));

@@ -6,7 +6,7 @@ import { translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { noNull, shapeHelper } from "../builders";
 
-const __typename = 'NodeLinkWhen' as const;
+const type = 'NodeLinkWhen' as const;
 
 const suppFields = [] as const;
 export const NodeLinkWhenModel: ModelLogic<{
@@ -24,7 +24,7 @@ export const NodeLinkWhenModel: ModelLogic<{
     PrismaSelect: Prisma.node_link_whenSelect,
     PrismaWhere: Prisma.node_link_whenWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.node_link,
     // Doesn't make sense to have a displayer for this model
     display: {
@@ -33,10 +33,10 @@ export const NodeLinkWhenModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
         },
         prismaRelMap: {
-            __typename,
+            type,
             link: 'NodeLink',
         },
         countFields: {},

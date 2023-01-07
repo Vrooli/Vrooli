@@ -3,9 +3,11 @@ import { SelectWrap } from "../builders/types";
 import { UserScheduleFilter, UserScheduleFilterCreateInput, UserScheduleSearchInput, UserScheduleSortBy } from '@shared/consts';
 import { PrismaType } from "../types";
 import { TagModel } from "./tag";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 
-type Model = {
+const type = 'UserScheduleFilter' as const;
+const suppFields = [] as const;
+export const UserScheduleFilterModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
     GqlCreate: UserScheduleFilterCreateInput,
@@ -19,21 +21,13 @@ type Model = {
     PrismaModel: Prisma.user_schedule_filterGetPayload<SelectWrap<Prisma.user_schedule_filterSelect>>,
     PrismaSelect: Prisma.user_schedule_filterSelect,
     PrismaWhere: Prisma.user_schedule_filterWhereInput,
-}
-
-const __typename = 'UserScheduleFilter' as const;
-
-const suppFields = [] as const;
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, tag: { select: TagModel.display.select() } }),
-    label: (select, languages) => select.tag ? TagModel.display.label(select.tag as any, languages) : '',
-})
-
-export const UserScheduleFilterModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+}, typeof suppFields> = ({
+    type,
     delegate: (prisma: PrismaType) => prisma.user_schedule_filter,
-    display: displayer(),
+    display: {
+        select: () => ({ id: true, tag: { select: TagModel.display.select() } }),
+        label: (select, languages) => select.tag ? TagModel.display.label(select.tag as any, languages) : '',
+    },
     format: {} as any,
     mutate: {} as any,
     search: {} as any,

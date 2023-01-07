@@ -22,6 +22,7 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type ProjectVersionDirectory {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

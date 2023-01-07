@@ -3,9 +3,11 @@ import { SelectWrap } from "../builders/types";
 import { Question, QuestionCreateInput, QuestionSearchInput, QuestionSortBy, QuestionUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { Displayer, ModelLogic } from "./types";
+import { ModelLogic } from "./types";
 
-type Model = {
+const type = 'Question' as const;
+const suppFields = [] as const;
+export const QuestionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
     GqlCreate: QuestionCreateInput,
@@ -19,21 +21,13 @@ type Model = {
     PrismaModel: Prisma.questionGetPayload<SelectWrap<Prisma.questionSelect>>,
     PrismaSelect: Prisma.questionSelect,
     PrismaWhere: Prisma.questionWhereInput,
-}
-
-const __typename = 'Question' as const;
-
-const suppFields = [] as const;
-
-const displayer = (): Displayer<Model> => ({
-    select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'name', languages),
-})
-
-export const QuestionModel: ModelLogic<Model, typeof suppFields> = ({
-    __typename,
+}, typeof suppFields> = ({
+    type,
     delegate: (prisma: PrismaType) => prisma.question,
-    display: displayer(),
+    display: {
+        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+    },
     format: {} as any,
     mutate: {} as any,
     search: {} as any,

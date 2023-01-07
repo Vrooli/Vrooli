@@ -37,8 +37,8 @@ export function parseFragmentSpreadNode(node: FragmentSpreadNode, fragments: { [
         // Parse selection
         result = parseSelectionNode(result, selection, fragments);
     });
-    // Find __typename
-    result.__typename = fragment.typeCondition.name.value;
+    // Find type
+    result.type = fragment.typeCondition.name.value;
     // Return result
     return result;
 }
@@ -94,7 +94,7 @@ export function parseSelectionNode(parsed: { [x: string]: any }, node: Selection
 /**
  * Converts a GraphQL resolve info object into an object that:
  * - Is in the shape of the GraphQL response object
- * - Has "true" for every key's value, except for the __typename key
+ * - Has "true" for every key's value, except for the type key
  * @param info - GraphQL resolve info object
  */
 export const resolveGraphQLInfo = (info: GraphQLResolveInfo): { [x: string]: any } => {

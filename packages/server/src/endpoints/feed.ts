@@ -60,7 +60,7 @@ export const resolvers: {
         popular: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                '__typename': 'PopularResult',
+                'type': 'PopularResult',
                 'organizations': 'Organization',
                 'projects': 'Project',
                 'routines': 'Routine',
@@ -131,7 +131,7 @@ export const resolvers: {
         learn: async (_p, _d, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                '__typename': 'LearnResult',
+                'type': 'LearnResult',
                 'courses': 'Project',
                 'tutorials': 'Routine',
             }, req.languages, true);
@@ -172,7 +172,7 @@ export const resolvers: {
         research: async (_p, _d, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                '__typename': 'ResearchResult',
+                'type': 'ResearchResult',
                 'processes': 'Routine',
                 'newlyCompleted': {
                     'Routine': 'Routine',
@@ -262,7 +262,7 @@ export const resolvers: {
         develop: async (_p, _d, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                '__typename': 'DevelopResult',
+                'type': 'DevelopResult',
                 'completed': {
                     'Routine': 'Routine',
                     'Project': 'Project',

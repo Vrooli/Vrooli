@@ -53,6 +53,7 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type ApiVersion {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

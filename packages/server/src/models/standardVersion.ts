@@ -13,7 +13,7 @@ import { getSingleTypePermissions } from "../validators";
 
 // const validator = (): Validator<Model> => ({
 //     validateMap: {
-//         __typename: 'Standard',
+//         type: 'Standard',
 //         parent: 'Standard',
 //         createdBy: 'User',
 //         ownedByOrganization: 'Organization',
@@ -192,7 +192,7 @@ const querier = () => ({
         const translatedName = '' ;//bestLabel(data.translationsCreate ?? [], 'name', languages);
         if (translatedName.length > 0) return translatedName;
         // Otherwise, generate name based on type and random string
-        const name = `${data.type} ${randomString(5)}`
+        const name = `${data.standardType} ${randomString(5)}`
         return name;
     }
 })
@@ -363,7 +363,7 @@ const querier = () => ({
 //     // },
 // })
 
-const __typename = 'StandardVersion' as const;
+const type = 'StandardVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
 const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView'] as const;
 export const StandardVersionModel: ModelLogic<{
@@ -381,7 +381,7 @@ export const StandardVersionModel: ModelLogic<{
     PrismaSelect: Prisma.standard_versionSelect,
     PrismaWhere: Prisma.standard_versionWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.standard_version,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -389,7 +389,7 @@ export const StandardVersionModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'StandardVersion',
@@ -398,7 +398,7 @@ export const StandardVersionModel: ModelLogic<{
             root: 'Standard',
         },
         prismaRelMap: {
-            __typename,
+            type,
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'StandardVersion',
@@ -416,7 +416,7 @@ export const StandardVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
                 return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
             },
         },
@@ -432,7 +432,7 @@ export const StandardVersionModel: ModelLogic<{
             isComplete: true,
             reportId: true,
             rootId: true,
-            type: true,
+            standardType: true,
             tags: true,
             updatedTimeFrame: true,
             userId: true,

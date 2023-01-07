@@ -198,7 +198,7 @@ export const ResourceDialog = ({
      */
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
         // If value is not an object, return;
-        if (!newValue || newValue.__typename === 'Shortcut' || newValue.__typename === 'Action') return;
+        if (!newValue || newValue.type === 'Shortcut' || newValue.type === 'Action') return;
         // Clear search string and close command palette
         closeSearch();
         // Create URL

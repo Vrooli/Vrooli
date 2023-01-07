@@ -172,9 +172,9 @@ const convertRoutineVersionToStep = (
         return null;
     }
     // Find all nodes that are routine lists
-    let routineListNodes: Node[] = routineVersion.nodes.filter((node: Node) => Boolean(node.nodeRoutineList));
+    let routineListNodes: Node[] = routineVersion.nodes.filter(({ nodeType }) => nodeType === NodeType.RoutineList);
     // Also find the start node
-    const startNode = routineVersion.nodes.find((node: Node) => node.type === NodeType.Start);
+    const startNode = routineVersion.nodes.find((node: Node) => node.nodeType === NodeType.Start);
     // Sort by column, then row
     routineListNodes = routineListNodes.sort((a, b) => {
         const aCol = a.columnIndex ?? 0;
@@ -199,12 +199,12 @@ const convertRoutineVersionToStep = (
     // Loop through all nodes
     for (const node of routineListNodes) {
         // Find all subroutine steps, and sort by index
-        const subroutineSteps: SubroutineStep[] = [...node.nodeRoutineList!.items]
+        const subroutineSteps: SubroutineStep[] = [...node.routineList!.items]
             .sort((r1, r2) => r1.index - r2.index)
             .map((item: NodeRoutineListItem) => ({
                 type: RoutineStepType.Subroutine,
                 index: item.index,
-                routine: item.routineVersion,
+                routineVersion: item.routineVersion,
                 name: getTranslation(item.routineVersion, languages, true).name ?? 'Untitled',
                 description: getTranslation(item.routineVersion, languages, true).description ?? 'Description not found matching selected language',
             }))
@@ -219,7 +219,7 @@ const convertRoutineVersionToStep = (
         resultSteps.push({
             type: RoutineStepType.RoutineList,
             nodeId: node.id,
-            isOrdered: node.nodeRoutineList?.isOrdered ?? false,
+            isOrdered: node.routineList?.isOrdered ?? false,
             name: getTranslation(node, languages, true).name ?? 'Untitled',
             description: getTranslation(node, languages, true).description ?? 'Description not found matching selected language',
             steps: [...subroutineSteps, ...decisionSteps] as Array<SubroutineStep | DecisionStep>
@@ -642,7 +642,7 @@ export const RunView = ({
             // Find node data
             const currNodeId = currStepRunData?.node?.id;
             const currNode = routineVersion.nodes?.find(n => n.id === currNodeId);
-            const wasSuccessful = currNode?.nodeEnd?.wasSuccessful ?? true;
+            const wasSuccessful = currNode?.end?.wasSuccessful ?? true;
             mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
                 mutation: logRunComplete,
                 input: {
@@ -671,13 +671,13 @@ export const RunView = ({
      * Also navigates out of run dialog.
      */
     const reachedEndNode = useCallback((endNode: Node) => {
-        // Make sure correct node type was passed
-        if (endNode.type !== NodeType.End) {
-            console.error('Passed incorrect node type to reachedEndNode');
+        // Make sure correct nodeType was passed
+        if (endNode.nodeType !== NodeType.End) {
+            console.error('Passed incorrect nodeType to reachedEndNode');
             return;
         }
         // Check if end was successfully reached
-        const data = endNode.nodeEnd!;
+        const data = endNode.end!;
         const success = data?.wasSuccessful ?? true;
         // Don't actually do it if in test mode
         if (testMode || !run) {
@@ -747,7 +747,7 @@ export const RunView = ({
      */
     const toDecision = useCallback((selectedNode: Node) => {
         // If end node, finish
-        if (selectedNode.type === NodeType.End) {
+        if (selectedNode.nodeType === NodeType.End) {
             reachedEndNode(selectedNode);
             return;
         }

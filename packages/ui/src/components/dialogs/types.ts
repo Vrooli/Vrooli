@@ -1,6 +1,6 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { DeleteType, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, Organization, Project, ReportFor, Resource, Routine, RoutineVersion, RunRoutine, Session, Standard, User } from '@shared/consts';
+import { Comment, DeleteType, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, Organization, Project, ReportFor, Resource, Routine, RoutineVersion, RunRoutine, Session, Standard, User } from '@shared/consts';
 import { NavigableObject, RoutineStep } from 'types';
 import { ListObjectType, SearchType } from 'utils';
 import { SvgComponent } from '@shared/icons';

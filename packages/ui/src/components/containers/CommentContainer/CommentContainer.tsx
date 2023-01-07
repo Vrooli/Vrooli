@@ -216,7 +216,7 @@ export function CommentContainer({
     const onCommentAdd = useCallback((comment: Comment) => {
         // Make comment first, so you can see it without having to scroll to the bottom
         setAllData(curr => [{
-            __typename: 'CommentThread',
+            type: 'CommentThread',
             comment: comment as any,
             childThreads: [],
             endCursor: null,

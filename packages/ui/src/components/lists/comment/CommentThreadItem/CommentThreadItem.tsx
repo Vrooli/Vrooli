@@ -31,7 +31,7 @@ export function CommentThreadItem({
 
     const { objectId, objectType } = useMemo(() => ({
         objectId: object?.id,
-        objectType: object?.__typename as CommentFor,
+        objectType: object?.type as CommentFor,
     }), [object]);
 
     const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {

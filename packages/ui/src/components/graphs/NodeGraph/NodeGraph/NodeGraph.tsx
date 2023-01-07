@@ -307,8 +307,8 @@ export const NodeGraph = ({
                 fastUpdate={fastUpdate}
                 link={link}
                 isEditing={isEditing}
-                isFromRoutineList={fromNode.type === NodeType.RoutineList}
-                isToRoutineList={toNode.type === NodeType.RoutineList}
+                isFromRoutineList={fromNode.nodeType === NodeType.RoutineList}
+                isToRoutineList={toNode.nodeType === NodeType.RoutineList}
                 scale={scale}
                 handleAdd={handleNodeInsert}
                 handleBranch={handleBranchInsert}

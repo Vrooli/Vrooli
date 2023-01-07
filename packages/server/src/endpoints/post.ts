@@ -44,6 +44,7 @@ export const typeDef = gql`
         tagsCreate: [TagCreateInput!]
     }
     type Post {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

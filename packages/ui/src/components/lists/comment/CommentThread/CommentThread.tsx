@@ -28,7 +28,7 @@ export const CommentThread = ({
     const addComment = useCallback((comment: Comment) => {
         // Make comment first, so you can see it without having to scroll to the bottom
         setChildData(curr => [{
-            __typename: 'CommentThread',
+            type: 'CommentThread',
             comment: comment as any,
             childThreads: [],
             endCursor: null,
@@ -70,7 +70,7 @@ export const CommentThread = ({
             {/* Comment connector */}
             <CommentConnector
                 isOpen={isOpen}
-                parentType={data.comment.creator?.__typename ?? 'User'}
+                parentType={data.comment.creator?.type ?? 'User'}
                 onToggle={() => setIsOpen(!isOpen)}
             />
             {/* Comment and child comments */}

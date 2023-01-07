@@ -1,4 +1,4 @@
-import { GraphQLModelType } from "../models/types";
+import { GqlModelType } from "@shared/consts";
 import { PrismaType } from "../types";
 
 /**
@@ -12,7 +12,7 @@ export async function getLatestVersion({
     versionGroupId,
 }: {
     includeIncomplete?: boolean,
-    objectType: string, // GraphQLModelType,
+    objectType: `${GqlModelType}`,
     prisma: PrismaType,
     versionGroupId: string,
 }): Promise<string | undefined> {

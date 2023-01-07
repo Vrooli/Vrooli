@@ -43,15 +43,15 @@ export const UnlinkedNodesDialog = ({
             scale: 0.8,
             zIndex,
         }
-        // Determine node to display based on node type
-        switch (node.type) {
+        // Determine node to display based on nodeType
+        switch (node.nodeType) {
             case NodeType.End:
                 return <EndNode
                     {...nodeProps}
                     handleUpdate={() => { }} // Intentionally blank
                     language={language}
                     linksIn={[]}
-                    node={node as Node & { nodeEnd: NodeEnd }}
+                    node={node as Node & { end: NodeEnd }}
                 />
             case NodeType.Redirect:
                 return <RedirectNode
@@ -67,7 +67,7 @@ export const UnlinkedNodesDialog = ({
                     handleUpdate={() => { }} // Intentionally blank
                     linksIn={[]}
                     linksOut={[]}
-                    node={node as Node & { nodeRoutineList: NodeRoutineList }}
+                    node={node as Node & { routineList: NodeRoutineList }}
                 />
             default:
                 return null;
@@ -127,7 +127,7 @@ export const UnlinkedNodesDialog = ({
                                     {createNode(node)}
                                 </Box>
                                 {/* Node title */}
-                                {node.type === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).title}</Typography>)}
+                                {node.nodeType === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).title}</Typography>)}
                                 {/* Delete node icon */}
                                 <Tooltip title={`Delete ${getTranslation(node, [language], true).title} node`} placement="left">
                                     <Box sx={{ marginLeft: 'auto' }}>

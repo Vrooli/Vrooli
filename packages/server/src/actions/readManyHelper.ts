@@ -33,14 +33,14 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     partialInfo.id = true;
     const searcher: Searcher<any> | undefined = model.search;
     // Determine text search query
-    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
+    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.type, searchString: input.searchString }) : undefined;
     // Loop through search fields and add each to the search query, 
     // if the field is specified in the input
     const customQueries: { [x: string]: any }[] = [];
     if (searcher) {
         for (const field of Object.keys(searcher.searchFields)) {
             if (input[field as string] !== undefined) {
-                customQueries.push(SearchMap[field as string](input, userData, model.__typename));
+                customQueries.push(SearchMap[field as string](input, userData, model.type));
             }
         }
     }

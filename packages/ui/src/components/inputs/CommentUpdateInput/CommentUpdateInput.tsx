@@ -2,7 +2,7 @@ import { useMutation } from "graphql/hooks";
 import { DUMMY_ID } from "@shared/uuid";
 import { CommentDialog } from "components/dialogs"
 import { useCallback, useMemo } from "react";
-import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationChange, shapeCommentUpdate, usePromptBeforeUnload, useWindowSize } from "utils";
+import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationChange, shapeComment, usePromptBeforeUnload, useWindowSize } from "utils";
 import { CommentUpdateInputProps } from "../types"
 import { commentValidation, commentTranslationValidation } from '@shared/validation';
 import { getCurrentUser } from "utils/authentication";
@@ -51,10 +51,10 @@ export const CommentUpdateInput = ({
             //TODO
             mutationWrapper<Comment, CommentUpdateInputType>({
                 mutation: updateMutation,
-                input: shapeCommentUpdate(comment as any, {
+                input: shapeComment.update(comment, {
                     ...comment,
                     translations: values.translationsUpdate,
-                } as any),
+                }),
                 successCondition: (data) => data !== null,
                 successMessage: () => ({ key: 'CommentUpdated' }),
                 onSuccess: (data) => {

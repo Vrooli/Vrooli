@@ -6,7 +6,7 @@ import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 
-const __typename = 'QuizQuestion' as const;
+const type = 'QuizQuestion' as const;
 type Permissions = Pick<QuizQuestionYou, 'canDelete' | 'canEdit'>;
 const suppFields = ['you.canDelete', 'you.canEdit'] as const;
 export const QuizQuestionModel: ModelLogic<{
@@ -24,7 +24,7 @@ export const QuizQuestionModel: ModelLogic<{
     PrismaSelect: Prisma.quiz_questionSelect,
     PrismaWhere: Prisma.quiz_questionWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.quiz_question,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, questionText: true } } }),
@@ -32,13 +32,13 @@ export const QuizQuestionModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             quiz: 'Quiz',
             responses: 'QuizQuestionResponse',
             standardVersion: 'StandardVersion',
         },
         prismaRelMap: {
-            __typename,
+            type,
             quiz: 'Quiz',
             responses: 'QuizQuestionResponse',
             standardVersion: 'StandardVersion',
@@ -49,7 +49,7 @@ export const QuizQuestionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
                 }

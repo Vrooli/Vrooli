@@ -1,5 +1,5 @@
-import { PrismaType } from "../../types";
-import { GraphQLModelType } from "../types";
+import { GqlModelType } from "@shared/consts";
+import { PrismaType } from "../types";
 
 export interface GetIdFromHandleProps {
     handle: string;
@@ -15,7 +15,7 @@ export interface GetLatestVersionProps {
 }
 
 export interface GetPermissionsProps {
-    objectType: GraphQLModelType;
+    objectType: GqlModelType;
     ids: string[];
     prisma: PrismaType;
     userId: string | null;

@@ -35,6 +35,7 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type QuizQuestion {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

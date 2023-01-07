@@ -55,6 +55,7 @@ export const typeDef = gql`
         labelsCreate: [LabelCreateInput!]
     }
     type Note {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

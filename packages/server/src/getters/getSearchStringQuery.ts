@@ -1,7 +1,8 @@
 import { isRelationshipArray, isRelationshipObject } from "../builders";
-import { GraphQLModelType, SearchStringQuery, SearchStringQueryParams } from "../models/types";
+import { SearchStringQuery, SearchStringQueryParams } from "../models/types";
 import { SearchStringMap } from "../utils";
 import { getLogic } from ".";
+import { GqlModelType } from "@shared/consts";
 
 /**
  * @param queryParams Data required to replace keys
@@ -47,7 +48,7 @@ export function getSearchStringQuery<Where extends { [x: string]: any }>({
     searchString,
 }: {
     languages?: string[] | undefined;
-    objectType: GraphQLModelType;
+    objectType: `${GqlModelType}`;
     searchString: string;
 }): Where {
     if (searchString.length === 0) return {} as Where;

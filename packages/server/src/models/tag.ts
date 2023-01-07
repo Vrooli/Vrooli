@@ -23,9 +23,8 @@ import { SelectWrap } from "../builders/types";
 //     yup: tagValidation,
 // })
 
-const __typename = 'Tag' as const;
+const type = 'Tag' as const;
 const suppFields = ['you.isOwn', 'you.isStarred'] as const;
-
 export const TagModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -41,7 +40,7 @@ export const TagModel: ModelLogic<{
     PrismaSelect: Prisma.tagSelect,
     PrismaWhere: Prisma.tagWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.tag,
     display: {
         select: () => ({ id: true, tag: true }),
@@ -49,7 +48,7 @@ export const TagModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             apis: 'Api',
             notes: 'Note',
             organizations: 'Organization',
@@ -62,7 +61,7 @@ export const TagModel: ModelLogic<{
             starredBy: 'User',
         },
         prismaRelMap: {
-            __typename,
+            type,
             createdBy: 'User',
             apis: 'Api',
             notes: 'Note',
@@ -93,7 +92,7 @@ export const TagModel: ModelLogic<{
             graphqlFields: suppFields,
             dbFields: ['createdByUserId', 'id'],
             toGraphQL: async ({ ids, objects, prisma, userData }) => ({
-                'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
                 'you.isOwn': objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
             }),
         },

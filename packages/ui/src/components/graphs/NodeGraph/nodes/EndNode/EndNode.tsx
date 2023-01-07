@@ -122,7 +122,7 @@ export const EndNode = ({
                         height: `max(${outerCircleSize}px, 48px)`,
                         position: 'relative',
                         display: 'block',
-                        backgroundColor: node.nodeEnd?.wasSuccessful === false ? '#7c262a' : '#387e30',
+                        backgroundColor: node.end?.wasSuccessful === false ? '#7c262a' : '#387e30',
                         color: 'white',
                         borderRadius: '100%',
                         boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
@@ -145,7 +145,7 @@ export const EndNode = ({
                             left: '50%',
                             transform: 'translate(-50%, -50%)',
                             borderRadius: '100%',
-                            border: `2px solid ${node.nodeEnd?.wasSuccessful === false ? '#e97691' : '#9ce793'}`,
+                            border: `2px solid ${node.end?.wasSuccessful === false ? '#e97691' : '#9ce793'}`,
                         } as const}
                     >
                     </Box>

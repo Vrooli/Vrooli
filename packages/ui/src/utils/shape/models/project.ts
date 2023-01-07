@@ -4,7 +4,7 @@ import { createOwner, createRel, ProjectVersionShape, LabelShape, shapeTag, shap
 
 export type ProjectShape = Pick<Project, 'id' | 'handle' | 'isPrivate' | 'permissions'> & {
     labels?: ({ id: string } | LabelShape)[];
-    owner?: { __typename: 'User' | 'Organization', id: string } | null;
+    owner?: { type: 'User' | 'Organization', id: string } | null;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

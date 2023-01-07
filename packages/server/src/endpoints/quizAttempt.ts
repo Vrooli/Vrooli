@@ -41,6 +41,7 @@ export const typeDef = gql`
         responsesDelete: [ID!]
     }
     type QuizAttempt {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

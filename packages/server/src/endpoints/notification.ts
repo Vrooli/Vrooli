@@ -20,6 +20,7 @@ export const typeDef = gql`
     }
 
     type Notification {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         category: String!

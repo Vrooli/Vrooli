@@ -4,10 +4,10 @@ import { createPrims, createRel, NodeEndShape, NodeRoutineListShape, shapeNodeEn
 
 export type NodeTranslationShape = Pick<NodeTranslation, 'id' | 'language' | 'description' | 'name'>
 
-export type NodeShape = Pick<Node, 'id' | 'columnIndex' | 'rowIndex' | 'type'> & {
+export type NodeShape = Pick<Node, 'id' | 'columnIndex' | 'rowIndex' | 'nodeType'> & {
     // loop: LoopShape
-    nodeEnd: NodeEndShape;
-    nodeRoutineList: NodeRoutineListShape;
+    end: NodeEndShape;
+    routineList: NodeRoutineListShape;
     routineVersion: { id: string };
     translations: NodeTranslationShape[];
 }
@@ -19,19 +19,19 @@ export const shapeNodeTranslation: ShapeModel<NodeTranslationShape, NodeTranslat
 
 export const shapeNode: ShapeModel<NodeShape, NodeCreateInput, NodeUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id', 'columnIndex', 'rowIndex', 'type'),
+        ...createPrims(d, 'id', 'columnIndex', 'nodeType', 'rowIndex'),
         ...createRel(d, 'routineVersion', ['Connect'], 'one'),
         // ...createRel(d, 'loop', ['Create'], 'one', shapeLoop),
-        ...createRel(d, 'nodeEnd', ['Create'], 'one', shapeNodeEnd),
-        ...createRel(d, 'nodeRoutineList', ['Create'], 'one', shapeNodeRoutineList),
+        ...createRel(d, 'end', ['Create'], 'one', shapeNodeEnd),
+        ...createRel(d, 'routineList', ['Create'], 'one', shapeNodeRoutineList),
         ...createRel(d, 'translations', ['Create'], 'many', shapeNodeTranslation),
     }),
     update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'columnIndex', 'rowIndex', 'type'),
+        ...updatePrims(o, u, 'id', 'columnIndex', 'nodeType', 'rowIndex'),
         ...updateRel(o, u, 'routineVersion', ['Connect'], 'one'),
         // ...updateRel(o, u, 'loop', ['Create', 'Update', 'Delete'], 'one', shapeLoop),
-        ...updateRel(o, u, 'nodeEnd', ['Update'], 'one', shapeNodeEnd),
-        ...updateRel(o, u, 'nodeRoutineList', ['Update'], 'one', shapeNodeRoutineList),
+        ...updateRel(o, u, 'end', ['Update'], 'one', shapeNodeEnd),
+        ...updateRel(o, u, 'routineList', ['Update'], 'one', shapeNodeRoutineList),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeNodeTranslation),
     })
 }

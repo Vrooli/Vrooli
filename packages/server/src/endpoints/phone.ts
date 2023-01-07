@@ -14,6 +14,7 @@ export const typeDef = gql`
     }
 
     type Phone {
+        type: GqlModelType!
         id: ID!
         phoneNumber: String!
         verified: Boolean!

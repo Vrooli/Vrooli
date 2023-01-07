@@ -29,7 +29,7 @@ export const typeDef = gql`
         isPrivate: Boolean
         isFile: Boolean
         default: String
-        type: String!
+        standardType: String!
         props: String!
         yup: String
         versionIndex: Int!
@@ -48,7 +48,7 @@ export const typeDef = gql`
         isPrivate: Boolean
         isFile: Boolean
         default: String
-        type: String
+        standardType: String
         props: String
         yup: String
         versionIndex: Int!
@@ -63,6 +63,7 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type StandardVersion {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!
@@ -73,7 +74,7 @@ export const typeDef = gql`
         isPrivate: Boolean!
         isFile: Boolean
         default: String
-        type: String!
+        standardType: String!
         props: String!
         yup: String
         versionIndex: Int!
@@ -125,7 +126,7 @@ export const typeDef = gql`
         rootId: ID
         searchString: String
         sortBy: StandardVersionSortBy
-        type: String
+        standardType: String
         tags: [String!]
         take: Int
         updatedTimeFrame: TimeFrame

@@ -45,6 +45,7 @@ export type Api = {
   tags: Array<Tag>;
   transfers: Array<Transfer>;
   transfersCount: Scalars['Int'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<ApiVersion>;
   versionsCount: Scalars['Int'];
@@ -79,6 +80,7 @@ export type ApiKey = {
   id: Scalars['ID'];
   resetsAt: Scalars['Date'];
   stopAtLimit: Scalars['Boolean'];
+  type: GqlModelType;
 };
 
 export type ApiKeyCreateInput = {
@@ -185,6 +187,7 @@ export type ApiVersion = {
   resourceList?: Maybe<ResourceList>;
   root: Api;
   translations: Array<ApiVersionTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -314,6 +317,7 @@ export type Award = {
   id: Scalars['ID'];
   progress: Scalars['Int'];
   timeCurrentTierCompleted?: Maybe<Scalars['Date']>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -360,6 +364,7 @@ export type Comment = {
   stars: Scalars['Int'];
   translations: Array<CommentTranslation>;
   translationsCount: Scalars['Int'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: CommentYou;
 };
@@ -564,6 +569,7 @@ export type Email = {
   __typename?: 'Email';
   emailAddress: Scalars['String'];
   id: Scalars['ID'];
+  type: GqlModelType;
   verified: Scalars['Boolean'];
 };
 
@@ -614,6 +620,102 @@ export type FindHandlesInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
 };
 
+export enum GqlModelType {
+  Api = 'Api',
+  ApiKey = 'ApiKey',
+  ApiVersion = 'ApiVersion',
+  Comment = 'Comment',
+  Copy = 'Copy',
+  DevelopResult = 'DevelopResult',
+  Email = 'Email',
+  Fork = 'Fork',
+  Handle = 'Handle',
+  HistoryResult = 'HistoryResult',
+  Issue = 'Issue',
+  Label = 'Label',
+  LearnResult = 'LearnResult',
+  Meeting = 'Meeting',
+  MeetingInvite = 'MeetingInvite',
+  Member = 'Member',
+  MemberInvite = 'MemberInvite',
+  Node = 'Node',
+  NodeEnd = 'NodeEnd',
+  NodeLink = 'NodeLink',
+  NodeLinkWhen = 'NodeLinkWhen',
+  NodeLoop = 'NodeLoop',
+  NodeLoopWhile = 'NodeLoopWhile',
+  NodeRoutineList = 'NodeRoutineList',
+  NodeRoutineListItem = 'NodeRoutineListItem',
+  Note = 'Note',
+  NoteVersion = 'NoteVersion',
+  Notification = 'Notification',
+  NotificationSubscription = 'NotificationSubscription',
+  Organization = 'Organization',
+  Payment = 'Payment',
+  Phone = 'Phone',
+  PopularResult = 'PopularResult',
+  Post = 'Post',
+  Premium = 'Premium',
+  Project = 'Project',
+  ProjectOrOrganizationSearchResult = 'ProjectOrOrganizationSearchResult',
+  ProjectOrRoutineSearchResult = 'ProjectOrRoutineSearchResult',
+  ProjectVersion = 'ProjectVersion',
+  ProjectVersionDirectory = 'ProjectVersionDirectory',
+  PullRequest = 'PullRequest',
+  PushDevice = 'PushDevice',
+  Question = 'Question',
+  QuestionAnswer = 'QuestionAnswer',
+  Quiz = 'Quiz',
+  QuizAttempt = 'QuizAttempt',
+  QuizQuestion = 'QuizQuestion',
+  QuizQuestionResponse = 'QuizQuestionResponse',
+  Reminder = 'Reminder',
+  ReminderItem = 'ReminderItem',
+  ReminderList = 'ReminderList',
+  Report = 'Report',
+  ReportResponse = 'ReportResponse',
+  ReputationHistory = 'ReputationHistory',
+  ResearchResult = 'ResearchResult',
+  Resource = 'Resource',
+  ResourceList = 'ResourceList',
+  Role = 'Role',
+  Routine = 'Routine',
+  RoutineVersion = 'RoutineVersion',
+  RoutineVersionInput = 'RoutineVersionInput',
+  RoutineVersionOutput = 'RoutineVersionOutput',
+  RunProject = 'RunProject',
+  RunProjectSchedule = 'RunProjectSchedule',
+  RunProjectStep = 'RunProjectStep',
+  RunRoutine = 'RunRoutine',
+  RunRoutineInput = 'RunRoutineInput',
+  RunRoutineSchedule = 'RunRoutineSchedule',
+  RunRoutineStep = 'RunRoutineStep',
+  Session = 'Session',
+  SessionUser = 'SessionUser',
+  SmartContract = 'SmartContract',
+  SmartContractVersion = 'SmartContractVersion',
+  Standard = 'Standard',
+  StandardVersion = 'StandardVersion',
+  Star = 'Star',
+  StatsApi = 'StatsApi',
+  StatsOrganization = 'StatsOrganization',
+  StatsProject = 'StatsProject',
+  StatsQuiz = 'StatsQuiz',
+  StatsRoutine = 'StatsRoutine',
+  StatsSite = 'StatsSite',
+  StatsSmartContract = 'StatsSmartContract',
+  StatsStandard = 'StatsStandard',
+  StatsUser = 'StatsUser',
+  Tag = 'Tag',
+  Transfer = 'Transfer',
+  User = 'User',
+  UserSchedule = 'UserSchedule',
+  UserScheduleFilter = 'UserScheduleFilter',
+  View = 'View',
+  Vote = 'Vote',
+  Wallet = 'Wallet'
+}
+
 export type Handle = {
   __typename?: 'Handle';
   handle: Scalars['String'];
@@ -655,6 +757,7 @@ export type Issue = {
   to: IssueTo;
   translations: Array<IssueTranslation>;
   translationsCount: Scalars['Int'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
   you: IssueYou;
@@ -821,6 +924,7 @@ export type Label = {
   standardsCount: Scalars['Int'];
   translations: Array<LabelTranslation>;
   translationsCount: Scalars['Int'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   userSchedules?: Maybe<Array<UserSchedule>>;
   userSchedulesCount: Scalars['Int'];
@@ -956,6 +1060,7 @@ export type Meeting = {
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<MeetingTranslation>;
   translationsCount: Scalars['Int'];
+  type: GqlModelType;
   you: MeetingYou;
 };
 
@@ -989,6 +1094,7 @@ export type MeetingInvite = {
   meeting: Meeting;
   message?: Maybe<Scalars['String']>;
   status: MeetingInviteStatus;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   user: User;
   you: MeetingInviteYou;
@@ -1162,6 +1268,7 @@ export type Member = {
   isAdmin: Scalars['Boolean'];
   organization: Organization;
   permissions: Scalars['String'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   user: User;
 };
@@ -1179,6 +1286,7 @@ export type MemberInvite = {
   message?: Maybe<Scalars['String']>;
   organization: Organization;
   status: MemberInviteStatus;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   user: User;
   willBeAdmin: Scalars['Boolean'];
@@ -2078,34 +2186,36 @@ export type Node = {
   __typename?: 'Node';
   columnIndex?: Maybe<Scalars['Int']>;
   created_at: Scalars['Date'];
+  end?: Maybe<NodeEnd>;
   id: Scalars['ID'];
   loop?: Maybe<NodeLoop>;
-  nodeEnd?: Maybe<NodeEnd>;
-  nodeRoutineList?: Maybe<NodeRoutineList>;
+  nodeType: NodeType;
+  routineList?: Maybe<NodeRoutineList>;
   routineVersion: RoutineVersion;
   routineVersionId: Scalars['ID'];
   rowIndex?: Maybe<Scalars['Int']>;
   translations: Array<NodeTranslation>;
-  type: NodeType;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
 export type NodeCreateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
+  endCreate?: InputMaybe<NodeEndCreateInput>;
   id: Scalars['ID'];
   loopCreate?: InputMaybe<NodeLoopCreateInput>;
-  nodeEndCreate?: InputMaybe<NodeEndCreateInput>;
-  nodeRoutineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
+  nodeType: NodeType;
+  routineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
   routineVersionConnect: Scalars['ID'];
   rowIndex?: InputMaybe<Scalars['Int']>;
   translationsCreate?: InputMaybe<Array<NodeTranslationCreateInput>>;
-  type: NodeType;
 };
 
 export type NodeEnd = {
   __typename?: 'NodeEnd';
   id: Scalars['ID'];
   suggestedNextRoutineVersions?: Maybe<Array<RoutineVersion>>;
+  type: GqlModelType;
   wasSuccessful: Scalars['Boolean'];
 };
 
@@ -2129,6 +2239,7 @@ export type NodeLink = {
   id: Scalars['ID'];
   operation?: Maybe<Scalars['String']>;
   toId: Scalars['ID'];
+  type: GqlModelType;
   whens: Array<NodeLinkWhen>;
 };
 
@@ -2158,6 +2269,7 @@ export type NodeLinkWhen = {
   condition: Scalars['String'];
   id: Scalars['ID'];
   translations: Array<NodeLinkWhenTranslation>;
+  type: GqlModelType;
 };
 
 export type NodeLinkWhenCreateInput = {
@@ -2204,6 +2316,7 @@ export type NodeLoop = {
   loops?: Maybe<Scalars['Int']>;
   maxLoops?: Maybe<Scalars['Int']>;
   operation?: Maybe<Scalars['String']>;
+  type: GqlModelType;
   whiles: Array<NodeLoopWhile>;
 };
 
@@ -2231,6 +2344,7 @@ export type NodeLoopWhile = {
   id: Scalars['ID'];
   toId?: Maybe<Scalars['ID']>;
   translations: Array<NodeLoopWhileTranslation>;
+  type: GqlModelType;
 };
 
 export type NodeLoopWhileCreateInput = {
@@ -2277,6 +2391,7 @@ export type NodeRoutineList = {
   isOptional: Scalars['Boolean'];
   isOrdered: Scalars['Boolean'];
   items: Array<NodeRoutineListItem>;
+  type: GqlModelType;
 };
 
 export type NodeRoutineListCreateInput = {
@@ -2294,6 +2409,7 @@ export type NodeRoutineListItem = {
   isOptional: Scalars['Boolean'];
   routineVersion: RoutineVersion;
   translations: Array<NodeRoutineListItemTranslation>;
+  type: GqlModelType;
 };
 
 export type NodeRoutineListItemCreateInput = {
@@ -2377,18 +2493,18 @@ export enum NodeType {
 
 export type NodeUpdateInput = {
   columnIndex?: InputMaybe<Scalars['Int']>;
+  endUpdate?: InputMaybe<NodeEndUpdateInput>;
   id: Scalars['ID'];
   loopCreate?: InputMaybe<NodeLoopCreateInput>;
   loopDelete?: InputMaybe<Scalars['Boolean']>;
   loopUpdate?: InputMaybe<NodeLoopUpdateInput>;
-  nodeEndUpdate?: InputMaybe<NodeEndUpdateInput>;
-  nodeRoutineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
+  nodeType?: InputMaybe<NodeType>;
+  routineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
   routineVersionConnect?: InputMaybe<Scalars['ID']>;
   rowIndex?: InputMaybe<Scalars['Int']>;
   translationsCreate?: InputMaybe<Array<NodeTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<NodeTranslationUpdateInput>>;
-  type?: InputMaybe<NodeType>;
 };
 
 export type Note = {
@@ -2413,6 +2529,7 @@ export type Note = {
   tags: Array<Tag>;
   transfers: Array<Transfer>;
   transfersCount: Scalars['Int'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<NoteVersion>;
   versionsCount: Scalars['Int'];
@@ -2520,6 +2637,7 @@ export type NoteVersion = {
   reportsCount: Scalars['Int'];
   root: Note;
   translations: Array<NoteVersionTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -2645,6 +2763,7 @@ export type Notification = {
   isRead: Scalars['Boolean'];
   link?: Maybe<Scalars['String']>;
   title: Scalars['String'];
+  type: GqlModelType;
 };
 
 export type NotificationEdge = {
@@ -2730,6 +2849,7 @@ export type NotificationSubscription = {
   id: Scalars['ID'];
   object: SubscribedObject;
   silent: Scalars['Boolean'];
+  type: GqlModelType;
 };
 
 export type NotificationSubscriptionCreateInput = {
@@ -2829,6 +2949,7 @@ export type Organization = {
   translatedName: Scalars['String'];
   translations: Array<OrganizationTranslation>;
   translationsCount: Scalars['Int'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
   wallets: Array<Wallet>;
@@ -2985,6 +3106,7 @@ export type Phone = {
   __typename?: 'Phone';
   id: Scalars['ID'];
   phoneNumber: Scalars['String'];
+  type: GqlModelType;
   verified: Scalars['Boolean'];
 };
 
@@ -3020,6 +3142,7 @@ export type Post = {
   stars: Scalars['Int'];
   tags: Array<Tag>;
   translations: Array<PostTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
 };
@@ -3194,6 +3317,7 @@ export type Project = {
   tags: Array<Tag>;
   transfers: Array<Transfer>;
   translatedName: Scalars['String'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<ProjectVersion>;
   versionsCount: Scalars['Int'];
@@ -3453,6 +3577,7 @@ export type ProjectVersion = {
   suggestedNextByProject: Array<Project>;
   translations: Array<ProjectVersionTranslation>;
   translationsCount: Scalars['Int'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -3493,6 +3618,7 @@ export type ProjectVersionDirectory = {
   projectVersion?: Maybe<ProjectVersion>;
   runProjectSteps: Array<RunProjectStep>;
   translations: Array<ProjectVersionDirectoryTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -3668,6 +3794,7 @@ export type PullRequest = {
   mergedOrRejectedAt?: Maybe<Scalars['Date']>;
   status: PullRequestStatus;
   to: PullRequestTo;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: PullRequestYou;
 };
@@ -4468,6 +4595,7 @@ export type Question = {
   starredBy: Array<User>;
   stars: Scalars['Int'];
   translations: Array<QuestionTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -4483,6 +4611,7 @@ export type QuestionAnswer = {
   starredBy: Array<User>;
   stars: Scalars['Int'];
   translations: Array<QuestionAnswerTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -4673,6 +4802,7 @@ export type Quiz = {
   stars: Scalars['Int'];
   stats: Array<StatsQuiz>;
   translations: Array<QuizTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
   you: QuizYou;
@@ -4689,6 +4819,7 @@ export type QuizAttempt = {
   responsesCount: Scalars['Int'];
   status: QuizAttemptStatus;
   timeTaken?: Maybe<Scalars['Int']>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   user: User;
   you: QuizAttemptYou;
@@ -4794,6 +4925,7 @@ export type QuizQuestion = {
   responsesCount: Scalars['Int'];
   standardVersion?: Maybe<StandardVersion>;
   translations?: Maybe<Array<QuizQuestionTranslation>>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: QuizQuestionYou;
 };
@@ -4821,6 +4953,7 @@ export type QuizQuestionResponse = {
   quizAttempt: QuizAttempt;
   quizQuestion: QuizQuestion;
   response?: Maybe<Scalars['String']>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: QuizQuestionResponseYou;
 };
@@ -5074,6 +5207,7 @@ export type Reminder = {
   name: Scalars['String'];
   reminderItems: Array<ReminderItem>;
   reminderList: ReminderList;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -5103,6 +5237,7 @@ export type ReminderItem = {
   index: Scalars['Int'];
   name: Scalars['String'];
   reminder: Reminder;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -5127,6 +5262,7 @@ export type ReminderList = {
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   reminders: Array<Reminder>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   userSchedule?: Maybe<UserSchedule>;
 };
@@ -5217,6 +5353,7 @@ export type Report = {
   language: Scalars['String'];
   reason: Scalars['String'];
   responses: Array<ReportResponse>;
+  type: GqlModelType;
   you: ReportYou;
 };
 
@@ -5267,6 +5404,7 @@ export type ReportResponseCreateInput = {
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
   reportConnect: Scalars['ID'];
+  type: GqlModelType;
 };
 
 export type ReportResponseEdge = {
@@ -5431,6 +5569,7 @@ export type Resource = {
   link: Scalars['String'];
   listId: Scalars['ID'];
   translations: Array<ResourceTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   usedFor: ResourceUsedFor;
 };
@@ -5463,6 +5602,7 @@ export type ResourceList = {
   smartContractVersion?: Maybe<SmartContractVersion>;
   standardVersion?: Maybe<StandardVersion>;
   translations: Array<ResourceListTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   userSchedule?: Maybe<UserSchedule>;
 };
@@ -5650,6 +5790,7 @@ export type Role = {
   organization: Organization;
   permissions: Scalars['String'];
   translations: Array<RoleTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -5751,6 +5892,7 @@ export type Routine = {
   stars: Scalars['Int'];
   tags: Array<Tag>;
   translatedName: Scalars['String'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<RoutineVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
@@ -5896,6 +6038,7 @@ export type RoutineVersion = {
   timesStarted: Scalars['Int'];
   translations: Array<RoutineVersionTranslation>;
   translationsCount: Scalars['Int'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -5944,6 +6087,7 @@ export type RoutineVersionInput = {
   routineVersion: RoutineVersion;
   standardVersion?: Maybe<StandardVersion>;
   translations: Array<RoutineVersionInputTranslation>;
+  type: GqlModelType;
 };
 
 export type RoutineVersionInputCreateInput = {
@@ -6003,6 +6147,7 @@ export type RoutineVersionOutput = {
   routineVersion: RoutineVersion;
   standardVersion?: Maybe<StandardVersion>;
   translations: Array<RoutineVersionOutputTranslation>;
+  type: GqlModelType;
 };
 
 export type RoutineVersionOutputCreateInput = {
@@ -6221,6 +6366,7 @@ export type RunProject = {
   status: RunStatus;
   steps: Array<RunProjectStep>;
   timeElapsed?: Maybe<Scalars['Int']>;
+  type: GqlModelType;
   user?: Maybe<User>;
   wasRunAutomaticaly: Scalars['Boolean'];
   you: RunProjectYou;
@@ -6270,6 +6416,7 @@ export type RunProjectSchedule = {
   runProject: RunProject;
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<RunProjectScheduleTranslation>;
+  type: GqlModelType;
   windowEnd?: Maybe<Scalars['Date']>;
   windowStart?: Maybe<Scalars['Date']>;
 };
@@ -6425,6 +6572,7 @@ export type RunProjectStep = {
   status: RunProjectStepStatus;
   step: Array<Scalars['Int']>;
   timeElapsed?: Maybe<Scalars['Int']>;
+  type: GqlModelType;
 };
 
 export type RunProjectStepCreateInput = {
@@ -6489,6 +6637,7 @@ export type RunRoutine = {
   status: RunStatus;
   steps: Array<RunRoutineStep>;
   timeElapsed?: Maybe<Scalars['Int']>;
+  type: GqlModelType;
   user?: Maybe<User>;
   wasRunAutomaticaly: Scalars['Boolean'];
   you: RunRoutineYou;
@@ -6539,6 +6688,7 @@ export type RunRoutineInput = {
   id: Scalars['ID'];
   input: RoutineVersionInput;
   runRoutine: RunRoutine;
+  type: GqlModelType;
 };
 
 export type RunRoutineInputCreateInput = {
@@ -6593,6 +6743,7 @@ export type RunRoutineSchedule = {
   runRoutine: RunRoutine;
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<RunRoutineScheduleTranslation>;
+  type: GqlModelType;
   windowEnd?: Maybe<Scalars['Date']>;
   windowStart?: Maybe<Scalars['Date']>;
 };
@@ -6748,6 +6899,7 @@ export type RunRoutineStep = {
   step: Array<Scalars['Int']>;
   subroutine?: Maybe<Routine>;
   timeElapsed?: Maybe<Scalars['Int']>;
+  type: GqlModelType;
 };
 
 export type RunRoutineStepCreateInput = {
@@ -6836,6 +6988,7 @@ export type Session = {
   __typename?: 'Session';
   isLoggedIn: Scalars['Boolean'];
   timeZone?: Maybe<Scalars['String']>;
+  type: GqlModelType;
   users?: Maybe<Array<SessionUser>>;
 };
 
@@ -6873,6 +7026,7 @@ export type SmartContract = {
   transfers: Array<Transfer>;
   transfersCount: Scalars['Int'];
   translatedName: Scalars['String'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<SmartContractVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
@@ -6978,6 +7132,7 @@ export type SmartContractVersion = {
   commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
   content: Scalars['String'];
+  contractType: Scalars['String'];
   created_at: Scalars['Date'];
   default?: Maybe<Scalars['String']>;
   directoryListings: Array<ProjectVersionDirectory>;
@@ -6995,7 +7150,7 @@ export type SmartContractVersion = {
   root: SmartContract;
   translations: Array<SmartContractVersionTranslation>;
   translationsCount: Scalars['Int'];
-  type: Scalars['String'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -7005,6 +7160,7 @@ export type SmartContractVersion = {
 
 export type SmartContractVersionCreateInput = {
   content: Scalars['String'];
+  contractType: Scalars['String'];
   default?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
@@ -7015,7 +7171,6 @@ export type SmartContractVersionCreateInput = {
   rootConnect: Scalars['ID'];
   rootCreate?: InputMaybe<SmartContractCreateInput>;
   translationsCreate?: InputMaybe<Array<SmartContractVersionTranslationCreateInput>>;
-  type: Scalars['String'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: InputMaybe<Scalars['String']>;
@@ -7030,6 +7185,7 @@ export type SmartContractVersionEdge = {
 export type SmartContractVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   completedTimeFrame?: InputMaybe<TimeFrame>;
+  contractType?: InputMaybe<Scalars['String']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
@@ -7040,7 +7196,6 @@ export type SmartContractVersionSearchInput = {
   sortBy?: InputMaybe<SmartContractVersionSortBy>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
-  type?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7093,6 +7248,7 @@ export type SmartContractVersionTranslationUpdateInput = {
 
 export type SmartContractVersionUpdateInput = {
   content?: InputMaybe<Scalars['String']>;
+  contractType?: InputMaybe<Scalars['String']>;
   default?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -7105,7 +7261,6 @@ export type SmartContractVersionUpdateInput = {
   translationsCreate?: InputMaybe<Array<SmartContractVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<SmartContractVersionTranslationUpdateInput>>;
-  type?: InputMaybe<Scalars['String']>;
   versionIndex: Scalars['Int'];
   versionLabel?: InputMaybe<Scalars['String']>;
   versionNotes?: InputMaybe<Scalars['String']>;
@@ -7150,6 +7305,7 @@ export type Standard = {
   stars: Scalars['Int'];
   tags: Array<Tag>;
   translatedName: Scalars['String'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<StandardVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
@@ -7275,9 +7431,10 @@ export type StandardVersion = {
   reportsCount: Scalars['Int'];
   resourceList?: Maybe<ResourceList>;
   root: Standard;
+  standardType: Scalars['String'];
   translations: Array<StandardVersionTranslation>;
   translationsCount: Scalars['Int'];
-  type: Scalars['String'];
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -7298,8 +7455,8 @@ export type StandardVersionCreateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect: Scalars['ID'];
   rootCreate?: InputMaybe<StandardCreateInput>;
+  standardType: Scalars['String'];
   translationsCreate?: InputMaybe<Array<StandardVersionTranslationCreateInput>>;
-  type: Scalars['String'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: InputMaybe<Scalars['String']>;
@@ -7323,9 +7480,9 @@ export type StandardVersionSearchInput = {
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardVersionSortBy>;
+  standardType?: InputMaybe<Scalars['String']>;
   tags?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
-  type?: InputMaybe<Scalars['String']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
   visibility?: InputMaybe<VisibilityType>;
@@ -7388,10 +7545,10 @@ export type StandardVersionUpdateInput = {
   props?: InputMaybe<Scalars['String']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
+  standardType?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<StandardVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<StandardVersionTranslationUpdateInput>>;
-  type?: InputMaybe<Scalars['String']>;
   versionIndex: Scalars['Int'];
   versionLabel?: InputMaybe<Scalars['String']>;
   versionNotes?: InputMaybe<Scalars['String']>;
@@ -7416,6 +7573,7 @@ export type Star = {
   by: User;
   id: Scalars['ID'];
   to: StarTo;
+  type: GqlModelType;
 };
 
 export type StarEdge = {
@@ -7890,6 +8048,7 @@ export type Tag = {
   stars: Scalars['Int'];
   tag: Scalars['String'];
   translations: Array<TagTranslation>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: TagYou;
 };
@@ -7983,6 +8142,7 @@ export type Transfer = {
   object: TransferObject;
   status: TransferStatus;
   toOwner?: Maybe<Owner>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: TransferYou;
 };
@@ -8172,6 +8332,7 @@ export type User = {
   transfersIncoming?: Maybe<Array<Transfer>>;
   transfersOutgoing?: Maybe<Array<Transfer>>;
   translations: Array<UserTranslation>;
+  type: GqlModelType;
   updated_at?: Maybe<Scalars['Date']>;
   viewed?: Maybe<Array<View>>;
   viewedBy?: Maybe<Array<View>>;
@@ -8207,6 +8368,7 @@ export type UserSchedule = {
   recurring: Scalars['Boolean'];
   reminderList?: Maybe<ReminderList>;
   timeZone?: Maybe<Scalars['String']>;
+  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -8239,6 +8401,7 @@ export type UserScheduleFilter = {
   filterType: UserScheduleFilterType;
   id: Scalars['ID'];
   tag?: Maybe<Tag>;
+  type: GqlModelType;
   userSchedule: UserSchedule;
 };
 
@@ -8389,6 +8552,7 @@ export type View = {
   lastViewedAt: Scalars['Date'];
   name: Scalars['String'];
   to: ViewTo;
+  type: GqlModelType;
 };
 
 export type ViewEdge = {
@@ -8430,6 +8594,7 @@ export type Vote = {
   by: User;
   isUpvote?: Maybe<Scalars['Boolean']>;
   to: VoteTo;
+  type: GqlModelType;
 };
 
 export type VoteEdge = {
@@ -8489,6 +8654,7 @@ export type Wallet = {
   organization?: Maybe<Organization>;
   publicAddress?: Maybe<Scalars['String']>;
   stakingAddress: Scalars['String'];
+  type: GqlModelType;
   user?: Maybe<User>;
   verified: Scalars['Boolean'];
 };
@@ -8648,6 +8814,7 @@ export type ResolversTypes = {
   FindByVersionInput: FindByVersionInput;
   FindHandlesInput: FindHandlesInput;
   Float: ResolverTypeWrapper<Scalars['Float']>;
+  GqlModelType: GqlModelType;
   Handle: ResolverTypeWrapper<Handle>;
   HistoryInput: HistoryInput;
   HistoryResult: ResolverTypeWrapper<HistoryResult>;
@@ -9889,6 +10056,7 @@ export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTy
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -9910,6 +10078,7 @@ export type ApiKeyResolvers<ContextType = any, ParentType extends ResolversParen
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   resetsAt?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   stopAtLimit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -9937,6 +10106,7 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Api'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ApiVersionTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -9984,6 +10154,7 @@ export type AwardResolvers<ContextType = any, ParentType extends ResolversParent
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   progress?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   timeCurrentTierCompleted?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10000,6 +10171,7 @@ export type CommentResolvers<ContextType = any, ParentType extends ResolversPare
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['CommentTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['CommentYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10073,6 +10245,7 @@ export type DevelopResultResolvers<ContextType = any, ParentType extends Resolve
 export type EmailResolvers<ContextType = any, ParentType extends ResolversParentTypes['Email'] = ResolversParentTypes['Email']> = {
   emailAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   verified?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10112,6 +10285,7 @@ export type IssueResolvers<ContextType = any, ParentType extends ResolversParent
   to?: Resolver<ResolversTypes['IssueTo'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['IssueTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['IssueYou'], ParentType, ContextType>;
@@ -10182,6 +10356,7 @@ export type LabelResolvers<ContextType = any, ParentType extends ResolversParent
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['LabelTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   userSchedules?: Resolver<Maybe<Array<ResolversTypes['UserSchedule']>>, ParentType, ContextType>;
   userSchedulesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10240,6 +10415,7 @@ export type MeetingResolvers<ContextType = any, ParentType extends ResolversPare
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['MeetingTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['MeetingYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10256,6 +10432,7 @@ export type MeetingInviteResolvers<ContextType = any, ParentType extends Resolve
   meeting?: Resolver<ResolversTypes['Meeting'], ParentType, ContextType>;
   message?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['MeetingInviteStatus'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['MeetingInviteYou'], ParentType, ContextType>;
@@ -10308,6 +10485,7 @@ export type MemberResolvers<ContextType = any, ParentType extends ResolversParen
   isAdmin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10325,6 +10503,7 @@ export type MemberInviteResolvers<ContextType = any, ParentType extends Resolver
   message?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['MemberInviteStatus'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   willBeAdmin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -10498,15 +10677,16 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
 export type NodeResolvers<ContextType = any, ParentType extends ResolversParentTypes['Node'] = ResolversParentTypes['Node']> = {
   columnIndex?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  end?: Resolver<Maybe<ResolversTypes['NodeEnd']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   loop?: Resolver<Maybe<ResolversTypes['NodeLoop']>, ParentType, ContextType>;
-  nodeEnd?: Resolver<Maybe<ResolversTypes['NodeEnd']>, ParentType, ContextType>;
-  nodeRoutineList?: Resolver<Maybe<ResolversTypes['NodeRoutineList']>, ParentType, ContextType>;
+  nodeType?: Resolver<ResolversTypes['NodeType'], ParentType, ContextType>;
+  routineList?: Resolver<Maybe<ResolversTypes['NodeRoutineList']>, ParentType, ContextType>;
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   routineVersionId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   rowIndex?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['NodeType'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10514,6 +10694,7 @@ export type NodeResolvers<ContextType = any, ParentType extends ResolversParentT
 export type NodeEndResolvers<ContextType = any, ParentType extends ResolversParentTypes['NodeEnd'] = ResolversParentTypes['NodeEnd']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   suggestedNextRoutineVersions?: Resolver<Maybe<Array<ResolversTypes['RoutineVersion']>>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   wasSuccessful?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10523,6 +10704,7 @@ export type NodeLinkResolvers<ContextType = any, ParentType extends ResolversPar
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   operation?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   toId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   whens?: Resolver<Array<ResolversTypes['NodeLinkWhen']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10531,6 +10713,7 @@ export type NodeLinkWhenResolvers<ContextType = any, ParentType extends Resolver
   condition?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeLinkWhenTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10547,6 +10730,7 @@ export type NodeLoopResolvers<ContextType = any, ParentType extends ResolversPar
   loops?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   maxLoops?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   operation?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   whiles?: Resolver<Array<ResolversTypes['NodeLoopWhile']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10556,6 +10740,7 @@ export type NodeLoopWhileResolvers<ContextType = any, ParentType extends Resolve
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   toId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeLoopWhileTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10572,6 +10757,7 @@ export type NodeRoutineListResolvers<ContextType = any, ParentType extends Resol
   isOptional?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isOrdered?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   items?: Resolver<Array<ResolversTypes['NodeRoutineListItem']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10581,6 +10767,7 @@ export type NodeRoutineListItemResolvers<ContextType = any, ParentType extends R
   isOptional?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeRoutineListItemTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10621,6 +10808,7 @@ export type NoteResolvers<ContextType = any, ParentType extends ResolversParentT
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10657,6 +10845,7 @@ export type NoteVersionResolvers<ContextType = any, ParentType extends Resolvers
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Note'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NoteVersionTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -10707,6 +10896,7 @@ export type NotificationResolvers<ContextType = any, ParentType extends Resolver
   isRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   link?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   title?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10750,6 +10940,7 @@ export type NotificationSubscriptionResolvers<ContextType = any, ParentType exte
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   object?: Resolver<ResolversTypes['SubscribedObject'], ParentType, ContextType>;
   silent?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10817,6 +11008,7 @@ export type OrganizationResolvers<ContextType = any, ParentType extends Resolver
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['OrganizationTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   wallets?: Resolver<Array<ResolversTypes['Wallet']>, ParentType, ContextType>;
@@ -10887,6 +11079,7 @@ export type PaymentResolvers<ContextType = any, ParentType extends ResolversPare
 export type PhoneResolvers<ContextType = any, ParentType extends ResolversParentTypes['Phone'] = ResolversParentTypes['Phone']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   phoneNumber?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   verified?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10913,6 +11106,7 @@ export type PostResolvers<ContextType = any, ParentType extends ResolversParentT
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['PostTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10974,6 +11168,7 @@ export type ProjectResolvers<ContextType = any, ParentType extends ResolversPare
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11062,6 +11257,7 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
   suggestedNextByProject?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ProjectVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -11087,6 +11283,7 @@ export type ProjectVersionDirectoryResolvers<ContextType = any, ParentType exten
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   runProjectSteps?: Resolver<Array<ResolversTypes['RunProjectStep']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ProjectVersionDirectoryTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11153,6 +11350,7 @@ export type PullRequestResolvers<ContextType = any, ParentType extends Resolvers
   mergedOrRejectedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['PullRequestStatus'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['PullRequestTo'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['PullRequestYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11326,6 +11524,7 @@ export type QuestionResolvers<ContextType = any, ParentType extends ResolversPar
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuestionTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11341,6 +11540,7 @@ export type QuestionAnswerResolvers<ContextType = any, ParentType extends Resolv
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuestionAnswerTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11402,6 +11602,7 @@ export type QuizResolvers<ContextType = any, ParentType extends ResolversParentT
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Array<ResolversTypes['StatsQuiz']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuizTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizYou'], ParentType, ContextType>;
@@ -11418,6 +11619,7 @@ export type QuizAttemptResolvers<ContextType = any, ParentType extends Resolvers
   responsesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['QuizAttemptStatus'], ParentType, ContextType>;
   timeTaken?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizAttemptYou'], ParentType, ContextType>;
@@ -11458,6 +11660,7 @@ export type QuizQuestionResolvers<ContextType = any, ParentType extends Resolver
   responsesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Maybe<Array<ResolversTypes['QuizQuestionTranslation']>>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizQuestionYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11475,6 +11678,7 @@ export type QuizQuestionResponseResolvers<ContextType = any, ParentType extends 
   quizAttempt?: Resolver<ResolversTypes['QuizAttempt'], ParentType, ContextType>;
   quizQuestion?: Resolver<ResolversTypes['QuizQuestion'], ParentType, ContextType>;
   response?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizQuestionResponseYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11560,6 +11764,7 @@ export type ReminderResolvers<ContextType = any, ParentType extends ResolversPar
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reminderItems?: Resolver<Array<ResolversTypes['ReminderItem']>, ParentType, ContextType>;
   reminderList?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11579,6 +11784,7 @@ export type ReminderItemResolvers<ContextType = any, ParentType extends Resolver
   index?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reminder?: Resolver<ResolversTypes['Reminder'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11587,6 +11793,7 @@ export type ReminderListResolvers<ContextType = any, ParentType extends Resolver
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   reminders?: Resolver<Array<ResolversTypes['Reminder']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   userSchedule?: Resolver<Maybe<ResolversTypes['UserSchedule']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11616,6 +11823,7 @@ export type ReportResolvers<ContextType = any, ParentType extends ResolversParen
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reason?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   responses?: Resolver<Array<ResolversTypes['ReportResponse']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['ReportYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11708,6 +11916,7 @@ export type ResourceResolvers<ContextType = any, ParentType extends ResolversPar
   link?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   listId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ResourceTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   usedFor?: Resolver<ResolversTypes['ResourceUsedFor'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11731,6 +11940,7 @@ export type ResourceListResolvers<ContextType = any, ParentType extends Resolver
   smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ResourceListTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   userSchedule?: Resolver<Maybe<ResolversTypes['UserSchedule']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11785,6 +11995,7 @@ export type RoleResolvers<ContextType = any, ParentType extends ResolversParentT
   organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RoleTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11832,6 +12043,7 @@ export type RoutineResolvers<ContextType = any, ParentType extends ResolversPare
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
@@ -11893,6 +12105,7 @@ export type RoutineVersionResolvers<ContextType = any, ParentType extends Resolv
   timesStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RoutineVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -11915,6 +12128,7 @@ export type RoutineVersionInputResolvers<ContextType = any, ParentType extends R
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RoutineVersionInputTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11934,6 +12148,7 @@ export type RoutineVersionOutputResolvers<ContextType = any, ParentType extends 
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RoutineVersionOutputTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12001,6 +12216,7 @@ export type RunProjectResolvers<ContextType = any, ParentType extends ResolversP
   status?: Resolver<ResolversTypes['RunStatus'], ParentType, ContextType>;
   steps?: Resolver<Array<ResolversTypes['RunProjectStep']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   wasRunAutomaticaly?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['RunProjectYou'], ParentType, ContextType>;
@@ -12022,6 +12238,7 @@ export type RunProjectScheduleResolvers<ContextType = any, ParentType extends Re
   runProject?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RunProjectScheduleTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   windowEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   windowStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12066,6 +12283,7 @@ export type RunProjectStepResolvers<ContextType = any, ParentType extends Resolv
   status?: Resolver<ResolversTypes['RunProjectStepStatus'], ParentType, ContextType>;
   step?: Resolver<Array<ResolversTypes['Int']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12092,6 +12310,7 @@ export type RunRoutineResolvers<ContextType = any, ParentType extends ResolversP
   status?: Resolver<ResolversTypes['RunStatus'], ParentType, ContextType>;
   steps?: Resolver<Array<ResolversTypes['RunRoutineStep']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   wasRunAutomaticaly?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['RunRoutineYou'], ParentType, ContextType>;
@@ -12109,6 +12328,7 @@ export type RunRoutineInputResolvers<ContextType = any, ParentType extends Resol
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   input?: Resolver<ResolversTypes['RoutineVersionInput'], ParentType, ContextType>;
   runRoutine?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12133,6 +12353,7 @@ export type RunRoutineScheduleResolvers<ContextType = any, ParentType extends Re
   runRoutine?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RunRoutineScheduleTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   windowEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   windowStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12177,6 +12398,7 @@ export type RunRoutineStepResolvers<ContextType = any, ParentType extends Resolv
   step?: Resolver<Array<ResolversTypes['Int']>, ParentType, ContextType>;
   subroutine?: Resolver<Maybe<ResolversTypes['Routine']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12190,6 +12412,7 @@ export type RunRoutineYouResolvers<ContextType = any, ParentType extends Resolve
 export type SessionResolvers<ContextType = any, ParentType extends ResolversParentTypes['Session'] = ResolversParentTypes['Session']> = {
   isLoggedIn?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   users?: Resolver<Maybe<Array<ResolversTypes['SessionUser']>>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12227,6 +12450,7 @@ export type SmartContractResolvers<ContextType = any, ParentType extends Resolve
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
@@ -12252,6 +12476,7 @@ export type SmartContractVersionResolvers<ContextType = any, ParentType extends 
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   content?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  contractType?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   default?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
@@ -12269,7 +12494,7 @@ export type SmartContractVersionResolvers<ContextType = any, ParentType extends 
   root?: Resolver<ResolversTypes['SmartContract'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['SmartContractVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -12336,6 +12561,7 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
@@ -12378,9 +12604,10 @@ export type StandardVersionResolvers<ContextType = any, ParentType extends Resol
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Standard'], ParentType, ContextType>;
+  standardType?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['StandardVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -12427,6 +12654,7 @@ export type StarResolvers<ContextType = any, ParentType extends ResolversParentT
   by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['StarTo'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12704,6 +12932,7 @@ export type TagResolvers<ContextType = any, ParentType extends ResolversParentTy
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tag?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['TagTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['TagYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12742,6 +12971,7 @@ export type TransferResolvers<ContextType = any, ParentType extends ResolversPar
   object?: Resolver<ResolversTypes['TransferObject'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['TransferStatus'], ParentType, ContextType>;
   toOwner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['TransferYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12861,6 +13091,7 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   transfersIncoming?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
   transfersOutgoing?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['UserTranslation']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   viewed?: Resolver<Maybe<Array<ResolversTypes['View']>>, ParentType, ContextType>;
   viewedBy?: Resolver<Maybe<Array<ResolversTypes['View']>>, ParentType, ContextType>;
@@ -12891,6 +13122,7 @@ export type UserScheduleResolvers<ContextType = any, ParentType extends Resolver
   recurring?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   reminderList?: Resolver<Maybe<ResolversTypes['ReminderList']>, ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12905,6 +13137,7 @@ export type UserScheduleFilterResolvers<ContextType = any, ParentType extends Re
   filterType?: Resolver<ResolversTypes['UserScheduleFilterType'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   tag?: Resolver<Maybe<ResolversTypes['Tag']>, ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   userSchedule?: Resolver<ResolversTypes['UserSchedule'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12951,6 +13184,7 @@ export type ViewResolvers<ContextType = any, ParentType extends ResolversParentT
   lastViewedAt?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['ViewTo'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12974,6 +13208,7 @@ export type VoteResolvers<ContextType = any, ParentType extends ResolversParentT
   by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   isUpvote?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   to?: Resolver<ResolversTypes['VoteTo'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13000,6 +13235,7 @@ export type WalletResolvers<ContextType = any, ParentType extends ResolversParen
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
   publicAddress?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   stakingAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   verified?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

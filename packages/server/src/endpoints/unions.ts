@@ -166,7 +166,7 @@ export const resolvers: {
         projectOrRoutines: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
-                '__typename': 'ProjectOrRoutineSearchResult',
+                'type': 'ProjectOrRoutineSearchResult',
                 'Project': 'Project',
                 'Routine': 'Routine',
             }, req.languages, true);
@@ -249,7 +249,7 @@ export const resolvers: {
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [projects?.nodes ?? [], routines?.nodes ?? []],
-                [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Routine', ...(partial as any).Routine }] as PartialGraphQLInfo[],
+                [{ type: 'Project', ...(partial as any).Project }, { type: 'Routine', ...(partial as any).Routine }] as PartialGraphQLInfo[],
                 ['p', 'r'],
                 getUser(req),
                 prisma,
@@ -278,7 +278,7 @@ export const resolvers: {
         projectOrOrganizations: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
-                '__typename': 'ProjectOrOrganizationSearchResult',
+                'type': 'ProjectOrOrganizationSearchResult',
                 'Project': 'Project',
                 'Organization': 'Organization',
             }, req.languages, true);
@@ -351,7 +351,7 @@ export const resolvers: {
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [projects?.nodes ?? [], organizations?.nodes ?? []],
-                [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
+                [{ type: 'Project', ...(partial as any).Project }, { type: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
                 ['p', 'o'],
                 getUser(req),
                 prisma,

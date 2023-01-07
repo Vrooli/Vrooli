@@ -1,9 +1,8 @@
 import pkg from '@prisma/client';
-import { SessionUser } from '@shared/consts';
+import { GqlModelType, SessionUser } from '@shared/consts';
 import { TFuncKey } from 'i18next';
 import { Context } from './middleware';
 import { GraphQLResolveInfo } from 'graphql';
-import { GraphQLModelType } from './models/types';
 
 // Request type
 declare global {
@@ -93,7 +92,7 @@ export type UpdateOneResult<T> = FindOneResult<T>
 
 export type GQLEndpoint<T, U> = (parent: undefined, data: IWrap<T>, context: Context, info: GraphQLResolveInfo) => Promise<U>;
 
-export type UnionResolver = { __resolveType: (obj: any) => GraphQLModelType };
+export type UnionResolver = { __resolveType: (obj: any) => `${GqlModelType}` };
 
 export type SingleOrArray<T> = T | T[];
 

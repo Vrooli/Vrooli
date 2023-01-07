@@ -5,7 +5,7 @@ import { shapeUpdate, updatePrims, TagShape, createRel, updateRel, shapeTag, cre
 
 export type StandardShape = Pick<Standard, 'id' | 'name' | 'isInternal' | 'isPrivate' | 'permissions'> & {
     parent?: { id: string };
-    owner?: { __typename: 'User' | 'Organization', id: string } | null;
+    owner?: { type: 'User' | 'Organization', id: string } | null;
     labels?: ({ id: string } | LabelShape)[];
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

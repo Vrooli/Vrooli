@@ -19,10 +19,10 @@ export const typeDef = gql`
         id: ID!
         columnIndex: Int
         rowIndex: Int
-        type: NodeType!
+        nodeType: NodeType!
         loopCreate: NodeLoopCreateInput
-        nodeEndCreate: NodeEndCreateInput
-        nodeRoutineListCreate: NodeRoutineListCreateInput
+        endCreate: NodeEndCreateInput
+        routineListCreate: NodeRoutineListCreateInput
         routineVersionConnect: ID!
         translationsCreate: [NodeTranslationCreateInput!]
     }
@@ -30,28 +30,29 @@ export const typeDef = gql`
         id: ID!
         columnIndex: Int
         rowIndex: Int
-        type: NodeType
+        nodeType: NodeType
         loopDelete: Boolean
         loopCreate: NodeLoopCreateInput
         loopUpdate: NodeLoopUpdateInput
-        nodeEndUpdate: NodeEndUpdateInput
-        nodeRoutineListUpdate: NodeRoutineListUpdateInput
+        endUpdate: NodeEndUpdateInput
+        routineListUpdate: NodeRoutineListUpdateInput
         routineVersionConnect: ID
         translationsDelete: [ID!]
         translationsCreate: [NodeTranslationCreateInput!]
         translationsUpdate: [NodeTranslationUpdateInput!]
     }
     type Node {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!
         columnIndex: Int
+        nodeType: NodeType!
         routineVersionId: ID!
         rowIndex: Int
-        type: NodeType!
+        end: NodeEnd
         loop: NodeLoop
-        nodeEnd: NodeEnd
-        nodeRoutineList: NodeRoutineList
+        routineList: NodeRoutineList
         routineVersion: RoutineVersion!
         translations: [NodeTranslation!]!
     }

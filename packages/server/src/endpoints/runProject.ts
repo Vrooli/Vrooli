@@ -51,6 +51,7 @@ export const typeDef = gql`
         runProjectScheduleCreate: RunProjectScheduleCreateInput
     }
     type RunProject {
+        type: GqlModelType!
         id: ID!
         isPrivate: Boolean!
         completedComplexity: Int!
@@ -169,7 +170,7 @@ export const resolvers: {
         runProjectDeleteAll: async (_p, _d, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 25, req });
-            return (RunProjectModel as any).danger.deleteAll(prisma, { __typename: 'User', id: userData.id });
+            return (RunProjectModel as any).danger.deleteAll(prisma, { type: 'User', id: userData.id });
         },
         runProjectComplete: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });

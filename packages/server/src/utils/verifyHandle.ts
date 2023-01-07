@@ -3,7 +3,7 @@ import { PrismaType } from "../types";
 import { hasProfanity } from "./censor";
 
 /**
-* Maps GraphQLModelType to wallet relationship field
+* Maps GqlModelType to wallet relationship field
 */
 const walletOwnerMap = {
     User: 'userId',

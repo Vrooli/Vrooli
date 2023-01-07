@@ -46,6 +46,7 @@ export const typeDef = gql`
         directoryListingsDisconnect: [ID!]
     }
     type NoteVersion {
+        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

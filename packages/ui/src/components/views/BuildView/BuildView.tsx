@@ -40,7 +40,7 @@ You also have the option to *unlink* nodes. These are stored on the top status b
  * @returns The new link object
  */
 const generateNewLink = (fromId: string, toId: string): NodeLinkShape => ({
-    __typename: 'NodeLink',
+    type: 'NodeLink',
     id: uuid(),
     fromId,
     toId,
@@ -205,10 +205,10 @@ export const BuildView = ({
     const closeAddBeforeLinkDialog = useCallback(() => { setAddBeforeLinkNode(null); }, []);
 
     // Subroutine info drawer
-    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: Node & { nodeRoutineList: NodeRoutineList }, routineItemId: string } | null>(null);
+    const [openedSubroutine, setOpenedSubroutine] = useState<{ node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
-        if (node) setOpenedSubroutine({ node: node.nodeRoutineList, routineItemId: subroutineId });
+        if (node) setOpenedSubroutine({ node, routineItemId: subroutineId });
     }, [nodesById]);
     const closeRoutineInfo = useCallback(() => {
         setOpenedSubroutine(null);
@@ -344,21 +344,21 @@ export const BuildView = ({
     const createRoutineListNode = useCallback((column: number | null, row: number | null) => {
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNode: Omit<NodeShape, 'routineId'> = {
-            __typename: 'Node',
+            type: 'Node',
             id: uuid(),
             type: NodeType.RoutineList,
             rowIndex,
             columnIndex,
             data: {
                 id: uuid(),
-                __typename: 'NodeRoutineList',
+                type: 'NodeRoutineList',
                 isOrdered: false,
                 isOptional: false,
                 routines: [],
             },
             // Generate unique placeholder name
             translations: [{
-                __typename: 'NodeTranslation',
+                type: 'NodeTranslation',
                 id: uuid(),
                 language: translationData.language,
                 name: `Node ${(changedRoutine.nodes?.length ?? 0) - 1}`,
@@ -376,7 +376,7 @@ export const BuildView = ({
     const createEndNode = useCallback((column: number | null, row: number | null) => {
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNode: Omit<NodeShape, 'routineId'> = {
-            __typename: 'Node',
+            type: 'Node',
             id: uuid(),
             type: NodeType.End,
             rowIndex,
@@ -808,7 +808,7 @@ export const BuildView = ({
         addToChangeStack({
             ...changedRoutine,
             nodes: changedRoutine.nodes.map((n: Node) => {
-                if (n.type === NodeType.RoutineList && (n.data as NodeDataRoutineList).routines.some(r => r.id === updatedSubroutine.id)) {
+                if (n.nodeType === NodeType.RoutineList && (n.data as NodeDataRoutineList).routines.some(r => r.id === updatedSubroutine.id)) {
                     return {
                         ...n,
                         data: {
@@ -939,7 +939,7 @@ export const BuildView = ({
                     const rowIndex = (columnIndex >= 0 && columnIndex < columns.length) ? columns[columnIndex].length : 0;
                     const newLink: NodeLinkShape = generateNewLink(node.id, newEndNodeId);
                     const newEndNode: Omit<NodeShape, 'routineId'> = {
-                        __typename: 'Node',
+                        type: 'Node',
                         id: newEndNodeId,
                         type: NodeType.End,
                         rowIndex,

@@ -38,7 +38,7 @@ export const BaseStandardInput = ({
         if (localStorage.getItem(storageKey)) {
             try {
                 const storedData = JSON.parse(localStorage.getItem(typeKey) ?? '{}');
-                if (typeof storedData === 'object' && storedData.type === inputType) {
+                if (typeof storedData === 'object' && storedData.standardType === inputType) {
                     newSchema = storedData as FieldData;
                 }
             } catch (error) {

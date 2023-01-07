@@ -1,6 +1,5 @@
 import { timeFrameToPrisma, visibilityBuilder } from "../builders";
-import { InputMaybe, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
-import { GraphQLModelType } from "../models/types";
+import { GqlModelType, InputMaybe, SessionUser, TimeFrame, VisibilityType } from '@shared/consts';
 
 type Maybe<T> = InputMaybe<T> | undefined
 
@@ -148,6 +147,7 @@ export const SearchMap = {
     minTimesCompleted: (timesCompleted: Maybe<number>) => ({ timesCompleted: { gte: timesCompleted } }),
     minViews: (views: Maybe<number>) => ({ views: { gte: views } }),
     minViewsRoot: (views: Maybe<number>) => ({ root: { views: { gte: views } } }),
+    nodeType: (nodeType: Maybe<string>) => nodeType ? ({ nodeType: { contains: nodeType.trim(), mode: 'insensitive' } }) : {},
     noteId: (id: Maybe<string>) => oneToOneId(id, 'note'),
     notesId: (id: Maybe<string>) => oneToManyId(id, 'notes'),
     noteVersionId: (id: Maybe<string>) => oneToOneId(id, 'noteVersion'),
@@ -185,11 +185,12 @@ export const SearchMap = {
     showOnOrganizationProfile: () => ({ showOnOrganizationProfile: true }),
     smartContractId: (id: Maybe<string>) => oneToOneId(id, 'smartContract'),
     smartContractsId: (id: Maybe<string>) => oneToManyId(id, 'smartContracts'),
+    smartContractType: (smartContractType: Maybe<string>) => smartContractType ? ({ smartContractType: { contains: smartContractType.trim(), mode: 'insensitive' } }) : {},
     smartContractVersionId: (id: Maybe<string>) => oneToOneId(id, 'smartContractVersion'),
     smartContractVersionsId: (id: Maybe<string>) => oneToManyId(id, 'smartContractVersions'),
     standardId: (id: Maybe<string>) => oneToOneId(id, 'standard'),
     standardIds: (ids: Maybe<string[]>) => oneToOneIds(ids, 'standard'),
-    type: (type: Maybe<string>) => type ? ({ type: { contains: type.trim(), mode: 'insensitive' } }) : {},
+    standardType: (standardType: Maybe<string>) => standardType ? ({ standardType: { contains: standardType.trim(), mode: 'insensitive' } }) : {},
     standardTypeLatestVersion: (type: Maybe<string>) => type ? ({
         versions: {
             some: {
@@ -226,6 +227,6 @@ export const SearchMap = {
     visibility: (
         visibility: InputMaybe<VisibilityType> | undefined,
         userData: SessionUser | null | undefined,
-        objectType: GraphQLModelType
+        objectType: `${GqlModelType}`,
     ) => visibilityBuilder({ objectType, userData, visibility }),
 }

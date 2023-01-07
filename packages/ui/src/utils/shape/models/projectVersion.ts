@@ -6,7 +6,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 
 export type ProjectVersionTranslationShape = Pick<ProjectVersionTranslation, 'id' | 'language' | 'description' | 'name'>
 
-export type ProjectVersionShape = Pick<ProjectVersion, 'id' | 'isLatest' | 'isPrivate' | 'versionIndex' | 'versionLabel' | 'versionNotes'> & {
+export type ProjectVersionShape = Pick<ProjectVersion, 'id' | 'isComplete' | 'isLatest' | 'isPrivate' | 'versionIndex' | 'versionLabel' | 'versionNotes'> & {
     directoryListings?: ProjectVersionDirectoryShape[];
     root: { id: string } | ProjectShape;
     suggestedNextByProject?: { id: string }[];
@@ -20,7 +20,7 @@ export const shapeProjectVersionTranslation: ShapeModel<ProjectVersionTranslatio
 
 export const shapeProjectVersion: ShapeModel<ProjectVersionShape, ProjectVersionCreateInput, ProjectVersionUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id', 'isLatest', 'isPrivate', 'versionIndex', 'versionLabel', 'versionNotes'),
+        ...createPrims(d, 'id', 'isComplete', 'isLatest', 'isPrivate', 'versionIndex', 'versionLabel', 'versionNotes'),
         ...createRel(d, 'directoryListings', ['Create'], 'many', shapeProjectVersionDirectory),
         ...createRel(d, 'root', ['Connect', 'Create'], 'one', shapeProject),
         ...createRel(d, 'suggestedNextByProject', ['Connect'], 'many'),

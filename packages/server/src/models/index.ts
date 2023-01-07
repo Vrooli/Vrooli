@@ -1,3 +1,4 @@
+import { GqlModelType } from '@shared/consts';
 import { ApiModel } from './api';
 import { ApiKeyModel } from './apiKey';
 import { ApiVersionModel } from './apiVersion';
@@ -70,7 +71,7 @@ import { StatsStandardModel } from './statsStandard';
 import { StatsUserModel } from './statsUser';
 import { TagModel } from './tag';
 import { TransferModel } from './transfer';
-import { GraphQLModelType, ModelLogic } from './types';
+import { ModelLogic } from './types';
 import { UserModel } from './user';
 import { UserScheduleModel } from './userSchedule';
 import { UserScheduleFilterModel } from './userScheduleFilter';
@@ -81,7 +82,7 @@ import { WalletModel } from './wallet';
 /**
  * Maps model types to their respective business logic implementations.
  */
-export const ObjectMap: { [key in GraphQLModelType]?: ModelLogic<any, any> } = {
+export const ObjectMap: { [key in GqlModelType]?: ModelLogic<any, any> } = {
     Api: ApiModel,
     ApiKey: ApiKeyModel,
     ApiVersion: ApiVersionModel,

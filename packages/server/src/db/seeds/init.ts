@@ -260,7 +260,7 @@ export async function init(prisma: PrismaType) {
                 },
                 versionLabel: '1.0.0',
                 versionIndex: 0,
-                type: InputType.JSON,
+                standardType: InputType.JSON,
                 props: `{"format":{"<721>":{"<policy_id>":{"<asset_name>":{"name":"<asset_name>","image":"<ipfs_link>","?mediaType":"<mime_type>","?description":"<description>","?files":[{"name":"<asset_name>","mediaType":"<mime_type>","src":"<ipfs_link>"}],"[x]":"[any]"}},"version":"1.0"}},"defaults":[]}`,
             }
         })

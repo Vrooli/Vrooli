@@ -34,7 +34,7 @@ export const subscriberMapper: { [x: string]: string } = {
     Standard: 'standard',
 }
 
-const __typename = 'NotificationSubscription' as const;
+const type = 'NotificationSubscription' as const;
 const suppFields = [] as const;
 export const NotificationSubscriptionModel: ModelLogic<{
     IsTransferable: false,
@@ -51,7 +51,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
     PrismaSelect: Prisma.notification_subscriptionSelect,
     PrismaWhere: Prisma.notification_subscriptionWhereInput,
 }, typeof suppFields> = ({
-    __typename,
+    type,
     delegate: (prisma: PrismaType) => prisma.notification_subscription,
     display: {
         select: () => ({
@@ -92,7 +92,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            __typename,
+            type,
             object: {
                 api: 'Api',
                 comment: 'Comment',
@@ -111,7 +111,7 @@ export const NotificationSubscriptionModel: ModelLogic<{
             },
         },
         prismaRelMap: {
-            __typename,
+            type,
             api: 'Api',
             comment: 'Comment',
             issue: 'Issue',

@@ -1,102 +1,9 @@
-import { Count, DotNotation, SessionUser } from "@shared/consts";
+import { Count, DotNotation, GqlModelType, SessionUser } from "@shared/consts";
 import { PrismaType, PromiseOrValue, RecursivePartial } from "../types";
 import { ObjectSchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 import { SortMap } from "../utils/sortMap";
 import { SearchMap, SearchStringMap } from "../utils";
-
-export type GraphQLModelType =
-    'Api' |
-    'ApiKey' |
-    'ApiVersion' |
-    'Comment' |
-    'Copy' |
-    'DevelopResult' |
-    'Email' |
-    'Fork' |
-    'Handle' |
-    'HistoryResult' |
-    'Issue' |
-    'Label' |
-    'LearnResult' |
-    'Meeting' |
-    'MeetingInvite' |
-    'Member' |
-    'MemberInvite' |
-    'Node' |
-    'NodeEnd' |
-    'NodeLink' |
-    'NodeLinkWhen' |
-    'NodeLoop' |
-    'NodeLoopWhile' |
-    'NodeRoutineList' |
-    'NodeRoutineListItem' |
-    'Note' |
-    'NoteVersion' |
-    'Notification' |
-    'NotificationSubscription' |
-    'Organization' |
-    'Payment' |
-    'Phone' |
-    'PopularResult' |
-    'Post' |
-    'Premium' |
-    'Project' |
-    'ProjectVersion' |
-    'ProjectVersionDirectory' |
-    'ProjectOrRoutineSearchResult' |
-    'ProjectOrOrganizationSearchResult' |
-    'PullRequest' |
-    'PushDevice' |
-    'Question' |
-    'QuestionAnswer' |
-    'Quiz' |
-    'QuizAttempt' |
-    'QuizQuestion' |
-    'QuizQuestionResponse' |
-    'Reminder' |
-    'ReminderItem' |
-    'ReminderList' |
-    'Report' |
-    'ReportResponse' |
-    'ReputationHistory' |
-    'ResearchResult' |
-    'Resource' |
-    'ResourceList' |
-    'Role' |
-    'Routine' |
-    'RoutineVersion' |
-    'RoutineVersionInput' |
-    'RoutineVersionOutput' |
-    'RunProject' |
-    'RunProjectSchedule' |
-    'RunProjectStep' |
-    'RunRoutine' |
-    'RunRoutineInput' |
-    'RunRoutineSchedule' |
-    'RunRoutineStep' |
-    'SmartContract' |
-    'SmartContractVersion' |
-    'Standard' |
-    'StandardVersion' |
-    'Star' |
-    'StatsApi' |
-    'StatsOrganization' |
-    'StatsProject' |
-    'StatsQuiz' |
-    'StatsRoutine' |
-    'StatsSite' |
-    'StatsSmartContract' |
-    'StatsStandard' |
-    'StatsUser' |
-    'Tag' |
-    'Transfer' |
-    'User' |
-    'UserSchedule' |
-    'UserScheduleFilter' |
-    'View' |
-    'Vote' |
-    'Wallet';
 
 type ModelLogicType = {
     GqlCreate: Record<string, any> | undefined,
@@ -123,7 +30,7 @@ export type ModelLogic<
     Model extends ModelLogicType,
     SuppFields extends readonly DotNotation<Model['GqlModel'], 2>[]
 > = {
-    __typename: GraphQLModelType;
+    type: `${GqlModelType}`;
     delegate: (prisma: PrismaType) => PrismaDelegate;
     display: Displayer<Model>;
     duplicate?: Duplicator<any, any>;
@@ -156,23 +63,23 @@ export type ModelLogic<
 } & { [x: string]: any };
 
 /**
- * An object which can maps GraphQL fields to GraphQLModelTypes. Normal fields 
- * are a single GraphQLModelType, while unions are handled with an object. 
- * A union object maps Prisma relation fields to GraphQLModelTypes.
+ * An object which can maps GraphQL fields to GqlModelTypes. Normal fields 
+ * are a single GqlModelType, while unions are handled with an object. 
+ * A union object maps Prisma relation fields to GqlModelTypes.
  */
 export type GqlRelMap<
     GqlModel extends ModelLogicType['GqlModel'],
     PrismaModel extends ModelLogicType['PrismaModel'],
 > = {
-    [K in keyof GqlModel]?: GraphQLModelType | ({ [K2 in keyof PrismaModel]?: GraphQLModelType })
-} & { __typename: GraphQLModelType };
+    [K in keyof GqlModel]?: `${GqlModelType}` | ({ [K2 in keyof PrismaModel]?: `${GqlModelType}` })
+} & { type: `${GqlModelType}` };
 
 /**
- * Allows Prisma select fields to map to GraphQLModelTypes
+ * Allows Prisma select fields to map to GqlModelTypes
  */
 export type PrismaRelMap<T> = {
-    [K in keyof T]?: GraphQLModelType
-} & { __typename: GraphQLModelType };
+    [K in keyof T]?: `${GqlModelType}`
+} & { type: `${GqlModelType}` };
 
 /**
  * Helper functions for adding and removing supplemental fields. These are fields 
@@ -220,11 +127,11 @@ export interface Formatter<
     SuppFields extends readonly DotNotation<Model['GqlModel'], 2>[]
 > {
     /**
-     * Maps GraphQL types to GraphQLModelType, with special handling for unions
+     * Maps GraphQL types to GqlModelType, with special handling for unions
      */
     gqlRelMap: GqlRelMap<Model['GqlModel'], Model['PrismaModel']>;
     /**
-     * Maps Prisma types to GraphQLModelType
+     * Maps Prisma types to GqlModelType
      */
     prismaRelMap: PrismaRelMap<Model['PrismaModel']>;
     /**
@@ -345,11 +252,11 @@ export type ObjectLimit = number | {
 /**
  * Describes shape of select query used to check 
  * the permissions for an object. Basically, it's the 
- * Prisma select query, but where fields can be a GraphQLModelType 
+ * Prisma select query, but where fields can be a GqlModelType 
  * string instead of a boolean
  */
 export type PermissionsMap<ModelSelect extends { [x: string]: any }> = {
-    [x in keyof ModelSelect]: ModelSelect[x] | GraphQLModelType
+    [x in keyof ModelSelect]: ModelSelect[x] | `${GqlModelType}`
 }
 
 /**
@@ -390,7 +297,7 @@ export type Validator<
         isDeleted: boolean,
         isPublic: boolean,
     }) => {
-            [x in keyof Omit<Model['GqlPermission'], '__typename'>]: () => any
+            [x in keyof Omit<Model['GqlPermission'], 'type'>]: () => any
         }
     /**
      * Partial queries for various visibility checks

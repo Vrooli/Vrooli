@@ -2,7 +2,7 @@ import { useMutation } from "graphql/hooks";
 import { DUMMY_ID, uuid } from "@shared/uuid";
 import { CommentDialog } from "components/dialogs"
 import { useCallback, useMemo } from "react";
-import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationChange, shapeCommentCreate, usePromptBeforeUnload, useWindowSize } from "utils";
+import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationChange, shapeComment, usePromptBeforeUnload, useWindowSize } from "utils";
 import { CommentCreateInputProps } from "../types"
 import { commentValidation, commentTranslationValidation } from '@shared/validation';
 import { getCurrentUser } from "utils/authentication";
@@ -51,11 +51,12 @@ export const CommentCreateInput = ({
             //TODO
             mutationWrapper<Comment, CommentCreateInputType>({
                 mutation: addMutation,
-                input: shapeCommentCreate({
+                input: shapeComment.create({
                     id: uuid(),
-                    commentedOn: { __typename: values.createdFor, id: values.forId },
+                    commentedOn: { type: values.createdFor, id: values.forId },
+                    threadId: parent?.id ?? null,
                     translations: values.translationsCreate,
-                }, values.parentId),
+                }),
                 successCondition: (data) => data !== null,
                 successMessage: () => ({ key: 'CommentCreated' }),
                 onSuccess: (data) => {

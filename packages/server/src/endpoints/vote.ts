@@ -36,6 +36,7 @@ export const typeDef = gql`
         forConnect: ID!
     }
     type Vote {
+        type: GqlModelType!
         isUpvote: Boolean
         by: User!
         to: VoteTo!
