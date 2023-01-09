@@ -34,6 +34,6 @@ export const shapeOrganization: ShapeModel<OrganizationShape, OrganizationCreate
         ...updateRel(o, u, 'roles', ['Create', 'Update', 'Delete'], 'many', shapeRole),
         ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeOrganizationTranslation),
-        ...(u.membersDelete ? { membersDelete: u.membersDelete.map(id => ({ id })) } : {}),
+        ...(u.membersDelete ? { membersDelete: u.membersDelete.map(m => m.id) } : {}),
     })
 }

@@ -1,10 +1,9 @@
 import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
 import { useMutation } from "graphql/hooks";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
-import { profileUpdateSchema as validationSchema } from '@shared/validation';
 import { useFormik } from 'formik';
-import { clearSearchHistory, PubSub, shapeProfileUpdate, TagHiddenShape, TagShape, usePromptBeforeUnload } from "utils";
+import { clearSearchHistory, PubSub, shapeProfile, TagShape, usePromptBeforeUnload, UserScheduleFilterShape } from "utils";
 import { SettingsDisplayProps } from "../types";
 import { GridSubmitButtons, HelpButton, PageTitle, SnackSeverity, TagSelector } from "components";
 import { ThemeSwitch } from "components/inputs";
@@ -12,8 +11,10 @@ import { uuid } from '@shared/uuid';
 import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { SettingsFormData } from "pages";
-import { ProfileUpdateInput, User } from "@shared/consts";
+import { ProfileUpdateInput, User, UserScheduleFilterType } from "@shared/consts";
 import { userEndpoint } from "graphql/endpoints";
+import { userValidation } from "@shared/validation";
+import { currentSchedules } from "utils/display/scheduleTools";
 
 const interestsHelpText =
     `Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.
@@ -34,36 +35,40 @@ export const SettingsDisplay = ({
 }: SettingsDisplayProps) => {
     const { palette } = useTheme();
 
-    // Handle starred tags
-    const [starredTags, setStarredTags] = useState<TagShape[]>([]);
-    const handleStarredTagsUpdate = useCallback((updatedList: TagShape[]) => { setStarredTags(updatedList); }, [setStarredTags]);
-
-    // Handle hidden tags
-    const [hiddenTags, setHiddenTags] = useState<TagHiddenShape[]>([]);
-    const handleHiddenTagsUpdate = useCallback((updatedList: TagShape[]) => { 
+    // Handle filters
+    const [filters, setFilters] = useState<UserScheduleFilterShape[]>([]);
+    const handleFiltersUpdate = useCallback((updatedList: UserScheduleFilterShape[], filterType: UserScheduleFilterType) => { 
         // Hidden tags are wrapped in a shape that includes an isBlur flag. 
         // Because of this, we must loop through the updatedList to see which tags have been added or removed.
-        const updatedHiddenTags = updatedList.map((tag) => {
-            const existingTag = hiddenTags.find((hiddenTag) => hiddenTag.tag.id === tag.id);
-            if (existingTag) {
-                return existingTag;
-            }
-            return { 
+        const updatedFilters = updatedList.map((tag) => {
+            const existingTag = filters.find((filter) => filter.tag.id === tag.id);
+            return existingTag ?? {
                 id: uuid(),
-                isBlur: true,
+                filterType,
                 tag,
-            };
+            }
         });
-        setHiddenTags(updatedHiddenTags);
-    }, [hiddenTags]);
+        setFilters(updatedFilters);
+    }, [filters]);
+    const { blurs, hides, showMores } = useMemo(() => {
+        const blurs: TagShape[] = [];
+        const hides: TagShape[] = [];
+        const showMores: TagShape[] = [];
+        filters.forEach((filter) => {
+            if (filter.filterType === UserScheduleFilterType.Blur) {
+                blurs.push(filter.tag);
+            } else if (filter.filterType === UserScheduleFilterType.Hide) {
+                hides.push(filter.tag);
+            } else if (filter.filterType === UserScheduleFilterType.ShowMore) {
+                showMores.push(filter.tag);
+            }
+        });
+        return { blurs, hides, showMores };
+    }, [filters]);
 
     useEffect(() => {
-        if (profile?.starredTags) {
-            setStarredTags(profile.starredTags);
-        }
-        if (profile?.hiddenTags) {
-            setHiddenTags(profile.hiddenTags);
-        }
+        const currSchedules = currentSchedules(session);
+        // setFilters(currSchedule?.filters ?? []);
     }, [profile]);
 
     // Handle update
@@ -72,23 +77,28 @@ export const SettingsDisplay = ({
         initialValues: {
             theme: getCurrentUser(session).theme ?? 'light',
         },
-        validationSchema,
+        validationSchema: userValidation.update(),
         onSubmit: (values) => {
             if (!profile) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
                 return;
             }
             if (!formik.isValid) return;
-            // If any tags are in both starredTags and hiddenTags, remove them from hidden. Also give warning to user.
-            const filteredHiddenTags = hiddenTags.filter(t => !starredTags.some(st => st.tag === t.tag.tag));
-            if (filteredHiddenTags.length !== hiddenTags.length) {
+            // Filter hidden tags that are also either blurs or showMores
+            const filteredHides = hides.filter(t => !blurs.some(b => b.tag === t.tag.tag) && !showMores.some(sm => sm.tag === t.tag.tag));
+            // Filter blurs that are also either hidden or showMores
+            const filteredBlurs = blurs.filter(t => !hides.some(h => h.tag === t.tag.tag) && !showMores.some(sm => sm.tag === t.tag.tag));
+            // Filter showMores that are also either hidden or blurs
+            const filteredShowMores = showMores.filter(t => !hides.some(h => h.tag === t.tag.tag) && !blurs.some(b => b.tag === t.tag.tag));
+            // If any of the filtered lists are shorter than the original, give warning to user.
+            if (filteredHides.length !== hides.length || filteredBlurs.length !== blurs.length || filteredShowMores.length !== showMores.length) {
                 PubSub.get().publishSnack({ messageKey: 'FoundTopicsInFavAndHidden', severity: SnackSeverity.Warning });
             }
-            const input = shapeProfileUpdate(profile, {
+            const input = shapeProfile.update(profile, {
                 id: profile.id,
                 theme: values.theme as 'light' | 'dark',
                 starredTags,
-                hiddenTags: filteredHiddenTags,
+                filters: filteredHiddenTags,
             })
             if (!input || Object.keys(input).length === 0) {
                 PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Error });
@@ -115,8 +125,7 @@ export const SettingsDisplay = ({
 
     const handleCancel = useCallback(() => {
         formik.resetForm();
-        setStarredTags([]);
-        setHiddenTags([]);
+        setFilters([]);
     }, [formik]);
 
     return (
@@ -148,9 +157,9 @@ export const SettingsDisplay = ({
             </Stack>
             <Box id="hidden-topics-box" sx={{ margin: 2, marginBottom: 5 }}>
                 <TagSelector
-                    handleTagsUpdate={handleHiddenTagsUpdate}
+                    handleTagsUpdate={handleFiltersUpdate}
                     session={session}
-                    tags={hiddenTags.map(t => t.tag)}
+                    tags={filters.map(t => t.tag)}
                     placeholder={"Enter topics you'd like to hide from view, followed by commas..."}
                 />
             </Box>

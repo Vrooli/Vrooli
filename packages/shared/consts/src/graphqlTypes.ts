@@ -6999,6 +6999,7 @@ export type SessionUser = {
   id: Scalars['String'];
   languages: Array<Scalars['String']>;
   name?: Maybe<Scalars['String']>;
+  schedules: Array<UserSchedule>;
   theme?: Maybe<Scalars['String']>;
 };
 
@@ -12423,6 +12424,7 @@ export type SessionUserResolvers<ContextType = any, ParentType extends Resolvers
   id?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   languages?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
   name?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  schedules?: Resolver<Array<ResolversTypes['UserSchedule']>, ParentType, ContextType>;
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

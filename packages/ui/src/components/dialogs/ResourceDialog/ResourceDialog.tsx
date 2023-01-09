@@ -10,7 +10,7 @@ import { AutocompleteOption, Wrap } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
-import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
+import { GqlModelType, PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { feedEndpoint, resourceEndpoint } from 'graphql/endpoints';
 import { mutationWrapper } from 'graphql/utils';
 import { useQuery } from '@apollo/client';
@@ -129,7 +129,13 @@ export const ResourceDialog = ({
                     })
                 }
             } else {
-                onCreated(input as Resource);
+                onCreated({
+                    ...input,
+                    created_at: partialData?.created_at ?? new Date().toISOString(),
+                    updated_at: partialData?.updated_at ?? new Date().toISOString(),
+                    listId,
+                    type: GqlModelType.Resource,
+                });
                 formik.resetForm();
                 onClose();
             }
@@ -379,12 +385,12 @@ export const ResourceDialog = ({
                                 onBlur={onTranslationBlur}
                                 onChange={onTranslationChange}
                                 error={translations.touchedDescription && Boolean(translations.errorDescription)}
-                                helperText={(translationsltouchedDescription && translations.errorDescription) ?? 'Enter description (optional)'}
+                                helperText={(translations.touchedDescription && translations.errorDescription) ?? 'Enter description (optional)'}
                             />
                             {/* Action buttons */}
                             <Grid container spacing={1}>
                                 <GridSubmitButtons
-                                    errors={translations.errors}
+                                    errors={translations.errorsWithTranslations}
                                     isCreate={index < 0}
                                     loading={formik.isSubmitting || addLoading || updateLoading}
                                     onCancel={handleCancel}

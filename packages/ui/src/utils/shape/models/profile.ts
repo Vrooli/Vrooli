@@ -15,8 +15,8 @@ export const shapeProfileTranslation: ShapeModel<ProfileTranslationShape, UserTr
     update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'bio'))
 }
 
-export const shapeProfileUpdate = (o: ProfileShape, u: ProfileShape): ProfileUpdateInput | undefined =>
-    shapeUpdate(u, {
+export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = {
+    update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, null, 'handle',
             'isPrivate',
             'isPrivateApis',
@@ -41,4 +41,5 @@ export const shapeProfileUpdate = (o: ProfileShape, u: ProfileShape): ProfileUpd
         ),
         ...updateRel(o, u, 'schedules', ['Create', 'Update', 'Delete'], 'many', shapeUserSchedule),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeProfileTranslation),
-    })
+    }),
+}

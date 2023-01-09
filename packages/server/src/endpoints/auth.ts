@@ -86,6 +86,7 @@ export const typeDef = gql`
         id: String!
         languages: [String!]!
         name: String
+        schedules: [UserSchedule!]!
         theme: String
     }
 
@@ -289,8 +290,10 @@ export const resolvers: {
         guestLogIn: async (_p, _d, { req, res }, info) => {
             await rateLimit({ info, maxUser: 500, req });
             // Create session
-            const session: RecursivePartial<Session> = {
-                isLoggedIn: false
+            const session: Session = {
+                isLoggedIn: false,
+                type: GqlModelType.Session,
+                users: []
             }
             // Set up session token
             await generateSessionJwt(res, session);
