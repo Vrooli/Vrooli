@@ -8,7 +8,7 @@ import { ShapeModel } from 'types';
  * @returns The shaped object, ready to be passed to the mutation endpoint
  */
 export const updateVersion = <
-    Root extends { versionData?: { id: string, versionLabel: string | null | undefined } | null | undefined },
+    Root extends { versionInfo?: { id: string, versionLabel: string | null | undefined } | null | undefined },
     VersionCreateInput extends {},
     VersionUpdateInput extends {},
 >(
@@ -18,24 +18,24 @@ export const updateVersion = <
     preShape?: (version: Record<string, any>, root: Record<string, any>) => any,
 ): ({ versionsCreate?: [VersionCreateInput], versionsUpdate?: [VersionUpdateInput] }) => {
     // Return empty object if no updated version data. We don't handle deletes here
-    if (!updatedRoot.versionData) return {} as any;
+    if (!updatedRoot.versionInfo) return {} as any;
     // Make preShape a function, if not provided 
     const preShaper = preShape ?? ((x: any) => x);
     // Determine if we're creating or updating
-    const isCreate = !originalRoot.versionData || originalRoot.versionData.id !== updatedRoot.versionData.id;
+    const isCreate = !originalRoot.versionInfo || originalRoot.versionInfo.id !== updatedRoot.versionInfo.id;
     // Shape and return version data
     if (isCreate) {
         return {
             versionsCreate: [shape.create(preShaper({
-                ...updatedRoot.versionData,
-                versionLabel: updatedRoot.versionData.versionLabel ?? '0.0.1',
+                ...updatedRoot.versionInfo,
+                versionLabel: updatedRoot.versionInfo.versionLabel ?? '0.0.1',
             }, updatedRoot))]
         } as any;
     } else {
         return {
             versionsUpdate: [shape.update(
-                preShaper(originalRoot.versionData!, originalRoot),
-                preShaper(updatedRoot.versionData, updatedRoot)
+                preShaper(originalRoot.versionInfo!, originalRoot),
+                preShaper(updatedRoot.versionInfo, updatedRoot)
             )]
         } as any;
     }

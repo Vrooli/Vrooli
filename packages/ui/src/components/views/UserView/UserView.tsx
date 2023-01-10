@@ -13,6 +13,7 @@ import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
 import { userEndpoint } from "graphql/endpoints";
+import { setDotNotationValue } from "@shared/utils";
 
 enum TabOptions {
     Resources = "Resources",
@@ -82,7 +83,7 @@ export const UserView = ({
                 if (!user) return;
                 setUser({
                     ...user,
-                    resourceLists: [updatedList]
+                    resourceList: updatedList
                 })
             }}
             loading={loading}
@@ -186,11 +187,8 @@ export const UserView = ({
         switch (action) {
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setUser({
-                        ...user,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
+                if (data.success && user) {
+                    setUser(setDotNotationValue(user, 'you.isStarred', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:

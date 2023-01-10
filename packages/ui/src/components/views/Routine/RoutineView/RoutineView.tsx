@@ -1,11 +1,11 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, CommentFor, FindByIdInput, ResourceList, Routine, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
+import { APP_LINKS, CommentFor, FindByIdInput, ResourceList, Routine, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
 import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
-import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardToFieldData, TagShape, uuidToBase36 } from "utils";
+import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, setValueFromDot, standardToFieldData, TagShape, uuidToBase36 } from "utils";
 import { mutationWrapper } from "graphql/utils";
 import { uuid, uuidValidate } from '@shared/uuid';
 import { useFormik } from "formik";
@@ -16,7 +16,7 @@ import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { RelationshipsObject } from "components/inputs/types";
-import { routineEndpoint, runRoutineEndpoint } from "graphql/endpoints";
+import { routineEndpoint, routineVersionEndpoint, runRoutineEndpoint } from "graphql/endpoints";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -56,7 +56,7 @@ export const RoutineView = ({
             versionGroupId: uuidValidate(secondLast) ? secondLast : last,
         }
     }, []);
-    const [getData, { data, loading }] = useLazyQuery<Routine, FindByIdInput, 'routine'>(...routineEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindByIdInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
         // If IDs are not invalid, throw error if we are not creating a new routine
@@ -66,24 +66,24 @@ export const RoutineView = ({
         }
     }, [getData, id, versionGroupId])
 
-    const [routine, setRoutine] = useState<Routine | null>(null);
+    const [routineVersion, setRoutineVersion] = useState<RoutineVersion | null>(null);
     useEffect(() => {
-        if (!data?.routine) return;
-        setRoutine(data.routine);
+        if (!data?.routineVersion) return;
+        setRoutineVersion(data.routineVersion);
     }, [data]);
-    const updateRoutine = useCallback((newRoutine: Routine) => { setRoutine(newRoutine); }, [setRoutine]);
-    const canEdit = useMemo(() => getListItemPermissions(routine as any, session).canEdit, [routine, session]);
+    const updateRoutineVersion = useCallback((newRoutineVersion: RoutineVersion) => { setRoutineVersion(newRoutineVersion); }, [setRoutineVersion]);
+    const canEdit = useMemo(() => getListItemPermissions(routineVersion, session).canEdit, [routineVersion, session]);
 
-    const availableLanguages = useMemo<string[]>(() => (routine?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routine?.translations]);
+    const availableLanguages = useMemo<string[]>(() => (routineVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routineVersion?.translations]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
     const { name, description, instructions } = useMemo(() => {
-        const { description, instructions, name } = getTranslation(routine ?? partialData, [language]);
+        const { description, instructions, name } = getTranslation(routineVersion ?? partialData, [language]);
         return { name, description, instructions };
-    }, [routine, language, partialData]);
+    }, [routineVersion, language, partialData]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;
@@ -101,20 +101,20 @@ export const RoutineView = ({
     }, []);
 
     const handleRunDelete = useCallback((run: RunRoutine) => {
-        if (!routine) return;
-        setRoutine({
-            ...routine,
-            runs: routine.runs.filter(r => r.id !== run.id),
+        if (!routineVersion) return;
+        setRoutineVersion({
+            ...routineVersion,
+            runs: routineVersion.runs.filter(r => r.id !== run.id),
         });
-    }, [routine]);
+    }, [routineVersion]);
 
     const handleRunAdd = useCallback((run: RunRoutine) => {
-        if (!routine) return;
-        setRoutine({
-            ...routine,
-            runs: [run, ...routine.runs],
+        if (!routineVersion) return;
+        setRoutineVersion({
+            ...routineVersion,
+            runs: [run, ...routineVersion.runs],
         });
-    }, [routine]);
+    }, [routineVersion]);
 
     const onEdit = useCallback(() => {
         id && setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(id)}`);
@@ -142,20 +142,14 @@ export const RoutineView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.success) {
-                    setRoutine({
-                        ...routine,
-                        isUpvoted: action === ObjectActionComplete.VoteUp,
-                    } as any)
+                if (data.success && routineVersion) {
+                    setRoutineVersion(setValueFromDot(routineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
                 }
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setRoutine({
-                        ...routine,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
+                if (data.success && routineVersion) {
+                    setRoutineVersion(setValueFromDot(routineVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -163,30 +157,30 @@ export const RoutineView = ({
                 window.location.reload();
                 break;
         }
-    }, [routine, setLocation]);
+    }, [routineVersion, setLocation]);
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData } | null>(() => {
-        if (!routine) return null;
+        if (!routineVersion) return null;
         const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < routine.inputs?.length; i++) {
-            const currInput = routine.inputs[i];
-            if (!currInput.standard) continue;
-            const currSchema = standardToFieldData({
+        for (let i = 0; i < routineVersion.inputs?.length; i++) {
+            const currInput = routineVersion.inputs[i];
+            if (!currInput.standardVersion) continue;
+            const currSchema = standardVersionToFieldData({
                 description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standard, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
-                props: currInput.standard.props,
-                name: currInput.name ?? currInput.standard?.name,
-                type: currInput.standard.type,
-                yup: currInput.standard.yup,
+                props: currInput.standardVersion.props,
+                name: currInput.name ?? currInput.standardVersion?.name,
+                type: currInput.standardVersion.type,
+                yup: currInput.standardVersion.yup,
             });
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
             }
         }
         return schemas;
-    }, [routine, session]);
+    }, [routineVersion, session]);
     const formik = useFormik({
         initialValues: Object.entries(formValueMap ?? {}).reduce((acc, [key, value]) => {
             acc[key] = value.props.defaultValue ?? '';
@@ -198,7 +192,7 @@ export const RoutineView = ({
 
     const [runComplete] = useMutation<RunRoutine, RunRoutineCompleteInput, 'runRoutineComplete'>(...runRoutineEndpoint.complete);
     const markAsComplete = useCallback(() => {
-        if (!routine) return;
+        if (!routineVersion) return;
         mutationWrapper<RunRoutine, RunRoutineCompleteInput>({
             mutation: runComplete,
             input: {
@@ -213,7 +207,7 @@ export const RoutineView = ({
                 setLocation(APP_LINKS.Home)
             },
         })
-    }, [formik.values, routine, runComplete, setLocation, name]);
+    }, [formik.values, routineVersion, runComplete, setLocation, name]);
 
     /**
      * Copy current value of input to clipboard
@@ -244,20 +238,20 @@ export const RoutineView = ({
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
 
     // Handle tags
-    const [tags, setTags] = useState<TagShape[]>((partialData?.tags as TagShape[] | undefined) ?? []);
+    const [tags, setTags] = useState<TagShape[]>((partialData?.root?.tags as TagShape[] | undefined) ?? []);
 
     useEffect(() => {
         setRelationships({
-            isComplete: routine?.isComplete ?? false,
-            isPrivate: routine?.isPrivate ?? false,
-            owner: routine?.owner ?? null,
+            isComplete: routineVersion?.isComplete ?? false,
+            isPrivate: routineVersion?.isPrivate ?? false,
+            owner: routineVersion?.root?.owner ?? null,
             parent: null,
             // parent: routine?.parent ?? null, TODO
             project: null, //TODO
         });
-        setResourceList(routine?.resourceList ?? { id: uuid() } as any);
-        setTags(routine?.tags ?? []);
-    }, [routine]);
+        setResourceList(routineVersion?.resourceList ?? { id: uuid() } as any);
+        setTags(routineVersion?.root?.tags ?? []);
+    }, [routineVersion]);
 
     return (
         <Box sx={{
@@ -291,19 +285,19 @@ export const RoutineView = ({
                     </ColorIconButton>
                 ) : null}
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
-                {routine?.nodes?.length ? <RunButton
+                {routineVersion?.nodes?.length ? <RunButton
                     canEdit={canEdit}
                     handleRunAdd={handleRunAdd}
                     handleRunDelete={handleRunDelete}
                     isBuildGraphOpen={isBuildOpen}
                     isEditing={false}
-                    routine={routine}
+                    routineVersion={routineVersion}
                     session={session}
                     zIndex={zIndex}
                 /> : null}
             </Stack>
             {/* Dialog for building routine */}
-            {routine && <Dialog
+            {routineVersion && <Dialog
                 id="run-routine-view-dialog"
                 fullScreen
                 open={isBuildOpen}
@@ -320,14 +314,14 @@ export const RoutineView = ({
                     isEditing={false}
                     loading={loading}
                     owner={relationships.owner}
-                    routine={routine}
+                    routine={routineVersion}
                     session={session}
                     translationData={{
                         language,
                         setLanguage,
                         handleAddLanguage: () => { },
                         handleDeleteLanguage: () => { },
-                        translations: routine.translations,
+                        translations: routineVersion.translations,
                     }}
                     zIndex={zIndex + 1}
                 />
@@ -338,7 +332,7 @@ export const RoutineView = ({
                 title={name}
                 session={session}
                 setLanguage={setLanguage}
-                translations={routine?.translations ?? partialData?.translations ?? []}
+                translations={routineVersion?.translations ?? partialData?.translations ?? []}
                 zIndex={zIndex}
             />
             {/* Relationships */}
@@ -396,11 +390,11 @@ export const RoutineView = ({
                 </ContentCollapse>
             </Box>}
             {/* "View Graph" button if this is a multi-step routine */}
-            {routine?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
+            {routineVersion?.nodes?.length ? <Button startIcon={<RoutineIcon />} fullWidth onClick={viewGraph} color="secondary">View Graph</Button> : null}
             {/* Tags */}
             {tags.length > 0 && <TagList
                 maxCharacters={30}
-                parentId={routine?.id ?? ''}
+                parentId={routineVersion?.id ?? ''}
                 session={session}
                 tags={tags as any[]}
                 sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
@@ -411,19 +405,19 @@ export const RoutineView = ({
                 <DateDisplay
                     loading={loading}
                     showIcon={true}
-                    timestamp={routine?.created_at}
+                    timestamp={routineVersion?.created_at}
                 />
                 <VersionDisplay
-                    currentVersion={routine?.version}
+                    currentVersion={routineVersion?.version}
                     prefix={" - "}
-                    versions={routine?.versions}
+                    versions={routineVersion?.versions}
                 />
             </Stack>
             {/* Votes, reports, and other basic stats */}
             <StatsCompact
-                handleObjectUpdate={updateRoutine}
+                handleObjectUpdate={updateRoutineVersion}
                 loading={loading}
-                object={routine}
+                object={routineVersion}
                 session={session}
             />
             {/* Action buttons */}
@@ -431,7 +425,7 @@ export const RoutineView = ({
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                 onActionStart={onActionStart}
                 onActionComplete={onActionComplete}
-                object={routine}
+                object={routineVersion}
                 session={session}
                 zIndex={zIndex}
             />

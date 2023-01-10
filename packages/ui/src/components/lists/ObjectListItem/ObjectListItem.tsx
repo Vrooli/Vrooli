@@ -264,7 +264,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     setObject({
                         ...object,
                         isUpvoted: action === ObjectActionComplete.VoteUp,
-                    } as any)
+                    })
                 }
                 break;
             case ObjectActionComplete.Star:
@@ -273,7 +273,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     setObject({
                         ...object,
                         isStarred: action === ObjectActionComplete.Star,
-                    } as any)
+                    })
                 }
                 break;
             case ObjectActionComplete.Fork:

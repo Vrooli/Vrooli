@@ -1,6 +1,6 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdInput, Project, ResourceList, StarFor, VisibilityType } from "@shared/consts";
+import { APP_LINKS, FindByIdInput, ProjectVersion, ResourceList, StarFor, VisibilityType } from "@shared/consts";
 import { useLazyQuery } from "graphql/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
@@ -10,7 +10,8 @@ import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, 
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { projectEndpoint } from "graphql/endpoints";
+import { projectVersionEndpoint } from "graphql/endpoints";
+import { setDotNotationValue } from "@shared/utils";
 
 enum TabOptions {
     Resources = "Resources",
@@ -27,17 +28,17 @@ export const ProjectView = ({
     const [, setLocation] = useLocation();
     // Fetch data
     const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<Project, FindByIdInput, 'project'>(...projectEndpoint.findOne, { errorPolicy: 'all' });
-    const [project, setProject] = useState<Project | null | undefined>(null);
+    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindByIdInput, 'projectVersion'>(...projectVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const [projectVersion, setProjectVersion] = useState<ProjectVersion | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { id } })
     }, [getData, id]);
     useEffect(() => {
-        setProject(data?.project);
+        setProjectVersion(data?.projectVersion);
     }, [data]);
-    const canEdit = useMemo<boolean>(() => project?.permissionsProject?.canEdit === true, [project?.permissionsProject?.canEdit]);
+    const canEdit = useMemo<boolean>(() => projectVersion?.you?.canEdit === true, [projectVersion?.you?.canEdit]);
 
-    const availableLanguages = useMemo<string[]>(() => (project?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [project?.translations]);
+    const availableLanguages = useMemo<string[]>(() => (projectVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [projectVersion?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
@@ -45,17 +46,17 @@ export const ProjectView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { canStar, name, description, handle, resourceList } = useMemo(() => {
-        const { canStar } = project?.permissionsProject ?? {};
-        const resourceList: ResourceList | undefined = project?.resourceList;
-        const { description, name } = getTranslation(project ?? partialData, [language]);
+        const { canStar } = projectVersion?.you ?? {};
+        const resourceList: ResourceList | undefined = projectVersion?.resourceList;
+        const { description, name } = getTranslation(projectVersion ?? partialData, [language]);
         return {
             canStar,
             name,
             description,
-            handle: project?.handle ?? partialData?.handle,
+            handle: projectVersion?.handle ?? partialData?.handle,
             resourceList,
         };
-    }, [language, project, partialData]);
+    }, [language, projectVersion, partialData]);
 
     useEffect(() => {
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
@@ -68,17 +69,17 @@ export const ProjectView = ({
             session={session}
             canEdit={canEdit}
             handleUpdate={(updatedList) => {
-                if (!project) return;
-                setProject({
-                    ...project,
-                    resourceLists: [updatedList]
+                if (!projectVersion) return;
+                setProjectVersion({
+                    ...projectVersion,
+                    resourceList: updatedList
                 })
             }}
             loading={loading}
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [canEdit, loading, project, resourceList, session, zIndex]);
+    ) : null, [canEdit, loading, projectVersion, resourceList, session, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -126,20 +127,14 @@ export const ProjectView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.success) {
-                    setProject({
-                        ...project,
-                        isUpvoted: action === ObjectActionComplete.VoteUp,
-                    } as any)
+                if (data.success && projectVersion) {
+                    setProjectVersion(setDotNotationValue(projectVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
                 }
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setProject({
-                        ...project,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
+                if (data.success && projectVersion) {
+                    setProjectVersion(setDotNotationValue(projectVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -147,7 +142,7 @@ export const ProjectView = ({
                 window.location.reload();
                 break;
         }
-    }, [project, setLocation]);
+    }, [projectVersion, setLocation]);
 
     // Create search data
     const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
@@ -254,7 +249,7 @@ export const ProjectView = ({
                     loading={loading}
                     showIcon={true}
                     textBeforeDate="Created"
-                    timestamp={project?.created_at}
+                    timestamp={projectVersion?.created_at}
                     width={"33%"}
                 />
                 {/* Description */}
@@ -275,21 +270,21 @@ export const ProjectView = ({
                             <DonateIcon fill={palette.background.textSecondary} />
                         </IconButton>
                     </Tooltip>
-                    <ShareButton object={project} zIndex={zIndex} />
+                    <ShareButton object={projectVersion} zIndex={zIndex} />
                     <StarButton
                         disabled={!canStar}
                         session={session}
-                        objectId={project?.id ?? ''}
+                        objectId={projectVersion?.id ?? ''}
                         starFor={StarFor.Project}
-                        isStar={project?.isStarred ?? false}
-                        stars={project?.stars ?? 0}
+                        isStar={projectVersion?.isStarred ?? false}
+                        stars={projectVersion?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, project, description, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, projectVersion, description, zIndex, canStar, session]);
 
     /**
     * Opens add new page
@@ -310,7 +305,7 @@ export const ProjectView = ({
             {/* Popup menu displayed when "More" ellipsis pressed */}
             <ObjectActionMenu
                 anchorEl={moreMenuAnchor}
-                object={project as any}
+                object={projectVersion as any}
                 onActionStart={onMoreActionStart}
                 onActionComplete={onMoreActionComplete}
                 onClose={closeMoreMenu}
@@ -334,7 +329,7 @@ export const ProjectView = ({
                         currentLanguage={language}
                         handleCurrent={setLanguage}
                         session={session}
-                        translations={project?.translations ?? partialData?.translations ?? []}
+                        translations={projectVersion?.translations ?? partialData?.translations ?? []}
                         zIndex={zIndex}
                     />
                 </Box>

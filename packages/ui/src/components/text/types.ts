@@ -1,5 +1,5 @@
 import { BoxProps, TypographyProps } from "@mui/material";
-import { CommonKey, Project, Routine, Session, Standard } from "types";
+import { CommonKey, Project, Routine, Session, Standard, VersionInfo } from "types";
 import { ObjectType } from "utils";
 
 export interface DateDisplayProps extends BoxProps {
@@ -57,10 +57,10 @@ export interface TextShrinkProps extends TypographyProps {
 
 export interface VersionDisplayProps extends BoxProps {
     confirmVersionChange?: (callback: () => void) => void;
-    currentVersion: string | null | undefined;
+    currentVersion: VersionInfo | null | undefined;
     loading?: boolean;
     prefix?: string;
-    versions?: string[];
+    versions?: VersionInfo[];
 }
 
 export interface ViewsDisplayProps {

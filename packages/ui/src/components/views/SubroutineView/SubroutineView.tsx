@@ -1,17 +1,18 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
 import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, runInputsToFormik, standardToFieldData, TagShape, uuidToBase36 } from "utils";
+import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, runInputsToFormik, TagShape, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from 'forms/generators';
 import { useFormik } from "formik";
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, CommentFor, ResourceList, RoutineVersion } from "@shared/consts";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { uuid } from "@shared/uuid";
 import { SuccessIcon } from "@shared/icons";
+import { setDotNotationValue } from "@shared/utils";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -28,7 +29,7 @@ export const SubroutineView = ({
     handleUserInputsUpdate,
     handleSaveProgress,
     owner,
-    routine,
+    routineVersion,
     run,
     session,
     zIndex,
@@ -37,21 +38,21 @@ export const SubroutineView = ({
     const [, setLocation] = useLocation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const [internalRoutine, setInternalRoutine] = useState(routine);
+    const [internalRoutineVersion, setInternalRoutineVersion] = useState(routineVersion);
     useEffect(() => {
-        setInternalRoutine(routine);
-    }, [routine]);
-    const updateRoutine = useCallback((routine: Routine) => { setInternalRoutine(routine); }, [setInternalRoutine]);
+        setInternalRoutineVersion(routineVersion);
+    }, [routineVersion]);
+    const updateRoutine = useCallback((routineVersion: RoutineVersion) => { setInternalRoutineVersion(routineVersion); }, [setInternalRoutineVersion]);
 
     const { description, instructions, title } = useMemo(() => {
         const languages = getUserLanguages(session);
-        const { description, instructions, title } = getTranslation(internalRoutine, languages, true);
+        const { description, instructions, name } = getTranslation(internalRoutineVersion, languages, true);
         return {
             description,
             instructions,
-            title,
+            name,
         }
-    }, [internalRoutine, session]);
+    }, [internalRoutineVersion, session]);
 
     const confirmLeave = useCallback((callback: () => any) => {
         // Confirmation dialog for leaving routine
@@ -74,26 +75,26 @@ export const SubroutineView = ({
 
     // The schema and formik keys for the form
     const formValueMap = useMemo<{ [fieldName: string]: FieldData }>(() => {
-        if (!internalRoutine) return {};
+        if (!internalRoutineVersion) return {};
         const schemas: { [fieldName: string]: FieldData } = {};
-        for (let i = 0; i < internalRoutine.inputs?.length; i++) {
-            const currInput = internalRoutine.inputs[i];
-            if (!currInput.standard) continue;
-            const currSchema = standardToFieldData({
+        for (let i = 0; i < internalRoutineVersion.inputs?.length; i++) {
+            const currInput = internalRoutineVersion.inputs[i];
+            if (!currInput.standardVersion) continue;
+            const currSchema = standardVersionToFieldData({
                 description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standard, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
-                props: currInput.standard.props,
-                name: currInput.name ?? currInput.standard.name,
-                type: currInput.standard.type,
-                yup: currInput.standard.yup,
+                props: currInput.standardVersion.props,
+                name: currInput.name ?? currInput.standardVersion.name,
+                type: currInput.standardVersion.type,
+                yup: currInput.standardVersion.yup,
             });
             if (currSchema) {
                 schemas[currSchema.fieldName] = currSchema;
             }
         }
         return schemas;
-    }, [internalRoutine, session]);
+    }, [internalRoutineVersion, session]);
     const formik = useFormik({
         initialValues: Object.entries(formValueMap).reduce((acc, [key, value]) => {
             acc[key] = value.props.defaultValue ?? '';
@@ -141,7 +142,7 @@ export const SubroutineView = ({
     }, [formik.values]);
 
     const inputComponents = useMemo(() => {
-        if (!internalRoutine?.inputs || !Array.isArray(internalRoutine?.inputs) || internalRoutine.inputs.length === 0) return null;
+        if (!internalRoutineVersion?.inputs || !Array.isArray(internalRoutineVersion?.inputs) || internalRoutineVersion.inputs.length === 0) return null;
         return (
             <Box>
                 {Object.values(formValueMap).map((fieldData: FieldData, index: number) => (
@@ -159,11 +160,11 @@ export const SubroutineView = ({
                 ))}
             </Box>
         )
-    }, [copyInput, formValueMap, palette.background.textPrimary, formik, internalRoutine?.inputs, session, zIndex]);
+    }, [copyInput, formValueMap, palette.background.textPrimary, formik, internalRoutineVersion?.inputs, session, zIndex]);
 
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(internalRoutine?.id ?? '')}`);
-    }, [internalRoutine?.id, setLocation]);
+        setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(internalRoutineVersion?.id ?? '')}`);
+    }, [internalRoutineVersion?.id, setLocation]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
@@ -187,20 +188,14 @@ export const SubroutineView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.success) {
-                    setInternalRoutine({
-                        ...internalRoutine,
-                        isUpvoted: action === ObjectActionComplete.VoteUp,
-                    } as any)
+                if (data.success && internalRoutineVersion) {
+                    setInternalRoutineVersion(setDotNotationValue(internalRoutineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
                 }
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setInternalRoutine({
-                        ...internalRoutine,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
+                if (data.success && internalRoutineVersion) {
+                    setInternalRoutineVersion(setDotNotationValue(internalRoutineVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -208,7 +203,7 @@ export const SubroutineView = ({
                 window.location.reload();
                 break;
         }
-    }, [internalRoutine, setLocation]);
+    }, [internalRoutineVersion, setLocation]);
 
     // Handle relationships
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -233,16 +228,16 @@ export const SubroutineView = ({
 
     useEffect(() => {
         setRelationships({
-            isComplete: internalRoutine?.isComplete ?? false,
-            isPrivate: internalRoutine?.isPrivate ?? false,
-            owner: internalRoutine?.owner ?? null,
+            isComplete: internalRoutineVersion?.isComplete ?? false,
+            isPrivate: internalRoutineVersion?.isPrivate ?? false,
+            owner: internalRoutineVersion?.root?.owner ?? null,
             parent: null,
             // parent: internalRoutine?.parent ?? null, TODO
             project: null, //TODO
         });
-        setResourceList(internalRoutine?.resourceList ?? { id: uuid() } as any);
-        setTags(internalRoutine?.tags ?? []);
-    }, [internalRoutine]);
+        setResourceList(internalRoutineVersion?.resourceList ?? { id: uuid() } as any);
+        setTags(internalRoutineVersion?.root?.tags ?? []);
+    }, [internalRoutineVersion]);
 
     return (
         <Box sx={{
@@ -257,7 +252,7 @@ export const SubroutineView = ({
                 title={title}
                 session={session}
                 setLanguage={setLanguage}
-                translations={internalRoutine?.translations ?? []}
+                translations={internalRoutineVersion?.translations ?? []}
                 zIndex={zIndex}
             />
             {/* Resources */}
@@ -288,7 +283,7 @@ export const SubroutineView = ({
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                 onActionStart={onActionStart}
                 onActionComplete={onActionComplete}
-                object={internalRoutine}
+                object={internalRoutineVersion}
                 session={session}
                 zIndex={zIndex}
             />
@@ -306,7 +301,7 @@ export const SubroutineView = ({
                     {/* Tags */}
                     {tags.length > 0 && <TagList
                         maxCharacters={30}
-                        parentId={routine?.id ?? ''}
+                        parentId={routineVersion?.root?.id ?? ''}
                         session={session}
                         tags={tags as any[]}
                         sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
@@ -317,20 +312,20 @@ export const SubroutineView = ({
                         <DateDisplay
                             loading={loading}
                             showIcon={true}
-                            timestamp={internalRoutine?.created_at}
+                            timestamp={internalRoutineVersion?.created_at}
                         />
                         <VersionDisplay
                             confirmVersionChange={confirmLeave}
-                            currentVersion={internalRoutine?.version}
+                            currentVersion={internalRoutineVersion?.version}
                             prefix={" - "}
-                            versions={internalRoutine?.versions}
+                            versions={internalRoutineVersion?.versions}
                         />
                     </Stack>
                     {/* Votes, reports, and other basic stats */}
                     <StatsCompact
                         handleObjectUpdate={updateRoutine}
                         loading={loading}
-                        object={internalRoutine ?? null}
+                        object={internalRoutineVersion ?? null}
                         session={session}
                     />
                 </ContentCollapse>
@@ -341,8 +336,8 @@ export const SubroutineView = ({
                     forceAddCommentOpen={isAddCommentOpen}
                     isOpen={false}
                     language={language}
-                    objectId={internalRoutine?.id ?? ''}
-                    objectType={CommentFor.Routine}
+                    objectId={internalRoutineVersion?.id ?? ''}
+                    objectType={CommentFor.RoutineVersion}
                     onAddCommentClose={closeAddCommentDialog}
                     session={session}
                     zIndex={zIndex}

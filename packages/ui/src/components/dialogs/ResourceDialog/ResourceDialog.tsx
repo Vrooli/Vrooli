@@ -10,7 +10,7 @@ import { AutocompleteOption, Wrap } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
-import { GqlModelType, PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
+import { GqlModelType, PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { feedEndpoint, resourceEndpoint } from 'graphql/endpoints';
 import { mutationWrapper } from 'graphql/utils';
 import { useQuery } from '@apollo/client';
@@ -133,7 +133,7 @@ export const ResourceDialog = ({
                     ...input,
                     created_at: partialData?.created_at ?? new Date().toISOString(),
                     updated_at: partialData?.updated_at ?? new Date().toISOString(),
-                    listId,
+                    list: { id: listId } as ResourceList,
                     type: GqlModelType.Resource,
                 });
                 formik.resetForm();

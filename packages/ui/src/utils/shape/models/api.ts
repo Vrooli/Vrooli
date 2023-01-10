@@ -9,7 +9,7 @@ export type ApiShape = Pick<Api, 'id'> & {
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 
     // This only creates/updates a single version, which is most often the case
-    versionData?: ApiVersionShape | null;
+    versionInfo?: ApiVersionShape | null;
 }
 
 export const shapeApi: ShapeModel<ApiShape, ApiCreateInput, ApiUpdateInput> = {

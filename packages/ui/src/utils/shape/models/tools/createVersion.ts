@@ -8,7 +8,7 @@ import { ShapeModel } from 'types';
  * @returns The shaped object, ready to be passed to the mutation endpoint
  */
 export const createVersion = <
-    Root extends { versionData?: { versionLabel: string | null | undefined } | null | undefined },
+    Root extends { versionInfo?: { versionLabel: string | null | undefined } | null | undefined },
     VersionCreateInput extends {},
 >(
     root: Root,
@@ -16,14 +16,14 @@ export const createVersion = <
     preShape?: (version: Record<string, any>) => any,
 ): ({ versionsCreate?: [VersionCreateInput] }) => {
     // Return empty object if no version data
-    if (!root.versionData) return {} as any;
+    if (!root.versionInfo) return {} as any;
     // Make preShape a function, if not provided 
     const preShaper = preShape ?? ((x: any) => x);
     // Shape and return version data
     return {
         versionsCreate: [shape.create(preShaper({
-            ...root.versionData,
-            versionLabel: root.versionData.versionLabel ?? '0.0.1',
+            ...root.versionInfo,
+            versionLabel: root.versionInfo.versionLabel ?? '0.0.1',
         }))]
     } as any;
 };

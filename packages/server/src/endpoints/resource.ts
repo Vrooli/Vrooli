@@ -61,7 +61,7 @@ export const typeDef = gql`
         index: Int
         link: String!
         usedFor: ResourceUsedFor!
-        listId: ID!
+        list: ResourceList!
         translations: [ResourceTranslation!]!
     }
 

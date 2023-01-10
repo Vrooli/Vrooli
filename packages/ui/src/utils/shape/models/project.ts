@@ -9,7 +9,7 @@ export type ProjectShape = Pick<Project, 'id' | 'handle' | 'isPrivate' | 'permis
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 
     // This only creates/updates a single version, which is most often the case
-    versionData?: ProjectVersionShape | null;
+    versionInfo?: ProjectVersionShape | null;
 }
 
 export const shapeProject: ShapeModel<ProjectShape, ProjectCreateInput, ProjectUpdateInput> = {

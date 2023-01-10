@@ -3,7 +3,9 @@
  */
 import { isObject } from "@shared/utils";
 
-// Grabs data from an object using dot notation (ex: 'parent.child.property')
+/**
+ * Grabs data from an object using dot notation (ex: 'parent.child.property')
+ */
 export const valueFromDot = (object, notation) => {
     function index(object, i) { return object[i] }
     if (!object || !notation) return null;
@@ -16,7 +18,9 @@ export const arrayValueFromDot = (object, notation, index) => {
     return value[index];
 }
 
-// Maps the keys of an object to dot notation
+/**
+ * Maps the keys of an object to dot notation
+ */
 export function convertToDot(obj, parent = [], keyValue = {}) {
     for (let key in obj) {
         let keyPath: any = [...parent, key];

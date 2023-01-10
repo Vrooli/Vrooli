@@ -50,7 +50,7 @@ export interface SubroutineViewProps {
      * Owner of overall routine, not subroutine
      */
     owner: Routine['owner'] | null | undefined;
-    routine: Routine | null | undefined;
+    routineVersion: RoutineVersion | null | undefined;
     run: RunRoutine | null | undefined;
     session: Session;
     zIndex: number;

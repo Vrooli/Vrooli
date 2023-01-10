@@ -28,7 +28,7 @@ type ModelLogicType = {
 */
 export type ModelLogic<
     Model extends ModelLogicType,
-    SuppFields extends readonly DotNotation<Model['GqlModel'], 2>[]
+    SuppFields extends readonly DotNotation<Model['GqlModel']>[]
 > = {
     type: `${GqlModelType}`;
     delegate: (prisma: PrismaType) => PrismaDelegate;
@@ -87,7 +87,7 @@ export type PrismaRelMap<T> = {
  * cannot be requested in the same query (e.g. isStarred, permissions) 
  */
 export interface SupplementalConverter<
-    SuppFields extends readonly string[]
+    SuppFields extends readonly any[]
 > {
     /**
      * List of all supplemental fields added to the GraphQL model after the main query 
@@ -124,7 +124,7 @@ export interface Formatter<
         GqlModel: ModelLogicType['GqlModel'],
         PrismaModel: ModelLogicType['PrismaModel'],
     },
-    SuppFields extends readonly DotNotation<Model['GqlModel'], 2>[]
+    SuppFields extends readonly DotNotation<Model['GqlModel']>[]
 > {
     /**
      * Maps GraphQL types to GqlModelType, with special handling for unions

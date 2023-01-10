@@ -139,6 +139,12 @@ export interface ActionOption {
 
 export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
 
+export type VersionInfo = {
+    versionIndex: number;
+    versionLabel: string;
+    versionNotes?: string | null;
+}
+
 declare global {
     // Enable Nami integration
     interface Window { cardano: any; }

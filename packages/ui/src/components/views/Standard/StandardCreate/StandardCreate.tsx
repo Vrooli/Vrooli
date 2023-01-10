@@ -103,7 +103,7 @@ export const StandardCreate = ({
                     props: JSON.stringify(schema?.props),
                     yup: JSON.stringify(schema?.yup),
                     translations: values.translationsCreate,
-                    resourceLists: [resourceList],
+                    resourceList: resourceList,
                     tags: tags as any,
                     type: inputType.value,
                     version: values.version,

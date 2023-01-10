@@ -1,23 +1,9 @@
 import { ObjectMap } from "../models";
-import { GqlModelType, SessionUser } from '@shared/consts';
+import { DotNotation, GqlModelType, SessionUser } from '@shared/consts';
 import { PrismaType, RecursivePartial } from "../types";
 import { PartialGraphQLInfo } from "./types";
 import { SupplementalConverter } from "../models/types";
-
-/**
- * Sets value in object using dot notation
- * @param obj Object to set value in
- * @param path Path to set value in
- * @param value Value to set
- * @returns Object with value set
- */
-const setDotNotationValue = (obj: { [x: string]: any }, path: string, value: any): { [x: string]: any } => {
-    const keys = path.split('.');
-    const lastKey = keys.pop();
-    const lastObj = keys.reduce((obj, key) => obj[key] = obj[key] || {}, obj);
-    if (lastKey) lastObj[lastKey] = value;
-    return obj;
-}
+import { setDotNotationValue } from "@shared/utils";
 
 /**
  * Adds supplemental fields data to the given objects
@@ -42,7 +28,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     for (const [field, data] of Object.entries(supplementalData)) {
         // Each value is an array of data for each object, in the same order as the objects
         // Set the value for each object
-        objects = objects.map((x, i) => setDotNotationValue(x, field, data[i])) as any[];
+        objects = objects.map((x, i) => setDotNotationValue(x, field as never, data[i])) as any[];
     }
     return objects;
 }

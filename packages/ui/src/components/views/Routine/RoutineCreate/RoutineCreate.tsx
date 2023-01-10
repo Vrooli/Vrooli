@@ -2,7 +2,7 @@ import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Too
 import { useMutation } from "graphql/hooks";
 import { routineValidation, routineVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, parseSearchParams, PubSub, removeTranslation, RoutineVersionInputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, parseSearchParams, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
@@ -85,7 +85,11 @@ export const RoutineCreate = ({
                 instructions: '',
                 name: '',
             }],
-            version: '1.0.0',
+            versionInfo: {
+                versionIndex: 0,
+                versionLabel: '1.0.0',
+                versionNotes: '',
+            }
         },
         validationSchema: routineValidation.update(),
         onSubmit: (values) => {
@@ -93,7 +97,6 @@ export const RoutineCreate = ({
                 mutation,
                 input: shapeRoutineVersion.create({
                     id: values.id,
-                    version: values.version,
                     isInternal: values.isInternal,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
@@ -104,9 +107,10 @@ export const RoutineCreate = ({
                     project: relationships.project,
                     inputs: inputsList,
                     outputs: outputsList,
-                    resourceLists: [resourceList],
+                    resourceList: resourceList,
                     tags: tags,
                     translations: values.translationsCreate,
+                    ...values.versionInfo,
                 }),
                 onSuccess: (data) => { onCreated(data) },
                 onError: () => { formik.setSubmitting(false) }
@@ -300,17 +304,18 @@ export const RoutineCreate = ({
                         fullWidth
                         id="version"
                         name="version"
-                        value={formik.values.version}
+                        versionInfo={formik.values.versionInfo}
+                        versions={[]}
                         onBlur={formik.handleBlur}
-                        onChange={(newVersion: string) => {
-                            formik.setFieldValue('version', newVersion);
+                        onChange={(newVersionInfo) => {
+                            formik.setFieldValue('versionInfo', newVersionInfo);
                             setRelationships({
                                 ...relationships,
                                 isComplete: false,
                             })
                         }}
-                        error={formik.touched.version && Boolean(formik.errors.version)}
-                        helperText={formik.touched.version ? formik.errors.version : null}
+                        error={formik.touched.versionInfo?.versionLabel && Boolean(formik.errors.versionInfo?.versionLabel)}
+                        helperText={formik.touched.versionInfo?.versionLabel ? formik.errors.versionInfo?.versionLabel : null}
                     />
                 </Grid>
                 {/* Is internal checkbox */}

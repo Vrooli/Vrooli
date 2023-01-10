@@ -2,7 +2,7 @@ import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, S
 import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, Tag, User } from '@shared/consts';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent, FocusEventHandler } from 'react';
-import { AutocompleteOption } from 'types';
+import { AutocompleteOption, VersionInfo } from 'types';
 import { ObjectType, TagShape } from 'utils';
 import { StringSchema } from 'yup';
 
@@ -356,16 +356,26 @@ export interface ThemeSwitchProps {
     onChange: (theme: 'light' | 'dark') => any;
 }
 
-export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | 'onChange'> & {
+export type VersionInputProps = Omit<TextFieldProps, 'helperText' | 'onBlur' | 'onChange' | 'value'> & {
     autoFocus?: boolean;
     error?: boolean;
     helperText?: string | null | undefined;
     fullWidth?: boolean;
     id?: string;
+    /**
+     * Label for input component, NOT the version label.
+     */
     label?: string;
-    minimum?: string;
     name?: string;
     onBlur?: (event: FocusEventHandler<HTMLInputElement | HTMLTextAreaElement>) => void;
-    onChange: (newVersion: string) => any;
-    value: string;
+    onChange: (newVersion: VersionInfo) => any;
+    /**
+     * Info for the version being created/edited. A change in the versionLabel 
+     * will trigger a new version to be created.
+     */
+    versionInfo: Partial<VersionInfo>;
+    /**
+     * Existing versions of the object. Used to determine mimum version number.
+     */
+    versions: VersionInfo[];
 }

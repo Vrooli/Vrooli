@@ -13,6 +13,7 @@ import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { organizationEndpoint } from "graphql/endpoints";
+import { setDotNotationValue } from "@shared/utils";
 
 enum TabOptions {
     Resources = "Resources",
@@ -77,7 +78,7 @@ export const OrganizationView = ({
                 if (!organization) return;
                 setOrganization({
                     ...organization,
-                    resourceLists: [updatedList]
+                    resourceList: updatedList
                 })
             }}
             loading={loading}
@@ -180,11 +181,8 @@ export const OrganizationView = ({
         switch (action) {
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setOrganization({
-                        ...organization,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
+                if (data.success && organization) {
+                    setOrganization(setDotNotationValue(organization, 'you.isStarred', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:

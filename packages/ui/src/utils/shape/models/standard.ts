@@ -10,7 +10,7 @@ export type StandardShape = Pick<Standard, 'id' | 'name' | 'isInternal' | 'isPri
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 
     // This only creates/updates a single version, which is most often the case
-    versionData?: StandardVersionShape | null;
+    versionInfo?: StandardVersionShape | null;
 }
 
 export type StandardShapeUpdate = Omit<StandardShape, 'default' | 'isInternal' | 'name' | 'props' | 'yup' | 'type' | 'version' | 'creator'>;

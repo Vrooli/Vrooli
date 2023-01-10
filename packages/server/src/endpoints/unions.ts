@@ -62,7 +62,6 @@ export const typeDef = gql`
         parentId: ID
         projectAfter: String
         reportId: ID
-        resourceLists: [String!]
         resourceTypes: [ResourceUsedFor!]
         routineAfter: String
         routineIsInternal: Boolean
@@ -117,7 +116,6 @@ export const typeDef = gql`
         projectOrganizationId: ID
         projectParentId: ID
         reportId: ID
-        resourceLists: [String!]
         resourceTypes: [ResourceUsedFor!]
         searchString: String
         sortBy: ProjectOrOrganizationSortBy
@@ -192,7 +190,6 @@ export const resolvers: {
                         organizationId: input.organizationId,
                         parentId: input.parentId,
                         reportId: input.reportId,
-                        resourceLists: input.resourceLists,
                         resourceTypes: input.resourceTypes,
                         searchString: input.searchString,
                         sortBy: input.sortBy as unknown as ProjectSortBy,
@@ -233,7 +230,6 @@ export const resolvers: {
                         parentId: input.parentId,
                         projectId: input.routineProjectId,
                         reportId: input.reportId,
-                        resourceLists: input.resourceLists,
                         resourceTypes: input.resourceTypes,
                         searchString: input.searchString,
                         sortBy: input.sortBy as unknown as RoutineSortBy,
@@ -304,7 +300,6 @@ export const resolvers: {
                         organizationId: input.projectOrganizationId,
                         parentId: input.projectParentId,
                         reportId: input.reportId,
-                        resourceLists: input.resourceLists,
                         resourceTypes: input.resourceTypes,
                         searchString: input.searchString,
                         sortBy: input.sortBy as unknown as ProjectSortBy,
@@ -335,7 +330,6 @@ export const resolvers: {
                         projectId: input.organizationProjectId,
                         routineId: input.organizationRoutineId,
                         reportId: input.reportId,
-                        resourceLists: input.resourceLists,
                         resourceTypes: input.resourceTypes,
                         searchString: input.searchString,
                         sortBy: input.sortBy as unknown as OrganizationSortBy,

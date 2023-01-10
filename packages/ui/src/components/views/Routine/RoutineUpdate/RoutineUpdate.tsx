@@ -5,7 +5,7 @@ import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
 import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, base36ToUuid, getLastUrlPart, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, PubSub, removeTranslation, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, base36ToUuid, getLastUrlPart, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, PubSub, removeTranslation, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
@@ -108,10 +108,14 @@ export const RoutineUpdate = ({
                 instructions: '',
                 name: '',
             }],
-            version: routineVersion?.version ?? '1.0.0',
+            versionInfo: {
+                versionIndex: routineVersion?.root?.versions?.length ?? 0,
+                versionLabel: routineVersion?.versionLabel ?? '1.0.0',
+                versionNotes: '',
+            }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: validationSchema({ minVersion: routineVersion?.version ?? '0.0.1' }),
+        validationSchema: validationSchema({ minVersion: getMinimumVersion(routineVersion?.root?.versions ?? []) }),
         onSubmit: (values) => {
             if (!routineVersion) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
@@ -121,7 +125,6 @@ export const RoutineUpdate = ({
                 mutation,
                 input: shapeRoutineVersion.update(routineVersion, {
                     id: routineVersion.id,
-                    version: values.version,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
                     owner: relationships.owner,
@@ -129,7 +132,7 @@ export const RoutineUpdate = ({
                     project: relationships.project,
                     inputs: inputsList,
                     outputs: outputsList,
-                    resourceLists: [resourceList],
+                    resourceList: resourceList,
                     tags: tags,
                     translations: values.translationsUpdate.map(t => ({
                         ...t,
@@ -147,9 +150,9 @@ export const RoutineUpdate = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const translations = useTranslatedFields({
         fields: ['description', 'instructions', 'name'],
-        formik, 
-        formikField: 'translationsUpdate', 
-        language, 
+        formik,
+        formikField: 'translationsUpdate',
+        language,
         validationSchema: routineVersionTranslationValidation.update(),
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
@@ -319,17 +322,18 @@ export const RoutineUpdate = ({
                     fullWidth
                     id="version"
                     name="version"
-                    value={formik.values.version}
+                    versionInfo={formik.values.versionInfo}
+                    versions={routineVersion?.root?.versions ?? []}
                     onBlur={formik.handleBlur}
-                    onChange={(newVersion: string) => {
-                        formik.setFieldValue('version', newVersion);
+                    onChange={(newVersionInfo) => {
+                        formik.setFieldValue('versionInfo', newVersionInfo);
                         setRelationships({
                             ...relationships,
                             isComplete: false,
                         })
                     }}
-                    error={formik.touched.version && Boolean(formik.errors.version)}
-                    helperText={formik.touched.version ? formik.errors.version : null}
+                    error={formik.touched.versionInfo?.versionLabel && Boolean(formik.errors.versionInfo?.versionLabel)}
+                    helperText={formik.touched.versionInfo?.versionLabel ? formik.errors.versionInfo?.versionLabel : null}
                 />
             </Grid>
             {/* Selector for single-step or multi-step routine */}

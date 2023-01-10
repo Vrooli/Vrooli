@@ -5567,7 +5567,7 @@ export type Resource = {
   id: Scalars['ID'];
   index?: Maybe<Scalars['Int']>;
   link: Scalars['String'];
-  listId: Scalars['ID'];
+  list: ResourceList;
   translations: Array<ResourceTranslation>;
   type: GqlModelType;
   updated_at: Scalars['Date'];
@@ -11915,7 +11915,7 @@ export type ResourceResolvers<ContextType = any, ParentType extends ResolversPar
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   index?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   link?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  listId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  list?: Resolver<ResolversTypes['ResourceList'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ResourceTranslation']>, ParentType, ContextType>;
   type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;

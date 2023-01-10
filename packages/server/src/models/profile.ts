@@ -32,7 +32,6 @@ export {}
 //         roles: 'Role',
 //         emails: 'Email',
 //         wallets: 'Wallet',
-//         resourceLists: 'ResourceList',
 //         projects: 'Project',
 //         projectsCreated: 'Project',
 //         routines: 'Routine',

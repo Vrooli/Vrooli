@@ -1,6 +1,6 @@
-import { Standard } from "types";
+import { StandardVersion } from "@shared/consts";
 import { CreateProps, UpdateProps, ViewProps } from "../types";
 
-export interface StandardCreateProps extends CreateProps<Standard> {}
-export interface StandardUpdateProps extends UpdateProps<Standard> {}
-export interface StandardViewProps extends ViewProps<Standard> {}
+export interface StandardCreateProps extends CreateProps<StandardVersion> {}
+export interface StandardUpdateProps extends UpdateProps<StandardVersion> {}
+export interface StandardViewProps extends ViewProps<StandardVersion> {}

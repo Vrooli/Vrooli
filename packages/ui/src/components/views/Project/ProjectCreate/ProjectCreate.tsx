@@ -57,7 +57,11 @@ export const ProjectCreate = ({
                 name: '',
                 description: '',
             }],
-            version: '1.0.0',
+            versionInfo: {
+                versionIndex: 0,
+                versionLabel: '1.0.0',
+                versionNotes: '',
+            }
         },
         validationSchema: projectVersionValidation.create(),
         onSubmit: (values) => {
@@ -73,8 +77,7 @@ export const ProjectCreate = ({
                         owner: relationships.owner,
                         parent: relationships.parent,
                     },
-                    versionIndex: 0,
-                    versionLabel: values.version,
+                    ...values.versionInfo,
                 }),
                 onSuccess: (data) => { onCreated(data) },
                 onError: () => { formik.setSubmitting(false) },
@@ -87,9 +90,9 @@ export const ProjectCreate = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const translations = useTranslatedFields({
         fields: ['description', 'name'],
-        formik, 
-        formikField: 'translationsCreate', 
-        language, 
+        formik,
+        formikField: 'translationsCreate',
+        language,
         validationSchema: projectVersionTranslationValidation.create(),
     });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
@@ -199,17 +202,18 @@ export const ProjectCreate = ({
                         fullWidth
                         id="version"
                         name="version"
-                        value={formik.values.version}
+                        versionInfo={formik.values.versionInfo}
+                        versions={[]}
                         onBlur={formik.handleBlur}
-                        onChange={(newVersion: string) => {
-                            formik.setFieldValue('version', newVersion);
+                        onChange={(newVersionInfo) => {
+                            formik.setFieldValue('versionInfo', newVersionInfo);
                             setRelationships({
                                 ...relationships,
                                 isComplete: false,
                             })
                         }}
-                        error={formik.touched.version && Boolean(formik.errors.version)}
-                        helperText={formik.touched.version ? formik.errors.version : null}
+                        error={formik.touched.versionInfo?.versionLabel && Boolean(formik.errors.versionInfo?.versionLabel)}
+                        helperText={formik.touched.versionInfo?.versionLabel ? formik.errors.versionInfo?.versionLabel : null}
                     />
                 </Grid>
                 <GridSubmitButtons

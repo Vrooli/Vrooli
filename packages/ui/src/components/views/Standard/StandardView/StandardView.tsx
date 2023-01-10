@@ -1,6 +1,6 @@
 import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { CommentFor, FindByIdInput, InputType, ResourceList, Standard } from "@shared/consts";
+import { CommentFor, FindByIdInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
 import { useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, SnackSeverity, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
@@ -14,7 +14,8 @@ import { PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { EditIcon } from "@shared/icons";
-import { standardEndpoint } from "graphql/endpoints";
+import { standardVersionEndpoint } from "graphql/endpoints";
+import { setDotNotationValue } from "@shared/utils";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -43,35 +44,35 @@ export const StandardView = ({
             versionGroupId: uuidValidate(secondLast) ? secondLast : last,
         }
     }, []);
-    const [getData, { data, loading }] = useLazyQuery<Standard, FindByIdInput, 'standard'>(...standardEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindByIdInput, 'standardVersion'>(...standardVersionEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
         if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
     }, [getData, id, versionGroupId])
 
-    const [standard, setStandard] = useState<Standard | null>(null);
+    const [standardVersion, setStandardVersion] = useState<StandardVersion | null>(null);
     useEffect(() => {
         if (!data) return;
-        setStandard(data.standard);
+        setStandardVersion(data.standardVersion);
     }, [data]);
-    const updateStandard = useCallback((newStandard: Standard) => { setStandard(newStandard); }, [setStandard]);
+    const updateStandard = useCallback((newStandardVersion: StandardVersion) => { setStandardVersion(newStandardVersion); }, [setStandardVersion]);
 
-    const availableLanguages = useMemo<string[]>(() => (standard?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standard?.translations]);
+    const availableLanguages = useMemo<string[]>(() => (standardVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [standardVersion?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => {
         if (availableLanguages.length === 0) return;
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const schema = useMemo<FieldData | null>(() => (standard ? standardToFieldData({
+    const schema = useMemo<FieldData | null>(() => (standardVersion ? standardToFieldData({
         fieldName: 'preview',
-        description: getTranslation(standard, [language]).description,
+        description: getTranslation(standardVersion, [language]).description,
         helpText: null,
-        props: standard.props,
-        name: standard.name,
-        type: standard.type,
-        yup: standard.yup,
-    }) : null), [language, standard]);
+        props: standardVersion.props,
+        name: standardVersion.name,
+        type: standardVersion.type,
+        yup: standardVersion.yup,
+    }) : null), [language, standardVersion]);
     const previewFormik = useFormik({
         initialValues: {
             preview: JSON.stringify((schema as FieldDataJSON)?.props?.format),
@@ -81,20 +82,20 @@ export const StandardView = ({
     });
 
     const { canEdit, description, name } = useMemo(() => {
-        const { canEdit } = standard?.permissionsStandard ?? {};
-        const { description } = getTranslation(standard ?? partialData, [language]);
-        const name = firstString(standard?.name, partialData?.name);
+        const { canEdit } = standardVersion?.you ?? {};
+        const { description } = getTranslation(standardVersion ?? partialData, [language]);
+        const name = firstString(standardVersion?.name, partialData?.name);
         return { canEdit, description, name };
-    }, [standard, language, partialData]);
+    }, [standardVersion, language, partialData]);
 
     useEffect(() => {
         document.title = `${name} | Vrooli`;
     }, [name]);
 
     const onEdit = useCallback(() => {
-        if (!standard) return;
-        setLocation(getObjectEditUrl(standard));
-    }, [setLocation, standard]);
+        if (!standardVersion) return;
+        setLocation(getObjectEditUrl(standardVersion));
+    }, [setLocation, standardVersion]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
@@ -118,20 +119,14 @@ export const StandardView = ({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.success) {
-                    setStandard({
-                        ...standard,
-                        isUpvoted: action === ObjectActionComplete.VoteUp,
-                    } as any)
+                if (data.success && standardVersion) {
+                    setStandardVersion(setDotNotationValue(standardVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
                 }
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setStandard({
-                        ...standard,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
+                if (data.success && standardVersion) {
+                    setStandardVersion(setDotNotationValue(standardVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -139,7 +134,7 @@ export const StandardView = ({
                 window.location.reload();
                 break;
         }
-    }, [standard, setLocation]);
+    }, [standardVersion, setLocation]);
 
     const [isPreviewOn, setIsPreviewOn] = useState<boolean>(true);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
@@ -168,15 +163,15 @@ export const StandardView = ({
     useEffect(() => {
         setRelationships({
             isComplete: false, //TODO
-            isPrivate: standard?.isPrivate ?? false,
-            owner: standard?.creator ?? null,
+            isPrivate: standardVersion?.isPrivate ?? false,
+            owner: standardVersion?.owner ?? null,
             parent: null,
             // parent: standard?.parent ?? null, TODO
             project: null // TODO
         });
-        setResourceList(standard?.resourceList ?? { id: uuid() } as any);
-        setTags(standard?.tags ?? []);
-    }, [standard]);
+        setResourceList(standardVersion?.resourceList ?? { id: uuid() } as any);
+        setTags(standardVersion?.root?.tags ?? []);
+    }, [standardVersion]);
 
     return (
         <Box sx={{
@@ -213,10 +208,10 @@ export const StandardView = ({
             <ObjectTitle
                 language={language}
                 loading={loading}
-                title={standard?.name ?? partialData?.name ?? ''}
+                title={standardVersion?.name ?? partialData?.name ?? ''}
                 session={session}
                 setLanguage={setLanguage}
-                translations={standard?.translations ?? partialData?.translations ?? []}
+                translations={standardVersion?.translations ?? partialData?.translations ?? []}
                 zIndex={zIndex}
             />
             {/* Relationships */}
@@ -280,7 +275,7 @@ export const StandardView = ({
             {/* Tags */}
             {tags.length > 0 && <TagList
                 maxCharacters={30}
-                parentId={standard?.id ?? ''}
+                parentId={standardVersion?.id ?? ''}
                 session={session}
                 tags={tags as any[]}
                 sx={{ ...smallHorizontalScrollbar(palette), marginTop: 4 }}
@@ -291,19 +286,19 @@ export const StandardView = ({
                 <DateDisplay
                     loading={loading}
                     showIcon={true}
-                    timestamp={standard?.created_at}
+                    timestamp={standardVersion?.created_at}
                 />
                 <VersionDisplay
-                    currentVersion={standard?.version}
+                    currentVersion={standardVersion?.version}
                     prefix={" - "}
-                    versions={standard?.versions}
+                    versions={standardVersion?.versions}
                 />
             </Stack>
             {/* Votes, reports, and other basic stats */}
             <StatsCompact
                 handleObjectUpdate={updateStandard}
                 loading={loading}
-                object={standard}
+                object={standardVersion}
                 session={session}
             />
             {/* Action buttons */}
@@ -311,7 +306,7 @@ export const StandardView = ({
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
                 onActionStart={onActionStart}
                 onActionComplete={onActionComplete}
-                object={standard}
+                object={standardVersion}
                 session={session}
                 zIndex={zIndex}
             />
@@ -321,7 +316,7 @@ export const StandardView = ({
                     forceAddCommentOpen={isAddCommentOpen}
                     language={language}
                     objectId={id ?? ''}
-                    objectType={CommentFor.Routine}
+                    objectType={CommentFor.StandardVersion}
                     onAddCommentClose={closeAddCommentDialog}
                     session={session}
                     zIndex={zIndex}

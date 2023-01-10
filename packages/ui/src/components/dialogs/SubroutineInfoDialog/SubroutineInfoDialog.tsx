@@ -14,7 +14,7 @@ import {
     useTheme,
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
-import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputShape, OutputShape, removeTranslation, TagShape, updateArray, usePromptBeforeUnload, useTranslatedFields } from 'utils';
+import { addEmptyTranslation, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
 import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
@@ -59,14 +59,14 @@ export const SubroutineInfoDialog = ({
     }, [relationships]);
 
     // Handle inputs
-    const [inputsList, setInputsList] = useState<InputShape[]>([]);
-    const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
+    const [inputsList, setInputsList] = useState<RoutineVersionInputShape[]>([]);
+    const handleInputsUpdate = useCallback((updatedList: RoutineVersionInputShape[]) => {
         setInputsList(updatedList);
     }, [setInputsList]);
 
     // Handle outputs
-    const [outputsList, setOutputsList] = useState<OutputShape[]>([]);
-    const handleOutputsUpdate = useCallback((updatedList: OutputShape[]) => {
+    const [outputsList, setOutputsList] = useState<RoutineVersionOutputShape[]>([]);
+    const handleOutputsUpdate = useCallback((updatedList: RoutineVersionOutputShape[]) => {
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
@@ -116,10 +116,14 @@ export const SubroutineInfoDialog = ({
                 instructions: '',
                 name: '',
             }],
-            version: subroutine?.routineVersion?.versionLabel ?? '',
+            versionInfo: {
+                versionIndex: subroutine?.routineVersion?.root?.versions?.length ?? 0,
+                versionLabel: subroutine?.routineVersion?.versionLabel ?? '1.0.0',
+                versionNotes: '',
+            }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: validationSchema({ minVersion: subroutine?.routineVersion?.version ?? '0.0.1' }),
+        validationSchema: validationSchema({ minVersion: getMinimumVersion(subroutine?.routineVersion?.root?.versions ?? []) }),
         onSubmit: (values) => {
             if (!subroutine) return;
             handleUpdate({
@@ -133,7 +137,6 @@ export const SubroutineInfoDialog = ({
                     owner: relationships.owner,
                     parent: relationships.parent as RelationshipItemRoutineVersion | null,
                     project: relationships.project,
-                    version: values.version,
                     inputs: inputsList,
                     outputs: outputsList,
                     resourceList: resourceList,
@@ -142,6 +145,7 @@ export const SubroutineInfoDialog = ({
                         ...t,
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
+                    ...values.versionInfo
                 }
             } as any);
         },
@@ -151,9 +155,9 @@ export const SubroutineInfoDialog = ({
     // Current description, instructions, and name info, as well as errors
     const translations = useTranslatedFields({
         fields: ['description', 'instructions', 'name'],
-        formik, 
-        formikField: 'translationsUpdate', 
-        language, 
+        formik,
+        formikField: 'translationsUpdate',
+        language,
         validationSchema: routineVersionTranslationValidation.update(),
     });
     // Handles blur on translation fields
@@ -385,17 +389,18 @@ export const SubroutineInfoDialog = ({
                                     fullWidth
                                     id="version"
                                     name="version"
-                                    value={formik.values.version}
+                                    versionInfo={formik.values.versionInfo}
+                                    versions={subroutine?.routineVersion?.root?.versions ?? []}
                                     onBlur={formik.handleBlur}
-                                    onChange={(newVersion: string) => {
-                                        formik.setFieldValue('version', newVersion);
+                                    onChange={(newVersionInfo) => {
+                                        formik.setFieldValue('versionInfo', newVersionInfo);
                                         setRelationships({
                                             ...relationships,
                                             isComplete: false,
                                         })
                                     }}
-                                    error={formik.touched.version && Boolean(formik.errors.version)}
-                                    helperText={formik.touched.version ? formik.errors.version : null}
+                                    error={formik.touched.versionInfo?.versionLabel && Boolean(formik.errors.versionInfo?.versionLabel)}
+                                    helperText={formik.touched.versionInfo?.versionLabel ? formik.errors.versionInfo?.versionLabel : null}
                                 />
                             </Grid>
                         }
