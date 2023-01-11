@@ -190,7 +190,7 @@ export const SubroutineInfoDialog = ({
         removeTranslation(formik, 'translationsUpdate', language);
     }, [formik, languages]);
 
-    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.permissionsRoutine?.canEdit === true), [isEditing, subroutine?.routineVersion?.isInternal, subroutine?.routineVersion?.owner?.id, subroutine?.routineVersion?.permissionsRoutine?.canEdit, userId]);
+    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canEdit === true), [isEditing, subroutine?.routineVersion?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canEdit, userId]);
 
     /**
      * Navigate to the subroutine's build page

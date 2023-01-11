@@ -46,7 +46,7 @@ export const SubroutineNode = ({
     const nodeSize = useMemo(() => `${calculateNodeSize(220, scale)}px`, [scale]);
     const fontSize = useMemo(() => `min(${calculateNodeSize(220, scale) / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
-    const canEdit = useMemo<boolean>(() => (data?.routineVersion?.isInternal ?? data?.routineVersion?.root?.permissionsRoutine?.canEdit === true), [data.routineVersion]);
+    const canEdit = useMemo<boolean>(() => (data?.routineVersion?.isInternal ?? data?.routineVersion?.root?.you?.canEdit === true), [data.routineVersion]);
 
     const { name } = useMemo(() => {
         const languages = navigator.languages;

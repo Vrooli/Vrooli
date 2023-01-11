@@ -28,6 +28,7 @@ export const typeDef = gql`
 
     input ApiCreateInput {
         id: ID!
+        isPrivate: Boolean
         permissions: String
         userConnect: ID
         organizationConnect: ID
@@ -40,6 +41,7 @@ export const typeDef = gql`
     }
     input ApiUpdateInput {
         id: ID!
+        isPrivate: Boolean
         permissions: String
         userConnect: ID
         organizationConnect: ID
@@ -58,6 +60,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        isPrivate: Boolean!
         permissions: String!
         createdBy: User
         owner: Owner

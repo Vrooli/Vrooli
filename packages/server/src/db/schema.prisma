@@ -27,6 +27,7 @@ model api {
     score                 Int                         @default(0)
     stars                 Int                         @default(0)
     views                 Int                         @default(0)
+    isPrivate               Boolean                     @default(false)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     ownedByUserId         String?                     @db.Uuid
@@ -67,6 +68,7 @@ model api_version {
     callLink                String                      @unique @db.VarChar(1024)
     documentationLink       String?                     @db.VarChar(1024)
     isLatest                Boolean                     @default(false)
+    isPrivate               Boolean                     @default(false)
     rootId                  String                      @db.Uuid
     resourceListId          String?                     @unique @db.Uuid
     versionIndex            Int                         @default(0)

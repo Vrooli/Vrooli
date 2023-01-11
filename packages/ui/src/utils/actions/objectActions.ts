@@ -1,7 +1,7 @@
 import { ListMenuItemData } from "components/dialogs/types";
-import { Session } from "types";
-import { getListItemIsStarred, getListItemIsUpvoted, getListItemPermissions, ListObjectType } from "utils/display";
+import { getYou, ListObjectType } from "utils/display";
 import { BranchIcon, DeleteIcon, DonateIcon, DownvoteWideIcon, EditIcon, ReplyIcon, ReportIcon, SearchIcon, ShareIcon, StarFilledIcon, StarOutlineIcon, StatsIcon, SvgComponent, UpvoteWideIcon } from "@shared/icons";
+import { Session } from "@shared/consts";
 
 /**
  * All available actions an object can possibly have
@@ -48,28 +48,26 @@ export enum ObjectActionComplete {
 export const getAvailableActions = (object: ListObjectType | null | undefined, session: Session, exclude: ObjectAction[] = []): ObjectAction[] => {
     if (!object) return [];
     const isLoggedIn = session?.isLoggedIn === true;
-    const permissions = getListItemPermissions(object, session)
-    const isStarred = getListItemIsStarred(object);
-    const isUpvoted = getListItemIsUpvoted(object);
+    const { canComment, canDelete, canEdit, canFork, canReport, canShare, canStar, canVote, isStarred, isUpvoted } = getYou(object)
     let options: ObjectAction[] = [];
     // Check edit
-    if (isLoggedIn && permissions.canEdit) {
+    if (isLoggedIn && canEdit) {
         options.push(ObjectAction.Edit);
     }
     // Check VoteUp/VoteDown
-    if (isLoggedIn && permissions.canVote) {
+    if (isLoggedIn && canVote) {
         options.push(isUpvoted ? ObjectAction.VoteDown : ObjectAction.VoteUp);
     }
     // Check Star/StarUndo
-    if (isLoggedIn && permissions.canStar) {
+    if (isLoggedIn && canStar) {
         options.push(isStarred ? ObjectAction.StarUndo : ObjectAction.Star);
     }
     // Check Comment
-    if (isLoggedIn && permissions.canComment) {
+    if (isLoggedIn && canComment) {
         options.push(ObjectAction.Comment);
     }
     // Check Share
-    if (permissions.canShare) {
+    if (canShare) {
         options.push(ObjectAction.Share);
     }
     // Check Donate
@@ -79,15 +77,15 @@ export const getAvailableActions = (object: ListObjectType | null | undefined, s
     // Can always find in page
     options.push(ObjectAction.FindInPage);
     // Check Fork
-    if (isLoggedIn && permissions.canFork) {
+    if (isLoggedIn && canFork) {
         options.push(ObjectAction.Fork);
     }
     // Check Report
-    if (isLoggedIn && permissions.canReport) {
+    if (isLoggedIn && canReport) {
         options.push(ObjectAction.Report);
     }
     // Check Delete
-    if (isLoggedIn && permissions.canDelete) {
+    if (isLoggedIn && canDelete) {
         options.push(ObjectAction.Delete);
     }
     // Omit excluded actions

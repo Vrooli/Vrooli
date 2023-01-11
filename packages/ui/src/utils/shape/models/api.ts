@@ -14,7 +14,7 @@ export type ApiShape = Pick<Api, 'id'> & {
 
 export const shapeApi: ShapeModel<ApiShape, ApiCreateInput, ApiUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, 'id'),
+        ...createPrims(d, 'id', 'isPrivate'),
         ...createOwner(d),
         ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
         ...createRel(d, 'parent', ['Connect'], 'one'),
@@ -22,7 +22,7 @@ export const shapeApi: ShapeModel<ApiShape, ApiCreateInput, ApiUpdateInput> = {
         ...createVersion(d, shapeApiVersion, (v) => ({ ...v, root: { id: d.id } })),
     }),
     update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id'),
+        ...updatePrims(o, u, 'id', 'isPrivate'),
         ...updateOwner(o, u),
         ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
         ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),

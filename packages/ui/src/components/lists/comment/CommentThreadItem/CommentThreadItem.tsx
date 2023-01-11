@@ -35,7 +35,7 @@ export function CommentThreadItem({
     }), [object]);
 
     const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
-        const { canDelete, canEdit, canReply, canReport, canStar, canVote } = data?.permissionsComment ?? {};
+        const { canDelete, canEdit, canReply, canReport, canStar, canVote } = data?.you ?? {};
         const languages = getUserLanguages(session);
         const { text } = getTranslation(data, languages, true);
         return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };

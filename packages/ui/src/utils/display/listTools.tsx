@@ -4,9 +4,28 @@ import { ObjectListItemType } from "components/lists/types";
 import { displayDate, firstString } from "./stringTools";
 import { getCurrentUser } from "utils/authentication";
 import { ObjectListItem } from "components";
-import { Star, StarFor, View, Vote } from "@shared/consts";
+import { RunProject, RunRoutine, Session, Star, StarFor, User, View, Vote } from "@shared/consts";
+import { valueFromDot } from "utils/shape";
 
 export type ListObjectType = ObjectListItemType | Star | Vote | View;
+
+/**
+ * All possible permissions/user-statuses any object can have
+ */
+export type YouInflated = {
+    canComment: boolean;
+    canDelete: boolean;
+    canEdit: boolean;
+    canFork: boolean;
+    canReport: boolean;
+    canShare: boolean;
+    canStar: boolean;
+    canView: boolean;
+    canVote: boolean;
+    isStarred: boolean;
+    isUpvoted: boolean | null;
+    isViewed: boolean;
+}
 
 /**
  * Gets the name (title) of a list object
@@ -84,61 +103,48 @@ export const getListItemSubtitle = (
 };
 
 /**
- * All possible permissions any object can have
- */
-export type PermissionsInflated = {
-    canComment: boolean;
-    canDelete: boolean;
-    canEdit: boolean;
-    canFork: boolean;
-    canReport: boolean;
-    canShare: boolean;
-    canStar: boolean;
-    canView: boolean;
-    canVote: boolean;
-}
-
-/**
- * Gets the permissions of a list object
- * @param object A list object
+ * Gets user permissions and statuses for an object. These are inflated to match YouInflated, so any fields not present are false
+ * @param object An object
  * @param session The current session
  */
-export const getListItemPermissions = (
-    object: ListObjectType | null | undefined,
-    session: Session,
-): PermissionsInflated => {
-    const defaultPermissions = { canComment: false, canDelete: false, canEdit: false, canFork: false, canReport: false, canShare: false, canStar: false, canView: false, canVote: false };
-    if (!object) return defaultPermissions;
-    // Helper function to convert every field in an object to boolean
-    const toBoolean = <T extends { [key: string]: any }>(obj: T | null | undefined): { [K in keyof T]?: boolean } => {
-        if (!obj) return {};
-        const newObj: { [K in keyof T]?: boolean } = {};
-        for (const key in obj) {
-            newObj[key] = obj[key] === true;
-        }
-        return newObj as { [K in keyof T]: boolean };
+export const getYou = (
+    object: ListObjectType | null | undefined
+): YouInflated => {
+    // Initialize fields to false (except isUpvoted, where false means downvoted)
+    const defaultPermissions = {
+        canComment: false,
+        canDelete: false,
+        canEdit: false,
+        canFork: false,
+        canReport: false,
+        canShare: false,
+        canStar: false,
+        canView: false,
+        canVote: false,
+        isStarred: false,
+        isUpvoted: null,
+        isViewed: false,
     };
-    switch (object.type) {
-        case 'Organization':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsOrganization), canShare: object.isPrivate !== true };
-        case 'Project':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsProject), canShare: object.isPrivate !== true };
-        case 'Routine':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsRoutine), canShare: object.isPrivate !== true };
-        case 'RunRoutine':
-            return { ...defaultPermissions, ...toBoolean(object.routine?.permissionsRoutine), canShare: object.routine?.isPrivate !== true };
-        case 'Standard':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsStandard), canShare: object.isPrivate !== true };
-        case 'Star':
-            return getListItemPermissions(object.to as any, session);
-        case 'User':
-            const isOwn = object.id === getCurrentUser(session).id;
-            return { canComment: false, canDelete: isOwn, canEdit: isOwn, canFork: false, canReport: !isOwn, canShare: true, canStar: !isOwn, canView: true, canVote: false };
-        case 'View':
-            return getListItemPermissions(object.to as any, session);
-        default:
-            return defaultPermissions;
+    if (!object) return defaultPermissions;
+    // If the object is a star, view, or vote, get the permissions for the object it is a star of
+    if (['Star', 'View', 'Vote'].includes(object.type)) return getYou((object as Star | View | Vote).to as any);
+    // If the object is a run routine, get the permissions for the routine
+    if (object.type === 'RunRoutine') return getYou((object as RunRoutine).routineVersion as any);
+    // If the object is a run project, get the permissions for the project
+    if (object.type === 'RunProject') return getYou((object as RunProject).projectVersion as any);
+    // Otherwise, get the permissions from the object
+    // Loop through all permission fields
+    for (const key in defaultPermissions) {
+        // Check if the field is in the object
+        const field = valueFromDot(object, `you.${key}`);
+        if (field === true || field === false) defaultPermissions[key] = field;
+        // If not, check if the field is in the root.you object
+        else {
+            const field = valueFromDot(object, `root.you.${key}`);
+            if (field === true || field === false) defaultPermissions[key] = field;
+        }
     }
+    return defaultPermissions;
 }
 
 /**
@@ -189,56 +195,6 @@ export const getListItemStarFor = (
 }
 
 /**
- * Gets isStarred for a single object
- * @param object A searchable object
- * @returns isStarred
- */
-export const getListItemIsStarred = (
-    object: ListObjectType | null | undefined,
-): boolean => {
-    if (!object) return false;
-    switch (object.type) {
-        case 'Organization':
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-        case 'User':
-            return object.isStarred;
-        case 'RunRoutine':
-            return object.routine?.isStarred ?? false;
-        case 'Star':
-        case 'View':
-            return getListItemIsStarred(object.to as any);
-        default:
-            return false;
-    }
-}
-
-/**
- * Gets isUpvoted for a single object
- * @param object A searchable object
- * @returns isUpvoted
- */
-export const getListItemIsUpvoted = (
-    object: ListObjectType | null | undefined,
-): boolean | null => {
-    if (!object) return false;
-    switch (object.type) {
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-            return object.isUpvoted;
-        case 'RunRoutine':
-            return object.routine?.isUpvoted ?? null;
-        case 'Star':
-        case 'View':    
-            return getListItemIsUpvoted(object.to as any);
-        default:
-            return null;
-    }
-}
-
-/**
  * Gets reportsCount for a single object
  * @param object A searchable object
  * @returns number of reports
@@ -280,9 +236,9 @@ export function listToAutocomplete(
     return objects.map(o => ({
         type: o.type,
         id: o.id,
-        isStarred: getListItemIsStarred(o),
+        isStarred: getYou(o).isStarred,
         label: getListItemSubtitle(o, languages),
-        routine: o.type === 'RunRoutine' ? o.routine : undefined,
+        routine: o.type === 'RunRoutine' ? o.routineVersion : undefined,
         stars: getListItemStars(o),
         to: o.type === 'View' || o.type === 'Star' ? o.to : undefined,
         versionGroupId: undefined// TODO o.type === 'Routine' || o.type === 'Standard' ? o.versionGroupId : undefined,

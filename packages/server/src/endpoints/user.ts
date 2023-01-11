@@ -109,6 +109,9 @@ export const typeDef = gql`
     }
 
     type UserYou {
+        canDelete: Boolean!
+        canEdit: Boolean!
+        canReport: Boolean!
         isStarred: Boolean!
         isViewed: Boolean!
     }

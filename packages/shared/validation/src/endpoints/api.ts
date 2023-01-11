@@ -1,5 +1,5 @@
 import * as yup from 'yup';
-import { id, rel, req, YupModel } from "../utils";
+import { id, opt, rel, req, YupModel } from "../utils";
 import { tagValidation } from './tag';
 import { labelValidation } from './label';
 import { apiVersionValidation } from './apiVersion';
@@ -7,6 +7,7 @@ import { apiVersionValidation } from './apiVersion';
 export const apiValidation: YupModel = {
     create: () => yup.object().shape({
         id: req(id),
+        isPrivate: opt(yup.boolean()),
         ...rel('user', ['Connect'], 'one', 'opt'),
         ...rel('organization', ['Connect'], 'many', 'opt'),
         ...rel('parent', ['Connect'], 'many', 'opt'),
@@ -16,6 +17,7 @@ export const apiValidation: YupModel = {
     }),
     update: () => yup.object().shape({
         id: req(id),
+        isPrivate: opt(yup.boolean()),
         ...rel('user', ['Connect'], 'one', 'opt'),
         ...rel('organization', ['Connect'], 'many', 'opt'),
         ...rel('tags', ['Connect', 'Create', 'Disconnect'], 'many', 'opt', tagValidation),

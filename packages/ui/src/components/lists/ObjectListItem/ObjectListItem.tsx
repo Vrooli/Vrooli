@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Project, Routine, RunStatus, Standard, StarFor, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl } from 'utils';
+import { getYou, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
@@ -45,7 +45,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
     useEffect(() => { setObject(data) }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
-    const permissions = useMemo(() => getListItemPermissions(data, session), [data, session]);
+    const you = useMemo(() => getYou(data), [data]);
     const { subtitle, title } = useMemo(() => {
         const languages = getUserLanguages(session);
         return {
@@ -135,11 +135,11 @@ export function ObjectListItem<T extends ObjectListItemType>({
             case 'Standard':
                 return (
                     <UpvoteDownvote
-                        disabled={!permissions.canVote}
+                        disabled={!you.canVote}
                         session={session}
                         objectId={object?.id ?? ''}
                         voteFor={object?.type as VoteFor}
-                        isUpvoted={object?.isUpvoted}
+                        isUpvoted={you.isUpvoted}
                         score={object?.score}
                         onChange={(isUpvoted: boolean | null, score: number) => { }}
                     />
@@ -147,7 +147,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
             default:
                 return null;
         }
-    }, [isMobile, permissions.canVote, object, profileColors, session]);
+    }, [isMobile, object?.type, object?.id, object?.score, profileColors, you.canVote, you.isUpvoted, session]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 
@@ -168,7 +168,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     alignItems: isMobile ? 'center' : 'start',
                 }}
             >
-                {!hideRole && permissions.canEdit &&
+                {!hideRole && you.canEdit &&
                     <Box
                         id={`edit-list-item-button-${id}`}
                         component="a"
@@ -188,7 +188,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 {isMobile && ['Project', 'Routine', 'Standard'].includes(object?.type as any) && (
                     <UpvoteDownvote
                         direction='row'
-                        disabled={!permissions.canVote}
+                        disabled={!you.canVote}
                         session={session}
                         objectId={object?.id ?? ''}
                         voteFor={(object as any)?.type as VoteFor}
@@ -198,16 +198,16 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     />
                 )}
                 {starFor && <StarButton
-                    disabled={!permissions.canStar}
+                    disabled={!you.canStar}
                     session={session}
                     objectId={object?.id ?? ''}
                     starFor={starFor}
-                    isStar={getListItemIsStarred(object)}
+                    isStar={you.isStarred}
                     stars={getListItemStars(object)}
                 />}
                 {commentableObjects.includes(object?.type ?? '') && (<CommentsButton
                     commentsCount={(object as Project | Routine | Standard)?.commentsCount ?? 0}
-                    disabled={!permissions.canComment}
+                    disabled={!you.canComment}
                     object={object}
                 />)}
                 {object?.type !== 'Run' && reportsCount > 0 && <ReportsButton
@@ -216,7 +216,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 />}
             </Stack>
         )
-    }, [editUrl, handleEditClick, hideRole, id, isMobile, object, palette.secondary.main, permissions.canComment, permissions.canEdit, permissions.canStar, permissions.canVote, session]);
+    }, [object, isMobile, hideRole, you.canEdit, you.canVote, you.canStar, you.isStarred, you.canComment, id, editUrl, handleEditClick, palette.secondary.main, session]);
 
     /**
      * Run list items may get a progress bar
@@ -224,7 +224,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
     const progressBar = useMemo(() => {
         if (!object || object.type !== 'RunRoutine') return null;
         const completedComplexity = object?.completedComplexity ?? null;
-        const totalComplexity = object?.routine?.complexity ?? null;
+        const totalComplexity = object?.routineVersion?.complexity ?? null;
         const percentComplete = object?.status === RunStatus.Completed ? 100 :
             (completedComplexity && totalComplexity) ?
                 Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :

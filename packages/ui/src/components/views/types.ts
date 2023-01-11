@@ -1,4 +1,4 @@
-import { Routine, RoutineVersion, RunRoutine, Session, User } from "@shared/consts";
+import { RoutineVersion, RunRoutine, Session, User } from "@shared/consts";
 import { RelationshipsObject } from "components/inputs/types";
 import React from "react";
 import { DecisionStep } from "types";
@@ -49,7 +49,7 @@ export interface SubroutineViewProps {
     /**
      * Owner of overall routine, not subroutine
      */
-    owner: Routine['owner'] | null | undefined;
+    owner: RoutineVersion['root']['owner'] | null | undefined;
     routineVersion: RoutineVersion | null | undefined;
     run: RunRoutine | null | undefined;
     session: Session;
@@ -69,20 +69,20 @@ export interface RunViewProps extends ViewProps<RoutineVersion> {
     routineVersion: RoutineVersion;
 }
 
-export interface BuildViewProps extends ViewProps<Routine> {
+export interface BuildViewProps extends ViewProps<RoutineVersion> {
     handleCancel: () => void;
     handleClose: () => void;
-    handleSubmit: (updatedRoutine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>) => void;
+    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>) => void;
     isEditing: boolean;
     loading: boolean;
     owner: RelationshipsObject['owner'] | null;
-    routine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>;
+    routineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>;
     translationData: {
         language: string;
         setLanguage: (language: string) => void;
         handleAddLanguage: (language: string) => void;
         handleDeleteLanguage: (language: string) => void;
-        translations: Routine['translations'];
+        translations: RoutineVersion['translations'];
     };
 }
 

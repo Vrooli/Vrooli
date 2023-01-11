@@ -1,14 +1,16 @@
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { UserSortBy } from "@shared/consts";
+import { PrependString, UserSortBy, UserYou } from "@shared/consts";
 import { ProfileUpdateInput, User, UserSearchInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { userValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
+import { getSingleTypePermissions } from "../validators";
 
 const type = 'User' as const;
+type Permissions = Pick<UserYou, 'canDelete' | 'canEdit' | 'canReport'>
 const suppFields = ['you.isStarred', 'you.isViewed'] as const;
 export const UserModel: ModelLogic<{
     IsTransferable: false,
@@ -18,7 +20,7 @@ export const UserModel: ModelLogic<{
     GqlModel: User,
     GqlSearch: UserSearchInput,
     GqlSort: UserSortBy,
-    GqlPermission: any,
+    GqlPermission: Permissions,
     PrismaCreate: Prisma.userUpsertArgs['create'],
     PrismaUpdate: Prisma.userUpsertArgs['update'],
     PrismaModel: Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>,
@@ -100,10 +102,14 @@ export const UserModel: ModelLogic<{
         },
         supplemental: {
             graphqlFields: suppFields,
-            toGraphQL: async ({ ids, prisma, userData }) => ({
-                'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
-                'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, type),
-            }),
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, type),
+                }
+            },
         },
     },
     mutate: {
@@ -150,7 +156,11 @@ export const UserModel: ModelLogic<{
             isPrivate: true,
             languages: { select: { language: true } },
         }),
-        permissionResolvers: () => ({}),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canDelete: async () => isAdmin && !isDeleted,
+            canEdit: async () => isAdmin && !isDeleted,
+            canReport: async () => !isAdmin && !isDeleted && isPublic,
+        } as any),
         owner: (data) => ({ User: data }),
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,

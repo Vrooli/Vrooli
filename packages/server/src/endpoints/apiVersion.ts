@@ -27,6 +27,7 @@ export const typeDef = gql`
         callLink: String!
         documentationLink: String
         isLatest: Boolean
+        isPrivate: Boolean
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
@@ -41,6 +42,7 @@ export const typeDef = gql`
         callLink: String
         documentationLink: String
         isLatest: Boolean
+        isPrivate: Boolean
         versionIndex: Int
         versionLabel: String
         versionNotes: String
@@ -60,6 +62,7 @@ export const typeDef = gql`
         callLink: String!
         documentationLink: String
         isLatest: Boolean!
+        isPrivate: Boolean!
         resourceList: ResourceList
         versionIndex: Int!
         versionLabel: String!

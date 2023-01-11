@@ -1,8 +1,8 @@
 import { uniqBy } from "@shared/utils";
 import { uuid } from '@shared/uuid';
 import { Status } from "./consts";
-import { Node, NodeLink, NodeType, Routine, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
-import { shapeRunRoutineInput, updateRel } from "./shape";
+import { GqlModelType, Node, NodeType, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
+import { NodeLinkShape, NodeShape, shapeRunRoutineInput, updateRel } from "./shape";
 
 /**
  * Calculates the percentage of the run that has been completed.
@@ -91,8 +91,8 @@ export const runInputsCreate = (runInputs: { [x: string]: string }, runRoutineId
         inputsCreate: Object.entries(runInputs).map(([inputId, data]) => ({
             id: uuid(),
             data,
-            inputConnect: { id: inputId },
-            runRoutineConnect: { id: runRoutineId }
+            inputConnect: inputId,
+            runRoutineConnect: runRoutineId
         }))
     }
 }
@@ -127,7 +127,7 @@ export const runInputsUpdate = (
     return updateRel({ inputs: original }, { inputs: updatedInputs }, 'inputs', ['Create', 'Update', 'Delete'], 'many', shapeRunRoutineInput);
 }
 
-type GetRoutineStatusResult = {
+type GetRoutineVersionStatusResult = {
     status: Status;
     messages: string[];
     nodesById: { [id: string]: Node };
@@ -141,7 +141,7 @@ type GetRoutineStatusResult = {
  * @param routine The routine to check
  */
 export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion> | null): GetRoutineVersionStatusResult => {
-    if (!routine || !routine.nodeLinks || !routine.nodes) { 
+    if (!routineVersion || !routineVersion.nodeLinks || !routineVersion.nodes) { 
         return { status: Status.Invalid, messages: ['No node or link data found'], nodesById: {}, nodesOffGraph: [], nodesOnGraph: [] };
     }
     const nodesOnGraph: Node[] = [];
@@ -149,7 +149,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     const nodesById: { [id: string]: Node } = {};
     const statuses: [Status, string][] = []; // Holds all status messages, so multiple can be displayed
     // Loop through nodes and add to appropriate array (and also populate nodesById dictionary)
-    for (const node of routine.nodes) {
+    for (const node of routineVersion.nodes) {
         if ((node.columnIndex !== null && node.columnIndex !== undefined) && (node.rowIndex !== null && node.rowIndex !== undefined)) {
             nodesOnGraph.push(node);
         } else {
@@ -164,7 +164,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     const uniqueDict = uniqBy(nodesOnGraph, (n) => `${n.columnIndex}-${n.rowIndex}`);
     // Check if length of removed duplicates is equal to the length of the original positions dictionary
     if (uniqueDict.length !== Object.values(nodesOnGraph).length) {
-        return { status: Status.Invalid, messages: ['Ran into error determining node positions'], nodesById, nodesOffGraph: routine.nodes, nodesOnGraph: [] };
+        return { status: Status.Invalid, messages: ['Ran into error determining node positions'], nodesById, nodesOffGraph: routineVersion.nodes, nodesOnGraph: [] };
     }
     // Now perform checks to see if the routine can be run
     // 1. There is only one start node
@@ -173,7 +173,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     // 4. Validate loop TODO
     // 5. Validate redirects TODO
     // Check 1
-    const startNodes = routine.nodes.filter(node => node.nodeType === NodeType.Start);
+    const startNodes = routineVersion.nodes.filter(node => node.nodeType === NodeType.Start);
     if (startNodes.length === 0) {
         statuses.push([Status.Invalid, 'No start node found']);
     }
@@ -181,7 +181,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
         statuses.push([Status.Invalid, 'More than one start node found']);
     }
     // Check 2
-    const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => routine.nodeLinks!.every(link => link.toId !== node.id));
+    const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => routineVersion.nodeLinks!.every(link => link.toId !== node.id));
     if (nodesWithoutIncomingEdges.length === 0) {
         //TODO this would be fine with a redirect link
         statuses.push([Status.Invalid, 'Error determining start node']);
@@ -190,10 +190,10 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
         statuses.push([Status.Invalid, 'Nodes are not fully connected']);
     }
     // Check 3
-    const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => routine.nodeLinks!.every(link => link.fromId !== node.id));
+    const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => routineVersion.nodeLinks!.every(link => link.fromId !== node.id));
     if (nodesWithoutOutgoingEdges.length >= 0) {
         // Check that every node without outgoing edges is an end node
-        if (nodesWithoutOutgoingEdges.some(node => node.type !== NodeType.End)) {
+        if (nodesWithoutOutgoingEdges.some(node => node.nodeType !== NodeType.End)) {
             statuses.push([Status.Invalid, 'Not all paths end with an end node']);
         }
     }
@@ -205,7 +205,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
         statuses.push([Status.Incomplete, 'Some nodes are not linked']);
     }
     // Check 2
-    if (nodesOnGraph.some(node => node.type === NodeType.RoutineList && node.routineList?.items?.length === 0)) {
+    if (nodesOnGraph.some(node => node.nodeType === NodeType.RoutineList && node.routineList?.items?.length === 0)) {
         statuses.push([Status.Incomplete, 'At least one routine list is empty']);
     }
     // Return statuses, or valid if no statuses
@@ -224,52 +224,49 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
  * @param language The language of the routine
  * @returns Initial data for a new routine
  */
-export const initializeRoutineGraph = (language: string): { nodes: Node[], nodeLinks: NodeLink[] } => {
-    const startNode: Node = {
+export const initializeRoutineGraph = (language: string): { nodes: NodeShape[], nodeLinks: NodeLinkShape[] } => {
+    const startNode: NodeShape = {
         id: uuid(),
-        type: NodeType.Start,
+        nodeType: NodeType.Start,
         columnIndex: 0,
         rowIndex: 0,
-    } as Node;
-    const routineListNode: Node = {
-        type: 'Node',
+    };
+    const routineListNode: NodeShape = {
+        type: GqlModelType.Node,
         id: uuid(),
         nodeType: NodeType.RoutineList,
         columnIndex: 1,
         rowIndex: 0,
         routineList: {
-            type: 'NodeRoutineList',
             id: uuid(),
             isOptional: false,
             isOrdered: false,
-            routines: [],
+            routineVersions: [],
         },
         translations: [{
             id: uuid(),
             language,
             name: 'Subroutine 1',
         }] as Node['translations'],
-    } as Node;
-    const endNode: Node = {
-        type: 'Node',
+    };
+    const endNode: NodeShape = {
+        type: GqlModelType.Node,
         id: uuid(),
         nodeType: NodeType.End,
         columnIndex: 2,
         rowIndex: 0,
     } as Node;
-    const link1: NodeLink = {
-        type: 'NodeLink',
+    const link1: NodeLinkShape = {
         id: uuid(),
-        fromId: startNode.id,
-        toId: routineListNode.id,
+        from: startNode,
+        to: endNode,
         whens: [],
         operation: null,
     }
-    const link2: NodeLink = {
-        type: 'NodeLink',
+    const link2: NodeLinkShape = {
         id: uuid(),
-        fromId: routineListNode.id,
-        toId: endNode.id,
+        from: routineListNode,
+        to: endNode,
         whens: [],
         operation: null,
     }

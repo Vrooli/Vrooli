@@ -5,9 +5,9 @@ import { createPrims, createRel, NodeEndShape, NodeRoutineListShape, shapeNodeEn
 export type NodeTranslationShape = Pick<NodeTranslation, 'id' | 'language' | 'description' | 'name'>
 
 export type NodeShape = Pick<Node, 'id' | 'columnIndex' | 'rowIndex' | 'nodeType'> & {
-    // loop: LoopShape
-    end: NodeEndShape;
-    routineList: NodeRoutineListShape;
+    // loop?: LoopShape | null
+    end?: NodeEndShape | null;
+    routineList?: NodeRoutineListShape | null;
     routineVersion: { id: string };
     translations: NodeTranslationShape[];
 }

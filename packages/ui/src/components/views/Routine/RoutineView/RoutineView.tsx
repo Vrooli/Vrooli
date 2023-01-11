@@ -5,7 +5,7 @@ import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, uuidToBase36 } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getYou, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, uuidToBase36, parseSingleItemUrl } from "utils";
 import { mutationWrapper } from "graphql/utils";
 import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
@@ -65,7 +65,7 @@ export const RoutineView = ({
         setRoutineVersion(data.routineVersion);
     }, [data]);
     const updateRoutineVersion = useCallback((newRoutineVersion: RoutineVersion) => { setRoutineVersion(newRoutineVersion); }, [setRoutineVersion]);
-    const canEdit = useMemo(() => getListItemPermissions(routineVersion, session).canEdit, [routineVersion, session]);
+    const { canEdit } = useMemo(() => getYou(routineVersion), [routineVersion]);
 
     const availableLanguages = useMemo<string[]>(() => (routineVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routineVersion?.translations]);
     useEffect(() => {
@@ -95,18 +95,12 @@ export const RoutineView = ({
 
     const handleRunDelete = useCallback((run: RunRoutine) => {
         if (!routineVersion) return;
-        setRoutineVersion({
-            ...routineVersion,
-            runs: routineVersion.runs.filter(r => r.id !== run.id),
-        });
+        setRoutineVersion(setDotNotationValue(routineVersion, 'you.runs', routineVersion.you.runs.filter(r => r.id !== run.id)));
     }, [routineVersion]);
 
     const handleRunAdd = useCallback((run: RunRoutine) => {
         if (!routineVersion) return;
-        setRoutineVersion({
-            ...routineVersion,
-            runs: [run, ...routineVersion.runs],
-        });
+        setRoutineVersion(setDotNotationValue(routineVersion, 'you.runs', [run, ...routineVersion.you.runs]));
     }, [routineVersion]);
 
     const onEdit = useCallback(() => {
@@ -160,11 +154,11 @@ export const RoutineView = ({
             const currInput = routineVersion.inputs[i];
             if (!currInput.standardVersion) continue;
             const currSchema = standardVersionToFieldData({
-                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standard, getUserLanguages(session), false).description,
+                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
-                name: currInput.name ?? currInput.standardVersion?.name,
+                name: currInput.name ?? currInput.standardVersion?.root?.name,
                 standardType: currInput.standardVersion.standardType,
                 yup: currInput.standardVersion.yup,
             });
@@ -307,7 +301,7 @@ export const RoutineView = ({
                     isEditing={false}
                     loading={loading}
                     owner={relationships.owner}
-                    routine={routineVersion}
+                    routineVersion={routineVersion}
                     session={session}
                     translationData={{
                         language,

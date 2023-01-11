@@ -31,8 +31,8 @@ export const RunButton = ({
     // Check routine status to see if it is valid and complete
     const status = useMemo(() => {
         if (!routineVersion) return Status.Invalid;
-        return getRoutineStatus(routine).status
-    }, [routine]);
+        return getRoutineVersionStatus(routineVersion).status
+    }, [routineVersion]);
 
     const [isRunOpen, setIsRunOpen] = useState(() => {
         const params = parseSearchParams();

@@ -29,6 +29,7 @@ export type Api = {
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  isPrivate: Scalars['Boolean'];
   issues: Array<Issue>;
   labels: Array<Label>;
   owner?: Maybe<Owner>;
@@ -55,6 +56,7 @@ export type Api = {
 
 export type ApiCreateInput = {
   id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   organizationConnect?: InputMaybe<Scalars['ID']>;
@@ -154,6 +156,7 @@ export enum ApiSortBy {
 
 export type ApiUpdateInput = {
   id: Scalars['ID'];
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -181,6 +184,7 @@ export type ApiVersion = {
   forksCount: Scalars['Int'];
   id: Scalars['ID'];
   isLatest: Scalars['Boolean'];
+  isPrivate: Scalars['Boolean'];
   pullRequest?: Maybe<PullRequest>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
@@ -201,6 +205,7 @@ export type ApiVersionCreateInput = {
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isLatest?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<ApiCreateInput>;
@@ -287,6 +292,7 @@ export type ApiVersionUpdateInput = {
   documentationLink?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
   isLatest?: InputMaybe<Scalars['Boolean']>;
+  isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
@@ -8526,6 +8532,10 @@ export type UserTranslationUpdateInput = {
 
 export type UserYou = {
   __typename?: 'UserYou';
+  canComment: Scalars['Boolean'];
+  canDelete: Scalars['Boolean'];
+  canEdit: Scalars['Boolean'];
+  canReport: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isViewed: Scalars['Boolean'];
 };
@@ -10040,6 +10050,7 @@ export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTy
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
@@ -10100,6 +10111,7 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   forksCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   pullRequest?: Resolver<Maybe<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -13163,6 +13175,9 @@ export type UserTranslationResolvers<ContextType = any, ParentType extends Resol
 };
 
 export type UserYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['UserYou'] = ResolversParentTypes['UserYou']> = {
+  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

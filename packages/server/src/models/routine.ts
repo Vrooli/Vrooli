@@ -495,16 +495,7 @@ export const RoutineModel: ModelLogic<{
                 versions: 'RoutineVersion',
             }, ...params),
         }),
-        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            // canComment: async () => !isDeleted && (isAdmin || isPublic),
-            // canDelete: async () => isAdmin && !isDeleted,
-            // canEdit: async () => isAdmin && !isDeleted,
-            // canReport: async () => !isAdmin && !isDeleted && isPublic,
-            // canRun: async () => !isDeleted && (isAdmin || isPublic),
-            // canStar: async () => !isDeleted && (isAdmin || isPublic),
-            // canView: async () => !isDeleted && (isAdmin || isPublic),
-            // canVote: async () => !isDeleted && (isAdmin || isPublic),
-        } as any),
+        j
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,
