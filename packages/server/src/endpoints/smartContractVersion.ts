@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { SmartContractVersionSortBy, FindByIdInput, SmartContractVersionSearchInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput } from '@shared/consts';
+import { SmartContractVersionSortBy, SmartContractVersionSearchInput, SmartContractVersion, SmartContractVersionCreateInput, SmartContractVersionUpdateInput, FindVersionInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -138,7 +138,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        smartContractVersion(input: FindByIdInput!): SmartContractVersion
+        smartContractVersion(input: FindVersionInput!): SmartContractVersion
         smartContractVersions(input: SmartContractVersionSearchInput!): SmartContractVersionSearchResult!
     }
 
@@ -152,7 +152,7 @@ const objectType = 'SmartContractVersion';
 export const resolvers: {
     SmartContractVersionSortBy: typeof SmartContractVersionSortBy;
     Query: {
-        smartContractVersion: GQLEndpoint<FindByIdInput, FindOneResult<SmartContractVersion>>;
+        smartContractVersion: GQLEndpoint<FindVersionInput, FindOneResult<SmartContractVersion>>;
         smartContractVersions: GQLEndpoint<SmartContractVersionSearchInput, FindManyResult<SmartContractVersion>>;
     },
     Mutation: {

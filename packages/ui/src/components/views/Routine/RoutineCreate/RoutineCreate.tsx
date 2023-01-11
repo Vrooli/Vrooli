@@ -11,7 +11,7 @@ import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { RoutineIcon } from "@shared/icons";
-import { ResourceList, Routine, RoutineCreateInput, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
+import { ResourceList, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
 import { routineVersionEndpoint } from "graphql/endpoints";
 import { mutationWrapper } from "graphql/utils";
 
@@ -93,7 +93,7 @@ export const RoutineCreate = ({
         },
         validationSchema: routineValidation.update(),
         onSubmit: (values) => {
-            mutationWrapper<Routine, RoutineCreateInput>({
+            mutationWrapper<RoutineVersion, RoutineVersionCreateInput>({
                 mutation,
                 input: shapeRoutineVersion.create({
                     id: values.id,

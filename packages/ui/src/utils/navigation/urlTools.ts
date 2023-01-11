@@ -1,3 +1,5 @@
+import { uuidValidate } from "@shared/uuid";
+import { adaHandleRegex } from "@shared/validation";
 import { SnackSeverity } from "components";
 import { SetLocation } from "types";
 import { PubSub } from "utils/pubsub";
@@ -191,3 +193,34 @@ export const base36ToUuid = (base36: string, showError = true): string => {
         setLocation(link);
     }
 };
+
+/**
+ * Finds information in the URL to query for a specific item. 
+ * There are multiple ways to specify an item in the URL. 
+ * 
+ * For non-versioned items, they can be queried by ID, or sometimes by handle. 
+ * This is specified as site.com/item/id or site.com/item/handle.
+ * 
+ * For versioned items, they can be queried by ID, ID of the root item, or handle of the root item.
+ * This is specified as site.com/item/id, site.com/item?id=id, site.com/item?root=id, or site.com/item?handle=handle.
+ */
+export const parseSingleItemUrl = (): { 
+    handleRoot?: string,
+    handle?: string,
+    idRoot?: string,
+    id?: string,
+} => {
+    // Get the last part of the URL
+    const lastPart = getLastUrlPart();
+    // If this matches the handle or ID regex, return it
+    if (adaHandleRegex.test(lastPart)) return { handle: lastPart };
+    if (uuidValidate(base36ToUuid(lastPart, false))) return { id: base36ToUuid(lastPart) };
+    // Otherwise, parse the search params
+    const searchParams = parseSearchParams();
+    // If there is a handle, return it
+    if (typeof searchParams.handle === 'string' && adaHandleRegex.test(searchParams.handle)) return { handleRoot: searchParams.handle };
+    // If there is an ID, return it
+    if (searchParams.id && uuidValidate(base36ToUuid(searchParams.id as any, false))) return { idRoot: base36ToUuid(searchParams.id as any, false) };
+    // Otherwise, return nothing
+    return {};
+}

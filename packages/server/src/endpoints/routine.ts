@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, FindByVersionInput } from '@shared/consts';
+import { Routine, RoutineCreateInput, RoutineUpdateInput, RoutineSearchInput, RoutineSortBy, FindByIdInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -142,7 +142,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        routine(input: FindByVersionInput!): Routine
+        routine(input: FindByIdInput!): Routine
         routines(input: RoutineSearchInput!): RoutineSearchResult!
     }
 
@@ -156,7 +156,7 @@ const objectType = 'Routine';
 export const resolvers: {
     RoutineSortBy: typeof RoutineSortBy;
     Query: {
-        routine: GQLEndpoint<FindByVersionInput, FindOneResult<Routine>>;
+        routine: GQLEndpoint<FindByIdInput, FindOneResult<Routine>>;
         routines: GQLEndpoint<RoutineSearchInput, FindManyResult<Routine>>;
     },
     Mutation: {

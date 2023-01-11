@@ -6,7 +6,7 @@ export type RoutineVersionOutputTranslationShape = Pick<RoutineVersionOutputTran
 
 export type RoutineVersionOutputShape = Pick<RoutineVersionOutput, 'id' | 'index' | 'isRequired' | 'name'> & {
     routineVersion: { id: string };
-    standardVersion?: StandardVersionShape;
+    standardVersion?: StandardVersionShape | null;
     translations?: RoutineVersionOutputTranslationShape[];
 }
 

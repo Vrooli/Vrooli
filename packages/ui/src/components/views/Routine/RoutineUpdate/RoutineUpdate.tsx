@@ -5,14 +5,14 @@ import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
 import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, base36ToUuid, getLastUrlPart, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, InputShape, OutputShape, PubSub, removeTranslation, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, parseSingleItemUrl, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
-import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
 import { RoutineIcon } from "@shared/icons";
-import { FindByIdInput, ResourceList, Routine, RoutineUpdateInput, RoutineVersion } from "@shared/consts";
-import { routineEndpoint, routineVersionEndpoint } from "graphql/endpoints";
+import { FindVersionInput, ResourceList, RoutineVersion, RoutineVersionUpdateInput } from "@shared/consts";
+import { routineVersionEndpoint } from "graphql/endpoints";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).
 
@@ -27,20 +27,12 @@ export const RoutineUpdate = ({
     zIndex,
 }: RoutineUpdateProps) => {
     // Fetch existing data
-    const { id, versionGroupId } = useMemo(() => {
-        // URL is /object/:versionGroupId/?:id
-        const last = base36ToUuid(getLastUrlPart(0), false);
-        const secondLast = base36ToUuid(getLastUrlPart(1), false);
-        return {
-            id: uuidValidate(secondLast) ? last : undefined,
-            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
-        }
-    }, []);
-    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindByIdInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const urlData = useMemo(() => parseSingleItemUrl(), []);
+    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
-        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
+        if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
-    }, [getData, id, versionGroupId])
+    }, [getData, urlData])
     const routineVersion = useMemo(() => data?.routineVersion, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -58,14 +50,14 @@ export const RoutineUpdate = ({
     }, [relationships]);
 
     // Handle inputs
-    const [inputsList, setInputsList] = useState<InputShape[]>([]);
-    const handleInputsUpdate = useCallback((updatedList: InputShape[]) => {
+    const [inputsList, setInputsList] = useState<RoutineVersionInputShape[]>([]);
+    const handleInputsUpdate = useCallback((updatedList: RoutineVersionInputShape[]) => {
         setInputsList(updatedList);
     }, [setInputsList]);
 
     // Handle outputs
-    const [outputsList, setOutputsList] = useState<OutputShape[]>([]);
-    const handleOutputsUpdate = useCallback((updatedList: OutputShape[]) => {
+    const [outputsList, setOutputsList] = useState<RoutineVersionOutputShape[]>([]);
+    const handleOutputsUpdate = useCallback((updatedList: RoutineVersionOutputShape[]) => {
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
@@ -83,7 +75,7 @@ export const RoutineUpdate = ({
         setRelationships({
             isComplete: routineVersion?.isComplete ?? false,
             isPrivate: routineVersion?.isPrivate ?? false,
-            owner: routineVersion?.owner ?? null,
+            owner: routineVersion?.root?.owner ?? null,
             parent: null,
             // parent: routineVersion?.parent ?? null, TODO
             project: null, // TODO
@@ -91,14 +83,14 @@ export const RoutineUpdate = ({
         setInputsList(routineVersion?.inputs ?? []);
         setOutputsList(routineVersion?.outputs ?? []);
         setResourceList(routineVersion?.resourceList ?? { id: uuid() } as any);
-        setTags(routineVersion?.tags ?? []);
+        setTags(routineVersion?.root?.tags ?? []);
     }, [routineVersion]);
 
     // Handle update
-    const [mutation] = useMutation<Routine, RoutineUpdateInput, 'routineUpdate'>(...routineEndpoint.update);
+    const [mutation] = useMutation<RoutineVersion, RoutineVersionUpdateInput, 'routineVersionUpdate'>(...routineVersionEndpoint.update);
     const formik = useFormik({
         initialValues: {
-            id: id ?? DUMMY_ID,
+            id: routineVersion?.id ?? DUMMY_ID,
             nodeLinks: routineVersion?.nodeLinks ?? [] as RoutineVersion['nodeLinks'],
             nodes: routineVersion?.nodes ?? [] as RoutineVersion['nodes'],
             translationsUpdate: routineVersion?.translations ?? [{
@@ -121,7 +113,7 @@ export const RoutineUpdate = ({
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper<Routine, RoutineUpdateInput>({
+            mutationWrapper<RoutineVersion, RoutineVersionUpdateInput>({
                 mutation,
                 input: shapeRoutineVersion.update(routineVersion, {
                     id: routineVersion.id,
@@ -432,7 +424,7 @@ export const RoutineUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid >
-    ), [formik, onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, onTranslationBlur, onTranslationChange, translations, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, isMultiStep, isGraphOpen, handleGraphClose, handleGraphSubmit, handleDeleteLanguage, handleGraphOpen, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, onCancel, handleMultiStepChange]);
+    ), [session, formik, onRelationshipsChange, relationships, zIndex, language, handleAddLanguage, handleDeleteLanguage, translations.name, translations.touchedName, translations.errorName, translations.description, translations.touchedDescription, translations.errorDescription, translations.instructions, translations.touchedInstructions, translations.errorInstructions, translations.errorsWithTranslations, onTranslationBlur, onTranslationChange, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, routineVersion?.root?.versions, isMultiStep, isGraphOpen, handleGraphClose, handleGraphSubmit, handleGraphOpen, handleInputsUpdate, inputsList, handleOutputsUpdate, outputsList, onCancel, handleMultiStepChange]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

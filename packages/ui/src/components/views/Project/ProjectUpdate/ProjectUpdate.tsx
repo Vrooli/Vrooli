@@ -4,13 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, base36ToUuid, getLastUrlPart, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, SnackSeverity, TagSelector, userFromSession } from "components";
-import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
 import { projectVersionEndpoint } from "graphql/endpoints";
-import { FindByIdInput, Project, ProjectUpdateInput, ProjectVersion, ProjectVersionUpdateInput } from "@shared/consts";
+import { FindVersionInput, ProjectVersion, ProjectVersionUpdateInput } from "@shared/consts";
 
 export const ProjectUpdate = ({
     onCancel,
@@ -19,9 +19,9 @@ export const ProjectUpdate = ({
     zIndex,
 }: ProjectUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindByIdInput, 'projectVersion'>(...projectVersionEndpoint.findOne);
-    useEffect(() => { uuidValidate(id) && getData({ variables: { id } }) }, [getData, id])
+    const { id } = useMemo(() => parseSingleItemUrl(), []);
+    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(...projectVersionEndpoint.findOne);
+    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
     const projectVersion = useMemo(() => data?.projectVersion, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -68,7 +68,7 @@ export const ProjectUpdate = ({
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProject', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper<Project, ProjectUpdateInput>({
+            mutationWrapper<ProjectVersion, ProjectVersionUpdateInput>({
                 mutation,
                 input: shapeProjectVersion.update(projectVersion, {
                     id: projectVersion.id,

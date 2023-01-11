@@ -6,7 +6,7 @@ import { useLazyQuery } from "graphql/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { UserViewProps } from "../types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, placeholderColor, SearchType } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, SearchType } from "utils";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
@@ -32,12 +32,9 @@ export const UserView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
-    const id: string = useMemo(() => {
-        const pathnameEnd = base36ToUuid(getLastUrlPart());
-        // If no id is provided, use the current user's id
-        if (!uuidValidate(pathnameEnd)) return getCurrentUser(session).id ?? '';
-        // Otherwise, use the id provided in the URL
-        return pathnameEnd;
+    const id = useMemo(() => {
+        const { id } = parseSingleItemUrl();
+        return id ?? getCurrentUser(session).id ?? '';
     }, [session]);
     const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session).id === id), [id, session]);
     // Fetch data
@@ -315,7 +312,7 @@ export const UserView = ({
                         session={session}
                         objectId={user?.id ?? ''}
                         starFor={StarFor.User}
-                        isStar={user?.isStarred ?? false}
+                        isStar={user?.you?.isStarred ?? false}
                         stars={user?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"

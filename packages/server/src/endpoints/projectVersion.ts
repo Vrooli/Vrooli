@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { ProjectVersionSortBy, FindByIdInput, ProjectVersion, ProjectVersionSearchInput, ProjectVersionCreateInput, ProjectVersionUpdateInput } from '@shared/consts';
+import { ProjectVersionSortBy, ProjectVersion, ProjectVersionSearchInput, ProjectVersionCreateInput, ProjectVersionUpdateInput, FindVersionInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -149,7 +149,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        projectVersion(input: FindByIdInput!): ProjectVersion
+        projectVersion(input: FindVersionInput!): ProjectVersion
         projectVersions(input: ProjectVersionSearchInput!): ProjectVersionSearchResult!
     }
 
@@ -163,7 +163,7 @@ const objectType = 'ProjectVersion';
 export const resolvers: {
     ProjectVersionSortBy: typeof ProjectVersionSortBy;
     Query: {
-        projectVersion: GQLEndpoint<FindByIdInput, FindOneResult<ProjectVersion>>;
+        projectVersion: GQLEndpoint<FindVersionInput, FindOneResult<ProjectVersion>>;
         projectVersions: GQLEndpoint<ProjectVersionSearchInput, FindManyResult<ProjectVersion>>;
     },
     Mutation: {

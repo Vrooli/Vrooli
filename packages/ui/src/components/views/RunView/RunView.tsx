@@ -1,4 +1,4 @@
-import { FindByIdInput, Node, NodeEnd, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, Routine, RoutineVersion, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput } from "@shared/consts";
+import { FindVersionInput, Node, NodeLink, NodeRoutineListItem, NodeType, RoutineVersion, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput } from "@shared/consts";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, useTheme } from "@mui/material"
 import { DecisionView, HelpButton, RunStepsDialog } from "components";
 import { SubroutineView } from "components/views/SubroutineView/SubroutineView";
@@ -13,7 +13,7 @@ import { addSearchParams, base36ToUuid, removeSearchParams } from "utils/navigat
 import { mutationWrapper } from "graphql/utils";
 import { uuid } from '@shared/uuid';
 import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
-import { routineEndpoint, routineVersionEndpoint, runRoutineEndpoint } from "graphql/endpoints";
+import { routineVersionEndpoint, runRoutineEndpoint } from "graphql/endpoints";
 
 /**
  * Maximum routine nesting supported
@@ -404,7 +404,7 @@ export const RunView = ({
     const progressPercentage = useMemo(() => getRunPercentComplete(completedComplexity, routineVersion.complexity), [completedComplexity, routineVersion]);
 
     // Query current subroutine, if needed. Main routine may have the data
-    const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<RoutineVersion, FindByIdInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const [getSubroutine, { data: subroutineData, loading: subroutineLoading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
     const [currentStep, setCurrentStep] = useState<RoutineStep | null>(null);
     useEffect(() => {
         console.log('find step 1', currStepLocation)

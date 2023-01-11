@@ -1,13 +1,13 @@
 import { Box, Button, Dialog, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, CommentFor, FindByIdInput, ResourceList, Routine, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
+import { APP_LINKS, CommentFor, FindVersionInput, ResourceList, RoutineVersion, RunRoutine, RunRoutineCompleteInput } from "@shared/consts";
 import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
-import { base36ToUuid, formikToRunInputs, getLanguageSubtag, getLastUrlPart, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, setValueFromDot, standardToFieldData, TagShape, uuidToBase36 } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, TagShape, uuidToBase36 } from "utils";
 import { mutationWrapper } from "graphql/utils";
-import { uuid, uuidValidate } from '@shared/uuid';
+import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
 import { FieldData } from "forms/types";
 import { generateInputWithLabel } from "forms/generators";
@@ -16,7 +16,8 @@ import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { RelationshipsObject } from "components/inputs/types";
-import { routineEndpoint, routineVersionEndpoint, runRoutineEndpoint } from "graphql/endpoints";
+import { routineVersionEndpoint, runRoutineEndpoint } from "graphql/endpoints";
+import { setDotNotationValue } from "@shared/utils";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. 
@@ -47,24 +48,16 @@ export const RoutineView = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     // Fetch data
-    const { id, versionGroupId } = useMemo(() => {
-        // URL is /object/:versionGroupId/?:id
-        const last = base36ToUuid(getLastUrlPart(0), false);
-        const secondLast = base36ToUuid(getLastUrlPart(1), false);
-        return {
-            id: uuidValidate(secondLast) ? last : undefined,
-            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
-        }
-    }, []);
-    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindByIdInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const urlData = useMemo(() => parseSingleItemUrl(), []);
+    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
-        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
+        if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         // If IDs are not invalid, throw error if we are not creating a new routine
         else {
             const { build } = parseSearchParams();
             if (!build || build !== true) PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
         }
-    }, [getData, id, versionGroupId])
+    }, [getData, urlData])
 
     const [routineVersion, setRoutineVersion] = useState<RoutineVersion | null>(null);
     useEffect(() => {
@@ -117,8 +110,8 @@ export const RoutineView = ({
     }, [routineVersion]);
 
     const onEdit = useCallback(() => {
-        id && setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(id)}`);
-    }, [setLocation, id]);
+        routineVersion?.id && setLocation(`${APP_LINKS.Routine}/edit/${uuidToBase36(routineVersion.id)}`);
+    }, [setLocation, routineVersion?.id]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
@@ -143,13 +136,13 @@ export const RoutineView = ({
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
                 if (data.success && routineVersion) {
-                    setRoutineVersion(setValueFromDot(routineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
+                    setRoutineVersion(setDotNotationValue(routineVersion, 'root.you.isUpvoted', action === ObjectActionComplete.VoteUp))
                 }
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
                 if (data.success && routineVersion) {
-                    setRoutineVersion(setValueFromDot(routineVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
+                    setRoutineVersion(setDotNotationValue(routineVersion, 'root.you.isStarred', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -434,7 +427,7 @@ export const RoutineView = ({
                 <CommentContainer
                     forceAddCommentOpen={isAddCommentOpen}
                     language={language}
-                    objectId={id ?? ''}
+                    objectId={routineVersion?.id ?? ''}
                     objectType={CommentFor.RoutineVersion}
                     onAddCommentClose={closeAddCommentDialog}
                     session={session}

@@ -1,13 +1,12 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, FindByIdInput, ProjectVersion, ResourceList, StarFor, VisibilityType } from "@shared/consts";
+import { APP_LINKS, FindVersionInput, ProjectVersion, StarFor, VisibilityType } from "@shared/consts";
 import { useLazyQuery } from "graphql/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { ObjectActionMenu, DateDisplay, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
+import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { ProjectViewProps } from "../types";
 import { SearchListGenerator } from "components/lists/types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, SearchType, uuidToBase36 } from "utils";
-import { uuidValidate } from '@shared/uuid';
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, SearchType, uuidToBase36 } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { projectVersionEndpoint } from "graphql/endpoints";
@@ -27,12 +26,12 @@ export const ProjectView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindByIdInput, 'projectVersion'>(...projectVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const urlData = useMemo(() => parseSingleItemUrl(), []);
+    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(...projectVersionEndpoint.findOne, { errorPolicy: 'all' });
     const [projectVersion, setProjectVersion] = useState<ProjectVersion | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id)) getData({ variables: { id } })
-    }, [getData, id]);
+        if (urlData.id || urlData.idRoot || urlData.handleRoot) getData({ variables: urlData })
+    }, [getData, urlData]);
     useEffect(() => {
         setProjectVersion(data?.projectVersion);
     }, [data]);
@@ -45,16 +44,14 @@ export const ProjectView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { canStar, name, description, handle, resourceList } = useMemo(() => {
-        const { canStar } = projectVersion?.you ?? {};
-        const resourceList: ResourceList | undefined = projectVersion?.resourceList;
+    const { canStar, name, description, handle } = useMemo(() => {
+        const { canStar } = projectVersion?.root?.you ?? {};
         const { description, name } = getTranslation(projectVersion ?? partialData, [language]);
         return {
             canStar,
             name,
             description,
-            handle: projectVersion?.handle ?? partialData?.handle,
-            resourceList,
+            handle: projectVersion?.root?.handle ?? partialData?.root?.handle,
         };
     }, [language, projectVersion, partialData]);
 
@@ -62,24 +59,6 @@ export const ProjectView = ({
         if (handle) document.title = `${name} ($${handle}) | Vrooli`;
         else document.title = `${name} | Vrooli`;
     }, [handle, name]);
-
-    const resources = useMemo(() => (resourceList || canEdit) ? (
-        <ResourceListVertical
-            list={resourceList as any}
-            session={session}
-            canEdit={canEdit}
-            handleUpdate={(updatedList) => {
-                if (!projectVersion) return;
-                setProjectVersion({
-                    ...projectVersion,
-                    resourceList: updatedList
-                })
-            }}
-            loading={loading}
-            mutate={true}
-            zIndex={zIndex}
-        />
-    ) : null, [canEdit, loading, projectVersion, resourceList, session, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -90,19 +69,17 @@ export const ProjectView = ({
      */
     const availableTabs = useMemo(() => {
         const tabs: TabOptions[] = [];
-        // Only display resources if there are any
-        if (resources) tabs.push(TabOptions.Resources);
         // Always display others (for now)
         tabs.push(TabOptions.Routines);
         tabs.push(TabOptions.Standards);
         return tabs;
-    }, [resources]);
+    }, []);
 
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Project}/edit/${uuidToBase36(id)}`);
-    }, [setLocation, id]);
+        projectVersion?.id && setLocation(`${APP_LINKS.Project}/edit/${uuidToBase36(projectVersion.id)}`);
+    }, [projectVersion?.id, setLocation]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -154,7 +131,7 @@ export const ProjectView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
-                    where: { projectId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
+                    where: { projectId: projectVersion?.id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                 };
             case TabOptions.Standards:
                 return {
@@ -162,7 +139,7 @@ export const ProjectView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search project's standards...",
                     noResultsText: "No standards found",
-                    where: { projectId: id, visibility: VisibilityType.All },
+                    where: { projectId: projectVersion?.id, visibility: VisibilityType.All },
                 }
             default:
                 return {
@@ -175,7 +152,7 @@ export const ProjectView = ({
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [canEdit, currTabType, id]);
+    }, [canEdit, currTabType, projectVersion?.id]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -276,8 +253,8 @@ export const ProjectView = ({
                         session={session}
                         objectId={projectVersion?.id ?? ''}
                         starFor={StarFor.Project}
-                        isStar={projectVersion?.isStarred ?? false}
-                        stars={projectVersion?.stars ?? 0}
+                        isStar={projectVersion?.root?.you?.isStarred ?? false}
+                        stars={projectVersion?.root?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />
@@ -362,24 +339,20 @@ export const ProjectView = ({
                     </Tabs>
                 </Box>
                 <Box p={2}>
-                    {
-                        currTabType === TabOptions.Resources ? resources : (
-                            <SearchList
-                                canSearch={uuidValidate(id)}
-                                handleAdd={canEdit ? toAddNew : undefined}
-                                hideRoles={true}
-                                id="project-view-list"
-                                itemKeyPrefix={itemKeyPrefix}
-                                noResultsText={noResultsText}
-                                searchType={searchType}
-                                searchPlaceholder={placeholder}
-                                session={session}
-                                take={20}
-                                where={where}
-                                zIndex={zIndex}
-                            />
-                        )
-                    }
+                    <SearchList
+                        canSearch={Boolean(projectVersion?.id)}
+                        handleAdd={canEdit ? toAddNew : undefined}
+                        hideRoles={true}
+                        id="project-view-list"
+                        itemKeyPrefix={itemKeyPrefix}
+                        noResultsText={noResultsText}
+                        searchType={searchType}
+                        searchPlaceholder={placeholder}
+                        session={session}
+                        take={20}
+                        where={where}
+                        zIndex={zIndex}
+                    />
                 </Box>
             </Box>
         </>

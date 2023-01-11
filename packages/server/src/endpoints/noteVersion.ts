@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { FindByIdInput, NoteVersion, NoteVersionSearchInput, NoteVersionCreateInput, NoteVersionUpdateInput, NoteVersionSortBy } from '@shared/consts';
+import { NoteVersion, NoteVersionSearchInput, NoteVersionCreateInput, NoteVersionUpdateInput, NoteVersionSortBy, FindVersionInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -118,7 +118,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        noteVersion(input: FindByIdInput!): NoteVersion
+        noteVersion(input: FindVersionInput!): NoteVersion
         noteVersions(input: NoteVersionSearchInput!): NoteVersionSearchResult!
     }
 
@@ -132,7 +132,7 @@ const objectType = 'NoteVersion';
 export const resolvers: {
     NoteVersionSortBy: typeof NoteVersionSortBy;
     Query: {
-        noteVersion: GQLEndpoint<FindByIdInput, FindOneResult<NoteVersion>>;
+        noteVersion: GQLEndpoint<FindVersionInput, FindOneResult<NoteVersion>>;
         noteVersions: GQLEndpoint<NoteVersionSearchInput, FindManyResult<NoteVersion>>;
     },
     Mutation: {

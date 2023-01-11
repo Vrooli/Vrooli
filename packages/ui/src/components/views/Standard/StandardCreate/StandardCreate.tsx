@@ -2,7 +2,7 @@ import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "graphql/hooks";
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardCreate, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
@@ -12,9 +12,9 @@ import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession 
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
-import { ResourceList, Standard, StandardCreateInput, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
+import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
 import { standardVersionEndpoint } from "graphql/endpoints";
-import { standardVersionValidation } from "@shared/validation";
+import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
 
 export const StandardCreate = ({
     onCreated,
@@ -93,9 +93,9 @@ export const StandardCreate = ({
         },
         validationSchema: standardVersionValidation.create(),
         onSubmit: (values) => {
-            mutationWrapper<Standard, StandardCreateInput>({
+            mutationWrapper<StandardVersion, StandardVersionCreateInput>({
                 mutation,
-                input: shapeStandardCreate({
+                input: shapeStandardVersion.create({
                     id: values.id,
                     default: values.default,
                     isInternal: false,

@@ -20,7 +20,7 @@ export const typeDef = gql`
         id: ID!
         filterType: UserScheduleFilterType!
         userSchedule: UserSchedule!
-        tag: Tag
+        tag: Tag!
     }
 `
 

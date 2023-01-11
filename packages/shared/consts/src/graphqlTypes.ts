@@ -611,13 +611,14 @@ export type FindByIdOrHandleInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
 
-export type FindByVersionInput = {
-  id?: InputMaybe<Scalars['ID']>;
-  versionGroupId?: InputMaybe<Scalars['ID']>;
-};
-
 export type FindHandlesInput = {
   organizationId?: InputMaybe<Scalars['ID']>;
+};
+
+export type FindVersionInput = {
+  handleRoot?: InputMaybe<Scalars['String']>;
+  id?: InputMaybe<Scalars['ID']>;
+  idRoot?: InputMaybe<Scalars['ID']>;
 };
 
 export enum GqlModelType {
@@ -3380,7 +3381,6 @@ export type ProjectOrOrganizationSearchInput = {
   projectOrganizationId?: InputMaybe<Scalars['ID']>;
   projectParentId?: InputMaybe<Scalars['ID']>;
   reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
   resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<ProjectOrOrganizationSortBy>;
@@ -3436,7 +3436,6 @@ export type ProjectOrRoutineSearchInput = {
   parentId?: InputMaybe<Scalars['ID']>;
   projectAfter?: InputMaybe<Scalars['String']>;
   reportId?: InputMaybe<Scalars['ID']>;
-  resourceLists?: InputMaybe<Array<Scalars['String']>>;
   resourceTypes?: InputMaybe<Array<ResourceUsedFor>>;
   routineAfter?: InputMaybe<Scalars['String']>;
   routineIsInternal?: InputMaybe<Scalars['Boolean']>;
@@ -4028,7 +4027,7 @@ export type QueryApiArgs = {
 
 
 export type QueryApiVersionArgs = {
-  input: FindByIdInput;
+  input: FindVersionInput;
 };
 
 
@@ -4128,7 +4127,7 @@ export type QueryNoteArgs = {
 
 
 export type QueryNoteVersionArgs = {
-  input: FindByIdInput;
+  input: FindVersionInput;
 };
 
 
@@ -4203,7 +4202,7 @@ export type QueryProjectOrRoutinesArgs = {
 
 
 export type QueryProjectVersionArgs = {
-  input: FindByIdInput;
+  input: FindVersionInput;
 };
 
 
@@ -4373,12 +4372,12 @@ export type QueryRolesArgs = {
 
 
 export type QueryRoutineArgs = {
-  input: FindByVersionInput;
+  input: FindByIdInput;
 };
 
 
 export type QueryRoutineVersionArgs = {
-  input: FindByIdInput;
+  input: FindVersionInput;
 };
 
 
@@ -4443,7 +4442,7 @@ export type QuerySmartContractArgs = {
 
 
 export type QuerySmartContractVersionArgs = {
-  input: FindByIdInput;
+  input: FindVersionInput;
 };
 
 
@@ -4458,12 +4457,12 @@ export type QuerySmartContractsArgs = {
 
 
 export type QueryStandardArgs = {
-  input: FindByVersionInput;
+  input: FindByIdInput;
 };
 
 
 export type QueryStandardVersionArgs = {
-  input: FindByIdInput;
+  input: FindVersionInput;
 };
 
 
@@ -8401,7 +8400,7 @@ export type UserScheduleFilter = {
   __typename?: 'UserScheduleFilter';
   filterType: UserScheduleFilterType;
   id: Scalars['ID'];
-  tag?: Maybe<Tag>;
+  tag: Tag;
   type: GqlModelType;
   userSchedule: UserSchedule;
 };
@@ -8812,8 +8811,8 @@ export type ResolversTypes = {
   EmailSignUpInput: EmailSignUpInput;
   FindByIdInput: FindByIdInput;
   FindByIdOrHandleInput: FindByIdOrHandleInput;
-  FindByVersionInput: FindByVersionInput;
   FindHandlesInput: FindHandlesInput;
+  FindVersionInput: FindVersionInput;
   Float: ResolverTypeWrapper<Scalars['Float']>;
   GqlModelType: GqlModelType;
   Handle: ResolverTypeWrapper<Handle>;
@@ -9492,8 +9491,8 @@ export type ResolversParentTypes = {
   EmailSignUpInput: EmailSignUpInput;
   FindByIdInput: FindByIdInput;
   FindByIdOrHandleInput: FindByIdOrHandleInput;
-  FindByVersionInput: FindByVersionInput;
   FindHandlesInput: FindHandlesInput;
+  FindVersionInput: FindVersionInput;
   Float: Scalars['Float'];
   Handle: Handle;
   HistoryInput: HistoryInput;
@@ -13138,7 +13137,7 @@ export type UserScheduleEdgeResolvers<ContextType = any, ParentType extends Reso
 export type UserScheduleFilterResolvers<ContextType = any, ParentType extends ResolversParentTypes['UserScheduleFilter'] = ResolversParentTypes['UserScheduleFilter']> = {
   filterType?: Resolver<ResolversTypes['UserScheduleFilterType'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  tag?: Resolver<Maybe<ResolversTypes['Tag']>, ParentType, ContextType>;
+  tag?: Resolver<ResolversTypes['Tag'], ParentType, ContextType>;
   type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   userSchedule?: Resolver<ResolversTypes['UserSchedule'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

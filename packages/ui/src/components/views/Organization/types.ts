@@ -1,4 +1,4 @@
-import { Organization } from "types";
+import { Organization } from "@shared/consts";
 import { CreateProps, UpdateProps, ViewProps } from "../types";
 
 export interface OrganizationCreateProps extends CreateProps<Organization> {}

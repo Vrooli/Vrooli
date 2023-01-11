@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, CopyInput, SessionUser, VisibilityType, GqlModelType } from '@shared/consts';
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, CopyInput, SessionUser, VisibilityType, GqlModelType, FindVersionInput } from '@shared/consts';
 import { PrismaType, RecursivePartial } from "../types";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
 
@@ -75,9 +75,15 @@ export type ReadManyHelperProps<
     req: { languages: string[], users?: SessionUser[] };
 }
 
-export type ReadOneHelperProps<GQLObject extends { [x: string]: any }> = {
+type FindUniqueInput = {
+    id?: string | null | undefined;
+    handle?: string | null | undefined;
+    handleRoot?: string | null | undefined;
+    idRoot?: string | null | undefined;
+}
+export type ReadOneHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
-    input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
+    input: FindUniqueInput;
     objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: { languages: string[], users?: SessionUser[] };

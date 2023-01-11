@@ -1,6 +1,6 @@
 import { gql } from 'apollo-server-express';
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from '../types';
-import { StandardVersionSortBy, StandardVersion, StandardVersionSearchInput, StandardVersionCreateInput, StandardVersionUpdateInput, FindByIdInput } from '@shared/consts';
+import { StandardVersionSortBy, StandardVersion, StandardVersionSearchInput, StandardVersionCreateInput, StandardVersionUpdateInput, FindVersionInput } from '@shared/consts';
 import { rateLimit } from '../middleware';
 import { createHelper, readManyHelper, readOneHelper, updateHelper } from '../actions';
 
@@ -145,7 +145,7 @@ export const typeDef = gql`
     }
 
     extend type Query {
-        standardVersion(input: FindByIdInput!): StandardVersion
+        standardVersion(input: FindVersionInput!): StandardVersion
         standardVersions(input: StandardVersionSearchInput!): StandardVersionSearchResult!
     }
 
@@ -159,7 +159,7 @@ const objectType = 'StandardVersion';
 export const resolvers: {
     StandardVersionSortBy: typeof StandardVersionSortBy;
     Query: {
-        standardVersion: GQLEndpoint<FindByIdInput, FindOneResult<StandardVersion>>;
+        standardVersion: GQLEndpoint<FindVersionInput, FindOneResult<StandardVersion>>;
         standardVersions: GQLEndpoint<StandardVersionSearchInput, FindManyResult<StandardVersion>>;
     },
     Mutation: {

@@ -5,9 +5,9 @@ import { OrganizationUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
 import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, base36ToUuid, getLastUrlPart, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
-import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, Organization, OrganizationUpdateInput, ResourceList } from "@shared/consts";
 import { organizationEndpoint } from "graphql/endpoints";
@@ -19,9 +19,9 @@ export const OrganizationUpdate = ({
     zIndex,
 }: OrganizationUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
+    const { id } = useMemo(() => parseSingleItemUrl(), []);
     const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdInput, 'organization'>(...organizationEndpoint.findOne);
-    useEffect(() => { uuidValidate(id) && getData({ variables: { id } }) }, [getData, id])
+    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
     const organization = useMemo(() => data?.organization, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({

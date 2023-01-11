@@ -7,10 +7,10 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 import { shapeUserScheduleFilter, UserScheduleFilterShape } from "./userScheduleFilter";
 
 export type UserScheduleShape = Pick<UserSchedule, 'id' | 'name' | 'description' | 'timeZone' | 'eventStart' | 'eventEnd' | 'recurring' | 'recurrStart' | 'recurrEnd'> & {
-    reminderList?: ReminderListShape,
-    resourceList?: ResourceListShape,
-    labels?: LabelShape[],
-    filters?: UserScheduleFilterShape[],
+    reminderList?: ReminderListShape | null,
+    resourceList?: ResourceListShape | null,
+    labels?: LabelShape[] | null,
+    filters?: UserScheduleFilterShape[] | null,
 }
 
 export const shapeUserSchedule: ShapeModel<UserScheduleShape, UserScheduleCreateInput, UserScheduleUpdateInput> = {

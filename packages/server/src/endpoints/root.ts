@@ -1,9 +1,9 @@
 import { gql } from 'apollo-server-express';
-import { GraphQLResolveInfo, GraphQLScalarType } from "graphql";
+import { GraphQLScalarType } from "graphql";
 import { GraphQLUpload } from 'graphql-upload';
 import { readFiles, saveFiles } from '../utils';
 // import ogs from 'open-graph-scraper';
-import { Context, rateLimit } from '../middleware';
+import { rateLimit } from '../middleware';
 import { CustomError } from '../events/error';
 import { resolveUnion } from './resolvers';
 import { ReadAssetsInput, RunStatus, StatPeriodType, VisibilityType, WriteAssetsInput } from '@shared/consts';
@@ -180,21 +180,22 @@ export const typeDef = gql`
         files: [Upload!]!
     }
 
-    # Input for finding object by id
+    # Input for finding object by its ID
     input FindByIdInput {
         id: ID!
     }
 
-    # Input for finding object by versionId (id) or versionGroupId
-    input FindByVersionInput {
-        id: ID
-        versionGroupId: ID
-    }
-
-    # Input for finding object by id OR handle
+    # Input for finding object by its ID or handle
     input FindByIdOrHandleInput {
         id: ID
         handle: String
+    }
+
+    # Input for finding a versioned object
+    input FindVersionInput {
+        id: ID
+        idRoot: ID # If using root, finds the latest public version
+        handleRoot: String # Not always applicable
     }
 
     # Input for deleting multiple objects

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { mutationWrapper } from 'graphql/utils';
 import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfileUpdate, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfile, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
@@ -78,7 +78,7 @@ export const SettingsProfile = ({
                 PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: SnackSeverity.Error });
                 return;
             }
-            const input = shapeProfileUpdate(profile, {
+            const input = shapeProfile.update(profile, {
                 id: profile.id,
                 name: values.name,
                 handle: selectedHandle,

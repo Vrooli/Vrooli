@@ -4,12 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, base36ToUuid, getLastUrlPart, getUserLanguages, handleTranslationBlur, handleTranslationChange, PubSub, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
-import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
-import { FindByIdInput, ResourceList, Standard, StandardUpdateInput, StandardVersion } from "@shared/consts";
-import { standardEndpoint, standardVersionEndpoint } from "graphql/endpoints";
+import { FindVersionInput, ResourceList, Standard, StandardUpdateInput, StandardVersion, StandardVersionUpdateInput } from "@shared/consts";
+import { standardVersionEndpoint } from "graphql/endpoints";
 import { standardVersionValidation } from "@shared/validation";
 
 export const StandardUpdate = ({
@@ -19,20 +19,12 @@ export const StandardUpdate = ({
     zIndex,
 }: StandardUpdateProps) => {
     // Fetch existing data
-    const { id, versionGroupId } = useMemo(() => {
-        // URL is /object/:versionGroupId/?:id
-        const last = base36ToUuid(getLastUrlPart(0), false);
-        const secondLast = base36ToUuid(getLastUrlPart(1), false);
-        return {
-            id: uuidValidate(secondLast) ? last : undefined,
-            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
-        }
-    }, []);
-    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindByIdInput, 'standardVersion'>(...standardVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const urlData = useMemo(() => parseSingleItemUrl(), []);
+    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(...standardVersionEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
-        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
+        if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
-    }, [getData, id, versionGroupId])
+    }, [getData, urlData])
     const standardVersion = useMemo(() => data?.standardVersion, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -63,7 +55,7 @@ export const StandardUpdate = ({
         setRelationships({
             isComplete: false, //TODO
             isPrivate: standardVersion?.isPrivate ?? false,
-            owner: standardVersion?.owner ?? null,
+            owner: standardVersion?.root?.owner ?? null,
             parent: null,
             // parent: standard?.parent ?? null, TODO
             project: null // TODO
@@ -73,7 +65,7 @@ export const StandardUpdate = ({
     }, [standardVersion]);
 
     // Handle update
-    const [mutation] = useMutation<Standard, StandardUpdateInput, 'standardUpdate'>(...standardEndpoint.update);
+    const [mutation] = useMutation<StandardVersion, StandardVersionUpdateInput, 'standardVersionUpdate'>(...standardVersionEndpoint.update);
     const formik = useFormik({
         initialValues: {
             translationsUpdate: standardVersion?.translations ?? [{
@@ -91,7 +83,7 @@ export const StandardUpdate = ({
                 return;
             }
             // Update
-            mutationWrapper<Standard, StandardUpdateInput>({
+            mutationWrapper<StandardVersion, StandardVersionUpdateInput>({
                 mutation,
                 input: shapeStandardVersion.update(standardVersion, {
                     id: standardVersion.id,

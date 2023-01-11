@@ -1,7 +1,7 @@
 import { useQuery } from "@apollo/client";
 import { useMemo } from "react";
 import { Box, useTheme } from "@mui/material";
-import { base36ToUuid, getLastUrlPart } from "utils";
+import { getLastUrlPart, parseSingleItemUrl } from "utils";
 import { PageTitle } from "components/text";
 import { ReportsViewPageProps } from "pages/view/types";
 import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
@@ -25,7 +25,7 @@ export const ReportsView = ({
     session
 }: ReportsViewPageProps): JSX.Element => {
     const { palette } = useTheme();
-    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
+    const { id } = useMemo(() => parseSingleItemUrl(), []);
     const objectType = useMemo(() => getLastUrlPart(1), []);
 
     const { data } = useQuery<Wrap<ReportSearchResult, 'reports'>, Wrap<ReportSearchInput, 'input'>>(

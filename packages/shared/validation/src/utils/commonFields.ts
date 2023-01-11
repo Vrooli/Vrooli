@@ -76,6 +76,7 @@ export const details = yup.string().transform(blankToUndefined).max(8192, maxStr
 export const summary = yup.string().transform(blankToUndefined).max(1024, maxStrErr)
 export const reportReason = yup.string().transform(blankToUndefined).min(1, minStrErr).max(128, maxStrErr)
 export const instructions = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
+export const jsonVariable = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
 
 // enums
 export const reportCreatedFor = yup.string().transform(blankToUndefined).oneOf(Object.values(ReportFor))

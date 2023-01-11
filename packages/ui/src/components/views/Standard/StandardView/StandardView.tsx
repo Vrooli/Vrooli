@@ -1,12 +1,12 @@
 import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { CommentFor, FindByIdInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
+import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
 import { useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, SnackSeverity, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
-import { base36ToUuid, firstString, getLanguageSubtag, getLastUrlPart, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, standardToFieldData, TagShape } from "utils";
-import { uuid, uuidValidate } from '@shared/uuid';
+import { getLanguageSubtag, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, PubSub, standardToFieldData, TagShape } from "utils";
+import { uuid } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
@@ -35,20 +35,12 @@ export const StandardView = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     // Fetch data
-    const { id, versionGroupId } = useMemo(() => {
-        // URL is /object/:versionGroupId/?:id
-        const last = base36ToUuid(getLastUrlPart(0), false);
-        const secondLast = base36ToUuid(getLastUrlPart(1), false);
-        return {
-            id: uuidValidate(secondLast) ? last : undefined,
-            versionGroupId: uuidValidate(secondLast) ? secondLast : last,
-        }
-    }, []);
-    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindByIdInput, 'standardVersion'>(...standardVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const urlData = useMemo(() => parseSingleItemUrl(), []);
+    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(...standardVersionEndpoint.findOne, { errorPolicy: 'all' });
     useEffect(() => {
-        if (uuidValidate(id) || uuidValidate(versionGroupId)) getData({ variables: { id, versionGroupId } });
+        if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
-    }, [getData, id, versionGroupId])
+    }, [getData, urlData])
 
     const [standardVersion, setStandardVersion] = useState<StandardVersion | null>(null);
     useEffect(() => {
@@ -69,7 +61,7 @@ export const StandardView = ({
         description: getTranslation(standardVersion, [language]).description,
         helpText: null,
         props: standardVersion.props,
-        name: standardVersion.name,
+        name: getTranslation(standardVersion, [language]).name,
         type: standardVersion.type,
         yup: standardVersion.yup,
     }) : null), [language, standardVersion]);
@@ -83,8 +75,7 @@ export const StandardView = ({
 
     const { canEdit, description, name } = useMemo(() => {
         const { canEdit } = standardVersion?.you ?? {};
-        const { description } = getTranslation(standardVersion ?? partialData, [language]);
-        const name = firstString(standardVersion?.name, partialData?.name);
+        const { description, name } = getTranslation(standardVersion ?? partialData, [language]);
         return { canEdit, description, name };
     }, [standardVersion, language, partialData]);
 
@@ -158,13 +149,13 @@ export const StandardView = ({
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
 
     // Handle tags
-    const [tags, setTags] = useState<TagShape[]>((partialData?.tags as TagShape[] | undefined) ?? []);
+    const [tags, setTags] = useState<TagShape[]>((partialData?.root?.tags as TagShape[] | undefined) ?? []);
 
     useEffect(() => {
         setRelationships({
             isComplete: false, //TODO
             isPrivate: standardVersion?.isPrivate ?? false,
-            owner: standardVersion?.owner ?? null,
+            owner: standardVersion?.root?.owner ?? null,
             parent: null,
             // parent: standard?.parent ?? null, TODO
             project: null // TODO
@@ -208,7 +199,7 @@ export const StandardView = ({
             <ObjectTitle
                 language={language}
                 loading={loading}
-                title={standardVersion?.name ?? partialData?.name ?? ''}
+                title={name}
                 session={session}
                 setLanguage={setLanguage}
                 translations={standardVersion?.translations ?? partialData?.translations ?? []}
@@ -315,7 +306,7 @@ export const StandardView = ({
                 <CommentContainer
                     forceAddCommentOpen={isAddCommentOpen}
                     language={language}
-                    objectId={id ?? ''}
+                    objectId={standardVersion?.id ?? ''}
                     objectType={CommentFor.StandardVersion}
                     onAddCommentClose={closeAddCommentDialog}
                     session={session}

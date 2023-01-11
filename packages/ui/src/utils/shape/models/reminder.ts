@@ -5,7 +5,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 
 export type ReminderShape = Pick<Reminder, 'id' | 'name' | 'description' | 'dueDate' | 'index'> & {
     reminderList: { id: string },
-    reminderItems?: ReminderItemShape[],
+    reminderItems?: ReminderItemShape[] | null,
 }
 
 export const shapeReminder: ShapeModel<ReminderShape, ReminderCreateInput, ReminderUpdateInput> = {

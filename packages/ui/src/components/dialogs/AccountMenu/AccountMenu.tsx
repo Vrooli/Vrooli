@@ -18,7 +18,7 @@ import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useMutation } from 'graphql/hooks';
-import { PubSub, shapeProfileUpdate } from 'utils';
+import { PubSub, shapeProfile } from 'utils';
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
 import { APP_LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
@@ -60,7 +60,7 @@ export const AccountMenu = ({
                 return;
             }
             if (!formik.isValid) return;
-            const input = shapeProfileUpdate({
+            const input = shapeProfile.update({
                 id: userId,
                 theme: getCurrentUser(session).theme ?? 'light',
             }, {

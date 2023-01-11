@@ -1,5 +1,5 @@
 import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
-import { Comment, CommentFor, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, Tag, User } from '@shared/consts';
+import { Comment, CommentFor, GqlModelType, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, Tag, User } from '@shared/consts';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent, FocusEventHandler } from 'react';
 import { AutocompleteOption, VersionInfo } from 'types';
@@ -268,22 +268,22 @@ export interface QuantityBoxProps extends BoxProps {
 export type RelationshipItemOrganization = Pick<Organization, 'handle' | 'id'> &
 {
     translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[];
-    type: 'Organization';
+    type: GqlModelType;
 };
 export type RelationshipItemUser = Pick<User, 'handle' | 'id' | 'name'> & {
-    type: 'User';
+    type: GqlModelType;
 }
 export type RelationshipItemProjectVersion = Pick<ProjectVersion, 'id'> &
 {
     root: Pick<Project, 'id' | 'handle' | 'owner'>;
     translations?: Pick<ProjectVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    type: 'ProjectVersion';
+    type: GqlModelType;
 };
 export type RelationshipItemRoutineVersion = Pick<RoutineVersion, 'id'> &
 {
     root: Pick<Routine, 'id' | 'owner'>;
     translations?: Pick<RoutineVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    type: 'RoutineVersion';
+    type: GqlModelType;
 };
 
 export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;

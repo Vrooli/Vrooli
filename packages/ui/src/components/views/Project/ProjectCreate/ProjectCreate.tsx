@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { projectVersionEndpoint } from "graphql/endpoints";
-import { Project, ProjectCreateInput, ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
+import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
 
 export const ProjectCreate = ({
     onCreated,
@@ -65,7 +65,7 @@ export const ProjectCreate = ({
         },
         validationSchema: projectVersionValidation.create(),
         onSubmit: (values) => {
-            mutationWrapper<Project, ProjectCreateInput>({
+            mutationWrapper<ProjectVersion, ProjectVersionCreateInput>({
                 mutation,
                 input: shapeProjectVersion.create({
                     id: values.id,
