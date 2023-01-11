@@ -101,7 +101,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
         if (!id) return;
         mutationWrapper<Success, StarInput>({
             mutation: star,
-            input: { isStar, starFor, forId: id },
+            input: { isStar, starFor, forConnect: id },
             onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
         })
     }, [id, onActionComplete, star]);
@@ -110,7 +110,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
         if (!id) return;
         mutationWrapper<Success, VoteInput>({
             mutation: vote,
-            input: { isUpvote, voteFor, forId: id },
+            input: { isUpvote, voteFor, forConnect: id },
             onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
         })
     }, [id, onActionComplete, vote]);
@@ -201,7 +201,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
             {id && objectType !== undefined && objectType in DeleteType && <DeleteDialog
                 isOpen={deleteOpen}
                 objectId={id}
-                objectType={objectType as DeleteType}
+                objectType={objectType as unknown as DeleteType}
                 objectName={name}
                 handleClose={closeDelete}
                 zIndex={zIndex + 1}
@@ -211,7 +211,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
                 forId={id}
                 onClose={closeReport}
                 open={reportOpen}
-                reportFor={objectType as ReportFor}
+                reportFor={objectType as unknown as ReportFor}
                 session={session}
                 zIndex={zIndex + 1}
             />}

@@ -41,7 +41,7 @@ export const SubroutineInfoDialog = ({
 
     const subroutine = useMemo<NodeRoutineListItem | undefined>(() => {
         if (!data?.node || !data?.routineItemId) return undefined;
-        return data.node.items.find(r => r.id === data.routineItemId);
+        return data.node.routineList.items.find(r => r.id === data.routineItemId);
     }, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -244,12 +244,12 @@ export const SubroutineInfoDialog = ({
             }}>
                 {/* Subroutine name and position */}
                 <Typography variant="h5">{translations.name}</Typography>
-                <Typography variant="h6" ml={1} mr={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routines?.length ?? 1)})`}</Typography>
+                <Typography variant="h6" ml={1} mr={1}>{`(${(subroutine?.index ?? 0) + 1} of ${(data?.node?.routineList?.items?.length ?? 1)})`}</Typography>
                 {/* Version */}
                 <VersionDisplay
-                    currentVersion={subroutine?.routineVersion?.versionLabel}
+                    currentVersion={subroutine?.routineVersion}
                     prefix={" - "}
-                    versions={subroutine?.routineVersion?.versionLabel ? [subroutine?.routineVersion?.version] : []} //TODO need to query versions
+                    versions={subroutine?.routineVersion?.root?.versions ?? []}
                 />
                 {/* Button to open in full page */}
                 {!subroutine?.routineVersion?.isInternal && (
@@ -318,7 +318,7 @@ export const SubroutineInfoDialog = ({
                                         disabled={!canEdit}
                                         label="Order"
                                         min={1}
-                                        max={data?.node?.items?.length ?? 1}
+                                        max={data?.node?.routineList?.items?.length ?? 1}
                                         tooltip="The order of this subroutine in its parent routine"
                                         value={formik.values.index}
                                         handleChange={(value: number) => {

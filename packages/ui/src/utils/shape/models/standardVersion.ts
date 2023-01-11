@@ -6,7 +6,7 @@ import { createPrims, shapeUpdate, updatePrims } from "./tools";
 
 export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, 'id' | 'language' | 'description' | 'jsonVariable'>
 
-export type StandardVersionShape = Pick<StandardVersion, 'id' | 'isComplete' | 'isLatest' | 'isPrivate' | 'isFile' | 'default' | 'type' | 'props' | 'yup' | 'versionIndex' | 'versionLabel' | 'versionNotes'> & {
+export type StandardVersionShape = Pick<StandardVersion, 'id' | 'isComplete' | 'isLatest' | 'isPrivate' | 'isFile' | 'default' | 'props' | 'yup' | 'standardType' | 'versionIndex' | 'versionLabel' | 'versionNotes'> & {
     directoryListings?: { id: string }[];
     root: StandardShape;
     resourceList?: ResourceListShape;

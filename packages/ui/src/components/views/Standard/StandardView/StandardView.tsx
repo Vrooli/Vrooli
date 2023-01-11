@@ -5,7 +5,7 @@ import { useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, SnackSeverity, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
-import { getLanguageSubtag, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, PubSub, standardToFieldData, TagShape } from "utils";
+import { getLanguageSubtag, getObjectEditUrl, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, PubSub, standardVersionToFieldData, TagShape } from "utils";
 import { uuid } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
@@ -56,13 +56,13 @@ export const StandardView = ({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const schema = useMemo<FieldData | null>(() => (standardVersion ? standardToFieldData({
+    const schema = useMemo<FieldData | null>(() => (standardVersion ? standardVersionToFieldData({
         fieldName: 'preview',
         description: getTranslation(standardVersion, [language]).description,
         helpText: null,
         props: standardVersion.props,
-        name: getTranslation(standardVersion, [language]).name,
-        type: standardVersion.type,
+        name: standardVersion.root.name,
+        standardType: standardVersion.standardType,
         yup: standardVersion.yup,
     }) : null), [language, standardVersion]);
     const previewFormik = useFormik({
@@ -280,9 +280,9 @@ export const StandardView = ({
                     timestamp={standardVersion?.created_at}
                 />
                 <VersionDisplay
-                    currentVersion={standardVersion?.version}
+                    currentVersion={standardVersion}
                     prefix={" - "}
-                    versions={standardVersion?.versions}
+                    versions={standardVersion?.root?.versions}
                 />
             </Stack>
             {/* Votes, reports, and other basic stats */}

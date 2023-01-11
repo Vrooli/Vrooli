@@ -1,11 +1,11 @@
 import { Box, Dialog, Tooltip, useTheme } from "@mui/material";
+import { RunRoutine } from "@shared/consts";
 import { PlayIcon } from "@shared/icons";
 import { useLocation } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
 import { PopoverWithArrow, RunPickerMenu, UpTransition } from "components/dialogs";
 import { RunView } from "components/views";
 import { useCallback, useMemo, useState } from "react";
-import { Run } from "types";
 import { getRoutineStatus, parseSearchParams, PubSub, setSearchParams, Status, uuidToBase36 } from "utils";
 import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { RunButtonProps } from "../types";
@@ -21,7 +21,7 @@ export const RunButton = ({
     handleRunDelete,
     isBuildGraphOpen,
     isEditing,
-    routine,
+    routineVersion,
     session,
     zIndex,
 }: RunButtonProps) => {
@@ -30,7 +30,7 @@ export const RunButton = ({
 
     // Check routine status to see if it is valid and complete
     const status = useMemo(() => {
-        if (!routine) return Status.Invalid;
+        if (!routineVersion) return Status.Invalid;
         return getRoutineStatus(routine).status
     }, [routine]);
 
@@ -39,7 +39,7 @@ export const RunButton = ({
         return typeof params.run === 'string' && uuidValidate(params.run);
     });
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
-    const handleRunSelect = useCallback((run: Run | null) => {
+    const handleRunSelect = useCallback((run: RunRoutine | null) => {
         // If run is null, it means the routine will be opened without a run
         if (!run) {
             setSearchParams(setLocation, {

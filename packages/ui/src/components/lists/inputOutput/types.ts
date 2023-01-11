@@ -1,12 +1,12 @@
-import { Session } from "types";
-import { InputShape, OutputShape } from "utils";
+import { Session } from "@shared/consts/src";
+import { RoutineVersionInputShape, RoutineVersionOutputShape } from "utils";
 
 export interface InputOutputContainerProps {
-    handleUpdate: (updatedList: (InputShape | OutputShape)[]) => void;
+    handleUpdate: (updatedList: (RoutineVersionInputShape | RoutineVersionOutputShape)[]) => void;
     isEditing: boolean;
     isInput: boolean;
     language: string;
-    list: (InputShape | OutputShape)[];
+    list: (RoutineVersionInputShape | RoutineVersionOutputShape)[];
     session: Session;
     zIndex: number;
 }
@@ -16,12 +16,12 @@ export interface InputOutputListItemProps {
     isEditing: boolean;
     isInput: boolean;
     isOpen: boolean;
-    item: InputShape | OutputShape;
+    item: RoutineVersionInputShape | RoutineVersionOutputShape;
     handleOpen: (index: number) => void;
     handleClose: (index: number) => void;
     handleDelete: (index: number) => void;
     handleReorder: (index: number) => void;
-    handleUpdate: (index: number, updatedItem: InputShape | OutputShape) => void;
+    handleUpdate: (index: number, updatedItem: RoutineVersionInputShape | RoutineVersionOutputShape) => void;
     language: string;
     session: Session;
     zIndex: number;

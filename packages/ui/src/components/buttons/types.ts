@@ -1,5 +1,5 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ReportFor, Routine, RunRoutine, Session, StarFor } from '@shared/consts';
+import { ReportFor, Routine, RoutineVersion, RunRoutine, Session, StarFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import React from 'react';
 import { NavigableObject} from 'types';
@@ -89,7 +89,7 @@ export interface RunButtonProps {
     handleRunDelete: (run: RunRoutine) => void;
     isBuildGraphOpen: boolean;
     isEditing: boolean;
-    routine: Routine | null;
+    routineVersion: RoutineVersion | null;
     session: Session;
     zIndex: number;
 }

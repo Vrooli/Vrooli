@@ -235,7 +235,7 @@ export interface LinkDialogProps {
 }
 
 export interface SubroutineInfoDialogProps {
-    data: { node: NodeRoutineList, routineItemId: string } | null;
+    data: { node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null;
     defaultLanguage: string;
     handleUpdate: (updatedSubroutine: NodeRoutineListItem) => any;
     handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => any;

@@ -5,7 +5,7 @@ import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, ResourceListHorizontal, UpTransition, VersionDisplay, SnackSeverity, ObjectTitle, StatsCompact, ObjectActionsRow, RunButton, TagList, RelationshipButtons, ColorIconButton, DateDisplay } from "components";
 import { RoutineViewProps } from "../types";
-import { formikToRunInputs, getLanguageSubtag, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, TagShape, uuidToBase36 } from "utils";
+import { formikToRunInputs, getLanguageSubtag, getListItemPermissions, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSearchParams, PubSub, runInputsCreate, setSearchParams, standardVersionToFieldData, TagShape, uuidToBase36 } from "utils";
 import { mutationWrapper } from "graphql/utils";
 import { uuid } from '@shared/uuid';
 import { useFormik } from "formik";
@@ -165,7 +165,7 @@ export const RoutineView = ({
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
                 name: currInput.name ?? currInput.standardVersion?.name,
-                type: currInput.standardVersion.type,
+                standardType: currInput.standardVersion.standardType,
                 yup: currInput.standardVersion.yup,
             });
             if (currSchema) {
@@ -401,9 +401,9 @@ export const RoutineView = ({
                     timestamp={routineVersion?.created_at}
                 />
                 <VersionDisplay
-                    currentVersion={routineVersion?.version}
+                    currentVersion={routineVersion}
                     prefix={" - "}
-                    versions={routineVersion?.versions}
+                    versions={routineVersion?.root?.versions}
                 />
             </Stack>
             {/* Votes, reports, and other basic stats */}

@@ -140,7 +140,7 @@ type GetRoutineStatusResult = {
  * Also returns some other information which is useful for displaying routines
  * @param routine The routine to check
  */
-export const getRoutineStatus = (routine?: Partial<Routine> | null): GetRoutineStatusResult => {
+export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion> | null): GetRoutineVersionStatusResult => {
     if (!routine || !routine.nodeLinks || !routine.nodes) { 
         return { status: Status.Invalid, messages: ['No node or link data found'], nodesById: {}, nodesOffGraph: [], nodesOnGraph: [] };
     }

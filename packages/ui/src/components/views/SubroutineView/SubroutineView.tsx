@@ -1,7 +1,7 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
 import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, runInputsToFormik, TagShape, uuidToBase36 } from "utils";
+import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
 import { SubroutineViewProps } from "../types";
 import { FieldData } from "forms/types";
@@ -44,7 +44,7 @@ export const SubroutineView = ({
     }, [routineVersion]);
     const updateRoutine = useCallback((routineVersion: RoutineVersion) => { setInternalRoutineVersion(routineVersion); }, [setInternalRoutineVersion]);
 
-    const { description, instructions, title } = useMemo(() => {
+    const { description, instructions, name } = useMemo(() => {
         const languages = getUserLanguages(session);
         const { description, instructions, name } = getTranslation(internalRoutineVersion, languages, true);
         return {
@@ -86,7 +86,7 @@ export const SubroutineView = ({
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
                 name: currInput.name ?? currInput.standardVersion.name,
-                type: currInput.standardVersion.type,
+                standardType: currInput.standardVersion.standardType,
                 yup: currInput.standardVersion.yup,
             });
             if (currSchema) {
@@ -249,7 +249,7 @@ export const SubroutineView = ({
             <ObjectTitle
                 language={language}
                 loading={loading}
-                title={title}
+                title={name}
                 session={session}
                 setLanguage={setLanguage}
                 translations={internalRoutineVersion?.translations ?? []}
@@ -316,9 +316,9 @@ export const SubroutineView = ({
                         />
                         <VersionDisplay
                             confirmVersionChange={confirmLeave}
-                            currentVersion={internalRoutineVersion?.version}
+                            currentVersion={internalRoutineVersion}
                             prefix={" - "}
-                            versions={internalRoutineVersion?.versions}
+                            versions={internalRoutineVersion?.root?.versions}
                         />
                     </Stack>
                     {/* Votes, reports, and other basic stats */}

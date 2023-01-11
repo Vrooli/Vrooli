@@ -2,7 +2,7 @@ import { Api, ApiVersion, Note, NoteVersion, Organization, Project, ProjectVersi
 import { NavigableObject } from 'types';
 import { ObjectAction, ObjectActionComplete, SearchType } from 'utils';
 
-export type ObjectActionsRowObject = Project | Routine | Standard;
+export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
 export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     exclude?: ObjectAction[];
     /**
@@ -13,7 +13,7 @@ export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
      * Actions which cannot be performed by the menu
      */
     onActionStart: (action: ObjectAction.Comment | ObjectAction.Edit | ObjectAction.Stats) => any;
-    object: T | null;
+    object: T | null | undefined;
     session: Session;
     zIndex: number;
 }
