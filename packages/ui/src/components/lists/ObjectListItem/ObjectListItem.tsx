@@ -2,10 +2,10 @@ import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typo
 import { ObjectListItemProps, ObjectListItemType } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Project, Routine, RunStatus, Standard, StarFor, VoteFor } from '@shared/consts';
+import { RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getYou, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl } from 'utils';
+import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
@@ -45,14 +45,9 @@ export function ObjectListItem<T extends ObjectListItemType>({
     useEffect(() => { setObject(data) }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
-    const you = useMemo(() => getYou(data), [data]);
-    const { subtitle, title } = useMemo(() => {
-        const languages = getUserLanguages(session);
-        return {
-            subtitle: getListItemSubtitle(data, languages),
-            title: getListItemTitle(data, languages),
-        };
-    }, [data, session]);
+    const { canComment, canEdit, canVote, canStar, isStarred, isUpvoted } = useMemo(() => getYou(data), [data]);
+    const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
+    const { score } = useMemo(() => getCounts(data), [data]);
 
     // Context menu
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -135,19 +130,19 @@ export function ObjectListItem<T extends ObjectListItemType>({
             case 'Standard':
                 return (
                     <UpvoteDownvote
-                        disabled={!you.canVote}
+                        disabled={!canVote}
                         session={session}
                         objectId={object?.id ?? ''}
-                        voteFor={object?.type as VoteFor}
-                        isUpvoted={you.isUpvoted}
-                        score={object?.score}
+                        voteFor={object?.type as unknown as VoteFor}
+                        isUpvoted={isUpvoted}
+                        score={score}
                         onChange={(isUpvoted: boolean | null, score: number) => { }}
                     />
                 )
             default:
                 return null;
         }
-    }, [isMobile, object?.type, object?.id, object?.score, profileColors, you.canVote, you.isUpvoted, session]);
+    }, [isMobile, object?.type, object?.id, score, profileColors, canVote, isUpvoted, session]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 
@@ -156,8 +151,8 @@ export function ObjectListItem<T extends ObjectListItemType>({
      */
     const actionButtons = useMemo(() => {
         const commentableObjects: string[] = ['Project', 'Routine', 'Standard'];
-        const reportsCount: number = getListItemReportsCount(object);
-        const starFor: StarFor | null = getListItemStarFor(object);
+        const reportsCount: number = getCounts(object).reports;
+        const { starFor, starForConnect } = getStarFor(object);
         return (
             <Stack
                 direction={isMobile ? "row" : "column"}
@@ -168,7 +163,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     alignItems: isMobile ? 'center' : 'start',
                 }}
             >
-                {!hideRole && you.canEdit &&
+                {!hideRole && canEdit &&
                     <Box
                         id={`edit-list-item-button-${id}`}
                         component="a"
@@ -188,7 +183,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 {isMobile && ['Project', 'Routine', 'Standard'].includes(object?.type as any) && (
                     <UpvoteDownvote
                         direction='row'
-                        disabled={!you.canVote}
+                        disabled={!canVote}
                         session={session}
                         objectId={object?.id ?? ''}
                         voteFor={(object as any)?.type as VoteFor}
@@ -198,25 +193,25 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     />
                 )}
                 {starFor && <StarButton
-                    disabled={!you.canStar}
+                    disabled={!canStar}
                     session={session}
-                    objectId={object?.id ?? ''}
+                    objectId={starForConnect}
                     starFor={starFor}
-                    isStar={you.isStarred}
-                    stars={getListItemStars(object)}
+                    isStar={isStarred}
+                    stars={getCounts(object).stars}
                 />}
                 {commentableObjects.includes(object?.type ?? '') && (<CommentsButton
-                    commentsCount={(object as Project | Routine | Standard)?.commentsCount ?? 0}
-                    disabled={!you.canComment}
+                    commentsCount={getCounts(object).comments}
+                    disabled={!canComment}
                     object={object}
                 />)}
-                {object?.type !== 'Run' && reportsCount > 0 && <ReportsButton
+                {!['RunRoutine', 'RunProject'].includes(object?.type!) && reportsCount > 0 && <ReportsButton
                     reportsCount={reportsCount}
                     object={object}
                 />}
             </Stack>
         )
-    }, [object, isMobile, hideRole, you.canEdit, you.canVote, you.canStar, you.isStarred, you.canComment, id, editUrl, handleEditClick, palette.secondary.main, session]);
+    }, [object, isMobile, hideRole, canEdit, canVote, canStar, isStarred, canComment, id, editUrl, handleEditClick, palette.secondary.main, session]);
 
     /**
      * Run list items may get a progress bar

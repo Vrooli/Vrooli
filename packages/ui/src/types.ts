@@ -111,7 +111,7 @@ export interface ObjectOption {
     label: string;
     stars?: number;
     [key: string]: any;
-    routineVersion?: {
+    runnableObject?: {
         type: string
         id: string
     } | null,

@@ -175,7 +175,7 @@ export const TagSelector = ({
                         session={session}
                         objectId={option.id ?? ''}
                         starFor={StarFor.Tag}
-                        isStar={(option as Tag).isStarred}
+                        isStar={(option as Tag).you.isStarred}
                         stars={(option as Tag).stars}
                         onChange={(isStar) => { handleIsStarred(option.tag, isStar); }}
                     />

@@ -133,8 +133,8 @@ export const ResourceListModel: ModelLogic<{
             ], ...params)
         }),
         permissionResolvers: ({ isAdmin }) => ({
-            canDelete: async () => isAdmin,
-            canEdit: async () => isAdmin,
+            canDelete: () => isAdmin,
+            canEdit: () => isAdmin,
         }),
         owner: (data) => ({
             Organization: data.organization,

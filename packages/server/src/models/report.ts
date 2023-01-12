@@ -172,9 +172,9 @@ export const ReportModel: ModelLogic<{
             createdBy: 'User',
         }),
         permissionResolvers: ({ data, isAdmin }) => ({
-            canDelete: async () => isAdmin && data.status !== 'Open',
-            canEdit: async () => isAdmin && data.status !== 'Open',
-            canRespond: async () => data.status === 'Open',
+            canDelete: () => isAdmin && data.status !== 'Open',
+            canEdit: () => isAdmin && data.status !== 'Open',
+            canRespond: () => data.status === 'Open',
         }),
         owner: (data) => ({
             User: data.createdBy,

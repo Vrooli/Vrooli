@@ -1,4 +1,4 @@
-import { Resource, Session } from 'types';
+import { Resource, Session } from "@shared/consts";
 
 export interface ResourceCardProps {
     canEdit: boolean;

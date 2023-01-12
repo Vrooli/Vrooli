@@ -5,7 +5,7 @@ import { EllipsisIcon } from "@shared/icons";
 import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog, SnackSeverity } from "components/dialogs";
 import { mutationWrapper } from "graphql/utils";
 import React, { useCallback, useMemo, useState } from "react";
-import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
+import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
 import { copyEndpoint, starEndpoint, voteEndpoint } from "graphql/endpoints";
 
@@ -53,7 +53,7 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
             actionsDisplayed,
             actionsExtra,
             id: object?.id,
-            name: getListItemTitle(object, getUserLanguages(session)),
+            name: getDisplay(object, getUserLanguages(session)).title,
             objectType: object?.type,
         }
     }, [exclude, object, session]);

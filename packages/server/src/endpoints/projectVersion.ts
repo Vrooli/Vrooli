@@ -60,11 +60,16 @@ export const typeDef = gql`
     type ProjectVersion {
         type: GqlModelType!
         id: ID!
+        completedAt: Date
+        complexity: Int!
         created_at: Date!
         updated_at: Date!
         isLatest: Boolean!
         isPrivate: Boolean!
         isComplete: Boolean!
+        simplicity: Int!
+        timesStarted: Int!
+        timesCompleted: Int!
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
@@ -122,8 +127,17 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         directoryListingsId: ID
         ids: [ID!]
+        isCompleteWithRoot: Boolean
+        isCompleteWithRootExcludeOwnedByOrganizationId: ID
+        isCompleteWithRootExcludeOwnedByUserId: ID
+        minComplexity: Int
+        maxComplexity: Int
+        minSimplicity: Int
+        maxSimplicity: Int
+        maxTimesCompleted: Int
         minScoreRoot: Int
         minStarsRoot: Int
+        minTimesCompleted: Int
         minViewsRoot: Int
         createdById: ID
         ownedByUserId: ID

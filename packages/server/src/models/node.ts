@@ -91,8 +91,8 @@ export const NodeModel: ModelLogic<{
         },
         permissionsSelect: () => ({ routineVersion: 'RoutineVersion' }),
         permissionResolvers: ({ isAdmin }) => ({
-            canDelete: async () => isAdmin,
-            canEdit: async () => isAdmin,
+            canDelete: () => isAdmin,
+            canEdit: () => isAdmin,
         }),
         owner: (data) => RoutineModel.validate!.owner(data.routineVersion as any),
         isDeleted: (data, languages) => RoutineModel.validate!.isDeleted(data.routineVersion as any, languages),

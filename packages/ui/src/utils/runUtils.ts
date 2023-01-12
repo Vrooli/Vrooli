@@ -1,7 +1,7 @@
 import { uniqBy } from "@shared/utils";
 import { uuid } from '@shared/uuid';
 import { Status } from "./consts";
-import { GqlModelType, Node, NodeType, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
+import { GqlModelType, Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
 import { NodeLinkShape, NodeShape, shapeRunRoutineInput, updateRel } from "./shape";
 
 /**
@@ -217,6 +217,20 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     } else {
         return { status: Status.Valid, messages: ['Routine is fully connected'], nodesById, nodesOffGraph, nodesOnGraph };
     }
+}
+
+type GetProjectVersionStatusResult = {
+    status: Status;
+    messages: string[];
+}
+
+/**
+ * Calculates the status of a project (anything that's not valid cannot be run). 
+ * Also returns some other information which is useful for displaying projects
+ * @param project The project to check
+ */
+export const getProjectVersionStatus = (projectVersion?: Partial<ProjectVersion> | null): GetProjectVersionStatusResult => {
+    
 }
 
 /**

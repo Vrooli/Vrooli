@@ -4,7 +4,7 @@ import { CopyInput, CopyResult, CopyType, DeleteType, ReportFor, StarFor, StarIn
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
 import { mutationWrapper } from "graphql/utils";
-import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
+import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 import { copyEndpoint, starEndpoint, voteEndpoint } from "graphql/endpoints";
 
@@ -22,7 +22,7 @@ export const ObjectActionMenu = ({
     const { availableActions, id, name, objectType } = useMemo(() => ({
         availableActions: getAvailableActions(object, session, exclude),
         id: object?.id,
-        name: getListItemTitle(object, getUserLanguages(session)),
+        name: getDisplay(object, getUserLanguages(session)).title,
         objectType: object?.type,
     }), [exclude, object, session]);
 

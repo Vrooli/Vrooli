@@ -140,9 +140,9 @@ export const typeDef = gql`
 
     type RoutineVersionYou {
         canComment: Boolean!
+        canCopy: Boolean!
         canDelete: Boolean!
         canEdit: Boolean!
-        canFork: Boolean!
         canStar: Boolean!
         canReport: Boolean!
         canRun: Boolean!

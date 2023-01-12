@@ -3563,6 +3563,8 @@ export type ProjectVersion = {
   __typename?: 'ProjectVersion';
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
+  completedAt?: Maybe<Scalars['Date']>;
+  complexity: Scalars['Int'];
   created_at: Scalars['Date'];
   directories: Array<ProjectVersionDirectory>;
   directoriesCount: Scalars['Int'];
@@ -3579,7 +3581,10 @@ export type ProjectVersion = {
   reportsCount: Scalars['Int'];
   root: Project;
   runsCount: Scalars['Int'];
+  simplicity: Scalars['Int'];
   suggestedNextByProject: Array<Project>;
+  timesCompleted: Scalars['Int'];
+  timesStarted: Scalars['Int'];
   translations: Array<ProjectVersionTranslation>;
   translationsCount: Scalars['Int'];
   type: GqlModelType;
@@ -3682,8 +3687,17 @@ export type ProjectVersionSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   directoryListingsId?: InputMaybe<Scalars['ID']>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
+  isCompleteWithRoot?: InputMaybe<Scalars['Boolean']>;
+  isCompleteWithRootExcludeOwnedByOrganizationId?: InputMaybe<Scalars['ID']>;
+  isCompleteWithRootExcludeOwnedByUserId?: InputMaybe<Scalars['ID']>;
+  maxComplexity?: InputMaybe<Scalars['Int']>;
+  maxSimplicity?: InputMaybe<Scalars['Int']>;
+  maxTimesCompleted?: InputMaybe<Scalars['Int']>;
+  minComplexity?: InputMaybe<Scalars['Int']>;
   minScoreRoot?: InputMaybe<Scalars['Int']>;
+  minSimplicity?: InputMaybe<Scalars['Int']>;
   minStarsRoot?: InputMaybe<Scalars['Int']>;
+  minTimesCompleted?: InputMaybe<Scalars['Int']>;
   minViewsRoot?: InputMaybe<Scalars['Int']>;
   ownedByOrganizationId?: InputMaybe<Scalars['ID']>;
   ownedByUserId?: InputMaybe<Scalars['ID']>;
@@ -6332,9 +6346,9 @@ export type RoutineVersionUpdateInput = {
 export type RoutineVersionYou = {
   __typename?: 'RoutineVersionYou';
   canComment: Scalars['Boolean'];
+  canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
-  canFork: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canRun: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
@@ -8532,7 +8546,6 @@ export type UserTranslationUpdateInput = {
 
 export type UserYou = {
   __typename?: 'UserYou';
-  canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
@@ -8602,6 +8615,7 @@ export enum VisibilityType {
 export type Vote = {
   __typename?: 'Vote';
   by: User;
+  id: Scalars['ID'];
   isUpvote?: Maybe<Scalars['Boolean']>;
   to: VoteTo;
   type: GqlModelType;
@@ -11250,6 +11264,8 @@ export type ProjectSearchResultResolvers<ContextType = any, ParentType extends R
 export type ProjectVersionResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectVersion'] = ResolversParentTypes['ProjectVersion']> = {
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
+  complexity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   directories?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
   directoriesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11266,7 +11282,10 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Project'], ParentType, ContextType>;
   runsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  simplicity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   suggestedNextByProject?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
+  timesCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  timesStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ProjectVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
@@ -12189,9 +12208,9 @@ export type RoutineVersionTranslationResolvers<ContextType = any, ParentType ext
 
 export type RoutineVersionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersionYou'] = ResolversParentTypes['RoutineVersionYou']> = {
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canCopy?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canFork?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRun?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -13175,8 +13194,8 @@ export type UserTranslationResolvers<ContextType = any, ParentType extends Resol
 };
 
 export type UserYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['UserYou'] = ResolversParentTypes['UserYou']> = {
-  canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -13222,6 +13241,7 @@ export type ViewToResolvers<ContextType = any, ParentType extends ResolversParen
 
 export type VoteResolvers<ContextType = any, ParentType extends ResolversParentTypes['Vote'] = ResolversParentTypes['Vote']> = {
   by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isUpvote?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   to?: Resolver<ResolversTypes['VoteTo'], ParentType, ContextType>;
   type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;

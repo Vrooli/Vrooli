@@ -28,9 +28,9 @@ export const nodeFields = ['Node', `{
                     isInternal
                     simplicity
                     permissionsRoutine {
+                        canCopy
                         canDelete
                         canEdit
-                        canFork
                         canStar
                         canReport
                         canRun

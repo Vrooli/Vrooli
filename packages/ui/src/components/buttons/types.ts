@@ -1,5 +1,5 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ReportFor, Routine, RoutineVersion, RunRoutine, Session, StarFor } from '@shared/consts';
+import { ProjectVersion, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, Session, StarFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import React from 'react';
 import { NavigableObject} from 'types';
@@ -85,11 +85,11 @@ export interface ReportsLinkProps {
 
 export interface RunButtonProps {
     canEdit: boolean;
-    handleRunAdd: (run: RunRoutine) => void;
-    handleRunDelete: (run: RunRoutine) => void;
+    handleRunAdd: (run: RunProject | RunRoutine) => void;
+    handleRunDelete: (run: RunProject | RunRoutine) => void;
     isBuildGraphOpen: boolean;
     isEditing: boolean;
-    routineVersion: RoutineVersion | null;
+    runnableObject: ProjectVersion | RoutineVersion | null;
     session: Session;
     zIndex: number;
 }

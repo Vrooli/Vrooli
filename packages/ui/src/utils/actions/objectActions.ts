@@ -48,7 +48,7 @@ export enum ObjectActionComplete {
 export const getAvailableActions = (object: ListObjectType | null | undefined, session: Session, exclude: ObjectAction[] = []): ObjectAction[] => {
     if (!object) return [];
     const isLoggedIn = session?.isLoggedIn === true;
-    const { canComment, canDelete, canEdit, canFork, canReport, canShare, canStar, canVote, isStarred, isUpvoted } = getYou(object)
+    const { canComment, canCopy, canDelete, canEdit, canReport, canShare, canStar, canVote, isStarred, isUpvoted } = getYou(object)
     let options: ObjectAction[] = [];
     // Check edit
     if (isLoggedIn && canEdit) {
@@ -77,7 +77,7 @@ export const getAvailableActions = (object: ListObjectType | null | undefined, s
     // Can always find in page
     options.push(ObjectAction.FindInPage);
     // Check Fork
-    if (isLoggedIn && canFork) {
+    if (isLoggedIn && canCopy) {
         options.push(ObjectAction.Fork);
     }
     // Check Report

@@ -82,9 +82,9 @@ export const RunRoutineStepModel: ModelLogic<{
             runRoutine: 'RunRoutine',
         }),
         permissionResolvers: ({ isAdmin, isPublic }) => ({
-            canDelete: async () => isAdmin,
-            canEdit: async () => isAdmin,
-            canView: async () => isPublic,
+            canDelete: () => isAdmin,
+            canEdit: () => isAdmin,
+            canView: () => isPublic,
         }),
         profanityFields: ['name'],
         owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),

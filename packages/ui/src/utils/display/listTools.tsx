@@ -2,9 +2,8 @@ import { AutocompleteOption, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { ObjectListItemType } from "components/lists/types";
 import { displayDate, firstString } from "./stringTools";
-import { getCurrentUser } from "utils/authentication";
 import { ObjectListItem } from "components";
-import { RunProject, RunRoutine, Session, Star, StarFor, User, View, Vote } from "@shared/consts";
+import { GqlModelType, RunProject, RunRoutine, Session, Star, StarFor, View, Vote } from "@shared/consts";
 import { valueFromDot } from "utils/shape";
 
 export type ListObjectType = ObjectListItemType | Star | Vote | View;
@@ -14,9 +13,9 @@ export type ListObjectType = ObjectListItemType | Star | Vote | View;
  */
 export type YouInflated = {
     canComment: boolean;
+    canCopy: boolean;
     canDelete: boolean;
     canEdit: boolean;
-    canFork: boolean;
     canReport: boolean;
     canShare: boolean;
     canStar: boolean;
@@ -28,84 +27,27 @@ export type YouInflated = {
 }
 
 /**
- * Gets the name (title) of a list object
- * @param object A list object
- * @param languages User languages
- * @returns The name of the object
+ * Most possible counts (including score) any object can have
  */
-export const getListItemTitle = (
-    object: ListObjectType | null | undefined,
-    languages?: readonly string[]
-): string => {
-    if (!object) return "";
-    const langs: readonly string[] = languages ?? getUserLanguages(undefined);
-    switch (object.type) { //TODO add new types
-        case 'Organization':
-            return firstString(getTranslation(object, langs, true).name, object.handle);
-        case 'Project':
-            return firstString(getTranslation(object, langs, true).name, object.handle);
-        case 'Routine':
-            return firstString(getTranslation(object, langs, true).name);
-        case 'RunRoutine':
-            const name = firstString(object.name, getTranslation(object.routine, langs, true).name);
-            const date = object.startedAt ? (new Date(object.startedAt)) : null;
-            if (date) return `${name} (${date.toLocaleDateString()} ${date.toLocaleTimeString()})`;
-            return name;
-        case 'Standard':
-            return firstString(getTranslation(object, langs, true).name, object.name);
-        case 'Star':
-            return getListItemTitle(object.to as any, langs);
-        case 'User':
-            return firstString(object.name, object.handle);
-        case 'View':
-            return firstString(object.name).length > 0 ? object.name : getListItemTitle(object.to as any, langs);
-        default:
-            return '';
-    }
-};
-
-/**
- * Gets the subtitle of a list object
- * @param object A list object
- * @param languages User languages
- */
-export const getListItemSubtitle = (
-    object: ListObjectType | null | undefined,
-    languages?: readonly string[]
-): string => {
-    if (!object) return "";
-    const langs: readonly string[] = languages ?? getUserLanguages(undefined);
-    switch (object.type) {
-        case 'Organization':
-            return firstString(getTranslation(object, langs, true).bio);
-        case 'Project':
-            return firstString(getTranslation(object, langs, true).description);
-        case 'Routine':
-            return firstString(getTranslation(object, langs, true).description);
-        case 'RunRoutine':
-            // Subtitle for a run is the time started/completed, or nothing (depending on status)
-            const startedAt: string | null = object?.startedAt ? displayDate(object.startedAt) : null;
-            const completedAt: string | null = object?.completedAt ? displayDate(object.completedAt) : null;
-            if (completedAt) return `Completed: ${completedAt}`;
-            if (startedAt) return `Started: ${startedAt}`;
-            return '';
-        case 'Standard':
-            return firstString(getTranslation(object, langs, true).description);
-        case 'Star':
-            return getListItemSubtitle(object.to as any, langs);
-        case 'User':
-            return firstString(getTranslation(object, langs, true).bio);
-        case 'View':
-            return getListItemSubtitle(object.to as any, langs);
-        default:
-            return '';
-    }
-};
+export type CountsInflated = {
+    comments: number;
+    forks: number;
+    issues: number;
+    labels: number;
+    pullRequests: number;
+    questions: number;
+    reports: number;
+    score: number;
+    stars: number;
+    transfers: number;
+    translations: number;
+    versions: number;
+    views: number;
+}
 
 /**
  * Gets user permissions and statuses for an object. These are inflated to match YouInflated, so any fields not present are false
  * @param object An object
- * @param session The current session
  */
 export const getYou = (
     object: ListObjectType | null | undefined
@@ -113,9 +55,9 @@ export const getYou = (
     // Initialize fields to false (except isUpvoted, where false means downvoted)
     const defaultPermissions = {
         canComment: false,
+        canCopy: false,
         canDelete: false,
         canEdit: false,
-        canFork: false,
         canReport: false,
         canShare: false,
         canStar: false,
@@ -126,11 +68,11 @@ export const getYou = (
         isViewed: false,
     };
     if (!object) return defaultPermissions;
-    // If the object is a star, view, or vote, get the permissions for the object it is a star of
+    // If the object is a star, view, or vote, use the "to" object
     if (['Star', 'View', 'Vote'].includes(object.type)) return getYou((object as Star | View | Vote).to as any);
-    // If the object is a run routine, get the permissions for the routine
+    // If the object is a run routine, use the routine version
     if (object.type === 'RunRoutine') return getYou((object as RunRoutine).routineVersion as any);
-    // If the object is a run project, get the permissions for the project
+    // If the object is a run project, use the project version
     if (object.type === 'RunProject') return getYou((object as RunProject).projectVersion as any);
     // Otherwise, get the permissions from the object
     // Loop through all permission fields
@@ -148,74 +90,138 @@ export const getYou = (
 }
 
 /**
- * Gets stars for a single object
- * @param object A searchable object
- * @returns stars
+ * Gets counts for an object. These are inflated to match CountsInflated, so any fields not present are 0
+ * @param object An object
  */
-export const getListItemStars = (
-    object: ListObjectType | null | undefined,
-): number => {
-    if (!object) return 0;
-    switch (object.type) {
-        case 'Organization':
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-        case 'User':
-            return object.stars;
-        case 'RunRoutine':
-            return object.routine?.stars ?? 0;
-        case 'Star':
-        case 'View':
-            return getListItemStars(object.to as any);
-        default:
-            return 0;
+export const getCounts = (
+    object: ListObjectType | null | undefined
+): CountsInflated => {
+    // Initialize fields to 0
+    const defaultCounts = {
+        comments: 0,
+        forks: 0,
+        issues: 0,
+        labels: 0,
+        pullRequests: 0,
+        questions: 0,
+        reports: 0,
+        score: 0,
+        stars: 0,
+        transfers: 0,
+        translations: 0,
+        versions: 0,
+        views: 0,
+    };
+    if (!object) return defaultCounts;
+    // If the object is a star, view, or vote, use the "to" object
+    if (['Star', 'View', 'Vote'].includes(object.type)) return getCounts((object as Star | View | Vote).to as any);
+    // If the object is a run routine, use the routine version
+    if (object.type === 'RunRoutine') return getCounts((object as RunRoutine).routineVersion as any);
+    // If the object is a run project, use the project version
+    if (object.type === 'RunProject') return getCounts((object as RunProject).projectVersion as any);
+    // Otherwise, get the counts from the object
+    // Loop through all count fields
+    for (const key in defaultCounts) {
+        // Check if the field is in the object
+        const field = valueFromDot(object, `${key}Count`);
+        if (field !== undefined) defaultCounts[key] = field;
+        // If not, check if the field is in the root.counts object
+        else {
+            const field = valueFromDot(object, `root.${key}Count`);
+            if (field !== undefined) defaultCounts[key] = field;
+        }
     }
-}
-
-export const getListItemStarFor = (
-    object: ListObjectType | null | undefined,
-): StarFor | null => {
-    if (!object) return null;
-    switch (object.type) {
-        case 'Organization':
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-        case 'User':
-            return object.type as StarFor;
-        case 'RunRoutine':
-            return StarFor.Routine;
-        case 'Star':
-        case 'View':
-            return getListItemStarFor(object.to as any);
-        default:
-            return null;
-    }
+    return defaultCounts;
 }
 
 /**
- * Gets reportsCount for a single object
- * @param object A searchable object
- * @returns number of reports
+ * Gets the name and subtitle of a list object
+ * @param object A list object
+ * @param languages User languages
+ * @returns The name and subtitle of the object
  */
-export const getListItemReportsCount = (
+export const getDisplay = (
     object: ListObjectType | null | undefined,
-): number => {
-    if (!object) return 0;
-    switch (object.type) {
-        case 'Organization':
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-        case 'User':
-            return object.reportsCount;
-        case 'Star':
-        case 'View':
-            return getListItemStars(object.to as any);
-        default:
-            return 0;
+    languages?: readonly string[]
+): { title: string, subtitle: string } => {
+    if (!object) return { title: '', subtitle: '' };
+    // If the object is a star, view, or vote, use the "to" object
+    if (['Star', 'View', 'Vote'].includes(object.type)) return getDisplay((object as Star | View | Vote).to as any);
+    const langs: readonly string[] = languages ?? getUserLanguages(undefined);
+    // If the object is a run routine, use the routine version's display and the startedAt/completedAt date
+    if (object.type === 'RunRoutine') {
+        const { completedAt, name, routineVersion, startedAt } = object as RunRoutine;
+        const title = firstString(name, getTranslation(routineVersion!, langs, true).name);
+        const started = startedAt ? displayDate(startedAt) : null;
+        const completed = completedAt ? displayDate(completedAt) : null;
+        return {
+            title: started ? `${title} (started)` : title,
+            subtitle: started ? 'Started: ' + started : completed ? 'Completed: ' + completed : ''
+        }
     }
+    // If the object is a run project, use the project version's display and the startedAt/completedAt date
+    if (object.type === 'RunProject') {
+        const { completedAt, name, projectVersion, startedAt } = object as RunProject;
+        const title = firstString(name, getTranslation(projectVersion!, langs, true).name);
+        const started = startedAt ? displayDate(startedAt) : null;
+        const completed = completedAt ? displayDate(completedAt) : null;
+        return {
+            title: started ? `${title} (started)` : title,
+            subtitle: started ? 'Started: ' + started : completed ? 'Completed: ' + completed : ''
+        }
+    }
+    // For all other objects, fields may differ. 
+    // Priority for title is: title, name, translations[number].title, translations[number].name, handle
+    // Priority for subtitle is: bio, description, summary, details, translations[number].bio, translations[number].description, translations[number].summary, translations[number].details
+    // If all else fails, attempt to find in "root" object
+    const tryTitle = (obj: Record<string, any>) => {
+        const translations: Record<string, any> = getTranslation(obj, langs, true);
+        return firstString(
+            obj.title,
+            obj.name,
+            translations.title,
+            translations.name,
+            obj.handle
+        );
+    }
+    const trySubtitle = (obj: Record<string, any>) => {
+        const translations: Record<string, any> = getTranslation(obj, langs, true);
+        return firstString(
+            obj.bio,
+            obj.description,
+            obj.summary,
+            obj.details,
+            translations.bio,
+            translations.description,
+            translations.summary,
+            translations.details
+        );
+    }
+    const title = tryTitle(object) ?? tryTitle((object as any).root) ?? '';
+    const subtitle = trySubtitle(object) ?? trySubtitle((object as any).root) ?? '';
+    return { title, subtitle };
+};
+
+/**
+ * Finds the information required to star an object
+ * @param object 
+ * @returns StarFor type and ID of the object. For versions, for example, 
+ * the ID is of the root object instead of the version passed in.
+ */
+export const getStarFor = (
+    object: ListObjectType | null | undefined,
+): { starFor: StarFor, starForId: ID } | { starFor: null, starForId: null } => {
+    if (!object) return { starFor: null, starForId: null };
+    // If the object is a star, view, or vote, use the "to" object
+    if (['Star', 'View', 'Vote'].includes(object.type)) return getStarFor((object as Star | View | Vote).to as any);
+    // If the object is a run routine, use the routine version
+    if (object.type === 'RunRoutine') return getStarFor((object as RunRoutine).routineVersion as any);
+    // If the object is a run project, use the project version
+    if (object.type === 'RunProject') return getStarFor((object as RunProject).projectVersion as any);
+    // If the object contains a root object, use that
+    if ((object as any).root) return getStarFor((object as any).root);
+    // Use current object
+    return { starFor: object.type as unknown as StarFor, starForId: object.id };
 }
 
 /**
@@ -237,10 +243,14 @@ export function listToAutocomplete(
         type: o.type,
         id: o.id,
         isStarred: getYou(o).isStarred,
-        label: getListItemSubtitle(o, languages),
-        routine: o.type === 'RunRoutine' ? o.routineVersion : undefined,
-        stars: getListItemStars(o),
-        to: o.type === 'View' || o.type === 'Star' ? o.to : undefined,
+        label: getDisplay(o, languages).title,
+        runnableObject: o.type === GqlModelType.RunProject ?
+            (o as RunProject).projectVersion :
+            o.type === GqlModelType.RunRoutine ?
+                (o as RunRoutine).routineVersion :
+                undefined,
+        stars: getCounts(o).stars,
+        to: ['Star', 'View', 'Vote'].includes(o.type) ? (o as Star | View | Vote).to : undefined,
         versionGroupId: undefined// TODO o.type === 'Routine' || o.type === 'Standard' ? o.versionGroupId : undefined,
     }));
 }

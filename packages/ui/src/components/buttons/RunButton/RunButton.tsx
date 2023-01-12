@@ -1,12 +1,12 @@
 import { Box, Dialog, Tooltip, useTheme } from "@mui/material";
-import { RunRoutine } from "@shared/consts";
+import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine } from "@shared/consts";
 import { PlayIcon } from "@shared/icons";
 import { useLocation } from "@shared/route";
 import { uuidValidate } from "@shared/uuid";
 import { PopoverWithArrow, RunPickerMenu, UpTransition } from "components/dialogs";
 import { RunView } from "components/views";
 import { useCallback, useMemo, useState } from "react";
-import { getRoutineStatus, parseSearchParams, PubSub, setSearchParams, Status, uuidToBase36 } from "utils";
+import { getProjectVersionStatus, getRoutineVersionStatus, parseSearchParams, PubSub, setSearchParams, Status, uuidToBase36 } from "utils";
 import { ColorIconButton } from "../ColorIconButton/ColorIconButton";
 import { RunButtonProps } from "../types";
 
@@ -21,25 +21,27 @@ export const RunButton = ({
     handleRunDelete,
     isBuildGraphOpen,
     isEditing,
-    routineVersion,
+    runnableObject,
     session,
     zIndex,
 }: RunButtonProps) => {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    // Check routine status to see if it is valid and complete
-    const status = useMemo(() => {
-        if (!routineVersion) return Status.Invalid;
-        return getRoutineVersionStatus(routineVersion).status
-    }, [routineVersion]);
+    // Check object status to see if it is valid and complete
+    const status = useMemo<Status>(() => {
+        if (!runnableObject) return Status.Invalid;
+        return (runnableObject.type === GqlModelType.ProjectVersion ? 
+            getProjectVersionStatus(runnableObject as ProjectVersion) : 
+            getRoutineVersionStatus(runnableObject as RoutineVersion)).status;
+    }, [runnableObject]);
 
     const [isRunOpen, setIsRunOpen] = useState(() => {
         const params = parseSearchParams();
         return typeof params.run === 'string' && uuidValidate(params.run);
     });
     const [selectRunAnchor, setSelectRunAnchor] = useState<any>(null);
-    const handleRunSelect = useCallback((run: RunRoutine | null) => {
+    const handleRunSelect = useCallback((run: RunProject | RunRoutine | null) => {
         // If run is null, it means the routine will be opened without a run
         if (!run) {
             setSearchParams(setLocation, {
@@ -82,7 +84,7 @@ export const RunButton = ({
         setErrorAnchorEl(null);
     }, []);
 
-    const runRoutine = useCallback((e: any) => {
+    const runStart = useCallback((e: any) => {
         // If invalid, don't run
         if (status === Status.Invalid) {
             openError(e);
@@ -104,7 +106,7 @@ export const RunButton = ({
         }
     }, [openError, startRun, status]);
 
-    const stopRoutine = () => {
+    const runStop = () => {
         setLocation(window.location.pathname, { replace: true });
         setIsRunOpen(false)
     };
@@ -122,19 +124,19 @@ export const RunButton = ({
             <Dialog
                 fullScreen
                 id="run-routine-view-dialog"
-                onClose={stopRoutine}
+                onClose={runStop}
                 open={isRunOpen}
                 TransitionComponent={UpTransition}
                 sx={{
                     zIndex: zIndex + 3,
                 }}
             >
-                {routine && <RunView
-                    handleClose={stopRoutine}
-                    routine={routine}
+                {/* {runnableObject && <RunView
+                    handleClose={runStop}
+                    runnableObject={runnableObject}
                     session={session}
                     zIndex={zIndex + 3}
-                />}
+                />} TODO */}
             </Dialog>
             {/* Chooses which run to use */}
             <RunPickerMenu
@@ -143,13 +145,13 @@ export const RunButton = ({
                 onAdd={handleRunAdd}
                 onDelete={handleRunDelete}
                 onSelect={handleRunSelect}
-                routine={routine}
+                runnableObject={runnableObject}
                 session={session}
             />
             {/* Run button */}
             <Tooltip title="Run Routine" placement="top">
                 {/* Button wrapped in div so it can be pressed when disabled */}
-                <Box onClick={runRoutine}>
+                <Box onClick={runStart}>
                     <ColorIconButton
                         aria-label="run-routine"
                         disabled={status === Status.Invalid}

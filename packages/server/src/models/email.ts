@@ -66,8 +66,8 @@ export const EmailModel: ModelLogic<{
             user: 'User',
         }),
         permissionResolvers: ({ isAdmin }) => ({
-            canDelete: async () => isAdmin,
-            canEdit: async () => isAdmin,
+            canDelete: () => isAdmin,
+            canEdit: () => isAdmin,
         }),
         owner: (data) => ({
             User: data.user,

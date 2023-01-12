@@ -37,6 +37,7 @@ export const typeDef = gql`
     }
     type Vote {
         type: GqlModelType!
+        id: ID!
         isUpvote: Boolean
         by: User!
         to: VoteTo!

@@ -25,9 +25,9 @@ export const listRoutineFields = ['Routine', `{
     stars
     permissionsRoutine {
         canComment
+        canCopy
         canDelete
         canEdit
-        canFork
         canStar
         canReport
         canRun
@@ -187,9 +187,9 @@ export const routineFields = ['Routine', `{
     stars
     permissionsRoutine {
         canComment
+        canCopy
         canDelete
         canEdit
-        canFork
         canStar
         canReport
         canRun

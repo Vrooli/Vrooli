@@ -1,4 +1,5 @@
-import { Comment, CommentThread, NavigableObject, Session } from "types";
+import { Comment, CommentThread, Session } from "@shared/consts";
+import { NavigableObject } from "types";
 
 export interface CommentConnectorProps {
     isOpen: boolean;

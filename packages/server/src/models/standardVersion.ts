@@ -69,13 +69,13 @@ import { getSingleTypePermissions } from "../validators";
 //         }
 //     }),
 //     permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-//         canComment: async () => !isDeleted && (isAdmin || isPublic),
-//         canDelete: async () => isAdmin && !isDeleted,
-//         canEdit: async () => isAdmin && !isDeleted,
-//         canReport: async () => !isAdmin && !isDeleted && isPublic,
-//         canStar: async () => !isDeleted && (isAdmin || isPublic),
-//         canView: async () => !isDeleted && (isAdmin || isPublic),
-//         canVote: async () => !isDeleted && (isAdmin || isPublic),
+//         canComment: () => !isDeleted && (isAdmin || isPublic),
+//         canDelete: () => isAdmin && !isDeleted,
+//         canEdit: () => isAdmin && !isDeleted,
+//         canReport: () => !isAdmin && !isDeleted && isPublic,
+//         canStar: () => !isDeleted && (isAdmin || isPublic),
+//         canView: () => !isDeleted && (isAdmin || isPublic),
+//         canVote: () => !isDeleted && (isAdmin || isPublic),
 //     }),
 //     owner: (data) => ({
 //         Organization: data.ownedByOrganization,

@@ -28,9 +28,9 @@ export const listRunRoutineFields = ['RunRoutine', `{
         simplicity
         stars
         permissionsRoutine {
+            canCopy
             canDelete
             canEdit
-            canFork
             canStar
             canReport
             canRun
@@ -175,9 +175,9 @@ export const runRoutineFields = ['RunRoutine', `{
         simplicity
         stars
         permissionsRoutine {
+            canCopy
             canDelete
             canEdit
-            canFork
             canStar
             canReport
             canRun

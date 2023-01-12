@@ -27,8 +27,8 @@ const validateNodePositions = (input: RoutineVersionCreateInput | RoutineVersion
 }
 
 const type = 'RoutineVersion' as const;
-type Permissions = Pick<RoutineVersionYou, 'canComment' | 'canDelete' | 'canEdit' | 'canFork' | 'canStar' | 'canReport' | 'canRun' | 'canView' | 'canVote'>;
-const suppFields = ['you.canComment', 'you.canDelete', 'you.canEdit', 'you.canFork', 'you.canStar', 'you.canReport', 'you.canRun', 'you.canView', 'you.canVote', 'you.runs'] as const;
+type Permissions = Pick<RoutineVersionYou, 'canComment' | 'canCopy' | 'canDelete' | 'canEdit' | 'canStar' | 'canReport' | 'canRun' | 'canView' | 'canVote'>;
+const suppFields = ['you.canComment', 'you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canReport', 'you.canRun', 'you.canView', 'you.canVote', 'you.runs'] as const;
 export const RoutineVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -245,15 +245,16 @@ export const RoutineVersionModel: ModelLogic<{
             }, ...params),
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            // canComment: async () => !isDeleted && (isAdmin || isPublic),
-            // canDelete: async () => isAdmin && !isDeleted,
-            // canEdit: async () => isAdmin && !isDeleted,
-            // canReport: async () => !isAdmin && !isDeleted && isPublic,
-            // canRun: async () => !isDeleted && (isAdmin || isPublic),
-            // canStar: async () => !isDeleted && (isAdmin || isPublic),
-            // canView: async () => !isDeleted && (isAdmin || isPublic),
-            // canVote: async () => !isDeleted && (isAdmin || isPublic),
-        } as any),
+            canComment: () => !isDeleted && (isAdmin || isPublic),
+            canCopy: () => !isDeleted && (isAdmin || isPublic),
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canReport: () => !isAdmin && !isDeleted && isPublic,
+            canRun: () => !isDeleted && (isAdmin || isPublic),
+            canStar: () => !isDeleted && (isAdmin || isPublic),
+            canView: () => !isDeleted && (isAdmin || isPublic),
+            canVote: () => !isDeleted && (isAdmin || isPublic),
+        }),
         owner: (data) => ({
             // Organization: data.ownedByOrganization,
             // User: data.ownedByUser,
