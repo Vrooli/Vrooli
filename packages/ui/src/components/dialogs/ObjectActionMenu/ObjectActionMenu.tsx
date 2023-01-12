@@ -52,13 +52,13 @@ export const ObjectActionMenu = ({
     const handleFork = useCallback(() => {
         if (!id) return;
         // Check if objectType can be converted to CopyType
-        if(!Object.values(CopyType).includes(objectType as CopyType)) {
+        if(!Object.values(CopyType).includes(objectType as unknown as CopyType)) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
         mutationWrapper<CopyResult, CopyInput>({
             mutation: fork,
-            input: { id, intendToPullRequest: true, objectType: objectType as CopyType },
+            input: { id, intendToPullRequest: true, objectType: objectType as unknown as CopyType },
             successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
@@ -124,20 +124,20 @@ export const ObjectActionMenu = ({
     return (
         <>
             {/* Delete routine confirmation dialog */}
-            {id && Object.values(DeleteType).includes(objectType as DeleteType) && <DeleteDialog
+            {id && Object.values(DeleteType).includes(objectType as unknown as DeleteType) && <DeleteDialog
                 isOpen={deleteOpen}
                 objectId={id}
-                objectType={objectType as DeleteType}
+                objectType={objectType as unknown as DeleteType}
                 objectName={name}
                 handleClose={closeDelete}
                 zIndex={zIndex + 1}
             />}
             {/* Report dialog */}
-            {id && Object.values(ReportFor).includes(objectType as ReportFor) && <ReportDialog
+            {id && Object.values(ReportFor).includes(objectType as unknown as ReportFor) && <ReportDialog
                 forId={id}
                 onClose={closeReport}
                 open={reportOpen}
-                reportFor={objectType as ReportFor}
+                reportFor={objectType as unknown as ReportFor}
                 session={session}
                 zIndex={zIndex + 1}
             />}

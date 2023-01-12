@@ -17,7 +17,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
 import { getTranslation, PubSub } from 'utils';
 import { uuid } from '@shared/uuid';
-import { Node, NodeType } from '@shared/consts';
+import { GqlModelType, Node, NodeType } from '@shared/consts';
+import { useTranslation } from 'react-i18next';
 
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
@@ -39,6 +40,7 @@ export const LinkDialog = ({
     zIndex,
 }: LinkDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     // Selected "From" and "To" nodes
     const [fromNode, setFromNode] = useState<Node | null>(nodeFrom ?? null);
@@ -55,13 +57,13 @@ export const LinkDialog = ({
     const errors = useMemo(() => {
         const errors: { [key: string]: string } = {};
         if (!fromNode) {
-            errors.fromNode = 'From node is required';
+            errors.fromNode = t(`error:FromNodeRequired`, { lng: language });
         }
         if (!toNode) {
-            errors.toNode = 'To node is required';
+            errors.toNode = t(`error:ToNodeRequired`, { lng: language });
         }
         return errors;
-    }, [fromNode, toNode]);
+    }, [fromNode, language, t, toNode]);
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
@@ -69,7 +71,7 @@ export const LinkDialog = ({
             return;
         }
         handleClose({
-            type: 'NodeLink',
+            type: GqlModelType.NodeLink,
             id: uuid(),
             fromId: fromNode.id,
             toId: toNode.id,
@@ -110,12 +112,12 @@ export const LinkDialog = ({
      * Find the text to display for a node
      */
     const getNodeTitle = useCallback((node: Node) => {
-        const { title } = getTranslation(node, [language]);
-        if (title) return title;
-        if (node.nodeType === NodeType.Start) return 'Start';
-        if (node.nodeType === NodeType.End) return 'End';
-        return 'Untitled';
-    }, [language]);
+        const { name } = getTranslation(node, [language]);
+        if (name) return name;
+        if (node.nodeType === NodeType.Start) return t(`common:Start`, { lng: language });
+        if (node.nodeType === NodeType.End) return t(`common:End`, { lng: language });
+        return t(`common:Untitled`, { lng: language });
+    }, [language, t]);
 
     /**
      * Container that displays "From" and "To" node selections, with right arrow inbetween
@@ -201,7 +203,7 @@ export const LinkDialog = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                title={isAdd ? 'Add Link' : 'Edit Link'}
+                title={t(`common:${isAdd ? 'LinkAdd' : 'LinkEdit'}`, { lng: language })}
                 helpText={helpText}
                 onClose={handleCancel}
             />

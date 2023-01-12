@@ -2,7 +2,7 @@ import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typo
 import { ObjectListItemProps, ObjectListItemType } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RunStatus, VoteFor } from '@shared/consts';
+import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
 import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor } from 'utils';
@@ -152,7 +152,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
     const actionButtons = useMemo(() => {
         const commentableObjects: string[] = ['Project', 'Routine', 'Standard'];
         const reportsCount: number = getCounts(object).reports;
-        const { starFor, starForConnect } = getStarFor(object);
+        const { starFor, starForId } = getStarFor(object);
         return (
             <Stack
                 direction={isMobile ? "row" : "column"}
@@ -195,7 +195,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                 {starFor && <StarButton
                     disabled={!canStar}
                     session={session}
-                    objectId={starForConnect}
+                    objectId={starForId}
                     starFor={starFor}
                     isStar={isStarred}
                     stars={getCounts(object).stars}
@@ -217,10 +217,10 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * Run list items may get a progress bar
      */
     const progressBar = useMemo(() => {
-        if (!object || object.type !== 'RunRoutine') return null;
-        const completedComplexity = object?.completedComplexity ?? null;
-        const totalComplexity = object?.routineVersion?.complexity ?? null;
-        const percentComplete = object?.status === RunStatus.Completed ? 100 :
+        if (!object || !['RunProject', 'RunRoutine'].includes(object.type)) return null;
+        const completedComplexity = (object as RunProject | RunRoutine).completedComplexity;
+        const totalComplexity = (object as RunProject).projectVersion?.complexity ?? (object as RunRoutine).routineVersion?.complexity ?? null;
+        const percentComplete = (object as RunProject | RunRoutine).status === RunStatus.Completed ? 100 :
             (completedComplexity && totalComplexity) ?
                 Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
                 0

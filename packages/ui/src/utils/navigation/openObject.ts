@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, GqlModelType, RunProject, RunRoutine, Star, View, Vote } from "@shared/consts";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
 import { NavigableObject, SetLocation } from "types";
 import { ResourceType } from "utils/consts";
@@ -25,28 +25,14 @@ export type ObjectType = 'Comment' |
  * @returns Search URL base for object type
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
-    switch (object.type) {
-        case 'Organization':
-            return APP_LINKS.Organization;
-        case 'Project':
-            return APP_LINKS.Project;
-        case 'Routine':
-            return APP_LINKS.Routine;
-        case 'Standard':
-            return APP_LINKS.Standard;
-        case 'User':
-            return APP_LINKS.Profile;
-        case 'Star':
-        case 'View':
-            return getObjectUrlBase(object.to as any);
-        case 'Run':
-            return getObjectUrlBase({
-                type: 'Routine',
-                id: object.routine?.id,
-            } as any);
-        default:
-            return '';
-    }
+    // If object is a star/vote/some other type that links to a main object, use the "to" property
+    if (['Star', 'View', 'Vote'].includes(object.type)) return getObjectUrlBase((object as Star | View | Vote).to as any);
+    // If the object is a run routine, use the routine version
+    if (object.type === 'RunRoutine') return getObjectUrlBase((object as RunRoutine).routineVersion as any);
+    // If the object is a run project, use the project version
+    if (object.type === 'RunProject') return getObjectUrlBase((object as RunProject).projectVersion as any);
+    // Otherwise, use type (or root if versioned object)
+    return APP_LINKS[object.type.replace('Version', '')];
 }
 
 /**
@@ -54,19 +40,15 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
  * @param object Object being navigated to
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: NavigableObject): string => {
+export const getObjectSlug = (object: { type: GqlModelType, id: string, handle?: string | null}): string => {
     // If object is a star/vote/some other type that links to a main object, use that object's slug
-    if (object.to) return getObjectSlug(object.to);
-    // If object is a run, navigate to the routine
-    if (object.routine) return getObjectSlug(object.routine);
-    // If object has a handle, use that (Note: objects with handles don't have versioning, so we don't need to worry about that)
-    if (object.handle) return object.handle;
-    // If object has a versionGroupId, and an id, use versionGroupId/id
-    if (object.versionGroupId && object.id) return `${uuidToBase36(object.versionGroupId)}/${uuidToBase36(object.id)}`;
-    // If object only has a versionGroupId, use that
-    if (object.versionGroupId) return uuidToBase36(object.versionGroupId);
-    // Otherwise, use the id
-    return uuidToBase36(object.id);
+    if (['Star', 'View', 'Vote'].includes(object.type)) return getObjectSlug((object as Star | View | Vote).to as any);
+    // If the object is a run routine, use the routine version
+    if (object.type === 'RunRoutine') return getObjectSlug((object as RunRoutine).routineVersion as any);
+    // If the object is a run project, use the project version
+    if (object.type === 'RunProject') return getObjectSlug((object as RunProject).projectVersion as any);
+    // Otherwise, use handle or id
+    return (object as any).handle ?? uuidToBase36(object.id);
 }
 
 /**
@@ -74,7 +56,7 @@ export const getObjectSlug = (object: NavigableObject): string => {
  * @param object Object being navigated to
  * @returns Stringified search params for object
  */
-export const getObjectSearchParams = (object: any) => {
+export const getObjectSearchParams = (object: { type: GqlModelType, id: string }) => {
     // If object is a run
     if (object.type === 'RunRoutine') return stringifySearchParams({ run: uuidToBase36(object.id) });
     return '';

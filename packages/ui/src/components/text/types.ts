@@ -1,5 +1,6 @@
 import { BoxProps, TypographyProps } from "@mui/material";
-import { CommonKey, Project, Routine, Session, Standard, VersionInfo } from "types";
+import { Api, Organization, Project, Quiz, Routine, Session, SmartContract, Standard, User } from "@shared/consts";
+import { CommonKey, VersionInfo } from "types";
 import { ObjectType } from "utils";
 
 export interface DateDisplayProps extends BoxProps {
@@ -23,7 +24,7 @@ export interface OwnerLabelProps {
     confirmOpen?: (callback: () => void) => void;
     language?: string
     objectType: ObjectType;
-    owner: Project['owner'] | Routine['owner'] | Standard['creator'] | null | undefined
+    owner: Routine['owner'] | null | undefined
     session: Session;
     sxs?: {
         label?: { [x: string]: any };
@@ -42,7 +43,7 @@ export interface PageTitleProps {
     }
 }
 
-export type StatsCompactPropsObject = Project | Routine | Standard;
+export type StatsCompactPropsObject = Api | Organization | Project | Quiz | Routine | SmartContract | Standard | User;
 export interface StatsCompactProps<T extends StatsCompactPropsObject> {
     handleObjectUpdate: (object: T) => void;
     loading: boolean;

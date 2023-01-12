@@ -3,7 +3,7 @@ import { ListObjectType, RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { Path } from '@shared/route/src/useLocation';
 import { TFuncKey } from 'i18next';
-import { NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -27,16 +27,19 @@ export type IWrap<T> = { input: T }
  * An object connected to routing
  */
 export type NavigableObject = {
-    type: string
+    type: GqlModelType,
     handle?: string | null,
     id: string,
-    versionGroupId?: string | null,
-    routine?: {
-        type: string
+    projectVersion?: {
+        type: GqlModelType
+        id: string
+    } | null,
+    routineVersion?: {
+        type: GqlModelType
         id: string
     } | null,
     to?: {
-        type: string,
+        type: GqlModelType,
         handle?: string | null,
         id: string,
     }
@@ -102,7 +105,7 @@ export interface RoutineListStep extends BaseStep {
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
 export interface ObjectOption {
-    type: ListObjectType['type'];
+    type: GqlModelType;
     handle?: string | null;
     id: string;
     versionGroupId?: string | null;
@@ -112,11 +115,11 @@ export interface ObjectOption {
     stars?: number;
     [key: string]: any;
     runnableObject?: {
-        type: string
+        type: GqlModelType
         id: string
     } | null,
     to?: {
-        type: string,
+        type: GqlModelType,
         handle?: string | null,
         id: string,
     }

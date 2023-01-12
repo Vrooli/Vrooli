@@ -210,7 +210,7 @@ export const getDisplay = (
  */
 export const getStarFor = (
     object: ListObjectType | null | undefined,
-): { starFor: StarFor, starForId: ID } | { starFor: null, starForId: null } => {
+): { starFor: StarFor, starForId: string } | { starFor: null, starForId: null } => {
     if (!object) return { starFor: null, starForId: null };
     // If the object is a star, view, or vote, use the "to" object
     if (['Star', 'View', 'Vote'].includes(object.type)) return getStarFor((object as Star | View | Vote).to as any);
@@ -321,14 +321,14 @@ export function listToListItems({
     if (!items) return listItems;
     for (let i = 0; i < items.length; i++) {
         let curr = items[i];
-        // If "View" or "Star" item, display the object it points to
-        if (curr.type === 'View' || curr.type === 'Star') {
-            curr = (curr as ListStar | ListView).to as ObjectListItemType;
+        // If "Star", "View", or "Vote", use the "to" object
+        if (['Star', 'View', 'Vote'].includes(curr.type)) {
+            curr = (curr as Star | View | Vote).to as ObjectListItemType;
         }
         listItems.push(<ObjectListItem
             key={`${keyPrefix}-${curr.id}`}
             beforeNavigation={beforeNavigation}
-            data={curr}
+            data={curr as ObjectListItemType}
             hideRole={hideRoles}
             index={i}
             loading={false}

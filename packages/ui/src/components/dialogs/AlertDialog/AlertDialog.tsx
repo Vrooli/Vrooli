@@ -9,7 +9,7 @@ import {
 import { firstString, getUserLanguages, PubSub, translateCommonKey, translateSnackMessage } from 'utils';
 import { DialogTitle } from 'components';
 import { AlertDialogProps } from '../types';
-import { Session } from 'types';
+import { Session } from '@shared/consts';
 
 interface StateButton {
     label: string;

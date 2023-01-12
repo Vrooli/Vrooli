@@ -1,6 +1,7 @@
 import { ValueOf } from '.';
 
 export const APP_LINKS = {
+    Api: '/api',
     Comment: '/comment',
     Create: '/create', // Portal for creating new content
     Develop: '/develop', // Develop dashboard
@@ -16,12 +17,15 @@ export const APP_LINKS = {
     Notifications: '/notifications', // Your notifications
     Profile: '/profile', // View profile
     Project: '/project', // View or update specific project
+    Question: '/question', // View or update specific question
+    Quiz: '/quiz', // View or update specific quiz
     Report: '/report', // Reports view
     Research: '/research', // Research dashboard
     Routine: '/routine', // Displays a UI corresponding to the current subroutine
     ResetPassword: '/password-reset', // Page to reset password, after clicking on password reset link in email
     Search: '/search', // Search page for all objects
     Settings: '/settings', // View or update profile/settings
+    SmartContract: '/contract', // View or update specific smart contract
     Standard: '/standard', // View or update specific standard
     Start: '/start', // Provides options for entering application
     Stats: '/stats', // Provides statistics for the website (no admin, so only place to see users, metrics, etc.)

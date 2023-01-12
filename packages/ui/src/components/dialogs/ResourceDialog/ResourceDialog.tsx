@@ -14,6 +14,7 @@ import { GqlModelType, PopularInput, PopularResult, Resource, ResourceCreateInpu
 import { feedEndpoint, resourceEndpoint } from 'graphql/endpoints';
 import { mutationWrapper } from 'graphql/utils';
 import { useQuery } from '@apollo/client';
+import { useTranslation } from 'react-i18next';
 
 const helpText =
     `## What are resources?
@@ -29,25 +30,6 @@ Resources provide context to the object they are attached to, such as a  user, o
 
 **For a routine** - Guide, external service
 `
-
-export const UsedForDisplay: { [key in ResourceUsedFor]: string } = {
-    [ResourceUsedFor.Community]: 'Community',
-    [ResourceUsedFor.Context]: 'Context',
-    [ResourceUsedFor.Developer]: 'Developer',
-    [ResourceUsedFor.Donation]: 'Donation',
-    [ResourceUsedFor.ExternalService]: 'External Service',
-    [ResourceUsedFor.Feed]: 'Feed',
-    [ResourceUsedFor.Install]: 'Install',
-    [ResourceUsedFor.Learning]: 'Learning',
-    [ResourceUsedFor.Notes]: 'Notes',
-    [ResourceUsedFor.OfficialWebsite]: 'Official Webiste',
-    [ResourceUsedFor.Proposal]: 'Proposal',
-    [ResourceUsedFor.Related]: 'Related',
-    [ResourceUsedFor.Researching]: 'Researching',
-    [ResourceUsedFor.Scheduling]: 'Scheduling',
-    [ResourceUsedFor.Social]: 'Social',
-    [ResourceUsedFor.Tutorial]: 'Tutorial',
-}
 
 const titleAria = "resource-dialog-title";
 const searchTitleAria = "search-vrooli-for-link-title"
@@ -65,6 +47,7 @@ export const ResourceDialog = ({
     zIndex,
 }: ResourceDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [addMutation, { loading: addLoading }] = useMutation<Resource, ResourceCreateInput, 'resourceCreate'>(...resourceEndpoint.create);
     const [updateMutation, { loading: updateLoading }] = useMutation<Resource, ResourceUpdateInput, 'resourceUpdate'>(...resourceEndpoint.update);
@@ -348,14 +331,14 @@ export const ResourceDialog = ({
                                         },
                                     }}
                                 >
-                                    {Object.entries(UsedForDisplay).map(([key, value]) => {
-                                        const Icon = getResourceIcon(key as ResourceUsedFor);
+                                     {(Object.keys(ResourceUsedFor) as Array<keyof typeof ResourceUsedFor>).map((usedFor) => {
+                                        const Icon = getResourceIcon(usedFor as ResourceUsedFor);
                                         return (
-                                            <MenuItem key={key} value={key}>
+                                            <MenuItem key={usedFor} value={usedFor}>
                                                 <ListItemIcon>
                                                     <Icon fill={palette.background.textSecondary} />
                                                 </ListItemIcon>
-                                                <ListItemText>{value}</ListItemText>
+                                                <ListItemText>{t(`common:${usedFor}`, { lng: language })}</ListItemText>
                                             </MenuItem>
                                         )
                                     })}

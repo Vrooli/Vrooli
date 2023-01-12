@@ -82,6 +82,8 @@
     "MustUseMainnetDetails": "Only wallets on Cardano mainnet are allowed for verification.",
     "NodeDuplicatePosition": "Duplicate node position detected.",
     "NodeDuplicatePositionDetails": "You have two nodes with the same position. Please change one of the positions.",
+    "NodeFromRequired": "From node is required.",
+    "NodeToRequired": "To node is required.",
     "NoChangesMade": "No changes made.",
     "NoFilesSelected": "No files selected.",
     "NoInternet": "No internet connection.",

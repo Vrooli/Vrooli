@@ -36,7 +36,7 @@ export const RunPickerMenu = ({
         const searchParams = parseSearchParams();
         if (!searchParams.run || typeof searchParams.run !== 'string') return
         const runId = base36ToUuid(searchParams.run);
-        const run = (runnableObject as ProjectVersion | RoutineVersion).you?.runs?.find((run: RunProject | RunRoutine) => run.id === runId);
+        const run = (runnableObject.you?.runs as (RunRoutine | RunProject)[])?.find((run: RunProject | RunRoutine) => run.id === runId);
         if (run) {
             onSelect(run);
             handleClose();
@@ -110,17 +110,17 @@ export const RunPickerMenu = ({
             handleClose();
         }
         // If object has no runs, create a new one.
-        else if (runnableObject && runnableObject.runs?.filter(r => r.status === RunStatus.InProgress)?.length === 0) {
+        else if (runnableObject && (runnableObject.you?.runs as (RunRoutine | RunProject)[])?.filter(r => r.status === RunStatus.InProgress)?.length === 0) {
             createNewRun();
         }
     }, [open, runnableObject, createNewRun, onSelect, session.isLoggedIn, handleClose]);
 
     const runOptions: ListMenuItemData<RunProject | RunRoutine>[] = useMemo(() => {
-        if (!runnableObject || !runnableObject.runs) return [];
+        if (!runnableObject || !runnableObject.you.runs) return [];
         // Find incomplete runs
-        const runs = runnableObject.runs.filter(run => run.status === RunStatus.InProgress);
+        const runs = (runnableObject.you?.runs as (RunRoutine | RunProject)[]).filter(run => run.status === RunStatus.InProgress);
         return runs.map((run) => ({
-            label: `Started: ${displayDate(run.startedAt)} (${getRunPercentComplete(run.completedComplexity, routine.complexity)}%)`,
+            label: `Started: ${displayDate(run.startedAt)} (${getRunPercentComplete(run.completedComplexity, runnableObject.complexity)}%)`,
             value: run as  RunProject | RunRoutine,
         }));
     }, [runnableObject]);
@@ -133,7 +133,7 @@ export const RunPickerMenu = ({
         if (run.completedComplexity > 0) {
             PubSub.get().publishAlertDialog({
                 messageKey: 'RunDeleteConfirm',
-                messageVariables: { startDate: displayDate(run.startedAt), percentComplete: getRunPercentComplete(run.completedComplexity, routine.complexity) },
+                messageVariables: { startDate: displayDate(run.startedAt), percentComplete: getRunPercentComplete(run.completedComplexity, runnableObject.complexity) },
                 buttons: [
                     { labelKey: 'Yes', onClick: () => { deleteRun(run) } },
                     { labelKey: 'Cancel', onClick: () => { } },

@@ -1,4 +1,4 @@
-import { Api, ApiVersion, Note, NoteVersion, Organization, Project, ProjectVersion, Routine, RoutineVersion, RunProject, RunRoutine, Session, SmartContract, SmartContractVersion, Standard, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
+import { Api, ApiVersion, Note, NoteVersion, Organization, Project, ProjectVersion, Question, Quiz, Routine, RoutineVersion, RunProject, RunRoutine, Session, SmartContract, SmartContractVersion, Standard, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
 import { NavigableObject } from 'types';
 import { ObjectAction, ObjectActionComplete, SearchType } from 'utils';
 
@@ -25,6 +25,8 @@ export type ObjectListItemType = Api |
     Organization |
     Project |
     ProjectVersion |
+    Question |
+    Quiz |
     Routine |
     RoutineVersion |
     RunProject |

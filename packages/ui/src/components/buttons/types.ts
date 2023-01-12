@@ -1,5 +1,5 @@
 import { ButtonProps, IconButtonProps } from '@mui/material';
-import { ProjectVersion, ReportFor, Routine, RoutineVersion, RunProject, RunRoutine, Session, StarFor } from '@shared/consts';
+import { ProjectVersion, ReportFor, RoutineVersion, RunProject, RunRoutine, Session, StarFor } from '@shared/consts';
 import { SvgProps } from '@shared/icons';
 import React from 'react';
 import { NavigableObject} from 'types';
@@ -28,7 +28,7 @@ export interface ColorIconButtonProps extends IconButtonProps {
 export interface CommentsButtonProps {
     commentsCount: number | null; // Defaults to 0
     disabled?: boolean;
-    object: { id: string, handle?: string | null, type: string } | null | undefined;
+    object: NavigableObject | null | undefined;
 }
 
 export interface GridSubmitButtonsProps {
@@ -76,7 +76,7 @@ export interface ReportButtonProps {
 
 export interface ReportsButtonProps {
     reportsCount: number | null; // Defaults to 0
-    object: { id: string, type: string } | null | undefined;
+    object: NavigableObject | null | undefined;
 }
 
 export interface ReportsLinkProps {

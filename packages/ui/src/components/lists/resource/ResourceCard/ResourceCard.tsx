@@ -11,10 +11,11 @@ import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
 import { multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from '..';
-import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
+import { SnackSeverity } from 'components/dialogs';
 import { DeleteIcon, EditIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
 import { ResourceUsedFor } from '@shared/consts';
+import { useTranslation } from 'react-i18next';
 
 export const ResourceCard = ({
     canEdit,
@@ -27,6 +28,7 @@ export const ResourceCard = ({
 }: ResourceCardProps) => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [showIcons, setShowIcons] = useState(false);
 
@@ -35,9 +37,9 @@ export const ResourceCard = ({
         const { description, name } = getTranslation(data, languages, true);
         return {
             description: (description && description.length > 0) ? description : data.link,
-            name: (name && name.length > 0) ? name : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
+            name: (name && name.length > 0) ? name : t(`common:${data.usedFor ?? ResourceUsedFor.Context}`, { lng: getUserLanguages(session)[0] }),
         };
-    }, [data, session]);
+    }, [data, session, t]);
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
