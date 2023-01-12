@@ -6,7 +6,7 @@ import { Box, Stack, Tooltip, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
 import { RelationshipButtonsProps, RelationshipItemOrganization, RelationshipItemProjectVersion, RelationshipItemRoutineVersion, RelationshipItemUser, RelationshipOwner } from '../types';
 import { firstString, getTranslation, getUserLanguages, openObject, PubSub } from 'utils';
-import { ListMenu, OrganizationSelectOrCreateDialog, ProjectSelectOrCreateDialog, RoutineSelectOrCreateDialog, UserSelectDialog } from 'components/dialogs';
+import { ListMenu, SelectOrCreateDialog } from 'components/dialogs';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { TextShrink } from 'components/text/TextShrink/TextShrink';
 import { CompleteIcon as CompletedIcon, InvisibleIcon, OrganizationIcon, ProjectIcon as ProjIcon, RoutineIcon, UserIcon as SelfIcon, VisibleIcon } from '@shared/icons';
@@ -14,7 +14,8 @@ import { useLocation } from '@shared/route';
 import { getCurrentUser } from 'utils/authentication';
 import { ColorIconButton } from 'components/buttons';
 import { noSelect } from 'styles';
-import { Session } from '@shared/consts';
+import { GqlModelType, Session } from '@shared/consts';
+import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
 
 /**
  * Converts session to user object
@@ -22,7 +23,7 @@ import { Session } from '@shared/consts';
  * @returns User object
  */
 export const userFromSession = (session: Session): Exclude<RelationshipOwner, null> => ({
-    type: 'User',
+    type: GqlModelType.User,
     id: getCurrentUser(session).id as string,
     handle: null,
     name: 'Self',
@@ -92,44 +93,17 @@ export function RelationshipButtons({
         return { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable }
     }, [objectType])
 
-    // Organization owner dialog (displayed after selecting owner dialog)
+    // Organization/User owner dialogs (displayed after selecting owner dialog)
     const [isOrganizationDialogOpen, setOrganizationDialogOpen] = useState<boolean>(false);
     const openOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(true) }, [setOrganizationDialogOpen]);
     const closeOrganizationDialog = useCallback(() => { setOrganizationDialogOpen(false); }, [setOrganizationDialogOpen]);
-
-    // Another user owner dialog (displayed after selecting owner dialog)
     const [isAnotherUserDialogOpen, setAnotherUserDialogOpen] = useState<boolean>(false);
     const openAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(true) }, [setAnotherUserDialogOpen]);
     const closeAnotherUserDialog = useCallback(() => { setAnotherUserDialogOpen(false); }, [setAnotherUserDialogOpen]);
-
-    // Owner dialog (select self, organization, or another user)
-    const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
-    const handleOwnerClick = useCallback((ev: React.MouseEvent<any>) => {
-        if (!isOwnerAvailable) return;
-        ev.stopPropagation();
-        // If not editing, navigate to owner
-        if (!isEditing) {
-            if (relationships.owner) openObject(relationships.owner, setLocation);
-        }
-        // Otherwise, open dialog
-        else setOwnerDialogAnchor(ev.currentTarget)
-    }, [isEditing, isOwnerAvailable, relationships.owner, setLocation]);
-    const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
-    const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
-        if (ownerType === OwnerTypesEnum.Organization) {
-            openOrganizationDialog();
-        } else if (ownerType === OwnerTypesEnum.AnotherUser) {
-            openAnotherUserDialog();
-        } else {
-            onRelationshipsChange({ owner: userFromSession(session) });
-        }
-        closeOwnerDialog();
-    }, [closeOwnerDialog, onRelationshipsChange, openAnotherUserDialog, openOrganizationDialog, session]);
     const handleOwnerSelect = useCallback((owner: RelationshipOwner) => {
         if (owner?.id === relationships.owner?.id) return;
         onRelationshipsChange({ owner });
     }, [onRelationshipsChange, relationships.owner?.id]);
-
     // Project dialog
     const [isProjectDialogOpen, setProjectDialogOpen] = useState<boolean>(false);
     const handleProjectClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -151,7 +125,6 @@ export function RelationshipButtons({
         if (project?.id === relationships.project?.id) return;
         onRelationshipsChange({ project });
     }, [onRelationshipsChange, relationships.project?.id]);
-
     // Parent dialog
     const [isParentDialogOpen, setParentDialogOpen] = useState<boolean>(false);
     const handleParentClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -181,14 +154,42 @@ export function RelationshipButtons({
         }
     }, [isEditing, isFormDirty, isParentAvailable, onRelationshipsChange, relationships.parent, setLocation]);
     const closeParentDialog = useCallback(() => { setParentDialogOpen(false); }, [setParentDialogOpen]);
-    const handleParentProjectSelect = useCallback((parent: RelationshipItemProjectVersion) => {
+    const handleParentSelect = useCallback((parent: any) => {
         if (parent?.id === relationships.parent?.id) return;
         onRelationshipsChange({ parent });
     }, [onRelationshipsChange, relationships.parent?.id]);
-    const handleParentRoutineSelect = useCallback((parent: RelationshipItemRoutineVersion) => {
-        if (parent?.id === relationships.parent?.id) return;
-        onRelationshipsChange({ parent });
-    }, [onRelationshipsChange, relationships.parent?.id]);
+    // SelectOrCreateDialog
+    const [selectOrCreateType, selectOrCreateHandleAdd, selectOrCreateHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => any, () => void]>(() => {
+        if (isOrganizationDialogOpen) return ['Organization', handleOwnerSelect, closeOrganizationDialog];
+        else if (isAnotherUserDialogOpen) return ['User', handleOwnerSelect, closeAnotherUserDialog];
+        else if (isProjectDialogOpen) return ['ProjectVersion', handleProjectSelect, closeProjectDialog];
+        else if (isParentDialogOpen) return [objectType as SelectOrCreateObjectType, handleParentSelect, closeParentDialog];
+        return [null, () => { }, () => { }];
+    }, [isOrganizationDialogOpen, handleOwnerSelect, closeOrganizationDialog, isAnotherUserDialogOpen, closeAnotherUserDialog, isProjectDialogOpen, handleProjectSelect, closeProjectDialog, isParentDialogOpen, objectType, handleParentSelect, closeParentDialog]);
+
+    // Owner list dialog (select self, organization, or another user)
+    const [ownerDialogAnchor, setOwnerDialogAnchor] = useState<any>(null);
+    const handleOwnerClick = useCallback((ev: React.MouseEvent<any>) => {
+        if (!isOwnerAvailable) return;
+        ev.stopPropagation();
+        // If not editing, navigate to owner
+        if (!isEditing) {
+            if (relationships.owner) openObject(relationships.owner, setLocation);
+        }
+        // Otherwise, open dialog
+        else setOwnerDialogAnchor(ev.currentTarget)
+    }, [isEditing, isOwnerAvailable, relationships.owner, setLocation]);
+    const closeOwnerDialog = useCallback(() => setOwnerDialogAnchor(null), []);
+    const handleOwnerDialogSelect = useCallback((ownerType: OwnerTypesEnum) => {
+        if (ownerType === OwnerTypesEnum.Organization) {
+            openOrganizationDialog();
+        } else if (ownerType === OwnerTypesEnum.AnotherUser) {
+            openAnotherUserDialog();
+        } else {
+            onRelationshipsChange({ owner: userFromSession(session) });
+        }
+        closeOwnerDialog();
+    }, [closeOwnerDialog, onRelationshipsChange, openAnotherUserDialog, openOrganizationDialog, session]);
 
     // Handle private click
     const handlePrivateClick = useCallback((ev: React.MouseEvent<any>) => {
@@ -304,45 +305,15 @@ export function RelationshipButtons({
                 onClose={closeOwnerDialog}
                 zIndex={zIndex + 1}
             />
-            {/* Popup for selecting organization (yours or another) */}
-            <OrganizationSelectOrCreateDialog
-                isOpen={isOrganizationDialogOpen}
-                handleAdd={handleOwnerSelect}
-                handleClose={closeOrganizationDialog}
+            {/* Popup for selecting organization, user, etc. */}
+            <SelectOrCreateDialog
+                isOpen={Boolean(selectOrCreateType)}
+                handleAdd={selectOrCreateHandleAdd}
+                handleClose={selectOrCreateHandleClose}
+                objectType={selectOrCreateType ?? 'User'} // Default can be anything. Only here to satisfy TS
                 session={session}
                 zIndex={zIndex + 1}
             />
-            {/* Popup for selecting a user that's not you */}
-            <UserSelectDialog
-                isOpen={isAnotherUserDialogOpen}
-                handleAdd={handleOwnerSelect}
-                handleClose={closeAnotherUserDialog}
-                session={session}
-                zIndex={zIndex + 1}
-            />
-            {/* Popup for selecting a project (yours or another) */}
-            <ProjectSelectOrCreateDialog
-                isOpen={isProjectDialogOpen}
-                handleAdd={handleProjectSelect}
-                handleClose={closeProjectDialog}
-                session={session}
-                zIndex={zIndex + 1}
-            />
-            {/* Popups for selecting a parent (yours or another) */}
-            {objectType === 'Routine' && <RoutineSelectOrCreateDialog
-                isOpen={isParentDialogOpen}
-                handleAdd={handleParentRoutineSelect}
-                handleClose={closeParentDialog}
-                session={session}
-                zIndex={zIndex + 1}
-            />}
-            {objectType === 'Project' && <ProjectSelectOrCreateDialog
-                isOpen={isParentDialogOpen}
-                handleAdd={handleParentProjectSelect}
-                handleClose={closeParentDialog}
-                session={session}
-                zIndex={zIndex + 1}
-            />}
             {/* Row of button labels */}
             <Stack
                 spacing={{ xs: 1, sm: 1.5, md: 2 }}

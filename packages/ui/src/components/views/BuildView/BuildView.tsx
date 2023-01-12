@@ -371,7 +371,7 @@ export const BuildView = ({
      */
     const createEndNode = useCallback((column: number | null, row: number | null) => {
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
-        const newNode: Omit<NodeShape, 'routineId'> = {
+        const newNode: Omit<NodeShape, 'routineVersionId'> = {
             id: uuid(),
             nodeType: NodeType.End,
             rowIndex,
@@ -603,7 +603,7 @@ export const BuildView = ({
             return n;
         });
         // Create new routine list node
-        const newNode: Omit<NodeShape, 'routineId'> = createRoutineListNode(columnIndex, rowIndex);
+        const newNode: Omit<NodeShape, 'routineVersionId'> = createRoutineListNode(columnIndex, rowIndex);
         // Find every node 
         // Create two new links
         const newLinks: NodeLinkShape[] = [
@@ -631,9 +631,9 @@ export const BuildView = ({
         }
         // Find the largest row index in the column. New node will be placed in the next row
         const maxRowIndex = changedRoutineVersion.nodes.filter(n => n.columnIndex === toNode.columnIndex).map(n => n.rowIndex).reduce((a, b) => Math.max(a ?? 0, b ?? 0), 0);
-        const newNode: Omit<NodeShape, 'routineId'> = createRoutineListNode(toNode.columnIndex, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
+        const newNode: Omit<NodeShape, 'routineVersionId'> = createRoutineListNode(toNode.columnIndex, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
         // Since this is a new branch, we also need to add an end node after the new node
-        const newEndNode: Omit<NodeShape, 'routineId'> = createEndNode((toNode.columnIndex ?? 0) + 1, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
+        const newEndNode: Omit<NodeShape, 'routineVersionId'> = createEndNode((toNode.columnIndex ?? 0) + 1, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
         // Create new link, going from the "from" node to the new node
         const newLink: NodeLinkShape = generateNewLink(link.fromId, newNode.id);
         // Create new link, going from the new node to the end node
@@ -726,7 +726,7 @@ export const BuildView = ({
         else {
             const node = changedRoutineVersion.nodes.find(n => n.id === nodeId);
             if (!node) return;
-            const newNode: Omit<NodeShape, 'routineId'> = createEndNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
+            const newNode: Omit<NodeShape, 'routineVersionId'> = createEndNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
             const newLink: NodeLinkShape = generateNewLink(nodeId, newNode.id);
             addToChangeStack({
                 ...changedRoutineVersion,
@@ -755,7 +755,7 @@ export const BuildView = ({
         else {
             const node = changedRoutineVersion.nodes.find(n => n.id === nodeId);
             if (!node) return;
-            const newNode: Omit<NodeShape, 'routineId'> = createRoutineListNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
+            const newNode: Omit<NodeShape, 'routineVersionId'> = createRoutineListNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
             const newLink: NodeLinkShape = generateNewLink(nodeId, newNode.id);
             addToChangeStack({
                 ...changedRoutineVersion,
@@ -785,7 +785,7 @@ export const BuildView = ({
         else {
             const node = changedRoutineVersion.nodes.find(n => n.id === nodeId);
             if (!node) return;
-            const newNode: Omit<NodeShape, 'routineId'> = createRoutineListNode((node.columnIndex ?? 1) - 1, (node.rowIndex ?? 0));
+            const newNode: Omit<NodeShape, 'routineVersionId'> = createRoutineListNode((node.columnIndex ?? 1) - 1, (node.rowIndex ?? 0));
             const newLink: NodeLinkShape = generateNewLink(newNode.id, nodeId);
             addToChangeStack({
                 ...changedRoutineVersion,
@@ -933,10 +933,9 @@ export const BuildView = ({
                     // Node is 1 after last rowIndex in column
                     const rowIndex = (columnIndex >= 0 && columnIndex < columns.length) ? columns[columnIndex].length : 0;
                     const newLink: NodeLinkShape = generateNewLink(node.id, newEndNodeId);
-                    const newEndNode: Omit<NodeShape, 'routineId'> = {
-                        type: 'Node',
+                    const newEndNode: Omit<NodeShape, 'routineVersionId'> = {
                         id: newEndNodeId,
-                        type: NodeType.End,
+                        nodeType: NodeType.End,
                         rowIndex,
                         columnIndex,
                         data: {

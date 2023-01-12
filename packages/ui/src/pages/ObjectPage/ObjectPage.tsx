@@ -71,8 +71,8 @@ const titleMap: { [key in ObjectType]?: string } = {
 const createMap: { [key in ObjectType]?: (props: CreatePageProps) => JSX.Element } = {
     'Organization': OrganizationCreate,
     'Project': ProjectCreate,
-    'Routine': RoutineCreate as any, //TODO
-    'Standard': StandardCreate as any, //TODO
+    'Routine': RoutineCreate,
+    'Standard': StandardCreate,
 }
 
 /**
@@ -81,8 +81,8 @@ const createMap: { [key in ObjectType]?: (props: CreatePageProps) => JSX.Element
 const updateMap: { [key in ObjectType]?: (props: UpdatePageProps) => JSX.Element } = {
     'Organization': OrganizationUpdate,
     'Project': ProjectUpdate,
-    'Routine': RoutineUpdate as any, //TODO
-    'Standard': StandardUpdate as any, //TODO
+    'Routine': RoutineUpdate,
+    'Standard': StandardUpdate,
 }
 
 /**
@@ -91,8 +91,8 @@ const updateMap: { [key in ObjectType]?: (props: UpdatePageProps) => JSX.Element
 const viewMap: { [key in ObjectType]?: (props: ViewPageProps) => JSX.Element } = {
     'Organization': OrganizationView,
     'Project': ProjectView,
-    'Routine': RoutineView as any, //TODO
-    'Standard': StandardView as any, //TODO
+    'Routine': RoutineView,
+    'Standard': StandardView,
 }
 
 export const ObjectPage = ({
