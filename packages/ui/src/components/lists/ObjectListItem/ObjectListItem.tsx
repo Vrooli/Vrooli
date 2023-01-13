@@ -5,12 +5,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor } from 'utils';
+import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, getYouDot } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
+import { setDotNotationValue } from '@shared/utils';
+import { useTranslation } from 'react-i18next';
 
 function CompletionBar(props) {
     return (
@@ -38,6 +40,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
 }: ObjectListItemProps<T>) {
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const id = useMemo(() => data?.id ?? uuid(), [data]);
 
@@ -255,21 +258,13 @@ export function ObjectListItem<T extends ObjectListItemType>({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.success) {
-                    setObject({
-                        ...object,
-                        isUpvoted: action === ObjectActionComplete.VoteUp,
-                    })
-                }
+                const isUpvotedLocation = getYouDot(object, 'isUpvoted');
+                if (data.success && isUpvotedLocation && object) setDotNotationValue(object, isUpvotedLocation as any, action === ObjectActionComplete.VoteUp);
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setObject({
-                        ...object,
-                        isStarred: action === ObjectActionComplete.Star,
-                    })
-                }
+                const isStarredLocation = getYouDot(object, 'isStarred');
+                if (data.success && isStarredLocation && object) setDotNotationValue(object, isStarredLocation as any, action === ObjectActionComplete.Star);
                 break;
             case ObjectActionComplete.Fork:
                 // Data is in first key with a value
@@ -348,7 +343,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     <Stack direction="row" spacing={1} sx={{ pointerEvents: 'none' }}>
                         {/* Incomplete chip */}
                         {
-                            data && (data as any).isComplete === false && <Tooltip placement="top" title="Marked as incomplete">
+                            data && (data as any).isComplete === false && <Tooltip placement="top" title={t('common:MarkedIncomplete', { lng: getUserLanguages(session)[0] })}>
                                 <Chip
                                     label="Incomplete"
                                     size="small"
@@ -361,7 +356,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         }
                         {/* Internal chip */}
                         {
-                            data && (data as any).isInternal === true && <Tooltip placement="top" title="Marked as internal. Only the owner can use this routine">
+                            data && (data as any).isInternal === true && <Tooltip placement="top" title={t('common:MarkedInternal', { lng: getUserLanguages(session)[0] })}>
                                 <Chip
                                     label="Internal"
                                     size="small"

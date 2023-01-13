@@ -6,5 +6,5 @@ export type SmartContractShape = Pick<SmartContract, 'id'>
 
 export const shapeSmartContract: ShapeModel<SmartContractShape, SmartContractCreateInput, SmartContractUpdateInput> = {
     create: (d) => ({}) as any,
-    update: (o, u) => shapeUpdate(u, {}) as any
+    update: (o, u, a) => shapeUpdate(u, {}, a) as any
 }

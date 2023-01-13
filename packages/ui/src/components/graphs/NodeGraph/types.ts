@@ -1,4 +1,4 @@
-import { Node, NodeEnd, NodeLink, Routine, Session } from '@shared/consts';
+import { Node, NodeEnd, NodeLink, RoutineVersion, Session } from '@shared/consts';
 import { BuildAction } from 'utils';
 
 export interface NodeContextMenuProps {
@@ -60,7 +60,7 @@ export interface MoveNodeMenuProps {
     isOpen: boolean;
     language: string; // Language to display/edit
     node?: Node | null; // Node to be moved
-    routine: Routine;
+    routineVersion: RoutineVersion;
     zIndex: number;
 }
 

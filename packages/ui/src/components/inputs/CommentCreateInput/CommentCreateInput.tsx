@@ -12,7 +12,7 @@ import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
 import { commentEndpoint } from "graphql/endpoints";
-import { Comment, CommentCreateInput as CommentCreateInputType } from "@shared/consts";
+import { Comment, CommentCreateInput as CommentCreateInputType, GqlModelType } from "@shared/consts";
 
 
 /**
@@ -53,7 +53,7 @@ export const CommentCreateInput = ({
                 mutation: addMutation,
                 input: shapeComment.create({
                     id: uuid(),
-                    commentedOn: { type: values.createdFor, id: values.forId },
+                    commentedOn: { type: values.createdFor as unknown as GqlModelType, id: values.forId },
                     threadId: parent?.id ?? null,
                     translations: values.translationsCreate,
                 }),

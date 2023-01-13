@@ -3,7 +3,7 @@ import { VoteFor } from "@shared/consts";
 import { ReportsLink } from "components/buttons";
 import { UpvoteDownvote } from "components/lists";
 import { useMemo } from "react";
-import { getYou } from "utils";
+import { getCounts, getYou } from "utils";
 import { StatsCompactProps, StatsCompactPropsObject } from "../types"
 import { ViewsDisplay } from "../ViewsDisplay/ViewsDisplay";
 
@@ -19,6 +19,7 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
 }: StatsCompactProps<T>) => {
 
     const you = useMemo(() => getYou(object as any), [object]);
+    const counts = useMemo(() => getCounts(object as any), [object])
 
     return (
         <Stack
@@ -44,12 +45,12 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
                 session={session}
                 objectId={object?.id ?? ''}
                 voteFor={(object?.type as any) ?? VoteFor.Routine}
-                isUpvoted={object?.isUpvoted}
-                score={object?.score}
+                isUpvoted={you.isUpvoted}
+                score={counts.score}
                 onChange={(isUpvote, score) => { object && handleObjectUpdate({ 
                     ...object, 
-                    isUpvoted: isUpvote,
-                    score: score, 
+                    isUpvoted: isUpvote, //TODO
+                    score: score, //TODO
                 }); }}
             />
             {/* Views */}

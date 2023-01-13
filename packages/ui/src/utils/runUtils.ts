@@ -1,7 +1,7 @@
-import { uniqBy } from "@shared/utils";
+import { exists, uniqBy } from "@shared/utils";
 import { uuid } from '@shared/uuid';
 import { Status } from "./consts";
-import { GqlModelType, Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
+import { GqlModelType, Node, NodeLink, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
 import { NodeLinkShape, NodeShape, shapeRunRoutineInput, updateRel } from "./shape";
 
 /**
@@ -150,7 +150,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
     const statuses: [Status, string][] = []; // Holds all status messages, so multiple can be displayed
     // Loop through nodes and add to appropriate array (and also populate nodesById dictionary)
     for (const node of routineVersion.nodes) {
-        if ((node.columnIndex !== null && node.columnIndex !== undefined) && (node.rowIndex !== null && node.rowIndex !== undefined)) {
+        if (exists(node.columnIndex) && exists(node.rowIndex)) {
             nodesOnGraph.push(node);
         } else {
             nodesOffGraph.push(node);
@@ -181,7 +181,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
         statuses.push([Status.Invalid, 'More than one start node found']);
     }
     // Check 2
-    const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => routineVersion.nodeLinks!.every(link => link.toId !== node.id));
+    const nodesWithoutIncomingEdges = nodesOnGraph.filter(node => routineVersion.nodeLinks!.every(link => link.to.id !== node.id));
     if (nodesWithoutIncomingEdges.length === 0) {
         //TODO this would be fine with a redirect link
         statuses.push([Status.Invalid, 'Error determining start node']);
@@ -190,7 +190,7 @@ export const getRoutineVersionStatus = (routineVersion?: Partial<RoutineVersion>
         statuses.push([Status.Invalid, 'Nodes are not fully connected']);
     }
     // Check 3
-    const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => routineVersion.nodeLinks!.every(link => link.fromId !== node.id));
+    const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node => routineVersion.nodeLinks!.every(link => link.from.id !== node.id));
     if (nodesWithoutOutgoingEdges.length >= 0) {
         // Check that every node without outgoing edges is an end node
         if (nodesWithoutOutgoingEdges.some(node => node.nodeType !== NodeType.End)) {
@@ -230,7 +230,7 @@ type GetProjectVersionStatusResult = {
  * @param project The project to check
  */
 export const getProjectVersionStatus = (projectVersion?: Partial<ProjectVersion> | null): GetProjectVersionStatusResult => {
-    
+    return {} as any;//TODO
 }
 
 /**
@@ -238,16 +238,18 @@ export const getProjectVersionStatus = (projectVersion?: Partial<ProjectVersion>
  * @param language The language of the routine
  * @returns Initial data for a new routine
  */
-export const initializeRoutineGraph = (language: string): { nodes: NodeShape[], nodeLinks: NodeLinkShape[] } => {
+export const initializeRoutineGraph = (language: string, routineVersionId: string): { nodes: NodeShape[], nodeLinks: NodeLinkShape[] } => {
     const startNode: NodeShape = {
         id: uuid(),
         nodeType: NodeType.Start,
         columnIndex: 0,
         rowIndex: 0,
+        routineVersion: { id: routineVersionId },
+        translations: [],
     };
+    const routineListNodeId = uuid();
     const routineListNode: NodeShape = {
-        type: GqlModelType.Node,
-        id: uuid(),
+        id: routineListNodeId,
         nodeType: NodeType.RoutineList,
         columnIndex: 1,
         rowIndex: 0,
@@ -255,8 +257,10 @@ export const initializeRoutineGraph = (language: string): { nodes: NodeShape[], 
             id: uuid(),
             isOptional: false,
             isOrdered: false,
-            routineVersions: [],
+            items: [],
+            node: { id: routineListNodeId },
         },
+        routineVersion: { id: routineVersionId },
         translations: [{
             id: uuid(),
             language,
@@ -269,6 +273,7 @@ export const initializeRoutineGraph = (language: string): { nodes: NodeShape[], 
         nodeType: NodeType.End,
         columnIndex: 2,
         rowIndex: 0,
+        routineVersion: { id: routineVersionId },
     } as Node;
     const link1: NodeLinkShape = {
         id: uuid(),
@@ -276,6 +281,7 @@ export const initializeRoutineGraph = (language: string): { nodes: NodeShape[], 
         to: endNode,
         whens: [],
         operation: null,
+        routineVersion: { id: routineVersionId }
     }
     const link2: NodeLinkShape = {
         id: uuid(),
@@ -283,6 +289,7 @@ export const initializeRoutineGraph = (language: string): { nodes: NodeShape[], 
         to: endNode,
         whens: [],
         operation: null,
+        routineVersion: { id: routineVersionId }
     }
     return {
         nodes: [startNode, routineListNode, endNode],

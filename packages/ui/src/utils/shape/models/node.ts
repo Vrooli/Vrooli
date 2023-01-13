@@ -14,7 +14,7 @@ export type NodeShape = Pick<Node, 'id' | 'columnIndex' | 'rowIndex' | 'nodeType
 
 export const shapeNodeTranslation: ShapeModel<NodeTranslationShape, NodeTranslationCreateInput, NodeTranslationUpdateInput> = {
     create: (d) => createPrims(d, 'id', 'language', 'description', 'name'),
-    update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'))
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'), a)
 }
 
 export const shapeNode: ShapeModel<NodeShape, NodeCreateInput, NodeUpdateInput> = {
@@ -26,12 +26,12 @@ export const shapeNode: ShapeModel<NodeShape, NodeCreateInput, NodeUpdateInput> 
         ...createRel(d, 'routineList', ['Create'], 'one', shapeNodeRoutineList),
         ...createRel(d, 'translations', ['Create'], 'many', shapeNodeTranslation),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'columnIndex', 'nodeType', 'rowIndex'),
         ...updateRel(o, u, 'routineVersion', ['Connect'], 'one'),
         // ...updateRel(o, u, 'loop', ['Create', 'Update', 'Delete'], 'one', shapeLoop),
         ...updateRel(o, u, 'end', ['Update'], 'one', shapeNodeEnd),
         ...updateRel(o, u, 'routineList', ['Update'], 'one', shapeNodeRoutineList),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeNodeTranslation),
-    })
+    }, a)
 }

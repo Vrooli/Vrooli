@@ -108,7 +108,7 @@ export const SubroutineInfoDialog = ({
         initialValues: {
             index: (subroutine?.index ?? 0) + 1,
             isComplete: subroutine?.routineVersion?.isComplete ?? true,
-            isInternal: subroutine?.routineVersion?.isInternal ?? false,
+            isInternal: subroutine?.routineVersion?.root?.isInternal ?? false,
             translationsUpdate: subroutine?.routineVersion?.translations ?? [{
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
@@ -190,7 +190,7 @@ export const SubroutineInfoDialog = ({
         removeTranslation(formik, 'translationsUpdate', language);
     }, [formik, languages]);
 
-    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canEdit === true), [isEditing, subroutine?.routineVersion?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canEdit, userId]);
+    const canEdit = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.root?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canEdit === true), [isEditing, subroutine?.routineVersion?.root?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canEdit, userId]);
 
     /**
      * Navigate to the subroutine's build page
@@ -252,7 +252,7 @@ export const SubroutineInfoDialog = ({
                     versions={subroutine?.routineVersion?.root?.versions ?? []}
                 />
                 {/* Button to open in full page */}
-                {!subroutine?.routineVersion?.isInternal && (
+                {!subroutine?.routineVersion?.root?.isInternal && (
                     <Tooltip title="Open in full page">
                         <IconButton onClick={toGraph}>
                             <OpenInNewIcon fill={palette.primary.contrastText} />

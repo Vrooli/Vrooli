@@ -286,12 +286,12 @@ export const StandardView = ({
                 />
             </Stack>
             {/* Votes, reports, and other basic stats */}
-            <StatsCompact
+            {/* <StatsCompact
                 handleObjectUpdate={updateStandard}
                 loading={loading}
                 object={standardVersion}
                 session={session}
-            />
+            /> */}
             {/* Action buttons */}
             <ObjectActionsRow
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere

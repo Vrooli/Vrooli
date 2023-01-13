@@ -6,5 +6,5 @@ export type RunProjectStepShape = Pick<RunProjectStep, 'id'>
 
 export const shapeRunProjectStep: ShapeModel<RunProjectStepShape, RunProjectStepCreateInput, RunProjectStepUpdateInput> = {
     create: (d) => ({}) as any,
-    update: (o, u) => shapeUpdate(u, {}) as any
+    update: (o, u, a) => shapeUpdate(u, {}, a) as any
 }

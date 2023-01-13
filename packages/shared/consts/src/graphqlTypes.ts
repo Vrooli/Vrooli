@@ -295,6 +295,7 @@ export type ApiVersionUpdateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
+  rootUpdate?: InputMaybe<ApiUpdateInput>;
   translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<ApiVersionTranslationUpdateInput>>;
@@ -2221,6 +2222,7 @@ export type NodeCreateInput = {
 export type NodeEnd = {
   __typename?: 'NodeEnd';
   id: Scalars['ID'];
+  node: Node;
   suggestedNextRoutineVersions?: Maybe<Array<RoutineVersion>>;
   type: GqlModelType;
   wasSuccessful: Scalars['Boolean'];
@@ -2242,10 +2244,11 @@ export type NodeEndUpdateInput = {
 
 export type NodeLink = {
   __typename?: 'NodeLink';
-  fromId: Scalars['ID'];
+  from: Node;
   id: Scalars['ID'];
   operation?: Maybe<Scalars['String']>;
-  toId: Scalars['ID'];
+  routineVersion: RoutineVersion;
+  to: Node;
   type: GqlModelType;
   whens: Array<NodeLinkWhen>;
 };
@@ -2275,6 +2278,7 @@ export type NodeLinkWhen = {
   __typename?: 'NodeLinkWhen';
   condition: Scalars['String'];
   id: Scalars['ID'];
+  link: NodeLink;
   translations: Array<NodeLinkWhenTranslation>;
   type: GqlModelType;
 };
@@ -2398,6 +2402,7 @@ export type NodeRoutineList = {
   isOptional: Scalars['Boolean'];
   isOrdered: Scalars['Boolean'];
   items: Array<NodeRoutineListItem>;
+  node: Node;
   type: GqlModelType;
 };
 
@@ -2414,6 +2419,7 @@ export type NodeRoutineListItem = {
   id: Scalars['ID'];
   index: Scalars['Int'];
   isOptional: Scalars['Boolean'];
+  list: NodeRoutineList;
   routineVersion: RoutineVersion;
   translations: Array<NodeRoutineListItemTranslation>;
   type: GqlModelType;
@@ -2739,6 +2745,7 @@ export type NoteVersionUpdateInput = {
   id: Scalars['ID'];
   isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
+  rootUpdate?: InputMaybe<NoteUpdateInput>;
   translationsCreate?: InputMaybe<Array<NoteVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<NoteVersionTranslationUpdateInput>>;
@@ -3768,6 +3775,7 @@ export type ProjectVersionUpdateInput = {
   isComplete?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
+  rootUpdate?: InputMaybe<ProjectUpdateInput>;
   suggestedNextByProjectConnect?: InputMaybe<Array<Scalars['ID']>>;
   suggestedNextByProjectDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<ProjectVersionTranslationCreateInput>>;
@@ -6034,7 +6042,6 @@ export type RoutineVersion = {
   isAutomatable?: Maybe<Scalars['Boolean']>;
   isComplete: Scalars['Boolean'];
   isDeleted: Scalars['Boolean'];
-  isInternal?: Maybe<Scalars['Boolean']>;
   isLatest: Scalars['Boolean'];
   isPrivate: Scalars['Boolean'];
   nodeLinks: Array<NodeLink>;
@@ -6073,14 +6080,13 @@ export type RoutineVersionCreateInput = {
   inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isInternal?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
   nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
   outputsCreate?: InputMaybe<Array<RoutineVersionOutputCreateInput>>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
-  rootConnect: Scalars['ID'];
+  rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<RoutineCreateInput>;
   smartContractCallData?: InputMaybe<Scalars['String']>;
   smartContractVersionConnect?: InputMaybe<Scalars['ID']>;
@@ -6307,7 +6313,7 @@ export type RoutineVersionTranslationUpdateInput = {
 export type RoutineVersionUpdateInput = {
   apiCallData?: InputMaybe<Scalars['String']>;
   apiVersionConnect?: InputMaybe<Scalars['ID']>;
-  apiVersionDisconnect?: InputMaybe<Scalars['ID']>;
+  apiVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
@@ -6316,7 +6322,6 @@ export type RoutineVersionUpdateInput = {
   inputsUpdate?: InputMaybe<Array<RoutineVersionInputUpdateInput>>;
   isAutomatable?: InputMaybe<Scalars['Boolean']>;
   isComplete?: InputMaybe<Scalars['Boolean']>;
-  isInternal?: InputMaybe<Scalars['Boolean']>;
   isLatest?: InputMaybe<Scalars['Boolean']>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
@@ -6330,9 +6335,10 @@ export type RoutineVersionUpdateInput = {
   outputsUpdate?: InputMaybe<Array<RoutineVersionOutputUpdateInput>>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
+  rootUpdate?: InputMaybe<RoutineUpdateInput>;
   smartContractCallData?: InputMaybe<Scalars['String']>;
   smartContractVersionConnect?: InputMaybe<Scalars['ID']>;
-  smartContractVersionDisconnect?: InputMaybe<Scalars['ID']>;
+  smartContractVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
   suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars['ID']>>;
   suggestedNextByRoutineVersionDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   translationsCreate?: InputMaybe<Array<RoutineVersionTranslationCreateInput>>;
@@ -6676,6 +6682,7 @@ export type RunRoutineCompleteInput = {
   inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   inputsUpdate?: InputMaybe<Array<RunRoutineInputUpdateInput>>;
   name?: InputMaybe<Scalars['String']>;
+  routineVersionConnect?: InputMaybe<Scalars['ID']>;
   wasSuccessful?: InputMaybe<Scalars['Boolean']>;
 };
 
@@ -7278,6 +7285,7 @@ export type SmartContractVersionUpdateInput = {
   isPrivate?: InputMaybe<Scalars['Boolean']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
+  rootUpdate?: InputMaybe<SmartContractUpdateInput>;
   translationsCreate?: InputMaybe<Array<SmartContractVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<SmartContractVersionTranslationUpdateInput>>;
@@ -7565,6 +7573,7 @@ export type StandardVersionUpdateInput = {
   props?: InputMaybe<Scalars['String']>;
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
+  rootUpdate?: InputMaybe<StandardUpdateInput>;
   standardType?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<StandardVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -10719,6 +10728,7 @@ export type NodeResolvers<ContextType = any, ParentType extends ResolversParentT
 
 export type NodeEndResolvers<ContextType = any, ParentType extends ResolversParentTypes['NodeEnd'] = ResolversParentTypes['NodeEnd']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Node'], ParentType, ContextType>;
   suggestedNextRoutineVersions?: Resolver<Maybe<Array<ResolversTypes['RoutineVersion']>>, ParentType, ContextType>;
   type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   wasSuccessful?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -10726,10 +10736,11 @@ export type NodeEndResolvers<ContextType = any, ParentType extends ResolversPare
 };
 
 export type NodeLinkResolvers<ContextType = any, ParentType extends ResolversParentTypes['NodeLink'] = ResolversParentTypes['NodeLink']> = {
-  fromId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  from?: Resolver<ResolversTypes['Node'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   operation?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  toId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
+  to?: Resolver<ResolversTypes['Node'], ParentType, ContextType>;
   type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   whens?: Resolver<Array<ResolversTypes['NodeLinkWhen']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10738,6 +10749,7 @@ export type NodeLinkResolvers<ContextType = any, ParentType extends ResolversPar
 export type NodeLinkWhenResolvers<ContextType = any, ParentType extends ResolversParentTypes['NodeLinkWhen'] = ResolversParentTypes['NodeLinkWhen']> = {
   condition?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  link?: Resolver<ResolversTypes['NodeLink'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeLinkWhenTranslation']>, ParentType, ContextType>;
   type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10783,6 +10795,7 @@ export type NodeRoutineListResolvers<ContextType = any, ParentType extends Resol
   isOptional?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isOrdered?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   items?: Resolver<Array<ResolversTypes['NodeRoutineListItem']>, ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['Node'], ParentType, ContextType>;
   type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10791,6 +10804,7 @@ export type NodeRoutineListItemResolvers<ContextType = any, ParentType extends R
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   index?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   isOptional?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  list?: Resolver<ResolversTypes['NodeRoutineList'], ParentType, ContextType>;
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeRoutineListItemTranslation']>, ParentType, ContextType>;
   type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
@@ -12113,7 +12127,6 @@ export type RoutineVersionResolvers<ContextType = any, ParentType extends Resolv
   isAutomatable?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isComplete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isDeleted?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  isInternal?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   isLatest?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   nodeLinks?: Resolver<Array<ResolversTypes['NodeLink']>, ParentType, ContextType>;

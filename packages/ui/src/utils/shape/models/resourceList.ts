@@ -6,13 +6,13 @@ import { ShapeModel } from "types";
 export type ResourceListTranslationShape = Pick<ResourceListTranslation, 'id' | 'language' | 'description' | 'name'>
 
 export type ResourceListShape = Pick<ResourceList, 'id'> & {
-    resources?: ResourceShape[];
-    translations?: ResourceListTranslationShape[];
+    resources?: ResourceShape[] | null;
+    translations?: ResourceListTranslationShape[] | null;
 }
 
 export const shapeResourceListTranslation: ShapeModel<ResourceListTranslationShape, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput> = {
     create: (d) => createPrims(d, 'id', 'language', 'description', 'name'),
-    update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'))
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'))
 }
 
 export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreateInput, ResourceListUpdateInput> = {
@@ -21,7 +21,7 @@ export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreate
         ...createRel(d, 'resources', ['Create'], 'many', shapeResource, (r) => ({ list: { id: d.id }, ...r })),
         ...createRel(d, 'translations', ['Create'], 'many', shapeResourceListTranslation),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id'),
         ...updateRel(o, u, 'resources', ['Create', 'Update', 'Delete'], 'many', shapeResource, (r, i) => ({ list: { id: i.id} , ...r })),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeResourceListTranslation),

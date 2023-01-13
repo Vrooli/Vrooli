@@ -1,3 +1,4 @@
+import { GqlModelType } from "@shared/consts";
 import { createOwner } from "./createOwner";
 
 /**
@@ -6,7 +7,7 @@ import { createOwner } from "./createOwner";
  * @returns Ownership connect object
  */
 export const updateOwner = <
-    Item extends { owner?: { type: 'Organization' | 'User', id: string } | null | undefined }
+    Item extends { owner?: { type: GqlModelType, id: string } | null | undefined }
 >(
     originalItem: Item,
     updatedItem: Item,
@@ -17,8 +18,11 @@ export const updateOwner = <
     // Find owner data in item
     const originalOwnerData = originalItem.owner;
     const updatedOwnerData = updatedItem.owner;
-    // If original and updated missing, return empty object
-    if (originalOwnerData === null && originalOwnerData === undefined && updatedOwnerData === null && updatedOwnerData === undefined) return {};
+    // If original and updated missing
+    if (
+        (originalOwnerData === null || originalOwnerData === undefined) &&
+        (updatedOwnerData === null || updatedOwnerData === undefined)
+    ) return {};
     // If original and updated match, return empty object
     if (originalOwnerData?.id === updatedOwnerData?.id) return {};
     // If updated missing, disconnect

@@ -7,12 +7,12 @@ export type RoutineVersionOutputTranslationShape = Pick<RoutineVersionOutputTran
 export type RoutineVersionOutputShape = Pick<RoutineVersionOutput, 'id' | 'index' | 'isRequired' | 'name'> & {
     routineVersion: { id: string };
     standardVersion?: StandardVersionShape | null;
-    translations?: RoutineVersionOutputTranslationShape[];
+    translations?: RoutineVersionOutputTranslationShape[] | null;
 }
 
 export const shapeRoutineVersionOutputTranslation: ShapeModel<RoutineVersionOutputTranslationShape, RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput> = {
     create: (d) => createPrims(d, 'id', 'language', 'description', 'helpText'),
-    update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'helpText'))
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'helpText'), a)
 }
 
 export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, RoutineVersionOutputCreateInput, RoutineVersionOutputUpdateInput> = {
@@ -28,7 +28,7 @@ export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, Ro
             ...createRel(d, 'translations', ['Create'], 'many', shapeRoutineVersionOutputTranslation),
         }
     },
-    update: (o, u) => shapeUpdate(u, () => {
+    update: (o, u, a) => shapeUpdate(u, () => {
         // Connect to standard if it's marked as external. 
         // Otherwise, set as create. The backend will handle the rest
         const shouldConnectToStandard = u.standardVersion && !u.standardVersion.root.isInternal && u.standardVersion.id;
@@ -39,5 +39,5 @@ export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, Ro
             standardCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.update(o.standardVersion!, u.standardVersion!) : undefined,
             ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionOutputTranslation),
         }
-    })
+    }, a)
 }

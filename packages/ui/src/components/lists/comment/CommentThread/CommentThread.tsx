@@ -1,5 +1,5 @@
 import { Stack } from "@mui/material";
-import { Comment } from "@shared/consts";
+import { Comment, GqlModelType } from "@shared/consts";
 import { useCallback, useMemo, useState } from "react";
 import { updateArray } from "utils";
 import { CommentConnector } from "../CommentConnector/CommentConnector";
@@ -70,7 +70,7 @@ export const CommentThread = ({
             {/* Comment connector */}
             <CommentConnector
                 isOpen={isOpen}
-                parentType={data.comment.creator?.type ?? 'User'}
+                parentType={data.comment.owner?.type ?? GqlModelType.User}
                 onToggle={() => setIsOpen(!isOpen)}
             />
             {/* Comment and child comments */}

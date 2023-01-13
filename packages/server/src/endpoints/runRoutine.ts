@@ -119,6 +119,7 @@ export const typeDef = gql`
         inputsDelete: [ID!]
         inputsCreate: [RunRoutineInputCreateInput!]
         inputsUpdate: [RunRoutineInputUpdateInput!]
+        routineVersionConnect: ID # Only needed if "exists" is false
         wasSuccessful: Boolean
     }
     input RunRoutineCancelInput {

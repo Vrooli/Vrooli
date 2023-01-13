@@ -5,7 +5,7 @@ import { getTranslation, getUserLanguages } from "utils";
 import { DecisionViewProps } from "../types";
 import { HelpButton } from "components/buttons";
 import { OpenInNewIcon } from "@shared/icons";
-import { Node, NodeType } from "@shared/consts";
+import { Node, NodeLink, NodeType } from "@shared/consts";
 
 const helpText = 
 `The routine has encountered multiple possible paths to take, with no way to decide automatically which one to take. 
@@ -34,10 +34,10 @@ export const DecisionView = ({
      */
     const decisions = useMemo<Decision[]>(() => {
         return data.links.map(link => {
-            const node = nodes.find(n => n.id === link.toId);
+            const node = nodes.find(n => n.id === link.to.id);
             let color = palette.primary.dark;
             if (node?.nodeType === NodeType.End) {
-                color = node.end.wasSuccessful === false ? '#7c262a' : '#387e30'
+                color = node.end?.wasSuccessful === false ? '#7c262a' : '#387e30'
             }
             return { node, link, color } as Decision;
         });

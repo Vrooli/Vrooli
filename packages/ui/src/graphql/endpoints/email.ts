@@ -3,5 +3,5 @@ import { toMutation } from 'graphql/utils';
 
 export const emailEndpoint = {
     create: toMutation('emailCreate', 'PhoneCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('sendVerificationEmail', 'SendVerificationEmailInput', [], `success`)
+    verify: toMutation('sendVerificationEmail', 'SendVerificationEmailInput', [], `success`)
 }

@@ -8,7 +8,7 @@ export const shapeReminderItem: ShapeModel<ReminderItemShape, ReminderItemCreate
     create: (d) => ({
         ...createPrims(d, 'id', 'name', 'description', 'dueDate', 'index'),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'name', 'description', 'dueDate', 'index'),
-    })
+    }, a)
 }

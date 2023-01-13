@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useLocation } from '@shared/route';
-import { APP_LINKS, Organization, Project, Routine, Session, Standard, User } from "@shared/consts";
+import { APP_LINKS, Organization, ProjectVersion, RoutineVersion, Session, StandardVersion, User } from "@shared/consts";
 import { lazily } from "react-lazily";
 import { ObjectType, parseSearchParams, PubSub, uuidToBase36 } from "utils";
 import { PageContainer, ReportsView, SnackSeverity } from "components";
@@ -31,7 +31,7 @@ export interface ViewPageProps {
      * Any data about the object which is already known, 
      * such as its name. Can be displayed while fetching the full object
      */
-    partialData?: Partial<Organization & Project & Routine & Standard & User>
+    partialData?: Partial<Organization & ProjectVersion & RoutineVersion & StandardVersion & User>
     session: Session;
     zIndex: number;
 }

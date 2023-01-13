@@ -58,6 +58,7 @@ export const typeDef = gql`
         directoryListingsDisconnect: [ID!]
         resourceListCreate: ResourceListCreateInput
         resourceListUpdate: ResourceListUpdateInput
+        rootUpdate: StandardUpdateInput
         translationsCreate: [StandardVersionTranslationCreateInput!]
         translationsUpdate: [StandardVersionTranslationUpdateInput!]
         translationsDelete: [ID!]

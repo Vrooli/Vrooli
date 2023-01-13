@@ -1,13 +1,13 @@
-import { Standard, StandardCreateInput, StandardUpdateInput } from "@shared/consts";
+import { GqlModelType, Standard, StandardCreateInput, StandardUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
 import { shapeUpdate, updatePrims, TagShape, createRel, updateRel, shapeTag, createOwner, updateOwner, LabelShape, StandardVersionShape, shapeStandardVersion, shapeLabel, createPrims, createVersion, updateVersion } from "utils";
 
 
 export type StandardShape = Pick<Standard, 'id' | 'name' | 'isInternal' | 'isPrivate' | 'permissions'> & {
-    parent?: { id: string };
-    owner?: { type: 'User' | 'Organization', id: string } | null;
-    labels?: ({ id: string } | LabelShape)[];
-    tags?: ({ tag: string } | TagShape)[];
+    parent?: { id: string } | null;
+    owner?: { type: GqlModelType, id: string } | null;
+    labels?: ({ id: string } | LabelShape)[] | null;
+    tags?: ({ tag: string } | TagShape)[] | null;
     // Updating, deleting, and reordering versions must be done separately. 
     // This only creates/updates a single version, which is most often the case
     versionInfo?: StandardVersionShape | null;
@@ -24,11 +24,11 @@ export const shapeStandard: ShapeModel<StandardShape, StandardCreateInput, Stand
         ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
         ...createVersion(d, shapeStandardVersion, (v) => ({ ...v, root: { id: d.id } })),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'name', 'isInternal', 'isPrivate', 'permissions'),
         ...updateOwner(o, u),
         ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
         ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
         ...updateVersion(o, u, shapeStandardVersion, (v, i) => ({ ...v, root: { id: i.id } })),
-    })
+    }, a)
 }

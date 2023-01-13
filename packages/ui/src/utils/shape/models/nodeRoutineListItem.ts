@@ -12,7 +12,7 @@ export type NodeRoutineListItemShape = Pick<NodeRoutineListItem, 'id' | 'index' 
 
 export const shapeNodeRoutineListItemTranslation: ShapeModel<NodeRoutineListItemTranslationShape, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput> = {
     create: (d) => createPrims(d, 'id', 'language', 'description', 'name'),
-    update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'))
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'), a)
 }
 
 export const shapeNodeRoutineListItem: ShapeModel<NodeRoutineListItemShape, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput> = {
@@ -22,9 +22,9 @@ export const shapeNodeRoutineListItem: ShapeModel<NodeRoutineListItemShape, Node
         ...createRel(d, 'routineVersion', ['Connect'], 'one'),
         ...createRel(d, 'translations', ['Create'], 'many', shapeNodeRoutineListItemTranslation),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'index', 'isOptional'),
         ...updateRel(o, u, 'routineVersion', ['Update'], 'one', shapeRoutineVersion),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeNodeRoutineListItemTranslation),
-    })
+    }, a)
 }

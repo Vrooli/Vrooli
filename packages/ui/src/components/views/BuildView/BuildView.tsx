@@ -1,16 +1,16 @@
 import { Box, IconButton, Stack, useTheme } from '@mui/material';
 import { LinkDialog, NodeGraph, SubroutineInfoDialog, SubroutineSelectOrCreateDialog, AddAfterLinkDialog, AddBeforeLinkDialog, HelpButton, SnackSeverity, GraphActions, LanguageInput, SelectLanguageMenu } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { deleteArrayIndex, BuildAction, Status, updateArray, NodeShape, NodeLinkShape, PubSub, usePromptBeforeUnload, getRoutineVersionStatus, keepSearchParams } from 'utils';
+import { deleteArrayIndex, BuildAction, Status, updateArray, NodeShape, NodeLinkShape, PubSub, usePromptBeforeUnload, getRoutineVersionStatus, keepSearchParams, NodeRoutineListShape, NodeRoutineListItemShape } from 'utils';
 import { useLocation } from '@shared/route';
-import { isEqual } from '@shared/utils';
+import { exists, isEqual } from '@shared/utils';
 import { BuildViewProps } from '../types';
 import { uuid, uuidValidate } from '@shared/uuid';
 import { StatusMessageArray } from 'components/buttons/types';
 import { BuildEditButtons, StatusButton } from 'components/buttons';
 import { MoveNodeMenu as MoveNodeDialog } from 'components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog';
 import { CloseIcon } from '@shared/icons';
-import { Node, NodeLink, NodeRoutineList, NodeType, RoutineVersion } from '@shared/consts';
+import { Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion } from '@shared/consts';
 
 const helpText =
     `## What am I looking at?
@@ -37,12 +37,14 @@ You also have the option to *unlink* nodes. These are stored on the top status b
  * Generates a new link object, but doesn't add it to the routine
  * @param fromId - The ID of the node the link is coming from
  * @param toId - The ID of the node the link is going to
+ * @param routineVersionId - The ID of the overall routine version
  * @returns The new link object
  */
-const generateNewLink = (fromId: string, toId: string): NodeLinkShape => ({
+const generateNewLink = (fromId: string, toId: string, routineVersionId: string): NodeLinkShape => ({
     id: uuid(),
-    fromId,
-    toId,
+    from: { id: fromId },
+    to: { id: toId },
+    routineVersion: { id: routineVersionId },
 })
 
 // RoutineVersion with fields required for the build view
@@ -158,7 +160,7 @@ export const BuildView = ({
         // Update status
         setStatus({ status, messages });
         // Remove any links which reference unlinked nodes
-        const goodLinks = changedRoutineVersion.nodeLinks.filter(link => !nodesOffGraph.some(node => node.id === link.fromId || node.id === link.toId));
+        const goodLinks = changedRoutineVersion.nodeLinks.filter(link => !nodesOffGraph.some(node => node.id === link.from.id || node.id === link.to.id));
         // If routineVersion was mutated, update the routineVersion
         const finalNodes = [...nodesOnGraph, ...nodesOffGraph]
         const haveNodesChanged = !isEqual(finalNodes, changedRoutineVersion.nodes);
@@ -207,7 +209,7 @@ export const BuildView = ({
     const [openedSubroutine, setOpenedSubroutine] = useState<{ node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null>(null);
     const handleSubroutineOpen = useCallback((nodeId: string, subroutineId: string) => {
         const node = nodesById[nodeId];
-        if (node) setOpenedSubroutine({ node, routineItemId: subroutineId });
+        if (node && node.routineList) setOpenedSubroutine({ node: node as Node & { routineList: NodeRoutineList }, routineItemId: subroutineId });
     }, [nodesById]);
     const closeRoutineInfo = useCallback(() => {
         setOpenedSubroutine(null);
@@ -225,7 +227,7 @@ export const BuildView = ({
         if (!link) return;
         // Upsert link
         const newLinks = [...changedRoutineVersion.nodeLinks];
-        const existingLinkIndex = newLinks.findIndex(l => l.fromId === link.fromId && l.toId === link.toId);
+        const existingLinkIndex = newLinks.findIndex(l => l.from.id === link.from.id && l.to.id === link.to.id);
         if (existingLinkIndex >= 0) {
             newLinks[existingLinkIndex] = { ...link } as NodeLink;
         } else {
@@ -294,18 +296,18 @@ export const BuildView = ({
      * @returns The new set of links
      */
     const calculateLinksAfterNodeRemove = useCallback((nodeId: string): NodeLink[] => {
-        const deletingLinks = changedRoutineVersion.nodeLinks.filter(l => l.fromId === nodeId || l.toId === nodeId);
+        const deletingLinks = changedRoutineVersion.nodeLinks.filter(l => l.from.id === nodeId || l.to.id === nodeId);
         const newLinks: NodeLinkShape[] = [];
         // Find all "from" and "to" nodes in the deleting links
-        const fromNodeIds = deletingLinks.map(l => l.fromId).filter(id => id !== nodeId);
-        const toNodeIds = deletingLinks.map(l => l.toId).filter(id => id !== nodeId);
+        const fromNodeIds = deletingLinks.map(l => l.from.id).filter(id => id !== nodeId);
+        const toNodeIds = deletingLinks.map(l => l.to.id).filter(id => id !== nodeId);
         // If there is only one "from" node, create a link between it and every "to" node
         if (fromNodeIds.length === 1) {
-            toNodeIds.forEach(toId => { newLinks.push(generateNewLink(fromNodeIds[0], toId)) });
+            toNodeIds.forEach(toId => { newLinks.push(generateNewLink(fromNodeIds[0], toId, changedRoutineVersion.id)) });
         }
         // If there is only one "to" node, create a link between it and every "from" node
         else if (toNodeIds.length === 1) {
-            fromNodeIds.forEach(fromId => { newLinks.push(generateNewLink(fromId, toNodeIds[0])) });
+            fromNodeIds.forEach(fromId => { newLinks.push(generateNewLink(fromId, toNodeIds[0], changedRoutineVersion.id)) });
         }
         // NOTE: Every other case is ambiguous, so we can't auto-create create links
         // Delete old links
@@ -321,10 +323,10 @@ export const BuildView = ({
      * @returns a node position in the same column, with the first available row starting at the given row
      */
     const closestOpenPosition = useCallback((
-        column: number | null,
-        row: number | null
+        column: number | null | undefined,
+        row: number | null | undefined
     ): { columnIndex: number, rowIndex: number } => {
-        if (column === null || row === null) return { columnIndex: -1, rowIndex: -1 };
+        if (column === null || column === undefined || row === null || row === undefined) return { columnIndex: -1, rowIndex: -1 };
         const columnNodes = changedRoutineVersion.nodes?.filter(n => n.columnIndex === column) ?? [];
         let rowIndex: number = row;
         // eslint-disable-next-line no-loop-func
@@ -340,10 +342,11 @@ export const BuildView = ({
      * @param column Suggested column for the node
      * @param row Suggested row for the node
      */
-    const createRoutineListNode = useCallback((column: number | null, row: number | null) => {
+    const createRoutineListNode = useCallback((column: number | null | undefined, row: number | null | undefined) => {
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
-        const newNode: Omit<NodeShape, 'routineVersionId'> = {
-            id: uuid(),
+        const newNodeId = uuid();
+        const newNode: Omit<NodeShape, 'routineVersion'> = {
+            id: newNodeId,
             nodeType: NodeType.RoutineList,
             rowIndex,
             columnIndex,
@@ -352,6 +355,7 @@ export const BuildView = ({
                 isOrdered: false,
                 isOptional: false,
                 items: [],
+                node: { id: newNodeId },
             },
             // Generate unique placeholder name
             translations: [{
@@ -371,13 +375,16 @@ export const BuildView = ({
      */
     const createEndNode = useCallback((column: number | null, row: number | null) => {
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
-        const newNode: Omit<NodeShape, 'routineVersionId'> = {
-            id: uuid(),
+        const newNodeId = uuid();
+        const newNode: Omit<NodeShape, 'routineVersion'> = {
+            id: newNodeId,
             nodeType: NodeType.End,
             rowIndex,
             columnIndex,
-            data: {
+            end: {
                 id: uuid(),
+                node: { id: newNodeId },
+                suggestedNextRoutineVersions: [],
                 wasSuccessful: true,
             },
             translations: []
@@ -430,7 +437,7 @@ export const BuildView = ({
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
         const node = changedRoutineVersion.nodes[nodeIndex];
-        const subroutineIndex = node.routineList!.items.findIndex((item: NodeDataRoutineListItem) => item.id === subroutineId);
+        const subroutineIndex = node.routineList!.items.findIndex((item: NodeRoutineListItem) => item.id === subroutineId);
         if (subroutineIndex === -1) return;
         const newRoutineList = deleteArrayIndex(node.routineList!.items, subroutineIndex);
         addToChangeStack({
@@ -478,7 +485,7 @@ export const BuildView = ({
                 if (n.rowIndex === null || n.columnIndex === null || n.columnIndex === 0) return n;
                 return {
                     ...n,
-                    columnIndex: n.columnIndex + 1,
+                    columnIndex: (n.columnIndex ?? 0) + 1,
                 }
             });
             // Update dropped node
@@ -493,7 +500,7 @@ export const BuildView = ({
             // Find and order nodes in the same column, which are above (or at the same position as) the dropped node
             const nodesAbove = changedRoutineVersion.nodes.filter(n =>
                 n.columnIndex === columnIndex &&
-                n.rowIndex !== null &&
+                exists(n.rowIndex) &&
                 n.rowIndex <= rowIndex
             ).sort((a, b) => (a.rowIndex ?? 0) - (b.rowIndex ?? 0));
             // If no nodes above, then shift everything in the column down by 1
@@ -502,7 +509,7 @@ export const BuildView = ({
                     if (n.rowIndex === null || n.columnIndex !== columnIndex) return n;
                     return {
                         ...n,
-                        rowIndex: n.rowIndex + 1,
+                        rowIndex: (n.rowIndex ?? 0) + 1,
                     }
                 });
             }
@@ -527,7 +534,7 @@ export const BuildView = ({
             // If dropped into an existing column, shift rows in dropped column that are below the dropped node
             if (changedRoutineVersion.nodes.some(n => n.columnIndex === columnIndex)) {
                 updatedNodes = updatedNodes.map(n => {
-                    if (n.columnIndex === columnIndex && n.rowIndex !== null && n.rowIndex !== undefined && n.rowIndex >= rowIndex) {
+                    if (n.columnIndex === columnIndex && exists(n.rowIndex) && n.rowIndex >= rowIndex) {
                         return { ...n, rowIndex: n.rowIndex + 1 }
                     }
                     return n;
@@ -535,10 +542,10 @@ export const BuildView = ({
             }
             // If the column the node was from is now empty, then shift all columns after it.
             const originalColumnIndex = changedRoutineVersion.nodes[nodeIndex].columnIndex;
-            const isRemovingColumn = originalColumnIndex !== null && originalColumnIndex !== undefined && changedRoutineVersion.nodes.filter(n => n.columnIndex === originalColumnIndex).length === 1;
+            const isRemovingColumn = exists(originalColumnIndex) && changedRoutineVersion.nodes.filter(n => n.columnIndex === originalColumnIndex).length === 1;
             if (isRemovingColumn) {
                 updatedNodes = updatedNodes.map(n => {
-                    if (n.columnIndex !== null && n.columnIndex !== undefined && n.columnIndex > originalColumnIndex) {
+                    if (exists(n.columnIndex) && n.columnIndex > originalColumnIndex) {
                         return { ...n, columnIndex: n.columnIndex - 1 }
                     }
                     return n;
@@ -585,11 +592,11 @@ export const BuildView = ({
      */
     const handleNodeInsert = useCallback((link: NodeLink) => {
         // Find link index
-        const linkIndex = changedRoutineVersion.nodeLinks.findIndex(l => l.fromId === link.fromId && l.toId === link.toId);
+        const linkIndex = changedRoutineVersion.nodeLinks.findIndex(l => l.from.id === link.from.id && l.to.id === link.to.id);
         // Delete link
         const linksList = deleteArrayIndex(changedRoutineVersion.nodeLinks, linkIndex);
         // Find "to" node. New node will be placed in its row and column
-        const toNode = changedRoutineVersion.nodes.find(n => n.id === link.toId);
+        const toNode = changedRoutineVersion.nodes.find(n => n.id === link.to.id);
         if (!toNode) {
             PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: SnackSeverity.Error });
             return;
@@ -597,18 +604,18 @@ export const BuildView = ({
         const { columnIndex, rowIndex } = toNode;
         // Move every node starting from the "to" node to the right by one
         const nodesList = changedRoutineVersion.nodes.map(n => {
-            if (n.columnIndex !== null && n.columnIndex !== undefined && n.columnIndex >= (columnIndex ?? 0)) {
+            if (exists(n.columnIndex) && n.columnIndex >= (columnIndex ?? 0)) {
                 return { ...n, columnIndex: n.columnIndex + 1 };
             }
             return n;
         });
         // Create new routine list node
-        const newNode: Omit<NodeShape, 'routineVersionId'> = createRoutineListNode(columnIndex, rowIndex);
+        const newNode: Omit<NodeShape, 'routineVersion'> = createRoutineListNode(columnIndex, rowIndex);
         // Find every node 
         // Create two new links
         const newLinks: NodeLinkShape[] = [
-            generateNewLink(link.fromId, newNode.id),
-            generateNewLink(newNode.id, link.toId),
+            generateNewLink(link.from.id, newNode.id, changedRoutineVersion.id),
+            generateNewLink(newNode.id, link.to.id, changedRoutineVersion.id),
         ];
         // Insert new node and links
         const newRoutine = {
@@ -624,20 +631,20 @@ export const BuildView = ({
      */
     const handleBranchInsert = useCallback((link: NodeLink) => {
         // Find "to" node. New node will be placed in its column
-        const toNode = changedRoutineVersion.nodes.find(n => n.id === link.toId);
+        const toNode = changedRoutineVersion.nodes.find(n => n.id === link.to.id);
         if (!toNode) {
             PubSub.get().publishSnack({ messageKey: 'ErrorUnknown', severity: SnackSeverity.Error });
             return;
         }
         // Find the largest row index in the column. New node will be placed in the next row
         const maxRowIndex = changedRoutineVersion.nodes.filter(n => n.columnIndex === toNode.columnIndex).map(n => n.rowIndex).reduce((a, b) => Math.max(a ?? 0, b ?? 0), 0);
-        const newNode: Omit<NodeShape, 'routineVersionId'> = createRoutineListNode(toNode.columnIndex, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
+        const newNode: Omit<NodeShape, 'routineVersion'> = createRoutineListNode(toNode.columnIndex, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
         // Since this is a new branch, we also need to add an end node after the new node
-        const newEndNode: Omit<NodeShape, 'routineVersionId'> = createEndNode((toNode.columnIndex ?? 0) + 1, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
+        const newEndNode: Omit<NodeShape, 'routineVersion'> = createEndNode((toNode.columnIndex ?? 0) + 1, (maxRowIndex ?? toNode.rowIndex ?? 0) + 1);
         // Create new link, going from the "from" node to the new node
-        const newLink: NodeLinkShape = generateNewLink(link.fromId, newNode.id);
+        const newLink: NodeLinkShape = generateNewLink(link.from.id, newNode.id, changedRoutineVersion.id);
         // Create new link, going from the new node to the end node
-        const newEndLink: NodeLinkShape = generateNewLink(newNode.id, newEndNode.id);
+        const newEndLink: NodeLinkShape = generateNewLink(newNode.id, newEndNode.id, changedRoutineVersion.id);
         // Insert new nodes and links
         const newRoutine = {
             ...changedRoutineVersion,
@@ -653,13 +660,13 @@ export const BuildView = ({
     const handleSubroutineAdd = useCallback((nodeId: string, routineVersion: RoutineVersion) => {
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
-        const routineList: NodeDataRoutineList = changedRoutineVersion.nodes[nodeIndex].routineList!;
-        let routineItem: NodeDataRoutineListItem = {
+        const routineList: NodeRoutineList = changedRoutineVersion.nodes[nodeIndex].routineList!;
+        let routineItem: NodeRoutineListItem = {
             id: uuid(),
             index: routineList.items.length,
             isOptional: true,
             routineVersion,
-        }
+        } as NodeRoutineListItem;
         if (routineList.isOrdered) routineItem.index = routineList.items.length
         addToChangeStack({
             ...changedRoutineVersion,
@@ -684,7 +691,7 @@ export const BuildView = ({
         // Node containing routine list data with ID nodeId
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
         if (nodeIndex === -1) return;
-        const routineList: NodeDataRoutineList = changedRoutineVersion.nodes[nodeIndex].routineList!;
+        const routineList: NodeRoutineListShape = changedRoutineVersion.nodes[nodeIndex].routineList!;
         const items = [...routineList.items];
         // Find subroutines matching old and new index
         const aIndex = items.findIndex(r => r.index === oldIndex);
@@ -700,7 +707,7 @@ export const BuildView = ({
                 ...changedRoutineVersion.nodes[nodeIndex],
                 routineList: {
                     ...routineList,
-                    items,
+                    items: items as NodeRoutineListItem[],
                 }
             }),
         });
@@ -711,7 +718,7 @@ export const BuildView = ({
      */
     const handleAddEndAfter = useCallback((nodeId: string) => {
         // Find links where this node is the "from" node
-        const links = changedRoutineVersion.nodeLinks.filter(l => l.fromId === nodeId);
+        const links = changedRoutineVersion.nodeLinks.filter(l => l.from.id === nodeId);
         // If multiple links, open a dialog to select which one to add after
         if (links.length > 1) {
             setAddAfterLinkNode(nodeId);
@@ -726,8 +733,8 @@ export const BuildView = ({
         else {
             const node = changedRoutineVersion.nodes.find(n => n.id === nodeId);
             if (!node) return;
-            const newNode: Omit<NodeShape, 'routineVersionId'> = createEndNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
-            const newLink: NodeLinkShape = generateNewLink(nodeId, newNode.id);
+            const newNode: Omit<NodeShape, 'routineVersion'> = createEndNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
+            const newLink: NodeLink = generateNewLink(nodeId, newNode.id, changedRoutineVersion.id) as NodeLink;
             addToChangeStack({
                 ...changedRoutineVersion,
                 nodes: [...changedRoutineVersion.nodes, newNode as any],
@@ -741,7 +748,7 @@ export const BuildView = ({
      */
     const handleAddListAfter = useCallback((nodeId: string) => {
         // Find links where this node is the "from" node
-        const links = changedRoutineVersion.nodeLinks.filter(l => l.fromId === nodeId);
+        const links = changedRoutineVersion.nodeLinks.filter(l => l.from.id === nodeId);
         // If multiple links, open a dialog to select which one to add after
         if (links.length > 1) {
             setAddAfterLinkNode(nodeId);
@@ -755,8 +762,8 @@ export const BuildView = ({
         else {
             const node = changedRoutineVersion.nodes.find(n => n.id === nodeId);
             if (!node) return;
-            const newNode: Omit<NodeShape, 'routineVersionId'> = createRoutineListNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
-            const newLink: NodeLinkShape = generateNewLink(nodeId, newNode.id);
+            const newNode: Omit<NodeShape, 'routineVersion'> = createRoutineListNode((node.columnIndex ?? 1) + 1, (node.rowIndex ?? 0));
+            const newLink: NodeLink = generateNewLink(nodeId, newNode.id, changedRoutineVersion.id) as NodeLink;
             addToChangeStack({
                 ...changedRoutineVersion,
                 nodes: [...changedRoutineVersion.nodes, newNode as any],
@@ -770,7 +777,7 @@ export const BuildView = ({
      */
     const handleAddListBefore = useCallback((nodeId: string) => {
         // Find links where this node is the "to" node
-        const links = changedRoutineVersion.nodeLinks.filter(l => l.toId === nodeId);
+        const links = changedRoutineVersion.nodeLinks.filter(l => l.to.id === nodeId);
         // If multiple links, open a dialog to select which one to add before
         if (links.length > 1) {
             setAddBeforeLinkNode(nodeId);
@@ -785,8 +792,8 @@ export const BuildView = ({
         else {
             const node = changedRoutineVersion.nodes.find(n => n.id === nodeId);
             if (!node) return;
-            const newNode: Omit<NodeShape, 'routineVersionId'> = createRoutineListNode((node.columnIndex ?? 1) - 1, (node.rowIndex ?? 0));
-            const newLink: NodeLinkShape = generateNewLink(newNode.id, nodeId);
+            const newNode: Omit<NodeShape, 'routineVersion'> = createRoutineListNode((node.columnIndex ?? 1) - 1, (node.rowIndex ?? 0));
+            const newLink: NodeLink = generateNewLink(newNode.id, nodeId, changedRoutineVersion.id) as NodeLink;
             addToChangeStack({
                 ...changedRoutineVersion,
                 nodes: [...changedRoutineVersion.nodes, newNode as any],
@@ -798,7 +805,7 @@ export const BuildView = ({
     /**
      * Updates the current selected subroutine
      */
-    const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeDataRoutineListItem) => {
+    const handleSubroutineUpdate = useCallback((updatedSubroutine: NodeRoutineListItemShape) => {
         // Update routine
         addToChangeStack({
             ...changedRoutineVersion,
@@ -807,7 +814,7 @@ export const BuildView = ({
                     return {
                         ...n,
                         routineList: {
-                            ...n.data,
+                            ...n.routineList,
                             items: n.routineList!.items.map(r => {
                                 if (r.id === updatedSubroutine.id) {
                                     return {
@@ -836,13 +843,13 @@ export const BuildView = ({
      */
     const handleSubroutineViewFull = useCallback(() => {
         if (!openedSubroutine) return;
-        if (!isEqual(routine, changedRoutineVersion)) {
+        if (!isEqual(routineVersion, changedRoutineVersion)) {
             PubSub.get().publishSnack({ messageKey: 'SaveChangesBeforeLeaving', severity: SnackSeverity.Error });
             return;
         }
         // TODO - buildview should have its own buildview, to recursively open subroutines
         //setLocation(`${APP_LINKS.Build}/${selectedSubroutine.id}`);
-    }, [changedRoutineVersion, openedSubroutine, routine]);
+    }, [changedRoutineVersion, openedSubroutine, routineVersion]);
 
     const handleAction = useCallback((action: BuildAction, nodeId: string, subroutineId?: string) => {
         const node = changedRoutineVersion.nodes?.find(n => n.id === nodeId);
@@ -891,7 +898,7 @@ export const BuildView = ({
     /**
      * Cleans up graph by removing empty columns and row gaps within columns.
      * Also adds end nodes to the end of each unfinished path. 
-     * Also removes links that don't have both a valid fromId and toId.
+     * Also removes links that don't have both a valid from.id and to.id.
      */
     const cleanUpGraph = useCallback(() => {
         const resultRoutine = JSON.parse(JSON.stringify(changedRoutineVersion));
@@ -921,8 +928,8 @@ export const BuildView = ({
         for (const node of resultRoutine.nodes) {
             // If not an end node
             if (node.type !== NodeType.End) {
-                // Check if any links have a "fromId" matching this node's ID
-                const leavingLinks = resultRoutine.nodeLinks.filter(link => link.fromId === node.id);
+                // Check if any links have a "from.id" matching this node's ID
+                const leavingLinks = resultRoutine.nodeLinks.filter(link => link.from.id === node.id);
                 // If there are no leaving links, create a new link and end node
                 if (leavingLinks.length === 0) {
                     // Generate node ID
@@ -932,15 +939,18 @@ export const BuildView = ({
                     const columnIndex: number = (node.columnIndex ?? 0) + 1;
                     // Node is 1 after last rowIndex in column
                     const rowIndex = (columnIndex >= 0 && columnIndex < columns.length) ? columns[columnIndex].length : 0;
-                    const newLink: NodeLinkShape = generateNewLink(node.id, newEndNodeId);
-                    const newEndNode: Omit<NodeShape, 'routineVersionId'> = {
+                    const newLink: NodeLink = generateNewLink(node.id, newEndNodeId, changedRoutineVersion.id) as NodeLink;
+                    const newEndNode: Omit<NodeShape, 'routineVersion'> = {
                         id: newEndNodeId,
                         nodeType: NodeType.End,
                         rowIndex,
                         columnIndex,
-                        data: {
+                        end: {
+                            id: uuid(),
+                            node: { id: newEndNodeId },
+                            suggestedNextRoutineVersions: [],
                             wasSuccessful: false,
-                        } as any,
+                        },
                         translations: [],
                     }
                     // Add link and end node to resultRoutine
@@ -949,10 +959,10 @@ export const BuildView = ({
                 }
             }
         }
-        // Remove links that don't have both a valid fromId and toId
+        // Remove links that don't have both a valid from.id and to.id
         resultRoutine.nodeLinks = resultRoutine.nodeLinks.filter(link => {
-            const fromNode = resultRoutine.nodes.find(n => n.id === link.fromId);
-            const toNode = resultRoutine.nodes.find(n => n.id === link.toId);
+            const fromNode = resultRoutine.nodes.find(n => n.id === link.from.id);
+            const toNode = resultRoutine.nodes.find(n => n.id === link.to.id);
             return Boolean(fromNode && toNode);
         });
         // Update changedRoutine with resultRoutine
@@ -997,7 +1007,7 @@ export const BuildView = ({
                 isOpen={Boolean(addSubroutineNode)}
                 nodeId={addSubroutineNode}
                 owner={owner}
-                routineId={routine?.id}
+                routineId={routineVersion?.id}
                 session={session}
                 zIndex={zIndex + 3}
             />}
@@ -1033,7 +1043,7 @@ export const BuildView = ({
                 link={undefined}
                 nodeFrom={linkDialogFrom}
                 nodeTo={linkDialogTo}
-                routine={changedRoutineVersion}
+                routineVersion={changedRoutineVersion}
                 zIndex={zIndex + 3}
             // partial={ }
             /> : null}
@@ -1043,7 +1053,7 @@ export const BuildView = ({
                 isOpen={Boolean(moveNode)}
                 language={translationData.language}
                 node={moveNode}
-                routine={changedRoutineVersion}
+                routineVersion={changedRoutineVersion}
                 zIndex={zIndex + 3}
             />}
             {/* Displays routine information when you click on a routine list item*/}
@@ -1138,10 +1148,10 @@ export const BuildView = ({
             </Box>
             <BuildEditButtons
                 canCancelMutate={!loading}
-                canSubmitMutate={!loading && !isEqual(routine, changedRoutineVersion)}
+                canSubmitMutate={!loading && !isEqual(routineVersion, changedRoutineVersion)}
                 errors={{
                     'graph': status.status !== Status.Valid ? status.messages : null,
-                    'unchanged': isEqual(routine, changedRoutineVersion) ? 'No changes made' : null,
+                    'unchanged': isEqual(routineVersion, changedRoutineVersion) ? 'No changes made' : null,
                 }}
                 handleCancel={revertChanges}
                 handleSubmit={() => { handleSubmit(changedRoutineVersion) }}

@@ -22,6 +22,7 @@ export const typeDef = gql`
         isOrdered: Boolean!
         isOptional: Boolean!
         items: [NodeRoutineListItem!]!
+        node: Node!
     }
 `
 export const resolvers: {

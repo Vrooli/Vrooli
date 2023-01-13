@@ -3,8 +3,9 @@ import { getTranslation, getUserLanguages } from "./translationTools";
 import { ObjectListItemType } from "components/lists/types";
 import { displayDate, firstString } from "./stringTools";
 import { ObjectListItem } from "components";
-import { GqlModelType, RunProject, RunRoutine, Session, Star, StarFor, View, Vote } from "@shared/consts";
+import { DotNotation, GqlModelType, RunProject, RunRoutine, Session, Star, StarFor, View, Vote } from "@shared/consts";
 import { valueFromDot } from "utils/shape";
+import { exists } from "@shared/utils";
 
 export type ListObjectType = ObjectListItemType | Star | Vote | View;
 
@@ -43,6 +44,31 @@ export type CountsInflated = {
     translations: number;
     versions: number;
     views: number;
+}
+
+/**
+ * Finds dot notation for the location of the "you" property in an object which contains the specified property
+ * @param object An object
+ * @param property A property to find in the "you" property of the object
+ */
+export const getYouDot = (
+    object: ListObjectType | null | undefined,
+    property: keyof YouInflated,
+): DotNotation<typeof object> | null => {
+    // If no object, return null
+    if (!object) return null;
+    // If the object is a star, view, or vote, use the "to" object
+    if (['Star', 'View', 'Vote'].includes(object.type)) return getYouDot((object as Star | View | Vote).to as any, property);
+    // If the object is a run routine, use the routine version
+    if (object.type === 'RunRoutine') return getYouDot((object as RunRoutine).routineVersion as any, property);
+    // If the object is a run project, use the project version
+    if (object.type === 'RunProject') return getYouDot((object as RunProject).projectVersion as any, property);
+    // Check object.you
+    if (exists((object as any).you?.[property])) return 'you';
+    // Check object.root.you
+    if (exists((object as any).root?.you?.[property])) return 'root.you';
+    // If not found, return null
+    return null;
 }
 
 /**

@@ -3,15 +3,15 @@ import { useMutation, useLazyQuery } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
-import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
+import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, parseSingleItemUrl, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSingleItemUrl, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
 import { RoutineIcon } from "@shared/icons";
-import { FindVersionInput, ResourceList, RoutineVersion, RoutineVersionUpdateInput } from "@shared/consts";
+import { FindVersionInput, Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionUpdateInput } from "@shared/consts";
 import { routineVersionEndpoint } from "graphql/endpoints";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).
@@ -91,8 +91,8 @@ export const RoutineUpdate = ({
     const formik = useFormik({
         initialValues: {
             id: routineVersion?.id ?? DUMMY_ID,
-            nodeLinks: routineVersion?.nodeLinks ?? [] as RoutineVersion['nodeLinks'],
-            nodes: routineVersion?.nodes ?? [] as RoutineVersion['nodes'],
+            nodeLinks: routineVersion?.nodeLinks ?? [] as NodeLinkShape[],
+            nodes: routineVersion?.nodes ?? [] as NodeShape[],
             translationsUpdate: routineVersion?.translations ?? [{
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
@@ -107,7 +107,7 @@ export const RoutineUpdate = ({
             }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema: validationSchema({ minVersion: getMinimumVersion(routineVersion?.root?.versions ?? []) }),
+        validationSchema: routineVersionValidation.update(getMinimumVersion(routineVersion?.root?.versions ?? [])),
         onSubmit: (values) => {
             if (!routineVersion) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
@@ -118,18 +118,25 @@ export const RoutineUpdate = ({
                 input: shapeRoutineVersion.update(routineVersion, {
                     id: routineVersion.id,
                     isComplete: relationships.isComplete,
+                    isLatest: true,
                     isPrivate: relationships.isPrivate,
-                    owner: relationships.owner,
-                    parent: relationships.parent as RelationshipItemRoutineVersion | null,
-                    project: relationships.project,
+                    // project: relationships.project,
                     inputs: inputsList,
                     outputs: outputsList,
                     resourceList: resourceList,
-                    tags: tags,
+                    root: {
+                        id: routineVersion.root.id,
+                        isPrivate: relationships.isPrivate,
+                        owner: relationships.owner,
+                        parent: relationships.parent as RelationshipItemRoutineVersion | null,
+                        permissions: JSON.stringify({}),
+                        tags: tags,
+                    },
                     translations: values.translationsUpdate.map(t => ({
                         ...t,
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
+                    ...values.versionInfo,
                 }),
                 onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
@@ -171,7 +178,7 @@ export const RoutineUpdate = ({
     const handleGraphOpen = useCallback(() => {
         // Create initial nodes/links, if not already created
         if (formik.values.nodes.length === 0 && formik.values.nodeLinks.length === 0) {
-            const { nodes, nodeLinks } = initializeRoutineGraph(language);
+            const { nodes, nodeLinks } = initializeRoutineGraph(language, formik.values.id);
             formik.setValues({
                 ...formik.values,
                 nodes,
@@ -361,10 +368,10 @@ export const RoutineUpdate = ({
                                 isEditing={true}
                                 loading={false}
                                 owner={relationships.owner}
-                                routine={{
+                                routineVersion={{
                                     id: formik.values.id,
-                                    nodeLinks: formik.values.nodeLinks,
-                                    nodes: formik.values.nodes,
+                                    nodeLinks: formik.values.nodeLinks as NodeLink[],
+                                    nodes: formik.values.nodes as Node[],
                                 }}
                                 translationData={{
                                     language,

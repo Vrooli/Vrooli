@@ -20,6 +20,8 @@ export const typeDef = gql`
         id: ID!
         translations: [NodeLinkWhenTranslation!]!
         condition: String!
+        link: NodeLink!
+
     } 
 
     input NodeLinkWhenTranslationCreateInput {

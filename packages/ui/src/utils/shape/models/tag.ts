@@ -6,12 +6,12 @@ export type TagTranslationShape = Pick<TagTranslation, 'id' | 'language' | 'desc
 
 export type TagShape = Pick<Tag, 'tag'> & {
     anonymous?: boolean | null;
-    translations?: TagTranslationShape[];
+    translations?: TagTranslationShape[] | null;
 }
 
 export const shapeTagTranslation: ShapeModel<TagTranslationShape, TagTranslationCreateInput, TagTranslationUpdateInput> = {
     create: (d) => createPrims(d, 'id', 'language', 'description'),
-    update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description'))
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'description'), a)
 }
 
 export const shapeTag: ShapeModel<TagShape, TagCreateInput, TagUpdateInput> = {
@@ -21,9 +21,9 @@ export const shapeTag: ShapeModel<TagShape, TagCreateInput, TagUpdateInput> = {
         tag: d.tag,
         ...createRel(d, 'translations', ['Create'], 'many', shapeTagTranslation),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         // anonymous: TODO
         tag: o.tag,
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeTagTranslation),
-    })
+    }, a)
 }

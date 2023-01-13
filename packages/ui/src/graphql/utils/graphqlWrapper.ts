@@ -4,6 +4,7 @@ import { errorToCode } from './errorParser';
 import { ApolloError, CommonKey, ErrorKey } from 'types';
 import { SnackSeverity } from "components";
 import { initializeApollo } from "./initialize";
+import { exists } from "@shared/utils";
 
 // Input type wrapped with 'input' key, as all GraphQL inputs follow this pattern. 
 // If you're wondering why, it prevents us from having to define the input fields in 
@@ -78,7 +79,7 @@ export const graphqlWrapperHelper = <Output extends object>({
         // Stop spinner
         if (spinnerDelay) PubSub.get().publishLoading(false);
         // Determine if error caused by bad response, or caught error
-        const isApolloError: boolean = data !== undefined && data !== null && data.hasOwnProperty('graphQLErrors');
+        const isApolloError: boolean = exists(data) && data.hasOwnProperty('graphQLErrors');
         console.log('wrapper handleerror', JSON.stringify(data), isApolloError)
         // If specific error message is set, display it
         if (typeof errorMessage === 'function') {

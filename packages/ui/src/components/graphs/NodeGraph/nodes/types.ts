@@ -1,5 +1,5 @@
 import { BoxProps } from '@mui/material';
-import { BuildAction } from 'utils';
+import { BuildAction, NodeShape } from 'utils';
 import { MouseEvent } from 'react';
 import { Node, NodeEnd, NodeLink, NodeLoop, NodeRoutineList, NodeRoutineListItem, NodeType } from '@shared/consts';
 
@@ -69,7 +69,7 @@ export interface LoopNodeProps extends ScaleProps, LabelledProps, EditableProps,
  */
 export interface RedirectNodeProps extends ScaleProps, LabelledProps, EditableProps, DraggableProps {
     handleAction: (action: BuildAction, nodeId: string) => void;
-    node: Node;// & { redirect: NodeRedirect }; TODO
+    node: NodeShape;// & { redirect: NodeRedirectShape }; TODO
     zIndex: number;
 }
 
@@ -105,7 +105,7 @@ export interface SubroutineNodeProps extends ScaleProps, LabelledProps, Editable
 export interface StartNodeProps extends ScaleProps, LabelledProps, EditableProps {
     handleAction: (action: BuildAction.AddOutgoingLink, subroutineId: string) => void;
     linksOut: NodeLink[];
-    node: Node;
+    node: NodeShape;
     zIndex: number;
 }
 

@@ -1,8 +1,8 @@
 import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Tooltip, Typography } from "@mui/material";
 import { useMutation } from "graphql/hooks";
-import { routineValidation, routineVersionTranslationValidation } from '@shared/validation';
+import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, parseSearchParams, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSearchParams, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
@@ -11,7 +11,7 @@ import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { RoutineIcon } from "@shared/icons";
-import { ResourceList, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
+import { Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
 import { routineVersionEndpoint } from "graphql/endpoints";
 import { mutationWrapper } from "graphql/utils";
 
@@ -75,9 +75,12 @@ export const RoutineCreate = ({
     const formik = useFormik({
         initialValues: {
             id: uuid(),
-            isInternal: false,
-            nodeLinks: [] as RoutineVersion['nodeLinks'],
-            nodes: [] as RoutineVersion['nodes'],
+            nodeLinks: [] as NodeLinkShape[],
+            nodes: [] as NodeShape[],
+            root: {
+                id: uuid(),
+                isInternal: false,
+            },
             translationsCreate: [{
                 id: uuid(),
                 language: getUserLanguages(session)[0],
@@ -91,24 +94,30 @@ export const RoutineCreate = ({
                 versionNotes: '',
             }
         },
-        validationSchema: routineValidation.update(),
+        validationSchema: routineVersionValidation.create(),
         onSubmit: (values) => {
             mutationWrapper<RoutineVersion, RoutineVersionCreateInput>({
                 mutation,
                 input: shapeRoutineVersion.create({
                     id: values.id,
-                    isInternal: values.isInternal,
                     isComplete: relationships.isComplete,
+                    isLatest: true,
                     isPrivate: relationships.isPrivate,
                     nodeLinks: values.nodeLinks,
                     nodes: values.nodes,
-                    owner: relationships.owner,
-                    parent: relationships.parent as RelationshipItemRoutineVersion | null,
-                    project: relationships.project,
+                    // project: relationships.project,
                     inputs: inputsList,
                     outputs: outputsList,
                     resourceList: resourceList,
-                    tags: tags,
+                    root: {
+                        id: values.root.id,
+                        isInternal: values.root.isInternal,
+                        isPrivate: relationships.isPrivate,
+                        owner: relationships.owner,
+                        parent: relationships.parent as RelationshipItemRoutineVersion | null,
+                        permissions: JSON.stringify({}),
+                        tags: tags,
+                    },
                     translations: values.translationsCreate,
                     ...values.versionInfo,
                 }),
@@ -124,9 +133,9 @@ export const RoutineCreate = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const translations = useTranslatedFields({
         fields: ['description', 'instructions', 'name'],
-        formik, 
-        formikField: 'translationsCreate', 
-        language, 
+        formik,
+        formikField: 'translationsCreate',
+        language,
         validationSchema: routineVersionTranslationValidation.create(),
     });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
@@ -153,7 +162,7 @@ export const RoutineCreate = ({
     const handleGraphOpen = useCallback(() => {
         // Create initial nodes/links, if not already created
         if (formik.values.nodes.length === 0 && formik.values.nodeLinks.length === 0) {
-            const { nodes, nodeLinks } = initializeRoutineGraph(language);
+            const { nodes, nodeLinks } = initializeRoutineGraph(language, formik.values.id);
             formik.setValues({
                 ...formik.values,
                 nodes,
@@ -330,7 +339,7 @@ export const RoutineCreate = ({
                                         size="small"
                                         name='isInternal'
                                         color='secondary'
-                                        checked={formik.values.isInternal}
+                                        checked={formik.values.root.isInternal}
                                         onChange={formik.handleChange}
                                     />
                                 }
@@ -370,10 +379,10 @@ export const RoutineCreate = ({
                                 isEditing={true}
                                 loading={false}
                                 owner={relationships.owner}
-                                routine={{
+                                routineVersion={{
                                     id: formik.values.id,
-                                    nodeLinks: formik.values.nodeLinks,
-                                    nodes: formik.values.nodes,
+                                    nodeLinks: formik.values.nodeLinks as NodeLink[],
+                                    nodes: formik.values.nodes as Node[],
                                 }}
                                 translationData={{
                                     language,

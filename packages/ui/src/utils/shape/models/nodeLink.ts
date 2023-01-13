@@ -17,10 +17,10 @@ export const shapeNodeLink: ShapeModel<NodeLinkShape, NodeLinkCreateInput, NodeL
         ...createRel(d, 'routineVersion', ['Connect'], 'one'),
         ...createRel(d, 'whens', ['Create'], 'many', shapeNodeLinkWhen),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'operation'),
         ...updateRel(o, u, 'from', ['Connect', 'Disconnect'], 'one'),
         ...updateRel(o, u, 'to', ['Connect', 'Disconnect'], 'one'),
         ...updateRel(o, u, 'whens', ['Create', 'Update', 'Delete'], 'many', shapeNodeLinkWhen),
-    })
+    }, a)
 }

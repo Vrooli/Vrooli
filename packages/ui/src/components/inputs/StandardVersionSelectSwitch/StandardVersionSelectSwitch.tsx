@@ -1,8 +1,8 @@
 import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { useCallback, useMemo, useState } from 'react';
-import { StandardSelectSwitchProps } from '../types';
+import { StandardVersionSelectSwitchProps } from '../types';
 import { noSelect } from 'styles';
-import { StandardSelectOrCreateDialog } from 'components/dialogs';
+import { SelectOrCreateDialog } from 'components/dialogs';
 import { EditIcon as CustomIcon, LinkIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
 
@@ -11,14 +11,14 @@ const grey = {
     800: '#2F3A45',
 };
 
-export function StandardSelectSwitch({
+export function StandardVersionSelectSwitch({
     session,
     selected,
     onChange,
     disabled,
     zIndex,
     ...props
-}: StandardSelectSwitchProps) {
+}: StandardVersionSelectSwitchProps) {
     const { palette } = useTheme();
 
     // Create dialog
@@ -28,11 +28,11 @@ export function StandardSelectSwitch({
 
     const handleClick = useCallback((ev: React.MouseEvent<any>) => {
         if (disabled) return;
-        // If using custom data, remove standard data
+        // If using custom data, remove standardVersion data
         if (Boolean(selected)) {
             onChange(null);
         } 
-        // Otherwise, open dialog to select standard
+        // Otherwise, open dialog to select standardVersion
         else {
             openCreateDialog();
             ev.preventDefault();
@@ -43,11 +43,12 @@ export function StandardSelectSwitch({
 
     return (
         <>
-            {/* Popup for adding/connecting a new standard */}
-            <StandardSelectOrCreateDialog
+            {/* Popup for adding/connecting a new standardVersion */}
+            <SelectOrCreateDialog
                 isOpen={isCreateDialogOpen}
-                handleAdd={onChange}
+                handleAdd={onChange as any}
                 handleClose={closeCreateDialog}
+                objectType="StandardVersion"
                 session={session}
                 zIndex={zIndex+1}
             />
@@ -103,7 +104,7 @@ export function StandardSelectSwitch({
                             cursor: 'pointer',
                         }} />
                 </Box >
-                <Typography variant="h6" sx={{ ...noSelect }}>{selected ? selected.name : 'Custom'}</Typography>
+                <Typography variant="h6" sx={{ ...noSelect }}>{selected ? selected.root.name : 'Custom'}</Typography>
             </Stack>
         </>
     )

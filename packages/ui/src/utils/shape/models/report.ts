@@ -6,5 +6,5 @@ export type ReportShape = Pick<Report, 'id'>
 
 export const shapeReport: ShapeModel<ReportShape, ReportCreateInput, ReportUpdateInput> = {
     create: (d) => ({}) as any,
-    update: (o, u) => shapeUpdate(u, {}) as any
+    update: (o, u, a) => shapeUpdate(u, {}, a) as any
 }

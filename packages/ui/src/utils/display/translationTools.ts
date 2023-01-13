@@ -1,9 +1,10 @@
 import { FormikErrors, FormikProps } from "formik";
 import { ObjectSchema, ValidationError } from 'yup';
-import { CommonKey, ErrorKey, Session } from "types";
+import { CommonKey, ErrorKey } from "types";
 import { uuid } from '@shared/uuid';
 import { getCurrentUser } from "utils/authentication";
 import i18next from 'i18next';
+import { Session } from "@shared/consts";
 
 export type TranslationObject = {
     id: string,
@@ -353,7 +354,7 @@ export const AllLanguages = {
  */
 export const getTranslation = <
     Translation extends { language: string },
->(obj: { translations?: Translation[] | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
+>(obj: { translations?: Translation[] | null | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
     if (!obj || !obj.translations) return {}
     // Loop through translations
     for (const translation of obj.translations) {

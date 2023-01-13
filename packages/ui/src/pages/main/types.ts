@@ -1,4 +1,4 @@
-import { Session } from "types";
+import { Session } from "@shared/consts";
 
 export interface CreatePageProps {
     session: Session;

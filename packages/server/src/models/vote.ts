@@ -6,6 +6,7 @@ import { ApiModel, CommentModel, IssueModel, NoteModel, PostModel, ProjectModel,
 import { SelectWrap } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
 import { Prisma } from "@prisma/client";
+import { exists } from "@shared/utils";
 
 const forMapper: { [key in VoteFor]: string } = {
     Api: 'api',
@@ -128,7 +129,7 @@ export const VoteModel: ModelLogic<{
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {
                 // Try to find this id in the isUpvoted array
-                if (ids[i] !== null && ids[i] !== undefined) {
+                if (exists(ids[i])) {
                     // If found, set result index to value of isUpvote field
                     result[i] = isUpvotedArray.find((vote: any) => vote[fieldName] === ids[i])?.isUpvote ?? null;
                 }

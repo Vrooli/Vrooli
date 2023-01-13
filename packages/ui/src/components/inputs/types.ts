@@ -1,5 +1,5 @@
 import { BoxProps, InputProps, SelectChangeEvent, SelectProps, TextFieldProps, SwitchProps } from '@mui/material';
-import { Comment, CommentFor, GqlModelType, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, Tag, User } from '@shared/consts';
+import { Comment, CommentFor, GqlModelType, Organization, Project, ProjectVersion, Routine, RoutineVersion, Session, Standard, StandardVersion, Tag, User } from '@shared/consts';
 import { JSONVariable } from 'forms/types';
 import { ChangeEvent, FocusEventHandler } from 'react';
 import { AutocompleteOption, VersionInfo } from 'types';
@@ -332,12 +332,14 @@ export type SelectorProps<T extends string | number | { [x: string]: any }> = Se
     sx?: { [x: string]: any };
 }
 
-export type StandardSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
+export type StandardVersionSelectSwitchProps = Omit<SwitchProps, 'onChange'> & {
     session: Session;
     selected: {
-        name: Standard['name']
+        root: {
+            name: Standard['name']
+        }
     } | null;
-    onChange: (value: Standard | null) => any;
+    onChange: (value: StandardVersion | null) => any;
     disabled?: boolean;
     zIndex: number;
 }

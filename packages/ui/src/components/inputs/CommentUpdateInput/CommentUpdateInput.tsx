@@ -11,7 +11,7 @@ import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
-import { Comment, CommentCreateInput as CommentUpdateInputType } from "@shared/consts";
+import { Comment, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
 import { commentEndpoint } from "graphql/endpoints";
 
 /**
@@ -32,7 +32,7 @@ export const CommentUpdateInput = ({
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
     const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
-    const [updateMutation, { loading: loadingAdd }] = useMutation<Comment, CommentUpdateInputType, 'commentUpdate'>(...commentEndpoint.update);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<Comment, CommentUpdateInputType, 'commentUpdate'>(...commentEndpoint.update);
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,
@@ -49,12 +49,13 @@ export const CommentUpdateInput = ({
         onSubmit: (values) => {
             // If not logged in, open login dialog
             //TODO
-            mutationWrapper<Comment, CommentUpdateInputType>({
+            const input = shapeComment.update(comment, {
+                ...comment,
+                translations: values.translationsUpdate,
+            }, true)
+            input !== undefined && mutationWrapper<Comment, CommentUpdateInputType>({
                 mutation: updateMutation,
-                input: shapeComment.update(comment, {
-                    ...comment,
-                    translations: values.translationsUpdate,
-                }),
+                input,
                 successCondition: (data) => data !== null,
                 successMessage: () => ({ key: 'CommentUpdated' }),
                 onSuccess: (data) => {
@@ -69,9 +70,9 @@ export const CommentUpdateInput = ({
 
     const translations = useTranslatedFields({
         fields: ['text'],
-        formik, 
-        formikField: 'translationsUpdate', 
-        language, 
+        formik,
+        formikField: 'translationsUpdate',
+        language,
         validationSchema: commentTranslationValidation.update(),
     });
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
@@ -116,7 +117,7 @@ export const CommentUpdateInput = ({
                         disabledSubmit={!isLoggedIn}
                         errors={translations.errorsWithTranslations}
                         isCreate={true}
-                        loading={formik.isSubmitting || loadingAdd}
+                        loading={formik.isSubmitting || loadingUpdate}
                         onCancel={formik.resetForm}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.submitForm}

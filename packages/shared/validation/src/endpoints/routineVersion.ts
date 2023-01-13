@@ -21,7 +21,7 @@ export const routineVersionTranslationValidation: YupModel = transRel({
 })
 
 export const routineVersionValidation: YupModel = {
-    create: () => yup.object().shape({
+    create: (minVersion: string = '0.0.1') => yup.object().shape({
         id: req(id),
         apiCallData: opt(apiCallData),
         smartContractCallData: opt(smartContractCallData),
@@ -30,7 +30,7 @@ export const routineVersionValidation: YupModel = {
         isLatest: opt(yup.boolean()),
         isPrivate: opt(yup.boolean()),
         versionIndex: req(index),
-        versionLabel: req(versionLabel('0.0.1')),
+        versionLabel: req(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
         ...rel('root', ['Connect', 'Create'], 'one', 'req', routineValidation),
         ...rel('apiVersion', ['Connect'], 'one', 'req'),
@@ -44,7 +44,7 @@ export const routineVersionValidation: YupModel = {
         ...rel('directoryListings', ['Connect'], 'many', 'opt'),
         ...rel('suggestedNextByProject', ['Connect'], 'many', 'opt'),
     }, [['rootConnect', 'rootCreate']]),
-    update: () => yup.object().shape({
+    update: (minVersion: string = '0.0.1') => yup.object().shape({
         id: req(id),
         apiCallData: opt(apiCallData),
         smartContractCallData: opt(smartContractCallData),
@@ -53,7 +53,7 @@ export const routineVersionValidation: YupModel = {
         isLatest: opt(yup.boolean()),
         isPrivate: opt(yup.boolean()),
         versionIndex: opt(index),
-        versionLabel: opt(versionLabel('0.0.1')),
+        versionLabel: opt(versionLabel(minVersion)),
         versionNotes: opt(versionNotes),
         ...rel('apiVersion', ['Connect', 'Disconnect'], 'one', 'req'),
         ...rel('smartContractVersion', ['Connect', 'Disconnect'], 'one', 'req'),

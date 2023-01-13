@@ -6,5 +6,5 @@ export type PostShape = Pick<Post, 'id'>
 
 export const shapePost: ShapeModel<PostShape, PostCreateInput, PostUpdateInput> = {
     create: (d) => ({}) as any,
-    update: (o, u) => shapeUpdate(u, {}) as any
+    update: (o, u, a) => shapeUpdate(u, {}, a) as any
 }

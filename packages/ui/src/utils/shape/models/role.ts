@@ -5,14 +5,14 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "uti
 export type RoleTranslationShape = Pick<RoleTranslation, 'id' | 'language' | 'description'>
 
 export type RoleShape = Pick<Role, 'id' | 'name' | 'permissions'> & {
-    members?: { id: string }[];
+    members?: { id: string }[] | null;
     organization: { id: string };
-    translations?: RoleTranslationShape[];
+    translations?: RoleTranslationShape[] | null;
 }
 
 export const shapeRoleTranslation: ShapeModel<RoleTranslationShape, RoleTranslationCreateInput, RoleTranslationUpdateInput> = {
     create: (d) => createPrims(d, 'id', 'language', 'description'),
-    update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description'))
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'description'))
 }
 
 export const shapeRole: ShapeModel<RoleShape, RoleCreateInput, RoleUpdateInput> = {
@@ -22,7 +22,7 @@ export const shapeRole: ShapeModel<RoleShape, RoleCreateInput, RoleUpdateInput> 
         ...createRel(d, 'organization', ['Connect'], 'one'),
         ...createRel(d, 'translations', ['Create'], 'many', shapeRoleTranslation),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'name', 'permissions'),
         ...updateRel(o, u, 'members', ['Connect', 'Disconnect'], 'many'),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeRoleTranslation),

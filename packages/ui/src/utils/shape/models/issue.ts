@@ -14,7 +14,7 @@ export type IssueShape = Pick<Issue, 'id'> & {
 
 export const shapeIssueTranslation: ShapeModel<IssueTranslationShape, IssueTranslationCreateInput, IssueTranslationUpdateInput> = {
     create: (d) => createPrims(d, 'id', 'language', 'description', 'name'),
-    update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'))
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'name'), a)
 }
 
 export const shapeIssue: ShapeModel<IssueShape, IssueCreateInput, IssueUpdateInput> = {
@@ -24,9 +24,9 @@ export const shapeIssue: ShapeModel<IssueShape, IssueCreateInput, IssueUpdateInp
         ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
         ...createRel(d, 'translations', ['Create'], 'many', shapeIssueTranslation),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id'),
         ...updateRel(o, u, 'labels', ['Connect', 'Disconnect', 'Create'], 'many', shapeLabel),
         ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeIssueTranslation),
-    })
+    }, a)
 }

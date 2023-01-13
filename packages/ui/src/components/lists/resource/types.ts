@@ -1,4 +1,4 @@
-import { Resource, ResourceList, Session } from "types";
+import { Resource, ResourceList, Session } from "@shared/consts";
 
 export interface ResourceListHorizontalProps {
     title?: string;

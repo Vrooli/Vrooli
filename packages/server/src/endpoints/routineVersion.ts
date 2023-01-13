@@ -31,10 +31,9 @@ export const typeDef = gql`
         apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
-        isInternal: Boolean
         isLatest: Boolean
         isPrivate: Boolean
-        rootConnect: ID!
+        rootConnect: ID
         rootCreate: RoutineCreateInput
         versionIndex: Int!
         versionLabel: String!
@@ -56,7 +55,6 @@ export const typeDef = gql`
         apiCallData: String
         isAutomatable: Boolean
         isComplete: Boolean
-        isInternal: Boolean
         isLatest: Boolean
         isPrivate: Boolean
         versionIndex: Int!
@@ -64,13 +62,14 @@ export const typeDef = gql`
         versionNotes: String
         smartContractCallData: String
         apiVersionConnect: ID
-        apiVersionDisconnect: ID
+        apiVersionDisconnect: Boolean
         directoryListingsConnect: [ID!]
         directoryListingsDisconnect: [ID!]
         resourceListCreate: ResourceListCreateInput
         resourceListUpdate: ResourceListUpdateInput
+        rootUpdate: RoutineUpdateInput
         smartContractVersionConnect: ID
-        smartContractVersionDisconnect: ID
+        smartContractVersionDisconnect: Boolean
         nodesCreate: [NodeCreateInput!]
         nodesUpdate: [NodeUpdateInput!]
         nodesDelete: [ID!]
@@ -99,7 +98,6 @@ export const typeDef = gql`
         isAutomatable: Boolean
         isComplete: Boolean!
         isDeleted: Boolean!
-        isInternal: Boolean
         isLatest: Boolean!
         isPrivate: Boolean!
         simplicity: Int!

@@ -15,6 +15,7 @@ import { SelectWrap } from "../builders/types";
 import { onlyValidIds, padSelect } from "../builders";
 import { getLogic } from "../getters";
 import { NoteModel } from "./note";
+import { exists } from "@shared/utils";
 
 const forMapper: { [key in StarFor]: keyof Prisma.starUpsertArgs['create'] } = {
     Api: 'api',
@@ -152,8 +153,7 @@ export const StarModel: ModelLogic<{
             // Replace the nulls in the result array with true or false
             for (let i = 0; i < ids.length; i++) {
                 // check if this id is in isStarredArray
-                if (ids[i] !== null && ids[i] !== undefined &&
-                    isStarredArray.find((star: any) => star[fieldName] === ids[i])) {
+                if (exists(ids[i]) && isStarredArray.find((star: any) => star[fieldName] === ids[i])) {
                     result[i] = true;
                 }
             }

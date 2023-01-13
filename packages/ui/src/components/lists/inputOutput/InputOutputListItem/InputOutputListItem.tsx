@@ -5,7 +5,7 @@ import { inputCreate, outputCreate } from '@shared/validation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getTranslation, RoutineVersionInputTranslationShape, InputTypeOption, InputTypeOptions, jsonToString, RoutineVersionOutputTranslationShape, standardVersionToFieldData, updateArray, getUserLanguages, StandardVersionShape } from 'utils';
 import { useFormik } from 'formik';
-import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardSelectSwitch } from 'components';
+import { BaseStandardInput, MarkdownInput, PreviewSwitch, Selector, StandardVersionSelectSwitch } from 'components';
 import { FieldData } from 'forms/types';
 import { generateInputComponent } from 'forms/generators';
 import { uuid } from '@shared/uuid';
@@ -107,9 +107,9 @@ export const InputOutputListItem = ({
     type Translation = RoutineVersionInputTranslationShape | RoutineVersionOutputTranslationShape;
     const getTranslationsUpdate = useCallback((language: string, translation: Translation) => {
         // Find translation
-        const index = item.translations.findIndex(t => language === t.language);
+        const index = item.translations?.findIndex(t => language === t.language) ?? -1;
         // Add to array, or update if found
-        return index >= 0 ? updateArray(item.translations, index, translation) : [...item.translations, translation];
+        return index >= 0 ? updateArray(item.translations!, index, translation) : [...item.translations!, translation];
     }, [item.translations]);
 
     const formik = useFormik({
@@ -137,7 +137,7 @@ export const InputOutputListItem = ({
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations,
-                standard: !canEditStandardVersion ? standardVersion : defaultStandardVersion(item, session, generatedSchema),
+                standardVersion: !canEditStandardVersion ? standardVersion : defaultStandardVersion(item, session, generatedSchema),
             });
         },
     });
@@ -303,10 +303,10 @@ export const InputOutputListItem = ({
                     </Grid>
                     {/* Select standard */}
                     <Grid item xs={12}>
-                        <StandardSelectSwitch
+                        <StandardVersionSelectSwitch
                             disabled={!isEditing}
                             session={session}
-                            selected={!canEditStandardVersion ? { name: standardVersion.name ?? '' } : null}
+                            selected={!canEditStandardVersion ? { root: { name: standardVersion.root.name ?? '' } } : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
                         />
@@ -345,7 +345,7 @@ export const InputOutputListItem = ({
                                     <Selector
                                         fullWidth
                                         options={InputTypeOptions}
-                                        selected={InputTypeOptions.find(option => option.value === generatedSchema?.standardType) ?? InputTypeOptions[0]}
+                                        selected={InputTypeOptions.find(option => option.value === generatedSchema?.type) ?? InputTypeOptions[0]}
                                         handleChange={handleInputTypeSelect}
                                         getOptionLabel={(option: InputTypeOption) => option.label}
                                         inputAriaLabel='input-type-selector'

@@ -7,12 +7,12 @@ export type RoutineVersionInputTranslationShape = Pick<RoutineVersionInputTransl
 export type RoutineVersionInputShape = Pick<RoutineVersionInput, 'id' | 'index' | 'isRequired' | 'name'> & {
     routineVersion: { id: string };
     standardVersion?: StandardVersionShape | null;
-    translations?: RoutineVersionInputTranslationShape[];
+    translations?: RoutineVersionInputTranslationShape[] | null;
 }
 
 export const shapeRoutineVersionInputTranslation: ShapeModel<RoutineVersionInputTranslationShape, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput> = {
     create: (d) => createPrims(d, 'id', 'language', 'description', 'helpText'),
-    update: (o, u) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'helpText'))
+    update: (o, u, a) => shapeUpdate(u, updatePrims(o, u, 'id', 'description', 'helpText'), a)
 }
 
 export const shapeRoutineVersionInput: ShapeModel<RoutineVersionInputShape, RoutineVersionInputCreateInput, RoutineVersionInputUpdateInput> = {
@@ -28,7 +28,7 @@ export const shapeRoutineVersionInput: ShapeModel<RoutineVersionInputShape, Rout
             ...createRel(d, 'translations', ['Create'], 'many', shapeRoutineVersionInputTranslation),
         }
     },
-    update: (o, u) => shapeUpdate(u, () => {
+    update: (o, u, a) => shapeUpdate(u, () => {
         // Connect to standard if it's marked as external. 
         // Otherwise, set as create. The backend will handle the rest
         const shouldConnectToStandard = u.standardVersion && !u.standardVersion.root.isInternal && u.standardVersion.id;
@@ -39,5 +39,5 @@ export const shapeRoutineVersionInput: ShapeModel<RoutineVersionInputShape, Rout
             standardCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.update(o.standardVersion!, u.standardVersion!) : undefined,
             ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionInputTranslation),
         }
-    })
+    }, a)
 }

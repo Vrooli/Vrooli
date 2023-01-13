@@ -1,6 +1,6 @@
 import { EndNodeDialogProps } from '../types';
 import { Checkbox, Dialog, FormControlLabel, Grid, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { shapeNode, useTranslatedFields } from 'utils';
+import { useTranslatedFields } from 'utils';
 import { nodeEndValidation, nodeTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { DialogTitle } from 'components/dialogs';
@@ -9,7 +9,8 @@ import { useCallback } from 'react';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
 import { linkColors } from 'styles';
-import { GqlModelType } from '@shared/consts';
+import { useTranslation } from 'react-i18next';
+import { GqlModelType, Node } from '@shared/consts';
 
 const titleAria = 'end-node-dialog-title';
 
@@ -22,6 +23,7 @@ export const EndNodeDialog = ({
     zIndex,
 }: EndNodeDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const formik = useFormik({
         initialValues: {
@@ -36,10 +38,12 @@ export const EndNodeDialog = ({
         enableReinitialize: true,
         validationSchema: nodeEndValidation.update(),
         onSubmit: (values) => {
-            handleClose(shapeNode.update(node, {
+            handleClose({
                 ...node,
                 end: {
                     id: node.end?.id ?? uuid(),
+                    node: { id: node.id } as Node,
+                    suggestedNextRoutineVersions: [],
                     type: GqlModelType.NodeEnd,
                     wasSuccessful: values.wasSuccessful,
                 },
@@ -47,15 +51,15 @@ export const EndNodeDialog = ({
                     ...t,
                     id: t.id === DUMMY_ID ? uuid() : t.id,
                 })),
-            }))
+            })
         },
     });
 
     const translations = useTranslatedFields({
         fields: ['description', 'name'],
-        formik, 
-        formikField: 'translationsUpdate', 
-        language, 
+        formik,
+        formikField: 'translationsUpdate',
+        language,
         validationSchema: nodeTranslationValidation.update(),
     });
 
@@ -79,7 +83,7 @@ export const EndNodeDialog = ({
             <DialogTitle
                 ariaLabel={titleAria}
                 onClose={handleCancel}
-                title={isEditing ? "Edit End Node" : 'End Node Information'}
+                title={t(`common:${isEditing ? 'NodeEndEdit' : 'NodeEndInfo'}`, { lng: language })}
             />
             <form onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, ...linkColors(palette) }}>

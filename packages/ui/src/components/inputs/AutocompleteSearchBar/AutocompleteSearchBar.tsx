@@ -341,7 +341,7 @@ export function AutocompleteSearchBar({
                             onChange={(isStarred, event) => handleStar(option, isStarred, event)}
                             session={session}
                             showStars={true}
-                            starFor={option.type as StarFor}
+                            starFor={option.type as unknown as StarFor}
                             stars={option.stars}
                             sxs={{ root: { marginRight: 1 } }}
                             tooltipPlacement="right"

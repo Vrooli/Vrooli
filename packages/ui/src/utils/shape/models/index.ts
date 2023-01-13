@@ -4,6 +4,7 @@ export * from './comment';
 export * from './issue';
 export * from './label';
 export * from './meeting';
+export * from './meetingInvite';
 export * from './member';
 export * from './memberInvite';
 export * from './node';

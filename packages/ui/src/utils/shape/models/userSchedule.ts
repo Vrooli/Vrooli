@@ -30,7 +30,7 @@ export const shapeUserSchedule: ShapeModel<UserScheduleShape, UserScheduleCreate
         ...createRel(d, 'labels', ['Create', 'Connect'], 'many', shapeLabel),   
         ...createRel(d, 'filters', ['Create'], 'many', shapeUserScheduleFilter),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 
             'id', 
             'name', 
@@ -45,5 +45,5 @@ export const shapeUserSchedule: ShapeModel<UserScheduleShape, UserScheduleCreate
         ...updateRel(o, u, 'resourceList', ['Create', 'Update'], 'one', shapeResourceList),
         ...updateRel(o, u, 'labels', ['Create', 'Connect', 'Disconnect'], 'many', shapeLabel),   
         ...updateRel(o, u, 'filters', ['Create', 'Delete'], 'many', shapeUserScheduleFilter),
-    })
+    }, a)
 }

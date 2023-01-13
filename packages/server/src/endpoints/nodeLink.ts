@@ -25,8 +25,9 @@ export const typeDef = gql`
         id: ID!
         whens: [NodeLinkWhen!]!
         operation: String
-        fromId: ID!
-        toId: ID!
+        from: Node!
+        to: Node!
+        routineVersion: RoutineVersion!
     }
 `
 export const resolvers: {

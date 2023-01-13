@@ -131,12 +131,12 @@ export const RunButton = ({
                     zIndex: zIndex + 3,
                 }}
             >
-                {/* {runnableObject && <RunView
+                {runnableObject && <RunView
                     handleClose={runStop}
                     runnableObject={runnableObject}
                     session={session}
                     zIndex={zIndex + 3}
-                />} TODO */}
+                />}
             </Dialog>
             {/* Chooses which run to use */}
             <RunPickerMenu

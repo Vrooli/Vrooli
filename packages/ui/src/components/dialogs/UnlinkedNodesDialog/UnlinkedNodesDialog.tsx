@@ -16,6 +16,7 @@ import { EndNode, RedirectNode, RoutineListNode } from 'components';
 import { getTranslation } from 'utils';
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from '@shared/icons';
 import { Node, NodeEnd, NodeRoutineList, NodeType } from '@shared/consts';
+import { useTranslation } from 'react-i18next';
 
 export const UnlinkedNodesDialog = ({
     handleNodeDelete,
@@ -26,6 +27,7 @@ export const UnlinkedNodesDialog = ({
     zIndex,
 }: UnlinkedNodesDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     /**
      * Generates a simple node from a node type
@@ -38,7 +40,7 @@ export const UnlinkedNodesDialog = ({
             isEditing: false,
             isLinked: false,
             key: `unlinked-node-${node.id}`,
-            label: getTranslation(node, [language], false).title ?? null,
+            label: getTranslation(node, [language], false).name ?? null,
             labelVisible: false,
             scale: 0.8,
             zIndex,
@@ -75,7 +77,7 @@ export const UnlinkedNodesDialog = ({
     }, [language, zIndex])
 
     return (
-        <Tooltip title="Unlinked nodes">
+        <Tooltip title={t('common:NodeUnlinked', { lng: language, count: 2 })}>
             <Box id="unlinked-nodes-dialog" sx={{
                 alignSelf: open ? 'baseline' : 'auto',
                 borderRadius: 3,
@@ -109,9 +111,9 @@ export const UnlinkedNodesDialog = ({
                     width: '100%'
                 }}>
                     <UnlinkedNodesIcon fill={palette.secondary.contrastText} />
-                    <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? 'Unlinked ' : ''}({nodes.length})</Typography>
-                    <Tooltip title={open ? 'Shrink' : 'Expand'}>
-                        <IconButton edge="end" color="inherit" aria-label={open ? 'Shrink' : 'Expand'}>
+                    <Typography variant="h6" sx={{ ...noSelect, marginLeft: '8px' }}>{open ? (t('common:Unlinked', { lng: language }) + ' ') : ''}({nodes.length})</Typography>
+                    <Tooltip title={t(`common:${open ? 'Shrink' : 'Expand'}`, { lng: language })}>
+                        <IconButton edge="end" color="inherit" aria-label={t(`common:${open ? 'Shrink' : 'Expand'}`, { lng: language })}>
                             {open ? <ExpandLessIcon fill={palette.secondary.contrastText} /> : <ExpandMoreIcon fill={palette.secondary.contrastText} />}
                         </IconButton>
                     </Tooltip>
@@ -127,14 +129,14 @@ export const UnlinkedNodesDialog = ({
                                     {createNode(node)}
                                 </Box>
                                 {/* Node title */}
-                                {node.nodeType === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).title}</Typography>)}
+                                {node.nodeType === NodeType.RoutineList ? null : (<Typography variant="body1" sx={{ marginLeft: 1 }}>{getTranslation(node, [language], true).name}</Typography>)}
                                 {/* Delete node icon */}
-                                <Tooltip title={`Delete ${getTranslation(node, [language], true).title} node`} placement="left">
+                                <Tooltip title={t('common:NodeDeleteWithName', { lng: language, nodeName: getTranslation(node, [language], true).name })} placement="left">
                                     <Box sx={{ marginLeft: 'auto' }}>
                                         <IconButton
                                             color="inherit"
                                             onClick={() => handleNodeDelete(node.id)}
-                                            aria-label={'Delete unlinked node'}
+                                            aria-label={t('common:NodeUnlinkedDelete', { lng: language })}
                                         >
                                             <DeleteIcon fill={palette.background.textPrimary} />
                                         </IconButton>

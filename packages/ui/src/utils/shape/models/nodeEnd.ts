@@ -4,7 +4,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims, updateRel } from "./t
 
 export type NodeEndShape = Pick<NodeEnd, 'id' | 'wasSuccessful' | 'suggestedNextRoutineVersions'> & {
     node: { id: string };
-    suggestedNextRoutineVersions: { id: string }[];
+    suggestedNextRoutineVersions?: { id: string }[] | null;
 }
 
 export const shapeNodeEnd: ShapeModel<NodeEndShape, NodeEndCreateInput, NodeEndUpdateInput> = {
@@ -13,8 +13,8 @@ export const shapeNodeEnd: ShapeModel<NodeEndShape, NodeEndCreateInput, NodeEndU
         ...createRel(d, 'node', ['Connect'], 'one'),
         ...createRel(d, 'suggestedNextRoutineVersions', ['Connect'], 'many'),
     }),
-    update: (o, u) => shapeUpdate(u, ({
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'wasSuccessful'),
         ...updateRel(o, u, 'suggestedNextRoutineVersions', ['Connect', 'Disconnect'], 'many'),
-    }))
+    }, a)
 }

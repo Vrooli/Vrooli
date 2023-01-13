@@ -1,4 +1,4 @@
-import { RoutineVersion, RunRoutine, Session, User } from "@shared/consts";
+import { Node, ProjectVersion, RoutineVersion, RunRoutine, Session, User } from "@shared/consts";
 import { RelationshipsObject } from "components/inputs/types";
 import React from "react";
 import { DecisionStep } from "types";
@@ -66,7 +66,7 @@ export interface DecisionViewProps {
 
 export interface RunViewProps extends ViewProps<RoutineVersion> {
     handleClose: () => void;
-    routineVersion: RoutineVersion;
+    runnableObject: ProjectVersion | RoutineVersion;
 }
 
 export interface BuildViewProps extends ViewProps<RoutineVersion> {

@@ -1,60 +1,32 @@
-import { Routine, RoutineCreateInput, RoutineUpdateInput } from "@shared/consts";
+import { GqlModelType, Routine, RoutineCreateInput, RoutineUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
-import { NodeLinkShape, NodeShape, RoutineVersionOutputShape, ResourceListShape, TagShape, createPrims, updatePrims, shapeUpdate, shapeRoutineVersionInput, shapeNodeLink, shapeRoutineVersionOutput, shapeRoutineVersionTranslation, shapeResourceList, updateRel, createRel, shapeTag, shapeResourceListTranslation, RoutineVersionInputShape, updateOwner, createOwner, shapeNode, RoutineVersionTranslationShape } from "utils";
+import { TagShape, createPrims, updatePrims, shapeUpdate, updateRel, createRel, shapeTag, updateOwner, createOwner, shapeLabel, LabelShape, RoutineVersionShape, shapeRoutineVersion, createVersion, updateVersion } from "utils";
 
 
-export type RoutineShape = Omit<OmitCalculated<Routine>, 'complexity' | 'simplicity' | 'inputs' | 'nodeLinks' | 'owner' | 'parent' | 'nodes' | 'outputs' | 'resourceLists' | 'runs' | 'tags' | 'translations'> & {
-    id: string;
-    inputs: RoutineVersionInputShape[];
-    nodeLinks?: NodeLinkShape[] | null;
-    nodes?: Omit<NodeShape, 'routineId'>[] | null;
-    outputs?: RoutineVersionOutputShape[] | null;
-    owner?: {
-        type: 'User' | 'Organization';
-        id: string;
-    } | null;
-    parent?: {
-        id: string
-    } | null;
-    project?: {
-        id: string
-    } | null;
-    resourceLists?: ResourceListShape[] | null;
-    tags?: ({ tag: string } | TagShape)[] | null;
-    translations: RoutineVersionTranslationShape[];
+export type RoutineShape = Pick<Routine, 'id' | 'isInternal' | 'isPrivate' | 'permissions'> & {
+    labels?: ({ id: string } | LabelShape)[];
+    owner?: { type: GqlModelType, id: string } | null;
+    parent?: { id: string } | null;
+    tags?: ({ tag: string } | TagShape)[];
+    // Updating, deleting, and reordering versions must be done separately. 
+    // This only creates/updates a single version, which is most often the case
+    versionInfo?: RoutineVersionShape | null;
 }
 
 export const shapeRoutine: ShapeModel<RoutineShape, RoutineCreateInput, RoutineUpdateInput> = {
     create: (d) => ({
-        id: d.id,
-        isAutomatable: d.isAutomatable,
-        isComplete: d.isComplete,
-        isInternal: d.isInternal,
-        isPrivate: d.isPrivate,
-        // version: d.version,TODO
-        parentId: d.parent?.id,
-        projectId: d.project?.id,
+        ...createPrims(d, 'id', 'isInternal', 'isPrivate', 'permissions'),
         ...createOwner(d),
-        ...createRel(d, 'nodes', ['Create'], 'many', shapeNode, (n) => ({ ...n, routineVersion: { id: d.id } })),
-        ...createRel(d, 'nodeLinks', ['Create'], 'many', shapeNodeLink),
-        ...createRel(d, 'inputs', ['Create'], 'many', shapeRoutineVersionInput),
-        ...createRel(d, 'outputs', ['Create'], 'many', shapeRoutineVersionOutput),
-        ...createRel(d, 'resourceList', ['Create'], 'one', shapeResourceList),
+        ...createRel(d, 'labels', ['Connect', 'Create'], 'many', shapeLabel),
+        ...createRel(d, 'parent', ['Connect'], 'one'),
         ...createRel(d, 'tags', ['Connect', 'Create'], 'many', shapeTag),
-        ...createRel(d, 'translations', ['Create'], 'many', shapeRoutineVersionTranslation),
+        ...createVersion(d, shapeRoutineVersion, (v) => ({ ...v, root: { id: d.id } })),
     }),
-    update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, 'id', 'isAutomatable', 'isComplete', 'isInternal', 'isPrivate'),
-        // ...shapePrim(o, u, 'version'),TODO
-        // ...shapePrim(o, u, 'parentId'),
-        // ...shapePrim(o, u, 'projectId'),
+    update: (o, u, a) => shapeUpdate(u, {
+        ...updatePrims(o, u, 'id', 'isInternal', 'isPrivate', 'permissions'),
         ...updateOwner(o, u),
-        ...updateRel(o, u, 'nodes', ['Create', 'Update', 'Delete'], 'many', shapeNode, (d, i) => ({ ...d, routineVersion: { id: i.id } })),
-        ...updateRel(o, u, 'nodeLinks', ['Create', 'Update', 'Delete'], 'many', shapeNodeLink),
-        ...updateRel(o, u, 'inputs', ['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionInput),
-        ...updateRel(o, u, 'outputs',['Create', 'Update', 'Delete'], 'many', shapeRoutineVersionOutput),
-        ...updateRel(o, u, 'resourceList', ['Create', 'Update'], 'one', shapeResourceList),
+        ...updateRel(o, u, 'labels', ['Connect', 'Create', 'Disconnect'], 'many', shapeLabel),
         ...updateRel(o, u, 'tags', ['Connect', 'Create', 'Disconnect'], 'many', shapeTag),
-        ...updateRel(o, u, 'translations', ['Create', 'Update', 'Delete'], 'many', shapeResourceListTranslation),
-    })
+        ...updateVersion(o, u, shapeRoutineVersion, (v, i) => ({ ...v, root: { id: i.id } })),
+    }, a)
 }

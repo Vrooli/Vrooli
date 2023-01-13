@@ -186,7 +186,7 @@ export const RoutineView = ({
                 id: routineVersion.id,
                 exists: false,
                 name: name ?? 'Unnamed Routine',
-                ...runInputsCreate(formikToRunInputs(formik.values)),
+                ...runInputsCreate(formikToRunInputs(formik.values), routineVersion.id),
             },
             successMessage: () => ({ key: 'RoutineCompleted' }),
             onSuccess: () => {
@@ -274,11 +274,11 @@ export const RoutineView = ({
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
                 {routineVersion?.nodes?.length ? <RunButton
                     canEdit={canEdit}
-                    handleRunAdd={handleRunAdd}
-                    handleRunDelete={handleRunDelete}
+                    handleRunAdd={handleRunAdd as any}
+                    handleRunDelete={handleRunDelete as any}
                     isBuildGraphOpen={isBuildOpen}
                     isEditing={false}
-                    routineVersion={routineVersion}
+                    runnableObject={routineVersion}
                     session={session}
                     zIndex={zIndex}
                 /> : null}
@@ -401,12 +401,12 @@ export const RoutineView = ({
                 />
             </Stack>
             {/* Votes, reports, and other basic stats */}
-            <StatsCompact
+            {/* <StatsCompact
                 handleObjectUpdate={updateRoutineVersion}
                 loading={loading}
                 object={routineVersion}
                 session={session}
-            />
+            /> */}
             {/* Action buttons */}
             <ObjectActionsRow
                 exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere

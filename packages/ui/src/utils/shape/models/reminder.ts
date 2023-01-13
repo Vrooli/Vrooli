@@ -14,8 +14,8 @@ export const shapeReminder: ShapeModel<ReminderShape, ReminderCreateInput, Remin
         ...createRel(d, 'reminderList', ['Connect'], 'one'),
         ...createRel(d, 'reminderItems', ['Create'], 'many', shapeReminderItem, (r) => ({ ...r, reminder: { id: d.id } })),
     }),
-    update: (o, u) => shapeUpdate(u, {
+    update: (o, u, a) => shapeUpdate(u, {
         ...updatePrims(o, u, 'id', 'name', 'description', 'dueDate', 'index'),
         ...updateRel(o, u, 'reminderItems', ['Create', 'Update', 'Delete'], 'many', shapeReminderItem, (r, i) => ({ ...r, reminder: { id: i.id }})),
-    })
+    }, a)
 }

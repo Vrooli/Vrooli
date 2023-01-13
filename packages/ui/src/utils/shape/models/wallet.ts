@@ -5,5 +5,5 @@ import { shapeUpdate } from "./tools";
 export type WalletShape = Pick<Wallet, 'id'>
 
 export const shapeWallet: ShapeModel<WalletShape, null, WalletUpdateInput> = {
-    update: (o, u) => shapeUpdate(u, {}) as any
+    update: (o, u, a) => shapeUpdate(u, {}, a) as any
 }

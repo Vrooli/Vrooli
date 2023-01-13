@@ -90,6 +90,7 @@
     "NoTextSelected": "No text selected.",
     "NonceExpired": "Nonce expired.",
     "NonceExpiredDetails": "Nonce has expired. Please restart the sign in process (and complete it quicker this time :)",
+    "NothingToUpdate": "Nothing to update.",
     "NoUserIdFound": "No user id found.",
     "NotAuthorizedToTransfer": "Not authorized to transfer.",
     "NotAuthorizedToTransferDetails": "You are not authorized to transfer this object. It either doesn't belong to you, is deleted, or another error occurred.",

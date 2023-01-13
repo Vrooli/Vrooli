@@ -1,3 +1,5 @@
+import { exists } from "@shared/utils";
+
 /**
  * Helper function for converting Prisma relationship counts to GraphQL count fields
  * @param obj - Prisma-shaped object
@@ -14,7 +16,7 @@ export const removeCountFields = (obj: any, countFields: { [x: string]: true } |
     for (const key of Object.keys(countFields)) {
         // Relationship name is the count field without the 'Count' suffix
         const value = key.slice(0, -5);
-        if (obj._count[value] !== undefined && obj._count[value] !== null) {
+        if (exists(obj._count[value])) {
             obj[key] = obj._count[value];
         }
     }

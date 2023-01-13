@@ -237,7 +237,6 @@ export const RoutineVersionModel: ModelLogic<{
             hasCompleteVersion: true,
             isDeleted: true,
             isPrivate: true,
-            isInternal: true,
             permissions: true,
             createdBy: padSelect({ id: true }),
             ...permissionsSelectHelper({

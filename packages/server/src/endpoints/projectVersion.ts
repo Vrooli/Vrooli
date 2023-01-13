@@ -48,6 +48,7 @@ export const typeDef = gql`
         versionIndex: Int
         versionLabel: String
         versionNotes: String
+        rootUpdate: ProjectUpdateInput
         translationsCreate: [ProjectVersionTranslationCreateInput!]
         translationsUpdate: [ProjectVersionTranslationUpdateInput!]
         translationsDelete: [ID!]

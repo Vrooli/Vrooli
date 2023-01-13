@@ -71,7 +71,7 @@ export type ShapeModel<
     TUpdate extends {} | null
 > = (TCreate extends null ? {} : { create: (item: T) => TCreate }) &
     (TUpdate extends null ? {} : { 
-        update: (o: T, u: T) => TUpdate | undefined,
+        update: (o: T, u: T, assertHasUpdate?: boolean) => TUpdate | undefined,
         hasObjectChanged?: (o: T, u: T) => boolean,
     }) & { idField?: keyof T & string }
 

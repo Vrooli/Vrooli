@@ -298,9 +298,9 @@ export const NodeGraph = ({
         // (i.e. no links, or column dimensions not complete)
         if (!links) return [];
         return links?.map(link => {
-            if (!link.fromId || !link.toId) return null;
-            const fromNode = nodesById[link.fromId];
-            const toNode = nodesById[link.toId];
+            if (!link.from.id || !link.to.id) return null;
+            const fromNode = nodesById[link.from.id];
+            const toNode = nodesById[link.to.id];
             if (!fromNode || !toNode) return null;
             return <NodeEdge
                 key={`edge-${firstString(link.id, 'new-') + fromNode.id + '-to-' + toNode.id}`}

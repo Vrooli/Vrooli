@@ -20,6 +20,7 @@ import { BuildAction, firstString, getTranslation, updateTranslationFields, useP
 import { calculateNodeSize, EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
 import { reqErr, name as nameValidation } from '@shared/validation';
+import { Routine } from '@shared/consts';
 
 /**
  * Decides if a clicked element should trigger opening the subroutine dialog 
@@ -46,7 +47,7 @@ export const SubroutineNode = ({
     const nodeSize = useMemo(() => `${calculateNodeSize(220, scale)}px`, [scale]);
     const fontSize = useMemo(() => `min(${calculateNodeSize(220, scale) / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
-    const canEdit = useMemo<boolean>(() => (data?.routineVersion?.isInternal ?? data?.routineVersion?.root?.you?.canEdit === true), [data.routineVersion]);
+    const canEdit = useMemo<boolean>(() => ((data?.routineVersion?.root as Routine)?.isInternal ?? (data?.routineVersion?.root as Routine)?.you?.canEdit === true), [data.routineVersion]);
 
     const { name } = useMemo(() => {
         const languages = navigator.languages;
@@ -141,7 +142,7 @@ export const SubroutineNode = ({
                         [BuildAction.OpenSubroutine, BuildAction.DeleteSubroutine]
                 }
                 handleClose={closeContext}
-                handleSelect={(action) => { onAction(null, action) }}
+                handleSelect={(action) => { onAction(null, action as BuildAction.EditSubroutine | BuildAction.DeleteSubroutine | BuildAction.OpenSubroutine) }}
                 zIndex={zIndex + 1}
             />
             <Box

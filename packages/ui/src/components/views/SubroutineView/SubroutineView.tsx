@@ -81,11 +81,11 @@ export const SubroutineView = ({
             const currInput = internalRoutineVersion.inputs[i];
             if (!currInput.standardVersion) continue;
             const currSchema = standardVersionToFieldData({
-                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standard, getUserLanguages(session), false).description,
+                description: getTranslation(currInput, getUserLanguages(session), false).description ?? getTranslation(currInput.standardVersion, getUserLanguages(session), false).description,
                 fieldName: `inputs-${currInput.id}`,
                 helpText: getTranslation(currInput, getUserLanguages(session), false).helpText,
                 props: currInput.standardVersion.props,
-                name: currInput.name ?? currInput.standardVersion.name,
+                name: currInput.name ?? currInput.standardVersion.root.name,
                 standardType: currInput.standardVersion.standardType,
                 yup: currInput.standardVersion.yup,
             });
@@ -322,12 +322,12 @@ export const SubroutineView = ({
                         />
                     </Stack>
                     {/* Votes, reports, and other basic stats */}
-                    <StatsCompact
+                    {/* <StatsCompact
                         handleObjectUpdate={updateRoutine}
                         loading={loading}
                         object={internalRoutineVersion ?? null}
                         session={session}
-                    />
+                    /> */}
                 </ContentCollapse>
             </Box>
             {/* Comments */}
