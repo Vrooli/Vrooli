@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 
-const type = 'RunProjectSchedule' as const;
+const __typename = 'RunProjectSchedule' as const;
 const suppFields = [] as const;
 export const RunProjectScheduleModel: ModelLogic<{
     IsTransferable: true,
@@ -22,7 +22,7 @@ export const RunProjectScheduleModel: ModelLogic<{
     PrismaSelect: Prisma.run_project_scheduleSelect,
     PrismaWhere: Prisma.run_project_scheduleWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.run_project_schedule,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

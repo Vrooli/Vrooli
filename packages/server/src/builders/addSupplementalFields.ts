@@ -62,7 +62,7 @@ export const addSupplementalFields = async (
             objectsById[v.id] = v;
             // Also add the type to the object, which can be used 
             // by our union resolver to determine which __typename to use
-            objectsById[v.id].type = type;
+            objectsById[v.id].__typename = type;
         }
     }
     // Convert objectsById dictionary back into shape of data

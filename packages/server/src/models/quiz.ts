@@ -8,7 +8,7 @@ import { getSingleTypePermissions } from "../validators";
 import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 
-const type = 'Quiz' as const;
+const __typename = 'Quiz' as const;
 type Permissions = Pick<QuizYou, 'canDelete' | 'canEdit' | 'canStar' | 'canView' | 'canVote'>;
 const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
 export const QuizModel: ModelLogic<{
@@ -26,7 +26,7 @@ export const QuizModel: ModelLogic<{
     PrismaSelect: Prisma.quizSelect,
     PrismaWhere: Prisma.quizWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.quiz,
     display: {
         select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -34,7 +34,7 @@ export const QuizModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             attempts: 'QuizAttempt',
             createdBy: 'User',
             project: 'Project',
@@ -43,7 +43,7 @@ export const QuizModel: ModelLogic<{
             starredBy: 'User',
         },
         prismaRelMap: {
-            type,
+            __typename,
             attempts: 'QuizAttempt',
             createdBy: 'User',
             project: 'Project',
@@ -56,11 +56,11 @@ export const QuizModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, type),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                 }
             },
         },

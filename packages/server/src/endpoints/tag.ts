@@ -28,7 +28,6 @@ export const typeDef = gql`
     }
 
     type Tag {
-        type: GqlModelType!
         id: ID!
         tag: String!
         created_at: Date!

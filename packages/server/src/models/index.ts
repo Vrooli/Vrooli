@@ -192,7 +192,6 @@ export * from './payment';
 export * from './phone';
 export * from './post';
 export * from './premium';
-export * from './profile';
 export * from './project';
 export * from './projectVersion';
 export * from './projectVersionDirectory';

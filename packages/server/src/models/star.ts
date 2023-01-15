@@ -35,7 +35,7 @@ const forMapper: { [key in StarFor]: keyof Prisma.starUpsertArgs['create'] } = {
     User: 'user',
 }
 
-const type = 'Star' as const;
+const __typename = 'Star' as const;
 const suppFields = [] as const;
 export const StarModel: ModelLogic<{
     IsTransferable: false,
@@ -52,7 +52,7 @@ export const StarModel: ModelLogic<{
     PrismaSelect: Prisma.starSelect,
     PrismaWhere: Prisma.starWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.star,
     display: {
         select: () => ({
@@ -94,7 +94,7 @@ export const StarModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             by: 'User',
             to: {
                 api: 'Api',
@@ -115,7 +115,7 @@ export const StarModel: ModelLogic<{
             }
         },
         prismaRelMap: {
-            type,
+            __typename,
             by: 'User',
             api: 'Api',
             comment: 'Comment',

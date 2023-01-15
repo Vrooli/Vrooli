@@ -42,7 +42,6 @@ export const typeDef = gql`
         silent: Boolean
     }
     type NotificationSubscription {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         object: SubscribedObject!

@@ -29,7 +29,7 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
         }
     }
     // Handle base case
-    const type = partial.type;
+    const type = partial.__typename;
     const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (type && format) {
         result = removeSupplementalFields(type, result);

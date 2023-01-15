@@ -27,19 +27,19 @@ export type IWrap<T> = { input: T }
  * An object connected to routing
  */
 export type NavigableObject = {
-    type: GqlModelType,
+    __typename: `${GqlModelType}`,
     handle?: string | null,
     id: string,
     projectVersion?: {
-        type: GqlModelType
+        __typename: `${GqlModelType}`
         id: string
     } | null,
     routineVersion?: {
-        type: GqlModelType
+        __typename: `${GqlModelType}`
         id: string
     } | null,
     to?: {
-        type: GqlModelType,
+        __typename: `${GqlModelType}`,
         handle?: string | null,
         id: string,
     }
@@ -54,12 +54,6 @@ export type IsInternalInput = {
     isInternal?: boolean;
     isInternalExceptions?: SearchException[];
 }
-
-/**
- * Wrapper for removing type from any object. Useful when creating 
- * new objects, rather than using queried data.
- */
-export type NoTypename<T> = T extends { type: string } ? Omit<T, 'type'> : T;
 
 /**
  * Converts objects as represented in the UI (especially forms) to create/update 
@@ -81,11 +75,11 @@ export interface BaseStep {
     description: string | null, // description from node
 }
 export interface DecisionStep extends BaseStep {
-    type: RoutineStepType.Decision,
+    __typename: RoutineStepType.Decision,
     links: NodeLink[]
 }
 export interface SubroutineStep extends BaseStep {
-    type: RoutineStepType.Subroutine,
+    __typename: RoutineStepType.Subroutine,
     index: number,
     routineVersion: RoutineVersion
 }
@@ -105,7 +99,7 @@ export interface RoutineListStep extends BaseStep {
 export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
 
 export interface ObjectOption {
-    type: GqlModelType;
+    __typename: `${GqlModelType}`;
     handle?: string | null;
     id: string;
     versionGroupId?: string | null;
@@ -115,25 +109,25 @@ export interface ObjectOption {
     stars?: number;
     [key: string]: any;
     runnableObject?: {
-        type: GqlModelType
+        __typename: `${GqlModelType}`
         id: string
     } | null,
     to?: {
-        type: GqlModelType,
+        __typename: `${GqlModelType}`,
         handle?: string | null,
         id: string,
     }
 }
 
 export interface ShortcutOption {
-    type: 'Shortcut';
+    __typename: 'Shortcut';
     isFromHistory?: boolean;
     label: string;
     id: string; // Actually URL, but id makes it easier to use
 }
 
 export interface ActionOption {
-    type: 'Action';
+    __typename: 'Action';
     canPerform: (session: Session) => boolean;
     id: string;
     isFromHistory?: boolean;

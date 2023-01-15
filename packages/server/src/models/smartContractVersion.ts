@@ -6,7 +6,7 @@ import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 
-const type = 'SmartContractVersion' as const;
+const __typename = 'SmartContractVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
 const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView'] as const;
 export const SmartContractVersionModel: ModelLogic<{
@@ -24,7 +24,7 @@ export const SmartContractVersionModel: ModelLogic<{
     PrismaSelect: Prisma.smart_contract_versionSelect,
     PrismaWhere: Prisma.smart_contract_versionWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.smart_contract_version,
     display: {
         select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
@@ -32,7 +32,7 @@ export const SmartContractVersionModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'SmartContractVersion',
@@ -41,7 +41,7 @@ export const SmartContractVersionModel: ModelLogic<{
             root: 'SmartContract',
         },
         prismaRelMap: {
-            type,
+            __typename,
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'SmartContractVersion',
@@ -59,7 +59,7 @@ export const SmartContractVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
             },
         },

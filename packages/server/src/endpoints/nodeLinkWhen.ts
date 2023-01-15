@@ -16,7 +16,6 @@ export const typeDef = gql`
         condition: String
     }
     type NodeLinkWhen {
-        type: GqlModelType!
         id: ID!
         translations: [NodeLinkWhenTranslation!]!
         condition: String!

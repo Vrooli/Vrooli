@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
 
-const type = 'UserScheduleFilter' as const;
+const __typename = 'UserScheduleFilter' as const;
 const suppFields = [] as const;
 export const UserScheduleFilterModel: ModelLogic<{
     IsTransferable: true,
@@ -22,7 +22,7 @@ export const UserScheduleFilterModel: ModelLogic<{
     PrismaSelect: Prisma.user_schedule_filterSelect,
     PrismaWhere: Prisma.user_schedule_filterWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.user_schedule_filter,
     display: {
         select: () => ({ id: true, tag: { select: TagModel.display.select() } }),

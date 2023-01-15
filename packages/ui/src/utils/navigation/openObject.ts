@@ -2,7 +2,7 @@
  * Navigate to various objects and object search pages
  */
 
-import { APP_LINKS, GqlModelType, RunProject, RunRoutine, Star, View, Vote } from "@shared/consts";
+import { APP_LINKS, GqlModelType, Star, View, Vote } from "@shared/consts";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
 import { NavigableObject, SetLocation } from "types";
 import { ResourceType } from "utils/consts";
@@ -26,13 +26,13 @@ export type ObjectType = 'Comment' |
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
     // If object is a star/vote/some other type that links to a main object, use the "to" property
-    if (['Star', 'View', 'Vote'].includes(object.type)) return getObjectUrlBase((object as Star | View | Vote).to as any);
+    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getObjectUrlBase((object as Star | View | Vote).to as any);
     // If the object is a run routine, use the routine version
-    if (object.type === 'RunRoutine') return getObjectUrlBase((object as RunRoutine).routineVersion as any);
+    if (object.__typename === 'RunRoutine') return getObjectUrlBase(object.routineVersion as any);
     // If the object is a run project, use the project version
-    if (object.type === 'RunProject') return getObjectUrlBase((object as RunProject).projectVersion as any);
-    // Otherwise, use type (or root if versioned object)
-    return APP_LINKS[object.type.replace('Version', '')];
+    if (object.__typename === 'RunProject') return getObjectUrlBase(object.projectVersion as any);
+    // Otherwise, use __typename (or root if versioned object)
+    return APP_LINKS[object.__typename.replace('Version', '')];
 }
 
 /**
@@ -40,13 +40,13 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
  * @param object Object being navigated to
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: { type: GqlModelType, id: string, handle?: string | null}): string => {
-    // If object is a star/vote/some other type that links to a main object, use that object's slug
-    if (['Star', 'View', 'Vote'].includes(object.type)) return getObjectSlug((object as Star | View | Vote).to as any);
+export const getObjectSlug = (object: { __typename: `${GqlModelType}`, id: string, handle?: string | null}): string => {
+    // If object is a star/vote/some other __typename that links to a main object, use that object's slug
+    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getObjectSlug((object as Star | View | Vote).to as any);
     // If the object is a run routine, use the routine version
-    if (object.type === 'RunRoutine') return getObjectSlug((object as RunRoutine).routineVersion as any);
+    if (object.__typename === 'RunRoutine') return getObjectSlug(object.routineVersion as any);
     // If the object is a run project, use the project version
-    if (object.type === 'RunProject') return getObjectSlug((object as RunProject).projectVersion as any);
+    if (object.__typename === 'RunProject') return getObjectSlug(object.projectVersion as any);
     // Otherwise, use handle or id
     return (object as any).handle ?? uuidToBase36(object.id);
 }
@@ -56,9 +56,9 @@ export const getObjectSlug = (object: { type: GqlModelType, id: string, handle?:
  * @param object Object being navigated to
  * @returns Stringified search params for object
  */
-export const getObjectSearchParams = (object: { type: GqlModelType, id: string }) => {
+export const getObjectSearchParams = (object: { __typename: `${GqlModelType}`, id: string }) => {
     // If object is a run
-    if (object.type === 'RunRoutine') return stringifySearchParams({ run: uuidToBase36(object.id) });
+    if (object.__typename === 'RunRoutine') return stringifySearchParams({ run: uuidToBase36(object.id) });
     return '';
 }
 

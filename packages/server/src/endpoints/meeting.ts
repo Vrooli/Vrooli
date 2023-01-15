@@ -58,7 +58,6 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type Meeting {
-        type: GqlModelType!
         id: ID!
         openToAnyoneWithInvite: Boolean!
         showOnOrganizationProfile: Boolean!

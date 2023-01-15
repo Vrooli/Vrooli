@@ -16,7 +16,6 @@ export const typeDef = gql`
         index: Int
     }
     type ReminderItem {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

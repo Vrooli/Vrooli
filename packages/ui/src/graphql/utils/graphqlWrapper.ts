@@ -114,7 +114,7 @@ export const graphqlWrapperHelper = <Output extends object>({
         // Get object/primitive inside response.data
         const data: Output = Object.values(response.data)[0];
         // If this is a Count object with count = 0, then there must be an error
-        if ((data as any)?.type === 'Count' && (data as any)?.count === 0) {
+        if ((data as any)?.__typename === 'Count' && (data as any)?.count === 0) {
             handleError(data);
             return;
         }

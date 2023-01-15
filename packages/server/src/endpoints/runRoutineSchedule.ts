@@ -46,7 +46,6 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type RunRoutineSchedule {
-        type: GqlModelType!
         id: ID!
         timeZone: String
         windowStart: Date

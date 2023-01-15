@@ -23,7 +23,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
     }
 }
 
-const type = 'ProjectVersion' as const;
+const __typename = 'ProjectVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
 const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView', 'you.runs'] as const;
 export const ProjectVersionModel: ModelLogic<{
@@ -41,7 +41,7 @@ export const ProjectVersionModel: ModelLogic<{
     PrismaSelect: Prisma.project_versionSelect,
     PrismaWhere: Prisma.project_versionWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.project_version,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -49,7 +49,7 @@ export const ProjectVersionModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             comments: 'Comment',
             directories: 'ProjectVersionDirectory',
             directoryListings: 'ProjectVersionDirectory',
@@ -60,7 +60,7 @@ export const ProjectVersionModel: ModelLogic<{
             // 'runs.project': 'RunProject', //TODO
         },
         prismaRelMap: {
-            type,
+            __typename,
             comments: 'Comment',
             directories: 'ProjectVersionDirectory',
             directoryListings: 'ProjectVersionDirectory',
@@ -87,7 +87,7 @@ export const ProjectVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 const runs = async () => {
                     if (!userData) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add projectVersionId, so we 

@@ -91,7 +91,6 @@ export const typeDef = gql`
     }
 
     type Session {
-        type: GqlModelType!
         isLoggedIn: Boolean!
         timeZone: String
         users: [SessionUser!]
@@ -251,7 +250,7 @@ export const resolvers: {
                 throw new CustomError('0144', 'NoUser', req.languages);
             // Generate and send password reset code
             const success = await setupPasswordReset(user, prisma);
-            return { success };
+            return { __typename: 'Success', success };
         },
         emailResetPassword: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 10, req });
@@ -291,8 +290,8 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 500, req });
             // Create session
             const session: Session = {
+                __typename: 'Session' as const,
                 isLoggedIn: false,
-                type: GqlModelType.Session,
                 users: []
             }
             // Set up session token
@@ -305,12 +304,12 @@ export const resolvers: {
                 res.clearCookie(COOKIE.Jwt);
                 // Return guest session
                 await generateSessionJwt(res, { isLoggedIn: false });
-                return { type: GqlModelType.Session, isLoggedIn: false };
+                return { __typename: 'Session' as const, isLoggedIn: false };
             }
             // Otherwise, remove the specified user from the session
             else {
                 const session = { 
-                    type: GqlModelType.Session, 
+                    __typename: 'Session' as const,
                     isLoggedIn: true, 
                     users: req.users.filter(u => u.id !== input.id) 
                 };

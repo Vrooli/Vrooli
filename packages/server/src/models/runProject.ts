@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 
-const type = 'RunProject' as const;
+const __typename = 'RunProject' as const;
 type Permissions = Pick<RunProjectYou, 'canDelete' | 'canEdit' | 'canView'>;
 const suppFields = ['you.canDelete', 'you.canEdit', 'you.canView'] as const;
 export const RunProjectModel: ModelLogic<{
@@ -23,7 +23,7 @@ export const RunProjectModel: ModelLogic<{
     PrismaSelect: Prisma.run_projectSelect,
     PrismaWhere: Prisma.run_projectWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.run_project,
     display: {
         select: () => ({ id: true, name: true }),
@@ -31,7 +31,7 @@ export const RunProjectModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             projectVersion: 'ProjectVersion',
             runProjectSchedule: 'RunProjectSchedule',
             steps: 'RunProjectStep',
@@ -39,7 +39,7 @@ export const RunProjectModel: ModelLogic<{
             organization: 'Organization',
         },
         prismaRelMap: {
-            type,
+            __typename,
             projectVersion: 'ProjectVersion',
             runProjectSchedule: 'RunProjectSchedule',
             steps: 'RunProjectStep',
@@ -50,7 +50,7 @@ export const RunProjectModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
                 }

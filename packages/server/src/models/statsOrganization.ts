@@ -1,10 +1,10 @@
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'StatsOrganization' as const;
+const __typename = 'StatsOrganization' as const;
 const suppFields = [] as const;
 export const StatsOrganizationModel: ModelLogic<any, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.stats_organization,
     display: {} as any,
     format: {} as any,

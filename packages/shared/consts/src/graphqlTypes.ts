@@ -25,7 +25,7 @@ export enum AccountStatus {
 }
 
 export type Api = {
-  __typename?: 'Api';
+  __typename: 'Api';
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -46,7 +46,6 @@ export type Api = {
   tags: Array<Tag>;
   transfers: Array<Transfer>;
   transfersCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<ApiVersion>;
   versionsCount: Scalars['Int'];
@@ -69,20 +68,19 @@ export type ApiCreateInput = {
 };
 
 export type ApiEdge = {
-  __typename?: 'ApiEdge';
+  __typename: 'ApiEdge';
   cursor: Scalars['String'];
   node: Api;
 };
 
 export type ApiKey = {
-  __typename?: 'ApiKey';
+  __typename: 'ApiKey';
   absoluteMax: Scalars['Int'];
   creditsUsed: Scalars['Int'];
   creditsUsedBeforeLimit: Scalars['Int'];
   id: Scalars['ID'];
   resetsAt: Scalars['Date'];
   stopAtLimit: Scalars['Boolean'];
-  type: GqlModelType;
 };
 
 export type ApiKeyCreateInput = {
@@ -128,7 +126,7 @@ export type ApiSearchInput = {
 };
 
 export type ApiSearchResult = {
-  __typename?: 'ApiSearchResult';
+  __typename: 'ApiSearchResult';
   edges: Array<ApiEdge>;
   pageInfo: PageInfo;
 };
@@ -172,7 +170,7 @@ export type ApiUpdateInput = {
 };
 
 export type ApiVersion = {
-  __typename?: 'ApiVersion';
+  __typename: 'ApiVersion';
   callLink: Scalars['String'];
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
@@ -191,7 +189,6 @@ export type ApiVersion = {
   resourceList?: Maybe<ResourceList>;
   root: Api;
   translations: Array<ApiVersionTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -216,7 +213,7 @@ export type ApiVersionCreateInput = {
 };
 
 export type ApiVersionEdge = {
-  __typename?: 'ApiVersionEdge';
+  __typename: 'ApiVersionEdge';
   cursor: Scalars['String'];
   node: ApiVersion;
 };
@@ -241,7 +238,7 @@ export type ApiVersionSearchInput = {
 };
 
 export type ApiVersionSearchResult = {
-  __typename?: 'ApiVersionSearchResult';
+  __typename: 'ApiVersionSearchResult';
   edges: Array<ApiVersionEdge>;
   pageInfo: PageInfo;
 };
@@ -264,7 +261,7 @@ export enum ApiVersionSortBy {
 }
 
 export type ApiVersionTranslation = {
-  __typename?: 'ApiVersionTranslation';
+  __typename: 'ApiVersionTranslation';
   details: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -305,7 +302,7 @@ export type ApiVersionUpdateInput = {
 };
 
 export type ApiYou = {
-  __typename?: 'ApiYou';
+  __typename: 'ApiYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
@@ -318,13 +315,12 @@ export type ApiYou = {
 };
 
 export type Award = {
-  __typename?: 'Award';
+  __typename: 'Award';
   category: AwardCategory;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   progress: Scalars['Int'];
   timeCurrentTierCompleted?: Maybe<Scalars['Date']>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -359,7 +355,7 @@ export enum AwardCategory {
 }
 
 export type Comment = {
-  __typename?: 'Comment';
+  __typename: 'Comment';
   commentedOn: CommentedOn;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -371,7 +367,6 @@ export type Comment = {
   stars: Scalars['Int'];
   translations: Array<CommentTranslation>;
   translationsCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: CommentYou;
 };
@@ -424,7 +419,7 @@ export type CommentSearchInput = {
 };
 
 export type CommentSearchResult = {
-  __typename?: 'CommentSearchResult';
+  __typename: 'CommentSearchResult';
   endCursor?: Maybe<Scalars['String']>;
   threads?: Maybe<Array<CommentThread>>;
   totalThreads?: Maybe<Scalars['Int']>;
@@ -442,7 +437,7 @@ export enum CommentSortBy {
 }
 
 export type CommentThread = {
-  __typename?: 'CommentThread';
+  __typename: 'CommentThread';
   childThreads: Array<CommentThread>;
   comment: Comment;
   endCursor?: Maybe<Scalars['String']>;
@@ -450,7 +445,7 @@ export type CommentThread = {
 };
 
 export type CommentTranslation = {
-  __typename?: 'CommentTranslation';
+  __typename: 'CommentTranslation';
   id: Scalars['ID'];
   language: Scalars['String'];
   text: Scalars['String'];
@@ -476,7 +471,7 @@ export type CommentUpdateInput = {
 };
 
 export type CommentYou = {
-  __typename?: 'CommentYou';
+  __typename: 'CommentYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canReply: Scalars['Boolean'];
@@ -496,7 +491,7 @@ export type CopyInput = {
 };
 
 export type CopyResult = {
-  __typename?: 'CopyResult';
+  __typename: 'CopyResult';
   apiVersion?: Maybe<ApiVersion>;
   noteVersion?: Maybe<NoteVersion>;
   organization?: Maybe<Organization>;
@@ -517,7 +512,7 @@ export enum CopyType {
 }
 
 export type Count = {
-  __typename?: 'Count';
+  __typename: 'Count';
   count: Scalars['Int'];
 };
 
@@ -566,17 +561,16 @@ export enum DeleteType {
 }
 
 export type DevelopResult = {
-  __typename?: 'DevelopResult';
+  __typename: 'DevelopResult';
   completed: Array<ProjectOrRoutine>;
   inProgress: Array<ProjectOrRoutine>;
   recent: Array<ProjectOrRoutine>;
 };
 
 export type Email = {
-  __typename?: 'Email';
+  __typename: 'Email';
   emailAddress: Scalars['String'];
   id: Scalars['ID'];
-  type: GqlModelType;
   verified: Scalars['Boolean'];
 };
 
@@ -725,7 +719,7 @@ export enum GqlModelType {
 }
 
 export type Handle = {
-  __typename?: 'Handle';
+  __typename: 'Handle';
   handle: Scalars['String'];
   id: Scalars['ID'];
   wallet: Wallet;
@@ -737,7 +731,7 @@ export type HistoryInput = {
 };
 
 export type HistoryResult = {
-  __typename?: 'HistoryResult';
+  __typename: 'HistoryResult';
   activeRuns: Array<RunRoutine>;
   completedRuns: Array<RunRoutine>;
   recentlyStarred: Array<Star>;
@@ -745,7 +739,7 @@ export type HistoryResult = {
 };
 
 export type Issue = {
-  __typename?: 'Issue';
+  __typename: 'Issue';
   closedAt?: Maybe<Scalars['Date']>;
   closedBy?: Maybe<User>;
   comments: Array<Comment>;
@@ -765,7 +759,6 @@ export type Issue = {
   to: IssueTo;
   translations: Array<IssueTranslation>;
   translationsCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
   you: IssueYou;
@@ -786,7 +779,7 @@ export type IssueCreateInput = {
 };
 
 export type IssueEdge = {
-  __typename?: 'IssueEdge';
+  __typename: 'IssueEdge';
   cursor: Scalars['String'];
   node: Issue;
 };
@@ -828,7 +821,7 @@ export type IssueSearchInput = {
 };
 
 export type IssueSearchResult = {
-  __typename?: 'IssueSearchResult';
+  __typename: 'IssueSearchResult';
   edges: Array<IssueEdge>;
   pageInfo: PageInfo;
 };
@@ -860,7 +853,7 @@ export enum IssueStatus {
 export type IssueTo = Api | Note | Organization | Project | Routine | SmartContract | Standard;
 
 export type IssueTranslation = {
-  __typename?: 'IssueTranslation';
+  __typename: 'IssueTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -892,7 +885,7 @@ export type IssueUpdateInput = {
 };
 
 export type IssueYou = {
-  __typename?: 'IssueYou';
+  __typename: 'IssueYou';
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
@@ -905,7 +898,7 @@ export type IssueYou = {
 };
 
 export type Label = {
-  __typename?: 'Label';
+  __typename: 'Label';
   apis?: Maybe<Array<Api>>;
   apisCount: Scalars['Int'];
   color?: Maybe<Scalars['String']>;
@@ -932,7 +925,6 @@ export type Label = {
   standardsCount: Scalars['Int'];
   translations: Array<LabelTranslation>;
   translationsCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   userSchedules?: Maybe<Array<UserSchedule>>;
   userSchedulesCount: Scalars['Int'];
@@ -948,7 +940,7 @@ export type LabelCreateInput = {
 };
 
 export type LabelEdge = {
-  __typename?: 'LabelEdge';
+  __typename: 'LabelEdge';
   cursor: Scalars['String'];
   node: Label;
 };
@@ -969,7 +961,7 @@ export type LabelSearchInput = {
 };
 
 export type LabelSearchResult = {
-  __typename?: 'LabelSearchResult';
+  __typename: 'LabelSearchResult';
   edges: Array<LabelEdge>;
   pageInfo: PageInfo;
 };
@@ -982,7 +974,7 @@ export enum LabelSortBy {
 }
 
 export type LabelTranslation = {
-  __typename?: 'LabelTranslation';
+  __typename: 'LabelTranslation';
   description: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -1032,13 +1024,13 @@ export type LabelUpdateInput = {
 };
 
 export type LabelYou = {
-  __typename?: 'LabelYou';
+  __typename: 'LabelYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
 };
 
 export type LearnResult = {
-  __typename?: 'LearnResult';
+  __typename: 'LearnResult';
   courses: Array<Project>;
   tutorials: Array<Routine>;
 };
@@ -1048,7 +1040,7 @@ export type LogOutInput = {
 };
 
 export type Meeting = {
-  __typename?: 'Meeting';
+  __typename: 'Meeting';
   attendees: Array<User>;
   attendeesCount: Scalars['Int'];
   eventEnd?: Maybe<Scalars['Date']>;
@@ -1068,7 +1060,6 @@ export type Meeting = {
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<MeetingTranslation>;
   translationsCount: Scalars['Int'];
-  type: GqlModelType;
   you: MeetingYou;
 };
 
@@ -1090,19 +1081,18 @@ export type MeetingCreateInput = {
 };
 
 export type MeetingEdge = {
-  __typename?: 'MeetingEdge';
+  __typename: 'MeetingEdge';
   cursor: Scalars['String'];
   node: Meeting;
 };
 
 export type MeetingInvite = {
-  __typename?: 'MeetingInvite';
+  __typename: 'MeetingInvite';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   meeting: Meeting;
   message?: Maybe<Scalars['String']>;
   status: MeetingInviteStatus;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   user: User;
   you: MeetingInviteYou;
@@ -1116,7 +1106,7 @@ export type MeetingInviteCreateInput = {
 };
 
 export type MeetingInviteEdge = {
-  __typename?: 'MeetingInviteEdge';
+  __typename: 'MeetingInviteEdge';
   cursor: Scalars['String'];
   node: MeetingInvite;
 };
@@ -1137,7 +1127,7 @@ export type MeetingInviteSearchInput = {
 };
 
 export type MeetingInviteSearchResult = {
-  __typename?: 'MeetingInviteSearchResult';
+  __typename: 'MeetingInviteSearchResult';
   edges: Array<MeetingInviteEdge>;
   pageInfo: PageInfo;
 };
@@ -1165,7 +1155,7 @@ export type MeetingInviteUpdateInput = {
 };
 
 export type MeetingInviteYou = {
-  __typename?: 'MeetingInviteYou';
+  __typename: 'MeetingInviteYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
 };
@@ -1195,7 +1185,7 @@ export type MeetingSearchInput = {
 };
 
 export type MeetingSearchResult = {
-  __typename?: 'MeetingSearchResult';
+  __typename: 'MeetingSearchResult';
   edges: Array<MeetingEdge>;
   pageInfo: PageInfo;
 };
@@ -1216,7 +1206,7 @@ export enum MeetingSortBy {
 }
 
 export type MeetingTranslation = {
-  __typename?: 'MeetingTranslation';
+  __typename: 'MeetingTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -1263,38 +1253,36 @@ export type MeetingUpdateInput = {
 };
 
 export type MeetingYou = {
-  __typename?: 'MeetingYou';
+  __typename: 'MeetingYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canInvite: Scalars['Boolean'];
 };
 
 export type Member = {
-  __typename?: 'Member';
+  __typename: 'Member';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   isAdmin: Scalars['Boolean'];
   organization: Organization;
   permissions: Scalars['String'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   user: User;
 };
 
 export type MemberEdge = {
-  __typename?: 'MemberEdge';
+  __typename: 'MemberEdge';
   cursor: Scalars['String'];
   node: Member;
 };
 
 export type MemberInvite = {
-  __typename?: 'MemberInvite';
+  __typename: 'MemberInvite';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   message?: Maybe<Scalars['String']>;
   organization: Organization;
   status: MemberInviteStatus;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   user: User;
   willBeAdmin: Scalars['Boolean'];
@@ -1312,7 +1300,7 @@ export type MemberInviteCreateInput = {
 };
 
 export type MemberInviteEdge = {
-  __typename?: 'MemberInviteEdge';
+  __typename: 'MemberInviteEdge';
   cursor: Scalars['String'];
   node: MemberInvite;
 };
@@ -1332,7 +1320,7 @@ export type MemberInviteSearchInput = {
 };
 
 export type MemberInviteSearchResult = {
-  __typename?: 'MemberInviteSearchResult';
+  __typename: 'MemberInviteSearchResult';
   edges: Array<MemberInviteEdge>;
   pageInfo: PageInfo;
 };
@@ -1362,7 +1350,7 @@ export type MemberInviteUpdateInput = {
 };
 
 export type MemberInviteYou = {
-  __typename?: 'MemberInviteYou';
+  __typename: 'MemberInviteYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
 };
@@ -1383,7 +1371,7 @@ export type MemberSearchInput = {
 };
 
 export type MemberSearchResult = {
-  __typename?: 'MemberSearchResult';
+  __typename: 'MemberSearchResult';
   edges: Array<MemberEdge>;
   pageInfo: PageInfo;
 };
@@ -1402,7 +1390,7 @@ export type MemberUpdateInput = {
 };
 
 export type Mutation = {
-  __typename?: 'Mutation';
+  __typename: 'Mutation';
   apiCreate: Api;
   apiKeyCreate: ApiKey;
   apiKeyDeleteOne: Success;
@@ -2191,7 +2179,7 @@ export type MutationWriteAssetsArgs = {
 };
 
 export type Node = {
-  __typename?: 'Node';
+  __typename: 'Node';
   columnIndex?: Maybe<Scalars['Int']>;
   created_at: Scalars['Date'];
   end?: Maybe<NodeEnd>;
@@ -2203,7 +2191,6 @@ export type Node = {
   routineVersionId: Scalars['ID'];
   rowIndex?: Maybe<Scalars['Int']>;
   translations: Array<NodeTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -2220,11 +2207,10 @@ export type NodeCreateInput = {
 };
 
 export type NodeEnd = {
-  __typename?: 'NodeEnd';
+  __typename: 'NodeEnd';
   id: Scalars['ID'];
   node: Node;
   suggestedNextRoutineVersions?: Maybe<Array<RoutineVersion>>;
-  type: GqlModelType;
   wasSuccessful: Scalars['Boolean'];
 };
 
@@ -2243,13 +2229,12 @@ export type NodeEndUpdateInput = {
 };
 
 export type NodeLink = {
-  __typename?: 'NodeLink';
+  __typename: 'NodeLink';
   from: Node;
   id: Scalars['ID'];
   operation?: Maybe<Scalars['String']>;
   routineVersion: RoutineVersion;
   to: Node;
-  type: GqlModelType;
   whens: Array<NodeLinkWhen>;
 };
 
@@ -2275,12 +2260,11 @@ export type NodeLinkUpdateInput = {
 };
 
 export type NodeLinkWhen = {
-  __typename?: 'NodeLinkWhen';
+  __typename: 'NodeLinkWhen';
   condition: Scalars['String'];
   id: Scalars['ID'];
   link: NodeLink;
   translations: Array<NodeLinkWhenTranslation>;
-  type: GqlModelType;
 };
 
 export type NodeLinkWhenCreateInput = {
@@ -2291,7 +2275,7 @@ export type NodeLinkWhenCreateInput = {
 };
 
 export type NodeLinkWhenTranslation = {
-  __typename?: 'NodeLinkWhenTranslation';
+  __typename: 'NodeLinkWhenTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -2322,12 +2306,11 @@ export type NodeLinkWhenUpdateInput = {
 };
 
 export type NodeLoop = {
-  __typename?: 'NodeLoop';
+  __typename: 'NodeLoop';
   id: Scalars['ID'];
   loops?: Maybe<Scalars['Int']>;
   maxLoops?: Maybe<Scalars['Int']>;
   operation?: Maybe<Scalars['String']>;
-  type: GqlModelType;
   whiles: Array<NodeLoopWhile>;
 };
 
@@ -2350,12 +2333,11 @@ export type NodeLoopUpdateInput = {
 };
 
 export type NodeLoopWhile = {
-  __typename?: 'NodeLoopWhile';
+  __typename: 'NodeLoopWhile';
   condition: Scalars['String'];
   id: Scalars['ID'];
   toId?: Maybe<Scalars['ID']>;
   translations: Array<NodeLoopWhileTranslation>;
-  type: GqlModelType;
 };
 
 export type NodeLoopWhileCreateInput = {
@@ -2366,7 +2348,7 @@ export type NodeLoopWhileCreateInput = {
 };
 
 export type NodeLoopWhileTranslation = {
-  __typename?: 'NodeLoopWhileTranslation';
+  __typename: 'NodeLoopWhileTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -2397,13 +2379,12 @@ export type NodeLoopWhileUpdateInput = {
 };
 
 export type NodeRoutineList = {
-  __typename?: 'NodeRoutineList';
+  __typename: 'NodeRoutineList';
   id: Scalars['ID'];
   isOptional: Scalars['Boolean'];
   isOrdered: Scalars['Boolean'];
   items: Array<NodeRoutineListItem>;
   node: Node;
-  type: GqlModelType;
 };
 
 export type NodeRoutineListCreateInput = {
@@ -2415,14 +2396,13 @@ export type NodeRoutineListCreateInput = {
 };
 
 export type NodeRoutineListItem = {
-  __typename?: 'NodeRoutineListItem';
+  __typename: 'NodeRoutineListItem';
   id: Scalars['ID'];
   index: Scalars['Int'];
   isOptional: Scalars['Boolean'];
   list: NodeRoutineList;
   routineVersion: RoutineVersion;
   translations: Array<NodeRoutineListItemTranslation>;
-  type: GqlModelType;
 };
 
 export type NodeRoutineListItemCreateInput = {
@@ -2435,7 +2415,7 @@ export type NodeRoutineListItemCreateInput = {
 };
 
 export type NodeRoutineListItemTranslation = {
-  __typename?: 'NodeRoutineListItemTranslation';
+  __typename: 'NodeRoutineListItemTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -2476,7 +2456,7 @@ export type NodeRoutineListUpdateInput = {
 };
 
 export type NodeTranslation = {
-  __typename?: 'NodeTranslation';
+  __typename: 'NodeTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -2521,7 +2501,7 @@ export type NodeUpdateInput = {
 };
 
 export type Note = {
-  __typename?: 'Note';
+  __typename: 'Note';
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -2542,7 +2522,6 @@ export type Note = {
   tags: Array<Tag>;
   transfers: Array<Transfer>;
   transfersCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<NoteVersion>;
   versionsCount: Scalars['Int'];
@@ -2565,7 +2544,7 @@ export type NoteCreateInput = {
 };
 
 export type NoteEdge = {
-  __typename?: 'NoteEdge';
+  __typename: 'NoteEdge';
   cursor: Scalars['String'];
   node: Note;
 };
@@ -2591,7 +2570,7 @@ export type NoteSearchInput = {
 };
 
 export type NoteSearchResult = {
-  __typename?: 'NoteSearchResult';
+  __typename: 'NoteSearchResult';
   edges: Array<NoteEdge>;
   pageInfo: PageInfo;
 };
@@ -2634,7 +2613,7 @@ export type NoteUpdateInput = {
 };
 
 export type NoteVersion = {
-  __typename?: 'NoteVersion';
+  __typename: 'NoteVersion';
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   created_at: Scalars['Date'];
@@ -2650,7 +2629,6 @@ export type NoteVersion = {
   reportsCount: Scalars['Int'];
   root: Note;
   translations: Array<NoteVersionTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -2672,7 +2650,7 @@ export type NoteVersionCreateInput = {
 };
 
 export type NoteVersionEdge = {
-  __typename?: 'NoteVersionEdge';
+  __typename: 'NoteVersionEdge';
   cursor: Scalars['String'];
   node: NoteVersion;
 };
@@ -2697,7 +2675,7 @@ export type NoteVersionSearchInput = {
 };
 
 export type NoteVersionSearchResult = {
-  __typename?: 'NoteVersionSearchResult';
+  __typename: 'NoteVersionSearchResult';
   edges: Array<NoteVersionEdge>;
   pageInfo: PageInfo;
 };
@@ -2718,7 +2696,7 @@ export enum NoteVersionSortBy {
 }
 
 export type NoteVersionTranslation = {
-  __typename?: 'NoteVersionTranslation';
+  __typename: 'NoteVersionTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -2755,7 +2733,7 @@ export type NoteVersionUpdateInput = {
 };
 
 export type NoteYou = {
-  __typename?: 'NoteYou';
+  __typename: 'NoteYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
@@ -2768,7 +2746,7 @@ export type NoteYou = {
 };
 
 export type Notification = {
-  __typename?: 'Notification';
+  __typename: 'Notification';
   category: Scalars['String'];
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
@@ -2777,11 +2755,10 @@ export type Notification = {
   isRead: Scalars['Boolean'];
   link?: Maybe<Scalars['String']>;
   title: Scalars['String'];
-  type: GqlModelType;
 };
 
 export type NotificationEdge = {
-  __typename?: 'NotificationEdge';
+  __typename: 'NotificationEdge';
   cursor: Scalars['String'];
   node: Notification;
 };
@@ -2797,13 +2774,13 @@ export type NotificationSearchInput = {
 };
 
 export type NotificationSearchResult = {
-  __typename?: 'NotificationSearchResult';
+  __typename: 'NotificationSearchResult';
   edges: Array<NotificationEdge>;
   pageInfo: PageInfo;
 };
 
 export type NotificationSettings = {
-  __typename?: 'NotificationSettings';
+  __typename: 'NotificationSettings';
   categories?: Maybe<Array<NotificationSettingsCategory>>;
   dailyLimit?: Maybe<Scalars['Int']>;
   enabled: Scalars['Boolean'];
@@ -2816,7 +2793,7 @@ export type NotificationSettings = {
 };
 
 export type NotificationSettingsCategory = {
-  __typename?: 'NotificationSettingsCategory';
+  __typename: 'NotificationSettingsCategory';
   category: Scalars['String'];
   dailyLimit?: Maybe<Scalars['Int']>;
   enabled: Scalars['Boolean'];
@@ -2858,12 +2835,11 @@ export enum NotificationSortBy {
 }
 
 export type NotificationSubscription = {
-  __typename?: 'NotificationSubscription';
+  __typename: 'NotificationSubscription';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   object: SubscribedObject;
   silent: Scalars['Boolean'];
-  type: GqlModelType;
 };
 
 export type NotificationSubscriptionCreateInput = {
@@ -2874,7 +2850,7 @@ export type NotificationSubscriptionCreateInput = {
 };
 
 export type NotificationSubscriptionEdge = {
-  __typename?: 'NotificationSubscriptionEdge';
+  __typename: 'NotificationSubscriptionEdge';
   cursor: Scalars['String'];
   node: NotificationSubscription;
 };
@@ -2893,7 +2869,7 @@ export type NotificationSubscriptionSearchInput = {
 };
 
 export type NotificationSubscriptionSearchResult = {
-  __typename?: 'NotificationSubscriptionSearchResult';
+  __typename: 'NotificationSubscriptionSearchResult';
   edges: Array<NotificationSubscriptionEdge>;
   pageInfo: PageInfo;
 };
@@ -2911,7 +2887,7 @@ export type NotificationSubscriptionUpdateInput = {
 };
 
 export type Organization = {
-  __typename?: 'Organization';
+  __typename: 'Organization';
   apis: Array<Api>;
   apisCount: Scalars['Int'];
   comments: Array<Comment>;
@@ -2963,7 +2939,6 @@ export type Organization = {
   translatedName: Scalars['String'];
   translations: Array<OrganizationTranslation>;
   translationsCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
   wallets: Array<Wallet>;
@@ -2985,7 +2960,7 @@ export type OrganizationCreateInput = {
 };
 
 export type OrganizationEdge = {
-  __typename?: 'OrganizationEdge';
+  __typename: 'OrganizationEdge';
   cursor: Scalars['String'];
   node: Organization;
 };
@@ -3014,7 +2989,7 @@ export type OrganizationSearchInput = {
 };
 
 export type OrganizationSearchResult = {
-  __typename?: 'OrganizationSearchResult';
+  __typename: 'OrganizationSearchResult';
   edges: Array<OrganizationEdge>;
   pageInfo: PageInfo;
 };
@@ -3029,7 +3004,7 @@ export enum OrganizationSortBy {
 }
 
 export type OrganizationTranslation = {
-  __typename?: 'OrganizationTranslation';
+  __typename: 'OrganizationTranslation';
   bio?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -3073,7 +3048,7 @@ export type OrganizationUpdateInput = {
 };
 
 export type OrganizationYou = {
-  __typename?: 'OrganizationYou';
+  __typename: 'OrganizationYou';
   canAddMembers: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
@@ -3088,13 +3063,13 @@ export type OrganizationYou = {
 export type Owner = Organization | User;
 
 export type PageInfo = {
-  __typename?: 'PageInfo';
+  __typename: 'PageInfo';
   endCursor?: Maybe<Scalars['String']>;
   hasNextPage: Scalars['Boolean'];
 };
 
 export type Payment = {
-  __typename?: 'Payment';
+  __typename: 'Payment';
   amount: Scalars['Int'];
   cardExpDate?: Maybe<Scalars['String']>;
   cardLast4?: Maybe<Scalars['String']>;
@@ -3117,10 +3092,9 @@ export enum PaymentStatus {
 }
 
 export type Phone = {
-  __typename?: 'Phone';
+  __typename: 'Phone';
   id: Scalars['ID'];
   phoneNumber: Scalars['String'];
-  type: GqlModelType;
   verified: Scalars['Boolean'];
 };
 
@@ -3134,7 +3108,7 @@ export type PopularInput = {
 };
 
 export type PopularResult = {
-  __typename?: 'PopularResult';
+  __typename: 'PopularResult';
   organizations: Array<Organization>;
   projects: Array<Project>;
   routines: Array<Routine>;
@@ -3143,7 +3117,7 @@ export type PopularResult = {
 };
 
 export type Post = {
-  __typename?: 'Post';
+  __typename: 'Post';
   comments: Array<Comment>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -3151,12 +3125,12 @@ export type Post = {
   reports: Array<Report>;
   repostedFrom?: Maybe<Post>;
   reposts: Array<Post>;
+  resourceList: ResourceList;
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
   tags: Array<Tag>;
   translations: Array<PostTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
 };
@@ -3173,7 +3147,7 @@ export type PostCreateInput = {
 };
 
 export type PostEdge = {
-  __typename?: 'PostEdge';
+  __typename: 'PostEdge';
   cursor: Scalars['String'];
   node: Post;
 };
@@ -3198,7 +3172,7 @@ export type PostSearchInput = {
 };
 
 export type PostSearchResult = {
-  __typename?: 'PostSearchResult';
+  __typename: 'PostSearchResult';
   edges: Array<PostEdge>;
   pageInfo: PageInfo;
 };
@@ -3223,7 +3197,7 @@ export enum PostSortBy {
 }
 
 export type PostTranslation = {
-  __typename?: 'PostTranslation';
+  __typename: 'PostTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -3255,7 +3229,7 @@ export type PostUpdateInput = {
 };
 
 export type Premium = {
-  __typename?: 'Premium';
+  __typename: 'Premium';
   customPlan?: Maybe<Scalars['String']>;
   enabledAt?: Maybe<Scalars['Date']>;
   expiresAt?: Maybe<Scalars['Date']>;
@@ -3304,7 +3278,7 @@ export type ProfileUpdateInput = {
 };
 
 export type Project = {
-  __typename?: 'Project';
+  __typename: 'Project';
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   handle?: Maybe<Scalars['String']>;
@@ -3331,7 +3305,6 @@ export type Project = {
   tags: Array<Tag>;
   transfers: Array<Transfer>;
   translatedName: Scalars['String'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<ProjectVersion>;
   versionsCount: Scalars['Int'];
@@ -3355,7 +3328,7 @@ export type ProjectCreateInput = {
 };
 
 export type ProjectEdge = {
-  __typename?: 'ProjectEdge';
+  __typename: 'ProjectEdge';
   cursor: Scalars['String'];
   node: Project;
 };
@@ -3363,13 +3336,13 @@ export type ProjectEdge = {
 export type ProjectOrOrganization = Organization | Project;
 
 export type ProjectOrOrganizationEdge = {
-  __typename?: 'ProjectOrOrganizationEdge';
+  __typename: 'ProjectOrOrganizationEdge';
   cursor: Scalars['String'];
   node: ProjectOrOrganization;
 };
 
 export type ProjectOrOrganizationPageInfo = {
-  __typename?: 'ProjectOrOrganizationPageInfo';
+  __typename: 'ProjectOrOrganizationPageInfo';
   endCursorOrganization?: Maybe<Scalars['String']>;
   endCursorProject?: Maybe<Scalars['String']>;
   hasNextPage: Scalars['Boolean'];
@@ -3405,7 +3378,7 @@ export type ProjectOrOrganizationSearchInput = {
 };
 
 export type ProjectOrOrganizationSearchResult = {
-  __typename?: 'ProjectOrOrganizationSearchResult';
+  __typename: 'ProjectOrOrganizationSearchResult';
   edges: Array<ProjectOrOrganizationEdge>;
   pageInfo: ProjectOrOrganizationPageInfo;
 };
@@ -3422,13 +3395,13 @@ export enum ProjectOrOrganizationSortBy {
 export type ProjectOrRoutine = Project | Routine;
 
 export type ProjectOrRoutineEdge = {
-  __typename?: 'ProjectOrRoutineEdge';
+  __typename: 'ProjectOrRoutineEdge';
   cursor: Scalars['String'];
   node: ProjectOrRoutine;
 };
 
 export type ProjectOrRoutinePageInfo = {
-  __typename?: 'ProjectOrRoutinePageInfo';
+  __typename: 'ProjectOrRoutinePageInfo';
   endCursorProject?: Maybe<Scalars['String']>;
   endCursorRoutine?: Maybe<Scalars['String']>;
   hasNextPage: Scalars['Boolean'];
@@ -3469,7 +3442,7 @@ export type ProjectOrRoutineSearchInput = {
 };
 
 export type ProjectOrRoutineSearchResult = {
-  __typename?: 'ProjectOrRoutineSearchResult';
+  __typename: 'ProjectOrRoutineSearchResult';
   edges: Array<ProjectOrRoutineEdge>;
   pageInfo: ProjectOrRoutinePageInfo;
 };
@@ -3520,7 +3493,7 @@ export type ProjectSearchInput = {
 };
 
 export type ProjectSearchResult = {
-  __typename?: 'ProjectSearchResult';
+  __typename: 'ProjectSearchResult';
   edges: Array<ProjectEdge>;
   pageInfo: PageInfo;
 };
@@ -3567,7 +3540,7 @@ export type ProjectUpdateInput = {
 };
 
 export type ProjectVersion = {
-  __typename?: 'ProjectVersion';
+  __typename: 'ProjectVersion';
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
@@ -3594,7 +3567,6 @@ export type ProjectVersion = {
   timesStarted: Scalars['Int'];
   translations: Array<ProjectVersionTranslation>;
   translationsCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -3618,7 +3590,7 @@ export type ProjectVersionCreateInput = {
 };
 
 export type ProjectVersionDirectory = {
-  __typename?: 'ProjectVersionDirectory';
+  __typename: 'ProjectVersionDirectory';
   childApiVersions: Array<ApiVersion>;
   childNoteVersions: Array<NoteVersion>;
   childOrder?: Maybe<Scalars['String']>;
@@ -3635,7 +3607,6 @@ export type ProjectVersionDirectory = {
   projectVersion?: Maybe<ProjectVersion>;
   runProjectSteps: Array<RunProjectStep>;
   translations: Array<ProjectVersionDirectoryTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -3649,7 +3620,7 @@ export type ProjectVersionDirectoryCreateInput = {
 };
 
 export type ProjectVersionDirectoryTranslation = {
-  __typename?: 'ProjectVersionDirectoryTranslation';
+  __typename: 'ProjectVersionDirectoryTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -3683,7 +3654,7 @@ export type ProjectVersionDirectoryUpdateInput = {
 };
 
 export type ProjectVersionEdge = {
-  __typename?: 'ProjectVersionEdge';
+  __typename: 'ProjectVersionEdge';
   cursor: Scalars['String'];
   node: ProjectVersion;
 };
@@ -3719,7 +3690,7 @@ export type ProjectVersionSearchInput = {
 };
 
 export type ProjectVersionSearchResult = {
-  __typename?: 'ProjectVersionSearchResult';
+  __typename: 'ProjectVersionSearchResult';
   edges: Array<ProjectVersionEdge>;
   pageInfo: PageInfo;
 };
@@ -3746,7 +3717,7 @@ export enum ProjectVersionSortBy {
 }
 
 export type ProjectVersionTranslation = {
-  __typename?: 'ProjectVersionTranslation';
+  __typename: 'ProjectVersionTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -3787,7 +3758,7 @@ export type ProjectVersionUpdateInput = {
 };
 
 export type ProjectVersionYou = {
-  __typename?: 'ProjectVersionYou';
+  __typename: 'ProjectVersionYou';
   canComment: Scalars['Boolean'];
   canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
@@ -3799,7 +3770,7 @@ export type ProjectVersionYou = {
 };
 
 export type ProjectYou = {
-  __typename?: 'ProjectYou';
+  __typename: 'ProjectYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
@@ -3812,7 +3783,7 @@ export type ProjectYou = {
 };
 
 export type PullRequest = {
-  __typename?: 'PullRequest';
+  __typename: 'PullRequest';
   comments: Array<Comment>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -3821,7 +3792,6 @@ export type PullRequest = {
   mergedOrRejectedAt?: Maybe<Scalars['Date']>;
   status: PullRequestStatus;
   to: PullRequestTo;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: PullRequestYou;
 };
@@ -3834,7 +3804,7 @@ export type PullRequestCreateInput = {
 };
 
 export type PullRequestEdge = {
-  __typename?: 'PullRequestEdge';
+  __typename: 'PullRequestEdge';
   cursor: Scalars['String'];
   node: PullRequest;
 };
@@ -3859,7 +3829,7 @@ export type PullRequestSearchInput = {
 };
 
 export type PullRequestSearchResult = {
-  __typename?: 'PullRequestSearchResult';
+  __typename: 'PullRequestSearchResult';
   edges: Array<PullRequestEdge>;
   pageInfo: PageInfo;
 };
@@ -3896,7 +3866,7 @@ export type PullRequestUpdateInput = {
 };
 
 export type PullRequestYou = {
-  __typename?: 'PullRequestYou';
+  __typename: 'PullRequestYou';
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
@@ -3904,7 +3874,7 @@ export type PullRequestYou = {
 };
 
 export type PushDevice = {
-  __typename?: 'PushDevice';
+  __typename: 'PushDevice';
   expires?: Maybe<Scalars['Date']>;
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
@@ -3928,7 +3898,7 @@ export type PushDeviceUpdateInput = {
 };
 
 export type Query = {
-  __typename?: 'Query';
+  __typename: 'Query';
   api?: Maybe<Api>;
   apiVersion?: Maybe<ApiVersion>;
   apiVersions: ApiVersionSearchResult;
@@ -4609,7 +4579,7 @@ export type QueryVotesArgs = {
 };
 
 export type Question = {
-  __typename?: 'Question';
+  __typename: 'Question';
   answers: Array<QuestionAnswer>;
   comments: Array<Comment>;
   createdBy?: Maybe<User>;
@@ -4622,12 +4592,11 @@ export type Question = {
   starredBy: Array<User>;
   stars: Scalars['Int'];
   translations: Array<QuestionTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
 export type QuestionAnswer = {
-  __typename?: 'QuestionAnswer';
+  __typename: 'QuestionAnswer';
   comments: Array<Comment>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -4638,7 +4607,6 @@ export type QuestionAnswer = {
   starredBy: Array<User>;
   stars: Scalars['Int'];
   translations: Array<QuestionAnswerTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -4648,7 +4616,7 @@ export type QuestionAnswerCreateInput = {
 };
 
 export type QuestionAnswerEdge = {
-  __typename?: 'QuestionAnswerEdge';
+  __typename: 'QuestionAnswerEdge';
   cursor: Scalars['String'];
   node: QuestionAnswer;
 };
@@ -4668,7 +4636,7 @@ export type QuestionAnswerSearchInput = {
 };
 
 export type QuestionAnswerSearchResult = {
-  __typename?: 'QuestionAnswerSearchResult';
+  __typename: 'QuestionAnswerSearchResult';
   edges: Array<QuestionAnswerEdge>;
   pageInfo: PageInfo;
 };
@@ -4687,7 +4655,7 @@ export enum QuestionAnswerSortBy {
 }
 
 export type QuestionAnswerTranslation = {
-  __typename?: 'QuestionAnswerTranslation';
+  __typename: 'QuestionAnswerTranslation';
   description: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -4721,7 +4689,7 @@ export type QuestionCreateInput = {
 };
 
 export type QuestionEdge = {
-  __typename?: 'QuestionEdge';
+  __typename: 'QuestionEdge';
   cursor: Scalars['String'];
   node: Question;
 };
@@ -4764,7 +4732,7 @@ export type QuestionSearchInput = {
 };
 
 export type QuestionSearchResult = {
-  __typename?: 'QuestionSearchResult';
+  __typename: 'QuestionSearchResult';
   edges: Array<QuestionEdge>;
   pageInfo: PageInfo;
 };
@@ -4785,7 +4753,7 @@ export enum QuestionSortBy {
 }
 
 export type QuestionTranslation = {
-  __typename?: 'QuestionTranslation';
+  __typename: 'QuestionTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -4815,7 +4783,7 @@ export type QuestionUpdateInput = {
 };
 
 export type Quiz = {
-  __typename?: 'Quiz';
+  __typename: 'Quiz';
   attempts: Array<QuizAttempt>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -4829,14 +4797,13 @@ export type Quiz = {
   stars: Scalars['Int'];
   stats: Array<StatsQuiz>;
   translations: Array<QuizTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   views: Scalars['Int'];
   you: QuizYou;
 };
 
 export type QuizAttempt = {
-  __typename?: 'QuizAttempt';
+  __typename: 'QuizAttempt';
   contextSwitches: Scalars['Int'];
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -4846,7 +4813,6 @@ export type QuizAttempt = {
   responsesCount: Scalars['Int'];
   status: QuizAttemptStatus;
   timeTaken?: Maybe<Scalars['Int']>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   user: User;
   you: QuizAttemptYou;
@@ -4861,7 +4827,7 @@ export type QuizAttemptCreateInput = {
 };
 
 export type QuizAttemptEdge = {
-  __typename?: 'QuizAttemptEdge';
+  __typename: 'QuizAttemptEdge';
   cursor: Scalars['String'];
   node: QuizAttempt;
 };
@@ -4882,7 +4848,7 @@ export type QuizAttemptSearchInput = {
 };
 
 export type QuizAttemptSearchResult = {
-  __typename?: 'QuizAttemptSearchResult';
+  __typename: 'QuizAttemptSearchResult';
   edges: Array<QuizAttemptEdge>;
   pageInfo: PageInfo;
 };
@@ -4917,7 +4883,7 @@ export type QuizAttemptUpdateInput = {
 };
 
 export type QuizAttemptYou = {
-  __typename?: 'QuizAttemptYou';
+  __typename: 'QuizAttemptYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
 };
@@ -4936,13 +4902,13 @@ export type QuizCreateInput = {
 };
 
 export type QuizEdge = {
-  __typename?: 'QuizEdge';
+  __typename: 'QuizEdge';
   cursor: Scalars['String'];
   node: Quiz;
 };
 
 export type QuizQuestion = {
-  __typename?: 'QuizQuestion';
+  __typename: 'QuizQuestion';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   order?: Maybe<Scalars['Int']>;
@@ -4952,7 +4918,6 @@ export type QuizQuestion = {
   responsesCount: Scalars['Int'];
   standardVersion?: Maybe<StandardVersion>;
   translations?: Maybe<Array<QuizQuestionTranslation>>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: QuizQuestionYou;
 };
@@ -4968,19 +4933,18 @@ export type QuizQuestionCreateInput = {
 };
 
 export type QuizQuestionEdge = {
-  __typename?: 'QuizQuestionEdge';
+  __typename: 'QuizQuestionEdge';
   cursor: Scalars['String'];
   node: QuizQuestion;
 };
 
 export type QuizQuestionResponse = {
-  __typename?: 'QuizQuestionResponse';
+  __typename: 'QuizQuestionResponse';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   quizAttempt: QuizAttempt;
   quizQuestion: QuizQuestion;
   response?: Maybe<Scalars['String']>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: QuizQuestionResponseYou;
 };
@@ -4994,7 +4958,7 @@ export type QuizQuestionResponseCreateInput = {
 };
 
 export type QuizQuestionResponseEdge = {
-  __typename?: 'QuizQuestionResponseEdge';
+  __typename: 'QuizQuestionResponseEdge';
   cursor: Scalars['String'];
   node: QuizQuestionResponse;
 };
@@ -5013,7 +4977,7 @@ export type QuizQuestionResponseSearchInput = {
 };
 
 export type QuizQuestionResponseSearchResult = {
-  __typename?: 'QuizQuestionResponseSearchResult';
+  __typename: 'QuizQuestionResponseSearchResult';
   edges: Array<QuizQuestionResponseEdge>;
   pageInfo: PageInfo;
 };
@@ -5026,7 +4990,7 @@ export enum QuizQuestionResponseSortBy {
 }
 
 export type QuizQuestionResponseTranslation = {
-  __typename?: 'QuizQuestionResponseTranslation';
+  __typename: 'QuizQuestionResponseTranslation';
   id: Scalars['ID'];
   language: Scalars['String'];
   response: Scalars['String'];
@@ -5052,7 +5016,7 @@ export type QuizQuestionResponseUpdateInput = {
 };
 
 export type QuizQuestionResponseYou = {
-  __typename?: 'QuizQuestionResponseYou';
+  __typename: 'QuizQuestionResponseYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
 };
@@ -5074,7 +5038,7 @@ export type QuizQuestionSearchInput = {
 };
 
 export type QuizQuestionSearchResult = {
-  __typename?: 'QuizQuestionSearchResult';
+  __typename: 'QuizQuestionSearchResult';
   edges: Array<QuizQuestionEdge>;
   pageInfo: PageInfo;
 };
@@ -5089,7 +5053,7 @@ export enum QuizQuestionSortBy {
 }
 
 export type QuizQuestionTranslation = {
-  __typename?: 'QuizQuestionTranslation';
+  __typename: 'QuizQuestionTranslation';
   helpText?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -5123,7 +5087,7 @@ export type QuizQuestionUpdateInput = {
 };
 
 export type QuizQuestionYou = {
-  __typename?: 'QuizQuestionYou';
+  __typename: 'QuizQuestionYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
 };
@@ -5147,7 +5111,7 @@ export type QuizSearchInput = {
 };
 
 export type QuizSearchResult = {
-  __typename?: 'QuizSearchResult';
+  __typename: 'QuizSearchResult';
   edges: Array<QuizEdge>;
   pageInfo: PageInfo;
 };
@@ -5168,7 +5132,7 @@ export enum QuizSortBy {
 }
 
 export type QuizTranslation = {
-  __typename?: 'QuizTranslation';
+  __typename: 'QuizTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -5209,7 +5173,7 @@ export type QuizUpdateInput = {
 };
 
 export type QuizYou = {
-  __typename?: 'QuizYou';
+  __typename: 'QuizYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
@@ -5224,7 +5188,7 @@ export type ReadAssetsInput = {
 };
 
 export type Reminder = {
-  __typename?: 'Reminder';
+  __typename: 'Reminder';
   completed: Scalars['Boolean'];
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
@@ -5234,7 +5198,6 @@ export type Reminder = {
   name: Scalars['String'];
   reminderItems: Array<ReminderItem>;
   reminderList: ReminderList;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -5249,13 +5212,13 @@ export type ReminderCreateInput = {
 };
 
 export type ReminderEdge = {
-  __typename?: 'ReminderEdge';
+  __typename: 'ReminderEdge';
   cursor: Scalars['String'];
   node: Reminder;
 };
 
 export type ReminderItem = {
-  __typename?: 'ReminderItem';
+  __typename: 'ReminderItem';
   completed: Scalars['Boolean'];
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
@@ -5264,7 +5227,6 @@ export type ReminderItem = {
   index: Scalars['Int'];
   name: Scalars['String'];
   reminder: Reminder;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -5285,11 +5247,10 @@ export type ReminderItemUpdateInput = {
 };
 
 export type ReminderList = {
-  __typename?: 'ReminderList';
+  __typename: 'ReminderList';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   reminders: Array<Reminder>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   userSchedule?: Maybe<UserSchedule>;
 };
@@ -5301,7 +5262,7 @@ export type ReminderListCreateInput = {
 };
 
 export type ReminderListEdge = {
-  __typename?: 'ReminderListEdge';
+  __typename: 'ReminderListEdge';
   cursor: Scalars['String'];
   node: ReminderList;
 };
@@ -5318,7 +5279,7 @@ export type ReminderListSearchInput = {
 };
 
 export type ReminderListSearchResult = {
-  __typename?: 'ReminderListSearchResult';
+  __typename: 'ReminderListSearchResult';
   edges: Array<ReminderListEdge>;
   pageInfo: PageInfo;
 };
@@ -5350,7 +5311,7 @@ export type ReminderSearchInput = {
 };
 
 export type ReminderSearchResult = {
-  __typename?: 'ReminderSearchResult';
+  __typename: 'ReminderSearchResult';
   edges: Array<ReminderEdge>;
   pageInfo: PageInfo;
 };
@@ -5374,13 +5335,12 @@ export type ReminderUpdateInput = {
 };
 
 export type Report = {
-  __typename?: 'Report';
+  __typename: 'Report';
   details?: Maybe<Scalars['String']>;
   id?: Maybe<Scalars['ID']>;
   language: Scalars['String'];
   reason: Scalars['String'];
   responses: Array<ReportResponse>;
-  type: GqlModelType;
   you: ReportYou;
 };
 
@@ -5394,7 +5354,7 @@ export type ReportCreateInput = {
 };
 
 export type ReportEdge = {
-  __typename?: 'ReportEdge';
+  __typename: 'ReportEdge';
   cursor: Scalars['String'];
   node: Report;
 };
@@ -5414,7 +5374,7 @@ export enum ReportFor {
 }
 
 export type ReportResponse = {
-  __typename?: 'ReportResponse';
+  __typename: 'ReportResponse';
   actionSuggested: ReportSuggestedAction;
   created_at: Scalars['Date'];
   details?: Maybe<Scalars['String']>;
@@ -5431,11 +5391,10 @@ export type ReportResponseCreateInput = {
   id: Scalars['ID'];
   language?: InputMaybe<Scalars['String']>;
   reportConnect: Scalars['ID'];
-  type: GqlModelType;
 };
 
 export type ReportResponseEdge = {
-  __typename?: 'ReportResponseEdge';
+  __typename: 'ReportResponseEdge';
   cursor: Scalars['String'];
   node: ReportResponse;
 };
@@ -5455,7 +5414,7 @@ export type ReportResponseSearchInput = {
 };
 
 export type ReportResponseSearchResult = {
-  __typename?: 'ReportResponseSearchResult';
+  __typename: 'ReportResponseSearchResult';
   edges: Array<ReportResponseEdge>;
   pageInfo: PageInfo;
 };
@@ -5473,7 +5432,7 @@ export type ReportResponseUpdateInput = {
 };
 
 export type ReportResponseYou = {
-  __typename?: 'ReportResponseYou';
+  __typename: 'ReportResponseYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
 };
@@ -5503,7 +5462,7 @@ export type ReportSearchInput = {
 };
 
 export type ReportSearchResult = {
-  __typename?: 'ReportSearchResult';
+  __typename: 'ReportSearchResult';
   edges: Array<ReportEdge>;
   pageInfo: PageInfo;
 };
@@ -5531,14 +5490,14 @@ export type ReportUpdateInput = {
 };
 
 export type ReportYou = {
-  __typename?: 'ReportYou';
+  __typename: 'ReportYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canRespond: Scalars['Boolean'];
 };
 
 export type ReputationHistory = {
-  __typename?: 'ReputationHistory';
+  __typename: 'ReputationHistory';
   amount: Scalars['Int'];
   created_at: Scalars['Date'];
   event: Scalars['String'];
@@ -5549,7 +5508,7 @@ export type ReputationHistory = {
 };
 
 export type ReputationHistoryEdge = {
-  __typename?: 'ReputationHistoryEdge';
+  __typename: 'ReputationHistoryEdge';
   cursor: Scalars['String'];
   node: ReputationHistory;
 };
@@ -5567,7 +5526,7 @@ export type ReputationHistorySearchInput = {
 };
 
 export type ReputationHistorySearchResult = {
-  __typename?: 'ReputationHistorySearchResult';
+  __typename: 'ReputationHistorySearchResult';
   edges: Array<ReputationHistoryEdge>;
   pageInfo: PageInfo;
 };
@@ -5580,7 +5539,7 @@ export enum ReputationHistorySortBy {
 }
 
 export type ResearchResult = {
-  __typename?: 'ResearchResult';
+  __typename: 'ResearchResult';
   needInvestments: Array<Project>;
   needMembers: Array<Organization>;
   needVotes: Array<Project>;
@@ -5589,14 +5548,13 @@ export type ResearchResult = {
 };
 
 export type Resource = {
-  __typename?: 'Resource';
+  __typename: 'Resource';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   index?: Maybe<Scalars['Int']>;
   link: Scalars['String'];
   list: ResourceList;
   translations: Array<ResourceTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   usedFor: ResourceUsedFor;
 };
@@ -5611,13 +5569,13 @@ export type ResourceCreateInput = {
 };
 
 export type ResourceEdge = {
-  __typename?: 'ResourceEdge';
+  __typename: 'ResourceEdge';
   cursor: Scalars['String'];
   node: Resource;
 };
 
 export type ResourceList = {
-  __typename?: 'ResourceList';
+  __typename: 'ResourceList';
   apiVersion?: Maybe<ApiVersion>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -5629,7 +5587,6 @@ export type ResourceList = {
   smartContractVersion?: Maybe<SmartContractVersion>;
   standardVersion?: Maybe<StandardVersion>;
   translations: Array<ResourceListTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   userSchedule?: Maybe<UserSchedule>;
 };
@@ -5649,7 +5606,7 @@ export type ResourceListCreateInput = {
 };
 
 export type ResourceListEdge = {
-  __typename?: 'ResourceListEdge';
+  __typename: 'ResourceListEdge';
   cursor: Scalars['String'];
   node: ResourceList;
 };
@@ -5674,7 +5631,7 @@ export type ResourceListSearchInput = {
 };
 
 export type ResourceListSearchResult = {
-  __typename?: 'ResourceListSearchResult';
+  __typename: 'ResourceListSearchResult';
   edges: Array<ResourceListEdge>;
   pageInfo: PageInfo;
 };
@@ -5689,7 +5646,7 @@ export enum ResourceListSortBy {
 }
 
 export type ResourceListTranslation = {
-  __typename?: 'ResourceListTranslation';
+  __typename: 'ResourceListTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -5733,7 +5690,7 @@ export type ResourceSearchInput = {
 };
 
 export type ResourceSearchResult = {
-  __typename?: 'ResourceSearchResult';
+  __typename: 'ResourceSearchResult';
   edges: Array<ResourceEdge>;
   pageInfo: PageInfo;
 };
@@ -5750,7 +5707,7 @@ export enum ResourceSortBy {
 }
 
 export type ResourceTranslation = {
-  __typename?: 'ResourceTranslation';
+  __typename: 'ResourceTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -5802,13 +5759,13 @@ export enum ResourceUsedFor {
 }
 
 export type Response = {
-  __typename?: 'Response';
+  __typename: 'Response';
   code?: Maybe<Scalars['Int']>;
   message: Scalars['String'];
 };
 
 export type Role = {
-  __typename?: 'Role';
+  __typename: 'Role';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   members?: Maybe<Array<Member>>;
@@ -5817,7 +5774,6 @@ export type Role = {
   organization: Organization;
   permissions: Scalars['String'];
   translations: Array<RoleTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -5831,7 +5787,7 @@ export type RoleCreateInput = {
 };
 
 export type RoleEdge = {
-  __typename?: 'RoleEdge';
+  __typename: 'RoleEdge';
   cursor: Scalars['String'];
   node: Role;
 };
@@ -5850,7 +5806,7 @@ export type RoleSearchInput = {
 };
 
 export type RoleSearchResult = {
-  __typename?: 'RoleSearchResult';
+  __typename: 'RoleSearchResult';
   edges: Array<RoleEdge>;
   pageInfo: PageInfo;
 };
@@ -5865,7 +5821,7 @@ export enum RoleSortBy {
 }
 
 export type RoleTranslation = {
-  __typename?: 'RoleTranslation';
+  __typename: 'RoleTranslation';
   description: Scalars['String'];
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -5895,7 +5851,7 @@ export type RoleUpdateInput = {
 };
 
 export type Routine = {
-  __typename?: 'Routine';
+  __typename: 'Routine';
   completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -5919,7 +5875,6 @@ export type Routine = {
   stars: Scalars['Int'];
   tags: Array<Tag>;
   translatedName: Scalars['String'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<RoutineVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
@@ -5943,7 +5898,7 @@ export type RoutineCreateInput = {
 };
 
 export type RoutineEdge = {
-  __typename?: 'RoutineEdge';
+  __typename: 'RoutineEdge';
   cursor: Scalars['String'];
   node: Routine;
 };
@@ -5976,7 +5931,7 @@ export type RoutineSearchInput = {
 };
 
 export type RoutineSearchResult = {
-  __typename?: 'RoutineSearchResult';
+  __typename: 'RoutineSearchResult';
   edges: Array<RoutineEdge>;
   pageInfo: PageInfo;
 };
@@ -6024,7 +5979,7 @@ export type RoutineUpdateInput = {
 };
 
 export type RoutineVersion = {
-  __typename?: 'RoutineVersion';
+  __typename: 'RoutineVersion';
   api?: Maybe<Api>;
   apiCallData?: Maybe<Scalars['String']>;
   comments: Array<Comment>;
@@ -6064,7 +6019,6 @@ export type RoutineVersion = {
   timesStarted: Scalars['Int'];
   translations: Array<RoutineVersionTranslation>;
   translationsCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -6098,13 +6052,13 @@ export type RoutineVersionCreateInput = {
 };
 
 export type RoutineVersionEdge = {
-  __typename?: 'RoutineVersionEdge';
+  __typename: 'RoutineVersionEdge';
   cursor: Scalars['String'];
   node: RoutineVersion;
 };
 
 export type RoutineVersionInput = {
-  __typename?: 'RoutineVersionInput';
+  __typename: 'RoutineVersionInput';
   id: Scalars['ID'];
   index?: Maybe<Scalars['Int']>;
   isRequired?: Maybe<Scalars['Boolean']>;
@@ -6112,7 +6066,6 @@ export type RoutineVersionInput = {
   routineVersion: RoutineVersion;
   standardVersion?: Maybe<StandardVersion>;
   translations: Array<RoutineVersionInputTranslation>;
-  type: GqlModelType;
 };
 
 export type RoutineVersionInputCreateInput = {
@@ -6129,7 +6082,7 @@ export type RoutineVersionInputCreateInput = {
 };
 
 export type RoutineVersionInputTranslation = {
-  __typename?: 'RoutineVersionInputTranslation';
+  __typename: 'RoutineVersionInputTranslation';
   description?: Maybe<Scalars['String']>;
   helpText?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
@@ -6164,7 +6117,7 @@ export type RoutineVersionInputUpdateInput = {
 };
 
 export type RoutineVersionOutput = {
-  __typename?: 'RoutineVersionOutput';
+  __typename: 'RoutineVersionOutput';
   id: Scalars['ID'];
   index?: Maybe<Scalars['Int']>;
   isRequired?: Maybe<Scalars['Boolean']>;
@@ -6172,7 +6125,6 @@ export type RoutineVersionOutput = {
   routineVersion: RoutineVersion;
   standardVersion?: Maybe<StandardVersion>;
   translations: Array<RoutineVersionOutputTranslation>;
-  type: GqlModelType;
 };
 
 export type RoutineVersionOutputCreateInput = {
@@ -6189,7 +6141,7 @@ export type RoutineVersionOutputCreateInput = {
 };
 
 export type RoutineVersionOutputTranslation = {
-  __typename?: 'RoutineVersionOutputTranslation';
+  __typename: 'RoutineVersionOutputTranslation';
   description?: Maybe<Scalars['String']>;
   helpText?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
@@ -6259,7 +6211,7 @@ export type RoutineVersionSearchInput = {
 };
 
 export type RoutineVersionSearchResult = {
-  __typename?: 'RoutineVersionSearchResult';
+  __typename: 'RoutineVersionSearchResult';
   edges: Array<RoutineVersionEdge>;
   pageInfo: PageInfo;
 };
@@ -6286,7 +6238,7 @@ export enum RoutineVersionSortBy {
 }
 
 export type RoutineVersionTranslation = {
-  __typename?: 'RoutineVersionTranslation';
+  __typename: 'RoutineVersionTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   instructions: Scalars['String'];
@@ -6350,7 +6302,7 @@ export type RoutineVersionUpdateInput = {
 };
 
 export type RoutineVersionYou = {
-  __typename?: 'RoutineVersionYou';
+  __typename: 'RoutineVersionYou';
   canComment: Scalars['Boolean'];
   canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
@@ -6364,7 +6316,7 @@ export type RoutineVersionYou = {
 };
 
 export type RoutineYou = {
-  __typename?: 'RoutineYou';
+  __typename: 'RoutineYou';
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
@@ -6377,7 +6329,7 @@ export type RoutineYou = {
 };
 
 export type RunProject = {
-  __typename?: 'RunProject';
+  __typename: 'RunProject';
   completedAt?: Maybe<Scalars['Date']>;
   completedComplexity: Scalars['Int'];
   contextSwitches: Scalars['Int'];
@@ -6391,7 +6343,6 @@ export type RunProject = {
   status: RunStatus;
   steps: Array<RunProjectStep>;
   timeElapsed?: Maybe<Scalars['Int']>;
-  type: GqlModelType;
   user?: Maybe<User>;
   wasRunAutomaticaly: Scalars['Boolean'];
   you: RunProjectYou;
@@ -6426,13 +6377,13 @@ export type RunProjectCreateInput = {
 };
 
 export type RunProjectEdge = {
-  __typename?: 'RunProjectEdge';
+  __typename: 'RunProjectEdge';
   cursor: Scalars['String'];
   node: RunProject;
 };
 
 export type RunProjectSchedule = {
-  __typename?: 'RunProjectSchedule';
+  __typename: 'RunProjectSchedule';
   id: Scalars['ID'];
   labels: Array<Label>;
   recurrEnd?: Maybe<Scalars['Date']>;
@@ -6441,7 +6392,6 @@ export type RunProjectSchedule = {
   runProject: RunProject;
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<RunProjectScheduleTranslation>;
-  type: GqlModelType;
   windowEnd?: Maybe<Scalars['Date']>;
   windowStart?: Maybe<Scalars['Date']>;
 };
@@ -6461,7 +6411,7 @@ export type RunProjectScheduleCreateInput = {
 };
 
 export type RunProjectScheduleEdge = {
-  __typename?: 'RunProjectScheduleEdge';
+  __typename: 'RunProjectScheduleEdge';
   cursor: Scalars['String'];
   node: RunProjectSchedule;
 };
@@ -6489,7 +6439,7 @@ export type RunProjectScheduleSearchInput = {
 };
 
 export type RunProjectScheduleSearchResult = {
-  __typename?: 'RunProjectScheduleSearchResult';
+  __typename: 'RunProjectScheduleSearchResult';
   edges: Array<RunProjectScheduleEdge>;
   pageInfo: PageInfo;
 };
@@ -6506,7 +6456,7 @@ export enum RunProjectScheduleSortBy {
 }
 
 export type RunProjectScheduleTranslation = {
-  __typename?: 'RunProjectScheduleTranslation';
+  __typename: 'RunProjectScheduleTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -6561,7 +6511,7 @@ export type RunProjectSearchInput = {
 };
 
 export type RunProjectSearchResult = {
-  __typename?: 'RunProjectSearchResult';
+  __typename: 'RunProjectSearchResult';
   edges: Array<RunProjectEdge>;
   pageInfo: PageInfo;
 };
@@ -6584,7 +6534,7 @@ export enum RunProjectSortBy {
 }
 
 export type RunProjectStep = {
-  __typename?: 'RunProjectStep';
+  __typename: 'RunProjectStep';
   completedAt?: Maybe<Scalars['Date']>;
   contextSwitches: Scalars['Int'];
   directory?: Maybe<ProjectVersionDirectory>;
@@ -6597,7 +6547,6 @@ export type RunProjectStep = {
   status: RunProjectStepStatus;
   step: Array<Scalars['Int']>;
   timeElapsed?: Maybe<Scalars['Int']>;
-  type: GqlModelType;
 };
 
 export type RunProjectStepCreateInput = {
@@ -6639,14 +6588,14 @@ export type RunProjectUpdateInput = {
 };
 
 export type RunProjectYou = {
-  __typename?: 'RunProjectYou';
+  __typename: 'RunProjectYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canView: Scalars['Boolean'];
 };
 
 export type RunRoutine = {
-  __typename?: 'RunRoutine';
+  __typename: 'RunRoutine';
   completedAt?: Maybe<Scalars['Date']>;
   completedComplexity: Scalars['Int'];
   contextSwitches: Scalars['Int'];
@@ -6662,7 +6611,6 @@ export type RunRoutine = {
   status: RunStatus;
   steps: Array<RunRoutineStep>;
   timeElapsed?: Maybe<Scalars['Int']>;
-  type: GqlModelType;
   user?: Maybe<User>;
   wasRunAutomaticaly: Scalars['Boolean'];
   you: RunRoutineYou;
@@ -6703,18 +6651,17 @@ export type RunRoutineCreateInput = {
 };
 
 export type RunRoutineEdge = {
-  __typename?: 'RunRoutineEdge';
+  __typename: 'RunRoutineEdge';
   cursor: Scalars['String'];
   node: RunRoutine;
 };
 
 export type RunRoutineInput = {
-  __typename?: 'RunRoutineInput';
+  __typename: 'RunRoutineInput';
   data: Scalars['String'];
   id: Scalars['ID'];
   input: RoutineVersionInput;
   runRoutine: RunRoutine;
-  type: GqlModelType;
 };
 
 export type RunRoutineInputCreateInput = {
@@ -6725,7 +6672,7 @@ export type RunRoutineInputCreateInput = {
 };
 
 export type RunRoutineInputEdge = {
-  __typename?: 'RunRoutineInputEdge';
+  __typename: 'RunRoutineInputEdge';
   cursor: Scalars['String'];
   node: RunRoutineInput;
 };
@@ -6742,7 +6689,7 @@ export type RunRoutineInputSearchInput = {
 };
 
 export type RunRoutineInputSearchResult = {
-  __typename?: 'RunRoutineInputSearchResult';
+  __typename: 'RunRoutineInputSearchResult';
   edges: Array<RunRoutineInputEdge>;
   pageInfo: PageInfo;
 };
@@ -6760,7 +6707,7 @@ export type RunRoutineInputUpdateInput = {
 };
 
 export type RunRoutineSchedule = {
-  __typename?: 'RunRoutineSchedule';
+  __typename: 'RunRoutineSchedule';
   id: Scalars['ID'];
   labels: Array<Label>;
   recurrEnd?: Maybe<Scalars['Date']>;
@@ -6769,7 +6716,6 @@ export type RunRoutineSchedule = {
   runRoutine: RunRoutine;
   timeZone?: Maybe<Scalars['String']>;
   translations: Array<RunRoutineScheduleTranslation>;
-  type: GqlModelType;
   windowEnd?: Maybe<Scalars['Date']>;
   windowStart?: Maybe<Scalars['Date']>;
 };
@@ -6789,7 +6735,7 @@ export type RunRoutineScheduleCreateInput = {
 };
 
 export type RunRoutineScheduleEdge = {
-  __typename?: 'RunRoutineScheduleEdge';
+  __typename: 'RunRoutineScheduleEdge';
   cursor: Scalars['String'];
   node: RunRoutineSchedule;
 };
@@ -6817,7 +6763,7 @@ export type RunRoutineScheduleSearchInput = {
 };
 
 export type RunRoutineScheduleSearchResult = {
-  __typename?: 'RunRoutineScheduleSearchResult';
+  __typename: 'RunRoutineScheduleSearchResult';
   edges: Array<RunRoutineScheduleEdge>;
   pageInfo: PageInfo;
 };
@@ -6834,7 +6780,7 @@ export enum RunRoutineScheduleSortBy {
 }
 
 export type RunRoutineScheduleTranslation = {
-  __typename?: 'RunRoutineScheduleTranslation';
+  __typename: 'RunRoutineScheduleTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -6889,7 +6835,7 @@ export type RunRoutineSearchInput = {
 };
 
 export type RunRoutineSearchResult = {
-  __typename?: 'RunRoutineSearchResult';
+  __typename: 'RunRoutineSearchResult';
   edges: Array<RunRoutineEdge>;
   pageInfo: PageInfo;
 };
@@ -6912,7 +6858,7 @@ export enum RunRoutineSortBy {
 }
 
 export type RunRoutineStep = {
-  __typename?: 'RunRoutineStep';
+  __typename: 'RunRoutineStep';
   completedAt?: Maybe<Scalars['Date']>;
   contextSwitches: Scalars['Int'];
   id: Scalars['ID'];
@@ -6925,7 +6871,6 @@ export type RunRoutineStep = {
   step: Array<Scalars['Int']>;
   subroutine?: Maybe<Routine>;
   timeElapsed?: Maybe<Scalars['Int']>;
-  type: GqlModelType;
 };
 
 export type RunRoutineStepCreateInput = {
@@ -6983,7 +6928,7 @@ export type RunRoutineUpdateInput = {
 };
 
 export type RunRoutineYou = {
-  __typename?: 'RunRoutineYou';
+  __typename: 'RunRoutineYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canView: Scalars['Boolean'];
@@ -7011,15 +6956,14 @@ export type SendVerificationTextInput = {
 };
 
 export type Session = {
-  __typename?: 'Session';
+  __typename: 'Session';
   isLoggedIn: Scalars['Boolean'];
   timeZone?: Maybe<Scalars['String']>;
-  type: GqlModelType;
   users?: Maybe<Array<SessionUser>>;
 };
 
 export type SessionUser = {
-  __typename?: 'SessionUser';
+  __typename: 'SessionUser';
   handle?: Maybe<Scalars['String']>;
   hasPremium: Scalars['Boolean'];
   id: Scalars['String'];
@@ -7030,7 +6974,7 @@ export type SessionUser = {
 };
 
 export type SmartContract = {
-  __typename?: 'SmartContract';
+  __typename: 'SmartContract';
   completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -7053,7 +6997,6 @@ export type SmartContract = {
   transfers: Array<Transfer>;
   transfersCount: Scalars['Int'];
   translatedName: Scalars['String'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<SmartContractVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
@@ -7076,7 +7019,7 @@ export type SmartContractCreateInput = {
 };
 
 export type SmartContractEdge = {
-  __typename?: 'SmartContractEdge';
+  __typename: 'SmartContractEdge';
   cursor: Scalars['String'];
   node: SmartContract;
 };
@@ -7108,7 +7051,7 @@ export type SmartContractSearchInput = {
 };
 
 export type SmartContractSearchResult = {
-  __typename?: 'SmartContractSearchResult';
+  __typename: 'SmartContractSearchResult';
   edges: Array<SmartContractEdge>;
   pageInfo: PageInfo;
 };
@@ -7154,7 +7097,7 @@ export type SmartContractUpdateInput = {
 };
 
 export type SmartContractVersion = {
-  __typename?: 'SmartContractVersion';
+  __typename: 'SmartContractVersion';
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
@@ -7177,7 +7120,6 @@ export type SmartContractVersion = {
   root: SmartContract;
   translations: Array<SmartContractVersionTranslation>;
   translationsCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -7204,7 +7146,7 @@ export type SmartContractVersionCreateInput = {
 };
 
 export type SmartContractVersionEdge = {
-  __typename?: 'SmartContractVersionEdge';
+  __typename: 'SmartContractVersionEdge';
   cursor: Scalars['String'];
   node: SmartContractVersion;
 };
@@ -7229,7 +7171,7 @@ export type SmartContractVersionSearchInput = {
 };
 
 export type SmartContractVersionSearchResult = {
-  __typename?: 'SmartContractVersionSearchResult';
+  __typename: 'SmartContractVersionSearchResult';
   edges: Array<SmartContractVersionEdge>;
   pageInfo: PageInfo;
 };
@@ -7252,7 +7194,7 @@ export enum SmartContractVersionSortBy {
 }
 
 export type SmartContractVersionTranslation = {
-  __typename?: 'SmartContractVersionTranslation';
+  __typename: 'SmartContractVersionTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   jsonVariable?: Maybe<Scalars['String']>;
@@ -7295,7 +7237,7 @@ export type SmartContractVersionUpdateInput = {
 };
 
 export type SmartContractYou = {
-  __typename?: 'SmartContractYou';
+  __typename: 'SmartContractYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
@@ -7308,7 +7250,7 @@ export type SmartContractYou = {
 };
 
 export type Standard = {
-  __typename?: 'Standard';
+  __typename: 'Standard';
   completedAt?: Maybe<Scalars['Date']>;
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
@@ -7333,7 +7275,6 @@ export type Standard = {
   stars: Scalars['Int'];
   tags: Array<Tag>;
   translatedName: Scalars['String'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versions: Array<StandardVersion>;
   versionsCount?: Maybe<Scalars['Int']>;
@@ -7358,7 +7299,7 @@ export type StandardCreateInput = {
 };
 
 export type StandardEdge = {
-  __typename?: 'StandardEdge';
+  __typename: 'StandardEdge';
   cursor: Scalars['String'];
   node: Standard;
 };
@@ -7390,7 +7331,7 @@ export type StandardSearchInput = {
 };
 
 export type StandardSearchResult = {
-  __typename?: 'StandardSearchResult';
+  __typename: 'StandardSearchResult';
   edges: Array<StandardEdge>;
   pageInfo: PageInfo;
 };
@@ -7437,7 +7378,7 @@ export type StandardUpdateInput = {
 };
 
 export type StandardVersion = {
-  __typename?: 'StandardVersion';
+  __typename: 'StandardVersion';
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
@@ -7462,7 +7403,6 @@ export type StandardVersion = {
   standardType: Scalars['String'];
   translations: Array<StandardVersionTranslation>;
   translationsCount: Scalars['Int'];
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
@@ -7492,7 +7432,7 @@ export type StandardVersionCreateInput = {
 };
 
 export type StandardVersionEdge = {
-  __typename?: 'StandardVersionEdge';
+  __typename: 'StandardVersionEdge';
   cursor: Scalars['String'];
   node: StandardVersion;
 };
@@ -7517,7 +7457,7 @@ export type StandardVersionSearchInput = {
 };
 
 export type StandardVersionSearchResult = {
-  __typename?: 'StandardVersionSearchResult';
+  __typename: 'StandardVersionSearchResult';
   edges: Array<StandardVersionEdge>;
   pageInfo: PageInfo;
 };
@@ -7540,7 +7480,7 @@ export enum StandardVersionSortBy {
 }
 
 export type StandardVersionTranslation = {
-  __typename?: 'StandardVersionTranslation';
+  __typename: 'StandardVersionTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   jsonVariable?: Maybe<Scalars['String']>;
@@ -7585,7 +7525,7 @@ export type StandardVersionUpdateInput = {
 };
 
 export type StandardYou = {
-  __typename?: 'StandardYou';
+  __typename: 'StandardYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
@@ -7598,15 +7538,14 @@ export type StandardYou = {
 };
 
 export type Star = {
-  __typename?: 'Star';
+  __typename: 'Star';
   by: User;
   id: Scalars['ID'];
   to: StarTo;
-  type: GqlModelType;
 };
 
 export type StarEdge = {
-  __typename?: 'StarEdge';
+  __typename: 'StarEdge';
   cursor: Scalars['String'];
   node: Star;
 };
@@ -7645,7 +7584,7 @@ export type StarSearchInput = {
 };
 
 export type StarSearchResult = {
-  __typename?: 'StarSearchResult';
+  __typename: 'StarSearchResult';
   edges: Array<StarEdge>;
   pageInfo: PageInfo;
 };
@@ -7665,7 +7604,7 @@ export enum StatPeriodType {
 }
 
 export type StatsApi = {
-  __typename?: 'StatsApi';
+  __typename: 'StatsApi';
   calls: Scalars['Int'];
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -7675,7 +7614,7 @@ export type StatsApi = {
 };
 
 export type StatsApiEdge = {
-  __typename?: 'StatsApiEdge';
+  __typename: 'StatsApiEdge';
   cursor: Scalars['String'];
   node: StatsApi;
 };
@@ -7691,7 +7630,7 @@ export type StatsApiSearchInput = {
 };
 
 export type StatsApiSearchResult = {
-  __typename?: 'StatsApiSearchResult';
+  __typename: 'StatsApiSearchResult';
   edges: Array<StatsApiEdge>;
   pageInfo: PageInfo;
 };
@@ -7702,7 +7641,7 @@ export enum StatsApiSortBy {
 }
 
 export type StatsOrganization = {
-  __typename?: 'StatsOrganization';
+  __typename: 'StatsOrganization';
   apis: Scalars['Int'];
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -7718,7 +7657,7 @@ export type StatsOrganization = {
 };
 
 export type StatsOrganizationEdge = {
-  __typename?: 'StatsOrganizationEdge';
+  __typename: 'StatsOrganizationEdge';
   cursor: Scalars['String'];
   node: StatsOrganization;
 };
@@ -7734,7 +7673,7 @@ export type StatsOrganizationSearchInput = {
 };
 
 export type StatsOrganizationSearchResult = {
-  __typename?: 'StatsOrganizationSearchResult';
+  __typename: 'StatsOrganizationSearchResult';
   edges: Array<StatsOrganizationEdge>;
   pageInfo: PageInfo;
 };
@@ -7745,7 +7684,7 @@ export enum StatsOrganizationSortBy {
 }
 
 export type StatsProject = {
-  __typename?: 'StatsProject';
+  __typename: 'StatsProject';
   created_at: Scalars['Date'];
   directories: Scalars['Int'];
   id: Scalars['ID'];
@@ -7759,7 +7698,7 @@ export type StatsProject = {
 };
 
 export type StatsProjectEdge = {
-  __typename?: 'StatsProjectEdge';
+  __typename: 'StatsProjectEdge';
   cursor: Scalars['String'];
   node: StatsProject;
 };
@@ -7775,7 +7714,7 @@ export type StatsProjectSearchInput = {
 };
 
 export type StatsProjectSearchResult = {
-  __typename?: 'StatsProjectSearchResult';
+  __typename: 'StatsProjectSearchResult';
   edges: Array<StatsProjectEdge>;
   pageInfo: PageInfo;
 };
@@ -7786,7 +7725,7 @@ export enum StatsProjectSortBy {
 }
 
 export type StatsQuiz = {
-  __typename?: 'StatsQuiz';
+  __typename: 'StatsQuiz';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
@@ -7799,7 +7738,7 @@ export type StatsQuiz = {
 };
 
 export type StatsQuizEdge = {
-  __typename?: 'StatsQuizEdge';
+  __typename: 'StatsQuizEdge';
   cursor: Scalars['String'];
   node: StatsQuiz;
 };
@@ -7815,7 +7754,7 @@ export type StatsQuizSearchInput = {
 };
 
 export type StatsQuizSearchResult = {
-  __typename?: 'StatsQuizSearchResult';
+  __typename: 'StatsQuizSearchResult';
   edges: Array<StatsQuizEdge>;
   pageInfo: PageInfo;
 };
@@ -7826,7 +7765,7 @@ export enum StatsQuizSortBy {
 }
 
 export type StatsRoutine = {
-  __typename?: 'StatsRoutine';
+  __typename: 'StatsRoutine';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
@@ -7835,7 +7774,7 @@ export type StatsRoutine = {
 };
 
 export type StatsRoutineEdge = {
-  __typename?: 'StatsRoutineEdge';
+  __typename: 'StatsRoutineEdge';
   cursor: Scalars['String'];
   node: StatsRoutine;
 };
@@ -7851,7 +7790,7 @@ export type StatsRoutineSearchInput = {
 };
 
 export type StatsRoutineSearchResult = {
-  __typename?: 'StatsRoutineSearchResult';
+  __typename: 'StatsRoutineSearchResult';
   edges: Array<StatsRoutineEdge>;
   pageInfo: PageInfo;
 };
@@ -7862,7 +7801,7 @@ export enum StatsRoutineSortBy {
 }
 
 export type StatsSite = {
-  __typename?: 'StatsSite';
+  __typename: 'StatsSite';
   activeUsers: Scalars['Int'];
   apiCallsPeriod: Scalars['Int'];
   apis: Scalars['Int'];
@@ -7898,7 +7837,7 @@ export type StatsSite = {
 };
 
 export type StatsSiteEdge = {
-  __typename?: 'StatsSiteEdge';
+  __typename: 'StatsSiteEdge';
   cursor: Scalars['String'];
   node: StatsSite;
 };
@@ -7914,7 +7853,7 @@ export type StatsSiteSearchInput = {
 };
 
 export type StatsSiteSearchResult = {
-  __typename?: 'StatsSiteSearchResult';
+  __typename: 'StatsSiteSearchResult';
   edges: Array<StatsSiteEdge>;
   pageInfo: PageInfo;
 };
@@ -7925,7 +7864,7 @@ export enum StatsSiteSortBy {
 }
 
 export type StatsSmartContract = {
-  __typename?: 'StatsSmartContract';
+  __typename: 'StatsSmartContract';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
@@ -7934,7 +7873,7 @@ export type StatsSmartContract = {
 };
 
 export type StatsSmartContractEdge = {
-  __typename?: 'StatsSmartContractEdge';
+  __typename: 'StatsSmartContractEdge';
   cursor: Scalars['String'];
   node: StatsSmartContract;
 };
@@ -7950,7 +7889,7 @@ export type StatsSmartContractSearchInput = {
 };
 
 export type StatsSmartContractSearchResult = {
-  __typename?: 'StatsSmartContractSearchResult';
+  __typename: 'StatsSmartContractSearchResult';
   edges: Array<StatsSmartContractEdge>;
   pageInfo: PageInfo;
 };
@@ -7961,7 +7900,7 @@ export enum StatsSmartContractSortBy {
 }
 
 export type StatsStandard = {
-  __typename?: 'StatsStandard';
+  __typename: 'StatsStandard';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
@@ -7970,7 +7909,7 @@ export type StatsStandard = {
 };
 
 export type StatsStandardEdge = {
-  __typename?: 'StatsStandardEdge';
+  __typename: 'StatsStandardEdge';
   cursor: Scalars['String'];
   node: StatsStandard;
 };
@@ -7986,7 +7925,7 @@ export type StatsStandardSearchInput = {
 };
 
 export type StatsStandardSearchResult = {
-  __typename?: 'StatsStandardSearchResult';
+  __typename: 'StatsStandardSearchResult';
   edges: Array<StatsStandardEdge>;
   pageInfo: PageInfo;
 };
@@ -7997,7 +7936,7 @@ export enum StatsStandardSortBy {
 }
 
 export type StatsUser = {
-  __typename?: 'StatsUser';
+  __typename: 'StatsUser';
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   periodEnd: Scalars['Date'];
@@ -8006,7 +7945,7 @@ export type StatsUser = {
 };
 
 export type StatsUserEdge = {
-  __typename?: 'StatsUserEdge';
+  __typename: 'StatsUserEdge';
   cursor: Scalars['String'];
   node: StatsUser;
 };
@@ -8022,7 +7961,7 @@ export type StatsUserSearchInput = {
 };
 
 export type StatsUserSearchResult = {
-  __typename?: 'StatsUserSearchResult';
+  __typename: 'StatsUserSearchResult';
   edges: Array<StatsUserEdge>;
   pageInfo: PageInfo;
 };
@@ -8052,7 +7991,7 @@ export enum SubscribableObject {
 export type SubscribedObject = Api | Comment | Issue | Meeting | Note | Organization | Project | PullRequest | Question | Quiz | Report | Routine | SmartContract | Standard;
 
 export type Success = {
-  __typename?: 'Success';
+  __typename: 'Success';
   success: Scalars['Boolean'];
 };
 
@@ -8061,7 +8000,7 @@ export type SwitchCurrentAccountInput = {
 };
 
 export type Tag = {
-  __typename?: 'Tag';
+  __typename: 'Tag';
   apis: Array<Api>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
@@ -8077,7 +8016,6 @@ export type Tag = {
   stars: Scalars['Int'];
   tag: Scalars['String'];
   translations: Array<TagTranslation>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: TagYou;
 };
@@ -8089,7 +8027,7 @@ export type TagCreateInput = {
 };
 
 export type TagEdge = {
-  __typename?: 'TagEdge';
+  __typename: 'TagEdge';
   cursor: Scalars['String'];
   node: Tag;
 };
@@ -8110,7 +8048,7 @@ export type TagSearchInput = {
 };
 
 export type TagSearchResult = {
-  __typename?: 'TagSearchResult';
+  __typename: 'TagSearchResult';
   edges: Array<TagEdge>;
   pageInfo: PageInfo;
 };
@@ -8125,7 +8063,7 @@ export enum TagSortBy {
 }
 
 export type TagTranslation = {
-  __typename?: 'TagTranslation';
+  __typename: 'TagTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -8152,7 +8090,7 @@ export type TagUpdateInput = {
 };
 
 export type TagYou = {
-  __typename?: 'TagYou';
+  __typename: 'TagYou';
   isOwn: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
 };
@@ -8163,7 +8101,7 @@ export type TimeFrame = {
 };
 
 export type Transfer = {
-  __typename?: 'Transfer';
+  __typename: 'Transfer';
   created_at: Scalars['Date'];
   fromOwner?: Maybe<Owner>;
   id: Scalars['ID'];
@@ -8171,7 +8109,6 @@ export type Transfer = {
   object: TransferObject;
   status: TransferStatus;
   toOwner?: Maybe<Owner>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
   you: TransferYou;
 };
@@ -8182,7 +8119,7 @@ export type TransferDenyInput = {
 };
 
 export type TransferEdge = {
-  __typename?: 'TransferEdge';
+  __typename: 'TransferEdge';
   cursor: Scalars['String'];
   node: Transfer;
 };
@@ -8237,7 +8174,7 @@ export type TransferSearchInput = {
 };
 
 export type TransferSearchResult = {
-  __typename?: 'TransferSearchResult';
+  __typename: 'TransferSearchResult';
   edges: Array<TransferEdge>;
   pageInfo: PageInfo;
 };
@@ -8261,13 +8198,13 @@ export type TransferUpdateInput = {
 };
 
 export type TransferYou = {
-  __typename?: 'TransferYou';
+  __typename: 'TransferYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
 };
 
 export type Translate = {
-  __typename?: 'Translate';
+  __typename: 'Translate';
   fields: Scalars['String'];
   language: Scalars['String'];
 };
@@ -8279,7 +8216,7 @@ export type TranslateInput = {
 };
 
 export type User = {
-  __typename?: 'User';
+  __typename: 'User';
   apiKeys?: Maybe<Array<ApiKey>>;
   apis: Array<Api>;
   apisCreated?: Maybe<Array<Api>>;
@@ -8361,7 +8298,6 @@ export type User = {
   transfersIncoming?: Maybe<Array<Transfer>>;
   transfersOutgoing?: Maybe<Array<Transfer>>;
   translations: Array<UserTranslation>;
-  type: GqlModelType;
   updated_at?: Maybe<Scalars['Date']>;
   viewed?: Maybe<Array<View>>;
   viewedBy?: Maybe<Array<View>>;
@@ -8377,13 +8313,13 @@ export type UserDeleteInput = {
 };
 
 export type UserEdge = {
-  __typename?: 'UserEdge';
+  __typename: 'UserEdge';
   cursor: Scalars['String'];
   node: User;
 };
 
 export type UserSchedule = {
-  __typename?: 'UserSchedule';
+  __typename: 'UserSchedule';
   created_at: Scalars['Date'];
   description?: Maybe<Scalars['String']>;
   eventEnd?: Maybe<Scalars['Date']>;
@@ -8397,7 +8333,6 @@ export type UserSchedule = {
   recurring: Scalars['Boolean'];
   reminderList?: Maybe<ReminderList>;
   timeZone?: Maybe<Scalars['String']>;
-  type: GqlModelType;
   updated_at: Scalars['Date'];
 };
 
@@ -8420,17 +8355,16 @@ export type UserScheduleCreateInput = {
 };
 
 export type UserScheduleEdge = {
-  __typename?: 'UserScheduleEdge';
+  __typename: 'UserScheduleEdge';
   cursor: Scalars['String'];
   node: UserSchedule;
 };
 
 export type UserScheduleFilter = {
-  __typename?: 'UserScheduleFilter';
+  __typename: 'UserScheduleFilter';
   filterType: UserScheduleFilterType;
   id: Scalars['ID'];
   tag: Tag;
-  type: GqlModelType;
   userSchedule: UserSchedule;
 };
 
@@ -8465,7 +8399,7 @@ export type UserScheduleSearchInput = {
 };
 
 export type UserScheduleSearchResult = {
-  __typename?: 'UserScheduleSearchResult';
+  __typename: 'UserScheduleSearchResult';
   edges: Array<UserScheduleEdge>;
   pageInfo: PageInfo;
 };
@@ -8520,7 +8454,7 @@ export type UserSearchInput = {
 };
 
 export type UserSearchResult = {
-  __typename?: 'UserSearchResult';
+  __typename: 'UserSearchResult';
   edges: Array<UserEdge>;
   pageInfo: PageInfo;
 };
@@ -8535,7 +8469,7 @@ export enum UserSortBy {
 }
 
 export type UserTranslation = {
-  __typename?: 'UserTranslation';
+  __typename: 'UserTranslation';
   bio?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
   language: Scalars['String'];
@@ -8554,7 +8488,7 @@ export type UserTranslationUpdateInput = {
 };
 
 export type UserYou = {
-  __typename?: 'UserYou';
+  __typename: 'UserYou';
   canDelete: Scalars['Boolean'];
   canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
@@ -8567,7 +8501,7 @@ export type ValidateSessionInput = {
 };
 
 export type VersionYou = {
-  __typename?: 'VersionYou';
+  __typename: 'VersionYou';
   canComment: Scalars['Boolean'];
   canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
@@ -8578,17 +8512,16 @@ export type VersionYou = {
 };
 
 export type View = {
-  __typename?: 'View';
+  __typename: 'View';
   by: User;
   id: Scalars['ID'];
   lastViewedAt: Scalars['Date'];
   name: Scalars['String'];
   to: ViewTo;
-  type: GqlModelType;
 };
 
 export type ViewEdge = {
-  __typename?: 'ViewEdge';
+  __typename: 'ViewEdge';
   cursor: Scalars['String'];
   node: View;
 };
@@ -8603,7 +8536,7 @@ export type ViewSearchInput = {
 };
 
 export type ViewSearchResult = {
-  __typename?: 'ViewSearchResult';
+  __typename: 'ViewSearchResult';
   edges: Array<ViewEdge>;
   pageInfo: PageInfo;
 };
@@ -8622,16 +8555,15 @@ export enum VisibilityType {
 }
 
 export type Vote = {
-  __typename?: 'Vote';
+  __typename: 'Vote';
   by: User;
   id: Scalars['ID'];
   isUpvote?: Maybe<Scalars['Boolean']>;
   to: VoteTo;
-  type: GqlModelType;
 };
 
 export type VoteEdge = {
-  __typename?: 'VoteEdge';
+  __typename: 'VoteEdge';
   cursor: Scalars['String'];
   node: Vote;
 };
@@ -8667,7 +8599,7 @@ export type VoteSearchInput = {
 };
 
 export type VoteSearchResult = {
-  __typename?: 'VoteSearchResult';
+  __typename: 'VoteSearchResult';
   edges: Array<VoteEdge>;
   pageInfo: PageInfo;
 };
@@ -8680,20 +8612,19 @@ export enum VoteSortBy {
 export type VoteTo = Api | Comment | Issue | Note | Post | Project | Question | QuestionAnswer | Quiz | Routine | SmartContract | Standard;
 
 export type Wallet = {
-  __typename?: 'Wallet';
+  __typename: 'Wallet';
   handles: Array<Handle>;
   id: Scalars['ID'];
   name?: Maybe<Scalars['String']>;
   organization?: Maybe<Organization>;
   publicAddress?: Maybe<Scalars['String']>;
   stakingAddress: Scalars['String'];
-  type: GqlModelType;
   user?: Maybe<User>;
   verified: Scalars['Boolean'];
 };
 
 export type WalletComplete = {
-  __typename?: 'WalletComplete';
+  __typename: 'WalletComplete';
   firstLogIn: Scalars['Boolean'];
   session?: Maybe<Session>;
   wallet?: Maybe<Wallet>;
@@ -10090,7 +10021,6 @@ export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTy
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10112,7 +10042,6 @@ export type ApiKeyResolvers<ContextType = any, ParentType extends ResolversParen
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   resetsAt?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   stopAtLimit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10141,7 +10070,6 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Api'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ApiVersionTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -10189,7 +10117,6 @@ export type AwardResolvers<ContextType = any, ParentType extends ResolversParent
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   progress?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   timeCurrentTierCompleted?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10206,7 +10133,6 @@ export type CommentResolvers<ContextType = any, ParentType extends ResolversPare
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['CommentTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['CommentYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10280,7 +10206,6 @@ export type DevelopResultResolvers<ContextType = any, ParentType extends Resolve
 export type EmailResolvers<ContextType = any, ParentType extends ResolversParentTypes['Email'] = ResolversParentTypes['Email']> = {
   emailAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   verified?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10320,7 +10245,6 @@ export type IssueResolvers<ContextType = any, ParentType extends ResolversParent
   to?: Resolver<ResolversTypes['IssueTo'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['IssueTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['IssueYou'], ParentType, ContextType>;
@@ -10391,7 +10315,6 @@ export type LabelResolvers<ContextType = any, ParentType extends ResolversParent
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['LabelTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   userSchedules?: Resolver<Maybe<Array<ResolversTypes['UserSchedule']>>, ParentType, ContextType>;
   userSchedulesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10450,7 +10373,6 @@ export type MeetingResolvers<ContextType = any, ParentType extends ResolversPare
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['MeetingTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['MeetingYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10467,7 +10389,6 @@ export type MeetingInviteResolvers<ContextType = any, ParentType extends Resolve
   meeting?: Resolver<ResolversTypes['Meeting'], ParentType, ContextType>;
   message?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['MeetingInviteStatus'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['MeetingInviteYou'], ParentType, ContextType>;
@@ -10520,7 +10441,6 @@ export type MemberResolvers<ContextType = any, ParentType extends ResolversParen
   isAdmin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -10538,7 +10458,6 @@ export type MemberInviteResolvers<ContextType = any, ParentType extends Resolver
   message?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['MemberInviteStatus'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   willBeAdmin?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
@@ -10721,7 +10640,6 @@ export type NodeResolvers<ContextType = any, ParentType extends ResolversParentT
   routineVersionId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   rowIndex?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10730,7 +10648,6 @@ export type NodeEndResolvers<ContextType = any, ParentType extends ResolversPare
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   node?: Resolver<ResolversTypes['Node'], ParentType, ContextType>;
   suggestedNextRoutineVersions?: Resolver<Maybe<Array<ResolversTypes['RoutineVersion']>>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   wasSuccessful?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10741,7 +10658,6 @@ export type NodeLinkResolvers<ContextType = any, ParentType extends ResolversPar
   operation?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['Node'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   whens?: Resolver<Array<ResolversTypes['NodeLinkWhen']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10751,7 +10667,6 @@ export type NodeLinkWhenResolvers<ContextType = any, ParentType extends Resolver
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   link?: Resolver<ResolversTypes['NodeLink'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeLinkWhenTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10768,7 +10683,6 @@ export type NodeLoopResolvers<ContextType = any, ParentType extends ResolversPar
   loops?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   maxLoops?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   operation?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   whiles?: Resolver<Array<ResolversTypes['NodeLoopWhile']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -10778,7 +10692,6 @@ export type NodeLoopWhileResolvers<ContextType = any, ParentType extends Resolve
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   toId?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeLoopWhileTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10796,7 +10709,6 @@ export type NodeRoutineListResolvers<ContextType = any, ParentType extends Resol
   isOrdered?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   items?: Resolver<Array<ResolversTypes['NodeRoutineListItem']>, ParentType, ContextType>;
   node?: Resolver<ResolversTypes['Node'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10807,7 +10719,6 @@ export type NodeRoutineListItemResolvers<ContextType = any, ParentType extends R
   list?: Resolver<ResolversTypes['NodeRoutineList'], ParentType, ContextType>;
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeRoutineListItemTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10848,7 +10759,6 @@ export type NoteResolvers<ContextType = any, ParentType extends ResolversParentT
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10885,7 +10795,6 @@ export type NoteVersionResolvers<ContextType = any, ParentType extends Resolvers
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Note'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NoteVersionTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -10936,7 +10845,6 @@ export type NotificationResolvers<ContextType = any, ParentType extends Resolver
   isRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   link?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   title?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10980,7 +10888,6 @@ export type NotificationSubscriptionResolvers<ContextType = any, ParentType exte
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   object?: Resolver<ResolversTypes['SubscribedObject'], ParentType, ContextType>;
   silent?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11048,7 +10955,6 @@ export type OrganizationResolvers<ContextType = any, ParentType extends Resolver
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['OrganizationTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   wallets?: Resolver<Array<ResolversTypes['Wallet']>, ParentType, ContextType>;
@@ -11119,7 +11025,6 @@ export type PaymentResolvers<ContextType = any, ParentType extends ResolversPare
 export type PhoneResolvers<ContextType = any, ParentType extends ResolversParentTypes['Phone'] = ResolversParentTypes['Phone']> = {
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   phoneNumber?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   verified?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11141,12 +11046,12 @@ export type PostResolvers<ContextType = any, ParentType extends ResolversParentT
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   repostedFrom?: Resolver<Maybe<ResolversTypes['Post']>, ParentType, ContextType>;
   reposts?: Resolver<Array<ResolversTypes['Post']>, ParentType, ContextType>;
+  resourceList?: Resolver<ResolversTypes['ResourceList'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['PostTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11208,7 +11113,6 @@ export type ProjectResolvers<ContextType = any, ParentType extends ResolversPare
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11302,7 +11206,6 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
   timesStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ProjectVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -11328,7 +11231,6 @@ export type ProjectVersionDirectoryResolvers<ContextType = any, ParentType exten
   projectVersion?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   runProjectSteps?: Resolver<Array<ResolversTypes['RunProjectStep']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ProjectVersionDirectoryTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11395,7 +11297,6 @@ export type PullRequestResolvers<ContextType = any, ParentType extends Resolvers
   mergedOrRejectedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['PullRequestStatus'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['PullRequestTo'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['PullRequestYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11569,7 +11470,6 @@ export type QuestionResolvers<ContextType = any, ParentType extends ResolversPar
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuestionTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11585,7 +11485,6 @@ export type QuestionAnswerResolvers<ContextType = any, ParentType extends Resolv
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuestionAnswerTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11647,7 +11546,6 @@ export type QuizResolvers<ContextType = any, ParentType extends ResolversParentT
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   stats?: Resolver<Array<ResolversTypes['StatsQuiz']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['QuizTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   views?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizYou'], ParentType, ContextType>;
@@ -11664,7 +11562,6 @@ export type QuizAttemptResolvers<ContextType = any, ParentType extends Resolvers
   responsesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['QuizAttemptStatus'], ParentType, ContextType>;
   timeTaken?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   user?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizAttemptYou'], ParentType, ContextType>;
@@ -11705,7 +11602,6 @@ export type QuizQuestionResolvers<ContextType = any, ParentType extends Resolver
   responsesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Maybe<Array<ResolversTypes['QuizQuestionTranslation']>>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizQuestionYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11723,7 +11619,6 @@ export type QuizQuestionResponseResolvers<ContextType = any, ParentType extends 
   quizAttempt?: Resolver<ResolversTypes['QuizAttempt'], ParentType, ContextType>;
   quizQuestion?: Resolver<ResolversTypes['QuizQuestion'], ParentType, ContextType>;
   response?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizQuestionResponseYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11809,7 +11704,6 @@ export type ReminderResolvers<ContextType = any, ParentType extends ResolversPar
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reminderItems?: Resolver<Array<ResolversTypes['ReminderItem']>, ParentType, ContextType>;
   reminderList?: Resolver<ResolversTypes['ReminderList'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11829,7 +11723,6 @@ export type ReminderItemResolvers<ContextType = any, ParentType extends Resolver
   index?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reminder?: Resolver<ResolversTypes['Reminder'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11838,7 +11731,6 @@ export type ReminderListResolvers<ContextType = any, ParentType extends Resolver
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   reminders?: Resolver<Array<ResolversTypes['Reminder']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   userSchedule?: Resolver<Maybe<ResolversTypes['UserSchedule']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11868,7 +11760,6 @@ export type ReportResolvers<ContextType = any, ParentType extends ResolversParen
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   reason?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   responses?: Resolver<Array<ResolversTypes['ReportResponse']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['ReportYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -11961,7 +11852,6 @@ export type ResourceResolvers<ContextType = any, ParentType extends ResolversPar
   link?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   list?: Resolver<ResolversTypes['ResourceList'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ResourceTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   usedFor?: Resolver<ResolversTypes['ResourceUsedFor'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -11985,7 +11875,6 @@ export type ResourceListResolvers<ContextType = any, ParentType extends Resolver
   smartContractVersion?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ResourceListTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   userSchedule?: Resolver<Maybe<ResolversTypes['UserSchedule']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12040,7 +11929,6 @@ export type RoleResolvers<ContextType = any, ParentType extends ResolversParentT
   organization?: Resolver<ResolversTypes['Organization'], ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RoleTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12088,7 +11976,6 @@ export type RoutineResolvers<ContextType = any, ParentType extends ResolversPare
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
@@ -12149,7 +12036,6 @@ export type RoutineVersionResolvers<ContextType = any, ParentType extends Resolv
   timesStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RoutineVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -12172,7 +12058,6 @@ export type RoutineVersionInputResolvers<ContextType = any, ParentType extends R
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RoutineVersionInputTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12192,7 +12077,6 @@ export type RoutineVersionOutputResolvers<ContextType = any, ParentType extends 
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
   standardVersion?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RoutineVersionOutputTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12260,7 +12144,6 @@ export type RunProjectResolvers<ContextType = any, ParentType extends ResolversP
   status?: Resolver<ResolversTypes['RunStatus'], ParentType, ContextType>;
   steps?: Resolver<Array<ResolversTypes['RunProjectStep']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   wasRunAutomaticaly?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['RunProjectYou'], ParentType, ContextType>;
@@ -12282,7 +12165,6 @@ export type RunProjectScheduleResolvers<ContextType = any, ParentType extends Re
   runProject?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RunProjectScheduleTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   windowEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   windowStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12327,7 +12209,6 @@ export type RunProjectStepResolvers<ContextType = any, ParentType extends Resolv
   status?: Resolver<ResolversTypes['RunProjectStepStatus'], ParentType, ContextType>;
   step?: Resolver<Array<ResolversTypes['Int']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12354,7 +12235,6 @@ export type RunRoutineResolvers<ContextType = any, ParentType extends ResolversP
   status?: Resolver<ResolversTypes['RunStatus'], ParentType, ContextType>;
   steps?: Resolver<Array<ResolversTypes['RunRoutineStep']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   wasRunAutomaticaly?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['RunRoutineYou'], ParentType, ContextType>;
@@ -12372,7 +12252,6 @@ export type RunRoutineInputResolvers<ContextType = any, ParentType extends Resol
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   input?: Resolver<ResolversTypes['RoutineVersionInput'], ParentType, ContextType>;
   runRoutine?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12397,7 +12276,6 @@ export type RunRoutineScheduleResolvers<ContextType = any, ParentType extends Re
   runRoutine?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['RunRoutineScheduleTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   windowEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   windowStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12442,7 +12320,6 @@ export type RunRoutineStepResolvers<ContextType = any, ParentType extends Resolv
   step?: Resolver<Array<ResolversTypes['Int']>, ParentType, ContextType>;
   subroutine?: Resolver<Maybe<ResolversTypes['Routine']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12456,7 +12333,6 @@ export type RunRoutineYouResolvers<ContextType = any, ParentType extends Resolve
 export type SessionResolvers<ContextType = any, ParentType extends ResolversParentTypes['Session'] = ResolversParentTypes['Session']> = {
   isLoggedIn?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   users?: Resolver<Maybe<Array<ResolversTypes['SessionUser']>>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -12495,7 +12371,6 @@ export type SmartContractResolvers<ContextType = any, ParentType extends Resolve
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
@@ -12539,7 +12414,6 @@ export type SmartContractVersionResolvers<ContextType = any, ParentType extends 
   root?: Resolver<ResolversTypes['SmartContract'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['SmartContractVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -12606,7 +12480,6 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   versionsCount?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
@@ -12652,7 +12525,6 @@ export type StandardVersionResolvers<ContextType = any, ParentType extends Resol
   standardType?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['StandardVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -12699,7 +12571,6 @@ export type StarResolvers<ContextType = any, ParentType extends ResolversParentT
   by?: Resolver<ResolversTypes['User'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['StarTo'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12977,7 +12848,6 @@ export type TagResolvers<ContextType = any, ParentType extends ResolversParentTy
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   tag?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['TagTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['TagYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13016,7 +12886,6 @@ export type TransferResolvers<ContextType = any, ParentType extends ResolversPar
   object?: Resolver<ResolversTypes['TransferObject'], ParentType, ContextType>;
   status?: Resolver<ResolversTypes['TransferStatus'], ParentType, ContextType>;
   toOwner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['TransferYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13136,7 +13005,6 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   transfersIncoming?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
   transfersOutgoing?: Resolver<Maybe<Array<ResolversTypes['Transfer']>>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['UserTranslation']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   viewed?: Resolver<Maybe<Array<ResolversTypes['View']>>, ParentType, ContextType>;
   viewedBy?: Resolver<Maybe<Array<ResolversTypes['View']>>, ParentType, ContextType>;
@@ -13167,7 +13035,6 @@ export type UserScheduleResolvers<ContextType = any, ParentType extends Resolver
   recurring?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   reminderList?: Resolver<Maybe<ResolversTypes['ReminderList']>, ParentType, ContextType>;
   timeZone?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -13182,7 +13049,6 @@ export type UserScheduleFilterResolvers<ContextType = any, ParentType extends Re
   filterType?: Resolver<ResolversTypes['UserScheduleFilterType'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   tag?: Resolver<ResolversTypes['Tag'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   userSchedule?: Resolver<ResolversTypes['UserSchedule'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -13232,7 +13098,6 @@ export type ViewResolvers<ContextType = any, ParentType extends ResolversParentT
   lastViewedAt?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   to?: Resolver<ResolversTypes['ViewTo'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13257,7 +13122,6 @@ export type VoteResolvers<ContextType = any, ParentType extends ResolversParentT
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isUpvote?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
   to?: Resolver<ResolversTypes['VoteTo'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13284,7 +13148,6 @@ export type WalletResolvers<ContextType = any, ParentType extends ResolversParen
   organization?: Resolver<Maybe<ResolversTypes['Organization']>, ParentType, ContextType>;
   publicAddress?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   stakingAddress?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  type?: Resolver<ResolversTypes['GqlModelType'], ParentType, ContextType>;
   user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   verified?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

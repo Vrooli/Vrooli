@@ -44,7 +44,7 @@ export const EndNodeDialog = ({
                     id: node.end?.id ?? uuid(),
                     node: { id: node.id } as Node,
                     suggestedNextRoutineVersions: [],
-                    type: GqlModelType.NodeEnd,
+                    __typename: 'NodeEnd',
                     wasSuccessful: values.wasSuccessful,
                 },
                 translations: values.translationsUpdate.map(t => ({

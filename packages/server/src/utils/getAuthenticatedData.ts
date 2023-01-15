@@ -10,10 +10,10 @@ export const getAuthenticatedData = async (
     idsByType: { [key in GqlModelType]?: string[] },
     prisma: PrismaType,
     userData: SessionUser | null,
-): Promise<{ [id: string]: { type: `${GqlModelType}`, [x: string]: any } }> => {
+): Promise<{ [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } }> => {
     console.log('getAuthenticatedData start', JSON.stringify(idsByType), '\n\n');
     // Initialize the return object
-    const authDataById: { [id: string]: { type: `${GqlModelType}`, [x: string]: any } } = {};
+    const authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } } = {};
     // For every type of object which needs to be authenticated, query for all data required to perform authentication
     for (const type of Object.keys(idsByType) as GqlModelType[]) {
         // Find validator and prisma delegate for this object type
@@ -25,7 +25,7 @@ export const getAuthenticatedData = async (
         });
         // Add data to return object
         for (const datum of data) {
-            authDataById[datum.id] = { type, ...datum }
+            authDataById[datum.id] = { __typename: type, ...datum }
         }
     }
     console.log('getAuthenticatedData end', JSON.stringify(authDataById), '\n\n');

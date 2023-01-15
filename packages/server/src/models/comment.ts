@@ -16,7 +16,7 @@ import { getSearchStringQuery } from "../getters";
 import { getUser } from "../auth";
 import { SortMap } from "../utils/sortMap";
 
-const type = 'Comment' as const;
+const __typename = 'Comment' as const;
 type Permissions = Pick<CommentYou, 'canDelete' | 'canEdit' | 'canStar' | 'canReply' | 'canReport' | 'canVote'>;
 const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canReply', 'you.canReport', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
 export const CommentModel: ModelLogic<{
@@ -34,7 +34,7 @@ export const CommentModel: ModelLogic<{
     PrismaSelect: Prisma.commentSelect,
     PrismaWhere: Prisma.commentWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.comment,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
@@ -42,7 +42,7 @@ export const CommentModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             owner: {
                 ownedByUser: 'User',
                 ownedByOrganization: 'Organization',
@@ -64,7 +64,7 @@ export const CommentModel: ModelLogic<{
             starredBy: 'User',
         },
         prismaRelMap: {
-            type: 'Comment',
+            __typename: 'Comment',
             ownedByUser: 'User',
             ownedByOrganization: 'Organization',
             apiVersion: 'ApiVersion',
@@ -92,11 +92,11 @@ export const CommentModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, type),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
                 }
             },
         },
@@ -182,6 +182,7 @@ export const CommentModel: ModelLogic<{
                 }, info, nestLimit - 1) : [];
                 // Add thread to result
                 threads.push({
+                    __typename: 'CommentThread' as const,
                     childThreads,
                     comment: result as any,
                     endCursor,
@@ -213,7 +214,7 @@ export const CommentModel: ModelLogic<{
             const customQueries: { [x: string]: any }[] = [];
             for (const field of Object.keys(CommentModel.search!.searchFields)) {
                 if (input[field as string] !== undefined) {
-                    customQueries.push(SearchMap[field as string](input, getUser(req), type));
+                    customQueries.push(SearchMap[field as string](input, getUser(req), __typename));
                 }
             }
             // Combine queries
@@ -236,6 +237,7 @@ export const CommentModel: ModelLogic<{
             });
             // If there are no results
             if (searchResults.length === 0) return {
+                __typename: 'CommentSearchResult' as const,
                 totalThreads: 0,
                 threads: [],
             }
@@ -275,6 +277,7 @@ export const CommentModel: ModelLogic<{
                     const children = shapeThreads(thread.childThreads);
                     // Add thread to result
                     result.push({
+                        __typename: 'CommentThread' as const,
                         comment,
                         childThreads: children,
                         endCursor: thread.endCursor,
@@ -286,6 +289,7 @@ export const CommentModel: ModelLogic<{
             const threads = shapeThreads(childThreads);
             // Return result
             return {
+                __typename: 'CommentSearchResult' as const,
                 totalThreads: totalInThread,
                 threads,
                 endCursor,

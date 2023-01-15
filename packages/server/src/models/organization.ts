@@ -12,7 +12,7 @@ import { bestLabel, tagShapeHelper, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 
-const type = 'Organization' as const;
+const __typename = 'Organization' as const;
 type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canEdit' | 'canStar' | 'canView'>;
 const suppFields = ['you.canAddMembers', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canView', 'you.isStarred', 'you.isViewed', 'translatedName'] as const;
 export const OrganizationModel: ModelLogic<{
@@ -30,7 +30,7 @@ export const OrganizationModel: ModelLogic<{
     PrismaSelect: Prisma.organizationSelect,
     PrismaWhere: Prisma.organizationWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.organization,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -38,7 +38,7 @@ export const OrganizationModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             apis: 'Api',
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
@@ -67,7 +67,7 @@ export const OrganizationModel: ModelLogic<{
             wallets: 'Wallet',
         },
         prismaRelMap: {
-            type,
+            __typename,
             createdBy: 'User',
             directoryListings: 'ProjectVersionDirectory',
             issues: 'Issue',
@@ -118,12 +118,12 @@ export const OrganizationModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, type),
-                    'translatedName': await getLabels(ids, type, prisma, userData?.languages ?? ['en'], 'project.translatedName')
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
                 }
             },
         },

@@ -1,4 +1,3 @@
-import { GqlModelType } from "@shared/consts";
 import { createOwner } from "./createOwner";
 
 /**
@@ -7,7 +6,7 @@ import { createOwner } from "./createOwner";
  * @returns Ownership connect object
  */
 export const updateOwner = <
-    Item extends { owner?: { type: GqlModelType, id: string } | null | undefined }
+    Item extends { owner?: { __typename: 'User' | 'Organization', id: string } | null | undefined }
 >(
     originalItem: Item,
     updatedItem: Item,

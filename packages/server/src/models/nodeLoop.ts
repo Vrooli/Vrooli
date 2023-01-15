@@ -4,7 +4,7 @@ import { NodeLoop, NodeLoopCreateInput, NodeLoopUpdateInput } from '@shared/cons
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'NodeLoop' as const;
+const __typename = 'NodeLoop' as const;
 const suppFields = [] as const;
 export const NodeLoopModel: ModelLogic<{
     IsTransferable: false,
@@ -21,7 +21,7 @@ export const NodeLoopModel: ModelLogic<{
     PrismaSelect: Prisma.node_loopSelect,
     PrismaWhere: Prisma.node_loopWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node_loop,
     // Doesn't make sense to have a displayer for this model
     display: {
@@ -30,11 +30,11 @@ export const NodeLoopModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             whiles: 'NodeLoopWhile',
         },
         prismaRelMap: {
-            type,
+            __typename,
             node: 'Node',
             whiles: 'NodeLoopWhile',
         },

@@ -44,7 +44,7 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
                 disabled={!you.canVote}
                 session={session}
                 objectId={object?.id ?? ''}
-                voteFor={(object?.type as any) ?? VoteFor.Routine}
+                voteFor={object?.__typename ?? VoteFor.Routine}
                 isUpvoted={you.isUpvoted}
                 score={counts.score}
                 onChange={(isUpvote, score) => { object && handleObjectUpdate({ 

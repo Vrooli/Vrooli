@@ -4,7 +4,7 @@ import { ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'ApiKey' as const;
+const __typename = 'ApiKey' as const;
 const suppFields = [] as const;
 export const ApiKeyModel: ModelLogic<{
     IsTransferable: false,
@@ -21,7 +21,7 @@ export const ApiKeyModel: ModelLogic<{
     PrismaSelect: Prisma.api_keySelect,
     PrismaWhere: Prisma.api_keyWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.api_key,
     display: {
         select: () => ({ id: true, key: true }),
@@ -35,10 +35,10 @@ export const ApiKeyModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
         },
         prismaRelMap: {
-            type,
+            __typename,
         },
         countFields: {},
     },

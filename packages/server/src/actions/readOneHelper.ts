@@ -45,7 +45,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
         id = input.id;
     }
     // Query for all authentication data
-    const authDataById = await getAuthenticatedData({ [model.type]: [id] }, prisma, userData ?? null);
+    const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, prisma, userData ?? null);
     // Check permissions
     permissionsCheck(authDataById, { ['Read']: [id as string] }, userData);
     // Get the Prisma object

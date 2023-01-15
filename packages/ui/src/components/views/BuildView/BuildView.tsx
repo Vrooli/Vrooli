@@ -927,7 +927,7 @@ export const BuildView = ({
         // not an end node
         for (const node of resultRoutine.nodes) {
             // If not an end node
-            if (node.type !== NodeType.End) {
+            if (node.nodeType !== NodeType.End) {
                 // Check if any links have a "from.id" matching this node's ID
                 const leavingLinks = resultRoutine.nodeLinks.filter(link => link.from.id === node.id);
                 // If there are no leaving links, create a new link and end node

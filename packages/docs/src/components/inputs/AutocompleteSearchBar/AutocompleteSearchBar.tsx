@@ -69,7 +69,7 @@ export function AutocompleteSearchBar({
             }}
             renderOption={(_, option) => {
                 // If loading, display spinner
-                if (option.type === 'Loading') {
+                if (option.__typename === 'Loading') {
                     return (
                         <MenuItem
                             key="loading"
@@ -118,7 +118,7 @@ export function AutocompleteSearchBar({
                         {
                             showSecondaryLabel ?
                                 <Typography color="text.secondary">
-                                    {option.type === 'Shortcut' ? "↪ Shortcut" : option.type}
+                                    {option.__typename === 'Shortcut' ? "↪ Shortcut" : option.__typename}
                                 </Typography> :
                                 null
                         }

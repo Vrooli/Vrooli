@@ -5,7 +5,7 @@ import { Premium } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'Premium' as const;
+const __typename = 'Premium' as const;
 const suppFields = [] as const;
 export const PremiumModel: ModelLogic<{
     IsTransferable: false,
@@ -22,7 +22,7 @@ export const PremiumModel: ModelLogic<{
     PrismaSelect: Prisma.premiumSelect,
     PrismaWhere: Prisma.premiumWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.payment,
     display: {
         select: () => ({ id: true, customPlan: true }),

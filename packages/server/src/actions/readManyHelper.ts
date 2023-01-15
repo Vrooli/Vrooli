@@ -33,14 +33,14 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     partialInfo.id = true;
     const searcher: Searcher<any> | undefined = model.search;
     // Determine text search query
-    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.type, searchString: input.searchString }) : undefined;
+    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
     // Loop through search fields and add each to the search query, 
     // if the field is specified in the input
     const customQueries: { [x: string]: any }[] = [];
     if (searcher) {
         for (const field of Object.keys(searcher.searchFields)) {
             if (input[field as string] !== undefined) {
-                customQueries.push(SearchMap[field as string](input, userData, model.type));
+                customQueries.push(SearchMap[field as string](input, userData, model.__typename));
             }
         }
     }
@@ -78,11 +78,14 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             }
         });
         paginatedResults = {
+            __typename: `${model.__typename}SearchResult` as const,
             pageInfo: {
+                __typename: 'PageInfo' as const,
                 hasNextPage: hasNextPage.length > 0,
                 endCursor: cursor,
             },
             edges: searchResults.map((result: any) => ({
+                __typename: `${model.__typename}Edge` as const,
                 cursor: result.id,
                 node: result,
             }))
@@ -91,7 +94,9 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // If there are no results
     else {
         paginatedResults = {
+            __typename: `${model.__typename}SearchResult` as const,
             pageInfo: {
+                __typename: 'PageInfo' as const,
                 endCursor: null,
                 hasNextPage: false,
             },
@@ -105,5 +110,9 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
     formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
-    return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
+    return { 
+        ...paginatedResults,
+        pageInfo: paginatedResults.pageInfo, 
+        edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) 
+    };
 }

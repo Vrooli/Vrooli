@@ -4,7 +4,7 @@ import { Notification, NotificationSearchInput, NotificationSortBy } from '@shar
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'Notification' as const;
+const __typename = 'Notification' as const;
 const suppFields = [] as const;
 export const NotificationModel: ModelLogic<{
     IsTransferable: false,
@@ -21,7 +21,7 @@ export const NotificationModel: ModelLogic<{
     PrismaSelect: Prisma.notificationSelect,
     PrismaWhere: Prisma.notificationWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.notification,
     display: {
         select: () => ({ id: true, title: true }),
@@ -29,10 +29,10 @@ export const NotificationModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
         },
         prismaRelMap: {
-            type,
+            __typename,
         },
         countFields: {},
     },

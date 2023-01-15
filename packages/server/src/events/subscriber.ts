@@ -25,12 +25,12 @@ export const Subscriber = (prisma: PrismaType) => ({
      * @param silent True if push notifications should not be sent
      */
     subscribe: async (
-        object: { type: SubscribableObject, id: string },
+        object: { __typename: SubscribableObject, id: string },
         userData: SessionUser,
         silent?: boolean
     ) => {
         // Find the object and its owner
-        const { delegate, validate } = getLogic(['delegate', 'validate'], object.type, userData.languages, 'Transfer.request-object');
+        const { delegate, validate } = getLogic(['delegate', 'validate'], object.__typename, userData.languages, 'Transfer.request-object');
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
             select: validate.permissionsSelect,
@@ -44,7 +44,7 @@ export const Subscriber = (prisma: PrismaType) => ({
         await prisma.notification_subscription.create({
             data: {
                 subscriber: { connect: { id: userData.id } },
-                [subscriberMapper[object.type]]: { connect: { id: object.id } },
+                [subscriberMapper[object.__typename]]: { connect: { id: object.id } },
                 silent,
             }
         });

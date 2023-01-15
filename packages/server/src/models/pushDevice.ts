@@ -4,7 +4,7 @@ import { PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from '@share
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'PushDevice' as const;
+const __typename = 'PushDevice' as const;
 const suppFields = [] as const;
 export const PushDeviceModel: ModelLogic<{
     IsTransferable: false,
@@ -21,7 +21,7 @@ export const PushDeviceModel: ModelLogic<{
     PrismaSelect: Prisma.push_deviceSelect,
     PrismaWhere: Prisma.push_deviceWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.push_device,
     display: {
         select: () => ({ id: true, name: true, p256dh: true }),

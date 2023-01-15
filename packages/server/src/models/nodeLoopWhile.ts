@@ -4,7 +4,7 @@ import { NodeLoopWhile, NodeLoopWhileCreateInput, NodeLoopWhileUpdateInput } fro
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'NodeLoopWhile' as const;
+const __typename = 'NodeLoopWhile' as const;
 
 const suppFields = [] as const;
 export const NodeLoopWhileModel: ModelLogic<{
@@ -22,7 +22,7 @@ export const NodeLoopWhileModel: ModelLogic<{
     PrismaSelect: Prisma.node_loop_whileSelect,
     PrismaWhere: Prisma.node_loop_whileWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node_loop_while,
     // Doesn't make sense to have a displayer for this model
     display: {
@@ -31,10 +31,10 @@ export const NodeLoopWhileModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
         },
         prismaRelMap: {
-            type,
+            __typename,
             loop: 'NodeLoop',
         },
         countFields: {},

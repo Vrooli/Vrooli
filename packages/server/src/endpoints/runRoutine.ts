@@ -56,7 +56,6 @@ export const typeDef = gql`
         runRoutineScheduleCreate: RunProjectScheduleCreateInput
     }
     type RunRoutine {
-        type: GqlModelType!
         id: ID!
         isPrivate: Boolean!
         completedComplexity: Int!
@@ -179,7 +178,7 @@ export const resolvers: {
         runRoutineDeleteAll: async (_p, _d, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 25, req });
-            return RunRoutineModel.danger.deleteAll(prisma, { type: 'User', id: userData.id });
+            return RunRoutineModel.danger.deleteAll(prisma, { __typename: 'User', id: userData.id });
         },
         runRoutineComplete: async (_, { input }, { prisma, req }, info) => {
             const userData = assertRequestFrom(req, { isUser: true });

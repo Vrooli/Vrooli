@@ -36,7 +36,6 @@ export const typeDef = gql`
         forConnect: ID!
     }
     type Vote {
-        type: GqlModelType!
         id: ID!
         isUpvote: Boolean
         by: User!
@@ -103,7 +102,7 @@ export const resolvers: {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
             const success = await VoteModel.vote(prisma, userData, input);
-            return { success };
+            return { __typename: 'Success', success };
         },
     }
 }

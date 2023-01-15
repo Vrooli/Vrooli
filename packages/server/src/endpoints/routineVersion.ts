@@ -89,7 +89,6 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type RoutineVersion {
-        type: GqlModelType!
         id: ID!
         completedAt: Date
         complexity: Int!

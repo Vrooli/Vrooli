@@ -35,7 +35,7 @@ export const SubroutineSelectOrCreateDialog = ({
         const internal: IsInternalInput = { isInternal: false };
         if (owner) {
             const exception: SearchException = {
-                field: owner.type,
+                field: owner.__typename,
                 // Since exceptions support multiple data types, we must stringify the value
                 value: JSON.stringify(owner.id),
             }

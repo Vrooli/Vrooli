@@ -14,7 +14,7 @@ import { SelectWrap } from "../builders/types";
 //     }
 // }
 
-const type = 'RunRoutineStep' as const;
+const __typename = 'RunRoutineStep' as const;
 const suppFields = [] as const;
 export const RunRoutineStepModel: ModelLogic<{
     IsTransferable: false,
@@ -31,7 +31,7 @@ export const RunRoutineStepModel: ModelLogic<{
     PrismaSelect: Prisma.run_routine_stepSelect,
     PrismaWhere: Prisma.run_routine_stepWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_step,
     display: {
         select: () => ({ id: true, name: true }),
@@ -39,13 +39,13 @@ export const RunRoutineStepModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             run: 'RunRoutine',
             node: 'Node',
             subroutine: 'Routine',
         },
         prismaRelMap: {
-            type,
+            __typename,
             node: 'Node',
             runRoutine: 'RunRoutine',
             subroutine: 'RoutineVersion',

@@ -1,5 +1,5 @@
 import { Stack } from "@mui/material";
-import { Comment, GqlModelType } from "@shared/consts";
+import { Comment } from "@shared/consts";
 import { useCallback, useMemo, useState } from "react";
 import { updateArray } from "utils";
 import { CommentConnector } from "../CommentConnector/CommentConnector";
@@ -28,7 +28,7 @@ export const CommentThread = ({
     const addComment = useCallback((comment: Comment) => {
         // Make comment first, so you can see it without having to scroll to the bottom
         setChildData(curr => [{
-            type: 'CommentThread',
+            __typename: 'CommentThread',
             comment: comment as any,
             childThreads: [],
             endCursor: null,
@@ -70,7 +70,7 @@ export const CommentThread = ({
             {/* Comment connector */}
             <CommentConnector
                 isOpen={isOpen}
-                parentType={data.comment.owner?.type ?? GqlModelType.User}
+                parentType={data.comment.owner?.__typename ?? 'User'}
                 onToggle={() => setIsOpen(!isOpen)}
             />
             {/* Comment and child comments */}

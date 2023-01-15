@@ -222,7 +222,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
     }
 }
 
-const type = 'Routine' as const;
+const __typename = 'Routine' as const;
 type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canEdit' | 'canStar' | 'canView' | 'canVote'>;
 const suppFields = ['you.canComment', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
 export const RoutineModel: ModelLogic<{
@@ -240,7 +240,7 @@ export const RoutineModel: ModelLogic<{
     PrismaSelect: Prisma.routineSelect,
     PrismaWhere: Prisma.routineWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.routine,
     display: {
         select: () => ({
@@ -257,7 +257,7 @@ export const RoutineModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             createdBy: 'User',
             owner: {
                 ownedByUser: 'User',
@@ -272,7 +272,7 @@ export const RoutineModel: ModelLogic<{
             versions: 'RoutineVersion',
         },
         prismaRelMap: {
-            type,
+            __typename,
             createdBy: 'User',
             ownedByUser: 'User',
             ownedByOrganization: 'Organization',
@@ -299,13 +299,13 @@ export const RoutineModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, type),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, type),
-                    'translatedName': await getLabels(ids, type, prisma, userData?.languages ?? ['en'], 'project.translatedName')
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
                 }
             },
         },
@@ -397,9 +397,9 @@ export const RoutineModel: ModelLogic<{
                 //     const input = updateInput[i];
                 //     const permissionsData = authData[u.id];
                 //     const { Organization, User } = validator().owner(permissionsData as any);
-                //     const owner: { type: 'Organization' | 'User', id: string } | null = Organization ?
-                //         { type: 'Organization', id: Organization.id } :
-                //         User ? { type: 'User', id: User.id } : null;
+                //     const owner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
+                //         { __typename: 'Organization', id: Organization.id } :
+                //         User ? { __typename: 'User', id: User.id } : null;
                 //     const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
                 //     const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
                 //     const hadCompletedVersion = validator().hasCompletedVersion(permissionsData as any);

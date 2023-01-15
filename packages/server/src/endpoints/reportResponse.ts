@@ -19,7 +19,6 @@ export const typeDef = gql`
     }
 
     input ReportResponseCreateInput {
-        type: GqlModelType!
         id: ID!
         reportConnect: ID!
         actionSuggested: ReportSuggestedAction!

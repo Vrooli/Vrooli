@@ -294,7 +294,7 @@ export const RunView = ({
     //  * Converts the overall run into a tree of steps, and stores it in the steps ref.
     //  */
     // useEffect(() => {
-    //     if (runnableObject.type === 'RoutineVersion') {
+    //     if (runnableObject.__typename === 'RoutineVersion') {
     //         setSteps(convertRoutineVersionToStep(runnableObject as RoutineVersion, languages));
     //     }
     //     else {

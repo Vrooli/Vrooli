@@ -54,7 +54,6 @@ export const typeDef = gql`
         translationsUpdate: [ResourceTranslationUpdateInput!]
     }
     type Resource {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

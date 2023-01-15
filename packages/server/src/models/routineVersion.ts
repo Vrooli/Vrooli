@@ -26,7 +26,7 @@ const validateNodePositions = (input: RoutineVersionCreateInput | RoutineVersion
     return;
 }
 
-const type = 'RoutineVersion' as const;
+const __typename = 'RoutineVersion' as const;
 type Permissions = Pick<RoutineVersionYou, 'canComment' | 'canCopy' | 'canDelete' | 'canEdit' | 'canStar' | 'canReport' | 'canRun' | 'canView' | 'canVote'>;
 const suppFields = ['you.canComment', 'you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canReport', 'you.canRun', 'you.canView', 'you.canVote', 'you.runs'] as const;
 export const RoutineVersionModel: ModelLogic<{
@@ -44,7 +44,7 @@ export const RoutineVersionModel: ModelLogic<{
     PrismaSelect: Prisma.routine_versionSelect,
     PrismaWhere: Prisma.routine_versionWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -52,7 +52,7 @@ export const RoutineVersionModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'Routine',
@@ -68,7 +68,7 @@ export const RoutineVersionModel: ModelLogic<{
             // you.runs: 'RunRoutine', //TODO
         },
         prismaRelMap: {
-            type,
+            __typename,
             apiVersion: 'ApiVersion',
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
@@ -104,7 +104,7 @@ export const RoutineVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 const runs = async () => {
                     if (!userData) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add routineVersionId, so we 
@@ -163,9 +163,9 @@ export const RoutineVersionModel: ModelLogic<{
                 //     const input = updateInput[i];
                 //     const permissionsData = authData[u.id];
                 //     const { Organization, User } = validator().owner(permissionsData as any);
-                //     const owner: { type: 'Organization' | 'User', id: string } | null = Organization ?
-                //         { type: 'Organization', id: Organization.id } :
-                //         User ? { type: 'User', id: User.id } : null;
+                //     const owner: { __typename: 'Organization' | 'User', id: string } | null = Organization ?
+                //         { __typename: 'Organization', id: Organization.id } :
+                //         User ? { __typename: 'User', id: User.id } : null;
                 //     const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
                 //     const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
                 //     const hadCompletedVersion = validator().hasCompletedVersion(permissionsData as any);

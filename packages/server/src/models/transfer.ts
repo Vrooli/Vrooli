@@ -27,11 +27,11 @@ type Model = {
     PrismaWhere: Prisma.transferWhereInput,
 }
 
-const type = 'Transfer' as const;
+const __typename = 'Transfer' as const;
 const suppFields = [] as const;
 // const formatter = (): Formatter<Model, typeof suppFields> => ({
 //     gqlRelMap: {
-//         type,
+//         __typename,
 //         fromOwner: {
 //             fromUser: 'User',
 //             fromOrganization: 'Organization',
@@ -82,8 +82,8 @@ const transfer = (prisma: PrismaType) => ({
         userData: SessionUser,
     ): Promise<string> => {
         // Find the object and its owner
-        const object: { type: TransferObjectType, id: string } = { type: input.objectType, id: input.objectConnect };
-        const { delegate, validate } = getLogic(['delegate', 'validate'], object.type, userData.languages, 'Transfer.request-object');
+        const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
+        const { delegate, validate } = getLogic(['delegate', 'validate'], object.__typename, userData.languages, 'Transfer.request-object');
         const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
             select: validate.permissionsSelect,
@@ -106,7 +106,7 @@ const transfer = (prisma: PrismaType) => ({
             data: {
                 fromUser: owner.User ? { connect: { id: owner.User.id } } : undefined,
                 fromOrganization: owner.Organization ? { connect: { id: owner.Organization.id } } : undefined,
-                [TransferableFieldMap[object.type]]: { connect: { id: object.id } },
+                [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
                 toUser: toType === 'User' ? { connect: { id: toId } } : undefined,
                 toOrganization: toType === 'Organization' ? { connect: { id: toId } } : undefined,
                 status: isAdmin ? 'Accepted' : 'Pending',
@@ -115,7 +115,7 @@ const transfer = (prisma: PrismaType) => ({
             select: { id: true }
         });
         // Notify user/org that is receiving the object
-        const pushNotification = Notify(prisma, userData.languages).pushTransferRequestSend(request.id, object.type, object.id);
+        const pushNotification = Notify(prisma, userData.languages).pushTransferRequestSend(request.id, object.__typename, object.id);
         if (toType === 'User') await pushNotification.toUser(toId);
         else await pushNotification.toOrganization(toId);
         // Return the transfer request ID
@@ -286,7 +286,7 @@ const transfer = (prisma: PrismaType) => ({
 // })
 
 export const TransferModel: ModelLogic<Model, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.transfer,
     display: {
         select: () => ({

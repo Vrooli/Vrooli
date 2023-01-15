@@ -224,7 +224,7 @@ export type StandardPolicy = {
  * @returns Map of permissions objects, keyed by ID
  */
 export function getMultiTypePermissions(
-    authDataById: { [id: string]: { type: `${GqlModelType}`, [x: string]: any } },
+    authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     userData: SessionUser | null,
 ): { [id: string]: { [x: string]: any } } {
     // Initialize result
@@ -232,7 +232,7 @@ export function getMultiTypePermissions(
     // Loop through each ID and calculate permissions
     for (const id of Object.keys(authDataById)) {
         // Get permissions object for this ID
-        const { validate } = getLogic(['validate'], authDataById[id].type, userData?.languages ?? ['en'], 'getMultiplePermissions');
+        const { validate } = getLogic(['validate'], authDataById[id].__typename, userData?.languages ?? ['en'], 'getMultiplePermissions');
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataById[id]), userData?.id);
         const isDeleted = validate.isDeleted(authDataById[id], userData?.languages ?? ['en']);
         const isPublic = validate.isPublic(authDataById[id], userData?.languages ?? ['en']);
@@ -296,7 +296,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
  * @parma userId ID of user requesting permissions
  */
 export function permissionsCheck(
-    authDataById: { [id: string]: { type: `${GqlModelType}`, [x: string]: any } },
+    authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     userData: SessionUser | null,
 ) {
@@ -312,7 +312,7 @@ export function permissionsCheck(
             const permissions = permissionsById[id];
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
-                throw new CustomError('0297', 'Unauthorized', userData?.languages ?? ['en'], { action, id, type: authDataById[id].type });
+                throw new CustomError('0297', 'Unauthorized', userData?.languages ?? ['en'], { action, id, __typename: authDataById[id].__typename });
             }
         }
     }

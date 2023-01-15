@@ -16,7 +16,6 @@ export const typeDef = gql`
         condition: String
     }
     type NodeLoopWhile {
-        type: GqlModelType!
         id: ID!
         toId: ID
         translations: [NodeLoopWhileTranslation!]!

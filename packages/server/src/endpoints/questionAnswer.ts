@@ -30,7 +30,6 @@ export const typeDef = gql`
         translationsUpdate: [QuestionAnswerTranslationUpdateInput!]
     }
     type QuestionAnswer {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

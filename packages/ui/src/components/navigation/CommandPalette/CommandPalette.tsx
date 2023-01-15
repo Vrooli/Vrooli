@@ -76,11 +76,11 @@ export const CommandPalette = ({
         // If "help" typed, add help and faq shortcuts as first result
         if (searchString.toLowerCase().startsWith('help')) {
             firstResults.push({
-                type: "Shortcut",
+                __typename: "Shortcut",
                 label: `Help - Beginner's Guide`,
                 id: APP_LINKS.Welcome,
             }, {
-                type: "Shortcut",
+                __typename: "Shortcut",
                 label: 'Help - FAQ',
                 id: APP_LINKS.FAQ,
             });
@@ -103,12 +103,12 @@ export const CommandPalette = ({
         setSearchString('');
         // If selected item is an action (i.e. no navigation required), do nothing 
         // (search bar performs actions automatically)
-        if (newValue.type === 'Action') {
+        if (newValue.__typename === 'Action') {
             return;
         }
         let newLocation: string;
         // If selected item is a shortcut, newLocation is in the id field
-        if (newValue.type === 'Shortcut') {
+        if (newValue.__typename === 'Shortcut') {
             newLocation = newValue.id
         }
         // Otherwise, object url must be constructed

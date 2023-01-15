@@ -9,7 +9,7 @@ import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
 import { SelectWrap } from "../builders/types";
 
-const type = 'Wallet' as const;
+const __typename = 'Wallet' as const;
 const suppFields = [] as const;
 export const WalletModel: ModelLogic<{
     IsTransferable: false,
@@ -26,7 +26,7 @@ export const WalletModel: ModelLogic<{
     PrismaSelect: Prisma.walletSelect,
     PrismaWhere: Prisma.walletWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.wallet,
     display: {
         select: () => ({ id: true, name: true }),
@@ -34,13 +34,13 @@ export const WalletModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             handles: 'Handle',
             user: 'User',
             organization: 'Organization',
         },
         prismaRelMap: {
-            type,
+            __typename,
             handles: 'Handle',
             user: 'User',
             organization: 'Organization',

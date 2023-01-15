@@ -5,7 +5,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
 
-const type = 'Email' as const;
+const __typename = 'Email' as const;
 const suppFields = [] as const;
 export const EmailModel: ModelLogic<{
     IsTransferable: false,
@@ -22,7 +22,7 @@ export const EmailModel: ModelLogic<{
     PrismaSelect: Prisma.emailSelect,
     PrismaWhere: Prisma.emailWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.email,
     display: {
         select: () => ({ id: true, emailAddress: true }),
@@ -30,10 +30,10 @@ export const EmailModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
         },
         prismaRelMap: {
-            type,
+            __typename,
             user: 'User',
         },
         countFields: {},

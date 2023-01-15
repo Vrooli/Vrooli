@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { UserScheduleModel } from "./userSchedule";
 
-const type = 'ReminderList' as const;
+const __typename = 'ReminderList' as const;
 const suppFields = [] as const;
 export const ReminderListModel: ModelLogic<{
     IsTransferable: false,
@@ -22,7 +22,7 @@ export const ReminderListModel: ModelLogic<{
     PrismaSelect: Prisma.reminder_listSelect,
     PrismaWhere: Prisma.reminder_listWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.reminder_list,
     display: {
         select: () => ({ id: true, userSchedule: { select: UserScheduleModel.display.select() } }),

@@ -41,7 +41,7 @@ export function modelToGraphQL<
         }
     }
     // Convert data to usable shape
-    const type = partialInfo?.type;
+    const type = partialInfo?.__typename;
     const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
     if (format) {
         data = constructUnions(data, format.gqlRelMap);

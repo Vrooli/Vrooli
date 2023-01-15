@@ -6,7 +6,7 @@ import { UserModel } from "./user";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 
-const type = 'Member' as const;
+const __typename = 'Member' as const;
 
 const suppFields = [] as const;
 export const MemberModel: ModelLogic<{
@@ -24,7 +24,7 @@ export const MemberModel: ModelLogic<{
     PrismaSelect: Prisma.memberSelect,
     PrismaWhere: Prisma.memberWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.member,
     display: {
         select: () => ({
@@ -35,12 +35,12 @@ export const MemberModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             organization: 'Organization',
             user: 'User',
         },
         prismaRelMap: {
-            type,
+            __typename,
             organization: 'Organization',
             user: 'User',
             roles: 'Role',

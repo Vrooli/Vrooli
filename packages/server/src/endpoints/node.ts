@@ -42,7 +42,6 @@ export const typeDef = gql`
         translationsUpdate: [NodeTranslationUpdateInput!]
     }
     type Node {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

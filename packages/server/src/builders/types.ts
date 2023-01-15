@@ -14,12 +14,12 @@ export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
 
 /**
  * Shape 2 of 4 for GraphQL to Prisma converstion. Used by many functions because it is more 
- * convenient than straight up GraphQL request data. Each level contains a type field. 
+ * convenient than straight up GraphQL request data. Each level contains a __typename field. 
  * This type of data is also easier to hard-code in a pinch.
  */
 export interface PartialGraphQLInfo {
     [x: string]: `${GqlModelType}` | undefined | boolean | PartialGraphQLInfo;
-    type?: `${GqlModelType}`;
+    __typename?: `${GqlModelType}`;
 }
 
 /**
@@ -28,7 +28,7 @@ export interface PartialGraphQLInfo {
  * data transformations from the GraphqL shape are removed. This is useful when checking 
  * which fields are requested from a Prisma query.
  */
-export type PartialPrismaSelect = { type?: `${GqlModelType}` } & { [x: string]: boolean | PartialPrismaSelect };
+export type PartialPrismaSelect = { __typename?: `${GqlModelType}` } & { [x: string]: boolean | PartialPrismaSelect };
 
 /**
  * Shape 4 of 4 for GraphQL to Prisma conversion. This is the final shape of the requested data 
@@ -132,8 +132,10 @@ export interface PrismaDelegate {
 export type SelectWrap<T extends Record<string, any>> = { select: { [K in keyof Required<T>]: true } }
 
 export type PaginatedSearchResult = {
+    __typename: any;
     pageInfo: PageInfo;
     edges: Array<{
+        __typename: any;
         cursor: string;
         node: any;
     }>;

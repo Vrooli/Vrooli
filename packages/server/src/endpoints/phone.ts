@@ -14,7 +14,6 @@ export const typeDef = gql`
     }
 
     type Phone {
-        type: GqlModelType!
         id: ID!
         phoneNumber: String!
         verified: Boolean!
@@ -41,7 +40,7 @@ export const resolvers: {
         sendVerificationText: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 50, req });
             await setupVerificationCode(input.phoneNumber, prisma, req.languages);
-            return { success: true };   
+            return { __typename: 'Success' as const, success: true };   
         },
     }
 }

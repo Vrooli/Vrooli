@@ -237,7 +237,7 @@ const querier = () => ({
 //                         default: data.default ?? undefined,
 //                         props: sortify(data.props, userData.languages),
 //                         yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-//                         type: data.type,
+//                         standardType: data.standardType,
 //                         translations,
 //                     }
 //                 }
@@ -277,7 +277,7 @@ const querier = () => ({
 //                                 default: data.default ?? undefined,
 //                                 props: data.props ? sortify(data.props, userData.languages) : undefined,
 //                                 yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-//                                 type: data.type as string,
+//                                 standardType: data.standardType as string,
 //                                 translations,
 //                             }
 //                         }
@@ -288,7 +288,7 @@ const querier = () => ({
 //                             default: data.default as string,
 //                             props: sortify(data.props as string, userData.languages),
 //                             yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-//                             type: data.type as string,
+//                             standardType: data.standardType as string,
 //                             translations,
 //                         }
 //                     })
@@ -363,7 +363,7 @@ const querier = () => ({
 //     // },
 // })
 
-const type = 'StandardVersion' as const;
+const __typename = 'StandardVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
 const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView'] as const;
 export const StandardVersionModel: ModelLogic<{
@@ -381,7 +381,7 @@ export const StandardVersionModel: ModelLogic<{
     PrismaSelect: Prisma.standard_versionSelect,
     PrismaWhere: Prisma.standard_versionWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.standard_version,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -389,7 +389,7 @@ export const StandardVersionModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'StandardVersion',
@@ -398,7 +398,7 @@ export const StandardVersionModel: ModelLogic<{
             root: 'Standard',
         },
         prismaRelMap: {
-            type,
+            __typename,
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'StandardVersion',
@@ -416,7 +416,7 @@ export const StandardVersionModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
             },
         },

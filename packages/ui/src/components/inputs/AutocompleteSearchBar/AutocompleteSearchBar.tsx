@@ -58,9 +58,9 @@ const updateHistoryItems = (searchBarId: string, userId: string, options: Autoco
         // Find options that are in history, and update if stars or isStarred are different
         let updatedHistory = options.map(option => {
             // stars and isStarred are not in shortcuts or actions
-            if (option.type === 'Shortcut' || option.type === 'Action') return null;
+            if (option.__typename === 'Shortcut' || option.__typename === 'Action') return null;
             const historyItem = existingHistory[option.label];
-            if (historyItem && historyItem.option.type !== 'Shortcut' && historyItem.option.type !== 'Action') {
+            if (historyItem && historyItem.option.__typename !== 'Shortcut' && historyItem.option.__typename !== 'Action') {
                 const { stars, isStarred } = option;
                 if (stars !== historyItem.option.stars || isStarred !== historyItem.option.isStarred) {
                     return {
@@ -239,7 +239,7 @@ export function AutocompleteSearchBar({
         // Save to local storage
         localStorage.setItem(`search-history-${id}-${userId ?? ''}`, JSON.stringify(existingHistory));
         // If action, perform action and clear input
-        if (option.type === 'Action') {
+        if (option.__typename === 'Action') {
             performAction(option, session);
             // Update state
             setInternalValue('');
@@ -266,7 +266,7 @@ export function AutocompleteSearchBar({
     }, [palette]);
 
     const handleStar = useCallback((option: AutocompleteOption, isStarred: boolean, event: any) => {
-        if (option.type === 'Shortcut' || option.type === 'Action') return;
+        if (option.__typename === 'Shortcut' || option.__typename === 'Action') return;
         // Stop propagation so that the option isn't selected
         event.stopPropagation();
         // Update the option's isStarred and stars value
@@ -335,20 +335,20 @@ export function AutocompleteSearchBar({
                             {option.label}
                         </ListItemText>
                         {/* Star button */}
-                        {option.type !== 'Shortcut' && option.type !== 'Action' && option.stars !== undefined && <StarButton
+                        {option.__typename !== 'Shortcut' && option.__typename !== 'Action' && option.stars !== undefined && <StarButton
                             isStar={option.isStarred}
                             objectId={option.id}
                             onChange={(isStarred, event) => handleStar(option, isStarred, event)}
                             session={session}
                             showStars={true}
-                            starFor={option.type as unknown as StarFor}
+                            starFor={option.__typename as unknown as StarFor}
                             stars={option.stars}
                             sxs={{ root: { marginRight: 1 } }}
                             tooltipPlacement="right"
                         />}
                         {/* Object icon */}
                         <ListItemIcon>
-                            {typeToIcon(option.type, optionColor(option.isFromHistory, true))}
+                            {typeToIcon(option.__typename, optionColor(option.isFromHistory, true))}
                         </ListItemIcon>
                         {/* If history, show delete icon */}
                         {option.isFromHistory && <Tooltip placement='right' title='Remove'>

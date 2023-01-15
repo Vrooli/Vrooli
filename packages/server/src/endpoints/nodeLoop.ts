@@ -18,7 +18,6 @@ export const typeDef = gql`
         whilesDelete: [ID!]
     }
     type NodeLoop {
-        type: GqlModelType!
         id: ID!
         loops: Int
         operation: String

@@ -60,12 +60,12 @@ export const resolvers: {
         popular: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                'type': 'PopularResult',
-                'organizations': 'Organization',
-                'projects': 'Project',
-                'routines': 'Routine',
-                'standards': 'Standard',
-                'users': 'User',
+                __typename: 'PopularResult',
+                organizations: 'Organization',
+                projects: 'Project',
+                routines: 'Routine',
+                standards: 'Standard',
+                users: 'User',
             }, req.languages, true);
             const MinimumStars = 0; // Minimum stars required to show up in results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
@@ -121,6 +121,7 @@ export const resolvers: {
             )
             // Return results
             return {
+                __typename: 'PopularResult' as const,
                 organizations: withSupplemental['o'],
                 projects: withSupplemental['p'],
                 routines: withSupplemental['r'],
@@ -131,9 +132,9 @@ export const resolvers: {
         learn: async (_p, _d, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                'type': 'LearnResult',
-                'courses': 'Project',
-                'tutorials': 'Routine',
+                __typename: 'LearnResult',
+                courses: 'Project',
+                tutorials: 'Routine',
             }, req.languages, true);
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
@@ -165,6 +166,7 @@ export const resolvers: {
             )
             // Return data
             return {
+                __typename: 'LearnResult' as const,
                 courses: withSupplemental['c'],
                 tutorials: withSupplemental['t'],
             }
@@ -172,15 +174,15 @@ export const resolvers: {
         research: async (_p, _d, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                'type': 'ResearchResult',
-                'processes': 'Routine',
-                'newlyCompleted': {
-                    'Routine': 'Routine',
-                    'Project': 'Project',
+                __typename: 'ResearchResult',
+                processes: 'Routine',
+                newlyCompleted: {
+                    Routine: 'Routine',
+                    Project: 'Project',
                 },
-                'needVotes': 'Project',
-                'needInvestments': 'Project',
-                'needMembers': 'Organization',
+                needVotes: 'Project',
+                needInvestments: 'Project',
+                needMembers: 'Organization',
             }, req.languages, true);
             const MinimumStars = 0; // Minimum stars required to show up in autocomplete results. Will increase in the future.
             const starsQuery = { stars: { gte: MinimumStars } };
@@ -242,6 +244,7 @@ export const resolvers: {
             )
             // Return data
             return {
+                __typename: 'ResearchResult' as const,
                 processes: withSupplemental['p'],
                 // newlyCompleted combines projects and routines, and sorts by date completed
                 newlyCompleted: [...withSupplemental['ncp'], ...withSupplemental['ncr']].sort((a, b) => {
@@ -262,23 +265,24 @@ export const resolvers: {
         develop: async (_p, _d, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                'type': 'DevelopResult',
-                'completed': {
-                    'Routine': 'Routine',
-                    'Project': 'Project',
+                __typename: 'DevelopResult',
+                completed: {
+                    Routine: 'Routine',
+                    Project: 'Project',
                 },
-                'inProgress': {
-                    'Routine': 'Routine',
-                    'Project': 'Project',
+                inProgress: {
+                    Routine: 'Routine',
+                    Project: 'Project',
                 },
-                'recent': {
-                    'Routine': 'Routine',
-                    'Project': 'Project',
+                recent: {
+                    Routine: 'Routine',
+                    Project: 'Project',
                 },
             }, req.languages, true);
             // If not signed in, return empty data
             const userId = getUser(req)?.id ?? null;
             if (!userId) return {
+                __typename: 'DevelopResult' as const,
                 completed: [],
                 inProgress: [],
                 recent: [],
@@ -357,6 +361,7 @@ export const resolvers: {
             });
             // Return data
             return {
+                __typename: 'DevelopResult' as const,
                 completed,
                 inProgress,
                 recent,

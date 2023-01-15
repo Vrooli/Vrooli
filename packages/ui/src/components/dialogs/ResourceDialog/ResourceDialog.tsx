@@ -10,7 +10,7 @@ import { AutocompleteOption, Wrap } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
-import { GqlModelType, PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
+import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { feedEndpoint, resourceEndpoint } from 'graphql/endpoints';
 import { mutationWrapper } from 'graphql/utils';
 import { useQuery } from '@apollo/client';
@@ -76,6 +76,7 @@ export const ResourceDialog = ({
                 usedFor: values.usedFor,
                 translations: values.translationsUpdate.map(t => ({
                     ...t,
+                    __typename: 'ResourceTranslation',
                     id: t.id === DUMMY_ID ? uuid() : t.id,
                 })),
             };
@@ -116,8 +117,8 @@ export const ResourceDialog = ({
                     ...input,
                     created_at: partialData?.created_at ?? new Date().toISOString(),
                     updated_at: partialData?.updated_at ?? new Date().toISOString(),
-                    list: { id: listId } as ResourceList,
-                    type: GqlModelType.Resource,
+                    list: { __typename: 'ResourceList', id: listId } as ResourceList,
+                    __typename: 'Resource',
                 });
                 formik.resetForm();
                 onClose();
@@ -182,7 +183,7 @@ export const ResourceDialog = ({
      */
     const onInputSelect = useCallback((newValue: AutocompleteOption) => {
         // If value is not an object, return;
-        if (!newValue || newValue.type === 'Shortcut' || newValue.type === 'Action') return;
+        if (!newValue || newValue.__typename === 'Shortcut' || newValue.__typename === 'Action') return;
         // Clear search string and close command palette
         closeSearch();
         // Create URL

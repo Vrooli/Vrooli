@@ -82,6 +82,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
     languages = [...new Set(languages)];
     // Return shaped SessionUser object
     return {
+        __typename: 'SessionUser' as const,
         handle: userData.handle ?? undefined,
         hasPremium: new Date(userData.premium?.expiresAt ?? 0) > new Date(),
         id: user.id,
@@ -102,7 +103,7 @@ export const toSessionUser = async (user: { id: string }, prisma: PrismaType, re
 export const toSession = async (user: { id: string }, prisma: PrismaType, req: Partial<Request>): Promise<Session> => {
     const sessionUser = await toSessionUser(user, prisma, req);
     return {
-        type: GqlModelType.Session,
+        __typename: 'Session' as const,
         isLoggedIn: true,
         // Make sure users are unique by id
         users: [sessionUser, ...(req.users ?? []).filter((u: SessionUser) => u.id !== sessionUser.id)],

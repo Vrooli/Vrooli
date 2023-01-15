@@ -41,7 +41,7 @@ const deleteViews = async (prisma: PrismaType, userId: string, ids: string[]): P
                 { byId: userId },
             ]
         }
-    })
+    }).then(({ count }) => ({ __typename: 'Count' as const, count }))
 }
 
 /**
@@ -50,10 +50,10 @@ const deleteViews = async (prisma: PrismaType, userId: string, ids: string[]): P
 const clearViews = async (prisma: PrismaType, userId: string): Promise<Count> => {
     return await prisma.view.deleteMany({
         where: { byId: userId }
-    })
+    }).then(({ count }) => ({ __typename: 'Count' as const, count }))
 }
 
-const type = 'View' as const;
+const __typename = 'View' as const;
 const suppFields = [] as const;
 export const ViewModel: ModelLogic<{
     IsTransferable: true,
@@ -70,7 +70,7 @@ export const ViewModel: ModelLogic<{
     PrismaSelect: Prisma.viewSelect,
     PrismaWhere: Prisma.viewWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.view,
     display: {
         select: () => ({
@@ -102,7 +102,7 @@ export const ViewModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             by: 'User',
             to: {
                 api: 'Api',
@@ -119,7 +119,7 @@ export const ViewModel: ModelLogic<{
             }
         },
         prismaRelMap: {
-            type,
+            __typename,
             by: 'User',
             api: 'Api',
             issue: 'Issue',

@@ -59,7 +59,6 @@ export const typeDef = gql`
         suggestedNextByProjectDisconnect: [ID!]
     }
     type ProjectVersion {
-        type: GqlModelType!
         id: ID!
         completedAt: Date
         complexity: Int!

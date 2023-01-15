@@ -162,7 +162,7 @@ const getEventStartLabel = (date: Date) => {
 type NotifyResultType = {
     toUser: (userId: string) => Promise<void>,
     toOrganization: (organizationId: string, excludeUserId?: string) => Promise<void>,
-    toOwner: (owner: { type: 'User' | 'Organization', id: string }, excludeUserId?: string) => Promise<void>,
+    toOwner: (owner: { __typename: 'User' | 'Organization', id: string }, excludeUserId?: string) => Promise<void>,
     toSubscribers: (objectType: SubscribableObject, objectId: string, excludeUserId?: string) => Promise<void>,
 }
 
@@ -288,19 +288,19 @@ const NotifyResult = ({
     },
     /**
      * Sends a notification to an owner of an object
-     * @param owner The owner's id and type
+     * @param owner The owner's id and __typename
      * @param excludeUserId A user to exclude from the notification
      */
     toOwner: async (owner, excludeUserId) => {
-        if (owner.type === 'User') {
+        if (owner.__typename === 'User') {
             await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toUser(owner.id);
-        } else if (owner.type === 'Organization') {
+        } else if (owner.__typename === 'Organization') {
             await NotifyResult({ bodyKey, bodyVariables, category, languages, link, prisma, silent, titleKey, titleVariables }).toOrganization(owner.id, excludeUserId);
         }
     },
     /**
      * Sends a notification to all subscribers of an object
-     * @param objectType The type of object
+     * @param objectType The __typename of object
      * @param objectId The object's id
      * @param excludeUserId The user to exclude from the notification
      */

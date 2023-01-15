@@ -26,7 +26,6 @@ export const typeDef = gql`
         translationsUpdate: [RoutineVersionInputTranslationUpdateInput!]
     }
     type RoutineVersionInput {
-        type: GqlModelType!
         id: ID!
         index: Int
         isRequired: Boolean

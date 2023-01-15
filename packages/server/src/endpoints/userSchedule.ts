@@ -58,7 +58,6 @@ export const typeDef = gql`
         filtersDelete: [ID!]
     }
     type UserSchedule {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

@@ -8,7 +8,7 @@ import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
 import { base36ToUuid, getRunPercentComplete, parseSearchParams, PubSub } from "utils";
 import { useMutation } from "graphql/hooks";
-import { DeleteOneInput, DeleteType, GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from "@shared/consts";
+import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { DeleteIcon } from "@shared/icons";
@@ -49,7 +49,7 @@ export const RunPickerMenu = ({
             PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
             return;
         }
-        if (runnableObject.type === GqlModelType.ProjectVersion) {
+        if (runnableObject.__typename === 'ProjectVersion') {
             mutationWrapper<RunProject, RunProjectCreateInput>({
                 mutation: runProjectCreate,
                 input: {
@@ -91,7 +91,7 @@ export const RunPickerMenu = ({
     const deleteRun = useCallback((run: RunProject | RunRoutine) => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,
-            input: { id: run.id, objectType: run.type as unknown as DeleteType },
+            input: { id: run.id, objectType: run.__typename as DeleteType },
             successCondition: (data) => data.success,
             successMessage: () => ({ key: 'RunDeleted', variables: { runName: displayDate(run.startedAt) } }),
             onSuccess: (data) => {

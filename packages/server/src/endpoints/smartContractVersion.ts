@@ -60,7 +60,6 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type SmartContractVersion {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

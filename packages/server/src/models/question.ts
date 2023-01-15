@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 
-const type = 'Question' as const;
+const __typename = 'Question' as const;
 const suppFields = [] as const;
 export const QuestionModel: ModelLogic<{
     IsTransferable: false,
@@ -22,7 +22,7 @@ export const QuestionModel: ModelLogic<{
     PrismaSelect: Prisma.questionSelect,
     PrismaWhere: Prisma.questionWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.question,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

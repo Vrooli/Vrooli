@@ -33,7 +33,6 @@ export const typeDef = gql`
     }  
 
     type Award {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

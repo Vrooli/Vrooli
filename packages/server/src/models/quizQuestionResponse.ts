@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 
-const type = 'QuizQuestionResponse' as const;
+const __typename = 'QuizQuestionResponse' as const;
 type Permissions = Pick<QuizQuestionResponseYou, 'canDelete' | 'canEdit'>;
 const suppFields = ['you.canDelete', 'you.canEdit'] as const;
 export const QuizQuestionResponseModel: ModelLogic<{
@@ -23,17 +23,17 @@ export const QuizQuestionResponseModel: ModelLogic<{
     PrismaSelect: Prisma.quiz_question_responseSelect,
     PrismaWhere: Prisma.quiz_question_responseWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.quiz_question_response,
     display: {} as any,
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             quizAttempt: 'QuizAttempt',
             quizQuestion: 'QuizQuestion',
         },
         prismaRelMap: {
-            type,
+            __typename,
             quizAttempt: 'QuizAttempt',
             quizQuestion: 'QuizQuestion',
         },
@@ -41,7 +41,7 @@ export const QuizQuestionResponseModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
                 }

@@ -7,7 +7,7 @@ import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionInputModel } from ".";
 
-const type = 'RunRoutineInput' as const;
+const __typename = 'RunRoutineInput' as const;
 const suppFields = [] as const;
 export const RunRoutineInputModel: ModelLogic<{
     IsTransferable: false,
@@ -24,7 +24,7 @@ export const RunRoutineInputModel: ModelLogic<{
     PrismaSelect: Prisma.run_routine_inputSelect,
     PrismaWhere: Prisma.run_routine_inputWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.run_routine_input,
     display: {
         select: () => ({
@@ -44,12 +44,12 @@ export const RunRoutineInputModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             input: 'RoutineVersionInput',
             runRoutine: 'RunRoutine',
         },
         prismaRelMap: {
-            type,
+            __typename,
             input: 'RunRoutineInput',
             runRoutine: 'RunRoutine',
         },

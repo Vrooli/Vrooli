@@ -6,7 +6,7 @@ import { ModelLogic } from "./types";
 import { UserModel } from "./user";
 import { getSingleTypePermissions } from "../validators";
 
-const type = 'MemberInvite' as const;
+const __typename = 'MemberInvite' as const;
 type Permissions = Pick<MemberInviteYou, 'canDelete' | 'canEdit'>;
 const suppFields = ['you.canDelete', 'you.canEdit'] as const;
 export const MemberInviteModel: ModelLogic<{
@@ -24,7 +24,7 @@ export const MemberInviteModel: ModelLogic<{
     PrismaSelect: Prisma.member_inviteSelect,
     PrismaWhere: Prisma.member_inviteWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.member_invite,
     display: {
         select: () => ({ id: true, user: { select: UserModel.display.select() } }),
@@ -33,12 +33,12 @@ export const MemberInviteModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             organization: 'Organization',
             user: 'User',
         },
         prismaRelMap: {
-            type,
+            __typename,
             organization: 'Organization',
             user: 'User',
         },
@@ -46,7 +46,7 @@ export const MemberInviteModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
                 }

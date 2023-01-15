@@ -44,7 +44,6 @@ export const typeDef = gql`
         tagsCreate: [TagCreateInput!]
     }
     type Post {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!
@@ -53,6 +52,7 @@ export const typeDef = gql`
         reports: [Report!]!
         repostedFrom: Post
         reposts: [Post!]!
+        resourceList: ResourceList!
         score: Int!
         stars: Int!
         views: Int!

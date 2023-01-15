@@ -35,11 +35,11 @@ export const resolvers: {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
-                'type': 'HistoryResult',
-                'activeRuns': 'RunRoutine',
-                'completedRuns': 'RunRoutine',
-                'recentlyViewed': 'View',
-                'recentlyStarred': 'Star',
+                __typename: 'HistoryResult',
+                activeRuns: 'RunRoutine',
+                completedRuns: 'RunRoutine',
+                recentlyViewed: 'View',
+                recentlyStarred: 'Star',
             }, req.languages, true);
             const userId = userData.id;
             const take = 5;

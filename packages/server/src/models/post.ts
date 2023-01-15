@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 
-const type = 'Post' as const;
+const __typename = 'Post' as const;
 
 const suppFields = [] as const;
 
@@ -24,13 +24,43 @@ export const PostModel: ModelLogic<{
     PrismaSelect: Prisma.postSelect,
     PrismaWhere: Prisma.postWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.post,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
         label: (select, languages) => bestLabel(select.translations, 'name', languages),
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            comments: 'Comment',
+            owner: {
+                user: 'User',
+                organization: 'Organization',
+            },
+            reports: 'Report',
+            repostedFrom: 'Post',
+            reposts: 'Post',
+            resourceList: 'ResourceList',
+            starredBy: 'User',
+            tags: 'Tag',
+        },
+        prismaRelMap: {
+            __typename,
+            organization: 'Organization',
+            user: 'User',
+            repostedFrom: 'Post',
+            reposts: 'Post',
+            resourceList: 'ResourceList',
+            comments: 'Comment',
+            starredBy: 'User',
+            votedBy: 'Vote',
+            viewedBy: 'View',
+            reports: 'Report',
+            tags: 'Tag',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

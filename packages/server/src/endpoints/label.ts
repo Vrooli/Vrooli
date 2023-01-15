@@ -50,7 +50,6 @@ export const typeDef = gql`
         translationsUpdate: [LabelTranslationUpdateInput!]
     }
     type Label {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

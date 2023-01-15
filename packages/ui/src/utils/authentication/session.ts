@@ -1,11 +1,11 @@
-import { GqlModelType, Session, SessionUser } from "@shared/consts";
+import { Session, SessionUser } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
 
 /**
  * Session object that indicates no user is logged in
  */
 export const guestSession: Session = {
-    type: GqlModelType.Session,
+    __typename: 'Session',
     isLoggedIn: false,
     users: [],
 }

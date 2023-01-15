@@ -40,7 +40,6 @@ export const typeDef = gql`
         forConnect: ID!
     }
     type Star {
-        type: GqlModelType!
         id: ID!
         by: User!
         to: StarTo!
@@ -103,7 +102,7 @@ export const resolvers: {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ info, maxUser: 1000, req });
             const success = await StarModel.star(prisma, userData, input);
-            return { success };
+            return { __typename: 'Success', success };
         },
     }
 }

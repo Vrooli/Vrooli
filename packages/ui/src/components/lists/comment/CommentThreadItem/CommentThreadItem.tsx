@@ -31,7 +31,7 @@ export function CommentThreadItem({
 
     const { objectId, objectType } = useMemo(() => ({
         objectId: object?.id,
-        objectType: object?.type as unknown as CommentFor,
+        objectType: object?.__typename as CommentFor,
     }), [object]);
     const { isStarred, isUpvoted } = useMemo(() => getYou(object as any), [object]);
 

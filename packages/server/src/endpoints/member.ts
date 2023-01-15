@@ -18,7 +18,6 @@ export const typeDef = gql`
         permissions: String
     }
     type Member {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

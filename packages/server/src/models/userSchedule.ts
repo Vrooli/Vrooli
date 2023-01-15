@@ -43,7 +43,7 @@ import { ModelLogic } from "./types";
 //     customQueryData: (_, userData) => ({ user: { id: userData.id } }),
 // })
 
-const type = 'UserSchedule' as const;
+const __typename = 'UserSchedule' as const;
 const suppFields = [] as const;
 export const UserScheduleModel: ModelLogic<{
     IsTransferable: false,
@@ -60,7 +60,7 @@ export const UserScheduleModel: ModelLogic<{
     PrismaSelect: Prisma.user_scheduleSelect,
     PrismaWhere: Prisma.user_scheduleWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.user_schedule,
     display: {
         select: () => ({ id: true, name: true }),

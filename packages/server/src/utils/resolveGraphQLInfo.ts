@@ -37,8 +37,8 @@ export function parseFragmentSpreadNode(node: FragmentSpreadNode, fragments: { [
         // Parse selection
         result = parseSelectionNode(result, selection, fragments);
     });
-    // Find type
-    result.type = fragment.typeCondition.name.value;
+    // Find __typename
+    result.__typename = fragment.typeCondition.name.value;
     // Return result
     return result;
 }

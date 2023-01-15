@@ -1,11 +1,11 @@
-import { GqlModelType, Routine, RoutineCreateInput, RoutineUpdateInput } from "@shared/consts";
+import { Routine, RoutineCreateInput, RoutineUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
 import { TagShape, createPrims, updatePrims, shapeUpdate, updateRel, createRel, shapeTag, updateOwner, createOwner, shapeLabel, LabelShape, RoutineVersionShape, shapeRoutineVersion, createVersion, updateVersion } from "utils";
 
 
 export type RoutineShape = Pick<Routine, 'id' | 'isInternal' | 'isPrivate' | 'permissions'> & {
     labels?: ({ id: string } | LabelShape)[];
-    owner?: { type: GqlModelType, id: string } | null;
+    owner?: { __typename: 'User' | 'Organization', id: string } | null;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

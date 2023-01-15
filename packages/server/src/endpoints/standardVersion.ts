@@ -64,7 +64,6 @@ export const typeDef = gql`
         translationsDelete: [ID!]
     }
     type StandardVersion {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

@@ -37,7 +37,6 @@ export const typeDef = gql`
         resourcesUpdate: [ResourceUpdateInput!]
     }
     type ResourceList {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

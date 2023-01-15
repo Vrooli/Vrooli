@@ -14,7 +14,7 @@ import { useLocation } from '@shared/route';
 import { getCurrentUser } from 'utils/authentication';
 import { ColorIconButton } from 'components/buttons';
 import { noSelect } from 'styles';
-import { GqlModelType, Session } from '@shared/consts';
+import { Session } from '@shared/consts';
 import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
 
 /**
@@ -23,7 +23,7 @@ import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/typ
  * @returns User object
  */
 export const userFromSession = (session: Session): Exclude<RelationshipOwner, null> => ({
-    type: GqlModelType.User,
+    __typename: 'User',
     id: getCurrentUser(session).id as string,
     handle: null,
     name: 'Self',
@@ -211,7 +211,7 @@ export function RelationshipButtons({
             ownerTooltip: `Marked as anonymous${isEditing ? '' : '. Press to set owner'}`
         };
         // If owner is organization, use organization icon
-        if (relationships.owner.type === 'Organization') {
+        if (relationships.owner.__typename === 'Organization') {
             const OwnerIcon = OrganizationIcon;
             const ownerName = firstString(getTranslation(relationships.owner as RelationshipItemOrganization, languages, true).name, 'organization');
             return {
@@ -251,7 +251,7 @@ export function RelationshipButtons({
             parentTooltip: isEditing ? '' : 'Press to copy from a parent (will override entered data)'
         };
         // If parent is project, use project icon
-        if (relationships.parent.type === 'ProjectVersion') {
+        if (relationships.parent.__typename === 'ProjectVersion') {
             const ParentIcon = ProjIcon;
             const parentName = firstString(getTranslation(relationships.parent as RelationshipItemProjectVersion, languages, true).name, 'project');
             return {

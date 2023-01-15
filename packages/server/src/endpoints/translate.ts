@@ -44,6 +44,7 @@ export const resolvers: {
             // If there are no fields, return empty object
             if (Object.keys(filteredFields).length === 0) {
                 return {
+                    __typename: 'Translate' as const,
                     fields: JSON.stringify({}),
                     language: targetTag,
                 }
@@ -71,6 +72,7 @@ export const resolvers: {
                 }
             }, {});
             return {
+                __typename: 'Translate' as const,
                 fields: JSON.stringify(translatedFields),
                 language: targetTag,
             }

@@ -4,7 +4,7 @@ import { Payment } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'Payment' as const;
+const __typename = 'Payment' as const;
 const suppFields = [] as const;
 export const PaymentModel: ModelLogic<{
     IsTransferable: false,
@@ -21,14 +21,26 @@ export const PaymentModel: ModelLogic<{
     PrismaSelect: Prisma.paymentSelect,
     PrismaWhere: Prisma.paymentWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.payment,
     display: {
         select: () => ({ id: true, description: true }),
         // Cut off the description at 20 characters
         label: (select) =>  select.description.length > 20 ? select.description.slice(0, 20) + '...' : select.description,
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+            organization: 'Organization',
+            user: 'User',
+        },
+        prismaRelMap: {
+            __typename,
+            organization: 'Organization',
+            user: 'User',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

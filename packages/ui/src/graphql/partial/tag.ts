@@ -1,4 +1,4 @@
-const type = 'Tag';
+const __typename = 'Tag';
 export const tagTranslationFields = [type, `{
     id
     language

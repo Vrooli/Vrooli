@@ -19,7 +19,6 @@ export const typeDef = gql`
         translationsUpdate: [NodeRoutineListItemTranslationUpdateInput!]
     }
     type NodeRoutineListItem {
-        type: GqlModelType!
         id: ID!
         index: Int!
         isOptional: Boolean!

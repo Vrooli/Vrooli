@@ -23,7 +23,6 @@ export const typeDef = gql`
         data: String!
     }
     type RunRoutineInput {
-        type: GqlModelType!
         id: ID!
         data: String!
         input: RoutineVersionInput!

@@ -23,7 +23,7 @@ const forMapper: { [key in VoteFor]: string } = {
     Standard: 'standard',
 }
 
-const type = 'Vote' as const;
+const __typename = 'Vote' as const;
 const suppFields = [] as const;
 export const VoteModel: ModelLogic<{
     IsTransferable: true,
@@ -40,7 +40,7 @@ export const VoteModel: ModelLogic<{
     PrismaSelect: Prisma.voteSelect,
     PrismaWhere: Prisma.voteWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.vote,
     display: {
         select: () => ({
@@ -76,7 +76,7 @@ export const VoteModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             by: 'User',
             to: {
                 api: 'Api',
@@ -94,7 +94,7 @@ export const VoteModel: ModelLogic<{
             }
         },
         prismaRelMap: {
-            type,
+            __typename,
             by: 'User',
             api: 'Api',
             comment: 'Comment',

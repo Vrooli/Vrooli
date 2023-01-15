@@ -34,7 +34,6 @@ export const typeDef = gql`
         message: String
     }
     type MeetingInvite {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

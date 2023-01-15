@@ -28,7 +28,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Resour
     }
 }
 
-const type = 'ResourceList' as const;
+const __typename = 'ResourceList' as const;
 const suppFields = [] as const;
 export const ResourceListModel: ModelLogic<{
     IsTransferable: false,
@@ -45,7 +45,7 @@ export const ResourceListModel: ModelLogic<{
     PrismaSelect: Prisma.resource_listSelect,
     PrismaWhere: Prisma.resource_listWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.resource_list,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -53,7 +53,7 @@ export const ResourceListModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             resources: 'Resource',
             apiVersion: 'ApiVersion',
             organization: 'Organization',
@@ -65,7 +65,7 @@ export const ResourceListModel: ModelLogic<{
             userSchedule: 'UserSchedule',
         },
         prismaRelMap: {
-            type,
+            __typename,
             resources: 'Resource',
             apiVersion: 'ApiVersion',
             organization: 'Organization',

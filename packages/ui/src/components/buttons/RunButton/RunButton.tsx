@@ -31,7 +31,7 @@ export const RunButton = ({
     // Check object status to see if it is valid and complete
     const status = useMemo<Status>(() => {
         if (!runnableObject) return Status.Invalid;
-        return (runnableObject.type === GqlModelType.ProjectVersion ? 
+        return (runnableObject.__typename === GqlModelType.ProjectVersion ? 
             getProjectVersionStatus(runnableObject as ProjectVersion) : 
             getRoutineVersionStatus(runnableObject as RoutineVersion)).status;
     }, [runnableObject]);

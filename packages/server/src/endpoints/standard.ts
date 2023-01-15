@@ -61,7 +61,6 @@ export const typeDef = gql`
         versionsDelete: [ID!]
     }
     type Standard {
-        type: GqlModelType!
         id: ID!
         completedAt: Date
         created_at: Date!

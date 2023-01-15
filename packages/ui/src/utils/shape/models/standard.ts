@@ -1,11 +1,11 @@
-import { GqlModelType, Standard, StandardCreateInput, StandardUpdateInput } from "@shared/consts";
+import { Standard, StandardCreateInput, StandardUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
 import { shapeUpdate, updatePrims, TagShape, createRel, updateRel, shapeTag, createOwner, updateOwner, LabelShape, StandardVersionShape, shapeStandardVersion, shapeLabel, createPrims, createVersion, updateVersion } from "utils";
 
 
 export type StandardShape = Pick<Standard, 'id' | 'name' | 'isInternal' | 'isPrivate' | 'permissions'> & {
     parent?: { id: string } | null;
-    owner?: { type: GqlModelType, id: string } | null;
+    owner?: { __typename: 'User' | 'Organization', id: string } | null;
     labels?: ({ id: string } | LabelShape)[] | null;
     tags?: ({ tag: string } | TagShape)[] | null;
     // Updating, deleting, and reordering versions must be done separately. 

@@ -72,13 +72,13 @@ const objectToIds = <T extends Record<string, any>>(
     // If object is a string, this must be a 'Delete' action, and the string is the id
     if (typeof object === 'string') {
         idsByAction['Delete'] = [object];
-        idsByType[relMap.type] = [object];
+        idsByType[relMap.__typename] = [object];
         return { idsByAction, idsByType };
     }
     // If not a 'Create' (i.e. already exists in database), add id of this object to return object
     if (actionType !== 'Create' && object.id) {
         idsByAction[actionType] = [object.id];
-        idsByType[relMap.type] = [object.id];
+        idsByType[relMap.__typename] = [object.id];
     }
     // TODO finish this
     console.log('in objectToIds', JSON.stringify(object));

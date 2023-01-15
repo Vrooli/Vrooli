@@ -9,7 +9,7 @@ import { bestLabel, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { noNull, shapeHelper } from "../builders";
 
-const type = 'Node' as const;
+const __typename = 'Node' as const;
 const MAX_NODES_IN_ROUTINE = 100;
 const suppFields = [] as const;
 export const NodeModel: ModelLogic<{
@@ -27,7 +27,7 @@ export const NodeModel: ModelLogic<{
     PrismaSelect: Prisma.nodeSelect,
     PrismaWhere: Prisma.nodeWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
@@ -35,14 +35,14 @@ export const NodeModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             end: 'NodeEnd',
             loop: 'NodeLoop',
             routineList: 'NodeRoutineList',
             routineVersion: 'RoutineVersion',
         },
         prismaRelMap: {
-            type,
+            __typename,
             end: 'NodeEnd',
             loop: 'NodeLoop',
             next: 'NodeLink',

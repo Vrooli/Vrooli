@@ -145,15 +145,15 @@ export const HomePage = ({
         if (!newValue) return;
         // If selected item is an action (i.e. no navigation required), do nothing 
         // (search bar performs actions automatically)
-        if (newValue.type === 'Action') {
+        if (newValue.__typename === 'Action') {
             return;
         }
         // Replace current state with search string, so that search is not lost. 
         // Only do this if the selected item is not a shortcut
-        if (newValue.type !== 'Shortcut' && searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
+        if (newValue.__typename !== 'Shortcut' && searchString) setLocation(`${APP_LINKS.Home}?search="${searchString}"`, { replace: true });
         else setLocation(APP_LINKS.Home, { replace: true });
         // If selected item is a shortcut, navigate to it
-        if (newValue.type === 'Shortcut') {
+        if (newValue.__typename === 'Shortcut') {
             setLocation(newValue.id);
         }
         // Otherwise, navigate to item page

@@ -1,10 +1,10 @@
-import { GqlModelType, Project, ProjectCreateInput, ProjectUpdateInput } from "@shared/consts";
+import { Project, ProjectCreateInput, ProjectUpdateInput } from "@shared/consts";
 import { ShapeModel } from "types";
 import { createOwner, createRel, ProjectVersionShape, LabelShape, shapeTag, shapeUpdate, TagShape, updateOwner, updatePrims, updateRel, shapeProjectVersion, shapeLabel, createVersion, updateVersion, createPrims } from "utils";
 
 export type ProjectShape = Pick<Project, 'id' | 'handle' | 'isPrivate' | 'permissions'> & {
     labels?: ({ id: string } | LabelShape)[];
-    owner?: { type: GqlModelType, id: string } | null;
+    owner?: { __typename: 'User' | 'Organization', id: string } | null;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

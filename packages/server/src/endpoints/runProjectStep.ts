@@ -25,7 +25,6 @@ export const typeDef = gql`
         timeElapsed: Int
     }
     type RunProjectStep {
-        type: GqlModelType!
         id: ID!
         order: Int!
         contextSwitches: Int!

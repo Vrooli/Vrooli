@@ -54,7 +54,6 @@ export const typeDef = gql`
         message: String
     }
     type Transfer {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

@@ -58,11 +58,11 @@ export const getYouDot = (
     // If no object, return null
     if (!object) return null;
     // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.type)) return getYouDot((object as Star | View | Vote).to as any, property);
+    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getYouDot((object as Star | View | Vote).to as any, property);
     // If the object is a run routine, use the routine version
-    if (object.type === 'RunRoutine') return getYouDot((object as RunRoutine).routineVersion as any, property);
+    if (object.__typename === 'RunRoutine') return getYouDot(object.routineVersion as any, property);
     // If the object is a run project, use the project version
-    if (object.type === 'RunProject') return getYouDot((object as RunProject).projectVersion as any, property);
+    if (object.__typename === 'RunProject') return getYouDot(object.projectVersion as any, property);
     // Check object.you
     if (exists((object as any).you?.[property])) return 'you';
     // Check object.root.you
@@ -95,11 +95,11 @@ export const getYou = (
     };
     if (!object) return defaultPermissions;
     // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.type)) return getYou((object as Star | View | Vote).to as any);
+    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getYou((object as Star | View | Vote).to as any);
     // If the object is a run routine, use the routine version
-    if (object.type === 'RunRoutine') return getYou((object as RunRoutine).routineVersion as any);
+    if (object.__typename === 'RunRoutine') return getYou(object.routineVersion as any);
     // If the object is a run project, use the project version
-    if (object.type === 'RunProject') return getYou((object as RunProject).projectVersion as any);
+    if (object.__typename === 'RunProject') return getYou(object.projectVersion as any);
     // Otherwise, get the permissions from the object
     // Loop through all permission fields
     for (const key in defaultPermissions) {
@@ -140,11 +140,11 @@ export const getCounts = (
     };
     if (!object) return defaultCounts;
     // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.type)) return getCounts((object as Star | View | Vote).to as any);
+    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getCounts((object as Star | View | Vote).to as any);
     // If the object is a run routine, use the routine version
-    if (object.type === 'RunRoutine') return getCounts((object as RunRoutine).routineVersion as any);
+    if (object.__typename === 'RunRoutine') return getCounts(object.routineVersion as any);
     // If the object is a run project, use the project version
-    if (object.type === 'RunProject') return getCounts((object as RunProject).projectVersion as any);
+    if (object.__typename === 'RunProject') return getCounts(object.projectVersion as any);
     // Otherwise, get the counts from the object
     // Loop through all count fields
     for (const key in defaultCounts) {
@@ -172,11 +172,11 @@ export const getDisplay = (
 ): { title: string, subtitle: string } => {
     if (!object) return { title: '', subtitle: '' };
     // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.type)) return getDisplay((object as Star | View | Vote).to as any);
+    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getDisplay((object as Star | View | Vote).to as any);
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);
     // If the object is a run routine, use the routine version's display and the startedAt/completedAt date
-    if (object.type === 'RunRoutine') {
-        const { completedAt, name, routineVersion, startedAt } = object as RunRoutine;
+    if (object.__typename === 'RunRoutine') {
+        const { completedAt, name, routineVersion, startedAt } = object;
         const title = firstString(name, getTranslation(routineVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
         const completed = completedAt ? displayDate(completedAt) : null;
@@ -186,8 +186,8 @@ export const getDisplay = (
         }
     }
     // If the object is a run project, use the project version's display and the startedAt/completedAt date
-    if (object.type === 'RunProject') {
-        const { completedAt, name, projectVersion, startedAt } = object as RunProject;
+    if (object.__typename === 'RunProject') {
+        const { completedAt, name, projectVersion, startedAt } = object;
         const title = firstString(name, getTranslation(projectVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
         const completed = completedAt ? displayDate(completedAt) : null;
@@ -239,15 +239,15 @@ export const getStarFor = (
 ): { starFor: StarFor, starForId: string } | { starFor: null, starForId: null } => {
     if (!object) return { starFor: null, starForId: null };
     // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.type)) return getStarFor((object as Star | View | Vote).to as any);
+    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getStarFor((object as Star | View | Vote).to as any);
     // If the object is a run routine, use the routine version
-    if (object.type === 'RunRoutine') return getStarFor((object as RunRoutine).routineVersion as any);
+    if (object.__typename === 'RunRoutine') return getStarFor(object.routineVersion as any);
     // If the object is a run project, use the project version
-    if (object.type === 'RunProject') return getStarFor((object as RunProject).projectVersion as any);
+    if (object.__typename === 'RunProject') return getStarFor(object.projectVersion as any);
     // If the object contains a root object, use that
     if ((object as any).root) return getStarFor((object as any).root);
     // Use current object
-    return { starFor: object.type as unknown as StarFor, starForId: object.id };
+    return { starFor: object.__typename as unknown as StarFor, starForId: object.id };
 }
 
 /**
@@ -266,18 +266,18 @@ export function listToAutocomplete(
     languages: readonly string[]
 ): AutocompleteOption[] {
     return objects.map(o => ({
-        type: o.type,
+        __typename: o.__typename,
         id: o.id,
         isStarred: getYou(o).isStarred,
         label: getDisplay(o, languages).title,
-        runnableObject: o.type === GqlModelType.RunProject ?
-            (o as RunProject).projectVersion :
-            o.type === GqlModelType.RunRoutine ?
-                (o as RunRoutine).routineVersion :
+        runnableObject: o.__typename === 'RunProject' ?
+            o.projectVersion :
+            o.__typename === 'RunRoutine' ?
+                o.routineVersion :
                 undefined,
         stars: getCounts(o).stars,
-        to: ['Star', 'View', 'Vote'].includes(o.type) ? (o as Star | View | Vote).to : undefined,
-        versionGroupId: undefined// TODO o.type === 'Routine' || o.type === 'Standard' ? o.versionGroupId : undefined,
+        to: ['Star', 'View', 'Vote'].includes(o.__typename) ? (o as Star | View | Vote).to : undefined,
+        versionGroupId: undefined// TODO o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,
     }));
 }
 
@@ -348,7 +348,7 @@ export function listToListItems({
     for (let i = 0; i < items.length; i++) {
         let curr = items[i];
         // If "Star", "View", or "Vote", use the "to" object
-        if (['Star', 'View', 'Vote'].includes(curr.type)) {
+        if (['Star', 'View', 'Vote'].includes(curr.__typename)) {
             curr = (curr as Star | View | Vote).to as ObjectListItemType;
         }
         listItems.push(<ObjectListItem

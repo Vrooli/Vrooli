@@ -25,7 +25,6 @@ export const typeDef = gql`
         remindersDelete: [ID!]
     }
     type ReminderList {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

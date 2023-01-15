@@ -15,7 +15,7 @@ import { listStandardFields } from "./standard";
 import { tagFields } from "./tag";
 import { listUserFields } from "./user";
 
-const type = 'Star';
+const __typename = 'Star';
 export const listStarFields = [type, `
     ${toFragment('listStarTagFields', tagFields)}
     ${toFragment('listStarApiFields', listApiFields)}

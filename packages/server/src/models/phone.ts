@@ -4,7 +4,7 @@ import { Phone, PhoneCreateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'Phone' as const;
+const __typename = 'Phone' as const;
 const suppFields = [] as const;
 export const PhoneModel: ModelLogic<{
     IsTransferable: false,
@@ -21,7 +21,7 @@ export const PhoneModel: ModelLogic<{
     PrismaSelect: Prisma.phoneSelect,
     PrismaWhere: Prisma.phoneWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.phone,
     display: {
         select: () => ({ id: true, phoneNumber: true }),
@@ -32,7 +32,16 @@ export const PhoneModel: ModelLogic<{
             return `...${select.phoneNumber.slice(-4)}`
         }
     },
-    format: {} as any,
+    format: {
+        gqlRelMap: {
+            __typename,
+        },
+        prismaRelMap: {
+            __typename,
+            user: 'User',
+        },
+        countFields: {},
+    },
     mutate: {} as any,
     search: {} as any,
     validate: {} as any,

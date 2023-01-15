@@ -30,7 +30,7 @@ export async function copyHelper({
     // // must be owned either by the user making the request, or by the forked object's owner
     // fdasfsafd
     // // Query for all authentication data
-    // const authDataById = await getAuthenticatedData({ [model.type]: [input.id] }, prisma, userData.id);
+    // const authDataById = await getAuthenticatedData({ [model.__typename]: [input.id] }, prisma, userData.id);
     // // Check permissions
     // permissionsCheck(authDataById, { ['Create']: [input.id] }, userData);
     // // Additional check for paywall

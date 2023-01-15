@@ -15,9 +15,9 @@ export const subsetsMatch = (obj: any, query: any): boolean => {
     // This should hopefully always be the case for the main subsetsMatch call, 
     // but not necessarily for the recursive calls.
     let formattedQuery = query;
-    if (query?.type === 'string') {
+    if (query?.__typename === 'string') {
         // Remove calculated fields from query, since these will not be in obj
-        formattedQuery = removeSupplementalFields(query.type as GqlModelType, query);
+        formattedQuery = removeSupplementalFields(query.__typename as GqlModelType, query);
     }
     // First, check if obj is a join table. If this is the case, what we want to check 
     // is actually one layer down

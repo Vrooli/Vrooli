@@ -12,7 +12,7 @@ import { listRoutineFields } from "./routine";
 import { listSmartContractFields } from "./smartContract";
 import { listStandardFields } from "./standard";
 
-const type = 'Vote';
+const __typename = 'Vote';
 export const listVoteFields = [type, `
     ${toFragment('listVoteApiFields', listApiFields)}
     ${toFragment('listVoteCommentFields', commentFields)}

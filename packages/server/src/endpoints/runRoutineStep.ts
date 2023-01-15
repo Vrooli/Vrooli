@@ -39,7 +39,6 @@ export const typeDef = gql`
         timeElapsed: Int
     }
     type RunRoutineStep {
-        type: GqlModelType!
         id: ID!
         order: Int!
         contextSwitches: Int!

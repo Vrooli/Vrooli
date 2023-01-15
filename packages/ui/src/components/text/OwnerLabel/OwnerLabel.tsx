@@ -3,7 +3,6 @@ import { Tooltip, Typography, useTheme } from "@mui/material"
 import { OwnerLabelProps } from "../types";
 import { useLocation } from "@shared/route";
 import { useCallback, useMemo } from "react";
-import { GqlModelType } from "@shared/consts";
 
 /**
  * Gets name of user or organization that owns/created this object
@@ -13,7 +12,7 @@ import { GqlModelType } from "@shared/consts";
  */
 const getLabel = (
     owner: {
-        type: GqlModelType,
+        __typename: 'Organization' | 'User',
         handle?: string | null,
         name?: string | null,
         translations?: { language: string, name?: string }[],

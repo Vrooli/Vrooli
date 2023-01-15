@@ -10,7 +10,7 @@ type NotificationRecipients = {
     phoneNumbers: any,
 }
 
-const defaultSettings = { enabled: false };
+const defaultSettings: NotificationSettings = { __typename: 'NotificationSettings' as const, enabled: false };
 
 /**
  * Parses a user's notification settings from the a stringified JSON object
@@ -24,7 +24,7 @@ export const parseNotificationSettings = (settingsJson: string | null): Notifica
     } catch (error) {
         logger.error(`Failed to parse notification settings`, { trace: '0304' });
         // If there is an error parsing the JSON, return the default settings
-        return { enabled: false }
+        return { __typename: 'NotificationSettings' as const, enabled: false }
     }
 }
 

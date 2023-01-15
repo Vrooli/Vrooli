@@ -268,22 +268,22 @@ export interface QuantityBoxProps extends BoxProps {
 export type RelationshipItemOrganization = Pick<Organization, 'handle' | 'id'> &
 {
     translations?: Pick<Organization['translations'][0], 'name' | 'id' | 'language'>[];
-    type: GqlModelType;
+    __typename: 'Organization';
 };
 export type RelationshipItemUser = Pick<User, 'handle' | 'id' | 'name'> & {
-    type: GqlModelType;
+    __typename: 'User';
 }
 export type RelationshipItemProjectVersion = Pick<ProjectVersion, 'id'> &
 {
     root: Pick<Project, 'id' | 'handle' | 'owner'>;
     translations?: Pick<ProjectVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    type: GqlModelType;
+    __typename: 'ProjectVersion';
 };
 export type RelationshipItemRoutineVersion = Pick<RoutineVersion, 'id'> &
 {
     root: Pick<Routine, 'id' | 'owner'>;
     translations?: Pick<RoutineVersion['translations'][0], 'name' | 'id' | 'language'>[];
-    type: GqlModelType;
+    __typename: 'RoutineVersion';
 };
 
 export type RelationshipOwner = RelationshipItemOrganization | RelationshipItemUser | null;

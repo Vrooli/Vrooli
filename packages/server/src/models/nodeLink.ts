@@ -6,7 +6,7 @@ import { noNull, padSelect, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
 
-const type = 'NodeLink' as const;
+const __typename = 'NodeLink' as const;
 const suppFields = [] as const;
 export const NodeLinkModel: ModelLogic<{
     IsTransferable: false,
@@ -23,7 +23,7 @@ export const NodeLinkModel: ModelLogic<{
     PrismaSelect: Prisma.node_linkSelect,
     PrismaWhere: Prisma.node_linkWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node_link,
     display: {
         select: () => ({
@@ -38,11 +38,11 @@ export const NodeLinkModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             whens: 'NodeLinkWhen',
         },
         prismaRelMap: {
-            type,
+            __typename,
             from: 'Node',
             to: 'Node',
             routineVersion: 'RoutineVersion',

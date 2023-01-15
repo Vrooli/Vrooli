@@ -46,6 +46,6 @@ export const injectTypenames = <
         }
     }
     // Add type field
-    result.type = parentRelationshipMap.type;
+    result.__typename = parentRelationshipMap.__typename;
     return result;
 }

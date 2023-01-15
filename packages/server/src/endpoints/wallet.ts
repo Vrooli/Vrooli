@@ -20,7 +20,6 @@ export const typeDef = gql`
     }
 
     type Wallet {
-        type: GqlModelType!
         id: ID!
         name: String
         handles: [Handle!]!

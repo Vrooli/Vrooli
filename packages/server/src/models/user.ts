@@ -9,7 +9,7 @@ import { userValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions } from "../validators";
 
-const type = 'User' as const;
+const __typename = 'User' as const;
 type Permissions = Pick<UserYou, 'canDelete' | 'canEdit' | 'canReport'>
 const suppFields = ['you.isStarred', 'you.isViewed'] as const;
 export const UserModel: ModelLogic<{
@@ -27,7 +27,7 @@ export const UserModel: ModelLogic<{
     PrismaSelect: Prisma.userSelect,
     PrismaWhere: Prisma.userWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.user,
     display: {
         select: () => ({ id: true, name: true }),
@@ -35,7 +35,7 @@ export const UserModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type: 'User',
+            __typename,
             comments: 'Comment',
             emails: 'Email',
             // phones: 'Phone',
@@ -47,7 +47,7 @@ export const UserModel: ModelLogic<{
             routines: 'Routine',
         },
         prismaRelMap: {
-            type,
+            __typename,
             apis: 'Api',
             apiKeys: 'ApiKey',
             comments: 'Comment',
@@ -103,11 +103,11 @@ export const UserModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, type),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
                 }
             },
         },

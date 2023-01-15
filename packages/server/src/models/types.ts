@@ -30,7 +30,7 @@ export type ModelLogic<
     Model extends ModelLogicType,
     SuppFields extends readonly DotNotation<Model['GqlModel']>[]
 > = {
-    type: `${GqlModelType}`;
+    __typename: `${GqlModelType}`;
     delegate: (prisma: PrismaType) => PrismaDelegate;
     display: Displayer<Model>;
     duplicate?: Duplicator<any, any>;
@@ -72,14 +72,14 @@ export type GqlRelMap<
     PrismaModel extends ModelLogicType['PrismaModel'],
 > = {
     [K in keyof GqlModel]?: `${GqlModelType}` | ({ [K2 in keyof PrismaModel]?: `${GqlModelType}` })
-} & { type: `${GqlModelType}` };
+} & { __typename: `${GqlModelType}` };
 
 /**
  * Allows Prisma select fields to map to GqlModelTypes
  */
 export type PrismaRelMap<T> = {
     [K in keyof T]?: `${GqlModelType}`
-} & { type: `${GqlModelType}` };
+} & { __typename: `${GqlModelType}` };
 
 /**
  * Helper functions for adding and removing supplemental fields. These are fields 

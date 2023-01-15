@@ -268,7 +268,7 @@ export const initializeRoutineGraph = (language: string, routineVersionId: strin
         }] as Node['translations'],
     };
     const endNode: NodeShape = {
-        type: GqlModelType.Node,
+        __typename: 'Node',
         id: uuid(),
         nodeType: NodeType.End,
         columnIndex: 2,

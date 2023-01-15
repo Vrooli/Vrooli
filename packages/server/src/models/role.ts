@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 
-const type = 'Role' as const;
+const __typename = 'Role' as const;
 const suppFields = [] as const;
 export const RoleModel: ModelLogic<{
     IsTransferable: false,
@@ -22,7 +22,7 @@ export const RoleModel: ModelLogic<{
     PrismaSelect: Prisma.roleSelect,
     PrismaWhere: Prisma.roleWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.role,
     display: {
         select: () => ({ 
@@ -39,12 +39,12 @@ export const RoleModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             members: 'Member',
             organization: 'Organization',
         },
         prismaRelMap: {
-            type,
+            __typename,
             members: 'Member',
             meetings: 'Meeting',
             organization: 'Organization',

@@ -27,7 +27,7 @@ import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOu
 //     yup: { create: {} as any, update: {} as any },
 // })
 
-const type = 'RoutineVersionOutput' as const;
+const __typename = 'RoutineVersionOutput' as const;
 const suppFields = [] as const;
 export const RoutineVersionOutputModel: ModelLogic<{
     IsTransferable: false,
@@ -44,7 +44,7 @@ export const RoutineVersionOutputModel: ModelLogic<{
     PrismaSelect: Prisma.routine_version_outputSelect,
     PrismaWhere: Prisma.routine_version_outputWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.routine_version_output,
     display: {
         select: () => ({
@@ -56,12 +56,12 @@ export const RoutineVersionOutputModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             routineVersion: 'RoutineVersion',
             standardVersion: 'StandardVersion',
         },
         prismaRelMap: {
-            type,
+            __typename,
             routineVersion: 'RoutineVersion',
             standardVersion: 'StandardVersion',
         },

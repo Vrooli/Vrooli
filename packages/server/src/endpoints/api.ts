@@ -56,7 +56,6 @@ export const typeDef = gql`
         labelsCreate: [LabelCreateInput!]
     }
     type Api {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

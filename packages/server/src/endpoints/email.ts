@@ -14,7 +14,6 @@ export const typeDef = gql`
     }
 
     type Email {
-        type: GqlModelType!
         id: ID!
         emailAddress: String!
         verified: Boolean!
@@ -41,7 +40,7 @@ export const resolvers: {
         sendVerificationEmail: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 50, req });
             await setupVerificationCode(input.emailAddress, prisma, req.languages);
-            return { success: true };   
+            return { __typename: 'Success' as const, success: true };   
         },
     }
 }

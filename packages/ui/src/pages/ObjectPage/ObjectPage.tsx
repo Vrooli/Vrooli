@@ -114,14 +114,14 @@ export const ObjectPage = ({
         return { hasPreviousPage, objectType, pageType };
     }, [location]);
 
-    const onAction = useCallback((action: ObjectDialogAction, item?: { type: string, id: string }) => {
+    const onAction = useCallback((action: ObjectDialogAction, item?: { __typename: string, id: string }) => {
         // Only navigate back if there is a previous page
         const pageRoot = window.location.pathname.split('/')[1];
         switch (action) {
             case ObjectDialogAction.Add:
                 setLocation(`${uuidToBase36(item?.id ?? '')}`, { replace: !hasPreviousPage });
                 PubSub.get().publishSnack({
-                    message: `${item?.type ?? ''} created!`,
+                    message: `${item?.__typename ?? ''} created!`,
                     severity: SnackSeverity.Success,
                     buttonText: 'Create another',
                     buttonClicked: () => { setLocation(`add`); },

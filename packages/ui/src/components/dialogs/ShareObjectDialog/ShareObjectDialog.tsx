@@ -37,7 +37,7 @@ export const ShareObjectDialog = ({
 }: ShareObjectDialogProps) => {
     const { palette } = useTheme();
 
-    const title = useMemo(() => object && object.type in postTitle ? postTitle[object.type] : 'Check out this object on Vrooli', [object]);
+    const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : 'Check out this object on Vrooli', [object]);
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split('?')[0].split('#')[0], [object]);
 
     const emailUrl = useMemo(() => `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(url)}`, [title, url]);

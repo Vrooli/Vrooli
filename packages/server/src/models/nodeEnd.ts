@@ -8,7 +8,7 @@ import { SelectWrap } from "../builders/types";
 import { nodeEndValidation } from "@shared/validation";
 import { nodeEndNextShapeHelper } from "../utils";
 
-const type = 'NodeEnd' as const;
+const __typename = 'NodeEnd' as const;
 const suppFields = [] as const;
 export const NodeEndModel: ModelLogic<{
     IsTransferable: false,
@@ -25,7 +25,7 @@ export const NodeEndModel: ModelLogic<{
     PrismaSelect: Prisma.node_endSelect,
     PrismaWhere: Prisma.node_endWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node_end,
     display: {
         select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
@@ -33,11 +33,11 @@ export const NodeEndModel: ModelLogic<{
     },
     format: {
         gqlRelMap: {
-            type,
+            __typename,
             suggestedNextRoutineVersions: 'RoutineVersion',
         },
         prismaRelMap: {
-            type,
+            __typename,
             suggestedNextRoutineVersions: 'RoutineVersion',
             node: 'Node',
         },

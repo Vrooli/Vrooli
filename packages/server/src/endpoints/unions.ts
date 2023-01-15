@@ -164,9 +164,9 @@ export const resolvers: {
         projectOrRoutines: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
-                'type': 'ProjectOrRoutineSearchResult',
-                'Project': 'Project',
-                'Routine': 'Routine',
+                __typename: 'ProjectOrRoutineSearchResult',
+                Project: 'Project',
+                Routine: 'Routine',
             }, req.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req }
@@ -262,21 +262,23 @@ export const resolvers: {
             }
             // Combine pageInfo
             const combined: ProjectOrRoutineSearchResult = {
+                __typename: 'ProjectOrRoutineSearchResult' as const,
                 pageInfo: {
+                    __typename: 'ProjectOrRoutinePageInfo' as const,
                     hasNextPage: projects?.pageInfo?.hasNextPage ?? routines?.pageInfo?.hasNextPage ?? false,
                     endCursorProject: projects?.pageInfo?.endCursor ?? '',
                     endCursorRoutine: routines?.pageInfo?.endCursor ?? '',
                 },
-                edges: nodes.map((node) => ({ cursor: node.id, node })),
+                edges: nodes.map((node) => ({ __typename: 'ProjectOrRoutineEdge' as const, cursor: node.id, node })),
             }
             return combined;
         },
         projectOrOrganizations: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 2000, req });
             const partial = toPartialGraphQLInfo(info, {
-                'type': 'ProjectOrOrganizationSearchResult',
-                'Project': 'Project',
-                'Organization': 'Organization',
+                __typename: 'ProjectOrOrganizationSearchResult',
+                Project: 'Project',
+                Organization: 'Organization',
             }, req.languages, true);
             const take = Math.ceil((input.take ?? 10) / 2);
             const commonReadParams = { prisma, req }
@@ -345,7 +347,7 @@ export const resolvers: {
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [projects?.nodes ?? [], organizations?.nodes ?? []],
-                [{ type: 'Project', ...(partial as any).Project }, { type: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
+                [{ __typename: 'Project', ...(partial as any).Project }, { __typename: 'Organization', ...(partial as any).Organization }] as PartialGraphQLInfo[],
                 ['p', 'o'],
                 getUser(req),
                 prisma,
@@ -362,12 +364,14 @@ export const resolvers: {
             }
             // Combine pageInfo
             const combined: ProjectOrOrganizationSearchResult = {
+                __typename: 'ProjectOrOrganizationSearchResult' as const,
                 pageInfo: {
+                    __typename: 'ProjectOrOrganizationPageInfo' as const,
                     hasNextPage: projects?.pageInfo?.hasNextPage ?? organizations?.pageInfo?.hasNextPage ?? false,
                     endCursorProject: projects?.pageInfo?.endCursor ?? '',
                     endCursorOrganization: organizations?.pageInfo?.endCursor ?? '',
                 },
-                edges: nodes.map((node) => ({ cursor: node.id, node })),
+                edges: nodes.map((node) => ({ __typename: 'ProjectOrOrganizationEdge' as const, cursor: node.id, node })),
             }
             return combined;
         },

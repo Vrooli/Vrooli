@@ -25,7 +25,7 @@ export type ActionTrigger = 'AccountNew' |
     'SessionValidate' | // for checking anniversary
     'UserInvite'
 
-type Owner = { type: 'User' | 'Organization', id: string };
+type Owner = { __typename: 'User' | 'Organization', id: string };
 
 /**
  * Handles logging, notifications, achievements, and more when some action is performed.

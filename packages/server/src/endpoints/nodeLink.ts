@@ -21,7 +21,6 @@ export const typeDef = gql`
         toDisconnect: Boolean
     }
     type NodeLink {
-        type: GqlModelType!
         id: ID!
         whens: [NodeLinkWhen!]!
         operation: String

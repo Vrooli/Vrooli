@@ -100,12 +100,12 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
-        if (isMobile && !['Organization', 'User'].includes(object?.type as any)) return null;
+        if (isMobile && !['Organization', 'User'].includes(object?.__typename as any)) return null;
         // Show icons for organizations and users
-        switch (object?.type) {
+        switch (object?.__typename) {
             case 'Organization':
             case 'User':
-                const Icon: SvgComponent = object?.type === 'Organization' ? OrganizationIcon : UserIcon;
+                const Icon: SvgComponent = object?.__typename === 'Organization' ? OrganizationIcon : UserIcon;
                 return (
                     <Box
                         width={isMobile ? '40px' : '50px'}
@@ -136,7 +136,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         disabled={!canVote}
                         session={session}
                         objectId={object?.id ?? ''}
-                        voteFor={object?.type as unknown as VoteFor}
+                        voteFor={object?.__typename as VoteFor}
                         isUpvoted={isUpvoted}
                         score={score}
                         onChange={(isUpvoted: boolean | null, score: number) => { }}
@@ -145,7 +145,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
             default:
                 return null;
         }
-    }, [isMobile, object?.type, object?.id, score, profileColors, canVote, isUpvoted, session]);
+    }, [isMobile, object?.__typename, object?.id, score, profileColors, canVote, isUpvoted, session]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 
@@ -183,15 +183,15 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
                     </Box>}
                 {/* Add upvote/downvote if mobile */}
-                {isMobile && ['Project', 'Routine', 'Standard'].includes(object?.type as any) && (
+                {isMobile && ['Project', 'Routine', 'Standard'].includes(object?.__typename!) && (
                     <UpvoteDownvote
                         direction='row'
                         disabled={!canVote}
                         session={session}
                         objectId={object?.id ?? ''}
-                        voteFor={(object as any)?.type as VoteFor}
-                        isUpvoted={(object as any)?.isUpvoted}
-                        score={(object as any)?.score}
+                        voteFor={object?.__typename as VoteFor}
+                        isUpvoted={isUpvoted}
+                        score={score}
                         onChange={(isUpvoted: boolean | null, score: number) => { }}
                     />
                 )}
@@ -203,27 +203,27 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     isStar={isStarred}
                     stars={getCounts(object).stars}
                 />}
-                {commentableObjects.includes(object?.type ?? '') && (<CommentsButton
+                {commentableObjects.includes(object?.__typename ?? '') && (<CommentsButton
                     commentsCount={getCounts(object).comments}
                     disabled={!canComment}
                     object={object}
                 />)}
-                {!['RunRoutine', 'RunProject'].includes(object?.type!) && reportsCount > 0 && <ReportsButton
+                {!['RunRoutine', 'RunProject'].includes(object?.__typename!) && reportsCount > 0 && <ReportsButton
                     reportsCount={reportsCount}
                     object={object}
                 />}
             </Stack>
         )
-    }, [object, isMobile, hideRole, canEdit, canVote, canStar, isStarred, canComment, id, editUrl, handleEditClick, palette.secondary.main, session]);
+    }, [object, isMobile, hideRole, canEdit, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canStar, isStarred, canComment]);
 
     /**
      * Run list items may get a progress bar
      */
     const progressBar = useMemo(() => {
-        if (!object || !['RunProject', 'RunRoutine'].includes(object.type)) return null;
-        const completedComplexity = (object as RunProject | RunRoutine).completedComplexity;
+        if (!['RunProject', 'RunRoutine'].includes(object?.__typename!)) return null;
+        const completedComplexity = object.completedComplexity;
         const totalComplexity = (object as RunProject).projectVersion?.complexity ?? (object as RunRoutine).routineVersion?.complexity ?? null;
-        const percentComplete = (object as RunProject | RunRoutine).status === RunStatus.Completed ? 100 :
+        const percentComplete = object.status === RunStatus.Completed ? 100 :
             (completedComplexity && totalComplexity) ?
                 Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
                 0

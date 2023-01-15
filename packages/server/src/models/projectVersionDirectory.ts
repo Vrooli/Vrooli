@@ -5,7 +5,7 @@ import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
 
-const type = 'ProjectVersionDirectory' as const;
+const __typename = 'ProjectVersionDirectory' as const;
 const suppFields = [] as const;
 export const ProjectVersionDirectoryModel: ModelLogic<{
     IsTransferable: false,
@@ -22,7 +22,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
     PrismaSelect: Prisma.project_version_directorySelect,
     PrismaWhere: Prisma.project_version_directoryWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.project_version_directory,
     display: {
         select: () => ({ id: true, translations: { select: { language: true, name: true } } }),

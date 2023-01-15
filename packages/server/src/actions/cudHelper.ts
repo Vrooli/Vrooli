@@ -36,13 +36,13 @@ export async function cudHelper<
     // Get functions for manipulating model logic
     const { delegate, mutate, validate } = getLogic(['delegate', 'mutate', 'validate'], objectType, userData.languages, 'cudHelper')
     // Initialize results
-    let created: GqlModel[] = [], updated: GqlModel[] = [], deleted: Count = { count: 0 };
+    let created: GqlModel[] = [], updated: GqlModel[] = [], deleted: Count = { __typename: 'Count' as const, count: 0 };
     // Validate yup
     createMany && mutate.yup.create && reqArr(mutate.yup.create()).validateSync(createMany, { abortEarly: false });
     updateMany && mutate.yup.update && reqArr(mutate.yup.update()).validateSync(updateMany.map(u => u.data), { abortEarly: false });
     // Profanity check
-    createMany && profanityCheck(createMany, partialInfo.type, userData.languages);
-    updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.type, userData.languages);
+    createMany && profanityCheck(createMany, partialInfo.__typename, userData.languages);
+    updateMany && profanityCheck(updateMany.map(u => u.data), partialInfo.__typename, userData.languages);
     // Shape create and update data. This must be done before other validations, as shaping may convert creates to connects
     const shapedCreate: { [x: string]: any }[] = [];
     const shapedUpdate: { where: { [x: string]: any }, data: { [x: string]: any } }[] = [];
@@ -115,7 +115,7 @@ export async function cudHelper<
         validate?.validations?.delete && await validate.validations.delete({ deleteMany, languages: userData.languages, prisma, userData });
         deleted = await delegate(prisma).deleteMany({
             where: { id: { in: deleteMany } }
-        })
+        }).then(({ count }) => ({ __typename: 'Count' as const, count }));
         // Call onDeleted
         mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({ deleted, prisma, userData });
     }

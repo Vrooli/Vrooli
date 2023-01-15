@@ -116,7 +116,7 @@ const checkObjectLimit = (
  * @parma userId ID of user requesting permissions
  */
 export async function maxObjectsCheck(
-    authDataById: { [id: string]: { type: `${GqlModelType}`, [x: string]: any } },
+    authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     prisma: PrismaType,
     userData: SessionUser,
@@ -129,19 +129,19 @@ export async function maxObjectsCheck(
             // Get auth data
             const authData = authDataById[id]
             // Get validator
-            const { validate } = getLogic(['validate'], authData.type, userData.languages, 'maxObjectsCheck-create')
+            const { validate } = getLogic(['validate'], authData.__typename, userData.languages, 'maxObjectsCheck-create')
             // Find owner and object type
             const owners = validate.owner(authData);
             // Increment count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
             if (!ownerId) throw new CustomError('0310', 'InternalError', userData.languages);
             // Initialize shape of counts for this owner
-            counts[authData.type] = counts[authData.type] || {}
-            counts[authData.type]![ownerId] = counts[authData.type]![ownerId] || { private: 0, public: 0 }
+            counts[authData.__typename] = counts[authData.__typename] || {}
+            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 }
             // Determine if object is public
             const isPublic = validate.isPublic(authData, userData.languages);
             // Increment count
-            counts[authData.type]![ownerId][isPublic ? 'public' : 'private']++;
+            counts[authData.__typename]![ownerId][isPublic ? 'public' : 'private']++;
         }
     }
     // Ignore count for updates, as that doesn't change the total number of objects
@@ -151,19 +151,19 @@ export async function maxObjectsCheck(
             // Get auth data
             const authData = authDataById[id]
             // Get validator
-            const { validate } = getLogic(['validate'], authData.type, userData.languages, 'maxObjectsCheck-delete')
+            const { validate } = getLogic(['validate'], authData.__typename, userData.languages, 'maxObjectsCheck-delete')
             // Find owner and object type
             const owners = validate.owner(authData);
             // Decrement count for owner
             const ownerId: string | undefined = owners.Organization?.id ?? owners.User?.id;
             if (!ownerId) throw new CustomError('0311', 'InternalError', userData.languages);
             // Initialize shape of counts for this owner
-            counts[authData.type] = counts[authData.type] || {}
-            counts[authData.type]![ownerId] = counts[authData.type]![ownerId] || { private: 0, public: 0 }
+            counts[authData.__typename] = counts[authData.__typename] || {}
+            counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 }
             // Determine if object is public
             const isPublic = validate.isPublic(authData, userData.languages);
             // Decrement count
-            counts[authData.type]![ownerId][isPublic ? 'public' : 'private']--;
+            counts[authData.__typename]![ownerId][isPublic ? 'public' : 'private']--;
         }
     }
     // Add counts for all existing objects, then check if any limits will be exceeded

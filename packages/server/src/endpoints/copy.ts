@@ -49,7 +49,7 @@ export const resolvers: {
         copy: async (_, { input }, { prisma, req }, info) => {
             await rateLimit({ info, maxUser: 500, req });
             const result = await copyHelper({ info, input, objectType: input.objectType, prisma, req })
-            return { [lowercaseFirstLetter(input.objectType)]: result };
+            return { __typename: 'CopyResult' as const, [lowercaseFirstLetter(input.objectType)]: result };
         }
     }
 }

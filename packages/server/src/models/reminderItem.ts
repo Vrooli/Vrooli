@@ -4,7 +4,7 @@ import { ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput } from '
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 
-const type = 'ReminderItem' as const;
+const __typename = 'ReminderItem' as const;
 const suppFields = [] as const;
 export const ReminderItemModel: ModelLogic<{
     IsTransferable: false,
@@ -21,7 +21,7 @@ export const ReminderItemModel: ModelLogic<{
     PrismaSelect: Prisma.reminder_itemSelect,
     PrismaWhere: Prisma.reminder_itemWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.reminder_item,
     display: {
         select: () => ({ id: true, name: true }),

@@ -49,7 +49,6 @@ export const typeDef = gql`
     union CommentedOn = Project | Routine | Standard
 
     type Comment {
-        type: GqlModelType!
         id: ID!
         created_at: Date!
         updated_at: Date!

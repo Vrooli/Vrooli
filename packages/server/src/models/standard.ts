@@ -30,7 +30,7 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Standa
     } as any
 }
 
-const type = 'Standard' as const;
+const __typename = 'Standard' as const;
 type Permissions = Pick<StandardYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
 const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
 export const StandardModel: ModelLogic<{
@@ -48,7 +48,7 @@ export const StandardModel: ModelLogic<{
     PrismaSelect: Prisma.standardSelect,
     PrismaWhere: Prisma.standardWhereInput,
 }, typeof suppFields> = ({
-    type,
+    __typename,
     delegate: (prisma: PrismaType) => prisma.standard,
     display: {
         select: () => ({
@@ -65,7 +65,7 @@ export const StandardModel: ModelLogic<{
     },
     format: {
         gqlRelMap: { //TODO finish
-            type,
+            __typename,
             createdBy: 'User',
             owner: {
                 ownedByUser: 'User',
@@ -75,7 +75,7 @@ export const StandardModel: ModelLogic<{
             tags: 'Tag',
         },
         prismaRelMap: {
-            type,
+            __typename,
             createdBy: 'User',
             ownedByOrganization: 'Organization',
             ownedByUser: 'User',
@@ -100,13 +100,13 @@ export const StandardModel: ModelLogic<{
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
-                let permissions = await getSingleTypePermissions<Permissions>(type, ids, prisma, userData);
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
-                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, type),
-                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, type),
-                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, type),
-                    'translatedName': await getLabels(ids, type, prisma, userData?.languages ?? ['en'], 'project.translatedName')
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                    'you.isUpvoted': await VoteModel.query.getIsUpvoteds(prisma, userData?.id, ids, __typename),
+                    'translatedName': await getLabels(ids, __typename, prisma, userData?.languages ?? ['en'], 'project.translatedName')
                 }
             },
         },
@@ -138,7 +138,7 @@ export const StandardModel: ModelLogic<{
                 //             default: data.default ?? undefined,
                 //             props: sortify(data.props, userData.languages),
                 //             yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                //             type: data.type,
+                //             standardType: data.standardType,
                 //             translations,
                 //         }
                 //     }
@@ -179,7 +179,7 @@ export const StandardModel: ModelLogic<{
                 //                     default: data.default ?? undefined,
                 //                     props: data.props ? sortify(data.props, userData.languages) : undefined,
                 //                     yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                //                     type: data.type as string,
+                //                     standardType: data.standardType as string,
                 //                     translations,
                 //                 }
                 //             }
@@ -190,7 +190,7 @@ export const StandardModel: ModelLogic<{
                 //                 default: data.default as string,
                 //                 props: sortify(data.props as string, userData.languages),
                 //                 yup: data.yup ? sortify(data.yup, userData.languages) : undefined,
-                //                 type: data.type as string,
+                //                 standardType: data.standardType as string,
                 //                 translations,
                 //             }
                 //         })

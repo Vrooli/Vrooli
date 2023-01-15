@@ -9,8 +9,8 @@ import { CustomError } from "../events";
  * every object with our own type field
  */
 export const resolveUnion = (object: any): `${GqlModelType}` => {
-    if (object.type) {
-        return object.type;
+    if (object.__typename) {
+        return object.__typename;
     } else {
         throw new CustomError('0364', 'InternalError', ['en']);
     }
