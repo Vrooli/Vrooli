@@ -27,7 +27,12 @@ export const PushList = ({
     const [addMutation, { loading: loadingAdd }] = useMutation<PushDevice, PushDeviceCreateInput, 'pushDeviceCreate'>(...pushDeviceEndpoint.create);
     const formik = useFormik({
         initialValues: {
-            emailAddress: '',
+            endpoint: '',
+            expires: '',
+            keys: {
+                auth: '',
+                p256dh: '',
+            },
         },
         enableReinitialize: true,
         validationSchema: pushDeviceValidation.create(),
@@ -106,7 +111,7 @@ export const PushList = ({
                 paddingTop: 2,
                 paddingBottom: 6,
             }}>
-                <TextField
+                {/* <TextField
                     autoComplete='email'
                     fullWidth
                     id="emailAddress"
@@ -124,7 +129,7 @@ export const PushList = ({
                             borderRadius: '5px 0 0 5px',
                         }
                     }}
-                />
+                /> */}
                 <ColorIconButton
                     aria-label='add-new-email-button'
                     background={palette.secondary.main}

@@ -1,9 +1,9 @@
-import { Comment, CommentThread, GqlModelType, Session } from "@shared/consts";
+import { Comment, CommentThread, Session } from "@shared/consts";
 import { NavigableObject } from "types";
 
 export interface CommentConnectorProps {
     isOpen: boolean;
-    parentType: GqlModelType;
+    parentType: 'User' | 'Organization';
     onToggle: () => void;
 }
 

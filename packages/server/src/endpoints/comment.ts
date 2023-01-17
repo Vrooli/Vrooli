@@ -46,7 +46,7 @@ export const typeDef = gql`
         translationsUpdate: [CommentTranslationUpdateInput!]
     }
 
-    union CommentedOn = Project | Routine | Standard
+    union CommentedOn = ApiVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | SmartContractVersion | StandardVersion
 
     type Comment {
         id: ID!

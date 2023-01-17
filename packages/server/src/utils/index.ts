@@ -2,6 +2,7 @@ export * from './bestLabel';
 export * from './fileIO';
 export * from './getAuthenticatedData';
 export * from './getAuthenticatedIds';
+export * from './labelShapeHelper';
 export * from './nodeEndNextShapeHelper';
 export * from './objectTools';
 export * from './oneIsPublic';

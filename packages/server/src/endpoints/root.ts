@@ -75,6 +75,7 @@ export const typeDef = gql`
         RoutineVersionInput
         RoutineVersionOutput
         RunProject
+        RunProjectOrRunRoutineSearchResult
         RunProjectSchedule
         RunProjectStep
         RunRoutine

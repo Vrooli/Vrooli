@@ -16,7 +16,7 @@ import {
     routineNodeCheckboxLabel,
 } from '../styles';
 import { multiLineEllipsis, noSelect, textShadow } from 'styles';
-import { BuildAction, firstString, getTranslation, updateTranslationFields, usePress } from 'utils';
+import { BuildAction, firstString, getDisplay, updateTranslationFields, usePress } from 'utils';
 import { calculateNodeSize, EditableLabel, NodeContextMenu } from 'components';
 import { CloseIcon } from '@shared/icons';
 import { reqErr, name as nameValidation } from '@shared/validation';
@@ -49,12 +49,7 @@ export const SubroutineNode = ({
     // Determines if the subroutine is one you can edit
     const canEdit = useMemo<boolean>(() => ((data?.routineVersion?.root as Routine)?.isInternal ?? (data?.routineVersion?.root as Routine)?.you?.canEdit === true), [data.routineVersion]);
 
-    const { name } = useMemo(() => {
-        const languages = navigator.languages;
-        return {
-            name: firstString(getTranslation(data, languages, true).name, getTranslation(data.routineVersion, languages, true).name),
-        }
-    }, [data]);
+    const { title } = useMemo(() => getDisplay(data, navigator.languages), [data]);
 
     const onAction = useCallback((event: any | null, action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine) => {
         if (event && [BuildAction.EditSubroutine, BuildAction.DeleteSubroutine].includes(action)) {
@@ -71,7 +66,7 @@ export const SubroutineNode = ({
     const handleLabelUpdate = useCallback((newLabel: string) => {
         handleUpdate(data.id, {
             ...data,
-            translations: updateTranslationFields(data, language, { name: newLabel }) as any,
+            translations: updateTranslationFields(data, language, { name: newLabel }),
         });
     }, [handleUpdate, data, language]);
 
@@ -109,11 +104,11 @@ export const SubroutineNode = ({
                         marginRight: 'auto',
                     }
                 }}
-                text={name}
+                text={title}
                 validationSchema={nameValidation.required(reqErr)}
             />
         )
-    }, [labelVisible, isEditing, handleLabelUpdate, name, data.id]);
+    }, [labelVisible, isEditing, handleLabelUpdate, title, data.id]);
 
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
@@ -198,7 +193,7 @@ export const SubroutineNode = ({
                             label='Optional'
                             control={
                                 <Checkbox
-                                    id={`${name ?? ''}-optional-option`}
+                                    id={`${title}-optional-option`}
                                     size="small"
                                     name='isOptionalCheckbox'
                                     color='secondary'

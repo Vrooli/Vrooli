@@ -1,5 +1,5 @@
 // Defines common props
-import { ListObjectType, RoutineStepType } from 'utils';
+import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { Path } from '@shared/route/src/useLocation';
 import { TFuncKey } from 'i18next';
@@ -31,11 +31,11 @@ export type NavigableObject = {
     handle?: string | null,
     id: string,
     projectVersion?: {
-        __typename: `${GqlModelType}`
+        __typename: 'ProjectVersion',
         id: string
     } | null,
     routineVersion?: {
-        __typename: `${GqlModelType}`
+        __typename: 'RoutineVersion',
         id: string
     } | null,
     to?: {
@@ -75,13 +75,13 @@ export interface BaseStep {
     description: string | null, // description from node
 }
 export interface DecisionStep extends BaseStep {
-    __typename: RoutineStepType.Decision,
     links: NodeLink[]
+    type: RoutineStepType.Decision,
 }
 export interface SubroutineStep extends BaseStep {
-    __typename: RoutineStepType.Subroutine,
     index: number,
     routineVersion: RoutineVersion
+    type: RoutineStepType.Subroutine,
 }
 export interface RoutineListStep extends BaseStep {
     /**
@@ -102,7 +102,8 @@ export interface ObjectOption {
     __typename: `${GqlModelType}`;
     handle?: string | null;
     id: string;
-    versionGroupId?: string | null;
+    root?: { id: string } | null;
+    versions?: { id: string }[] | null;
     isFromHistory?: boolean;
     isStarred?: boolean;
     label: string;

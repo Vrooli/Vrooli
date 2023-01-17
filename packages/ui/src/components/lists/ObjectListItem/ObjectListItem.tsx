@@ -1,17 +1,17 @@
 import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { ObjectListItemProps, ObjectListItemType } from '../types';
+import { ObjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, getYouDot } from 'utils';
+import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, getYouDot, ListObjectType } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
-import { setDotNotationValue } from '@shared/utils';
+import { isOfType, setDotNotationValue } from '@shared/utils';
 import { useTranslation } from 'react-i18next';
 
 function CompletionBar(props) {
@@ -29,7 +29,7 @@ function CompletionBar(props) {
     );
 }
 
-export function ObjectListItem<T extends ObjectListItemType>({
+export function ObjectListItem<T extends ListObjectType>({
     beforeNavigation,
     data,
     hideRole,
@@ -100,7 +100,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
-        if (isMobile && !['Organization', 'User'].includes(object?.__typename as any)) return null;
+        if (isMobile && !isOfType(object, 'Organization', 'User')) return null;
         // Show icons for organizations and users
         switch (object?.__typename) {
             case 'Organization':
@@ -145,7 +145,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
             default:
                 return null;
         }
-    }, [isMobile, object?.__typename, object?.id, score, profileColors, canVote, isUpvoted, session]);
+    }, [isMobile, object, profileColors, canVote, session, isUpvoted, score]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 
@@ -183,18 +183,36 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
                     </Box>}
                 {/* Add upvote/downvote if mobile */}
-                {isMobile && ['Project', 'Routine', 'Standard'].includes(object?.__typename!) && (
-                    <UpvoteDownvote
-                        direction='row'
-                        disabled={!canVote}
-                        session={session}
-                        objectId={object?.id ?? ''}
-                        voteFor={object?.__typename as VoteFor}
-                        isUpvoted={isUpvoted}
-                        score={score}
-                        onChange={(isUpvoted: boolean | null, score: number) => { }}
-                    />
-                )}
+                {isMobile && isOfType(object,
+                    'Api',
+                    'ApiVersion',
+                    'Comment',
+                    'Issue',
+                    'Note',
+                    'NoteVersion',
+                    'Post',
+                    'Project',
+                    'ProjectVersion',
+                    'Question',
+                    'QuestionAnswer',
+                    'Quiz',
+                    'Routine',
+                    'RoutineVersion',
+                    'SmartContract',
+                    'SmartContractVersion',
+                    'Standard',
+                    'StandardVersion') && (
+                        <UpvoteDownvote
+                            direction='row'
+                            disabled={!canVote}
+                            session={session}
+                            objectId={object?.id ?? ''}
+                            voteFor={object?.__typename as VoteFor}
+                            isUpvoted={isUpvoted}
+                            score={score}
+                            onChange={(isUpvoted: boolean | null, score: number) => { }}
+                        />
+                    )}
                 {starFor && <StarButton
                     disabled={!canStar}
                     session={session}
@@ -208,7 +226,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     disabled={!canComment}
                     object={object}
                 />)}
-                {!['RunRoutine', 'RunProject'].includes(object?.__typename!) && reportsCount > 0 && <ReportsButton
+                {!isOfType(object, 'RunRoutine', 'RunProject') && reportsCount > 0 && <ReportsButton
                     reportsCount={reportsCount}
                     object={object}
                 />}
@@ -220,7 +238,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * Run list items may get a progress bar
      */
     const progressBar = useMemo(() => {
-        if (!['RunProject', 'RunRoutine'].includes(object?.__typename!)) return null;
+        if (!isOfType(object, 'RunProject', 'RunRoutine')) return null;
         const completedComplexity = object.completedComplexity;
         const totalComplexity = (object as RunProject).projectVersion?.complexity ?? (object as RunRoutine).routineVersion?.complexity ?? null;
         const percentComplete = object.status === RunStatus.Completed ? 100 :

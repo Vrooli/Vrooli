@@ -169,7 +169,7 @@ export const OrganizationModel: ModelLogic<{
                     ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
                     ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, prisma, userData })),
                     ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
-                    ...(await tagShapeHelper({ relTypes: ['Create'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
+                    ...(await tagShapeHelper({ relTypes: ['Connect', 'Create'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
                     ...roles,
                 }
             },
@@ -177,8 +177,12 @@ export const OrganizationModel: ModelLogic<{
                 handle: noNull(data.handle),
                 isOpenToNewMembers: noNull(data.isOpenToNewMembers),
                 isPrivate: noNull(data.isPrivate),
-                ...(await shapeHelper({ relation: 'members', relTypes: ['Disconnect'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
-                ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Update'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'members', relTypes: ['Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'memberInvites', relTypes: ['Create', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'Member', parentRelationshipName: 'organization', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'resourceList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'ResourceList', parentRelationshipName: 'organization', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+                ...(await tagShapeHelper({ relTypes: ['Connect', 'Create', 'Disconnect'], parentType: 'Organization', relation: 'tags', data, prisma, userData })),
+                //...roles //TODO
             })
         },
         yup: organizationValidation,

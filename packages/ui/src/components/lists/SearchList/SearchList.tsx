@@ -6,8 +6,8 @@ import { Box, Button, List, Palette, Tooltip, Typography, useTheme } from "@mui/
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BuildIcon, HistoryIcon as TimeIcon, PlusIcon, SortIcon } from '@shared/icons';
-import { SearchQueryVariablesInput, SearchListProps, ObjectListItemType } from "../types";
-import { addSearchParams, getUserLanguages, labelledSortOptions, listToAutocomplete, listToListItems, openObject, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
+import { SearchQueryVariablesInput, SearchListProps } from "../types";
+import { addSearchParams, getUserLanguages, labelledSortOptions, ListObjectType, listToAutocomplete, listToListItems, openObject, parseSearchParams, removeSearchParams, SearchParams, searchTypeToParams, SortValueToLabelMap } from "utils";
 import { useLocation } from '@shared/route';
 import { AutocompleteOption } from "types";
 
@@ -45,7 +45,7 @@ const parseData = (data: any) => {
 };
 
 export function SearchList<
-    DataType extends ObjectListItemType,
+    DataType extends ListObjectType,
     SortBy,
     Endpoint extends string,
     QueryResult extends string | number | boolean | object,

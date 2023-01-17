@@ -5,7 +5,7 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { firstString, getResourceType, getResourceUrl, getTranslation, getUserLanguages, openLink, PubSub, usePress } from 'utils';
+import { firstString, getDisplay, getResourceType, getResourceUrl, getUserLanguages, openLink, PubSub, usePress } from 'utils';
 import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
@@ -32,12 +32,11 @@ export const ResourceCard = ({
 
     const [showIcons, setShowIcons] = useState(false);
 
-    const { description, name } = useMemo(() => {
-        const languages = getUserLanguages(session);
-        const { description, name } = getTranslation(data, languages, true);
+    const { title, subtitle } = useMemo(() => {
+        const { title, subtitle } = getDisplay(data, getUserLanguages(session));
         return {
-            description: (description && description.length > 0) ? description : data.link,
-            name: (name && name.length > 0) ? name : t(`common:${data.usedFor ?? ResourceUsedFor.Context}`, { lng: getUserLanguages(session)[0] }),
+            title: Boolean(title) ? title : t(`common:${data.usedFor ?? ResourceUsedFor.Context}`, { lng: getUserLanguages(session)[0] }),
+            subtitle,
         };
     }, [data, session, t]);
 
@@ -88,7 +87,7 @@ export const ResourceCard = ({
     });
 
     return (
-        <Tooltip placement="top" title={`${description ? description + ' - ' : ''}${data.link}`}>
+        <Tooltip placement="top" title={`${subtitle ? subtitle + ' - ' : ''}${data.link}`}>
             <Box
                 {...pressEvents}
                 component="a"
@@ -156,10 +155,10 @@ export const ResourceCard = ({
                         sx={{
                             ...multiLineEllipsis(3),
                             textAlign: 'center',
-                            lineBreak: Boolean(name) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
+                            lineBreak: Boolean(title) ? 'auto' : 'anywhere', // Line break anywhere only if showing link
                         }}
                     >
-                        {firstString(name, data.link)}
+                        {firstString(title, data.link)}
                     </Typography>
                 </Stack>
             </Box>

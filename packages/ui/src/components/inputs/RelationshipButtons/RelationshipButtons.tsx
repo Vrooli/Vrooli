@@ -16,6 +16,7 @@ import { ColorIconButton } from 'components/buttons';
 import { noSelect } from 'styles';
 import { Session } from '@shared/consts';
 import { SelectOrCreateObjectType } from 'components/dialogs/selectOrCreates/types';
+import { isOfType } from '@shared/utils';
 
 /**
  * Converts session to user object
@@ -77,19 +78,19 @@ export function RelationshipButtons({
     // when in edit mode
     const { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable } = useMemo(() => {
         // isComplete available for projects and routines
-        const isCompleteAvailable = ['Project', 'Routine'].includes(objectType);
+        const isCompleteAvailable = isOfType(objectType, 'Project', 'Routine');
         // Owner available for projects, routines, and standards
-        const isOwnerAvailable = ['Project', 'Routine', 'Standard'].includes(objectType);
+        const isOwnerAvailable = isOfType(objectType, 'Project', 'Routine', 'Standard');
         // Roles available for organizations
         //TODO
         // isPrivate always available for now
         const isPrivateAvailable = true;
         // Project available for projects, routines, and standards
-        const isProjectAvailable = ['Project', 'Routine', 'Standard'].includes(objectType);
+        const isProjectAvailable = isOfType(objectType, 'Project', 'Routine', 'Standard');
         // Projects (i.e. setting projects assigned to object instead of project object is assigned to) available for organizations and projects
         //TODO
         // Parent available for routines TODO
-        const isParentAvailable = false;//['Routine'].includes(objectType);
+        const isParentAvailable = false;//ifOfType(objectType, 'Routine');
         return { isCompleteAvailable, isOwnerAvailable, isPrivateAvailable, isProjectAvailable, isParentAvailable }
     }, [objectType])
 

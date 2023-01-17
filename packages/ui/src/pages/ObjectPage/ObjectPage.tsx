@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useLocation } from '@shared/route';
-import { APP_LINKS, Organization, ProjectVersion, RoutineVersion, Session, StandardVersion, User } from "@shared/consts";
+import { APP_LINKS, GqlModelType, Organization, ProjectVersion, RoutineVersion, Session, StandardVersion, User } from "@shared/consts";
 import { lazily } from "react-lazily";
 import { ObjectType, parseSearchParams, PubSub, uuidToBase36 } from "utils";
 import { PageContainer, ReportsView, SnackSeverity } from "components";
@@ -14,14 +14,14 @@ const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('..
 
 export interface CreatePageProps {
     onCancel: () => void;
-    onCreated: (item: { type: string, id: string }) => void;
+    onCreated: (item: { __typename: `${GqlModelType}`, id: string }) => void;
     session: Session;
     zIndex: number;
 }
 
 export interface UpdatePageProps {
     onCancel: () => void;
-    onUpdated: (item: { type: string, id: string }) => void;
+    onUpdated: (item: { __typename: `${GqlModelType}`, id: string }) => void;
     session: Session;
     zIndex: number;
 }
@@ -149,7 +149,6 @@ export const ObjectPage = ({
         const searchParams = parseSearchParams();
         if (pageType === PageType.View || searchParams.build === true) {
             const View = viewMap[objectType];
-            document.title = `View ${titleMap[objectType]}`;
             return View && <View session={session} zIndex={200} />
         }
         if (pageType === PageType.Create) {
@@ -177,7 +176,6 @@ export const ObjectPage = ({
             return <ReportsView session={session} />
         }
         const View = viewMap[objectType];
-        document.title = `View ${titleMap[objectType]}`;
         return View && <View session={session} zIndex={200} />
     }, [objectType, onAction, pageType, session]);
 

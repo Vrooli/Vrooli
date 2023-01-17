@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { FindByIdInput } from '@shared/consts';
 import { CreatePageProps } from 'pages';
 import { CreateProps } from 'components/views/types';
+import { isOfType } from '@shared/utils';
  
 type CreateViewTypes = ({
     [K in SelectOrCreateObjectType]: K extends (`${string}Version` | 'User') ?
@@ -85,7 +86,7 @@ export const SelectOrCreateDialog = <T extends SelectOrCreateObject>({
         setIsCreateOpen(false);
         // Versioned objects are always created from the perspective of the version, and not the root.
         // If the object type is a root of a versioned object, we must change the shape before calling handleAdd
-        if (['Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard'].includes(objectType)) {
+        if (isOfType(objectType, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard')) {
             const { root, ...rest } = item as any;
             handleAdd({ ...root, versions: [rest] } as T);
         }

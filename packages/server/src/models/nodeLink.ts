@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, padSelect, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
+import { nodeLinkValidation } from '@shared/validation';
 
 const __typename = 'NodeLink' as const;
 const suppFields = [] as const;
@@ -68,6 +69,6 @@ export const NodeLinkModel: ModelLogic<{
                 ...(await shapeHelper({ relation: 'whens', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeLinkWhen', parentRelationshipName: 'link', data, prisma, userData })),
             }),
         },
-        yup: { create: {} as any, update: {} as any },
+        yup: nodeLinkValidation,
     },
 })

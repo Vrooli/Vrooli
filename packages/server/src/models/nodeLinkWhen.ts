@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { noNull, shapeHelper } from "../builders";
+import { nodeLinkWhenValidation } from '@shared/validation';
 
 const __typename = 'NodeLinkWhen' as const;
 
@@ -55,6 +56,6 @@ export const NodeLinkWhenModel: ModelLogic<{
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
             }),
         },
-        yup: { create: {} as any, update: {} as any },
+        yup: nodeLinkWhenValidation,
     },
 })

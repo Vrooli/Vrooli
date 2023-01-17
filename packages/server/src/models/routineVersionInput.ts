@@ -24,7 +24,7 @@ import { RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInpu
 //             }
 //         },
 //     },
-//     yup: { create: {} as any, update: {} as any },
+//     yup: routineVersionInputValidation,
 // })
 
 const __typename = 'RoutineVersionInput' as const;

@@ -1,6 +1,6 @@
-import { Api, ApiVersion, Note, NoteVersion, Organization, Project, ProjectVersion, Question, Quiz, Routine, RoutineVersion, RunProject, RunRoutine, Session, SmartContract, SmartContractVersion, Standard, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
+import { ApiVersion, NoteVersion, Organization, ProjectVersion, RoutineVersion, Session, SmartContractVersion, StandardVersion, Tag, User, VoteFor } from '@shared/consts';
 import { NavigableObject } from 'types';
-import { ObjectAction, ObjectActionComplete, SearchType } from 'utils';
+import { ListObjectType, ObjectAction, ObjectActionComplete, SearchType } from 'utils';
 
 export type ObjectActionsRowObject = ApiVersion | NoteVersion | Organization | ProjectVersion | RoutineVersion | SmartContractVersion | StandardVersion | User;
 export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
@@ -18,26 +18,7 @@ export interface ObjectActionsRowProps<T extends ObjectActionsRowObject> {
     zIndex: number;
 }
 
-export type ObjectListItemType = Api |
-    ApiVersion |
-    Note |
-    NoteVersion |
-    Organization |
-    Project |
-    ProjectVersion |
-    Question |
-    Quiz |
-    Routine |
-    RoutineVersion |
-    RunProject |
-    RunRoutine |
-    SmartContract |
-    SmartContractVersion |
-    Standard |
-    StandardVersion |
-    User;
-
-export interface ObjectListItemProps<T extends ObjectListItemType> {
+export interface ObjectListItemProps<T extends ListObjectType> {
     /**
      * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
      * If the callback returns false, the list item will not be selected.

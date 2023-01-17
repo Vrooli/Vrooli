@@ -39,7 +39,7 @@ export function PushListItem({
                     sx={{ ...multiLineEllipsis(1) }}
                 />
                 {/* Verified indicator */}
-                <Box sx={{
+                {/* <Box sx={{
                     borderRadius: 1,
                     border: `2px solid ${data.verified ? Status.Verified : Status.NotVerified}`,
                     color: data.verified ? Status.Verified : Status.NotVerified,
@@ -52,7 +52,7 @@ export function PushListItem({
                     width: 'fit-content',
                 }}>
                     {data.verified ? "Verified" : "Not Verified"}
-                </Box>
+                </Box> */}
             </Stack>
             {/* Right action buttons */}
             <Stack direction="row" spacing={1}>

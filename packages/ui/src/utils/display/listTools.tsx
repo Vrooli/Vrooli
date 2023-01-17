@@ -1,13 +1,43 @@
 import { AutocompleteOption, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
-import { ObjectListItemType } from "components/lists/types";
 import { displayDate, firstString } from "./stringTools";
 import { ObjectListItem } from "components";
-import { DotNotation, GqlModelType, RunProject, RunRoutine, Session, Star, StarFor, View, Vote } from "@shared/consts";
+import { Api, ApiVersion, Comment, DotNotation, Meeting, Member, Node, NodeRoutineListItem, Note, NoteVersion, Organization, Project, ProjectVersion, Question, Quiz, Reminder, Resource, Role, Routine, RoutineVersion, RunProject, RunProjectSchedule, RunRoutine, RunRoutineSchedule, Session, SmartContract, SmartContractVersion, Standard, StandardVersion, Star, StarFor, User, UserSchedule, View, Vote } from "@shared/consts";
 import { valueFromDot } from "utils/shape";
-import { exists } from "@shared/utils";
+import { exists, isOfType } from "@shared/utils";
 
-export type ListObjectType = ObjectListItemType | Star | Vote | View;
+export type ListObjectType = Api |
+    ApiVersion |
+    Comment |
+    Meeting |
+    Member |
+    Node | 
+    NodeRoutineListItem |
+    Note |
+    NoteVersion |
+    Organization |
+    Project |
+    ProjectVersion |
+    Question |
+    Quiz |
+    Reminder |
+    Resource |
+    Role |
+    Routine |
+    RoutineVersion |
+    RunProject |
+    RunProjectSchedule |
+    RunRoutine |
+    RunRoutineSchedule |
+    SmartContract |
+    SmartContractVersion |
+    Standard |
+    StandardVersion |
+    Star |
+    User |
+    UserSchedule |
+    View |
+    Vote;
 
 /**
  * All possible permissions/user-statuses any object can have
@@ -58,11 +88,11 @@ export const getYouDot = (
     // If no object, return null
     if (!object) return null;
     // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getYouDot((object as Star | View | Vote).to as any, property);
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getYouDot(object.to as ListObjectType, property);
     // If the object is a run routine, use the routine version
-    if (object.__typename === 'RunRoutine') return getYouDot(object.routineVersion as any, property);
+    if (isOfType(object, 'RunRoutine')) return getYouDot(object.routineVersion as ListObjectType, property);
     // If the object is a run project, use the project version
-    if (object.__typename === 'RunProject') return getYouDot(object.projectVersion as any, property);
+    if (isOfType(object, 'RunProject')) return getYouDot(object.projectVersion as ListObjectType, property);
     // Check object.you
     if (exists((object as any).you?.[property])) return 'you';
     // Check object.root.you
@@ -94,12 +124,12 @@ export const getYou = (
         isViewed: false,
     };
     if (!object) return defaultPermissions;
-    // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getYou((object as Star | View | Vote).to as any);
-    // If the object is a run routine, use the routine version
-    if (object.__typename === 'RunRoutine') return getYou(object.routineVersion as any);
-    // If the object is a run project, use the project version
-    if (object.__typename === 'RunProject') return getYou(object.projectVersion as any);
+    // If a star, view, or vote, use the "to" object
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getYou(object.to as ListObjectType);
+    // If a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getYou(object.routineVersion as ListObjectType);
+    // If a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getYou(object.projectVersion as ListObjectType);
     // Otherwise, get the permissions from the object
     // Loop through all permission fields
     for (const key in defaultPermissions) {
@@ -139,12 +169,14 @@ export const getCounts = (
         views: 0,
     };
     if (!object) return defaultCounts;
-    // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getCounts((object as Star | View | Vote).to as any);
-    // If the object is a run routine, use the routine version
-    if (object.__typename === 'RunRoutine') return getCounts(object.routineVersion as any);
-    // If the object is a run project, use the project version
-    if (object.__typename === 'RunProject') return getCounts(object.projectVersion as any);
+    // If a star, view, or vote, use the "to" object
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getCounts(object.to as ListObjectType);
+    // If a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getCounts(object.routineVersion as ListObjectType);
+    // If a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getCounts(object.projectVersion as ListObjectType);
+    // If a NodeRoutineListItem, use the routine version
+    if (isOfType(object, 'NodeRoutineListItem')) return getCounts(object.routineVersion as ListObjectType);
     // Otherwise, get the counts from the object
     // Loop through all count fields
     for (const key in defaultCounts) {
@@ -171,11 +203,11 @@ export const getDisplay = (
     languages?: readonly string[]
 ): { title: string, subtitle: string } => {
     if (!object) return { title: '', subtitle: '' };
-    // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getDisplay((object as Star | View | Vote).to as any);
+    // If a star, view, or vote, use the "to" object
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);
     const langs: readonly string[] = languages ?? getUserLanguages(undefined);
-    // If the object is a run routine, use the routine version's display and the startedAt/completedAt date
-    if (object.__typename === 'RunRoutine') {
+    // If a run routine, use the routine version's display and the startedAt/completedAt date
+    if (isOfType(object, 'RunRoutine')) {
         const { completedAt, name, routineVersion, startedAt } = object;
         const title = firstString(name, getTranslation(routineVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
@@ -185,8 +217,8 @@ export const getDisplay = (
             subtitle: started ? 'Started: ' + started : completed ? 'Completed: ' + completed : ''
         }
     }
-    // If the object is a run project, use the project version's display and the startedAt/completedAt date
-    if (object.__typename === 'RunProject') {
+    // If a run project, use the project version's display and the startedAt/completedAt date
+    if (isOfType(object, 'RunProject')) {
         const { completedAt, name, projectVersion, startedAt } = object;
         const title = firstString(name, getTranslation(projectVersion!, langs, true).name);
         const started = startedAt ? displayDate(startedAt) : null;
@@ -198,7 +230,7 @@ export const getDisplay = (
     }
     // For all other objects, fields may differ. 
     // Priority for title is: title, name, translations[number].title, translations[number].name, handle
-    // Priority for subtitle is: bio, description, summary, details, translations[number].bio, translations[number].description, translations[number].summary, translations[number].details
+    // Priority for subtitle is: bio, description, summary, details, text, translations[number].bio, translations[number].description, translations[number].summary, translations[number].details, translations[number].text
     // If all else fails, attempt to find in "root" object
     const tryTitle = (obj: Record<string, any>) => {
         const translations: Record<string, any> = getTranslation(obj, langs, true);
@@ -207,7 +239,7 @@ export const getDisplay = (
             obj.name,
             translations.title,
             translations.name,
-            obj.handle
+            obj.handle ? `$${obj.handle}` : null,
         );
     }
     const trySubtitle = (obj: Record<string, any>) => {
@@ -217,14 +249,24 @@ export const getDisplay = (
             obj.description,
             obj.summary,
             obj.details,
+            obj.text,
             translations.bio,
             translations.description,
             translations.summary,
-            translations.details
+            translations.details,
+            translations.text,
         );
     }
     const title = tryTitle(object) ?? tryTitle((object as any).root) ?? '';
     const subtitle = trySubtitle(object) ?? trySubtitle((object as any).root) ?? '';
+    // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
+    if (isOfType(object, 'NodeRoutineListItem') && title.length === 0 && subtitle.length === 0) {
+        const routineVersionDisplay = getDisplay(object.routineVersion as ListObjectType, languages);
+        return {
+            title: title.length === 0 ? routineVersionDisplay.title : title,
+            subtitle: subtitle.length === 0 ? routineVersionDisplay.subtitle : subtitle,
+        }
+    }
     return { title, subtitle };
 };
 
@@ -238,12 +280,14 @@ export const getStarFor = (
     object: ListObjectType | null | undefined,
 ): { starFor: StarFor, starForId: string } | { starFor: null, starForId: null } => {
     if (!object) return { starFor: null, starForId: null };
-    // If the object is a star, view, or vote, use the "to" object
-    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getStarFor((object as Star | View | Vote).to as any);
-    // If the object is a run routine, use the routine version
-    if (object.__typename === 'RunRoutine') return getStarFor(object.routineVersion as any);
-    // If the object is a run project, use the project version
-    if (object.__typename === 'RunProject') return getStarFor(object.projectVersion as any);
+    // If a star, view, or vote, use the "to" object
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getStarFor(object.to as ListObjectType);
+    // If a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getStarFor(object.routineVersion as ListObjectType);
+    // If a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getStarFor(object.projectVersion as ListObjectType);
+    // If a NodeRoutineListItem, use the routine version
+    if (isOfType(object, 'NodeRoutineListItem')) return getStarFor(object.routineVersion as ListObjectType);
     // If the object contains a root object, use that
     if ((object as any).root) return getStarFor((object as any).root);
     // Use current object
@@ -276,8 +320,9 @@ export function listToAutocomplete(
                 o.routineVersion :
                 undefined,
         stars: getCounts(o).stars,
-        to: ['Star', 'View', 'Vote'].includes(o.__typename) ? (o as Star | View | Vote).to : undefined,
-        versionGroupId: undefined// TODO o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,
+        to: isOfType(o, 'Star', 'View', 'Vote') ? o.to : undefined,
+        versions: isOfType(o, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard') ? o.versions : undefined,
+        root: isOfType(o, 'ApiVersion', 'NoteVersion', 'ProjectVersion', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion') ? o.root : undefined,
     }));
 }
 
@@ -348,13 +393,11 @@ export function listToListItems({
     for (let i = 0; i < items.length; i++) {
         let curr = items[i];
         // If "Star", "View", or "Vote", use the "to" object
-        if (['Star', 'View', 'Vote'].includes(curr.__typename)) {
-            curr = (curr as Star | View | Vote).to as ObjectListItemType;
-        }
+        if (isOfType(curr, 'Star', 'View', 'Vote')) curr = curr.to as ListObjectType;
         listItems.push(<ObjectListItem
             key={`${keyPrefix}-${curr.id}`}
             beforeNavigation={beforeNavigation}
-            data={curr as ObjectListItemType}
+            data={curr as ListObjectType}
             hideRole={hideRoles}
             index={i}
             loading={false}

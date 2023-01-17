@@ -10,7 +10,7 @@ import { AutocompleteOption, Wrap } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
-import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
+import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceTranslation, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
 import { feedEndpoint, resourceEndpoint } from 'graphql/endpoints';
 import { mutationWrapper } from 'graphql/utils';
 import { useQuery } from '@apollo/client';
@@ -115,6 +115,7 @@ export const ResourceDialog = ({
             } else {
                 onCreated({
                     ...input,
+                    translations: input.translations as ResourceTranslation[],
                     created_at: partialData?.created_at ?? new Date().toISOString(),
                     updated_at: partialData?.updated_at ?? new Date().toISOString(),
                     list: { __typename: 'ResourceList', id: listId } as ResourceList,

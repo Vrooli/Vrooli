@@ -1,4 +1,5 @@
 import { GqlModelType } from "@shared/consts";
+import { isOfType } from "@shared/utils";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";
 import { PrismaType } from "../types";
@@ -31,7 +32,7 @@ export async function getLatestVersion({
     const model = ObjectMap[objectType];
     if (!model) throw new CustomError('0373', 'InternalError', ['en'], { objectType });
     // Handle apis and notes, which don't have an "isComplete" field
-    if (['Api', 'Note'].includes(objectType)) {
+    if (isOfType({ __typename: objectType }, 'Api', 'Note')) {
         const query = {
             where: { root: rootSelectQuery },
             orderBy: { versionIndex: 'desc' as const },
