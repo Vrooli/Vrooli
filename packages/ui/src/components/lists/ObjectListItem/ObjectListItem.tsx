@@ -239,9 +239,9 @@ export function ObjectListItem<T extends ListObjectType>({
      */
     const progressBar = useMemo(() => {
         if (!isOfType(object, 'RunProject', 'RunRoutine')) return null;
-        const completedComplexity = object.completedComplexity;
-        const totalComplexity = (object as RunProject).projectVersion?.complexity ?? (object as RunRoutine).routineVersion?.complexity ?? null;
-        const percentComplete = object.status === RunStatus.Completed ? 100 :
+        const completedComplexity = (object as any as RunProject | RunRoutine).completedComplexity;
+        const totalComplexity = (object as any as RunProject).projectVersion?.complexity ?? (object as any as RunRoutine).routineVersion?.complexity ?? null;
+        const percentComplete = (object as any as RunProject | RunRoutine).status === RunStatus.Completed ? 100 :
             (completedComplexity && totalComplexity) ?
                 Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
                 0

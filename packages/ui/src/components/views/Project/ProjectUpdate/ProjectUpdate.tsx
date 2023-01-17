@@ -5,7 +5,7 @@ import { mutationWrapper } from 'graphql/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, SnackSeverity, TagSelector, userFromSession } from "components";
+import { defaultRelationships, GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, SnackSeverity, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
@@ -24,15 +24,9 @@ export const ProjectUpdate = ({
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
     const projectVersion = useMemo(() => data?.projectVersion, [data]);
 
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: false,
-        isPrivate: false,
-        owner: userFromSession(session),
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => 
-        setRelationships({ ...relationships, ...newRelationshipsObject }), [relationships]);
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
+    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -60,6 +54,11 @@ export const ProjectUpdate = ({
                 name: '',
                 description: '',
             }],
+            versionInfo: {
+                versionIndex: projectVersion?.root?.versions?.length ?? 0,
+                versionLabel: projectVersion?.versionLabel ?? '1.0.0',
+                versionNotes: '',
+            }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: projectValidation.update(),
@@ -73,14 +72,20 @@ export const ProjectUpdate = ({
                 input: shapeProjectVersion.update(projectVersion, {
                     id: projectVersion.id,
                     isComplete: relationships.isComplete,
+                    isLatest: true,
                     isPrivate: relationships.isPrivate,
-                    owner: relationships.owner,
-                    parent: relationships.parent,
-                    tags: tags,
+                    root: {
+                        id: projectVersion.root.id,
+                        isPrivate: relationships.isPrivate,
+                        owner: relationships.owner,
+                        permissions: JSON.stringify({}),
+                        tags: tags,
+                    },
                     translations: values.translationsUpdate.map(t => ({
                         ...t,
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
+                    ...values.versionInfo,
                 }),
                 onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
@@ -93,9 +98,9 @@ export const ProjectUpdate = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const translations = useTranslatedFields({
         fields: ['description', 'name'],
-        formik, 
-        formikField: 'translationsUpdate', 
-        language, 
+        formik,
+        formikField: 'translationsUpdate',
+        language,
         validationSchema: projectVersionTranslationValidation.update(),
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

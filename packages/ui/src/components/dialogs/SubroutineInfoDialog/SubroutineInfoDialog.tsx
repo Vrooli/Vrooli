@@ -16,7 +16,7 @@ import {
 import { SubroutineInfoDialogProps } from '../types';
 import { addEmptyTranslation, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
-import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, userFromSession, VersionDisplay, VersionInput } from 'components';
+import { defaultRelationships, EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
@@ -44,19 +44,9 @@ export const SubroutineInfoDialog = ({
         return data.node.routineList.items.find(r => r.id === data.routineItemId);
     }, [data]);
 
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: false,
-        isPrivate: false,
-        owner: userFromSession(session),
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(isEditing, session));
+    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineVersionInputShape[]>([]);

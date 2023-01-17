@@ -5,7 +5,7 @@ import { useFormik } from 'formik';
 import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSearchParams, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { RoutineCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BuildView, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, userFromSession, VersionInput } from "components";
+import { BuildView, defaultRelationships, GridSubmitButtons, HelpButton, LanguageInput, MarkdownInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, UpTransition, VersionInput } from "components";
 import { uuid } from '@shared/uuid';
 import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
@@ -28,19 +28,10 @@ export const RoutineCreate = ({
     session,
     zIndex,
 }: RoutineCreateProps) => {
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: false,
-        isPrivate: false,
-        owner: userFromSession(session),
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
+    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle inputs
     const [inputsList, setInputsList] = useState<RoutineVersionInputShape[]>([]);

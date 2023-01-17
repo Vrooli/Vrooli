@@ -61,7 +61,7 @@ export const typeDef = gql`
         permissions: String!
         createdBy: User
         owner: Owner
-        parent: Note
+        parent: NoteVersion
         tags: [Tag!]!
         versions: [NoteVersion!]!
         versionsCount: Int!

@@ -63,7 +63,7 @@ export const typeDef = gql`
         permissions: String!
         createdBy: User
         owner: Owner
-        parent: Api
+        parent: ApiVersion
         tags: [Tag!]!
         versions: [ApiVersion!]!
         versionsCount: Int!

@@ -6,7 +6,7 @@ import { mutationWrapper } from 'graphql/utils';
 import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
+import { defaultRelationships, GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, Organization, OrganizationUpdateInput, ResourceList } from "@shared/consts";
@@ -15,7 +15,7 @@ import { organizationEndpoint } from "graphql/endpoints";
 export const OrganizationUpdate = ({
     onCancel,
     onUpdated,
-    session,
+session,
     zIndex,
 }: OrganizationUpdateProps) => {
     // Fetch existing data
@@ -24,19 +24,9 @@ export const OrganizationUpdate = ({
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
     const organization = useMemo(() => data?.organization, [data]);
 
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: false,
-        isPrivate: false,
-        owner: userFromSession(session),
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
+    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);

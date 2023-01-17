@@ -82,7 +82,7 @@ export const typeDef = gql`
         issuesCount: Int!
         labels: [Label!]!
         owner: Owner
-        parent: Standard
+        parent: StandardVersion
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         starredBy: [User!]!

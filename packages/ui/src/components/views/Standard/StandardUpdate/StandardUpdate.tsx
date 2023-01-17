@@ -5,7 +5,7 @@ import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
+import { defaultRelationships, GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindVersionInput, ResourceList, Standard, StandardUpdateInput, StandardVersion, StandardVersionUpdateInput } from "@shared/consts";
@@ -27,19 +27,9 @@ export const StandardUpdate = ({
     }, [getData, urlData])
     const standardVersion = useMemo(() => data?.standardVersion, [data]);
 
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: false,
-        isPrivate: false,
-        owner: userFromSession(session),
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
+    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
@@ -61,7 +51,7 @@ export const StandardUpdate = ({
             project: null // TODO
         });
         setResourceList(standardVersion?.resourceList ?? { id: uuid() } as any);
-        setTags(standardVersion?.tags ?? []);
+        setTags(standardVersion?.root?.tags ?? []);
     }, [standardVersion]);
 
     // Handle update
@@ -74,6 +64,11 @@ export const StandardUpdate = ({
                 description: '',
                 jsonVariable: null, //TODO
             }],
+            versionInfo: {
+                versionIndex: standardVersion?.root?.versions?.length ?? 0,
+                versionLabel: standardVersion?.versionLabel ?? '1.0.0',
+                versionNotes: '',
+            }
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
         validationSchema: standardVersionValidation.update(),
@@ -87,12 +82,22 @@ export const StandardUpdate = ({
                 mutation,
                 input: shapeStandardVersion.update(standardVersion, {
                     id: standardVersion.id,
+                    isPrivate: relationships.isPrivate,
                     resourceList: resourceList,
-                    tags: tags,
+                    root: {
+                        id: standardVersion.root.id,
+                        isInternal: false,
+                        isPrivate: relationships.isPrivate,
+                        name: standardVersion.root.name,
+                        owner: relationships.owner,
+                        permissions: JSON.stringify({}),
+                        tags: tags,
+                    },
                     translations: values.translationsUpdate.map(t => ({
                         ...t,
                         id: t.id === DUMMY_ID ? uuid() : t.id,
                     })),
+                    ...values.versionInfo,
                 }),
                 onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
@@ -105,9 +110,9 @@ export const StandardUpdate = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const translations = useTranslatedFields({
         fields: ['description'],
-        formik, 
-        formikField: 'translationsUpdate', 
-        language, 
+        formik,
+        formikField: 'translationsUpdate',
+        language,
         validationSchema: standardVersionTranslationValidation.update(),
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);

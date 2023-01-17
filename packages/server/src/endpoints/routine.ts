@@ -80,7 +80,7 @@ export const typeDef = gql`
         issuesCount: Int!
         labels: [Label!]!
         owner: Owner
-        parent: Routine
+        parent: RoutineVersion
         permissions: String!
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!

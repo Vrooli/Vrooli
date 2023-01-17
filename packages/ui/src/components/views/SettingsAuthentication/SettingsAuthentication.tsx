@@ -14,6 +14,7 @@ import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { SettingsFormData } from "pages";
 import { authEndpoint, userEndpoint } from "graphql/endpoints";
+import { userValidation } from "@shared/validation";
 
 const walletHelpText =
     `This list contains all of your connected wallets. If a custom name has not been set, 
@@ -84,7 +85,7 @@ export const SettingsAuthentication = ({
             newPasswordConfirmation: '',
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema,
+        validationSchema: userValidation.update(),
         onSubmit: (values) => {
             if (!profile) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });

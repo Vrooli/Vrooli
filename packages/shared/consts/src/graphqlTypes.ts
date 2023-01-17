@@ -33,7 +33,7 @@ export type Api = {
   issues: Array<Issue>;
   labels: Array<Label>;
   owner?: Maybe<Owner>;
-  parent?: Maybe<Api>;
+  parent?: Maybe<ApiVersion>;
   permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
@@ -2511,7 +2511,7 @@ export type Note = {
   labels: Array<Label>;
   labelsCount: Scalars['Int'];
   owner?: Maybe<Owner>;
-  parent?: Maybe<Note>;
+  parent?: Maybe<NoteVersion>;
   permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
@@ -3291,7 +3291,7 @@ export type Project = {
   labels: Array<Label>;
   labelsCount: Scalars['Int'];
   owner?: Maybe<Owner>;
-  parent?: Maybe<Project>;
+  parent?: Maybe<ProjectVersion>;
   permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
@@ -5873,7 +5873,7 @@ export type Routine = {
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
   owner?: Maybe<Owner>;
-  parent?: Maybe<Routine>;
+  parent?: Maybe<RoutineVersion>;
   permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
@@ -7046,7 +7046,7 @@ export type SmartContract = {
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
   owner?: Maybe<Owner>;
-  parent?: Maybe<SmartContract>;
+  parent?: Maybe<SmartContractVersion>;
   permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
@@ -7326,7 +7326,7 @@ export type Standard = {
   labels: Array<Label>;
   name: Scalars['String'];
   owner?: Maybe<Owner>;
-  parent?: Maybe<Standard>;
+  parent?: Maybe<StandardVersion>;
   permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
@@ -10079,7 +10079,7 @@ export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTy
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
-  parent?: Resolver<Maybe<ResolversTypes['Api']>, ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10818,7 +10818,7 @@ export type NoteResolvers<ContextType = any, ParentType extends ResolversParentT
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
-  parent?: Resolver<Maybe<ResolversTypes['Note']>, ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['NoteVersion']>, ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -11169,7 +11169,7 @@ export type ProjectResolvers<ContextType = any, ParentType extends ResolversPare
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
-  parent?: Resolver<Maybe<ResolversTypes['Project']>, ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12039,7 +12039,7 @@ export type RoutineResolvers<ContextType = any, ParentType extends ResolversPare
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
-  parent?: Resolver<Maybe<ResolversTypes['Routine']>, ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12455,7 +12455,7 @@ export type SmartContractResolvers<ContextType = any, ParentType extends Resolve
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
-  parent?: Resolver<Maybe<ResolversTypes['SmartContract']>, ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['SmartContractVersion']>, ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12566,7 +12566,7 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
-  parent?: Resolver<Maybe<ResolversTypes['Standard']>, ParentType, ContextType>;
+  parent?: Resolver<Maybe<ResolversTypes['StandardVersion']>, ParentType, ContextType>;
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;

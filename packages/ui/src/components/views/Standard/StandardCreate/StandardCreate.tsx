@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { uuid } from '@shared/uuid';
 import { FieldData } from "forms/types";
-import { BaseStandardInput, PreviewSwitch, RelationshipButtons, userFromSession } from "components/inputs";
+import { BaseStandardInput, defaultRelationships, PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
@@ -22,19 +22,10 @@ export const StandardCreate = ({
     session,
     zIndex,
 }: StandardCreateProps) => {
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: false,
-        isPrivate: false,
-        owner: userFromSession(session),
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+
+    // Handle relationships
+    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
+    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle input type selector
     const [inputType, setInputType] = useState<InputTypeOption>(InputTypeOptions[1]);
@@ -89,7 +80,11 @@ export const StandardCreate = ({
                 description: '',
                 jsonVariable: null, //TODO
             }],
-            version: '1.0',
+            versionInfo: {
+                versionIndex: 0,
+                versionLabel: '1.0.0',
+                versionNotes: '',
+            }
         },
         validationSchema: standardVersionValidation.create(),
         onSubmit: (values) => {
@@ -98,15 +93,24 @@ export const StandardCreate = ({
                 input: shapeStandardVersion.create({
                     id: values.id,
                     default: values.default,
-                    isInternal: false,
-                    name: values.name,
+                    isComplete: relationships.isComplete,
+                    isPrivate: relationships.isPrivate,
                     props: JSON.stringify(schema?.props),
                     yup: JSON.stringify(schema?.yup),
                     translations: values.translationsCreate,
                     resourceList: resourceList,
-                    tags: tags as any,
+                    root: {
+                        id: uuid(),
+                        isInternal: false,
+                        isPrivate: relationships.isPrivate,
+                        name: values.name,
+                        owner: relationships.owner,
+                        parent: relationships.parent,
+                        permissions: JSON.stringify({}),
+                        tags: tags,
+                    },
                     type: inputType.value,
-                    version: values.version,
+                    ...values.versionInfo,
                 }),
                 onSuccess: (data) => {
                     onCreated(data)
@@ -121,9 +125,9 @@ export const StandardCreate = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     const translations = useTranslatedFields({
         fields: ['description'],
-        formik, 
-        formikField: 'translationsCreate', 
-        language, 
+        formik,
+        formikField: 'translationsCreate',
+        language,
         validationSchema: standardVersionTranslationValidation.create(),
     });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);

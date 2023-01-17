@@ -46,7 +46,7 @@ export const UpvoteDownvote = ({
         // Send vote mutation
         mutationWrapper<Success, VoteInput>({
             mutation,
-            input: { isUpvote, voteFor, forId: objectId },
+            input: { isUpvote, voteFor, forConnect: objectId },
             onSuccess: (data) => { 
                 // Determine new score
                 let newScore: number = score ?? 0;

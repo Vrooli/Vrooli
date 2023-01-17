@@ -77,7 +77,7 @@ export const typeDef = gql`
         issuesCount: Int!
         labels: [Label!]!
         labelsCount: Int!
-        parent: Project
+        parent: ProjectVersion
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         questions: [Question!]!

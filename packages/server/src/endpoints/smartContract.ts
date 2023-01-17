@@ -75,7 +75,7 @@ export const typeDef = gql`
         issuesCount: Int!
         labels: [Label!]!
         owner: Owner
-        parent: SmartContract
+        parent: SmartContractVersion
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         starredBy: [User!]!

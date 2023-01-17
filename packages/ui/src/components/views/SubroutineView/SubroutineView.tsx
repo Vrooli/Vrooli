@@ -1,5 +1,5 @@
 import { Box, Button, Palette, Stack, useTheme } from "@mui/material";
-import { CommentContainer, ContentCollapse, DateDisplay, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
+import { CommentContainer, ContentCollapse, DateDisplay, defaultRelationships, ObjectActionsRow, ObjectTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, StatsCompact, TagList, TextCollapse, VersionDisplay } from "components";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { formikToRunInputs, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, PubSub, runInputsToFormik, standardVersionToFieldData, TagShape, uuidToBase36 } from "utils";
 import { useLocation } from '@shared/route';
@@ -206,19 +206,8 @@ export const SubroutineView = ({
     }, [internalRoutineVersion, setLocation]);
 
     // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: true,
-        isPrivate: false,
-        owner: null,
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(false, null));
+    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);

@@ -10,7 +10,7 @@ import { uuid } from '@shared/uuid';
 import { FieldData, FieldDataJSON } from "forms/types";
 import { useFormik } from "formik";
 import { generateInputComponent } from "forms/generators";
-import { PreviewSwitch, RelationshipButtons } from "components/inputs";
+import { defaultRelationships, PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { EditIcon } from "@shared/icons";
@@ -132,19 +132,8 @@ export const StandardView = ({
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
 
     // Handle relationships
-    const [relationships, setRelationships] = useState<RelationshipsObject>({
-        isComplete: true,
-        isPrivate: false,
-        owner: null,
-        parent: null,
-        project: null,
-    });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+    const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(false, null));
+    const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
     // Handle resources
     const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);

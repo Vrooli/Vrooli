@@ -10,7 +10,7 @@ export const noteValidation: YupModel = {
         isPrivate: opt(yup.boolean()),
         ...rel('user', ['Connect'], 'one', 'opt'),
         ...rel('organization', ['Connect'], 'many', 'opt'),
-        ...rel('parent', ['Connect'], 'many', 'opt'),
+        ...rel('parent', ['Connect'], 'one', 'opt'),
         ...rel('tags', ['Connect', 'Create'], 'many', 'opt', tagValidation),
         ...rel('versions', ['Create'], 'many', 'opt', noteVersionValidation),
         ...rel('labels', ['Connect', 'Create'], 'many', 'opt', labelValidation),

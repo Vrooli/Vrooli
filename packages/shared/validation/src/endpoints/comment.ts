@@ -29,8 +29,8 @@ export const commentValidation: YupModel = {
     create: () => yup.object().shape({
         id: req(id),
         createdFor: req(createdFor),
-        forConnect: req(id),
-        parentConnect: opt(id),
+        ...rel('for', ['Connect'], 'one', 'req'),
+        ...rel('parent', ['Connect'], 'one', 'opt'),
         ...rel('translations', ['Create'], 'many', 'opt', commentTranslationValidation),
     }),
     update: () => yup.object().shape({

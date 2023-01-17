@@ -18,7 +18,7 @@ export type ListObjectType = {
     translations?: {
         id: string;
         language: string;
-        name?: string;
+        name?: string | null;
     }[];
     versions?: ListObjectType[];
     you?: Partial<YouInflated>;
