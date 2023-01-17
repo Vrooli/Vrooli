@@ -2,42 +2,27 @@ import { AutocompleteOption, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { displayDate, firstString } from "./stringTools";
 import { ObjectListItem } from "components";
-import { Api, ApiVersion, Comment, DotNotation, Meeting, Member, Node, NodeRoutineListItem, Note, NoteVersion, Organization, Project, ProjectVersion, Question, Quiz, Reminder, Resource, Role, Routine, RoutineVersion, RunProject, RunProjectSchedule, RunRoutine, RunRoutineSchedule, Session, SmartContract, SmartContractVersion, Standard, StandardVersion, Star, StarFor, User, UserSchedule, View, Vote } from "@shared/consts";
+import { DotNotation, Session, StarFor } from "@shared/consts";
 import { valueFromDot } from "utils/shape";
 import { exists, isOfType } from "@shared/utils";
 
-export type ListObjectType = Api |
-    ApiVersion |
-    Comment |
-    Meeting |
-    Member |
-    Node | 
-    NodeRoutineListItem |
-    Note |
-    NoteVersion |
-    Organization |
-    Project |
-    ProjectVersion |
-    Question |
-    Quiz |
-    Reminder |
-    Resource |
-    Role |
-    Routine |
-    RoutineVersion |
-    RunProject |
-    RunProjectSchedule |
-    RunRoutine |
-    RunRoutineSchedule |
-    SmartContract |
-    SmartContractVersion |
-    Standard |
-    StandardVersion |
-    Star |
-    User |
-    UserSchedule |
-    View |
-    Vote;
+// NOTE: Ideally this would be a union of all possible types, but there's actually so 
+// many types that it causes a heap out of memory error :(
+export type ListObjectType = {
+    completedAt?: number | null;
+    startedAt?: number | null;
+    name?: string | null;
+    projectVersion?: ListObjectType;
+    root?: ListObjectType;
+    routineVersion?: ListObjectType;
+    translations?: {
+        id: string;
+        language: string;
+        name?: string;
+    }[];
+    versions?: ListObjectType[];
+    you?: Partial<YouInflated>;
+} & NavigableObject
 
 /**
  * All possible permissions/user-statuses any object can have
