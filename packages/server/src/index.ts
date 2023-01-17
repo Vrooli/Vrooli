@@ -5,7 +5,7 @@ import cors from "cors";
 import { ApolloServer } from 'apollo-server-express';
 import { context, depthLimit } from './middleware';
 import { graphqlUploadExpress } from 'graphql-upload';
-import { schema } from './schema';
+import { schema } from './endpoints';
 import { setupDatabase } from './utils/setupDatabase';
 import { initStatsCronJobs } from './statsLog';
 import { logger } from './events/logger';

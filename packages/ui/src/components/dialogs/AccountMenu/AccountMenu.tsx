@@ -16,21 +16,17 @@ import { CloseIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, LogOutIcon, PlusIc
 import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
-import { useCallback, useMemo, useState } from 'react';
-import { profileUpdateSchema as validationSchema } from '@shared/validation';
-import { profileUpdateVariables, profileUpdate_profileUpdate } from 'graphql/generated/profileUpdate';
-import { useMutation } from '@apollo/client';
-import { PubSub, shapeProfileUpdate } from 'utils';
+import React, { useCallback, useMemo, useState } from 'react';
+import { useMutation } from 'graphql/hooks';
+import { PubSub, shapeProfile } from 'utils';
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { logOutMutation, profileUpdateMutation, switchCurrentAccountMutation } from 'graphql/mutation';
-import { APP_LINKS } from '@shared/consts';
+import { APP_LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { getCurrentUser, guestSession } from 'utils/authentication';
-import { SessionUser } from 'types';
-import { logOutVariables, logOut_logOut } from 'graphql/generated/logOut';
-import { switchCurrentAccountVariables, switchCurrentAccount_switchCurrentAccount } from 'graphql/generated/switchCurrentAccount';
 import { ContactInfo } from 'components/navigation';
+import { authEndpoint, userEndpoint } from 'graphql/endpoints';
+import { userValidation } from '@shared/validation';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;
@@ -51,20 +47,20 @@ export const AccountMenu = ({
     const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false) }, []);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
-    const [mutation] = useMutation(profileUpdateMutation);
+    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...userEndpoint.profileUpdate);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? 'light',
         },
         enableReinitialize: true,
-        validationSchema,
+        validationSchema: userValidation.update(),
         onSubmit: (values) => {
             // If not logged in, do nothing
             if (!userId) {
                 return;
             }
             if (!formik.isValid) return;
-            const input = shapeProfileUpdate({
+            const input = shapeProfile.update({
                 id: userId,
                 theme: getCurrentUser(session).theme ?? 'light',
             }, {
@@ -76,7 +72,7 @@ export const AccountMenu = ({
                 formik.setSubmitting(false);
                 return;
             }
-            mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
+            mutationWrapper<User, ProfileUpdateInput>({
                 mutation,
                 input,
                 onSuccess: () => { formik.setSubmitting(false) },
@@ -85,23 +81,23 @@ export const AccountMenu = ({
         },
     });
 
-    const handleClose = useCallback(() => {
+    const handleClose = useCallback((event: React.MouseEvent<HTMLElement>) => {
         formik.handleSubmit();
-        onClose();
+        onClose(event);
         closeAdditionalResources();
     }, [closeAdditionalResources, formik, onClose]);
 
-    const [switchCurrentAccount] = useMutation(switchCurrentAccountMutation);
-    const handleUserClick = useCallback((user: SessionUser) => {
+    const [switchCurrentAccount] = useMutation<Session, SwitchCurrentAccountInput, 'switchCurrentAccount'>(...authEndpoint.switchCurrentAccount);
+    const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
         // Close menu
-        handleClose();
+        handleClose(event);
         // If already selected, go to profile page
         if (userId === user.id) {
             setLocation(APP_LINKS.Profile);
         }
         // Otherwise, switch to selected account
         else {
-            mutationWrapper<switchCurrentAccount_switchCurrentAccount, switchCurrentAccountVariables>({
+            mutationWrapper<Session, SwitchCurrentAccountInput>({
                 mutation: switchCurrentAccount,
                 input: { id: user.id },
                 successMessage: () => ({ key: 'LoggedInAs', variables: { name: user.name ?? user.handle ?? '' } }),
@@ -110,16 +106,16 @@ export const AccountMenu = ({
         }
     }, [handleClose, userId, setLocation, switchCurrentAccount]);
 
-    const handleAddAccount = useCallback(() => {
+    const handleAddAccount = useCallback((event: React.MouseEvent<HTMLElement>) => {
         setLocation(APP_LINKS.Start);
-        handleClose();
+        handleClose(event);
     }, [handleClose, setLocation]);
 
-    const [logOut] = useMutation(logOutMutation);
-    const handleLogOut = useCallback(() => {
-        handleClose();
+    const [logOut] = useMutation<Session, LogOutInput, 'logOut'>(...authEndpoint.logOut);
+    const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        handleClose(event);
         const user = getCurrentUser(session);
-        mutationWrapper<logOut_logOut, logOutVariables>({
+        mutationWrapper<Session, LogOutInput>({
             mutation: logOut,
             input: { id: user.id },
             successMessage: () => ({ key: 'LoggedOutOf', variables: { name: user.name ?? user.handle ?? '' } }),
@@ -130,9 +126,9 @@ export const AccountMenu = ({
         setLocation(APP_LINKS.Home);
     }, [handleClose, session, logOut, setLocation]);
 
-    const handleOpenSettings = useCallback(() => {
+    const handleOpenSettings = useCallback((event: React.MouseEvent<HTMLElement>) => {
         setLocation(APP_LINKS.Settings);
-        handleClose();
+        handleClose(event);
     }, [handleClose, setLocation]);
 
 
@@ -141,7 +137,7 @@ export const AccountMenu = ({
         <ListItem
             button
             key={account.id}
-            onClick={() => handleUserClick(account)}
+            onClick={(event) => handleUserClick(event, account)}
             sx={{
                 background: account.id === userId ? palette.secondary.light : palette.background.default,
             }}
@@ -158,7 +154,7 @@ export const AccountMenu = ({
             anchor="right"
             open={open}
             onOpen={() => { }}
-            onClose={(e) => { handleClose() }}
+            onClose={handleClose}
             sx={{
                 zIndex: 20000,
                 '& .MuiDrawer-paper': {

@@ -1,36 +1,21 @@
 import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
-import { useLazyQuery, useMutation } from "@apollo/client";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { profileUpdateSchema as validationSchema, userTranslationUpdate } from '@shared/validation';
-import { APP_LINKS } from '@shared/consts';
+import { useLazyQuery, useMutation } from "graphql/hooks";
+import { useCallback, useEffect, useState } from "react";
+import { mutationWrapper } from 'graphql/utils';
+import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
-import { profileUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfileUpdate, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfile, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { SettingsProfileProps } from "../types";
 import { useLocation } from '@shared/route';
 import { LanguageInput } from "components/inputs";
 import { ColorIconButton, GridSubmitButtons } from "components/buttons";
-import { findHandles, findHandlesVariables } from "graphql/generated/findHandles";
-import { findHandlesQuery } from "graphql/query";
-import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
 import { PubSub } from 'utils'
 import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { PageTitle, SnackSeverity } from "components";
 import { SettingsFormData } from "pages";
-
-const helpText =
-    `This page allows you to update your profile, including your name, handle, and bio.
-    
-Handles are unique, and handled (pun intended) by the [ADA Handle Protocol](https://adahandle.com/). This allows for handle to be 
-used across many Cardano applications, and exchanged with others on an open market.
-
-To use an ADA Handle, make sure it is in a wallet which is authenticated with your account.
-
-If you set a handle, your Vrooli profile will be accessible via https://app.vrooli.com/profile/{handle}.
-
-Your bio is displayed on your profile page. You may add multiple translations if you'd like.`;
+import { userEndpoint, walletEndpoint } from "graphql/endpoints";
+import { userTranslationValidation, userValidation } from "@shared/validation";
 
 export const SettingsProfile = ({
     onUpdated,
@@ -42,12 +27,12 @@ export const SettingsProfile = ({
     const [, setLocation] = useLocation();
 
     // Query for handles associated with the user
-    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyQuery<findHandles, findHandlesVariables>(findHandlesQuery);
+    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyQuery<string[], FindHandlesInput, 'findHandles'>(...walletEndpoint.findHandles);
     const [handles, setHandles] = useState<string[]>([]);
     const fetchHandles = useCallback(() => {
         const verifiedWallets = profile?.wallets?.filter(w => w.verified) ?? [];
         if (verifiedWallets.length > 0) {
-            findHandles({ variables: { input: {} } }); // Intentionally empty
+            findHandles({ variables: { } }); // Intentionally empty
         } else {
             PubSub.get().publishSnack({ messageKey: 'NoVerifiedWallets', severity: SnackSeverity.Error })
         }
@@ -72,7 +57,7 @@ export const SettingsProfile = ({
     }, [profile, session]);
 
     // Handle update
-    const [mutation] = useMutation(profileUpdateMutation);
+    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...userEndpoint.profileUpdate);
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',
@@ -83,7 +68,7 @@ export const SettingsProfile = ({
             }],
         },
         enableReinitialize: true,
-        validationSchema,
+        validationSchema: userValidation.update(),
         onSubmit: (values) => {
             if (!profile) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadProfile', severity: SnackSeverity.Error });
@@ -93,7 +78,7 @@ export const SettingsProfile = ({
                 PubSub.get().publishSnack({ messageKey: 'FixErrorsBeforeSubmitting', severity: SnackSeverity.Error });
                 return;
             }
-            const input = shapeProfileUpdate(profile, {
+            const input = shapeProfile.update(profile, {
                 id: profile.id,
                 name: values.name,
                 handle: selectedHandle,
@@ -106,7 +91,7 @@ export const SettingsProfile = ({
                 PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });
                 return;
             }
-            mutationWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
+            mutationWrapper<User, ProfileUpdateInput>({
                 mutation,
                 input,
                 onSuccess: (data) => { onUpdated(data); setLocation(APP_LINKS.Profile, { replace: true }) },
@@ -117,15 +102,13 @@ export const SettingsProfile = ({
     usePromptBeforeUnload({ shouldPrompt: formik.dirty });
 
     // Current bio info, as well as errors
-    const { bio, errorBio, touchedBio, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            bio: value?.bio ?? '',
-            errorBio: error?.bio ?? '',
-            touchedBio: touched?.bio ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', userTranslationUpdate),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['bio'],
+        formik, 
+        formikField: 'translationsUpdate', 
+        language, 
+        validationSchema: userTranslationValidation.update(),
+    });
     // Handles blur on translation fields
     const onTranslationBlur = useCallback((e: { target: { name: string } }) => {
         handleTranslationBlur(formik, 'translationsUpdate', e, language)
@@ -162,7 +145,7 @@ export const SettingsProfile = ({
 
     return (
         <form onSubmit={formik.handleSubmit} style={{ overflow: 'hidden' }}>
-            <PageTitle title="Update Profile" helpText={helpText} />
+            <PageTitle titleKey='UpdateProfile' helpKey='UpdateProfileHelp' session={session} />
             <Container sx={{ paddingBottom: 2 }}>
                 <Grid container spacing={2}>
                     <Grid item xs={12}>
@@ -230,18 +213,18 @@ export const SettingsProfile = ({
                             label="Bio"
                             multiline
                             minRows={4}
-                            value={bio}
+                            value={translations.bio}
                             onBlur={onTranslationBlur}
                             onChange={onTranslationChange}
-                            error={touchedBio && Boolean(errorBio)}
-                            helperText={touchedBio && errorBio}
+                            error={translations.touchedBio && Boolean(translations.errorBio)}
+                            helperText={translations.touchedBio && translations.errorBio}
                         />
                     </Grid>
                 </Grid>
             </Container>
             <Grid container spacing={2} p={3}>
                 <GridSubmitButtons
-                    errors={errors}
+                    errors={translations.errorsWithTranslations}
                     isCreate={false}
                     loading={formik.isSubmitting}
                     onCancel={handleCancel}

@@ -1,18 +1,18 @@
 import { Box, Chip, LinearProgress, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from '@mui/material';
-import { ObjectListItemProps, ObjectListItemType } from '../types';
+import { ObjectListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { StarFor, VoteFor } from '@shared/consts';
+import { RunProject, RunRoutine, RunStatus, VoteFor } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { TagList, TextLoading, UpvoteDownvote } from '..';
-import { getListItemIsStarred, getListItemPermissions, getListItemReportsCount, getListItemStarFor, getListItemStars, getListItemSubtitle, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl } from 'utils';
+import { getYou, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, openObjectEdit, getObjectEditUrl, placeholderColor, usePress, useWindowSize, getObjectUrl, getCounts, getStarFor, getYouDot, ListObjectType } from 'utils';
 import { smallHorizontalScrollbar } from '../styles';
 import { EditIcon, OrganizationIcon, SvgComponent, UserIcon } from '@shared/icons';
 import { CommentsButton, ReportsButton, StarButton } from 'components/buttons';
-import { ListProject, ListRoutine, ListStandard } from 'types';
 import { ObjectActionMenu } from 'components/dialogs';
 import { uuid } from '@shared/uuid';
-import { RunStatus } from 'graphql/generated/globalTypes';
+import { isOfType, setDotNotationValue } from '@shared/utils';
+import { useTranslation } from 'react-i18next';
 
 function CompletionBar(props) {
     return (
@@ -29,7 +29,7 @@ function CompletionBar(props) {
     );
 }
 
-export function ObjectListItem<T extends ObjectListItemType>({
+export function ObjectListItem<T extends ListObjectType>({
     beforeNavigation,
     data,
     hideRole,
@@ -40,6 +40,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
 }: ObjectListItemProps<T>) {
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
+    const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const id = useMemo(() => data?.id ?? uuid(), [data]);
 
@@ -47,14 +48,9 @@ export function ObjectListItem<T extends ObjectListItemType>({
     useEffect(() => { setObject(data) }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
-    const permissions = useMemo(() => getListItemPermissions(data, session), [data, session]);
-    const { subtitle, title } = useMemo(() => {
-        const languages = getUserLanguages(session);
-        return {
-            subtitle: getListItemSubtitle(data, languages),
-            title: getListItemTitle(data, languages),
-        };
-    }, [data, session]);
+    const { canComment, canEdit, canVote, canStar, isStarred, isUpvoted } = useMemo(() => getYou(data), [data]);
+    const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
+    const { score } = useMemo(() => getCounts(data), [data]);
 
     // Context menu
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -67,7 +63,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
     const handleClick = useCallback((target: EventTarget) => {
         if (!target.id || !target.id.startsWith('list-item-')) return;
         // If data not supplied, don't open
-        if (link.length === 0) return;
+        if (data === null || link.length === 0) return;
         // If beforeNavigation is supplied, call it
         if (beforeNavigation) {
             const shouldContinue = beforeNavigation(data);
@@ -104,12 +100,12 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * a vote button, an object icon, or nothing.
      */
     const leftColumn = useMemo(() => {
-        if (isMobile && ![ObjectType.Organization, ObjectType.User].includes(object?.__typename as any)) return null;
+        if (isMobile && !isOfType(object, 'Organization', 'User')) return null;
         // Show icons for organizations and users
         switch (object?.__typename) {
-            case ObjectType.Organization:
-            case ObjectType.User:
-                const Icon: SvgComponent = object?.__typename === ObjectType.Organization ? OrganizationIcon : UserIcon;
+            case 'Organization':
+            case 'User':
+                const Icon: SvgComponent = object?.__typename === 'Organization' ? OrganizationIcon : UserIcon;
                 return (
                     <Box
                         width={isMobile ? '40px' : '50px'}
@@ -132,24 +128,24 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         />
                     </Box>
                 )
-            case ObjectType.Project:
-            case ObjectType.Routine:
-            case ObjectType.Standard:
+            case 'Project':
+            case 'Routine':
+            case 'Standard':
                 return (
                     <UpvoteDownvote
-                        disabled={!permissions.canVote}
+                        disabled={!canVote}
                         session={session}
                         objectId={object?.id ?? ''}
                         voteFor={object?.__typename as VoteFor}
-                        isUpvoted={object?.isUpvoted}
-                        score={object?.score}
+                        isUpvoted={isUpvoted}
+                        score={score}
                         onChange={(isUpvoted: boolean | null, score: number) => { }}
                     />
                 )
             default:
                 return null;
         }
-    }, [isMobile, permissions.canVote, object, profileColors, session]);
+    }, [isMobile, object, profileColors, canVote, session, isUpvoted, score]);
 
     /**
      * Action buttons are shown as a column on wide screens, and 
@@ -157,9 +153,9 @@ export function ObjectListItem<T extends ObjectListItemType>({
      * the star, comments, and reports buttons.
      */
     const actionButtons = useMemo(() => {
-        const commentableObjects: string[] = [ObjectType.Project, ObjectType.Routine, ObjectType.Standard];
-        const reportsCount: number = getListItemReportsCount(object);
-        const starFor: StarFor | null = getListItemStarFor(object);
+        const commentableObjects: string[] = ['Project', 'Routine', 'Standard'];
+        const reportsCount: number = getCounts(object).reports;
+        const { starFor, starForId } = getStarFor(object);
         return (
             <Stack
                 direction={isMobile ? "row" : "column"}
@@ -170,7 +166,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     alignItems: isMobile ? 'center' : 'start',
                 }}
             >
-                {!hideRole && permissions.canEdit &&
+                {!hideRole && canEdit &&
                     <Box
                         id={`edit-list-item-button-${id}`}
                         component="a"
@@ -187,47 +183,65 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         <EditIcon id={`edit-list-item-icon${id}`} fill={palette.secondary.main} />
                     </Box>}
                 {/* Add upvote/downvote if mobile */}
-                {isMobile && [ObjectType.Project, ObjectType.Routine, ObjectType.Standard].includes(object?.__typename as any) && (
-                    <UpvoteDownvote
-                        direction='row'
-                        disabled={!permissions.canVote}
-                        session={session}
-                        objectId={object?.id ?? ''}
-                        voteFor={(object as any)?.__typename as VoteFor}
-                        isUpvoted={(object as any)?.isUpvoted}
-                        score={(object as any)?.score}
-                        onChange={(isUpvoted: boolean | null, score: number) => { }}
-                    />
-                )}
+                {isMobile && isOfType(object,
+                    'Api',
+                    'ApiVersion',
+                    'Comment',
+                    'Issue',
+                    'Note',
+                    'NoteVersion',
+                    'Post',
+                    'Project',
+                    'ProjectVersion',
+                    'Question',
+                    'QuestionAnswer',
+                    'Quiz',
+                    'Routine',
+                    'RoutineVersion',
+                    'SmartContract',
+                    'SmartContractVersion',
+                    'Standard',
+                    'StandardVersion') && (
+                        <UpvoteDownvote
+                            direction='row'
+                            disabled={!canVote}
+                            session={session}
+                            objectId={object?.id ?? ''}
+                            voteFor={object?.__typename as VoteFor}
+                            isUpvoted={isUpvoted}
+                            score={score}
+                            onChange={(isUpvoted: boolean | null, score: number) => { }}
+                        />
+                    )}
                 {starFor && <StarButton
-                    disabled={!permissions.canStar}
+                    disabled={!canStar}
                     session={session}
-                    objectId={object?.id ?? ''}
+                    objectId={starForId}
                     starFor={starFor}
-                    isStar={getListItemIsStarred(object)}
-                    stars={getListItemStars(object)}
+                    isStar={isStarred}
+                    stars={getCounts(object).stars}
                 />}
                 {commentableObjects.includes(object?.__typename ?? '') && (<CommentsButton
-                    commentsCount={(object as ListProject | ListRoutine | ListStandard)?.commentsCount ?? 0}
-                    disabled={!permissions.canComment}
+                    commentsCount={getCounts(object).comments}
+                    disabled={!canComment}
                     object={object}
                 />)}
-                {object?.__typename !== ObjectType.Run && reportsCount > 0 && <ReportsButton
+                {!isOfType(object, 'RunRoutine', 'RunProject') && reportsCount > 0 && <ReportsButton
                     reportsCount={reportsCount}
                     object={object}
                 />}
             </Stack>
         )
-    }, [editUrl, handleEditClick, hideRole, id, isMobile, object, palette.secondary.main, permissions.canComment, permissions.canEdit, permissions.canStar, permissions.canVote, session]);
+    }, [object, isMobile, hideRole, canEdit, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canStar, isStarred, canComment]);
 
     /**
      * Run list items may get a progress bar
      */
     const progressBar = useMemo(() => {
-        if (!object || object.__typename !== ObjectType.Run) return null;
-        const completedComplexity = object?.completedComplexity ?? null;
-        const totalComplexity = object?.routine?.complexity ?? null;
-        const percentComplete = object?.status === RunStatus.Completed ? 100 :
+        if (!isOfType(object, 'RunProject', 'RunRoutine')) return null;
+        const completedComplexity = object.completedComplexity;
+        const totalComplexity = (object as RunProject).projectVersion?.complexity ?? (object as RunRoutine).routineVersion?.complexity ?? null;
+        const percentComplete = object.status === RunStatus.Completed ? 100 :
             (completedComplexity && totalComplexity) ?
                 Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
                 0
@@ -262,21 +276,13 @@ export function ObjectListItem<T extends ObjectListItemType>({
         switch (action) {
             case ObjectActionComplete.VoteDown:
             case ObjectActionComplete.VoteUp:
-                if (data.success) {
-                    setObject({
-                        ...object,
-                        isUpvoted: action === ObjectActionComplete.VoteUp,
-                    } as any)
-                }
+                const isUpvotedLocation = getYouDot(object, 'isUpvoted');
+                if (data.success && isUpvotedLocation && object) setDotNotationValue(object, isUpvotedLocation as any, action === ObjectActionComplete.VoteUp);
                 break;
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setObject({
-                        ...object,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
-                }
+                const isStarredLocation = getYouDot(object, 'isStarred');
+                if (data.success && isStarredLocation && object) setDotNotationValue(object, isStarredLocation as any, action === ObjectActionComplete.Star);
                 break;
             case ObjectActionComplete.Fork:
                 // Data is in first key with a value
@@ -355,7 +361,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                     <Stack direction="row" spacing={1} sx={{ pointerEvents: 'none' }}>
                         {/* Incomplete chip */}
                         {
-                            data && (data as any).isComplete === false && <Tooltip placement="top" title="Marked as incomplete">
+                            data && (data as any).isComplete === false && <Tooltip placement="top" title={t('common:MarkedIncomplete', { lng: getUserLanguages(session)[0] })}>
                                 <Chip
                                     label="Incomplete"
                                     size="small"
@@ -368,7 +374,7 @@ export function ObjectListItem<T extends ObjectListItemType>({
                         }
                         {/* Internal chip */}
                         {
-                            data && (data as any).isInternal === true && <Tooltip placement="top" title="Marked as internal. Only the owner can use this routine">
+                            data && (data as any).isInternal === true && <Tooltip placement="top" title={t('common:MarkedInternal', { lng: getUserLanguages(session)[0] })}>
                                 <Chip
                                     label="Internal"
                                     size="small"

@@ -1,16 +1,12 @@
-import { useMutation } from "@apollo/client";
-import { forkVariables, fork_fork } from 'graphql/generated/fork';
-import { starVariables, star_star } from 'graphql/generated/star';
-import { voteVariables, vote_vote } from 'graphql/generated/vote';
-import { forkMutation, starMutation, voteMutation } from "graphql/mutation";
+import { useMutation } from "graphql/hooks";
 import { useCallback, useMemo, useState } from "react";
-import { ReportFor, StarFor, VoteFor } from "@shared/consts";
+import { CopyInput, CopyResult, CopyType, DeleteType, ReportFor, StarFor, StarInput, Success, VoteFor, VoteInput } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
-import { mutationWrapper } from "graphql/utils/graphqlWrapper";
-import { getActionsDisplayData, getAvailableActions, getListItemTitle, getUserLanguages, ObjectAction, ObjectActionComplete, ObjectType, PubSub } from "utils";
-import { DeleteOneType, ForkType } from "graphql/generated/globalTypes";
+import { mutationWrapper } from "graphql/utils";
+import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
+import { copyEndpoint, starEndpoint, voteEndpoint } from "graphql/endpoints";
 
 export const ObjectActionMenu = ({
     anchorEl,
@@ -26,8 +22,8 @@ export const ObjectActionMenu = ({
     const { availableActions, id, name, objectType } = useMemo(() => ({
         availableActions: getAvailableActions(object, session, exclude),
         id: object?.id,
-        name: getListItemTitle(object, getUserLanguages(session)),
-        objectType: object?.__typename as ObjectType,
+        name: getDisplay(object, getUserLanguages(session)).title,
+        objectType: object?.__typename,
     }), [exclude, object, session]);
 
     // States
@@ -49,21 +45,20 @@ export const ObjectActionMenu = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [fork] = useMutation(forkMutation);
-    const [star] = useMutation(starMutation);
-    const [vote] = useMutation(voteMutation);
+    const [fork] = useMutation<CopyResult, CopyInput, 'copy'>(...copyEndpoint.copy);
+    const [star] = useMutation<Success, StarInput, 'star'>(...starEndpoint.star);
+    const [vote] = useMutation<Success, VoteInput, 'vote'>(...voteEndpoint.vote);
 
     const handleFork = useCallback(() => {
         if (!id) return;
-        // Check if objectType can be converted to ForkType
-        const forkType = ForkType[objectType];
-        if (!forkType) {
+        // Check if objectType can be converted to CopyType
+        if(!Object.values(CopyType).includes(objectType as unknown as CopyType)) {
             PubSub.get().publishSnack({ messageKey: 'CopyNotSupported', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper<fork_fork, forkVariables>({
+        mutationWrapper<CopyResult, CopyInput>({
             mutation: fork,
-            input: { id, intendToPullRequest: true, objectType: forkType },
+            input: { id, intendToPullRequest: true, objectType: objectType as unknown as CopyType },
             successMessage: () => ({ key: 'CopySuccess', variables: { objectName: name } }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Fork, data) },
         })
@@ -71,18 +66,18 @@ export const ObjectActionMenu = ({
 
     const handleStar = useCallback((isStar: boolean, starFor: StarFor) => {
         if (!id) return;
-        mutationWrapper<star_star, starVariables>({
+        mutationWrapper<Success, StarInput>({
             mutation: star,
-            input: { isStar, starFor, forId: id },
+            input: { isStar, starFor, forConnect: id },
             onSuccess: (data) => { onActionComplete(isStar ? ObjectActionComplete.Star : ObjectActionComplete.StarUndo, data) },
         })
     }, [id, onActionComplete, star]);
 
     const handleVote = useCallback((isUpvote: boolean | null, voteFor: VoteFor) => {
         if (!id) return;
-        mutationWrapper<vote_vote, voteVariables>({
+        mutationWrapper<Success, VoteInput>({
             mutation: vote,
-            input: { isUpvote, voteFor, forId: id },
+            input: { isUpvote, voteFor, forConnect: id },
             onSuccess: (data) => { onActionComplete(isUpvote ? ObjectActionComplete.VoteUp : ObjectActionComplete.VoteDown, data) },
         })
     }, [id, onActionComplete, vote]);
@@ -129,20 +124,20 @@ export const ObjectActionMenu = ({
     return (
         <>
             {/* Delete routine confirmation dialog */}
-            {id && objectType in DeleteOneType && <DeleteDialog
+            {id && Object.values(DeleteType).includes(objectType as unknown as DeleteType) && <DeleteDialog
                 isOpen={deleteOpen}
                 objectId={id}
-                objectType={objectType as any}
+                objectType={objectType as unknown as DeleteType}
                 objectName={name}
                 handleClose={closeDelete}
                 zIndex={zIndex + 1}
             />}
             {/* Report dialog */}
-            {id && objectType in ReportFor && <ReportDialog
+            {id && Object.values(ReportFor).includes(objectType as unknown as ReportFor) && <ReportDialog
                 forId={id}
                 onClose={closeReport}
                 open={reportOpen}
-                reportFor={objectType as any}
+                reportFor={objectType as unknown as ReportFor}
                 session={session}
                 zIndex={zIndex + 1}
             />}

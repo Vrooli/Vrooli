@@ -2,19 +2,18 @@ import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@m
 import { CommentThreadItemProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
-import { displayDate, getTranslation, getUserLanguages, ObjectType, PubSub } from 'utils';
+import { displayDate, getTranslation, getUserLanguages, getYou, ObjectType, PubSub } from 'utils';
 import { CommentCreateInput } from 'components/inputs';
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { mutationWrapper } from 'graphql/utils';
-import { DeleteOneType, ReportFor, StarFor, VoteFor } from '@shared/consts';
-import { deleteOneMutation } from 'graphql/mutation';
-import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
+import { CommentFor, DeleteOneInput, DeleteType, ReportFor, StarFor, Success, VoteFor } from '@shared/consts';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
 import { ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
-import { CommentFor } from 'graphql/generated/globalTypes';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
+import { getCurrentUser } from 'utils/authentication';
+import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
 
 export function CommentThreadItem({
     data,
@@ -34,15 +33,16 @@ export function CommentThreadItem({
         objectId: object?.id,
         objectType: object?.__typename as CommentFor,
     }), [object]);
+    const { isStarred, isUpvoted } = useMemo(() => getYou(object as any), [object]);
 
     const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
-        const { canDelete, canEdit, canReply, canReport, canStar, canVote } = data?.permissionsComment ?? {};
+        const { canDelete, canEdit, canReply, canReport, canStar, canVote } = data?.you ?? {};
         const languages = getUserLanguages(session);
         const { text } = getTranslation(data, languages, true);
         return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };
     }, [data, session]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation(deleteOneMutation);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
@@ -51,9 +51,9 @@ export function CommentThreadItem({
             buttons: [
                 {
                     labelKey: 'Yes', onClick: () => {
-                        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
+                        mutationWrapper<Success, DeleteOneInput>({
                             mutation: deleteMutation,
-                            input: { id: data.id, objectType: DeleteOneType.Comment },
+                            input: { id: data.id, objectType: DeleteType.Comment },
                             successCondition: (data) => data.success,
                             successMessage: () => ({ key: 'CommentDeleted' }),
                             onSuccess: () => {
@@ -102,8 +102,8 @@ export function CommentThreadItem({
                                 overflow: 'auto',
                             }}>
                                 {objectType && <OwnerLabel
-                                    objectType={objectType as any as ObjectType}
-                                    owner={data?.creator}
+                                    objectType={objectType as unknown as ObjectType}
+                                    owner={data?.owner}
                                     session={session}
                                     sxs={{
                                         label: {
@@ -111,7 +111,7 @@ export function CommentThreadItem({
                                             fontWeight: 'bold',
                                         }
                                     }} />}
-                                {canEdit && !(data?.creator?.id && data.creator.id === session?.id) && <ListItemText
+                                {canEdit && !(data?.owner?.id && data.owner.id === getCurrentUser(session).id) && <ListItemText
                                     primary={`(Can Edit)`}
                                     sx={{
                                         display: 'flex',
@@ -119,7 +119,7 @@ export function CommentThreadItem({
                                         color: palette.mode === 'light' ? '#fa4f4f' : '#f2a7a7',
                                     }}
                                 />}
-                                {data?.creator?.id && data.creator.id === session?.id && <ListItemText
+                                {data?.owner?.id && data.owner.id === getCurrentUser(session).id && <ListItemText
                                     primary={`(You)`}
                                     sx={{
                                         display: 'flex',
@@ -150,7 +150,7 @@ export function CommentThreadItem({
                             session={session}
                             objectId={data?.id ?? ''}
                             voteFor={VoteFor.Comment}
-                            isUpvoted={data?.isUpvoted}
+                            isUpvoted={isUpvoted}
                             score={data?.score}
                             onChange={() => { }}
                         />
@@ -158,7 +158,7 @@ export function CommentThreadItem({
                             session={session}
                             objectId={data?.id ?? ''}
                             starFor={StarFor.Comment}
-                            isStar={data?.isStarred ?? false}
+                            isStar={isStarred ?? false}
                             showStars={false}
                             tooltipPlacement="top"
                         />}

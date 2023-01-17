@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, usePress } from "utils";
 import { PopoverWithArrow } from "components/dialogs";
 import { useLocation } from "@shared/route";
+import { VersionInfo } from "types";
 
 
 /**
@@ -21,31 +22,31 @@ export const VersionDisplay = ({
 }: VersionDisplayProps) => {
     const [, setLocation] = useLocation();
 
-    const handleVersionChange = useCallback((version: string) => {
-        addSearchParams(setLocation, { version })
+    const handleVersionChange = useCallback((versionInfo: VersionInfo) => {
+        addSearchParams(setLocation, { version: versionInfo.versionLabel })
         window.location.reload();
     }, [setLocation]);
 
-    const openVersion = useCallback((version: string) => {
+    const openVersion = useCallback((versionInfo: VersionInfo) => {
         if (typeof confirmVersionChange === 'function') {
-            confirmVersionChange(() => { handleVersionChange(version) });
+            confirmVersionChange(() => { handleVersionChange(versionInfo) });
         } else {
-            handleVersionChange(version);
+            handleVersionChange(versionInfo);
         }
     }, [confirmVersionChange, handleVersionChange]);
 
-    const listItems = useMemo(() => versions?.map((version, index) => {
+    const listItems = useMemo(() => versions?.map((versionInfo, index) => {
         return (
             <ListItem
                 button
-                disabled={version === currentVersion}
-                onClick={() => { openVersion(version) }}
+                disabled={versionInfo.versionLabel === currentVersion?.versionLabel}
+                onClick={() => { openVersion(versionInfo) }}
                 key={index}
                 sx={{
                     padding: '0px 8px',
                 }}
             >
-                <ListItemText primary={version} />
+                <ListItemText primary={versionInfo.versionLabel} />
             </ListItem>
         )
     }), [currentVersion, openVersion, versions])

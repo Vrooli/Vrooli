@@ -1,19 +1,17 @@
 import { Grid, TextField } from "@mui/material";
-import { useMutation } from "@apollo/client";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { projectCreate as validationSchema, projectTranslationCreate } from '@shared/validation';
+import { useMutation } from "graphql/hooks";
+import { mutationWrapper } from 'graphql/utils';
+import { projectVersionTranslationValidation, projectVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { projectCreateMutation } from "graphql/mutation";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, parseSearchParams, removeTranslation, shapeProjectCreate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { ProjectCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession } from "components";
-import { ResourceList } from "types";
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, TagSelector, userFromSession, VersionInput } from "components";
 import { uuid } from '@shared/uuid';
-import { projectCreateVariables, projectCreate_projectCreate } from "graphql/generated/projectCreate";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
+import { projectVersionEndpoint } from "graphql/endpoints";
+import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
 
 export const ProjectCreate = ({
     onCreated,
@@ -22,6 +20,7 @@ export const ProjectCreate = ({
     zIndex,
 }: ProjectCreateProps) => {
 
+    // Handle root data, public/private status, etc.
     const [relationships, setRelationships] = useState<RelationshipsObject>({
         isComplete: false,
         isPrivate: false,
@@ -29,18 +28,12 @@ export const ProjectCreate = ({
         parent: null,
         project: null,
     });
-    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) => {
-        setRelationships({
-            ...relationships,
-            ...newRelationshipsObject,
-        });
-    }, [relationships]);
+    const onRelationshipsChange = useCallback((newRelationshipsObject: Partial<RelationshipsObject>) =>
+        setRelationships({ ...relationships, ...newRelationshipsObject }), [relationships]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
-    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        setResourceList(updatedList);
-    }, [setResourceList]);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
+    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -54,7 +47,7 @@ export const ProjectCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation(projectCreateMutation);
+    const [mutation] = useMutation<ProjectVersion, ProjectVersionCreateInput, 'projectVersionCreate'>(...projectVersionEndpoint.create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),
@@ -64,20 +57,27 @@ export const ProjectCreate = ({
                 name: '',
                 description: '',
             }],
+            versionInfo: {
+                versionIndex: 0,
+                versionLabel: '1.0.0',
+                versionNotes: '',
+            }
         },
-        validationSchema,
+        validationSchema: projectVersionValidation.create(),
         onSubmit: (values) => {
-            mutationWrapper<projectCreate_projectCreate, projectCreateVariables>({
+            mutationWrapper<ProjectVersion, ProjectVersionCreateInput>({
                 mutation,
-                input: shapeProjectCreate({
+                input: shapeProjectVersion.create({
                     id: values.id,
                     isComplete: relationships.isComplete,
                     isPrivate: relationships.isPrivate,
-                    owner: relationships.owner,
-                    parent: relationships.parent,
-                    resourceLists: [resourceList],
-                    tags: tags,
-                    translations: values.translationsCreate,
+                    isLatest: true,
+                    root: {
+                        id: uuid(),
+                        owner: relationships.owner,
+                        parent: relationships.parent,
+                    },
+                    ...values.versionInfo,
                 }),
                 onSuccess: (data) => { onCreated(data) },
                 onError: () => { formik.setSubmitting(false) },
@@ -88,18 +88,13 @@ export const ProjectCreate = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { description, name, errorDescription, errorName, touchedDescription, touchedName, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsCreate', language);
-        return {
-            description: value?.description ?? '',
-            name: value?.name ?? '',
-            errorDescription: error?.description ?? '',
-            errorName: error?.name ?? '',
-            touchedDescription: touched?.description ?? false,
-            touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsCreate', projectTranslationCreate),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['description', 'name'],
+        formik,
+        formikField: 'translationsCreate',
+        language,
+        validationSchema: projectVersionTranslationValidation.create(),
+    });
     const languages = useMemo(() => formik.values.translationsCreate.map(t => t.language), [formik.values.translationsCreate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -132,12 +127,12 @@ export const ProjectCreate = ({
         >
             <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
                 <Grid item xs={12}>
-                    <PageTitle title="Create Project" />
+                    <PageTitle titleKey='CreateProject' session={session} />
                 </Grid>
                 <Grid item xs={12} mb={4}>
                     <RelationshipButtons
                         isEditing={true}
-                        objectType={ObjectType.Project}
+                        objectType={'Project'}
                         onRelationshipsChange={onRelationshipsChange}
                         relationships={relationships}
                         session={session}
@@ -161,11 +156,11 @@ export const ProjectCreate = ({
                         id="name"
                         name="name"
                         label="Name"
-                        value={name}
+                        value={translations.name}
                         onBlur={onTranslationBlur}
                         onChange={onTranslationChange}
-                        error={touchedName && Boolean(errorName)}
-                        helperText={touchedName && errorName}
+                        error={translations.touchedName && Boolean(translations.errorName)}
+                        helperText={translations.touchedName && translations.errorName}
                     />
                 </Grid>
                 <Grid item xs={12} mb={4}>
@@ -176,11 +171,11 @@ export const ProjectCreate = ({
                         label="description"
                         multiline
                         minRows={4}
-                        value={description}
+                        value={translations.description}
                         onBlur={onTranslationBlur}
                         onChange={onTranslationChange}
-                        error={touchedDescription && Boolean(errorDescription)}
-                        helperText={touchedDescription && errorDescription}
+                        error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                        helperText={translations.touchedDescription && translations.errorDescription}
                     />
                 </Grid>
                 <Grid item xs={12}>
@@ -202,9 +197,28 @@ export const ProjectCreate = ({
                         tags={tags}
                     />
                 </Grid>
+                <Grid item xs={12} mb={4}>
+                    <VersionInput
+                        fullWidth
+                        id="version"
+                        name="version"
+                        versionInfo={formik.values.versionInfo}
+                        versions={[]}
+                        onBlur={formik.handleBlur}
+                        onChange={(newVersionInfo) => {
+                            formik.setFieldValue('versionInfo', newVersionInfo);
+                            setRelationships({
+                                ...relationships,
+                                isComplete: false,
+                            })
+                        }}
+                        error={formik.touched.versionInfo?.versionLabel && Boolean(formik.errors.versionInfo?.versionLabel)}
+                        helperText={formik.touched.versionInfo?.versionLabel ? formik.errors.versionInfo?.versionLabel : null}
+                    />
+                </Grid>
                 <GridSubmitButtons
                     disabledSubmit={!isLoggedIn}
-                    errors={errors}
+                    errors={translations.errorsWithTranslations}
                     isCreate={true}
                     loading={formik.isSubmitting}
                     onCancel={onCancel}

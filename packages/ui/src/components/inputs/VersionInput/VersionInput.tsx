@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Stack, TextField, Tooltip, useTheme } from '@mui/material';
 import { VersionInputProps } from "../types";
 import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "@shared/icons";
-import { calculateVersionsFromString, meetsMinimumVersion } from "@shared/validation";
+import { calculateVersionsFromString, meetsMinVersion } from "@shared/validation";
 import { ColorIconButton } from "components/buttons";
+import { VersionInfo } from "types"; 
+import { getMinimumVersion } from "utils";
 
 export const VersionInput = ({
     autoFocus = false,
@@ -12,56 +14,83 @@ export const VersionInput = ({
     helperText = undefined,
     id = 'version',
     label = 'Version',
-    minimum = '0.0.1',
     name = 'version',
     onBlur = () => { },
     onChange,
-    value,
+    versionInfo,
+    versions,
     ...props
 }: VersionInputProps) => {
     const { palette } = useTheme();
 
-    const [internalValue, setInternalValue] = useState<string>(value);
+    const [internalValue, setInternalValue] = useState<Partial<VersionInfo>>(versionInfo);
     useEffect(() => {
-        setInternalValue(value);
-    }, [value]);
+        setInternalValue(versionInfo);
+    }, [versionInfo]);
     const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.value;
-        setInternalValue(newValue);
+        setInternalValue({
+            ...internalValue,
+            versionLabel: newValue,
+        });
         // If value is a valid version (e.g. 1.0.0, 1.0, 1) and is at least the minimum value, then call onChange
         if (newValue.match(/^[0-9]+(\.[0-9]+){0,2}$/)) {
-            if (meetsMinimumVersion(newValue, minimum)) {
-                onChange(newValue);
+            if (meetsMinVersion(newValue, getMinimumVersion(versions))) {
+                onChange({
+                    ...internalValue,
+                    versionIndex: versions.length,
+                    versionLabel: newValue,
+                });
             }
         }
-    }, [minimum, onChange]);
+    }, [internalValue, onChange, versions]);
 
     // Calculate major, moderate, and minor versions. 
     // Ex: 1.2.3 => major = 1, moderate = 2, minor = 3
     // Ex: 1 => major = 1, moderate = 0, minor = 0
     // Ex: 1.2 => major = 1, moderate = 2, minor = 0
     // Ex: asdfasdf (or any other invalid number) => major = minMajor, moderate = minModerate, minor = minMinor
-    const { major, moderate, minor } = useMemo(() => calculateVersionsFromString(internalValue), [internalValue]);
+    const { major, moderate, minor } = useMemo(() => calculateVersionsFromString(internalValue.versionLabel ?? ''), [internalValue]);
 
     const bumpMajor = useCallback(() => {
-        onChange(`${major + 1}.${moderate}.${minor}`);
-    }, [major, moderate, minor, onChange]);
+        const changedVersion = `${major + 1}.${moderate}.${minor}`
+        onChange({ 
+            ...internalValue, 
+            versionIndex: versions.length,
+            versionLabel: changedVersion 
+        });
+    }, [major, moderate, minor, onChange, internalValue, versions.length]);
 
     const bumpModerate = useCallback(() => {
-        onChange(`${major}.${moderate + 1}.${minor}`);
-    }, [major, moderate, minor, onChange]);
+        const changedVersion = `${major}.${moderate + 1}.${minor}`
+        onChange({
+            ...internalValue,
+            versionIndex: versions.length,
+            versionLabel: changedVersion
+        });
+    }, [major, moderate, minor, onChange, internalValue, versions.length]);
 
     const bumpMinor = useCallback(() => {
-        onChange(`${major}.${moderate}.${minor + 1}`);
-    }, [major, moderate, minor, onChange]);
+        const changedVersion = `${major}.${moderate}.${minor + 1}`
+        onChange({
+            ...internalValue,
+            versionIndex: versions.length,
+            versionLabel: changedVersion
+        });
+    }, [major, moderate, minor, onChange, internalValue, versions.length]);
 
     /**
      * On blur, update value
      */
     const handleBlur = useCallback((ev: any) => {
-        onChange(`${major}.${moderate}.${minor}`);
+        const changedVersion = `${major}.${moderate}.${minor}`
+        onChange({
+            ...internalValue,
+            versionIndex: versions.length,
+            versionLabel: changedVersion
+        });
         if (onBlur) { onBlur(ev); }
-    }, [major, moderate, minor, onChange, onBlur]);
+    }, [major, moderate, minor, onChange, internalValue, versions.length, onBlur]);
 
     return (
         <Stack direction="row" spacing={0}>

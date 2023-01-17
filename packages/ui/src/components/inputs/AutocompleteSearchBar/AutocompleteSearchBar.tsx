@@ -3,7 +3,7 @@ import { AutocompleteSearchBarProps } from '../types';
 import { ChangeEvent, useCallback, useState, useEffect, useMemo } from 'react';
 import { AutocompleteOption } from 'types';
 import { ActionIcon, DeleteIcon, HistoryIcon, OrganizationIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, StarFilledIcon, SvgComponent, UserIcon, VisibleIcon } from '@shared/icons';
-import { getLocalStorageKeys, ObjectType, performAction, useDebounce } from 'utils';
+import { getLocalStorageKeys, performAction, useDebounce } from 'utils';
 import { StarFor } from '@shared/consts';
 import { StarButton } from 'components/buttons';
 import { getCurrentUser } from 'utils/authentication';
@@ -94,31 +94,31 @@ const typeToIcon = (type: string, fill: string): JSX.Element | null => {
         case 'Action':
             Icon = ActionIcon;
             break;
-        case ObjectType.Organization:
+        case 'Organization':
             Icon = OrganizationIcon;
             break;
-        case ObjectType.Project:
+        case 'Project':
             Icon = ProjectIcon;
             break;
-        case ObjectType.Routine:
+        case 'Routine':
             Icon = RoutineIcon;
             break;
-        case ObjectType.Run:
+        case 'Run':
             Icon = PlayIcon;
             break;
         case 'Shortcut':
             Icon = ShortcutIcon;
             break;
-        case ObjectType.Standard:
+        case 'Standard':
             Icon = StandardIcon;
             break;
-        case ObjectType.Star:
+        case 'Star':
             Icon = StarFilledIcon;
             break;
-        case ObjectType.User:
+        case 'User':
             Icon = UserIcon;
             break;
-        case ObjectType.View:
+        case 'View':
             Icon = VisibleIcon;
             break;
     }
@@ -341,7 +341,7 @@ export function AutocompleteSearchBar({
                             onChange={(isStarred, event) => handleStar(option, isStarred, event)}
                             session={session}
                             showStars={true}
-                            starFor={option.__typename as StarFor}
+                            starFor={option.__typename as unknown as StarFor}
                             stars={option.stars}
                             sxs={{ root: { marginRight: 1 } }}
                             tooltipPlacement="right"

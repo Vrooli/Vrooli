@@ -26,7 +26,7 @@ export const PasswordTextField = ({
     }, [showPassword]);
 
     return (
-        <FormControl fullWidth={fullWidth} variant="outlined" {...props}>
+        <FormControl fullWidth={fullWidth} variant="outlined" {...props as any}>
             <InputLabel htmlFor={id}>{label ?? 'Password'}</InputLabel>
             <OutlinedInput
                 id={id}

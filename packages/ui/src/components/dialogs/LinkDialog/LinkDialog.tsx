@@ -15,10 +15,10 @@ import {
 import { DialogTitle, GridSubmitButtons, SnackSeverity } from 'components';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LinkDialogProps } from '../types';
-import { Node } from 'types';
-import { getTranslation, PubSub } from 'utils';
-import { NodeType } from 'graphql/generated/globalTypes';
+import { getTranslation, NodeShape, PubSub } from 'utils';
 import { uuid } from '@shared/uuid';
+import { NodeType } from '@shared/consts';
+import { useTranslation } from 'react-i18next';
 
 const helpText =
     `This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.
@@ -36,18 +36,19 @@ export const LinkDialog = ({
     link,
     nodeFrom,
     nodeTo,
-    routine,
+    routineVersion,
     zIndex,
 }: LinkDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     // Selected "From" and "To" nodes
-    const [fromNode, setFromNode] = useState<Node | null>(nodeFrom ?? null);
-    const handleFromSelect = useCallback((node: Node) => {
+    const [fromNode, setFromNode] = useState<NodeShape | null>(nodeFrom ?? null);
+    const handleFromSelect = useCallback((node: NodeShape) => {
         setFromNode(node);
     }, [setFromNode]);
-    const [toNode, setToNode] = useState<Node | null>(nodeTo ?? null);
-    const handleToSelect = useCallback((node: Node) => {
+    const [toNode, setToNode] = useState<NodeShape | null>(nodeTo ?? null);
+    const handleToSelect = useCallback((node: NodeShape) => {
         setToNode(node);
     }, [setToNode]);
     useEffect(() => { setFromNode(nodeFrom ?? null); }, [nodeFrom, setFromNode]);
@@ -56,13 +57,13 @@ export const LinkDialog = ({
     const errors = useMemo(() => {
         const errors: { [key: string]: string } = {};
         if (!fromNode) {
-            errors.fromNode = 'From node is required';
+            errors.fromNode = t(`error:FromNodeRequired`, { lng: language });
         }
         if (!toNode) {
-            errors.toNode = 'To node is required';
+            errors.toNode = t(`error:ToNodeRequired`, { lng: language });
         }
         return errors;
-    }, [fromNode, toNode]);
+    }, [fromNode, language, t, toNode]);
 
     const addLink = useCallback(() => {
         if (!fromNode || !toNode) {
@@ -70,53 +71,53 @@ export const LinkDialog = ({
             return;
         }
         handleClose({
-            __typename: 'NodeLink',
             id: uuid(),
-            fromId: fromNode.id,
-            toId: toNode.id,
+            from: { id: fromNode.id },
             operation: null, //TODO
+            routineVersion: { id: routineVersion.id },
+            to: { id: toNode.id },
             whens: [], //TODO
         })
         setFromNode(null);
         setToNode(null);
-    }, [fromNode, toNode, handleClose]);
+    }, [fromNode, toNode, handleClose, routineVersion.id]);
 
     /**
      * Calculate the "From" and "To" options
      */
     const { fromOptions, toOptions } = useMemo(() => {
-        if (!routine) return { fromOptions: [], toOptions: [] };
+        if (!routineVersion) return { fromOptions: [], toOptions: [] };
         // Initialize options
-        let fromNodes: Node[] = routine.nodes.filter((node: Node) => node.type === NodeType.End); // Can't link from end nodes
-        let toNodes: Node[] = routine.nodes.filter((node: Node) => node.type !== NodeType.Start); // Can't link to start node
-        const existingLinks = routine.nodeLinks;
+        let fromNodes: NodeShape[] = routineVersion.nodes.filter((node) => node.nodeType !== NodeType.Start) as NodeShape[]; // Can't link from end nodes
+        let toNodes: NodeShape[] = routineVersion.nodes.filter((node) => node.nodeType !== NodeType.Start) as NodeShape[]; // Can't link to start node
+        const existingLinks = routineVersion.nodeLinks;
         // If from node is already selected
         if (fromNode) {
             // Remove it from the "to" options
             toNodes = toNodes.filter(node => node.id !== fromNode.id);
             // Remove all links that already exist
-            toNodes = toNodes.filter(node => !existingLinks.some(link => link.fromId === fromNode.id && link.toId === node.id));
+            toNodes = toNodes.filter(node => !existingLinks.some(link => link.from.id === fromNode.id && link.to.id === node.id));
         }
         // If to node is already selected
         if (toNode) {
             // Remove it from the "from" options
             fromNodes = fromNodes.filter(node => node.id !== toNode.id);
             // Remove all links that already exist
-            fromNodes = fromNodes.filter(node => !existingLinks.some(link => link.fromId === node.id && link.toId === toNode.id));
+            fromNodes = fromNodes.filter(node => !existingLinks.some(link => link.from.id === node.id && link.to.id === toNode.id));
         }
         return { fromOptions: fromNodes, toOptions: toNodes };
-    }, [fromNode, routine, toNode]);
+    }, [fromNode, routineVersion, toNode]);
 
     /**
      * Find the text to display for a node
      */
-    const getNodeTitle = useCallback((node: Node) => {
-        const { title } = getTranslation(node, [language]);
-        if (title) return title;
-        if (node.type === NodeType.Start) return 'Start';
-        if (node.type === NodeType.End) return 'End';
-        return 'Untitled';
-    }, [language]);
+    const getNodeTitle = useCallback((node: NodeShape) => {
+        const { name } = getTranslation(node, [language]);
+        if (name) return name;
+        if (node.nodeType === NodeType.Start) return t(`common:Start`, { lng: language });
+        if (node.nodeType === NodeType.End) return t(`common:End`, { lng: language });
+        return t(`common:Untitled`, { lng: language });
+    }, [language, t]);
 
     /**
      * Container that displays "From" and "To" node selections, with right arrow inbetween
@@ -128,8 +129,8 @@ export const LinkDialog = ({
                 disablePortal
                 id="link-connect-from"
                 options={fromOptions}
-                getOptionLabel={(option: Node) => getNodeTitle(option)}
-                onChange={(_, value) => handleFromSelect(value as Node)}
+                getOptionLabel={(option: NodeShape) => getNodeTitle(option)}
+                onChange={(_, value) => handleFromSelect(value as NodeShape)}
                 value={fromNode}
                 sx={{
                     minWidth: 200,
@@ -155,8 +156,8 @@ export const LinkDialog = ({
                 disablePortal
                 id="link-connect-to"
                 options={toOptions}
-                getOptionLabel={(option: Node) => getNodeTitle(option)}
-                onChange={(_, value) => handleToSelect(value as Node)}
+                getOptionLabel={(option: NodeShape) => getNodeTitle(option)}
+                onChange={(_, value) => handleToSelect(value as NodeShape)}
                 value={toNode}
                 sx={{
                     minWidth: 200,
@@ -202,7 +203,7 @@ export const LinkDialog = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                title={isAdd ? 'Add Link' : 'Edit Link'}
+                title={t(`common:${isAdd ? 'LinkAdd' : 'LinkEdit'}`, { lng: language })}
                 helpText={helpText}
                 onClose={handleCancel}
             />

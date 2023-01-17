@@ -1,202 +1,207 @@
-import { reportsCreate, reportsUpdate } from "@shared/validation";
-import { ReportFor, ReportSortBy } from '@shared/consts';
-import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from "../schema/types";
+import { reportValidation } from "@shared/validation";
+import { PrependString, ReportFor, ReportSortBy, ReportYou } from '@shared/consts';
+import { Report, ReportSearchInput, ReportCreateInput, ReportUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma, ReportStatus } from "@prisma/client";
 import { CustomError, Trigger } from "../events";
 import { UserModel } from "./user";
-import { combineQueries, padSelect } from "../builders";
+import { padSelect } from "../builders";
 import { CommentModel } from "./comment";
 import { OrganizationModel } from "./organization";
-import { ProjectModel } from "./project";
-import { RoutineModel } from "./routine";
-import { StandardModel } from "./standard";
 import { TagModel } from "./tag";
-
-type SupplementalFields = 'isOwn';
-const formatter = (): Formatter<Report, SupplementalFields> => ({
-    relationshipMap: { __typename: 'Report' },
-    hiddenFields: ['userId'], // Always hide report creator
-    supplemental: {
-        graphqlFields: ['isOwn'],
-        dbFields: ['userId'],
-        toGraphQL: ({ objects, userData }) => [
-            ['isOwn', async () => objects.map((x) => Boolean(userData) && x.fromId === userData?.id)],
-        ],
-    },
-})
-
-const searcher = (): Searcher<
-    ReportSearchInput,
-    ReportSortBy,
-    Prisma.reportOrderByWithRelationInput,
-    Prisma.reportWhereInput
-> => ({
-    defaultSort: ReportSortBy.DateCreatedDesc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-    },
-    searchStringQuery: ({ insensitive }) => ({
-        OR: [
-            { reason: { ...insensitive } },
-            { details: { ...insensitive } },
-        ]
-    }),
-    customQueries(input) {
-        return combineQueries([
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.userId !== undefined ? { userId: input.userId } : {}),
-            (input.organizationId !== undefined ? { organizationId: input.organizationId } : {}),
-            (input.projectId !== undefined ? { projectId: input.projectId } : {}),
-            (input.routineId !== undefined ? { routineId: input.routineId } : {}),
-            (input.standardId !== undefined ? { standardId: input.standardId } : {}),
-            (input.tagId !== undefined ? { tagId: input.tagId } : {}),
-        ])
-    },
-})
+import { SelectWrap } from "../builders/types";
+import { ApiVersionModel } from "./apiVersion";
+import { IssueModel } from "./issue";
+import { NoteVersionModel } from "./noteVersion";
+import { PostModel } from "./post";
+import { ProjectVersionModel } from "./projectVersion";
+import { RoutineVersionModel } from "./routineVersion";
+import { SmartContractVersionModel } from "./smartContractVersion";
+import { StandardVersionModel } from "./standardVersion";
+import { getSingleTypePermissions } from "../validators";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] } = {
-    Comment: 'comment',
-    Organization: 'organization',
-    Project: 'projectVersion',
-    Routine: 'routineVersion',
-    Standard: 'standardVersion',
-    Tag: 'tag',
-    User: 'user',
+    ApiVersion: "apiVersion",
+    Comment: "comment",
+    Issue: "issue",
+    Organization: "organization",
+    NoteVersion: "noteVersion",
+    Post: "post",
+    ProjectVersion: "projectVersion",
+    RoutineVersion: "routineVersion",
+    StandardVersion: "standardVersion",
+    Tag: "tag",
+    User: "user",
 }
 
-const validator = (): Validator<
-    ReportCreateInput,
-    ReportUpdateInput,
-    Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>,
-    any,
-    Prisma.reportSelect,
-    Prisma.reportWhereInput,
-    false,
-    false
-> => ({
-    validateMap: {
-        __typename: 'Report',
-    },
-    isTransferable: false,
-    maxObjects: {
-        User: {
-            private: 0,
-            public: 10000,
-        },
-        Organization: 0,
-    },
-    permissionsSelect: (...params) => ({ id: true, createdBy: { select: UserModel.validate.permissionsSelect(...params) } }),
-    permissionResolvers: ({ isAdmin }) => ([
-        ['isOwn', async () => isAdmin],
-    ]),
-    owner: (data) => ({
-        User: data.createdBy,
-    }),
-    isDeleted: () => false,
-    isPublic: () => true,
-    profanityFields: ['reason', 'details'],
-    validations: {
-        create: async ({ createMany, prisma, userData }) => {
-            // Make sure user does not have any open reports on these objects
-            const existing = await prisma.report.findMany({
-                where: {
-                    status: 'Open',
-                    user: { id: userData.id },
-                    OR: createMany.map((x) => ({
-                        [`${forMapper[x.createdFor]}Id`]: { id: x.createdForId },
-                    })),
-                },
-            });
-            if (existing.length > 0)
-                throw new CustomError('0337', 'MaxReportsReached', userData.languages);
-        }
-    },
-    visibility: {
-        private: {},
-        public: {},
-        owner: (userId) => ({ createdBy: { id: userId } }),
-    }
-})
-
-const mutater = (): Mutater<
-    Report,
-    { graphql: ReportCreateInput, db: Prisma.reportUpsertArgs['create'] },
-    { graphql: ReportUpdateInput, db: Prisma.reportUpsertArgs['update'] },
-    false,
-    false
-> => ({
-    shape: {
-        create: async ({ data, userData }) => {
-            return {
-                id: data.id,
-                language: data.language,
-                reason: data.reason,
-                details: data.details,
-                status: ReportStatus.Open,
-                from: { connect: { id: userData.id } },
-                [forMapper[data.createdFor]]: { connect: { id: data.createdForId } },
-            }
-        },
-        update: async ({ data }) => {
-            return {
-                reason: data.reason ?? undefined,
-                details: data.details,
-            }
-        }
-    },
-    trigger: {
-        onCreated: ({ created, prisma, userData }) => {
-            for (const c of created) {
-                Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
-            }
-        },
-    },
-    yup: { create: reportsCreate, update: reportsUpdate },
-})
-
-const displayer = (): Displayer<
-    Prisma.reportSelect,
-    Prisma.reportGetPayload<{ select: { [K in keyof Required<Prisma.reportSelect>]: true } }>
-> => ({
-    select: () => ({
-        id: true,
-        // apiVersion: padSelect(ApiModel.display.select),
-        comment: padSelect(CommentModel.display.select),
-        // issue: padSelect(IssueModel.display.select),
-        organization: padSelect(OrganizationModel.display.select),
-        // post: padSelect(PostModel.display.select),
-        projectVersion: padSelect(ProjectModel.display.select),
-        routineVersion: padSelect(RoutineModel.display.select),
-        // smartContractVersion: padSelect(SmartContractModel.display.select),
-        standardVersion: padSelect(StandardModel.display.select),
-        tag: padSelect(TagModel.display.select),
-        user: padSelect(UserModel.display.select),
-    }),
-    label: (select, languages) => {
-        // if (select.apiVersion) return ApiModel.display.label(select.api as any, languages);
-        if (select.comment) return CommentModel.display.label(select.comment as any, languages);
-        // if (select.issue) return IssueModel.display.label(select.issue as any, languages);
-        if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
-        // if (select.post) return PostModel.display.label(select.post as any, languages);
-        if (select.projectVersion) return ProjectModel.display.label(select.projectVersion as any, languages);
-        if (select.routineVersion) return RoutineModel.display.label(select.routineVersion as any, languages);
-        // if (select.smartContractVersion) return SmartContractModel.display.label(select.smartContractVersion as any, languages);
-        if (select.standardVersion) return StandardModel.display.label(select.standardVersion as any, languages);
-        if (select.tag) return TagModel.display.label(select.tag as any, languages);
-        if (select.user) return UserModel.display.label(select.user as any, languages);
-        return '';
-    }
-})
-
-export const ReportModel = ({
+const __typename = 'Report' as const;
+type Permissions = Pick<ReportYou, 'canDelete' | 'canEdit' | 'canRespond'>;
+const suppFields = ['you.canDelete', 'you.canEdit', 'you.canRespond'] as const;
+export const ReportModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: ReportCreateInput,
+    GqlUpdate: ReportUpdateInput,
+    GqlModel: Report,
+    GqlSearch: ReportSearchInput,
+    GqlSort: ReportSortBy,
+    GqlPermission: Permissions,
+    PrismaCreate: Prisma.reportUpsertArgs['create'],
+    PrismaUpdate: Prisma.reportUpsertArgs['update'],
+    PrismaModel: Prisma.reportGetPayload<SelectWrap<Prisma.reportSelect>>,
+    PrismaSelect: Prisma.reportSelect,
+    PrismaWhere: Prisma.reportWhereInput,
+}, typeof suppFields> = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.report,
-    display: displayer(),
-    format: formatter(),
-    mutate: mutater(),
-    search: searcher(),
-    type: 'Report' as GraphQLModelType,
-    validate: validator(),
+    display: {
+        select: () => ({
+            id: true,
+            apiVersion: padSelect(ApiVersionModel.display.select),
+            comment: padSelect(CommentModel.display.select),
+            issue: padSelect(IssueModel.display.select),
+            noteVersion: padSelect(NoteVersionModel.display.select),
+            organization: padSelect(OrganizationModel.display.select),
+            post: padSelect(PostModel.display.select),
+            projectVersion: padSelect(ProjectVersionModel.display.select),
+            routineVersion: padSelect(RoutineVersionModel.display.select),
+            smartContractVersion: padSelect(SmartContractVersionModel.display.select),
+            standardVersion: padSelect(StandardVersionModel.display.select),
+            tag: padSelect(TagModel.display.select),
+            user: padSelect(UserModel.display.select),
+        }),
+        label: (select, languages) => {
+            if (select.apiVersion) return ApiVersionModel.display.label(select.apiVersion as any, languages);
+            if (select.comment) return CommentModel.display.label(select.comment as any, languages);
+            if (select.issue) return IssueModel.display.label(select.issue as any, languages);
+            if (select.noteVersion) return NoteVersionModel.display.label(select.noteVersion as any, languages);
+            if (select.organization) return OrganizationModel.display.label(select.organization as any, languages);
+            if (select.post) return PostModel.display.label(select.post as any, languages);
+            if (select.projectVersion) return ProjectVersionModel.display.label(select.projectVersion as any, languages);
+            if (select.routineVersion) return RoutineVersionModel.display.label(select.routineVersion as any, languages);
+            if (select.smartContractVersion) return SmartContractVersionModel.display.label(select.smartContractVersion as any, languages);
+            if (select.standardVersion) return StandardVersionModel.display.label(select.standardVersion as any, languages);
+            if (select.tag) return TagModel.display.label(select.tag as any, languages);
+            if (select.user) return UserModel.display.label(select.user as any, languages);
+            return '';
+        }
+    },
+    format: {
+        gqlRelMap: { __typename },
+        prismaRelMap: { __typename },
+        hiddenFields: ['userId'], // Always hide report creator
+        supplemental: {
+            graphqlFields: suppFields,
+            dbFields: ['userId'],
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
+            },
+        },
+        countFields: {},
+    },
+    mutate: {
+        shape: {
+            create: async ({ data, userData }) => {
+                return {
+                    id: data.id,
+                    language: data.language,
+                    reason: data.reason,
+                    details: data.details,
+                    status: ReportStatus.Open,
+                    createdBy: { connect: { id: userData.id } },
+                    [forMapper[data.createdFor]]: { connect: { id: data.createdForConnect } },
+                }
+            },
+            update: async ({ data }) => {
+                return {
+                    reason: data.reason ?? undefined,
+                    details: data.details,
+                }
+            }
+        },
+        trigger: {
+            onCreated: ({ created, prisma, userData }) => {
+                for (const c of created) {
+                    Trigger(prisma, userData.languages).reportOpen(c.id as string, userData.id);
+                }
+            },
+        },
+        yup: reportValidation,
+    },
+    search: {
+        defaultSort: ReportSortBy.DateCreatedDesc,
+        sortBy: ReportSortBy,
+        searchFields: {
+            apiVersionId: true,
+            commentId: true,
+            createdTimeFrame: true,
+            fromId: true,
+            issueId: true,
+            languageIn: true,
+            noteVersionId: true,
+            organizationId: true,
+            postId: true,
+            projectVersionId: true,
+            routineVersionId: true,
+            smartContractVersionId: true,
+            standardVersionId: true,
+            tagId: true,
+            updatedTimeFrame: true,
+            userId: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'detailsWrapped',
+                'reasonWrapped',
+            ]
+        }),
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: {
+            User: {
+                private: 0,
+                public: 10000,
+            },
+            Organization: 0,
+        },
+        permissionsSelect: (...params) => ({
+            id: true,
+            createdBy: 'User',
+        }),
+        permissionResolvers: ({ data, isAdmin }) => ({
+            canDelete: () => isAdmin && data.status !== 'Open',
+            canEdit: () => isAdmin && data.status !== 'Open',
+            canRespond: () => data.status === 'Open',
+        }),
+        owner: (data) => ({
+            User: data.createdBy,
+        }),
+        isDeleted: () => false,
+        isPublic: () => true,
+        profanityFields: ['reason', 'details'],
+        validations: {
+            create: async ({ createMany, prisma, userData }) => {
+                // Make sure user does not have any open reports on these objects
+                const existing = await prisma.report.findMany({
+                    where: {
+                        status: 'Open',
+                        user: { id: userData.id },
+                        OR: createMany.map((x) => ({
+                            [`${forMapper[x.createdFor]}Id`]: { id: x.createdForConnect },
+                        })),
+                    },
+                });
+                if (existing.length > 0)
+                    throw new CustomError('0337', 'MaxReportsReached', userData.languages);
+            }
+        },
+        visibility: {
+            private: {},
+            public: {},
+            owner: (userId) => ({ createdBy: { id: userId } }),
+        }
+    },
 })

@@ -1,16 +1,16 @@
-import { useMutation } from '@apollo/client';
+import { useMutation } from 'graphql/hooks';
 import { reportCreateForm as validationSchema } from '@shared/validation';
 import { Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
 import { useFormik } from 'formik';
-import { reportCreateVariables, reportCreate_reportCreate } from 'graphql/generated/reportCreate';
-import { reportCreateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ReportDialogProps } from '../types';
 import { getUserLanguages, usePromptBeforeUnload } from 'utils';
 import { useCallback, useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { DialogTitle, GridSubmitButtons, Selector } from 'components';
 import { uuid } from '@shared/uuid';
+import { reportEndpoint } from 'graphql/endpoints';
+import { Report, ReportCreateInput } from '@shared/consts';
+import { mutationWrapper } from 'graphql/utils';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators. 
@@ -48,7 +48,7 @@ export const ReportDialog = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
 
-    const [mutation, { loading }] = useMutation(reportCreateMutation);
+    const [mutation, { loading }] = useMutation<Report, ReportCreateInput, 'reportCreate'>(...reportEndpoint.create);
     const formik = useFormik({
         initialValues: {
             createdFor: reportFor,
@@ -61,11 +61,11 @@ export const ReportDialog = ({
         enableReinitialize: true,
         validationSchema,
         onSubmit: (values) => {
-            mutationWrapper<reportCreate_reportCreate, reportCreateVariables>({
+            mutationWrapper<Report, ReportCreateInput>({
                 mutation,
                 input: {
                     createdFor: reportFor,
-                    createdForId: forId,
+                    createdForConnect: forId,
                     details: values.details,
                     id: uuid(),
                     language,

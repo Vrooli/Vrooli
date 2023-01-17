@@ -1,5 +1,5 @@
 /**
- * Used to create/update a link between two routine nodes
+ * Used to create/update a link between two routineVersion nodes
  */
 import {
     Autocomplete,
@@ -15,12 +15,8 @@ import {
 import { GridSubmitButtons } from 'components/buttons';
 import { DialogTitle } from 'components/dialogs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { MoveNodeMenuProps } from '../types';
-
-const helpText =
-    `This dialog allows you to move a node to a new position.
-
-Nodes are positioned using "column" and "row" coordinates.`
 
 const titleAria = 'move-node-dialog-title';
 
@@ -29,10 +25,11 @@ export const MoveNodeMenu = ({
     isOpen,
     language,
     node,
-    routine,
+    routineVersion,
     zIndex,
 }: MoveNodeMenuProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [fromColumnIndex, setFromColumnIndex] = useState<number>(node?.columnIndex ?? 0);
     const [fromRowIndex, setFromRowIndex] = useState<number>(node?.rowIndex ?? 0);
@@ -58,19 +55,19 @@ export const MoveNodeMenu = ({
 
     const availableColumns = useMemo(() => {
         const lowestColumn = 1; // Can't put in first column
-        const highestColumn = routine.nodes.reduce((highest, node) => Math.max(highest, node.columnIndex), 0);
+        const highestColumn = routineVersion.nodes.reduce((highest, node) => Math.max(highest, (node.columnIndex ?? 0)), 0);
         return new Array(highestColumn - lowestColumn + 1).fill(0).map((_, index) => index + lowestColumn);
-    }, [routine.nodes]);
+    }, [routineVersion.nodes]);
 
     const availableRows = useMemo(() => {
-        const nodesInColumn = routine.nodes.filter(node => node.columnIndex === fromColumnIndex);
-        const highestRowNumber = nodesInColumn.reduce((highest, node) => Math.max(highest, node.rowIndex), 0);
+        const nodesInColumn = routineVersion.nodes.filter(node => node.columnIndex === fromColumnIndex);
+        const highestRowNumber = nodesInColumn.reduce((highest, node) => Math.max(highest, (node.rowIndex ?? 0)), 0);
         // Find all available numbers between 0 and highestRowNumber + 1
         const availableRows = new Array(highestRowNumber + 2)
             .fill(0).map((_, index) => index)
             .filter(rowIndex => nodesInColumn.every(node => node.rowIndex !== rowIndex));
         return availableRows;
-    }, [fromColumnIndex, routine.nodes]);
+    }, [fromColumnIndex, routineVersion.nodes]);
 
     // Update to row index when available rows change
     useEffect(() => {
@@ -191,9 +188,9 @@ export const MoveNodeMenu = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                helpText={helpText}
+                helpText={t('common:NodeMoveDialogHelp', { lng: language })}
                 onClose={onClose}
-                title="Move Node"
+                title={t('common:NodeMove', { lng: language })}
             />
             <DialogContent>
                 {formContent}

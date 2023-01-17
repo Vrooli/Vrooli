@@ -4,10 +4,11 @@
 import { AddBeforeLinkDialogProps } from '../types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { useCallback, useMemo } from 'react';
-import { NodeLink } from 'types';
 import { Dialog, DialogContent, List, ListItem, ListItemText } from '@mui/material';
 import { getTranslation, getUserLanguages } from 'utils';
 import { DialogTitle } from 'components/dialogs';
+import { useTranslation } from 'react-i18next';
+import { NodeLink } from '@shared/consts';
 
 const titleAria = 'add-before-link-dialog-title';
 
@@ -21,22 +22,23 @@ export const AddBeforeLinkDialog = ({
     session,
     zIndex,
 }: AddBeforeLinkDialogProps) => {
+    const { t } = useTranslation();
 
     /**
      * Gets the name of a node from its id
      */
     const getNodeName = useCallback((nodeId: string) => {
         const node = nodes.find(n => n.id === nodeId);
-        return getTranslation(node, getUserLanguages(session), true).title;
+        return getTranslation(node, getUserLanguages(session), true).name;
     }, [nodes, session]);
 
     /**
-     * Find links where the "toId" is the nodeId
+     * Find links where the "to.id" is the nodeId
      */
-    const linkOptions = useMemo<NodeLink[]>(() => links.filter(l => l.toId === nodeId), [links, nodeId]);
+    const linkOptions = useMemo<NodeLink[]>(() => links.filter(l => l.to.id === nodeId), [links, nodeId]);
 
     const listOptions: ListMenuItemData<NodeLink>[] = linkOptions.map(o => ({
-        label: `${getNodeName(o.fromId)} ⟶ ${getNodeName(o.toId)}`,
+        label: `${getNodeName(o.from.id)} ⟶ ${getNodeName(o.to.id)}`,
         value: o as NodeLink,
     }));
 
@@ -52,7 +54,7 @@ export const AddBeforeLinkDialog = ({
             <DialogTitle
                 ariaLabel={titleAria}
                 onClose={handleClose}
-                title="Select Link"
+                title={t('common:LinkSelect', { lng: getUserLanguages(session)[0] })}
             />
             <DialogContent>
                 <List>

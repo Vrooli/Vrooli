@@ -6,9 +6,10 @@ import {
     DialogContent,
     DialogContentText,
 } from '@mui/material';
-import { firstString, PubSub, translateCommonKey, translateSnackMessage } from 'utils';
+import { firstString, getUserLanguages, PubSub, translateCommonKey, translateSnackMessage } from 'utils';
 import { DialogTitle } from 'components';
 import { AlertDialogProps } from '../types';
+import { Session } from '@shared/consts';
 
 interface StateButton {
     label: string;
@@ -21,37 +22,37 @@ export interface AlertDialogState {
     buttons: StateButton[];
 }
 
-const defaultState = (languages: string[]): AlertDialogState => ({
-    buttons: [{ label: translateCommonKey('Ok', undefined, languages) }],
+const defaultState = (session: Session | undefined): AlertDialogState => ({
+    buttons: [{ label: translateCommonKey('Ok', undefined, getUserLanguages(session)) }],
 });
 
 const titleAria = 'alert-dialog-title';
 const descriptionAria = 'alert-dialog-description';
 
 const AlertDialog = ({
-    languages
+    session
 }: AlertDialogProps) => {
-    const [state, setState] = useState<AlertDialogState>(defaultState(languages))
+    const [state, setState] = useState<AlertDialogState>(defaultState(session))
     let open = Boolean(state.title) || Boolean(state.message);
 
     useEffect(() => {
         let dialogSub = PubSub.get().subscribeAlertDialog((o) => setState({
-            title: o.titleKey ? translateCommonKey(o.titleKey, o.titleVariables, languages) : undefined,
-            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables, languages).details : undefined,
+            title: o.titleKey ? translateCommonKey(o.titleKey, o.titleVariables, getUserLanguages(session)) : undefined,
+            message: o.messageKey ? translateSnackMessage(o.messageKey, o.messageVariables, getUserLanguages(session)).details : undefined,
             buttons: o.buttons.map((b) => ({
-                label: translateCommonKey(b.labelKey, b.labelVariables, languages),
+                label: translateCommonKey(b.labelKey, b.labelVariables, getUserLanguages(session)),
                 onClick: b.onClick,
             })),
         }));
         return () => { PubSub.get().unsubscribe(dialogSub) };
-    }, [languages])
+    }, [session])
 
     const handleClick = useCallback((event: any, action: ((e?: any) => void) | null | undefined) => {
         if (action) action(event);
-        setState(defaultState(languages));
-    }, [languages]);
+        setState(defaultState(session));
+    }, [session]);
 
-    const resetState = useCallback(() => setState(defaultState(languages)), [languages]);
+    const resetState = useCallback(() => setState(defaultState(session)), [session]);
 
     return (
         <Dialog

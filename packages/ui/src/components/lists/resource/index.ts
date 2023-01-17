@@ -1,4 +1,4 @@
-import { ResourceUsedFor } from 'graphql/generated/globalTypes';
+import { ResourceUsedFor } from '@shared/consts';
 import { ArticleIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, HelpIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, OrganizationIcon, ProposalIcon, RedditIcon, ResearchIcon, ScheduleIcon, SocialVideoIcon, SvgComponent, TerminalIcon, TwitterIcon, WebsiteIcon, YouTubeIcon } from '@shared/icons';
 
 export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {

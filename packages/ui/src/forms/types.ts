@@ -1,14 +1,14 @@
-import { CommonProps, Session } from "types";
+import { CommonProps } from "types";
 import { Forms, TagShape } from "utils";
 import { DropzoneProps as DP, JsonFormatInputProps as JP, LanguageInputProps as LP, MarkdownInputProps as MP, QuantityBoxProps as QP, SelectorProps as SP, TagSelectorProps as TP } from 'components/inputs/types';
-import { InputType } from "@shared/consts";
+import { InputType, Session } from "@shared/consts";
 
 //==============================================================
 /* #region Specific Form Props */
 //==============================================================
 export interface BaseFormProps {
     schema: FormSchema;
-    session: Session
+    session: Session;
     onSubmit: (values: any) => any;
     zIndex: number;
 }
@@ -61,7 +61,7 @@ export interface DropzoneProps extends Omit<DP, 'onUpload' | 'zIndex'> {
 /**
  * Props for rendering a JSON input component
  */
-export interface JSONProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zIndex'> {
+export interface JsonProps extends Omit<JP, 'id' | 'onChange' | 'value' | 'zIndex'> {
     defaultValue?: string;
 }
 
@@ -222,7 +222,7 @@ export interface FieldDataJSON extends FieldDataBase {
     /**
      * Extra props for the input component, depending on the type
      */
-    props: JSONProps
+    props: JsonProps
 }
 
 /**

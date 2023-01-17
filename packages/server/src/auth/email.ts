@@ -4,7 +4,7 @@ import { CustomError } from "../events";
 import { Notify, sendResetPasswordLink, sendVerificationLink } from "../notify";
 import { PrismaType } from "../types";
 import bcrypt from 'bcrypt';
-import { Session } from "../schema/types";
+import { Session } from '@shared/consts';
 import { toSession } from "./session";
 
 const CODE_TIMEOUT = 2 * 24 * 3600 * 1000;

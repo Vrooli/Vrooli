@@ -1,7 +1,7 @@
 /**
  * Drawer to display the steps of a routine, displayed as a vertical tree
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     alpha,
     Box,
@@ -16,7 +16,7 @@ import {
 import { RunStepsDialogProps } from '../types';
 import { TreeItem, treeItemClasses, TreeView } from '@mui/lab';
 import { RoutineStep } from 'types';
-import { addSearchParams, locationArraysMatch, routineHasSubroutines, RoutineStepType } from 'utils';
+import { addSearchParams, locationArraysMatch, routineVersionHasSubroutines, RoutineStepType } from 'utils';
 import { useLocation } from '@shared/route';
 import { MenuTitle } from '../MenuTitle/MenuTitle';
 import { ListNumberIcon, OpenInNewIcon, StepListClose, StepListEnd, StepListOpen } from '@shared/icons';
@@ -148,7 +148,7 @@ export const RunStepsDialog = ({
             case RoutineStepType.Subroutine:
                 // Not loaded if subroutine has its own subroutines (since it would be converted to a RoutineList
                 // if it was loaded)
-                if (routineHasSubroutines(step.routine)) {
+                if (routineVersionHasSubroutines(step.routineVersion)) {
                     // We can't know if it is complete until it is loaded
                     return false;
                 }
@@ -206,14 +206,14 @@ export const RunStepsDialog = ({
             // A subroutine may have children, but they may not be loaded
             case RoutineStepType.Subroutine:
                 // If there are further steps, add a "Loading" node
-                if (routineHasSubroutines(step.routine)) {
+                if (routineVersionHasSubroutines(step.routineVersion)) {
                     return (
                         <StyledTreeItem
                             isComplete={completed}
                             isSelected={selected}
-                            label={`${realLocationLabel}. ${step.title}`}
+                            label={`${realLocationLabel}. ${step.name}`}
                             nodeId={locationLabel}
-                            onLoad={() => { handleLoadSubroutine(step.routine.id) }} // Load subroutine(s)
+                            onLoad={() => { handleLoadSubroutine(step.routineVersion.id) }} // Load subroutine(s)
                             onToStep={toLocation}
                             palette={palette}
                             type={step.type}
@@ -232,7 +232,7 @@ export const RunStepsDialog = ({
                 return <StyledTreeItem
                     isComplete={completed}
                     isSelected={selected}
-                    label={`${realLocationLabel}. ${step.title}`}
+                    label={`${realLocationLabel}. ${step.name}`}
                     nodeId={locationLabel}
                     onToStep={toLocation}
                     palette={palette}
@@ -248,7 +248,7 @@ export const RunStepsDialog = ({
                     <StyledTreeItem
                         isComplete={completed}
                         isSelected={selected}
-                        label={`${realLocationLabel}. ${step.title}`}
+                        label={`${realLocationLabel}. ${step.name}`}
                         nodeId={locationLabel}
                         palette={palette}
                         type={step.type}

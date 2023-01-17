@@ -1,5 +1,5 @@
+import { Session, SessionUser } from "@shared/consts";
 import { uuidValidate } from "@shared/uuid";
-import { Session, SessionUser } from "types";
 
 /**
  * Session object that indicates no user is logged in

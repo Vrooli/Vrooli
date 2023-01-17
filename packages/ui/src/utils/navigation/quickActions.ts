@@ -1,9 +1,8 @@
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
 import { SnackSeverity } from "components";
-import { profileUpdateVariables, profileUpdate_profileUpdate } from "graphql/generated/profileUpdate";
-import { profileUpdateMutation } from "graphql/mutation";
+import { userEndpoint } from "graphql/endpoints";
 import { documentNodeWrapper, errorToCode } from "graphql/utils";
-import { ActionOption, Session, ShortcutOption } from "types";
+import { ActionOption, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
 import { PubSub } from "utils/pubsub";
@@ -161,7 +160,7 @@ export const shortcuts: ShortcutItem[] = [
  * Shape shortcuts to match AutoCompleteListItem format.
  */
 export const shortcutsItems: ShortcutOption[] = shortcuts.map(({ label, link }) => ({
-    __typename: "Shortcut",
+    type: "Shortcut",
     label,
     id: link,
 }))
@@ -192,7 +191,7 @@ export const actions: ActionItem[] = [
  * Shape actions to match AutoCompleteListItem format.
  */
 export const actionsItems: ActionOption[] = actions.map(({ canPerform, id, label }) => ({
-    __typename: "Action",
+    type: "Action",
     canPerform,
     id,
     label,
@@ -208,16 +207,16 @@ export const performAction = async (option: ActionOption, session: Session): Pro
             clearSearchHistory(session);
             break;
         case 'activate-dark-mode':
-            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
-                node: profileUpdateMutation,
+            documentNodeWrapper<User, ProfileUpdateInput>({
+                node: userEndpoint.profileUpdate[0],
                 input: { theme: 'dark' },
                 onSuccess: () => { PubSub.get().publishTheme('dark'); },
                 onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
             })
             break;
         case 'activate-light-mode':
-            documentNodeWrapper<profileUpdate_profileUpdate, profileUpdateVariables>({
-                node: profileUpdateMutation,
+            documentNodeWrapper<User, ProfileUpdateInput>({
+                node: userEndpoint.profileUpdate[0],
                 input: { theme: 'light' },
                 onSuccess: () => { PubSub.get().publishTheme('light'); },
                 onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }

@@ -1,5 +1,8 @@
 import pkg from '@prisma/client';
-import { SessionUser } from './schema/types';
+import { GqlModelType, SessionUser } from '@shared/consts';
+import { TFuncKey } from 'i18next';
+import { Context } from './middleware';
+import { GraphQLResolveInfo } from 'graphql';
 
 // Request type
 declare global {
@@ -35,6 +38,10 @@ declare global {
     }
 }
 
+// Translations
+export type ErrorKey = TFuncKey<'error', undefined>
+export type NotifyKey = TFuncKey<'notify', undefined>
+
 /**
  * Prisma type shorthand
  */
@@ -56,6 +63,36 @@ export type RecursivePartial<T> = {
     ? RecursivePartial<T[P]>
     : T[P]
 };
+
+/**
+ * Return type of find one queries
+ */
+export type FindOneResult<T> = RecursivePartial<T> | null
+
+/**
+ * Return type of find many queries
+ */
+export type FindManyResult<T> = {
+    pageInfo: {
+        hasNextPage: boolean,
+        endCursor?: string | null
+    },
+    edges: Array<{ cursor: string, node: RecursivePartial<T> }>
+}
+
+/**
+ * Return type of create one mutations
+ */
+export type CreateOneResult<T> = FindOneResult<T>
+
+/**
+ * Return type of update one mutations
+ */
+export type UpdateOneResult<T> = FindOneResult<T>
+
+export type GQLEndpoint<T, U> = (parent: undefined, data: IWrap<T>, context: Context, info: GraphQLResolveInfo) => Promise<U>;
+
+export type UnionResolver = { __resolveType: (obj: any) => `${GqlModelType}` };
 
 export type SingleOrArray<T> = T | T[];
 

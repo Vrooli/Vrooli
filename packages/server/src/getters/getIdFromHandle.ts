@@ -1,4 +1,4 @@
-import { GraphQLModelType } from "../models/types";
+import { GqlModelType } from "@shared/consts";
 import { PrismaType } from "../types";
 
 /**
@@ -11,7 +11,7 @@ export async function getIdFromHandle({
     prisma,
 }: {
     handle: string;
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     prisma: PrismaType,
 }): Promise<string | undefined> {
     const where = { handle };

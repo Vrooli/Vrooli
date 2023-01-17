@@ -64,7 +64,7 @@ export const StartNode = ({
                 anchorEl={contextAnchor}
                 availableActions={[BuildAction.AddOutgoingLink]}
                 handleClose={closeContext}
-                handleSelect={(option) => { handleAction(option, node.id) }}
+                handleSelect={(option) => { handleAction(option as BuildAction.AddOutgoingLink, node.id) }}
                 zIndex={zIndex + 1}
             />
             <Tooltip placement={'top'} title={label ?? ''}>

@@ -1,21 +1,18 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, StarFor } from "@shared/consts";
-import { adaHandleRegex } from '@shared/validation';
-import { useLazyQuery } from "@apollo/client";
-import { organization, organizationVariables } from "graphql/generated/organization";
-import { organizationQuery } from "graphql/query";
+import { APP_LINKS, FindByIdOrHandleInput, Organization, ResourceList, StarFor, VisibilityType } from "@shared/consts";
+import { useLazyQuery } from "graphql/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { OrganizationViewProps } from "../types";
-import { Organization, ResourceList } from "types";
 import { SearchListGenerator } from "components/lists/types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, placeholderColor, SearchType, uuidToBase36 } from "utils";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, SearchType, uuidToBase36 } from "utils";
 import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
-import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
+import { organizationEndpoint } from "graphql/endpoints";
+import { setDotNotationValue } from "@shared/utils";
 
 enum TabOptions {
     Resources = "Resources",
@@ -34,17 +31,16 @@ export const OrganizationView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Fetch data
-    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery, { errorPolicy: 'all' });
+    const urlData = useMemo(() => parseSingleItemUrl(), []);
+    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdOrHandleInput, 'organization'>(...organizationEndpoint.findOne, { errorPolicy: 'all' });
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id)) getData({ variables: { input: { id } } })
-        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
-    }, [getData, id]);
+        if (urlData.id || urlData.handle) getData({ variables: urlData })
+    }, [getData, urlData]);
     useEffect(() => {
         setOrganization(data?.organization);
     }, [data]);
-    const canEdit = useMemo<boolean>(() => organization?.permissionsOrganization?.canEdit === true, [organization?.permissionsOrganization?.canEdit]);
+    const canEdit = useMemo<boolean>(() => organization?.you?.canEdit === true, [organization?.you?.canEdit]);
 
     const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -54,8 +50,8 @@ export const OrganizationView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { bio, canStar, handle, name, resourceList } = useMemo(() => {
-        const { canStar } = organization?.permissionsOrganization ?? {};
-        const resourceList: ResourceList | undefined = Array.isArray(organization?.resourceLists) ? organization?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
+        const { canStar } = organization?.you ?? {};
+        const resourceList: ResourceList | null | undefined = organization?.resourceList;
         const { bio, name } = getTranslation(organization ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,
@@ -80,7 +76,7 @@ export const OrganizationView = ({
                 if (!organization) return;
                 setOrganization({
                     ...organization,
-                    resourceLists: [updatedList]
+                    resourceList: updatedList
                 })
             }}
             loading={loading}
@@ -111,8 +107,8 @@ export const OrganizationView = ({
     const currTabType = useMemo(() => tabIndex >= 0 && tabIndex < availableTabs.length ? availableTabs[tabIndex] : null, [availableTabs, tabIndex]);
 
     const onEdit = useCallback(() => {
-        setLocation(`${APP_LINKS.Organization}/edit/${uuidToBase36(id)}`);
-    }, [setLocation, id]);
+        setLocation(`${APP_LINKS.Organization}/edit/${uuidToBase36(organization?.id ?? '')}`);
+    }, [organization?.id, setLocation]);
 
     // Create search data
     const { searchType, itemKeyPrefix, placeholder, where, noResultsText } = useMemo<SearchListGenerator>(() => {
@@ -123,7 +119,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'member-list-item',
                     placeholder: "Search orgnization's members...",
                     noResultsText: "No members found",
-                    where: { organizationId: id },
+                    where: { organizationId: organization?.id },
                 };
             case TabOptions.Projects:
                 return {
@@ -131,7 +127,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
-                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, visibility: VisibilityType.All },
+                    where: { organizationId: organization?.id, isComplete: !canEdit ? true : undefined, visibility: VisibilityType.All },
                 };
             case TabOptions.Routines:
                 return {
@@ -139,7 +135,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
-                    where: { organizationId: id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
+                    where: { organizationId: organization?.id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                 };
             case TabOptions.Standards:
                 return {
@@ -147,7 +143,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'standard-list-item',
                     placeholder: "Search organization's standards...",
                     noResultsText: "No standards found",
-                    where: { organizationId: id, visibility: VisibilityType.All },
+                    where: { organizationId: organization?.id, visibility: VisibilityType.All },
                 }
             default:
                 return {
@@ -158,7 +154,7 @@ export const OrganizationView = ({
                     where: {},
                 }
         }
-    }, [currTabType, id, canEdit]);
+    }, [currTabType, canEdit, organization?.id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -183,11 +179,8 @@ export const OrganizationView = ({
         switch (action) {
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setOrganization({
-                        ...organization,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
+                if (data.success && organization) {
+                    setOrganization(setDotNotationValue(organization, 'you.isStarred', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -314,7 +307,7 @@ export const OrganizationView = ({
                         session={session}
                         objectId={organization?.id ?? ''}
                         starFor={StarFor.Organization}
-                        isStar={organization?.isStarred ?? false}
+                        isStar={organization?.you?.isStarred ?? false}
                         stars={organization?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
@@ -409,7 +402,7 @@ export const OrganizationView = ({
                     {
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
-                                canSearch={uuidValidate(id)}
+                                canSearch={uuidValidate(organization?.id)}
                                 handleAdd={canEdit ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="organization-view-list"

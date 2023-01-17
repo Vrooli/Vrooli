@@ -1,24 +1,19 @@
 /**
  * Handles selecting a run from a list of runs.
  */
-
 import { Button, IconButton, List, ListItem, ListItemText, Menu, Tooltip, useTheme } from "@mui/material";
 import { mutationWrapper } from "graphql/utils";
 import { useCallback, useEffect, useMemo } from "react";
 import { displayDate, getTranslation, getUserLanguages } from "utils/display";
 import { ListMenuItemData, RunPickerMenuProps } from "../types";
 import { base36ToUuid, getRunPercentComplete, parseSearchParams, PubSub } from "utils";
-import { useMutation } from "@apollo/client";
-import { runCreateVariables, runCreate_runCreate } from "graphql/generated/runCreate";
-import { deleteOneMutation, runCreateMutation } from "graphql/mutation";
-import { Run } from "types";
-import { deleteOneVariables, deleteOne_deleteOne } from "graphql/generated/deleteOne";
-import { DeleteOneType } from "@shared/consts";
+import { useMutation } from "graphql/hooks";
+import { DeleteOneInput, DeleteType, ProjectVersion, RoutineVersion, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Success } from "@shared/consts";
 import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
-import { RunStatus } from "graphql/generated/globalTypes";
 import { DeleteIcon } from "@shared/icons";
 import { SnackSeverity } from "components";
+import { deleteOneOrManyEndpoint, runProjectEndpoint, runRoutineEndpoint } from "graphql/endpoints";
 
 const titleAria = 'run-picker-dialog-title';
 
@@ -28,7 +23,7 @@ export const RunPickerMenu = ({
     onAdd,
     onDelete,
     onSelect,
-    routine,
+    runnableObject,
     session
 }: RunPickerMenuProps) => {
     const { palette } = useTheme();
@@ -36,87 +31,108 @@ export const RunPickerMenu = ({
 
     // If runId is in the URL, select that run automatically
     useEffect(() => {
-        if (!routine) return;
+        if (!runnableObject) return;
         const searchParams = parseSearchParams();
         if (!searchParams.run || typeof searchParams.run !== 'string') return
         const runId = base36ToUuid(searchParams.run);
-        const run = routine.runs?.find(run => run.id === runId);
+        const run = (runnableObject.you?.runs as (RunRoutine | RunProject)[])?.find((run: RunProject | RunRoutine) => run.id === runId);
         if (run) {
             onSelect(run);
             handleClose();
         }
-    }, [routine, onSelect, handleClose]);
+    }, [runnableObject, onSelect, handleClose]);
 
-    const [runCreate] = useMutation(runCreateMutation);
+    const [runProjectCreate] = useMutation<RunProject, RunProjectCreateInput, 'runProjectCreate'>(...runProjectEndpoint.create);
+    const [runRoutineCreate] = useMutation<RunRoutine, RunRoutineCreateInput, 'runRoutineCreate'>(...runRoutineEndpoint.create);
     const createNewRun = useCallback(() => {
-        if (!routine) {
+        if (!runnableObject) {
             PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
             return;
         }
-        mutationWrapper<runCreate_runCreate, runCreateVariables>({
-            mutation: runCreate,
-            input: {
-                // id: uuid(),
-                // routineId: routine.id,
-                // version: routine.version ?? '',
-                // title: getTranslation(routine, getUserLanguages(session)).title ?? 'Unnamed Routine',
-            } as any, //TODO will break
-            successCondition: (data) => data !== null,
-            onSuccess: (data) => {
-                onAdd(data);
-                onSelect(data);
-                handleClose();
-            },
-            errorMessage: () => ({ key: 'FailedToCreateRun' }),
-        })
-    }, [handleClose, onAdd, onSelect, routine, runCreate, session]);
+        if (runnableObject.__typename === 'ProjectVersion') {
+            mutationWrapper<RunProject, RunProjectCreateInput>({
+                mutation: runProjectCreate,
+                input: {
+                    id: uuid(),
+                    name: getTranslation(runnableObject as ProjectVersion, getUserLanguages(session)).name ?? 'Unnamed Project',
+                    projectVersionConnect: runnableObject.id,
+                    status: RunStatus.InProgress,
+                },
+                successCondition: (data) => data !== null,
+                onSuccess: (data) => {
+                    onAdd(data);
+                    onSelect(data);
+                    handleClose();
+                },
+                errorMessage: () => ({ key: 'FailedToCreateRun' }),
+            })
+        }
+        else {
+            mutationWrapper<RunRoutine, RunRoutineCreateInput>({
+                mutation: runRoutineCreate,
+                input: {
+                    id: uuid(),
+                    name: getTranslation(runnableObject as RoutineVersion, getUserLanguages(session)).name ?? 'Unnamed Routine',
+                    routineVersionConnect: runnableObject.id,
+                    status: RunStatus.InProgress,
+                },
+                successCondition: (data) => data !== null,
+                onSuccess: (data) => {
+                    onAdd(data);
+                    onSelect(data);
+                    handleClose();
+                },
+                errorMessage: () => ({ key: 'FailedToCreateRun' }),
+            })
+        }
+    }, [handleClose, onAdd, onSelect, runnableObject, runProjectCreate, runRoutineCreate, session]);
 
-    const [deleteOne] = useMutation(deleteOneMutation)
-    const deleteRun = useCallback((run: Run) => {
-        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
+    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne)
+    const deleteRun = useCallback((run: RunProject | RunRoutine) => {
+        mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,
-            input: { id: run.id, objectType: DeleteOneType.Run },
+            input: { id: run.id, objectType: run.__typename as DeleteType },
             successCondition: (data) => data.success,
-            successMessage: () => ({ key: 'RunDeleted', variables: { runName: displayDate(run.timeStarted) } }),
+            successMessage: () => ({ key: 'RunDeleted', variables: { runName: displayDate(run.startedAt) } }),
             onSuccess: (data) => {
                 onDelete(run);
             },
-            errorMessage: () => ({ key: 'RunDeleteFailed', variables: { runName: displayDate(run.timeStarted) } }),
+            errorMessage: () => ({ key: 'RunDeleteFailed', variables: { runName: displayDate(run.startedAt) } }),
         })
     }, [deleteOne, onDelete])
 
     useEffect(() => {
         if (!open) return;
-        // If not logged in, open routine without creating a new run
+        // If not logged in, open without creating a new run
         if (!session.isLoggedIn) {
             onSelect(null);
             handleClose();
         }
-        // If routine has no runs, create a new one.
-        else if (routine && routine.runs?.filter(r => r.status === RunStatus.InProgress)?.length === 0) {
+        // If object has no runs, create a new one.
+        else if (runnableObject && (runnableObject.you?.runs as (RunRoutine | RunProject)[])?.filter(r => r.status === RunStatus.InProgress)?.length === 0) {
             createNewRun();
         }
-    }, [open, routine, createNewRun, onSelect, session.isLoggedIn, handleClose]);
+    }, [open, runnableObject, createNewRun, onSelect, session.isLoggedIn, handleClose]);
 
-    const runOptions: ListMenuItemData<Run>[] = useMemo(() => {
-        if (!routine || !routine.runs) return [];
+    const runOptions: ListMenuItemData<RunProject | RunRoutine>[] = useMemo(() => {
+        if (!runnableObject || !runnableObject.you.runs) return [];
         // Find incomplete runs
-        const runs = routine.runs.filter(run => run.status === RunStatus.InProgress);
+        const runs = (runnableObject.you?.runs as (RunRoutine | RunProject)[]).filter(run => run.status === RunStatus.InProgress);
         return runs.map((run) => ({
-            label: `Started: ${displayDate(run.timeStarted)} (${getRunPercentComplete(run.completedComplexity, routine.complexity)}%)`,
-            value: run as Run,
+            label: `Started: ${displayDate(run.startedAt)} (${getRunPercentComplete(run.completedComplexity, runnableObject.complexity)}%)`,
+            value: run as  RunProject | RunRoutine,
         }));
-    }, [routine]);
+    }, [runnableObject]);
 
-    const handleDelete = useCallback((event: any, run: Run) => {
+    const handleDelete = useCallback((event: any, run: RunProject | RunRoutine) => {
         // Prevent the click from opening the menu
         event.stopPropagation();
-        if (!routine) return;
+        if (!runnableObject) return;
         // If run has some progress, show confirmation dialog
         if (run.completedComplexity > 0) {
             PubSub.get().publishAlertDialog({
                 messageKey: 'RunDeleteConfirm',
-                messageVariables: { startDate: displayDate(run.timeStarted), percentComplete: getRunPercentComplete(run.completedComplexity, routine.complexity) },
+                messageVariables: { startDate: displayDate(run.startedAt), percentComplete: getRunPercentComplete(run.completedComplexity, runnableObject.complexity) },
                 buttons: [
                     { labelKey: 'Yes', onClick: () => { deleteRun(run) } },
                     { labelKey: 'Cancel', onClick: () => { } },
@@ -125,9 +141,9 @@ export const RunPickerMenu = ({
         } else {
             deleteRun(run);
         }
-    }, [deleteRun, routine]);
+    }, [deleteRun, runnableObject]);
 
-    const items = useMemo(() => runOptions.map((data: ListMenuItemData<Run>, index) => {
+    const items = useMemo(() => runOptions.map((data: ListMenuItemData<RunProject | RunRoutine>, index) => {
         const itemText = <ListItemText primary={data.label} />;
         return (
             <ListItem button onClick={() => { onSelect(data.value); handleClose(); }} key={index}>

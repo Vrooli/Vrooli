@@ -1,7 +1,6 @@
 import { useLocation } from '@shared/route';
-import { emailLogInMutation } from 'graphql/mutation';
-import { useMutation } from '@apollo/client';
-import { APP_LINKS } from '@shared/consts';
+import { useMutation } from 'graphql/hooks';
+import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
     Button,
@@ -12,16 +11,14 @@ import {
     Typography
 } from '@mui/material';
 import { Forms, PubSub, useReactSearch } from 'utils';
-import { emailLogInForm } from '@shared/validation';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { emailLogInVariables, emailLogIn_emailLogIn } from 'graphql/generated/emailLogIn';
 import { LogInFormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { PasswordTextField, SnackSeverity } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
-import { errorToCode, hasErrorCode } from 'graphql/utils';
+import { errorToCode, hasErrorCode, mutationWrapper } from 'graphql/utils';
+import { authEndpoint } from 'graphql/endpoints';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -33,7 +30,7 @@ export const LogInForm = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn, { loading }] = useMutation(emailLogInMutation);  
+    const [emailLogIn, { loading }] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(...authEndpoint.emailLogIn);  
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);
@@ -45,7 +42,7 @@ export const LogInForm = ({
         },
         validationSchema: emailLogInForm,
         onSubmit: (values) => {
-            mutationWrapper<emailLogIn_emailLogIn, emailLogInVariables>({
+            mutationWrapper<Session, EmailLogInInput>({
                 mutation: emailLogIn,
                 input: { ...values, verificationCode },
                 successCondition: (data) => data !== null,

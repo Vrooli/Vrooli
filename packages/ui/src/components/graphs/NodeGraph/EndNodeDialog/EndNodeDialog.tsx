@@ -1,15 +1,16 @@
 import { EndNodeDialogProps } from '../types';
 import { Checkbox, Dialog, FormControlLabel, Grid, TextField, Tooltip, Typography, useTheme } from '@mui/material';
-import { getTranslation, updateTranslationFields } from 'utils';
-import { nodeEndForm as validationSchema } from '@shared/validation';
+import { useTranslatedFields } from 'utils';
+import { nodeEndValidation, nodeTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { DialogTitle } from 'components/dialogs';
 import Markdown from 'markdown-to-jsx';
 import { useCallback } from 'react';
-import { Node } from 'types';
-import { uuid } from '@shared/uuid';
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { GridSubmitButtons } from 'components/buttons';
 import { linkColors } from 'styles';
+import { useTranslation } from 'react-i18next';
+import { GqlModelType, Node } from '@shared/consts';
 
 const titleAria = 'end-node-dialog-title';
 
@@ -22,30 +23,44 @@ export const EndNodeDialog = ({
     zIndex,
 }: EndNodeDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const formik = useFormik({
         initialValues: {
-            title: !getTranslation(node, [language], false).title ? 'End' : getTranslation(node, [language], false).title as string,
-            description: getTranslation(node, [language], false).description ?? '',
-            wasSuccessful: node.data?.wasSuccessful ?? true,
+            translationsUpdate: node.translations ?? [{
+                id: DUMMY_ID,
+                language,
+                name: 'End',
+                description: '',
+            }],
+            wasSuccessful: node.end?.wasSuccessful ?? true,
         },
         enableReinitialize: true,
-        validationSchema,
+        validationSchema: nodeEndValidation.update(),
         onSubmit: (values) => {
-            const newTranslations = updateTranslationFields(node, language, { 
-                title: values.title,
-                description: values.description,
-            });
             handleClose({
                 ...node,
-                translations: newTranslations as Node['translations'],
-                data: {
+                end: {
+                    id: node.end?.id ?? uuid(),
+                    node: { id: node.id } as Node,
+                    suggestedNextRoutineVersions: [],
                     __typename: 'NodeEnd',
-                    id: node.data?.id ?? uuid(),
                     wasSuccessful: values.wasSuccessful,
-                }
+                },
+                translations: values.translationsUpdate.map(t => ({
+                    ...t,
+                    id: t.id === DUMMY_ID ? uuid() : t.id,
+                })),
             })
         },
+    });
+
+    const translations = useTranslatedFields({
+        fields: ['description', 'name'],
+        formik,
+        formikField: 'translationsUpdate',
+        language,
+        validationSchema: nodeTranslationValidation.update(),
     });
 
     const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
@@ -68,7 +83,7 @@ export const EndNodeDialog = ({
             <DialogTitle
                 ariaLabel={titleAria}
                 onClose={handleCancel}
-                title={isEditing ? "Edit End Node" : 'End Node Information'}
+                title={t(`common:${isEditing ? 'NodeEndEdit' : 'NodeEndInfo'}`, { lng: language })}
             />
             <form onSubmit={formik.handleSubmit}>
                 <Grid container spacing={2} sx={{ padding: 2, ...linkColors(palette) }}>
@@ -79,18 +94,18 @@ export const EndNodeDialog = ({
                                 <TextField
                                     autoFocus
                                     fullWidth
-                                    id="title"
-                                    name="title"
-                                    value={formik.values.title}
+                                    id="name"
+                                    name="name"
+                                    value={translations.name}
                                     multiline
                                     maxRows={3}
                                     onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
-                                    error={formik.touched.title && Boolean(formik.errors.title)}
-                                    helperText={formik.touched.title && formik.errors.title}
+                                    error={translations.touchedName && Boolean(translations.errorName)}
+                                    helperText={translations.touchedName && translations.errorName}
                                 />
                             ) : (
-                                <Markdown>{formik.values.title}</Markdown>
+                                <Markdown>{translations.name}</Markdown>
                             )
                         }
                     </Grid>
@@ -102,16 +117,16 @@ export const EndNodeDialog = ({
                                     fullWidth
                                     id="description"
                                     name="description"
-                                    value={formik.values.description}
+                                    value={translations.description}
                                     multiline
                                     maxRows={3}
                                     onBlur={formik.handleBlur}
                                     onChange={formik.handleChange}
-                                    error={formik.touched.description && Boolean(formik.errors.description)}
-                                    helperText={formik.touched.description && formik.errors.description}
+                                    error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                                    helperText={translations.touchedDescription && translations.errorDescription}
                                 />
                             ) : (
-                                <Markdown>{formik.values.description}</Markdown>
+                                <Markdown>{translations.description}</Markdown>
                             )
                         }
                     </Grid>
@@ -134,7 +149,7 @@ export const EndNodeDialog = ({
                         </Tooltip>
                     </Grid>
                     {isEditing && <GridSubmitButtons
-                        errors={formik.errors}
+                        errors={translations.errorsWithTranslations}
                         isCreate={false}
                         loading={formik.isSubmitting}
                         onCancel={handleCancel}

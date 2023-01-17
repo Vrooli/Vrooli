@@ -16,14 +16,13 @@ import { Box, CircularProgress } from '@mui/material';
 const {
     HomePage,
     HistoryPage,
-    LearnPage,
-    ResearchPage,
-    DevelopPage,
-} = lazily(() => import('./pages/dashboard'));
+    CreatePage,
+    NotificationsPage,
+    SettingsPage,
+} = lazily(() => import('./pages/main'));
 const { TutorialPage, WelcomePage } = lazily(() => import('./pages/tutorial'));
-const { SettingsPage } = lazily(() => import('./pages/SettingsPage/SettingsPage'));
 const { StartPage } = lazily(() => import('./pages/StartPage/StartPage'));
-const { StatsPage } = lazily(() => import('./pages/dashboard/StatsPage/StatsPage'));
+const { StatsPage } = lazily(() => import('./pages/StatsPage/StatsPage'));
 const { SearchPage } = lazily(() => import('./pages/SearchPage/SearchPage'));
 const { HistorySearchPage } = lazily(() => import('./pages/HistorySearchPage/HistorySearchPage'));
 const { DevelopSearchPage } = lazily(() => import('./pages/DevelopSearchPage/DevelopSearchPage'));
@@ -50,8 +49,8 @@ export const Routes = (props: CommonProps) => {
         <>
             <ScrollToTop />
             <Switch>
-                {/* ========= #region Dashboard Routes ========= */}
-                {/* Customizable pages available to logged in users */}
+                {/* ========= #region Main Routes ========= */}
+                {/* Pages for each of the bottom navigation items */}
                 <Route
                     path={LINKS.Home}
                     sitemapIndex
@@ -65,55 +64,6 @@ export const Routes = (props: CommonProps) => {
                     </Suspense>
                 </Route>
                 <Route
-                    path={LINKS.History}
-                    sitemapIndex={false}
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('History')} mustBeLoggedIn={true} {...props}>
-                            <HistoryPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={LINKS.Learn}
-                    sitemapIndex
-                    priority={0.8}
-                    changeFreq="weekly"
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Learn')} {...props}>
-                            <LearnPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={LINKS.Research}
-                    sitemapIndex
-                    priority={0.8}
-                    changeFreq="weekly"
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Research')} {...props}>
-                            <ResearchPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                <Route
-                    path={LINKS.Develop}
-                    sitemapIndex
-                    priority={0.8}
-                    changeFreq="weekly"
-                >
-                    <Suspense fallback={Fallback}>
-                        <Page title={title('Develop')} {...props}>
-                            <DevelopPage session={props.session} />
-                        </Page>
-                    </Suspense>
-                </Route>
-                {/* ========= #endregion Dashboard Routes ========= */}
-
-                {/* ========= #region Search Routes ========= */}
-                <Route
                     path={`${LINKS.Search}/:params*`}
                     sitemapIndex
                     priority={0.4}
@@ -122,6 +72,41 @@ export const Routes = (props: CommonProps) => {
                     <Suspense fallback={Fallback}>
                         <Page {...props}>
                             <SearchPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={LINKS.Create}
+                    sitemapIndex
+                    priority={0.4}
+                    changeFreq="monthly"
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <CreatePage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                <Route
+                    path={LINKS.Notifications}
+                    sitemapIndex
+                    priority={0.4}
+                    changeFreq="monthly"
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page {...props}>
+                            <NotificationsPage session={props.session} />
+                        </Page>
+                    </Suspense>
+                </Route>
+                {/* ========= #endregion Dashboard Routes ========= */}
+                <Route
+                    path={LINKS.History}
+                    sitemapIndex={false}
+                >
+                    <Suspense fallback={Fallback}>
+                        <Page title={title('History')} mustBeLoggedIn={true} {...props}>
+                            <HistoryPage session={props.session} />
                         </Page>
                     </Suspense>
                 </Route>
@@ -145,7 +130,6 @@ export const Routes = (props: CommonProps) => {
                         </Page>
                     </Suspense>
                 </Route>
-                {/* ========= #endregion Search Routes ========= */}
 
                 {/* ========= #region Views Routes ========= */}
                 {/* Views for main Vrooli components (i.e. organizations, projects, routines, standards, users) */}

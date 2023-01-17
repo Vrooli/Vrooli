@@ -4,5 +4,4 @@ export * from './logger';
 export * from './moderate';
 export * from './reputation';
 export * from './subscriber';
-export * from './transfer';
 export * from './trigger';

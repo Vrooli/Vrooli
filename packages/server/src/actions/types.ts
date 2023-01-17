@@ -1,20 +1,11 @@
 import { Request } from "express";
-import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, FindByVersionInput, ForkInput, SessionUser, VisibilityType } from "../schema/types";
+import { Count, DeleteManyInput, DeleteOneInput, FindByIdInput, FindByIdOrHandleInput, CopyInput, SessionUser, VisibilityType, GqlModelType, FindVersionInput } from '@shared/consts';
 import { PrismaType, RecursivePartial } from "../types";
-import { AniedModelLogic, GraphQLModelType } from "../models/types";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-
-export type CopyHelperProps<GraphQLModel extends { [x: string]: any}> = {
-    info: GraphQLInfo | PartialGraphQLInfo;
-    input: ForkInput;
-    model: AniedModelLogic<GraphQLModel>;
-    prisma: PrismaType;
-    req: Request;
-}
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
-    objectType: GraphQLModelType;
+    objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: Request;
     where?: { [x: string]: any };
@@ -24,7 +15,7 @@ export type CountHelperProps<CountInput extends CountInputBase> = {
 export type CreateHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
-    objectType: GraphQLModelType;
+    objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: Request;
 }
@@ -32,14 +23,14 @@ export type CreateHelperProps = {
 export interface CUDHelperInput {
     createMany?: { [x: string]: any }[] | null | undefined;
     deleteMany?: string[] | null | undefined,
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     partialInfo: PartialGraphQLInfo,
     prisma: PrismaType,
     updateMany?: { [x: string]: any }[] | null | undefined,
     userData: SessionUser,
 }
 
-export interface CUDResult<GraphQLObject extends { [x: string]: any}> {
+export interface CUDResult<GraphQLObject extends { [x: string]: any }> {
     created?: RecursivePartial<GraphQLObject>[],
     updated?: RecursivePartial<GraphQLObject>[],
     deleted?: Count,
@@ -47,27 +38,29 @@ export interface CUDResult<GraphQLObject extends { [x: string]: any}> {
 
 export type DeleteManyHelperProps = {
     input: DeleteManyInput;
-    objectType: GraphQLModelType;
+    objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: Request;
 }
 
 export type DeleteOneHelperProps = {
-    input: DeleteOneInput;
-    objectType: GraphQLModelType;
+    input: Pick<DeleteOneInput, 'id'>;
+    objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: Request;
 }
 
-export type ForkHelperProps = {
+export type CopyHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo,
-    input: ForkInput,
-    objectType: GraphQLModelType,
+    input: CopyInput,
+    objectType: `${GqlModelType}`,
     prisma: PrismaType,
     req: Request;
 }
 
-export type ReadManyHelperProps<GQLObject extends { [x: string]: any}> = {
+export type ReadManyHelperProps<
+    Input extends { [x: string]: any }
+> = {
     additionalQueries?: { [x: string]: any };
     /**
      * Decides if queried data should be called. Defaults to true. 
@@ -76,16 +69,22 @@ export type ReadManyHelperProps<GQLObject extends { [x: string]: any}> = {
      */
     addSupplemental?: boolean;
     info: GraphQLInfo | PartialGraphQLInfo;
-    input: any;
-    objectType: GraphQLModelType;
+    input: Input;
+    objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: { languages: string[], users?: SessionUser[] };
 }
 
-export type ReadOneHelperProps<GQLObject extends { [x: string]: any}> = {
+type FindUniqueInput = {
+    id?: string | null | undefined;
+    handle?: string | null | undefined;
+    handleRoot?: string | null | undefined;
+    idRoot?: string | null | undefined;
+}
+export type ReadOneHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
-    input: FindByIdInput | FindByIdOrHandleInput | FindByVersionInput;
-    objectType: GraphQLModelType;
+    input: FindUniqueInput;
+    objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: { languages: string[], users?: SessionUser[] };
 }
@@ -102,7 +101,7 @@ export type RelBuilderHelperProps<
     isOneToOne: IsOneToOne,
     isRequired: IsRequired,
     linkVersion?: boolean,
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     prisma: PrismaType,
     relationshipName: RelName,
     userData: SessionUser,
@@ -111,7 +110,7 @@ export type RelBuilderHelperProps<
 export type UpdateHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
-    objectType: GraphQLModelType;
+    objectType: `${GqlModelType}`;
     prisma: PrismaType;
     req: Request;
     where?: (obj: any) => { [x: string]: any };

@@ -6,7 +6,7 @@ import {
 import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink, useWindowSize } from 'utils';
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
 import { useLocation } from '@shared/route';
-import { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
 import { APP_LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
@@ -35,9 +35,13 @@ export const NavList = ({
     // Handle account menu
     const [accountMenuAnchor, setAccountMenuAnchor] = useState<any>(null);
     const openAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
+        ev.stopPropagation();
         setAccountMenuAnchor(ev.currentTarget)
     }, [setAccountMenuAnchor]);
-    const closeAccountMenu = useCallback(() => setAccountMenuAnchor(null), []);
+    const closeAccountMenu = useCallback((ev: React.MouseEvent<any>) => {
+        ev.stopPropagation();
+        setAccountMenuAnchor(null)
+    }, []);
 
     return (
         <Container sx={{

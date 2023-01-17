@@ -20,13 +20,13 @@
         "start-development": "yarn build && nodemon --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "start-production": "yarn build && node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
         "prisma-generate": "prisma generate",
-        "graphql-generate": "graphql-codegen && mv generatedTypes.ts src/schema/types.ts"
+        "graphql-generate": "graphql-codegen --config codegen.yml && sed -i 's/__typename?:/__typename:/g' generatedTypes.ts && mv generatedTypes.ts ../shared/consts/src/graphqlTypes.ts"
     },
     "dependencies": {
         "@blockfrost/blockfrost-js": "^4.1.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
-        "@prisma/client": "4.7.0",
+        "@prisma/client": "^4.7.1",
         "@shared/consts": "*",
         "@shared/translations": "*",
         "@shared/utils": "*",
@@ -55,8 +55,9 @@
         "winston": "^3.7.2"
     },
     "devDependencies": {
-        "@graphql-codegen/cli": "^2.3.0",
-        "@graphql-codegen/typescript": "^2.6.0",
+        "@graphql-codegen/cli": "^2.16.1",
+        "@graphql-codegen/typescript": "^2.8.5",
+        "@graphql-codegen/typescript-resolvers": "^2.7.10",
         "@types/bcrypt": "^5.0.0",
         "@types/bull": "^3.15.5",
         "@types/cookie-parser": "^1.4.2",

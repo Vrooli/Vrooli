@@ -1,7 +1,7 @@
+import { GqlModelType } from "@shared/consts";
 import { isRelationshipArray, isRelationshipObject } from "../builders";
 import { CustomError } from "../events";
 import { ObjectMap } from "../models";
-import { GraphQLModelType, Validator } from "../models/types";
 import { hasProfanity } from "../utils/censor";
 
 /**
@@ -12,15 +12,16 @@ import { hasProfanity } from "../utils/censor";
  * @param objectType The type of the input object
  * @returns An object with every field that must be checked for profanity
  */
-const collectProfanities = (input: { [x: string]: any }, objectType?: GraphQLModelType): { [x: string]: string[] } => {
+const collectProfanities = (input: { [x: string]: any }, objectType?: `${GqlModelType}`): { [x: string]: string[] } => {
     // Initialize result
     const result: { [x: string]: string[] } = {};
     // Handle base case
-    // Get current object's validator
-    const validator: Validator<any, any, any, any, any, any, any, any> | undefined = objectType ? ObjectMap[objectType]?.validate : undefined;
+    // Get current object's formatter and validator
+    const format = objectType ? ObjectMap[objectType]?.format : undefined;
+    const validate = objectType ? ObjectMap[objectType]?.validate : undefined;
     // If validator specifies profanityFields, add them to the result
-    if (validator?.profanityFields) {
-        for (const field of validator.profanityFields) {
+    if (validate?.profanityFields) {
+        for (const field of validate.profanityFields) {
             if (input[field]) result[field] = result[field] ? [...result[field], input[field]] : [input[field]];
         }
     }
@@ -46,12 +47,12 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: GraphQLMod
     // Handle recursive case
     for (const key in input) {
         // Find next objectType, if any
-        let nextObjectType: GraphQLModelType | undefined;
+        let nextObjectType: `${GqlModelType}` | undefined;
         // Strip "Create" and "Update" from the end of the key
         const strippedKey = key.endsWith('Create') || key.endsWith('Update') ? key.slice(0, -6) : key;
         // Check if stripped key is in validator's validateMap
-        if (typeof validator?.validateMap?.[strippedKey] === 'string')
-            nextObjectType = validator?.validateMap?.[strippedKey] as GraphQLModelType;
+        if (typeof format?.gqlRelMap?.[strippedKey] === 'string')
+            nextObjectType = format?.gqlRelMap?.[strippedKey] as GqlModelType;
         // Now we can validate translations objects
         // Check for array
         if (isRelationshipArray(input[key])) {
@@ -86,7 +87,7 @@ const collectProfanities = (input: { [x: string]: any }, objectType?: GraphQLMod
  * @params objectType The type of the object
  * @params languages The languages to use for error messages
  */
-export const profanityCheck = (input: { [x: string]: any }[], objectType: GraphQLModelType | undefined, languages: string[]): void => {
+export const profanityCheck = (input: { [x: string]: any }[], objectType: `${GqlModelType}` | undefined, languages: string[]): void => {
     // Find all fields which must be checked for profanity
     const fieldsToCheck: { [x: string]: string[] } = {};
     for (const item of input) {

@@ -1,6 +1,6 @@
 import { CustomError } from '../events/error';
 import fs from 'fs';
-import { isObject } from '@shared/utils';
+import { isObject, exists } from '@shared/utils';
 import pkg from 'lodash';
 const { flatten } = pkg;
 
@@ -14,7 +14,7 @@ const profanityRegex = new RegExp(profanity.map(word => `(?=\\b)${word}(?=\\b)`)
  * @returns True if any bad words were found
  */
 export const hasProfanity = (...text: (string | null | undefined)[]): boolean => {
-    return text.some(t => t !== null && t !== undefined && t.search(profanityRegex) !== -1);
+    return text.some(t => exists(t) && t.search(profanityRegex) !== -1);
 }
 
 /**

@@ -1,6 +1,6 @@
 import { Stack } from "@mui/material";
+import { Comment } from "@shared/consts";
 import { useCallback, useMemo, useState } from "react";
-import { Comment } from "types";
 import { updateArray } from "utils";
 import { CommentConnector } from "../CommentConnector/CommentConnector";
 import { CommentThreadItem } from "../CommentThreadItem/CommentThreadItem";
@@ -70,7 +70,7 @@ export const CommentThread = ({
             {/* Comment connector */}
             <CommentConnector
                 isOpen={isOpen}
-                objectType={data.comment.commentedOn.__typename}
+                parentType={data.comment.owner?.__typename ?? 'User'}
                 onToggle={() => setIsOpen(!isOpen)}
             />
             {/* Comment and child comments */}

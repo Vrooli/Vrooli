@@ -1,3 +1,5 @@
+import { exists } from "@shared/utils/src";
+
 type Primitive = string | number | boolean;
 type ParseSearchParamsResult = { [x: string]: Primitive | Primitive[] | ParseSearchParamsResult };
 
@@ -59,7 +61,7 @@ export const stringifySearchParams = (params: { [key: string]: any }): string =>
     const keys = Object.keys(params);
     if (keys.length === 0) return '';
     // Filter out any keys which are associated with undefined or null values
-    const filteredKeys = keys.filter(key => params[key] !== undefined && params[key] !== null);
+    const filteredKeys = keys.filter(key => exists(params[key]));
     const encodedParams = filteredKeys.map(key => encodeURIComponent(key) + '=' + encodeURIComponent(JSON.stringify(params[key]))).join('&');
     return '?' + encodedParams;
 }

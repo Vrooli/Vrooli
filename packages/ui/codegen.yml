@@ -1,0 +1,7 @@
+schema: http://localhost:5329/api/v2
+documents: src/graphql/**/*.ts
+generates:
+    ./src/graphql/generated/:
+        preset: client
+        plugins: []
+# emitLegacyCommonJSImports: true

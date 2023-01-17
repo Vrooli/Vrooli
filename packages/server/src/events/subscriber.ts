@@ -1,7 +1,8 @@
-import { getDelegator, getValidator } from "../getters";
-import { SessionUser } from "../schema/types";
+import { getLogic } from "../getters";
+import { SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
 import { CustomError } from "./error";
+import { subscriberMapper } from "../models";
 
 export type SubscribableObject = 'Organization' | 'Project' | 'Routine' | 'Standard' | 'User'; //'Api' | 'Note' | 'Organization' | 'Project' | 'Routine' | 'SmartContract' | 'Standard' | 'User';
 
@@ -29,23 +30,21 @@ export const Subscriber = (prisma: PrismaType) => ({
         silent?: boolean
     ) => {
         // Find the object and its owner
-        const validator = getValidator(object.__typename, userData.languages, 'Transfer.request-object');
-        const prismaDelegate = getDelegator(object.__typename, prisma, userData.languages, 'Transfer.request-object');
-        const permissionData = await prismaDelegate.findUnique({
+        const { delegate, validate } = getLogic(['delegate', 'validate'], object.__typename, userData.languages, 'Transfer.request-object');
+        const permissionData = await delegate(prisma).findUnique({
             where: { id: object.id },
-            select: validator.permissionsSelect,
+            select: validate.permissionsSelect,
         });
-        const isPublic = permissionData && validator.isPublic(permissionData, userData.languages);
-        const isDeleted = permissionData && validator.isDeleted(permissionData, userData.languages);
+        const isPublic = permissionData && validate.isPublic(permissionData, userData.languages);
+        const isDeleted = permissionData && validate.isDeleted(permissionData, userData.languages);
         // Don't subscribe if object is private or deleted
         if (!isPublic || isDeleted)
             throw new CustomError('0332', 'Unauthorized', userData.languages);
         // Create subscription
         await prisma.notification_subscription.create({
             data: {
-                objectType: object.__typename,
-                objectId: object.id,
-                user: { connect: { id: userData.id } },
+                subscriber: { connect: { id: userData.id } },
+                [subscriberMapper[object.__typename]]: { connect: { id: object.id } },
                 silent,
             }
         });
@@ -63,13 +62,13 @@ export const Subscriber = (prisma: PrismaType) => ({
         const subscription = await prisma.notification_subscription.findUnique({
             where: { id: subscriptionId },
             select: {
-                userId: true,
+                subscriberId: true,
             }
         });
         // Make sure the subscription exists and is owned by the user
         if (!subscription)
             throw new CustomError('0333', 'NotFound', userData.languages);
-        if (subscription.userId !== userData.id)
+        if (subscription.subscriberId !== userData.id)
             throw new CustomError('0334', 'Unauthorized', userData.languages);
         // Delete subscription
         await prisma.notification_subscription.delete({
@@ -91,14 +90,14 @@ export const Subscriber = (prisma: PrismaType) => ({
         const subscription = await prisma.notification_subscription.findUnique({
             where: { id: subscriptionId },
             select: {
-                userId: true,
+                subscriberId: true,
                 silent: true,
             }
         });
         // Make sure the subscription exists and is owned by the user
         if (!subscription)
             throw new CustomError('0335', 'NotFound', userData.languages);
-        if (subscription.userId !== userData.id)
+        if (subscription.subscriberId !== userData.id)
             throw new CustomError('0336', 'Unauthorized', userData.languages);
         // Update subscription if silent status has changed
         if (subscription.silent !== silent) {

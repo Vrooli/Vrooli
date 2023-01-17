@@ -19,11 +19,10 @@ import {
 } from '@mui/material'
 import { Dropzone, HelpButton, JsonInput, LanguageInput, MarkdownInput, QuantityBox, Selector, TagSelector } from 'components'
 import { DropzoneProps, QuantityBoxProps, SelectorProps } from 'components/inputs/types'
-import { CheckboxProps, FieldData, JSONProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
+import { CheckboxProps, FieldData, JsonProps, MarkdownProps, RadioProps, SliderProps, SwitchProps, TextFieldProps } from 'forms/types'
 import { TagShape, updateArray } from 'utils'
-import { InputType } from '@shared/consts';
+import { InputType, Session } from '@shared/consts';
 import { isObject } from '@shared/utils';
-import { Session } from 'types'
 import { CopyIcon } from '@shared/icons'
 
 /**
@@ -130,7 +129,7 @@ export const toJSON = ({
     formik,
     index,
 }: InputGeneratorProps): React.ReactElement => {
-    const props = fieldData.props as JSONProps;
+    const props = fieldData.props as JsonProps;
     return (
         <JsonInput
             id={fieldData.fieldName}

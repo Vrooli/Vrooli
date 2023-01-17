@@ -1,4 +1,4 @@
-import { TimeFrame } from "../schema/types";
+import { TimeFrame } from '@shared/consts';
 
 /**
  * Converts time frame to Prisma "where" query

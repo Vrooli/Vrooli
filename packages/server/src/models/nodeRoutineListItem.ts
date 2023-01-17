@@ -1,69 +1,75 @@
-import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput } from "../schema/types";
+import { NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { relBuilderHelper } from "../actions";
-import { bestLabel, translationRelationshipBuilder } from "../utils";
-import { padSelect } from "../builders";
+import { bestLabel, translationShapeHelper } from "../utils";
+import { noNull, padSelect, shapeHelper } from "../builders";
 import { RoutineModel } from "./routine";
+import { SelectWrap } from "../builders/types";
+import { nodeRoutineListItemValidation } from '@shared/validation';
 
-const formatter = (): Formatter<NodeRoutineListItem, any> => ({
-    relationshipMap: {
-        __typename: 'NodeRoutineListItem',
-        routineVersion: 'Routine',
+const __typename = 'NodeRoutineListItem' as const;
+
+const suppFields = [] as const;
+export const NodeRoutineListItemModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeRoutineListItemCreateInput,
+    GqlUpdate: NodeRoutineListItemUpdateInput,
+    GqlModel: NodeRoutineListItem,
+    GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
+    PrismaCreate: Prisma.node_routine_list_itemUpsertArgs['create'],
+    PrismaUpdate: Prisma.node_routine_list_itemUpsertArgs['update'],
+    PrismaModel: Prisma.node_routine_list_itemGetPayload<SelectWrap<Prisma.node_routine_list_itemSelect>>,
+    PrismaSelect: Prisma.node_routine_list_itemSelect,
+    PrismaWhere: Prisma.node_routine_list_itemWhereInput,
+}, typeof suppFields> = ({
+    __typename,
+    delegate: (prisma: PrismaType) => prisma.node_routine_list_item,
+    display: {
+        select: () => ({
+            id: true,
+            translations: padSelect({ id: true, name: true }),
+            routineVersion: padSelect(RoutineModel.display.select),
+        }),
+        label: (select, languages) => {
+            // Prefer item translations over routineVersion's
+            const itemLabel = bestLabel(select.translations, 'name', languages);
+            if (itemLabel.length > 0) return itemLabel;
+            return RoutineModel.display.label(select.routineVersion as any, languages);
+        }
     },
-})
-
-const mutater = (): Mutater<
-    NodeRoutineListItem,
-    false,
-    false,
-    { graphql: NodeRoutineListItemCreateInput, db: Prisma.node_routine_list_itemCreateWithoutListInput },
-    { graphql: NodeRoutineListItemUpdateInput, db: Prisma.node_routine_list_itemUpdateWithoutListInput }
-> => ({
-    shape: {
-        relCreate: async ({ data, prisma, userData }) => {
-            return {
+    format: {
+        gqlRelMap: {
+            __typename,
+            routineVersion: 'RoutineVersion',
+        },
+        prismaRelMap: {
+            __typename,
+            list: 'NodeRoutineList',
+            routineVersion: 'RoutineVersion',
+        },
+        countFields: {},
+    },
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
                 id: data.id,
                 index: data.index,
-                isOptional: data.isOptional ?? false,
-                routineVersion: await relBuilderHelper({ data, isAdd: true, isOneToOne: true, isRequired: true, linkVersion: true, relationshipName: 'routineVersion', objectType: 'Routine', prisma, userData }),
-                translations: await translationRelationshipBuilder(prisma, userData, data, true),
-            }
+                isOptional: noNull(data.isOptional),
+                ...(await shapeHelper({ relation: 'list', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeRoutineList', parentRelationshipName: 'list', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLists', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
+            update: async ({ data, prisma, userData }) => ({
+                index: noNull(data.index),
+                isOptional: noNull(data.isOptional),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Update'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'nodeLists', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            }),
         },
-        relUpdate: async ({ data, prisma, userData }) => {
-            return {
-                index: data.index ?? undefined,
-                isOptional: data.isOptional ?? undefined,
-                routineVersion: await relBuilderHelper({ data, isAdd: false, isOneToOne: true, isRequired: false, linkVersion: true, relationshipName: 'routineVersion', objectType: 'Routine', prisma, userData }),
-                translations: await translationRelationshipBuilder(prisma, userData, data, false),
-            }
-        },
+        yup: nodeRoutineListItemValidation,
     },
-    yup: {},
-})
-
-const displayer = (): Displayer<
-    Prisma.node_routine_list_itemSelect,
-    Prisma.node_routine_list_itemGetPayload<{ select: { [K in keyof Required<Prisma.node_routine_list_itemSelect>]: true } }>
-> => ({
-    select: () => ({
-        id: true,
-        translations: padSelect({ id: true, title: true }),
-        routineVersion: padSelect(RoutineModel.display.select),
-    }),
-    label: (select, languages) => {
-        // Prefer item translations over routineVersion's
-        const itemLabel = bestLabel(select.translations, 'title', languages);
-        if (itemLabel.length > 0) return itemLabel;
-        return RoutineModel.display.label(select.routineVersion as any, languages);
-    }
-})
-
-export const NodeRoutineListItemModel = ({
-    delegate: (prisma: PrismaType) => prisma.node_routine_list_item,
-    display: displayer(),
-    format: formatter(),
-    mutate: mutater(),
-    type: 'NodeRoutineListItem' as GraphQLModelType,
 })

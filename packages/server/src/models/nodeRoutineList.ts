@@ -1,60 +1,63 @@
-import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from "../schema/types";
+import { NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { relBuilderHelper } from "../actions";
-import { padSelect } from "../builders";
+import { noNull, padSelect, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
+import { SelectWrap } from "../builders/types";
+import { nodeRoutineListValidation } from '@shared/validation';
 
-const formatter = (): Formatter<NodeRoutineList, any> => ({
-    relationshipMap: {
-        __typename: 'NodeRoutineList',
-        routines: {
-            __typename: 'NodeRoutineListItem',
-            routine: 'Routine',
-        },
-    },
-})
+const __typename = 'NodeRoutineList' as const;
 
-const mutater = (): Mutater<
-    NodeRoutineList,
-    false,
-    false,
-    { graphql: NodeRoutineListCreateInput, db: Prisma.node_routine_listCreateWithoutNodeInput },
-    { graphql: NodeRoutineListUpdateInput, db: Prisma.node_routine_listUpdateWithoutNodeInput }
-> => ({
-    shape: {
-        relCreate: async ({ data, prisma, userData }) => {
-            return {
-                id: data.id,
-                isOrdered: data.isOrdered ?? undefined,
-                isOptional: data.isOptional ?? undefined,
-                routines: await relBuilderHelper({ data, isAdd: true, isRequired: false, isOneToOne: false, relationshipName: 'routines', objectType: 'NodeRoutineListItem', prisma, userData }),
-            }
-        },
-        relUpdate: async ({ data, prisma, userData }) => {
-            return {
-                isOrdered: data.isOrdered ?? undefined,
-                isOptional: data.isOptional ?? undefined,
-                routines: await relBuilderHelper({ data, isAdd: false, isOneToOne: false, isRequired: false, relationshipName: 'routines', objectType: 'NodeRoutineListItem', prisma, userData }),
-            }
-        },
-    },
-    yup: {},
-})
-
-const displayer = (): Displayer<
-    Prisma.node_routine_listSelect,
-    Prisma.node_routine_listGetPayload<{ select: { [K in keyof Required<Prisma.node_routine_listSelect>]: true } }>
-> => ({
-    select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
-    label: (select, languages) => NodeModel.display.label(select.node as any, languages),
-})
-
-export const NodeRoutineListModel = ({
+const suppFields = [] as const;
+export const NodeRoutineListModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeRoutineListCreateInput,
+    GqlUpdate: NodeRoutineListUpdateInput,
+    GqlModel: NodeRoutineList,
+    GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
+    PrismaCreate: Prisma.node_routine_listUpsertArgs['create'],
+    PrismaUpdate: Prisma.node_routine_listUpsertArgs['update'],
+    PrismaModel: Prisma.node_routine_listGetPayload<SelectWrap<Prisma.node_routine_listSelect>>,
+    PrismaSelect: Prisma.node_routine_listSelect,
+    PrismaWhere: Prisma.node_routine_listWhereInput,
+}, typeof suppFields> = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node_routine_list,
-    display: displayer(),
-    format: formatter(),
-    mutate: mutater(),
-    type: 'NodeRoutineList' as GraphQLModelType,
+    display: {
+        select: () => ({ id: true, node: padSelect(NodeModel.display.select) }),
+        label: (select, languages) => NodeModel.display.label(select.node as any, languages),
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            items: 'NodeRoutineListItem',
+        },
+        prismaRelMap: {
+            __typename,
+            node: 'Node',
+            items: 'NodeRoutineListItem',
+        },
+        countFields: {},
+    },
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                isOrdered: noNull(data.isOrdered),
+                isOptional: noNull(data.isOptional),
+                ...(await shapeHelper({ relation: 'node', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'Node', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'items', relTypes: ['Create'], isOneToOne: false, isRequired: false, objectType: 'NodeRoutineListItem', parentRelationshipName: 'list', data, prisma, userData })),
+            }),
+            update: async ({ data, prisma, userData }) => ({
+                isOrdered: noNull(data.isOrdered),
+                isOptional: noNull(data.isOptional),
+                ...(await shapeHelper({ relation: 'items', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeRoutineListItem', parentRelationshipName: 'list', data, prisma, userData })),
+            }),
+        },
+        yup: nodeRoutineListValidation,
+    },
 })

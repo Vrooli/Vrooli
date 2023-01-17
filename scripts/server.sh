@@ -16,7 +16,7 @@ fi
 PRISMA_SCHEMA_FILE="src/db/schema.prisma"
 
 # TODO shouldn't need these 2 lines, but for some reason we do. Otherwise, prisma not found
-yarn global add prisma@4.7.0
+yarn global add prisma@4.7.1
 yarn global bin
 
 cd ${PROJECT_DIR}/packages/server

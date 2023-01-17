@@ -110,7 +110,7 @@ export function SearchPage({
     }, [tabIndex]);
 
     const onAddClick = useCallback((ev: any) => {
-        const addUrl = `${getObjectUrlBase({ __typename: searchType as string })}/add`
+        const addUrl = `${getObjectUrlBase({ type: searchType })}/add`
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
             PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: SnackSeverity.Error });

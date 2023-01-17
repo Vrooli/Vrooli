@@ -2,14 +2,14 @@ import { Box, ListItemText, Stack, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarButtonProps } from '../types';
 import { multiLineEllipsis } from 'styles';
-import { documentNodeWrapper } from 'graphql/utils/graphqlWrapper';
-import { starVariables, star_star } from 'graphql/generated/star';
-import { starMutation } from 'graphql/mutation';
 import { uuidValidate } from '@shared/uuid';
 import { StarFilledIcon, StarOutlineIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
 import { PubSub } from 'utils';
 import { SnackSeverity } from 'components/dialogs';
+import { documentNodeWrapper } from 'graphql/utils';
+import { StarInput, Success } from '@shared/consts';
+import { starEndpoint } from 'graphql/endpoints';
 
 export const StarButton = ({
     disabled = false,
@@ -48,9 +48,9 @@ export const StarButton = ({
         // If objectId is not valid, return
         if (!uuidValidate(objectId)) return;
         // Send star mutation
-        documentNodeWrapper<star_star, starVariables>({
-            node: starMutation,
-            input: { isStar, starFor, forId: objectId },
+        documentNodeWrapper<Success, StarInput>({
+            node: starEndpoint.star[0],
+            input: { isStar, starFor, forConnect: objectId },
             onSuccess: () => { 
                 if (onChange) onChange(isStar, event) 
                 PubSub.get().publishSnack({ messageKey: isStar ? 'FavoritesAdded' : 'FavoritesRemoved', severity: SnackSeverity.Success });

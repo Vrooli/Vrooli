@@ -1,12 +1,12 @@
 import { Box, Tooltip, Typography } from '@mui/material';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { EndNodeProps } from '../types';
 import { calculateNodeSize, DraggableNode, EndNodeDialog, NodeContextMenu, NodeWidth } from '../..';
 import { nodeLabel } from '../styles';
 import { noSelect } from 'styles';
 import { CSSProperties } from '@mui/styles';
 import { BuildAction, firstString, usePress } from 'utils';
-import { NodeEnd } from 'types';
+import { Node, NodeEnd } from '@shared/consts';
 
 /**
  * Distance before a click is considered a drag
@@ -67,7 +67,7 @@ export const EndNode = ({
             setEditDialogOpen(!editDialogOpen);
         }
     }, [isLinked, editDialogOpen]);
-    const handleEditDialogClose = useCallback((updatedNode?: NodeEnd) => {
+    const handleEditDialogClose = useCallback((updatedNode?: Node & { end: NodeEnd }) => {
         if (updatedNode) handleUpdate(updatedNode);
         setEditDialogOpen(false);
     }, [handleUpdate]);
@@ -89,12 +89,7 @@ export const EndNode = ({
     });
 
     return (
-        <DraggableNode
-            className="handle"
-            nodeId={node.id}
-            canDrag={canDrag}
-            dragThreshold={DRAG_THRESHOLD}
-        >
+        <>
             {/* Right-click context menu */}
             <NodeContextMenu
                 id={contextId}
@@ -113,46 +108,53 @@ export const EndNode = ({
                 node={node}
                 zIndex={zIndex + 1}
             />
-            <Tooltip placement={'top'} title={isEditing ? `Edit "${firstString(label, 'End')}"` : firstString(label, 'End')}>
-                <Box
-                    id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
-                    aria-owns={contextOpen ? contextId : undefined}
-                    {...pressEvents}
-                    sx={{
-                        width: `max(${outerCircleSize}px, 48px)`,
-                        height: `max(${outerCircleSize}px, 48px)`,
-                        position: 'relative',
-                        display: 'block',
-                        backgroundColor: node.data?.wasSuccessful === false ? '#7c262a' : '#387e30',
-                        color: 'white',
-                        borderRadius: '100%',
-                        boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
-                        '&:hover': {
-                            filter: `brightness(120%)`,
-                            transform: 'scale(1.1)',
-                            transition: 'all 0.2s',
-                        },
-                    }}
-                >
+            <DraggableNode
+                className="handle"
+                nodeId={node.id}
+                canDrag={canDrag}
+                dragThreshold={DRAG_THRESHOLD}
+            >
+                <Tooltip placement={'top'} title={isEditing ? `Edit "${firstString(label, 'End')}"` : firstString(label, 'End')}>
                     <Box
-                        id={`${isLinked ? '' : 'unlinked-'}node-end-inner-circle-${node.id}`}
+                        id={`${isLinked ? '' : 'unlinked-'}node-${node.id}`}
+                        aria-owns={contextOpen ? contextId : undefined}
+                        {...pressEvents}
                         sx={{
-                            width: `max(${innerCircleSize}px, 32px)`,
-                            height: `max(${innerCircleSize}px, 32px)`,
-                            position: 'absolute',
+                            width: `max(${outerCircleSize}px, 48px)`,
+                            height: `max(${outerCircleSize}px, 48px)`,
+                            position: 'relative',
                             display: 'block',
-                            margin: '0',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
+                            backgroundColor: node.end?.wasSuccessful === false ? '#7c262a' : '#387e30',
+                            color: 'white',
                             borderRadius: '100%',
-                            border: `2px solid ${node.data?.wasSuccessful === false ? '#e97691' : '#9ce793'}`,
-                        } as const}
+                            boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
+                            '&:hover': {
+                                filter: `brightness(120%)`,
+                                transform: 'scale(1.1)',
+                                transition: 'all 0.2s',
+                            },
+                        }}
                     >
+                        <Box
+                            id={`${isLinked ? '' : 'unlinked-'}node-end-inner-circle-${node.id}`}
+                            sx={{
+                                width: `max(${innerCircleSize}px, 32px)`,
+                                height: `max(${innerCircleSize}px, 32px)`,
+                                position: 'absolute',
+                                display: 'block',
+                                margin: '0',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                borderRadius: '100%',
+                                border: `2px solid ${node.end?.wasSuccessful === false ? '#e97691' : '#9ce793'}`,
+                            } as const}
+                        >
+                        </Box>
+                        {labelObject}
                     </Box>
-                    {labelObject}
-                </Box>
-            </Tooltip>
-        </DraggableNode>
+                </Tooltip>
+            </DraggableNode>
+        </>
     )
 }

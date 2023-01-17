@@ -1,125 +1,138 @@
-import { tagsCreate, tagsUpdate } from "@shared/validation";
+import { tagValidation } from "@shared/validation";
 import { TagSortBy } from "@shared/consts";
 import { StarModel } from "./star";
-import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput, SessionUser } from "../schema/types";
+import { Tag, TagSearchInput, TagCreateInput, TagUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Mutater, Validator, Displayer } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { combineQueries } from "../builders";
-import { translationRelationshipBuilder } from "../utils";
+import { SelectWrap } from "../builders/types";
 
-type SupplementalFields = 'isStarred' | 'isOwn';
-const formatter = (): Formatter<Tag, SupplementalFields> => ({
-    relationshipMap: {
-        __typename: 'Tag',
-        starredBy: 'User',
-    },
-    joinMap: { organizations: 'tagged', projects: 'tagged', routines: 'tagged', standards: 'tagged', starredBy: 'user' },
-    supplemental: {
-        graphqlFields: ['isStarred', 'isOwn'],
-        dbFields: ['createdByUserId', 'id'],
-        toGraphQL: ({ ids, objects, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'Tag')],
-            ['isOwn', async () => objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id)],
-        ],
-    },
-})
+// const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCreateInput | TagUpdateInput, isAdd: boolean) => {
+//     return {
+//         tag: data.tag,
+//         createdByUserId: userData.id,
+//         translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
+//     }
+// }
 
-const searcher = (): Searcher<
-    TagSearchInput,
-    TagSortBy,
-    Prisma.tagOrderByWithRelationInput,
-    Prisma.tagWhereInput
-> => ({
-    defaultSort: TagSortBy.StarsDesc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { stars: 'asc' },
-        StarsDesc: { stars: 'desc' },
-    },
-    searchStringQuery: ({ insensitive, languages }) => ({
-        OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, description: { ...insensitive } } } },
-            { tag: { ...insensitive } },
-        ]
-    }),
-    customQueries(input) {
-        return combineQueries([
-            (input.excludeIds !== undefined ? { id: { not: { in: input.excludeIds } } } : {}),
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-        ])
-    },
-})
+// const mutater = (): Mutater<Model> => ({
+//     shape: {
+//         create: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, true),
+//         update: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, false),
+//     },
+//     yup: tagValidation,
+// })
 
-const validator = (): Validator<
-    TagCreateInput,
-    TagUpdateInput,
-    Prisma.tagGetPayload<{ select: { [K in keyof Required<Prisma.tagSelect>]: true } }>,
-    any,
-    Prisma.tagSelect,
-    Prisma.tagWhereInput,
-    false,
-    false
-> => ({
-    validateMap: { __typename: 'Tag' },
-    isTransferable: false,
-    maxObjects: {
-        User: 10000,
-        Organization: 0,
-    },
-    permissionsSelect: () => ({ id: true }),
-    permissionResolvers: () => [],
-    owner: () => ({}),
-    isDeleted: () => false,
-    isPublic: () => true,
-    profanityFields: ['tag'],
-    visibility: {
-        private: {},
-        public: {},
-        owner: () => ({}),
-    },
-})
-
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCreateInput | TagUpdateInput, isAdd: boolean) => {
-    return {
-        tag: data.tag,
-        createdByUserId: userData.id,
-        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-    }
-}
-
-const mutater = (): Mutater<
-    Tag,
-    { graphql: TagCreateInput, db: Prisma.tagUpsertArgs['create'] },
-    { graphql: TagUpdateInput, db: Prisma.tagUpsertArgs['update'] },
-    false,
-    false
-> => ({
-    shape: {
-        create: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, true),
-        update: async ({ data, prisma, userData }) => await shapeBase(prisma, userData, data, false),
-    },
-    yup: { create: tagsCreate, update: tagsUpdate },
-})
-
-const displayer = (): Displayer<
-    Prisma.tagSelect,
-    Prisma.tagGetPayload<{ select: { [K in keyof Required<Prisma.tagSelect>]: true } }>
-> => ({
-    select: () => ({ id: true, tag: true }),
-    label: (select) => select.tag,
-})
-
-export const TagModel = ({
+const __typename = 'Tag' as const;
+const suppFields = ['you.isOwn', 'you.isStarred'] as const;
+export const TagModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: TagCreateInput,
+    GqlUpdate: TagUpdateInput,
+    GqlModel: Tag,
+    GqlSearch: TagSearchInput,
+    GqlSort: TagSortBy,
+    GqlPermission: any,
+    PrismaCreate: Prisma.tagUpsertArgs['create'],
+    PrismaUpdate: Prisma.tagUpsertArgs['update'],
+    PrismaModel: Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>,
+    PrismaSelect: Prisma.tagSelect,
+    PrismaWhere: Prisma.tagWhereInput,
+}, typeof suppFields> = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.tag,
-    display: displayer(),
-    format: formatter(),
-    mutate: mutater(),
-    search: searcher(),
-    type: 'Tag' as GraphQLModelType,
-    validate: validator(),
+    display: {
+        select: () => ({ id: true, tag: true }),
+        label: (select) => select.tag,
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            apis: 'Api',
+            notes: 'Note',
+            organizations: 'Organization',
+            posts: 'Post',
+            projects: 'Project',
+            reports: 'Report',
+            routines: 'Routine',
+            smartContracts: 'SmartContract',
+            standards: 'Standard',
+            starredBy: 'User',
+        },
+        prismaRelMap: {
+            __typename,
+            createdBy: 'User',
+            apis: 'Api',
+            notes: 'Note',
+            organizations: 'Organization',
+            posts: 'Post',
+            projects: 'Project',
+            reports: 'Report',
+            routines: 'Routine',
+            smartContracts: 'SmartContract',
+            standards: 'Standard',
+            starredBy: 'User',
+            // scheduleFilters: 'ScheduleFilter',
+        },
+        joinMap: {
+            apis: 'tagged',
+            notes: 'tagged',
+            organizations: 'tagged',
+            posts: 'tagged',
+            projects: 'tagged',
+            reports: 'tagged',
+            routines: 'tagged',
+            smartContracts: 'tagged',
+            standards: 'tagged',
+            starredBy: 'user'
+        },
+        countFields: {},
+        supplemental: {
+            graphqlFields: suppFields,
+            dbFields: ['createdByUserId', 'id'],
+            toGraphQL: async ({ ids, objects, prisma, userData }) => ({
+                'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                'you.isOwn': objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),
+            }),
+        },
+    },
+    mutate: {} as any,//mutater(),
+    search: {
+        defaultSort: TagSortBy.StarsDesc,
+        sortBy: TagSortBy,
+        searchFields: {
+            createdById: true,
+            createdTimeFrame: true,
+            excludeIds: true,
+            maxStars: true,
+            minStars: true,
+            translationLanguages: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transDescriptionWrapped',
+                'tagWrapped',
+            ]
+        }),
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: {
+            User: 10000,
+            Organization: 0,
+        },
+        permissionsSelect: () => ({ id: true }),
+        permissionResolvers: () => ({}),
+        owner: () => ({}),
+        isDeleted: () => false,
+        isPublic: () => true,
+        profanityFields: ['tag'],
+        visibility: {
+            private: {},
+            public: {},
+            owner: () => ({}),
+        },
+    },
 })

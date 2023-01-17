@@ -70,9 +70,9 @@ export const ResourceListItemContextMenu = ({
                 break;
             case ResourceContextMenuOption.Share:
                 if (!resource?.link) return;
-                const { title, description } = getTranslation(resource, []); //TODO languages
+                const { name, description } = getTranslation(resource, []); //TODO languages
                 navigator.share({
-                    title: title ?? undefined,
+                    title: name ?? undefined,
                     text: description ?? undefined,
                     url: resource?.link
                 });

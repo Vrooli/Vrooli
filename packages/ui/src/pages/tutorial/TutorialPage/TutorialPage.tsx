@@ -10,41 +10,41 @@ type PageProps = {
     setLocation: SetLocation;
 }
 
-const Page0 = () => {
-    return (<>
-        <PageTitle title="What is Vrooli?" />
-    </>)
-}
+// const Page0 = () => {
+//     return (<>
+//         <PageTitle title="What is Vrooli?" session={session} />
+//     </>)
+// }
 
-const Page1 = () => {
-    return (<>
-        <PageTitle title="How does it work?" />
-    </>)
-}
+// const Page1 = () => {
+//     return (<>
+//         <PageTitle title="How does it work?" session={session} />
+//     </>)
+// }
 
-const Page2 = () => {
-    return (<>
-        <PageTitle title="What is a routine?" />
-    </>)
-}
+// const Page2 = () => {
+//     return (<>
+//         <PageTitle title="What is a routine?" session={session} />
+//     </>)
+// }
 
-const Page3 = () => {
-    return (<>
-        <PageTitle title="How is work structured?" />
-    </>)
-}
+// const Page3 = () => {
+//     return (<>
+//         <PageTitle title="How is work structured?" session={session} />
+//     </>)
+// }
 
-const Page4 = () => {
-    return (<>
-        <PageTitle title="LRD Process" />
-    </>)
-}
+// const Page4 = () => {
+//     return (<>
+//         <PageTitle title="LRD Process" session={session} />
+//     </>)
+// }
 
-const Page5 = () => {
-    return (<>
-        <PageTitle title="That's the gist!" />
-    </>)
-}
+// const Page5 = () => {
+//     return (<>
+//         <PageTitle title="That's the gist!" session={session} />
+//     </>)
+// }
 
 /**
  * A 6-page tutorial for new users. Goes through the basics of Vrooli.
@@ -63,14 +63,15 @@ export const TutorialPage = () => {
     const complete = useCallback(() => setLocation('/'), [setLocation]);
 
     const currentPage = useMemo(() => {
-        switch (page) {
-            case 0: return <Page0 />;
-            case 1: return <Page1 />;
-            case 2: return <Page2 />;
-            case 3: return <Page3 />;
-            case 4: return <Page4 />;
-            case 5: return <Page5 />;
-        }
+        // switch (page) {
+        //     case 0: return <Page0 />;
+        //     case 1: return <Page1 />;
+        //     case 2: return <Page2 />;
+        //     case 3: return <Page3 />;
+        //     case 4: return <Page4 />;
+        //     case 5: return <Page5 />;
+        // }
+        return null;
     }, [page]);
 
     return (

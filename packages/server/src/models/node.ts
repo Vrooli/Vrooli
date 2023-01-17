@@ -1,134 +1,121 @@
-import { Node, NodeCreateInput, NodeUpdateInput, SessionUser } from "../schema/types";
-import { nodesCreate, nodesUpdate } from "@shared/validation";
+import { Node, NodeCreateInput, NodeUpdateInput } from '@shared/consts';
+import { nodeValidation } from "@shared/validation";
 import { PrismaType } from "../types";
-import { Formatter, GraphQLModelType, Validator, Mutater, Displayer } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { CustomError } from "../events";
 import { RoutineModel } from "./routine";
-import { OrganizationModel } from "./organization";
-import { relBuilderHelper } from "../actions";
-import { bestLabel, translationRelationshipBuilder } from "../utils";
+import { bestLabel, translationShapeHelper } from "../utils";
+import { SelectWrap } from "../builders/types";
+import { noNull, shapeHelper } from "../builders";
 
+const __typename = 'Node' as const;
 const MAX_NODES_IN_ROUTINE = 100;
-
-const formatter = (): Formatter<Node, any> => ({
-    relationshipMap: {
-        __typename: 'Node',
-        data: {
-            NodeEnd: 'NodeEnd',
-            NodeRoutineList: 'NodeRoutineList',
+const suppFields = [] as const;
+export const NodeModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeCreateInput,
+    GqlUpdate: NodeUpdateInput,
+    GqlModel: Node,
+    GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
+    PrismaCreate: Prisma.nodeUpsertArgs['create'],
+    PrismaUpdate: Prisma.nodeUpsertArgs['update'],
+    PrismaModel: Prisma.nodeGetPayload<SelectWrap<Prisma.nodeSelect>>,
+    PrismaSelect: Prisma.nodeSelect,
+    PrismaWhere: Prisma.nodeWhereInput,
+}, typeof suppFields> = ({
+    __typename,
+    delegate: (prisma: PrismaType) => prisma.node,
+    display: {
+        select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
+        label: (select, languages) => bestLabel(select.translations, 'name', languages),
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            end: 'NodeEnd',
+            loop: 'NodeLoop',
+            routineList: 'NodeRoutineList',
+            routineVersion: 'RoutineVersion',
         },
-        loop: 'NodeLoop',
-        routine: 'Routine',
-    },
-})
-
-const validator = (): Validator<
-    NodeCreateInput,
-    NodeUpdateInput,
-    Prisma.nodeGetPayload<{ select: { [K in keyof Required<Prisma.nodeSelect>]: true } }>,
-    any,
-    Prisma.nodeSelect,
-    Prisma.nodeWhereInput,
-    false,
-    false
-> => ({
-    validateMap: {
-        __typename: 'Node',
-        routineVersion: 'Routine',
-    },
-    isTransferable: false,
-    maxObjects: {
-        User: {
-            private: 0,
-            public: 10000,
+        prismaRelMap: {
+            __typename,
+            end: 'NodeEnd',
+            loop: 'NodeLoop',
+            next: 'NodeLink',
+            previous: 'NodeLink',
+            routineList: 'NodeRoutineList',
+            routineVersion: 'RoutineVersion',
+            runSteps: 'RunRoutineStep',
         },
-        Organization: 0,
+        countFields: {},
     },
-    permissionsSelect: () => ({}) as any,
-    //permissionsSelect: (...params) => ({ routineVersion: { select: RoutineModel.validate.permissionsSelect(...params) } }),
-    permissionResolvers: ({ isAdmin }) => ([
-        ['canDelete', async () => isAdmin],
-        ['canEdit', async () => isAdmin],
-    ]),
-    owner: (data) => RoutineModel.validate.owner(data.routineVersion as any),
-    isDeleted: () => false,
-    isPublic: (data, languages) => RoutineModel.validate.isPublic(data.routineVersion as any, languages),
-    validations: {
-        create: async ({ createMany, deltaAdding, prisma, userData }) => {
-            if (createMany.length === 0) return;
-            // Don't allow more than 100 nodes in a routine
-            if (deltaAdding < 0) return;
-            const existingCount = await prisma.routine_version.findUnique({
-                where: { id: createMany[0].routineVersionId },
-                include: { _count: { select: { nodes: true } } }
-            });
-            const totalCount = (existingCount?._count.nodes ?? 0) + deltaAdding
-            if (totalCount > MAX_NODES_IN_ROUTINE) {
-                throw new CustomError('0052', 'MaxNodesReached', userData.languages, { totalCount });
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                columnIndex: noNull(data.columnIndex),
+                nodeType: data.nodeType,
+                rowIndex: noNull(data.rowIndex),
+                ...(await shapeHelper({ relation: 'end', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'loop', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeLoop', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineList', relTypes: ['Create'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
+            update: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                columnIndex: noNull(data.columnIndex),
+                nodeType: noNull(data.nodeType),
+                rowIndex: noNull(data.rowIndex),
+                ...(await shapeHelper({ relation: 'end', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeEnd', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'loop', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: true, isRequired: false, objectType: 'NodeLoop', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineList', relTypes: ['Create', 'Update'], isOneToOne: true, isRequired: false, objectType: 'NodeRoutineList', parentRelationshipName: 'node', data, prisma, userData })),
+                ...(await shapeHelper({ relation: 'routineVersion', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'RoutineVersion', parentRelationshipName: 'nodes', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            })
+        },
+        yup: nodeValidation,
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: {
+            User: {
+                private: 0,
+                public: 10000,
+            },
+            Organization: 0,
+        },
+        permissionsSelect: () => ({ routineVersion: 'RoutineVersion' }),
+        permissionResolvers: ({ isAdmin }) => ({
+            canDelete: () => isAdmin,
+            canEdit: () => isAdmin,
+        }),
+        owner: (data) => RoutineModel.validate!.owner(data.routineVersion as any),
+        isDeleted: (data, languages) => RoutineModel.validate!.isDeleted(data.routineVersion as any, languages),
+        isPublic: (data, languages) => RoutineModel.validate!.isPublic(data.routineVersion as any, languages),
+        validations: {
+            create: async ({ createMany, deltaAdding, prisma, userData }) => {
+                if (createMany.length === 0) return;
+                // Don't allow more than 100 nodes in a routine
+                if (deltaAdding < 0) return;
+                const existingCount = await prisma.routine_version.findUnique({
+                    where: { id: createMany[0].routineVersionConnect },
+                    include: { _count: { select: { nodes: true } } }
+                });
+                const totalCount = (existingCount?._count.nodes ?? 0) + deltaAdding
+                if (totalCount > MAX_NODES_IN_ROUTINE) {
+                    throw new CustomError('0052', 'MaxNodesReached', userData.languages, { totalCount });
+                }
             }
+        },
+        visibility: {
+            private: { routineVersion: RoutineModel.validate!.visibility.private },
+            public: { routineVersion: RoutineModel.validate!.visibility.public },
+            owner: (userId) => ({ routineVersion: RoutineModel.validate!.visibility.owner(userId) }),
         }
     },
-    visibility: {
-        private: { routineVersion: RoutineModel.validate.visibility.private },
-        public: { routineVersion: RoutineModel.validate.visibility.public },
-        owner: (userId) => ({ routineVersion: RoutineModel.validate.visibility.owner(userId) }),
-    }
-})
-
-const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: NodeCreateInput | NodeUpdateInput, isAdd: boolean) => {
-    // Make sure there isn't both end node and routine list node data
-    const result = { nodeEnd: null, nodeRoutineList: null }
-    return {
-        ...result,
-        id: data.id,
-        columnIndex: data.columnIndex ?? undefined,
-        rowIndex: data.rowIndex ?? undefined,
-        translations: await translationRelationshipBuilder(prisma, userData, data, isAdd),
-        nodeEnd: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'nodeEnd', objectType: 'NodeEnd', prisma, userData }),
-        nodeRoutineList: await relBuilderHelper({ data, isAdd, isOneToOne: true, isRequired: false, relationshipName: 'nodeRoutineList', objectType: 'NodeRoutineList', prisma, userData }),
-        // loop: asdfa
-    }
-}
-
-const mutater = (): Mutater<
-    Node,
-    { graphql: NodeCreateInput, db: Prisma.nodeUpsertArgs['create'] },
-    { graphql: NodeUpdateInput, db: Prisma.nodeUpsertArgs['update'] },
-    { graphql: NodeCreateInput, db: Prisma.nodeCreateWithoutRoutineVersionInput },
-    { graphql: NodeUpdateInput, db: Prisma.nodeUpdateWithoutRoutineVersionInput }
-> => ({
-    shape: {
-        create: async ({ data, prisma, userData }) => {
-            return {
-                ...(await shapeBase(prisma, userData, data, true)),
-                permissions: JSON.stringify({}), //TODO
-                routineVersionId: data.routineVersionId,
-                type: data.type,
-            };
-        },
-        update: async ({ data, prisma, userData }) => {
-            return await shapeBase(prisma, userData, data, false);
-        },
-        relCreate: (...args) => mutater().shape.create(...args),
-        relUpdate: (...args) => mutater().shape.update(...args),
-    },
-    yup: { create: nodesCreate, update: nodesUpdate },
-})
-
-const displayer = (): Displayer<
-    Prisma.nodeSelect,
-    Prisma.nodeGetPayload<{ select: { [K in keyof Required<Prisma.nodeSelect>]: true } }>
-> => ({
-    select: () => ({ id: true, translations: { select: { language: true, title: true } } }),
-    label: (select, languages) => bestLabel(select.translations, 'title', languages),
-})
-
-export const NodeModel = ({
-    delegate: (prisma: PrismaType) => prisma.node,
-    display: displayer(),
-    format: formatter(),
-    mutate: mutater(),
-    type: 'Node' as GraphQLModelType,
-    validate: validator(),
 })

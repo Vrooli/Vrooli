@@ -1,5 +1,5 @@
 import { CustomError } from "../events";
-import { RelationshipMap } from "../models/types";
+import { GqlRelMap } from "../models/types";
 import { resolveGraphQLInfo } from "../utils";
 import { injectTypenames } from "./injectTypenames";
 import { GraphQLInfo, PartialGraphQLInfo } from "./types";
@@ -7,23 +7,24 @@ import { GraphQLInfo, PartialGraphQLInfo } from "./types";
 /**
  * Converts shapes 1 and 2 in a GraphQL to Prisma conversion to shape 2
  * @param info - GraphQL info object, or result of this function
- * @param relationshipMap - Map of relationship names to typenames
+ * @param gqlRelMap - Map of relationship names to typenames
  * @param languages - Preferred languages for error messages
  * @param throwIfNotPartial - Throw error if info is not partial
  * @returns Partial Prisma select. This can be passed into the function again without changing the result.
  */
 export const toPartialGraphQLInfo = <
-    GQLModel extends { [x: string]: any },
+    GQLObject extends { [x: string]: any },
+    PrismaObject extends { [x: string]: any },
     ThrowErrorIfNotPartial extends boolean
 >(
     info: GraphQLInfo | PartialGraphQLInfo,
-    relationshipMap: RelationshipMap<GQLModel>,
+    gqlRelMap: GqlRelMap<GQLObject, PrismaObject>,
     languages: string[],
     throwIfNotPartial: ThrowErrorIfNotPartial = false as ThrowErrorIfNotPartial,
 ): ThrowErrorIfNotPartial extends true ? PartialGraphQLInfo : (PartialGraphQLInfo | undefined) => {
     // Return undefined if info not set
     if (!info) {
-        if (throwIfNotPartial) 
+        if (throwIfNotPartial)
             throw new CustomError('0345', 'InternalError', languages);
         return undefined as any;
     }
@@ -43,9 +44,9 @@ export const toPartialGraphQLInfo = <
     else if (select.hasOwnProperty('endCursor') && select.hasOwnProperty('totalThreads') && select.hasOwnProperty('threads')) {
         select = select.threads.comment
     }
-    // Inject __typename fields
-    select = injectTypenames(select, relationshipMap);
-    if (!select) 
+    // Inject type fields
+    select = injectTypenames(select, gqlRelMap);
+    if (!select)
         throw new CustomError('0346', 'InternalError', languages);
     return select;
 }

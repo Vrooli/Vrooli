@@ -12,9 +12,10 @@ export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect):
     // Convert partial's special cases (virtual/calculated fields, unions, etc.)
     let modified: { [x: string]: any } = toPartialPrismaSelect(partial);
     if (!isObject(modified)) return undefined;
-    // Delete __typename fields
+    // Delete type fields
     modified = removeTypenames(modified);
     // Pad every relationship with "select"
     modified = padSelect(modified);
+    console.log('selectHelper end', JSON.stringify(modified), '\n\n');
     return modified as PrismaSelect;
 }

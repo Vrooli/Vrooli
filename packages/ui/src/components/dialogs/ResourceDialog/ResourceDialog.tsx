@@ -1,22 +1,20 @@
-import { useMutation, useQuery } from '@apollo/client';
-import { resourceCreate as validationSchema, resourceTranslationUpdate } from '@shared/validation';
+import { useMutation } from 'graphql/hooks';
+import { resourceTranslationValidation, resourceValidation } from '@shared/validation';
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
-import { resourceCreateMutation, resourceUpdateMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
 import { ResourceDialogProps } from '../types';
-import { addEmptyTranslation, getFormikErrorsWithTranslations, getObjectUrl, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResourceCreate, shapeResourceUpdate, usePromptBeforeUnload } from 'utils';
-import { resourceCreateVariables, resourceCreate_resourceCreate } from 'graphql/generated/resourceCreate';
-import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { resourceUpdateVariables, resourceUpdate_resourceUpdate } from 'graphql/generated/resourceUpdate';
+import { addEmptyTranslation, getObjectUrl, getUserLanguages, handleTranslationBlur, handleTranslationChange, listToAutocomplete, PubSub, removeTranslation, ResourceShape, shapeResource, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AutocompleteSearchBar, LanguageInput } from 'components/inputs';
-import { AutocompleteOption, Resource } from 'types';
+import { AutocompleteOption, Wrap } from 'types';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
-import { homePage, homePageVariables } from 'graphql/generated/homePage';
-import { homePageQuery } from 'graphql/query';
+import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceTranslation, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
+import { feedEndpoint, resourceEndpoint } from 'graphql/endpoints';
+import { mutationWrapper } from 'graphql/utils';
+import { useQuery } from '@apollo/client';
+import { useTranslation } from 'react-i18next';
 
 const helpText =
     `## What are resources?
@@ -32,25 +30,6 @@ Resources provide context to the object they are attached to, such as a  user, o
 
 **For a routine** - Guide, external service
 `
-
-export const UsedForDisplay: { [key in ResourceUsedFor]: string } = {
-    [ResourceUsedFor.Community]: 'Community',
-    [ResourceUsedFor.Context]: 'Context',
-    [ResourceUsedFor.Developer]: 'Developer',
-    [ResourceUsedFor.Donation]: 'Donation',
-    [ResourceUsedFor.ExternalService]: 'External Service',
-    [ResourceUsedFor.Feed]: 'Feed',
-    [ResourceUsedFor.Install]: 'Install',
-    [ResourceUsedFor.Learning]: 'Learning',
-    [ResourceUsedFor.Notes]: 'Notes',
-    [ResourceUsedFor.OfficialWebsite]: 'Official Webiste',
-    [ResourceUsedFor.Proposal]: 'Proposal',
-    [ResourceUsedFor.Related]: 'Related',
-    [ResourceUsedFor.Researching]: 'Researching',
-    [ResourceUsedFor.Scheduling]: 'Scheduling',
-    [ResourceUsedFor.Social]: 'Social',
-    [ResourceUsedFor.Tutorial]: 'Tutorial',
-}
 
 const titleAria = "resource-dialog-title";
 const searchTitleAria = "search-vrooli-for-link-title"
@@ -68,9 +47,10 @@ export const ResourceDialog = ({
     zIndex,
 }: ResourceDialogProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
-    const [addMutation, { loading: addLoading }] = useMutation(resourceCreateMutation);
-    const [updateMutation, { loading: updateLoading }] = useMutation(resourceUpdateMutation);
+    const [addMutation, { loading: addLoading }] = useMutation<Resource, ResourceCreateInput, 'resourceCreate'>(...resourceEndpoint.create);
+    const [updateMutation, { loading: updateLoading }] = useMutation<Resource, ResourceUpdateInput, 'resourceUpdate'>(...resourceEndpoint.update);
 
     const formik = useFormik({
         initialValues: {
@@ -82,34 +62,35 @@ export const ResourceDialog = ({
                 id: DUMMY_ID,
                 language: getUserLanguages(session)[0],
                 description: '',
-                title: '',
+                name: '',
             }],
         },
         enableReinitialize: true,
-        validationSchema,
+        validationSchema: resourceValidation.update(),
         onSubmit: (values) => {
             const input: ResourceShape = {
                 id: partialData?.id ?? uuid(),
                 index: Math.max(index, 0),
-                listId,
+                list: { id: listId },
                 link: values.link,
                 usedFor: values.usedFor,
                 translations: values.translationsUpdate.map(t => ({
                     ...t,
+                    __typename: 'ResourceTranslation',
                     id: t.id === DUMMY_ID ? uuid() : t.id,
                 })),
             };
             if (mutate) {
-                const onSuccess = (data: resourceCreate_resourceCreate | resourceUpdate_resourceUpdate) => {
+                const onSuccess = (data: Resource) => {
                     (index < 0) ? onCreated(data) : onUpdated(index ?? 0, data);
                     formik.resetForm();
                     onClose();
                 }
                 // If index is negative, create
                 if (index < 0) {
-                    mutationWrapper<resourceCreate_resourceCreate, resourceCreateVariables>({
+                    mutationWrapper<Resource, ResourceCreateInput>({
                         mutation: addMutation,
-                        input: shapeResourceCreate(input),
+                        input: shapeResource.create(input),
                         successMessage: () => ({ key: 'ResourceCreated' }),
                         successCondition: (data) => data !== null,
                         onSuccess,
@@ -118,13 +99,13 @@ export const ResourceDialog = ({
                 }
                 // Otherwise, update
                 else {
-                    if (!partialData || !partialData.id || !listId) {
+                    if (!partialData || !partialData.id) {
                         PubSub.get().publishSnack({ messageKey: 'ResourceNotFound', severity: SnackSeverity.Error });
                         return;
                     }
-                    mutationWrapper<resourceUpdate_resourceUpdate, resourceUpdateVariables>({
+                    mutationWrapper<Resource, ResourceUpdateInput>({
                         mutation: updateMutation,
-                        input: shapeResourceUpdate({ ...partialData, listId } as ResourceShape, input),
+                        input: shapeResource.update({ ...partialData, list: { id: listId } } as ResourceShape, input),
                         successMessage: () => ({ key: 'ResourceUpdated' }),
                         successCondition: (data) => data !== null,
                         onSuccess,
@@ -132,7 +113,14 @@ export const ResourceDialog = ({
                     })
                 }
             } else {
-                onCreated(input as Resource);
+                onCreated({
+                    ...input,
+                    translations: input.translations as ResourceTranslation[],
+                    created_at: partialData?.created_at ?? new Date().toISOString(),
+                    updated_at: partialData?.updated_at ?? new Date().toISOString(),
+                    list: { __typename: 'ResourceList', id: listId } as ResourceList,
+                    __typename: 'Resource',
+                });
                 formik.resetForm();
                 onClose();
             }
@@ -142,18 +130,13 @@ export const ResourceDialog = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { description, title, errorDescription, errorTitle, touchedDescription, touchedTitle, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            description: value?.description ?? '',
-            title: value?.title ?? '',
-            errorDescription: error?.description ?? '',
-            errorTitle: error?.title ?? '',
-            touchedDescription: touched?.description ?? false,
-            touchedTitle: touched?.title ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', resourceTranslationUpdate),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['description', 'name'],
+        formik, 
+        formikField: 'translationsUpdate', 
+        language, 
+        validationSchema: resourceTranslationValidation.update(),
+    });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -185,12 +168,12 @@ export const ResourceDialog = ({
     const closeSearch = useCallback(() => {
         setSearchOpen(false)
     }, []);
-    const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<homePage, homePageVariables>(homePageQuery, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<Wrap<PopularResult, 'popular'>, Wrap<PopularInput, 'input'>>(feedEndpoint.popular[0], { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { open && refetchSearch() }, [open, refetchSearch, searchString]);
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
-        // Group all query results and sort by number of stars
-        const flattened = (Object.values(searchData?.homePage ?? [])).reduce((acc, curr) => acc.concat(curr), []);
+        // Group all query results and sort by number of stars. Ignore any value that isn't an array
+        const flattened = (Object.values(searchData?.popular ?? [])).filter(Array.isArray).reduce((acc, curr) => acc.concat(curr), []);
         const queryItems = listToAutocomplete(flattened, languages).sort((a: any, b: any) => {
             return b.stars - a.stars;
         });
@@ -350,30 +333,30 @@ export const ResourceDialog = ({
                                         },
                                     }}
                                 >
-                                    {Object.entries(UsedForDisplay).map(([key, value]) => {
-                                        const Icon = getResourceIcon(key as ResourceUsedFor);
+                                     {(Object.keys(ResourceUsedFor) as Array<keyof typeof ResourceUsedFor>).map((usedFor) => {
+                                        const Icon = getResourceIcon(usedFor as ResourceUsedFor);
                                         return (
-                                            <MenuItem key={key} value={key}>
+                                            <MenuItem key={usedFor} value={usedFor}>
                                                 <ListItemIcon>
                                                     <Icon fill={palette.background.textSecondary} />
                                                 </ListItemIcon>
-                                                <ListItemText>{value}</ListItemText>
+                                                <ListItemText>{t(`common:${usedFor}`, { lng: language })}</ListItemText>
                                             </MenuItem>
                                         )
                                     })}
                                 </Select>
                             </FormControl>
-                            {/* Enter title */}
+                            {/* Enter name */}
                             <TextField
                                 fullWidth
-                                id="title"
-                                name="title"
-                                label="Title"
-                                value={title}
+                                id="name"
+                                name="name"
+                                label="Name"
+                                value={translations.name}
                                 onBlur={onTranslationBlur}
                                 onChange={onTranslationChange}
-                                error={touchedTitle && Boolean(errorTitle)}
-                                helperText={(touchedTitle && errorTitle) ?? 'Enter title (optional)'}
+                                error={translations.touchedName && Boolean(translations.errorName)}
+                                helperText={(translations.touchedName && translations.errorName) ?? 'Enter name (optional)'}
                             />
                             {/* Enter description */}
                             <TextField
@@ -383,16 +366,16 @@ export const ResourceDialog = ({
                                 label="Description"
                                 multiline
                                 maxRows={8}
-                                value={description}
+                                value={translations.description}
                                 onBlur={onTranslationBlur}
                                 onChange={onTranslationChange}
-                                error={touchedDescription && Boolean(errorDescription)}
-                                helperText={(touchedDescription && errorDescription) ?? 'Enter description (optional)'}
+                                error={translations.touchedDescription && Boolean(translations.errorDescription)}
+                                helperText={(translations.touchedDescription && translations.errorDescription) ?? 'Enter description (optional)'}
                             />
                             {/* Action buttons */}
                             <Grid container spacing={1}>
                                 <GridSubmitButtons
-                                    errors={errors}
+                                    errors={translations.errorsWithTranslations}
                                     isCreate={index < 0}
                                     loading={formik.isSubmitting || addLoading || updateLoading}
                                     onCancel={handleCancel}

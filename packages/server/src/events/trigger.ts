@@ -1,9 +1,7 @@
 import { IssueStatus, PullRequestStatus, ReportStatus } from "@prisma/client";
-import { DeleteOneType, ForkType, StarFor, VoteFor } from "@shared/consts";
+import { DeleteType, CopyType, StarFor, VoteFor, GqlModelType } from "@shared/consts";
 import { setupVerificationCode } from "../auth";
-import { getDelegator, getDisplayer, getLabels, getValidator } from "../getters";
-import { ObjectMap, OrganizationModel } from "../models";
-import { GraphQLModelType, Validator } from "../models/types";
+import { getLogic } from "../getters";
 import { Notify } from "../notify";
 import { PrismaType } from "../types";
 import { Award } from "./awards";
@@ -127,14 +125,14 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // If issue marked as rejected, decrease reputation of issue creator
         //asdfasdf
     },
-    objectAddedToOrganization: async (userId: string, organizationId: string, objectId: string, objectType: GraphQLModelType) => {
+    objectAddedToOrganization: async (userId: string, organizationId: string, objectId: string, objectType: `${GqlModelType}`) => {
         // const notification = Notify(prisma, languages).pushOrganizationActivity();
         // // Send notification to admins, except the user who added it
         // notification.toOrganization(organizationId, userId);
         // // Send notification to subscribers of the organization
         // notification.toSubscribers('Organization', organizationId, userId);
     },
-    objectAddedToProject: async (owner: Owner, addedByUserId: string, projectId: string, objectId: string, objectType: GraphQLModelType) => {
+    objectAddedToProject: async (owner: Owner, addedByUserId: string, projectId: string, objectId: string, objectType: `${GqlModelType}`) => {
         // const notification = Notify(prisma, languages).pushProjectActivity();
         // // Send notification to object owner
         // notification.toOwner(owner, addedByUserId)
@@ -143,7 +141,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     },
     objectNewVersion: async (
         updatedByUserId: string,
-        objectType: GraphQLModelType,
+        objectType: `${GqlModelType}`,
         objectId: string,
         owner: Owner | null,
         hasOriginalOwner: boolean,
@@ -173,14 +171,14 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
     /**
      * NOTE: Unless the object is soft-deleted, this must be called BEFORE the object is deleted.
      */
-    objectDelete: async (owner: Owner, deletedByUserId: string, objectType: DeleteOneType, objectId: string) => {
+    objectDelete: async (owner: Owner, deletedByUserId: string, objectType: DeleteType, objectId: string) => {
         // const notification = Notify(prisma, languages).pushObjectDelete();
         // // Send notification to owner(s) (except for who deleted it)
         // notification.toOwner(owner, deletedByUserId);
         // // Send notification to anyone subscribed to the object
         // notification.toSubscribers(objectType, objectId, deletedByUserId);
     },
-    objectFork: async (owner: Owner, forkedByUserId: string, objectType: ForkType, parentId: string) => {
+    objectCopy: async (owner: Owner, forkedByUserId: string, objectType: CopyType, parentId: string) => {
         // const notification = Notify(prisma, languages).pushObjectFork();
         // // Send notification to owner(s), depending on how many forks the object already has
         // fdfdafdsaf
@@ -205,7 +203,7 @@ export const Trigger = (prisma: PrismaType, languages: string[]) => ({
         // // Send notification to admins of organization
         // asdf
     },
-    pullRequestClose: async (objectType: GraphQLModelType, objectId: string, status: PullRequestStatus, userId: string) => {
+    pullRequestClose: async (objectType: `${GqlModelType}`, objectId: string, status: PullRequestStatus, userId: string) => {
         // // If pull request was accepted, increase award progress and reputation of pull request creator
         // asdf
         // // If pull request was rejected, decrease reputation of pull request creator

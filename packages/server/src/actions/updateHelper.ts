@@ -3,7 +3,7 @@ import { CustomError } from "../events";
 import { RecursivePartial } from "../types";
 import { cudHelper } from "./cudHelper";
 import { UpdateHelperProps } from "./types";
-import { getFormatter } from "../getters";
+import { getLogic } from "../getters";
 import { addSupplementalFields, toPartialGraphQLInfo } from "../builders";
 
 /**
@@ -20,9 +20,9 @@ export async function updateHelper<GraphQLModel>({
 }: UpdateHelperProps): Promise<RecursivePartial<GraphQLModel>> {
     const userData = assertRequestFrom(req, { isUser: true });
     // Get formatter
-    const formatter = getFormatter(objectType, req.languages, 'updateHelper');
+    const { format } = getLogic(['format'], objectType, userData.languages, 'cudHelper')
     // Partially convert info type
-    let partialInfo = toPartialGraphQLInfo(info, formatter.relationshipMap, req.languages, true);
+    let partialInfo = toPartialGraphQLInfo(info, format.gqlRelMap, req.languages, true);
     // Shape update input to match prisma update shape (i.e. "where" and "data" fields)
     const shapedInput = { where: where(input), data: input };
     // Create objects. cudHelper will check permissions

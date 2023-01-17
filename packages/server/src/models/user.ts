@@ -1,150 +1,175 @@
 import { StarModel } from "./star";
 import { ViewModel } from "./view";
-import { UserSortBy, ResourceListUsedFor } from "@shared/consts";
-import { ProfileUpdateInput, User, UserSearchInput } from "../schema/types";
+import { PrependString, UserSortBy, UserYou } from "@shared/consts";
+import { ProfileUpdateInput, User, UserSearchInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Formatter, Searcher, GraphQLModelType, Validator, Displayer, Mutater } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { profilesUpdate } from "@shared/validation";
-import { combineQueries } from "../builders";
-import { translationRelationshipBuilder } from "../utils";
+import { userValidation } from "@shared/validation";
+import { SelectWrap } from "../builders/types";
+import { getSingleTypePermissions } from "../validators";
 
-type SupplementalFields = 'isStarred' | 'isViewed';
-const formatter = (): Formatter<User, SupplementalFields> => ({
-    relationshipMap: {
-        __typename: 'User',
-        comments: 'Comment',
-        resourceLists: 'ResourceList',
-        projects: 'Project',
-        starredBy: 'User',
-        reports: 'Report',
-        routines: 'Routine',
-    },
-    joinMap: { starredBy: 'user' },
-    countMap: { reportsCount: 'reports' },
-    supplemental: {
-        graphqlFields: ['isStarred', 'isViewed'],
-        toGraphQL: ({ ids, prisma, userData }) => [
-            ['isStarred', async () => await StarModel.query.getIsStarreds(prisma, userData?.id, ids, 'User')],
-            ['isViewed', async () => await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, 'User')],
-        ],
-    },
-})
-
-export const searcher = (): Searcher<
-    UserSearchInput,
-    UserSortBy,
-    Prisma.userOrderByWithRelationInput,
-    Prisma.userWhereInput
-> => ({
-    defaultSort: UserSortBy.StarsDesc,
-    sortMap: {
-        DateCreatedAsc: { created_at: 'asc' },
-        DateCreatedDesc: { created_at: 'desc' },
-        DateUpdatedAsc: { updated_at: 'asc' },
-        DateUpdatedDesc: { updated_at: 'desc' },
-        StarsAsc: { stars: 'asc' },
-        StarsDesc: { stars: 'desc' },
-    },
-    searchStringQuery: ({ insensitive, languages }) => ({
-        OR: [
-            { translations: { some: { language: languages ? { in: languages } : undefined, bio: { ...insensitive } } } },
-            { name: { ...insensitive } },
-            { handle: { ...insensitive } },
-        ]
-    }),
-    customQueries(input) {
-        return combineQueries([
-            (input.languages !== undefined ? { translations: { some: { language: { in: input.languages } } } } : {}),
-            (input.minStars !== undefined ? { stars: { gte: input.minStars } } : {}),
-            (input.minViews !== undefined ? { views: { gte: input.minViews } } : {}),
-            (input.organizationId !== undefined ? { organizations: { some: { organizationId: input.organizationId } } } : {}),
-            (input.projectId !== undefined ? { projects: { some: { projectId: input.projectId } } } : {}),
-            (input.resourceLists !== undefined ? { resourceLists: { some: { translations: { some: { title: { in: input.resourceLists } } } } } } : {}),
-            (input.resourceTypes !== undefined ? { resourceLists: { some: { usedFor: ResourceListUsedFor.Display as any, resources: { some: { usedFor: { in: input.resourceTypes } } } } } } : {}),
-            (input.routineId !== undefined ? { routines: { some: { id: input.routineId } } } : {}),
-            (input.reportId !== undefined ? { reports: { some: { id: input.reportId } } } : {}),
-            (input.standardId !== undefined ? { standards: { some: { id: input.standardId } } } : {}),
-        ])
-    },
-})
-
-const validator = (): Validator<
-    any,
-    any,
-    Prisma.userGetPayload<{ select: { [K in keyof Required<Prisma.userSelect>]: true } }>,
-    any,
-    Prisma.userSelect,
-    Prisma.userWhereInput,
-    false,
-    false
-> => ({
-    validateMap: {
-        __typename: 'User',
-        projects: 'Project',
-        reportsCreated: 'Report',
-        routines: 'Routine',
-        // userSchedules: 'UserSchedule',
-    },
-    isTransferable: false,
-    maxObjects: 0,
-    permissionsSelect: () => ({
-        id: true,
-        isPrivate: true,
-        languages: { select: { language: true } },
-    }),
-    permissionResolvers: () => [],
-    owner: (data) => ({ User: data }),
-    isDeleted: () => false,
-    isPublic: (data) => data.isPrivate === false,
-    profanityFields: ['name', 'handle'],
-    visibility: {
-        private: { isPrivate: true },
-        public: { isPrivate: false },
-        owner: (userId) => ({ id: userId }),
-    },
-    // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
-})
-
-const mutater = (): Mutater<
-    User,
-    false,
-    { graphql: ProfileUpdateInput, db: Prisma.userUpsertArgs['update'] },
-    false,
-    false
-> => ({
-    shape: {
-        update: async ({ data, prisma, userData }) => {
-            return {
-                handle: data.handle,
-                name: data.name ?? undefined,
-                theme: data.theme ?? undefined,
-                // // hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder!(userData.id, input, false),
-                // starred: {
-                //     create: starredCreate,
-                //     delete: starredDelete,
-                // }, TODO
-                translations: await translationRelationshipBuilder(prisma, userData, data, false),
-            }
-        }
-    },
-    yup: { update: profilesUpdate },
-})
-
-const displayer = (): Displayer<
-    Prisma.userSelect,
-    Prisma.userGetPayload<{ select: { [K in keyof Required<Prisma.userSelect>]: true } }>
-> => ({
-    select: () => ({ id: true, name: true }),
-    label: (select) => select.name ?? '',
-})
-
-export const UserModel = ({
+const __typename = 'User' as const;
+type Permissions = Pick<UserYou, 'canDelete' | 'canEdit' | 'canReport'>
+const suppFields = ['you.isStarred', 'you.isViewed'] as const;
+export const UserModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: undefined,
+    GqlUpdate: ProfileUpdateInput,
+    GqlModel: User,
+    GqlSearch: UserSearchInput,
+    GqlSort: UserSortBy,
+    GqlPermission: Permissions,
+    PrismaCreate: Prisma.userUpsertArgs['create'],
+    PrismaUpdate: Prisma.userUpsertArgs['update'],
+    PrismaModel: Prisma.userGetPayload<SelectWrap<Prisma.userSelect>>,
+    PrismaSelect: Prisma.userSelect,
+    PrismaWhere: Prisma.userWhereInput,
+}, typeof suppFields> = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.user,
-    display: displayer(),
-    format: formatter(),
-    mutate: mutater(),
-    search: searcher(),
-    type: 'User' as GraphQLModelType,
-    validate: validator(),
+    display: {
+        select: () => ({ id: true, name: true }),
+        label: (select) => select.name ?? '',
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+            comments: 'Comment',
+            emails: 'Email',
+            // phones: 'Phone',
+            projects: 'Project',
+            pushDevices: 'PushDevice',
+            starredBy: 'User',
+            reportsCreated: 'Report',
+            reportsReceived: 'Report',
+            routines: 'Routine',
+        },
+        prismaRelMap: {
+            __typename,
+            apis: 'Api',
+            apiKeys: 'ApiKey',
+            comments: 'Comment',
+            emails: 'Email',
+            organizationsCreated: 'Organization',
+            phones: 'Phone',
+            posts: 'Post',
+            invitedByUser: 'User',
+            invitedUsers: 'User',
+            issuesCreated: 'Issue',
+            issuesClosed: 'Issue',
+            labels: 'Label',
+            meetingsAttending: 'Meeting',
+            meetingsInvited: 'MeetingInvite',
+            pushDevices: 'PushDevice',
+            notifications: 'Notification',
+            memberships: 'Member',
+            projectsCreated: 'Project',
+            projects: 'Project',
+            pullRequests: 'PullRequest',
+            questionAnswered: 'QuestionAnswer',
+            questionsAsked: 'Question',
+            quizzesCreated: 'Quiz',
+            quizzesTaken: 'QuizAttempt',
+            reportsCreated: 'Report',
+            reportsReceived: 'Report',
+            reportResponses: 'ReportResponse',
+            routinesCreated: 'Routine',
+            routines: 'Routine',
+            runProjects: 'RunProject',
+            runRoutines: 'RunRoutine',
+            schedules: 'UserSchedule',
+            smartContractsCreated: 'SmartContract',
+            smartContracts: 'SmartContract',
+            standardsCreated: 'Standard',
+            standards: 'Standard',
+            starredBy: 'User',
+            tags: 'Tag',
+            transfersIncoming: 'Transfer',
+            transfersOutgoing: 'Transfer',
+            notesCreated: 'Note',
+            notes: 'Note',
+            wallets: 'Wallet',
+            stats: 'StatsUser',
+        },
+        joinMap: {
+            meetingsAttending: 'user',
+            starredBy: 'user',
+        },
+        countFields: {
+            reportsCount: true,
+        },
+        supplemental: {
+            graphqlFields: suppFields,
+            toGraphQL: async ({ ids, prisma, userData }) => {
+                let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                return {
+                    ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
+                    'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
+                    'you.isViewed': await ViewModel.query.getIsVieweds(prisma, userData?.id, ids, __typename),
+                }
+            },
+        },
+    },
+    mutate: {
+        shape: {
+            update: async ({ data, prisma, userData }) => {
+                return {
+                    // handle: data.handle,
+                    // name: data.name ?? undefined,
+                    // theme: data.theme ?? undefined,
+                    // // // hiddenTags: await TagHiddenModel.mutate(prisma).relationshipBuilder!(userData.id, input, false),
+                    // // starred: {
+                    // //     create: starredCreate,
+                    // //     delete: starredDelete,
+                    // // }, TODO
+                    // translations: await translationRelationshipBuilder(prisma, userData, data, false),
+                } as any
+            }
+        },
+        yup: userValidation,
+    },
+    search: {
+        defaultSort: UserSortBy.StarsDesc,
+        sortBy: UserSortBy,
+        searchFields: {
+            createdTimeFrame: true,
+            minStars: true,
+            minViews: true,
+            translationLanguages: true,
+            updatedTimeFrame: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'transBioWrapped',
+                'nameWrapped',
+                'handleWrapped',
+            ]
+        }),
+    },
+    validate: {
+        isTransferable: false,
+        maxObjects: 0,
+        permissionsSelect: () => ({
+            id: true,
+            isPrivate: true,
+            languages: { select: { language: true } },
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canReport: () => !isAdmin && !isDeleted && isPublic,
+        }),
+        owner: (data) => ({ User: data }),
+        isDeleted: () => false,
+        isPublic: (data) => data.isPrivate === false,
+        profanityFields: ['name', 'handle'],
+        visibility: {
+            private: { isPrivate: true },
+            public: { isPrivate: false },
+            owner: (userId) => ({ id: userId }),
+        },
+        // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
+    },
 })

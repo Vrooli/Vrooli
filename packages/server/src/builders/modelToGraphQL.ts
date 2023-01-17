@@ -1,7 +1,6 @@
 import { isObject } from "@shared/utils";
 import { ObjectMap } from "../models";
-import { Formatter } from "../models/types";
-import { constructRelationships } from "./constructRelationships";
+import { constructUnions } from "./constructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeCountFields } from "./removeCountFields";
 import { removeHiddenFields } from "./removeHiddenFields";
@@ -15,7 +14,13 @@ import { PartialGraphQLInfo } from "./types";
  * @param partialInfo PartialGraphQLInfo object
  * @returns Valid GraphQL object
  */
-export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partialInfo: PartialGraphQLInfo): GraphQLModel {
+export function modelToGraphQL<
+    GraphQLModel extends Record<string, any>
+>(
+    data: { [x: string]: any },
+    partialInfo: PartialGraphQLInfo
+): GraphQLModel {
+    console.log('modeltographql start');
     // Remove top-level union from partialInfo, if necessary
     // If every key starts with a capital letter, it's a union. 
     // There's a catch-22 here which we must account for. Since "data" has not 
@@ -36,13 +41,13 @@ export function modelToGraphQL<GraphQLModel>(data: { [x: string]: any }, partial
         }
     }
     // Convert data to usable shape
-    const type: string | undefined = partialInfo?.__typename;
-    const formatter: Formatter<GraphQLModel, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined as any;
-    if (formatter) {
-        data = constructRelationships(data, formatter.relationshipMap);
-        data = removeJoinTables(data, formatter.joinMap);
-        data = removeCountFields(data, formatter.countMap);
-        data = removeHiddenFields(data, formatter.hiddenFields);
+    const type = partialInfo?.__typename;
+    const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    if (format) {
+        data = constructUnions(data, format.gqlRelMap);
+        data = removeJoinTables(data, format.joinMap as any);
+        data = removeCountFields(data, format.countFields);
+        data = removeHiddenFields(data, format.hiddenFields);
     }
     // Then loop through each key/value pair in data and call modelToGraphQL on each array item/object
     for (const [key, value] of Object.entries(data)) {

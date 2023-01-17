@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Stack } from '@mui/material';
-import { PubSub, translateCommonKey, translateSnackMessage } from 'utils';
+import { getUserLanguages, PubSub, translateCommonKey, translateSnackMessage } from 'utils';
 import { uuid } from '@shared/uuid';
 import { BasicSnack } from '../BasicSnack/BasicSnack';
 import { BasicSnackProps, SnackStackProps } from '../types';
@@ -12,7 +12,7 @@ import { CookiesSnack } from '../CookiesSnack/CookiesSnack';
  * No more than 3 ephemeral messages are displayed at once.
  */
 export const SnackStack = ({
-    languages,
+    session,
 }: SnackStackProps) => {
 
     // FIFO queue of basic snackbars
@@ -35,11 +35,11 @@ export const SnackStack = ({
                 const id = o.id ?? uuid();
                 let newSnacks = [...snacks, {
                     buttonClicked: o.buttonClicked,
-                    buttonText: o.buttonKey ? translateCommonKey(o.buttonKey, o.buttonVariables, languages) : undefined,
+                    buttonText: o.buttonKey ? translateCommonKey(o.buttonKey, o.buttonVariables, getUserLanguages(session)) : undefined,
                     data: o.data,
                     handleClose: () => handleClose(id),
                     id,
-                    message: translateSnackMessage(o.messageKey, o.messageVariables, languages).message,
+                    message: translateSnackMessage(o.messageKey, o.messageVariables, getUserLanguages(session)).message,
                     severity: o.severity,
                 }];
                 // Filter out same ids
@@ -61,7 +61,7 @@ export const SnackStack = ({
             PubSub.get().unsubscribe(snackSub)
             PubSub.get().unsubscribe(cookiesSub)
         };
-    }, [languages])
+    }, [session])
 
     let visible = useMemo(() => snacks.length > 0 || isCookieSnackOpen, [snacks, isCookieSnackOpen]);
 

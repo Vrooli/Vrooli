@@ -1,21 +1,20 @@
 import { DialogProps, PopoverProps } from '@mui/material';
 import { HelpButtonProps } from "components/buttons/types";
-import { DeleteOneType } from '@shared/consts';
-import { Comment, NavigableObject, Node, NodeDataRoutineList, NodeDataRoutineListItem, NodeLink, Organization, Project, Resource, Routine, RoutineStep, Run, Session, Standard, User } from 'types';
-import { ReportFor } from 'graphql/generated/globalTypes';
-import { ListObjectType, SearchType } from 'utils';
+import { Comment, DeleteType, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, Organization, Project, ProjectVersion, ReportFor, Resource, Routine, RoutineVersion, RunProject, RunRoutine, Session, Standard, User } from '@shared/consts';
+import { NavigableObject, RoutineStep } from 'types';
+import { ListObjectType, NodeLinkShape, NodeShape, SearchType } from 'utils';
 import { SvgComponent } from '@shared/icons';
 import { ObjectAction, ObjectActionComplete } from 'utils/actions/objectActions';
 import { CookiePreferences } from 'utils/cookies';
 
 export interface AccountMenuProps {
     anchorEl: HTMLElement | null;
-    onClose: () => void;
+    onClose: (event: React.MouseEvent<HTMLElement>) => void;
     session: Session;
 }
 
 export interface AlertDialogProps {
-    languages: string[];
+    session: Session | undefined;
 }
 
 export interface BaseObjectDialogProps extends DialogProps {
@@ -59,7 +58,7 @@ export interface DeleteDialogProps {
     isOpen: boolean;
     objectId: string;
     objectName: string;
-    objectType: DeleteOneType;
+    objectType: DeleteType;
     zIndex: number;
 }
 
@@ -223,22 +222,22 @@ export interface ObjectActionMenuProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (newLink?: NodeLink) => void;
-    handleDelete: (link: NodeLink) => void;
+    handleClose: (newLink?: NodeLinkShape) => void;
+    handleDelete: (link: NodeLinkShape) => void;
     isAdd: boolean;
     isOpen: boolean;
     language: string; // Language to display/edit
-    link?: NodeLink; // Link to display on open, if editing
-    nodeFrom?: Node | null; // Initial "from" node
-    nodeTo?: Node | null; // Initial "to" node
-    routine: Pick<Routine, 'id' | 'nodes' | 'nodeLinks'>;
+    link?: NodeLinkShape; // Link to display on open, if editing
+    nodeFrom?: NodeShape | null; // Initial "from" node
+    nodeTo?: NodeShape | null; // Initial "to" node
+    routineVersion: Pick<RoutineVersion, 'id' | 'nodes' | 'nodeLinks'>;
     zIndex: number;
 }
 
 export interface SubroutineInfoDialogProps {
-    data: { node: NodeDataRoutineList, routineItemId: string } | null;
+    data: { node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null;
     defaultLanguage: string;
-    handleUpdate: (updatedSubroutine: NodeDataRoutineListItem) => any;
+    handleUpdate: (updatedSubroutine: NodeRoutineListItem) => any;
     handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => any;
     handleViewFull: () => any;
     isEditing: boolean;
@@ -309,10 +308,10 @@ export interface AdvancedSearchDialogProps {
 export interface RunPickerMenuProps {
     anchorEl: HTMLElement | null;
     handleClose: () => any;
-    onAdd: (run: Run) => any;
-    onDelete: (run: Run) => any;
-    onSelect: (run: Run | null) => any;
-    routine?: Routine | null;
+    onAdd: (run: RunProject | RunRoutine) => any;
+    onDelete: (run: RunProject | RunRoutine) => any;
+    onSelect: (run: RunProject | RunRoutine | null) => any;
+    runnableObject?: RoutineVersion | ProjectVersion | null;
     session: Session;
 }
 

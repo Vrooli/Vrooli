@@ -1,4 +1,4 @@
-import { GraphQLModelType } from "../models/types";
+import { GqlModelType } from "@shared/consts";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeSupplementalFields } from "./removeSupplementalFields";
 
@@ -17,7 +17,7 @@ export const subsetsMatch = (obj: any, query: any): boolean => {
     let formattedQuery = query;
     if (query?.__typename === 'string') {
         // Remove calculated fields from query, since these will not be in obj
-        formattedQuery = removeSupplementalFields(query.__typename as GraphQLModelType, query);
+        formattedQuery = removeSupplementalFields(query.__typename as GqlModelType, query);
     }
     // First, check if obj is a join table. If this is the case, what we want to check 
     // is actually one layer down
@@ -27,8 +27,8 @@ export const subsetsMatch = (obj: any, query: any): boolean => {
     }
     // If query contains any fields which are not in obj, return false
     for (const key of Object.keys(formattedQuery)) {
-        // Ignore __typename
-        if (key === '__typename') continue;
+        // Ignore type
+        if (key === 'type') continue;
         // If union, check if any of the union types match formattedObj
         if (key[0] === key[0].toUpperCase()) {
             const unionTypes = Object.keys(formattedQuery);

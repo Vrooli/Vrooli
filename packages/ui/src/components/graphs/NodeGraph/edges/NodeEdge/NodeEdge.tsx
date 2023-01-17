@@ -106,12 +106,12 @@ export const NodeEdge = ({
 
     return <BaseEdge
         containerId='graph-root'
-        fromId={`node-${link.fromId}`}
+        fromId={`node-${link.from.id}`}
         isEditing={isEditing}
         popoverComponent={popoverComponent}
         popoverT={popoverT}
         thiccness={thiccness}
         timeBetweenDraws={fastUpdate ? 15 : 1000}
-        toId={`node-${link.toId}`}
+        toId={`node-${link.to.id}`}
     />
 }

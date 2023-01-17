@@ -1,20 +1,16 @@
 import { Box, Checkbox, CircularProgress, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material"
-import { useLazyQuery, useMutation } from "@apollo/client";
-import { organization, organizationVariables } from "graphql/generated/organization";
-import { organizationQuery } from "graphql/query";
+import { useLazyQuery, useMutation } from "graphql/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { OrganizationUpdateProps } from "../types";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { organizationTranslationUpdate, organizationUpdate as validationSchema } from '@shared/validation';
+import { mutationWrapper } from 'graphql/utils';
+import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
-import { organizationUpdateMutation } from "graphql/mutation";
-import { addEmptyTranslation, base36ToUuid, getFormikErrorsWithTranslations, getLastUrlPart, getPreferredLanguage, getTranslationData, getUserLanguages, handleTranslationBlur, handleTranslationChange, ObjectType, PubSub, removeTranslation, shapeOrganizationUpdate, TagShape, usePromptBeforeUnload } from "utils";
+import { addEmptyTranslation, getPreferredLanguage, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector, userFromSession } from "components";
-import { ResourceList } from "types";
-import { DUMMY_ID, uuid, uuidValidate } from '@shared/uuid';
-import { ResourceListUsedFor } from "graphql/generated/globalTypes";
-import { organizationUpdateVariables, organizationUpdate_organizationUpdate } from "graphql/generated/organizationUpdate";
+import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
+import { FindByIdInput, Organization, OrganizationUpdateInput, ResourceList } from "@shared/consts";
+import { organizationEndpoint } from "graphql/endpoints";
 
 export const OrganizationUpdate = ({
     onCancel,
@@ -23,9 +19,9 @@ export const OrganizationUpdate = ({
     zIndex,
 }: OrganizationUpdateProps) => {
     // Fetch existing data
-    const id = useMemo(() => base36ToUuid(getLastUrlPart()), []);
-    const [getData, { data, loading }] = useLazyQuery<organization, organizationVariables>(organizationQuery);
-    useEffect(() => { uuidValidate(id) && getData({ variables: { input: { id } } }) }, [getData, id])
+    const { id } = useMemo(() => parseSingleItemUrl(), []);
+    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdInput, 'organization'>(...organizationEndpoint.findOne);
+    useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
     const organization = useMemo(() => data?.organization, [data]);
 
     const [relationships, setRelationships] = useState<RelationshipsObject>({
@@ -43,7 +39,7 @@ export const OrganizationUpdate = ({
     }, [relationships]);
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
     const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
         setResourceList(updatedList);
     }, [setResourceList]);
@@ -53,7 +49,7 @@ export const OrganizationUpdate = ({
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle update
-    const [mutation] = useMutation(organizationUpdateMutation);
+    const [mutation] = useMutation<Organization, OrganizationUpdateInput, 'organizationUpdate'>(...organizationEndpoint.update);
     const formik = useFormik({
         initialValues: {
             id: organization?.id ?? uuid(),
@@ -66,19 +62,19 @@ export const OrganizationUpdate = ({
             }],
         },
         enableReinitialize: true, // Needed because existing data is obtained from async fetch
-        validationSchema,
+        validationSchema: organizationValidation.update(),
         onSubmit: (values) => {
             if (!organization) {
                 PubSub.get().publishSnack({ messageKey: 'CouldNotReadOrganization', severity: SnackSeverity.Error });
                 return;
             }
-            mutationWrapper<organizationUpdate_organizationUpdate, organizationUpdateVariables>({
+            mutationWrapper<Organization, OrganizationUpdateInput>({
                 mutation,
-                input: shapeOrganizationUpdate(organization, {
+                input: shapeOrganization.update(organization, {
                     id: organization.id,
                     isOpenToNewMembers: values.isOpenToNewMembers,
                     isPrivate: relationships.isPrivate,
-                    resourceLists: [resourceList],
+                    resourceList: resourceList,
                     tags: tags,
                     translations: values.translationsUpdate.map(t => ({
                         ...t,
@@ -94,18 +90,13 @@ export const OrganizationUpdate = ({
 
     // Handle translations
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
-    const { bio, name, errorBio, errorName, touchedBio, touchedName, errors } = useMemo(() => {
-        const { error, touched, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            bio: value?.bio ?? '',
-            name: value?.name ?? '',
-            errorBio: error?.bio ?? '',
-            errorName: error?.name ?? '',
-            touchedBio: touched?.bio ?? false,
-            touchedName: touched?.name ?? false,
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', organizationTranslationUpdate),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['bio', 'name'],
+        formik, 
+        formikField: 'translationsUpdate', 
+        language, 
+        validationSchema: organizationTranslationValidation.update(),
+    });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -130,7 +121,7 @@ export const OrganizationUpdate = ({
             parent: null,
             project: null,
         });
-        setResourceList(organization?.resourceLists?.find(list => list.usedFor === ResourceListUsedFor.Display) ?? { id: uuid(), usedFor: ResourceListUsedFor.Display } as any);
+        setResourceList(organization?.resourceList ?? { id: uuid() } as any);
         setTags(organization?.tags ?? []);
         if (organization?.translations?.length) {
             setLanguage(getPreferredLanguage(organization.translations.map(t => t.language), getUserLanguages(session)));
@@ -140,12 +131,12 @@ export const OrganizationUpdate = ({
     const formInput = useMemo(() => (
         <Grid container spacing={2} sx={{ padding: 2, marginBottom: 4, maxWidth: 'min(700px, 100%)' }}>
             <Grid item xs={12}>
-                <PageTitle title="Update Organization" />
+                <PageTitle titleKey='UpdateOrganization' session={session} />
             </Grid>
             <Grid item xs={12} mb={4}>
                 <RelationshipButtons
                     isEditing={true}
-                    objectType={ObjectType.Organization}
+                    objectType={'Organization'}
                     onRelationshipsChange={onRelationshipsChange}
                     relationships={relationships}
                     session={session}
@@ -169,11 +160,11 @@ export const OrganizationUpdate = ({
                     id="name"
                     name="name"
                     label="Name"
-                    value={name}
+                    value={translations.name}
                     onBlur={onTranslationBlur}
                     onChange={onTranslationChange}
-                    error={touchedName && Boolean(errorName)}
-                    helperText={touchedName && errorName}
+                    error={translations.touchedName && Boolean(translations.errorName)}
+                    helperText={translations.touchedName && translations.errorName}
                 />
             </Grid>
             <Grid item xs={12} mb={4}>
@@ -184,11 +175,11 @@ export const OrganizationUpdate = ({
                     label="Bio"
                     multiline
                     minRows={4}
-                    value={bio}
+                    value={translations.bio}
                     onBlur={onTranslationBlur}
                     onChange={onTranslationChange}
-                    error={touchedBio && Boolean(errorBio)}
-                    helperText={touchedBio && errorBio}
+                    error={translations.touchedBio && Boolean(translations.errorBio)}
+                    helperText={translations.touchedBio && translations.errorBio}
                 />
             </Grid>
             <Grid item xs={12}>
@@ -228,7 +219,7 @@ export const OrganizationUpdate = ({
                 </Tooltip>
             </Grid>
             <GridSubmitButtons
-                errors={errors}
+                errors={translations.errorsWithTranslations}
                 isCreate={false}
                 loading={formik.isSubmitting}
                 onCancel={onCancel}
@@ -236,7 +227,7 @@ export const OrganizationUpdate = ({
                 onSubmit={formik.handleSubmit}
             />
         </Grid>
-    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.values.isOpenToNewMembers, formik.handleChange, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, name, onTranslationBlur, onTranslationChange, touchedName, errorName, bio, touchedBio, errorBio, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, errors, onCancel]);
+    ), [onRelationshipsChange, relationships, session, zIndex, language, handleAddLanguage, handleLanguageDelete, formik.values.translationsUpdate, formik.values.isOpenToNewMembers, formik.handleChange, formik.isSubmitting, formik.setSubmitting, formik.handleSubmit, onTranslationBlur, onTranslationChange, translations, resourceList, handleResourcesUpdate, loading, handleTagsUpdate, tags, onCancel]);
 
     return (
         <form onSubmit={formik.handleSubmit} style={{

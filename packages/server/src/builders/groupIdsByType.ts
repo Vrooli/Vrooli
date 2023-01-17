@@ -3,6 +3,7 @@ import { isRelationshipObject } from "./isRelationshipObject";
 import { subsetsMatch } from "./subsetsMatch";
 import { PartialGraphQLInfo } from "./types";
 import pkg from 'lodash';
+import { GqlModelType } from "@shared/consts";
 const { merge } = pkg;
 
 /**
@@ -57,13 +58,13 @@ export const groupIdsByType = (data: { [x: string]: any }, partialInfo: PartialG
         }
         else if (key === 'id' && partialInfo.__typename) {
             // Add to objectIdsDict
-            const type: string = partialInfo.__typename;
+            const type = partialInfo.__typename as `${GqlModelType}`;
             objectIdsDict[type] = objectIdsDict[type] ?? [];
             objectIdsDict[type].push(value);
         }
     }
     // Add keys to selectFieldsDict
-    const currType = partialInfo?.__typename;
+    const currType = partialInfo?.__typename as `${GqlModelType}`;
     if (currType) {
         selectFieldsDict[currType] = merge(selectFieldsDict[currType] ?? {}, partialInfo);
     }

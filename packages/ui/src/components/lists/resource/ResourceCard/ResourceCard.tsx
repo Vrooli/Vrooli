@@ -5,16 +5,17 @@ import {
     Typography,
     useTheme,
 } from '@mui/material';
-import { firstString, getResourceType, getResourceUrl, getTranslation, getUserLanguages, openLink, PubSub, usePress } from 'utils';
+import { firstString, getDisplay, getResourceType, getResourceUrl, getUserLanguages, openLink, PubSub, usePress } from 'utils';
 import { useCallback, useMemo, useState } from 'react';
 import { useLocation } from '@shared/route';
 import { ResourceCardProps } from '../../../cards/types';
 import { multiLineEllipsis, noSelect } from 'styles';
 import { getResourceIcon } from '..';
-import { ResourceUsedFor } from 'graphql/generated/globalTypes';
-import { SnackSeverity, UsedForDisplay } from 'components/dialogs';
+import { SnackSeverity } from 'components/dialogs';
 import { DeleteIcon, EditIcon } from '@shared/icons';
 import { ColorIconButton } from 'components/buttons';
+import { ResourceUsedFor } from '@shared/consts';
+import { useTranslation } from 'react-i18next';
 
 export const ResourceCard = ({
     canEdit,
@@ -27,17 +28,17 @@ export const ResourceCard = ({
 }: ResourceCardProps) => {
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
+    const { t } = useTranslation();
 
     const [showIcons, setShowIcons] = useState(false);
 
-    const { description, title } = useMemo(() => {
-        const languages = getUserLanguages(session);
-        const { description, title } = getTranslation(data, languages, true);
+    const { title, subtitle } = useMemo(() => {
+        const { title, subtitle } = getDisplay(data, getUserLanguages(session));
         return {
-            description: (description && description.length > 0) ? description : data.link,
-            title: (title && title.length > 0) ? title : UsedForDisplay[data.usedFor ?? ResourceUsedFor.Context],
+            title: Boolean(title) ? title : t(`common:${data.usedFor ?? ResourceUsedFor.Context}`, { lng: getUserLanguages(session)[0] }),
+            subtitle,
         };
-    }, [data, session]);
+    }, [data, session, t]);
 
     const Icon = useMemo(() => {
         return getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link)
@@ -86,7 +87,7 @@ export const ResourceCard = ({
     });
 
     return (
-        <Tooltip placement="top" title={`${description ? description + ' - ' : ''}${data.link}`}>
+        <Tooltip placement="top" title={`${subtitle ? subtitle + ' - ' : ''}${data.link}`}>
             <Box
                 {...pressEvents}
                 component="a"

@@ -2,9 +2,11 @@ import { getUser } from "../auth";
 import { addSupplementalFields, combineQueries, modelToGraphQL, onlyValidIds, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
 import { CustomError } from "../events";
-import { getSearchString } from "../getters";
+import { getSearchStringQuery } from "../getters";
 import { ObjectMap } from "../models";
 import { Searcher } from "../models/types";
+import { SearchMap } from "../utils";
+import { SortMap } from "../utils/sortMap";
 import { ReadManyHelperProps } from "./types";
 
 /**
@@ -13,7 +15,7 @@ import { ReadManyHelperProps } from "./types";
  * NOTE: Permissions queries should be passed into additionalQueries
  * @returns Paginated search result
  */
-export async function readManyHelper<GraphQLModel extends { [x: string]: any }>({
+export async function readManyHelper<Input extends { [x: string]: any }>({
     additionalQueries,
     addSupplemental = true,
     info,
@@ -21,29 +23,37 @@ export async function readManyHelper<GraphQLModel extends { [x: string]: any }>(
     objectType,
     prisma,
     req,
-}: ReadManyHelperProps<GraphQLModel>): Promise<PaginatedSearchResult> {
+}: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req);
     const model = ObjectMap[objectType];
     if (!model) throw new CustomError('0349', 'InternalError', req.languages, { objectType });
     // Partially convert info type
-    let partialInfo = toPartialGraphQLInfo(info, model.format.relationshipMap, req.languages, true);
+    let partialInfo = toPartialGraphQLInfo(info, model.format.gqlRelMap, req.languages, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
-    // Create query for specified ids
-    const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: onlyValidIds(input.ids) } }) : undefined;
-    const searcher: Searcher<any, any, any, any> | undefined = model.search;
+    const searcher: Searcher<any> | undefined = model.search;
     // Determine text search query
-    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchString({ objectType: model.type, searchString: input.searchString }) : undefined;
-    // Determine createdTimeFrame query
-    const createdQuery = timeFrameToPrisma('created_at', input.createdTimeFrame);
-    // Determine updatedTimeFrame query
-    const updatedQuery = timeFrameToPrisma('updated_at', input.updatedTimeFrame);
-    // Create type-specific queries
-    let typeQuery = searcher?.customQueries ? searcher.customQueries(input, userData) : undefined;
+    const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
+    // Loop through search fields and add each to the search query, 
+    // if the field is specified in the input
+    const customQueries: { [x: string]: any }[] = [];
+    if (searcher) {
+        for (const field of Object.keys(searcher.searchFields)) {
+            if (input[field as string] !== undefined) {
+                customQueries.push(SearchMap[field as string](input, userData, model.__typename));
+            }
+        }
+    }
+    if (searcher?.customQueryData) {
+        customQueries.push(searcher.customQueryData(input, userData));
+    }
     // Combine queries
-    const where = combineQueries([additionalQueries, idQuery, searchQuery, createdQuery, updatedQuery, typeQuery]);
+    const where = combineQueries([additionalQueries, searchQuery, ...customQueries]);
     // Determine sort order
-    const orderBy = searcher?.sortMap ? searcher.sortMap[input.sortBy ?? searcher.defaultSort] : undefined;
+    // Make sure sort field is valid
+    const orderByField = searcher ? input.sortBy ?? searcher.defaultSort : undefined;
+    const orderByIsValid = searcher ? searcher.sortBy[orderByField] === undefined : false;
+    const orderBy = orderByIsValid ? SortMap[input.sortBy ?? searcher!.defaultSort] : undefined;
     // Find requested search array
     const searchResults = await (model.delegate(prisma) as any).findMany({
         where,
@@ -68,11 +78,14 @@ export async function readManyHelper<GraphQLModel extends { [x: string]: any }>(
             }
         });
         paginatedResults = {
+            __typename: `${model.__typename}SearchResult` as const,
             pageInfo: {
+                __typename: 'PageInfo' as const,
                 hasNextPage: hasNextPage.length > 0,
                 endCursor: cursor,
             },
             edges: searchResults.map((result: any) => ({
+                __typename: `${model.__typename}Edge` as const,
                 cursor: result.id,
                 node: result,
             }))
@@ -81,18 +94,25 @@ export async function readManyHelper<GraphQLModel extends { [x: string]: any }>(
     // If there are no results
     else {
         paginatedResults = {
+            __typename: `${model.__typename}SearchResult` as const,
             pageInfo: {
+                __typename: 'PageInfo' as const,
                 endCursor: null,
                 hasNextPage: false,
             },
             edges: []
         }
     }
+    //TODO validate that the user has permission to read all of the results, including relationships
     // If not adding supplemental fields, return the paginated results
     if (!addSupplemental) return paginatedResults;
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
     formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
-    return { pageInfo: paginatedResults.pageInfo, edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) };
+    return { 
+        ...paginatedResults,
+        pageInfo: paginatedResults.pageInfo, 
+        edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) 
+    };
 }

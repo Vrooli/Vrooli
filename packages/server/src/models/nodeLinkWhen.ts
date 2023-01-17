@@ -1,58 +1,61 @@
-import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput, SessionUser } from "../schema/types";
+import { NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { Displayer, Formatter, GraphQLModelType, Mutater } from "./types";
+import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
-import { translationRelationshipBuilder } from "../utils";
+import { translationShapeHelper } from "../utils";
+import { SelectWrap } from "../builders/types";
+import { noNull, shapeHelper } from "../builders";
+import { nodeLinkWhenValidation } from '@shared/validation';
 
-const formatter = (): Formatter<NodeLinkWhen, any> => ({
-    relationshipMap: {
-        __typename: 'NodeLinkWhen',
-    },
-})
+const __typename = 'NodeLinkWhen' as const;
 
-const relBase = async (prisma: PrismaType, userData: SessionUser, data: NodeLinkWhenCreateInput | NodeLinkWhenUpdateInput, isAdd: boolean) => {
-    return {
-        translations: await translationRelationshipBuilder(prisma, userData, data, true),
-    }
-}
-
-const mutater = (): Mutater<
-    NodeLinkWhen,
-    false,
-    false,
-    { graphql: NodeLinkWhenCreateInput, db: Prisma.node_link_whenCreateWithoutLinkInput },
-    { graphql: NodeLinkWhenUpdateInput, db: Prisma.node_link_whenUpdateWithoutLinkInput }
-> => ({
-    shape: {
-        relCreate: async ({ data, prisma, userData }) => {
-            return {
-                ...await relBase(prisma, userData, data, true),
-                condition: data.condition,
-            }
-        },
-        relUpdate: async ({ data, prisma, userData }) => {
-            return {
-                ...await relBase(prisma, userData, data, false),
-                condition: data.condition ?? undefined,
-            }
-        },
-    },
-    yup: {},
-})
-
-// Doesn't make sense to have a displayer for this model
-const displayer = (): Displayer<
-    Prisma.node_link_whenSelect,
-    Prisma.node_link_whenGetPayload<{ select: { [K in keyof Required<Prisma.node_link_whenSelect>]: true } }>
-> => ({
-    select: () => ({ id: true }),
-    label: () => ''
-})
-
-export const NodeLinkWhenModel = ({
+const suppFields = [] as const;
+export const NodeLinkWhenModel: ModelLogic<{
+    IsTransferable: false,
+    IsVersioned: false,
+    GqlCreate: NodeLinkWhenCreateInput,
+    GqlUpdate: NodeLinkWhenUpdateInput,
+    GqlModel: NodeLinkWhen,
+    GqlPermission: any,
+    GqlSearch: undefined,
+    GqlSort: undefined,
+    PrismaCreate: Prisma.node_link_whenUpsertArgs['create'],
+    PrismaUpdate: Prisma.node_link_whenUpsertArgs['update'],
+    PrismaModel: Prisma.node_link_whenGetPayload<SelectWrap<Prisma.node_link_whenSelect>>,
+    PrismaSelect: Prisma.node_link_whenSelect,
+    PrismaWhere: Prisma.node_link_whenWhereInput,
+}, typeof suppFields> = ({
+    __typename,
     delegate: (prisma: PrismaType) => prisma.node_link,
-    display: displayer(),
-    format: formatter(),
-    mutate: mutater(),
-    type: 'NodeLinkWhen' as GraphQLModelType,
+    // Doesn't make sense to have a displayer for this model
+    display: {
+        select: () => ({ id: true }),
+        label: () => ''
+    },
+    format: {
+        gqlRelMap: {
+            __typename,
+        },
+        prismaRelMap: {
+            __typename,
+            link: 'NodeLink',
+        },
+        countFields: {},
+    },
+    mutate: {
+        shape: {
+            create: async ({ data, prisma, userData }) => ({
+                id: data.id,
+                condition: data.condition,
+                ...(await shapeHelper({ relation: 'link', relTypes: ['Connect'], isOneToOne: true, isRequired: true, objectType: 'NodeLink', parentRelationshipName: 'link', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create'], isRequired: false, data, prisma, userData })),
+            }),
+            update: async ({ data, prisma, userData }) => ({
+                condition: noNull(data.condition),
+                ...(await shapeHelper({ relation: 'link', relTypes: ['Connect'], isOneToOne: true, isRequired: false, objectType: 'NodeLink', parentRelationshipName: 'link', data, prisma, userData })),
+                ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
+            }),
+        },
+        yup: nodeLinkWhenValidation,
+    },
 })

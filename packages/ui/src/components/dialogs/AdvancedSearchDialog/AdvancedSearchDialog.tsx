@@ -99,6 +99,7 @@ export const AdvancedSearchDialog = ({
                 '& .MuiPaper-root': {
                     margin: { xs: 0, sm: 2, md: 4 },
                     maxWidth: { xs: '100%!important', sm: 'calc(100% - 64px)' },
+                    minHeight: { xs: '100vh', sm: 'auto' },
                     display: { xs: 'block', sm: 'inline-block' },
                     background: theme.palette.background.default,
                     color: theme.palette.background.textPrimary,

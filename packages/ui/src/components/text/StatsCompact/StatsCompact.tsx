@@ -3,7 +3,7 @@ import { VoteFor } from "@shared/consts";
 import { ReportsLink } from "components/buttons";
 import { UpvoteDownvote } from "components/lists";
 import { useMemo } from "react";
-import { getListItemPermissions } from "utils";
+import { getCounts, getYou } from "utils";
 import { StatsCompactProps, StatsCompactPropsObject } from "../types"
 import { ViewsDisplay } from "../ViewsDisplay/ViewsDisplay";
 
@@ -18,7 +18,8 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
     session,
 }: StatsCompactProps<T>) => {
 
-    const permissions = useMemo(() => getListItemPermissions(object as any, session), [object, session]);
+    const you = useMemo(() => getYou(object as any), [object]);
+    const counts = useMemo(() => getCounts(object as any), [object])
 
     return (
         <Stack
@@ -38,20 +39,20 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
             }}
         >
             {/* Votes */}
-            <UpvoteDownvote
+            {object && object.__typename in VoteFor && <UpvoteDownvote
                 direction="row"
-                disabled={!permissions.canVote}
+                disabled={!you.canVote}
                 session={session}
-                objectId={object?.id ?? ''}
-                voteFor={(object?.__typename as any) ?? VoteFor.Routine}
-                isUpvoted={object?.isUpvoted}
-                score={object?.score}
+                objectId={object.id}
+                voteFor={object.__typename as VoteFor}
+                isUpvoted={you.isUpvoted}
+                score={counts.score}
                 onChange={(isUpvote, score) => { object && handleObjectUpdate({ 
                     ...object, 
-                    isUpvoted: isUpvote,
-                    score: score, 
+                    isUpvoted: isUpvote, //TODO
+                    score: score, //TODO
                 }); }}
-            />
+            />}
             {/* Views */}
             <ViewsDisplay views={(object as any)?.views} />
             {/* Reports */}

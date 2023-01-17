@@ -3,14 +3,13 @@
 import { ResourceDialog, ResourceListItem, ResourceListItemContextMenu } from 'components';
 import { ResourceListVerticalProps } from '../types';
 import { useCallback, useMemo, useState } from 'react';
-import { Resource } from 'types';
 import { Box, Button } from '@mui/material';
-import { useMutation } from '@apollo/client';
-import { resourceDeleteManyMutation } from 'graphql/mutation';
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
+import { useMutation } from 'graphql/hooks';
+import { mutationWrapper } from 'graphql/utils';
 import { updateArray } from 'utils';
-import { resourceDeleteManyVariables, resourceDeleteMany_resourceDeleteMany } from 'graphql/generated/resourceDeleteMany';
 import { AddIcon } from '@shared/icons';
+import { Count, DeleteManyInput, Resource } from '@shared/consts';
+import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
 
 export const ResourceListVertical = ({
     title = '📌 Resources',
@@ -43,14 +42,14 @@ export const ResourceListVertical = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation(resourceDeleteManyMutation);
+    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(...deleteOneOrManyEndpoint.deleteMany);
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];
         if (mutate && resource.id) {
-            mutationWrapper<resourceDeleteMany_resourceDeleteMany, resourceDeleteManyVariables>({
+            mutationWrapper<Count, DeleteManyInput>({
                 mutation: deleteMutation,
-                input: { ids: [resource.id] },
+                input: { ids: [resource.id], objectType: 'Resource' as any },
                 onSuccess: () => {
                     if (handleUpdate) {
                         handleUpdate({

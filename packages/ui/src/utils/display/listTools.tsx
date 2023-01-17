@@ -1,265 +1,282 @@
-import { AutocompleteOption, ListStar, ListView, NavigableObject, Session } from "types";
+import { AutocompleteOption, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
-import { ObjectListItemType } from "components/lists/types";
 import { displayDate, firstString } from "./stringTools";
-import { getCurrentUser } from "utils/authentication";
 import { ObjectListItem } from "components";
-import { StarFor } from "@shared/consts";
+import { DotNotation, Session, StarFor } from "@shared/consts";
+import { valueFromDot } from "utils/shape";
+import { exists, isOfType } from "@shared/utils";
 
-export type ListObjectType = ObjectListItemType | ListStar | ListView;
-
-/**
- * Gets the title of a list object
- * @param object A list object
- * @param languages User languages
- * @returns The title of the object
- */
-export const getListItemTitle = (
-    object: ListObjectType | null | undefined,
-    languages?: readonly string[]
-): string => {
-    if (!object) return "";
-    const langs: readonly string[] = languages ?? getUserLanguages(undefined);
-    switch (object.__typename) {
-        case 'Organization':
-            return firstString(getTranslation(object, langs, true).name, object.handle);
-        case 'Project':
-            return firstString(getTranslation(object, langs, true).name, object.handle);
-        case 'Routine':
-            return firstString(getTranslation(object, langs, true).title);
-        case 'Run':
-            const title = firstString(object.title, getTranslation(object.routine, langs, true).title);
-            const date = object.timeStarted ? (new Date(object.timeStarted)) : null;
-            if (date) return `${title} (${date.toLocaleDateString()} ${date.toLocaleTimeString()})`;
-            return title;
-        case 'Standard':
-            return firstString(object.name);
-        case 'Star':
-            return getListItemTitle(object.to as any, langs);
-        case 'User':
-            return firstString(object.name, object.handle);
-        case 'View':
-            return firstString(object.title).length > 0 ? object.title : getListItemTitle(object.to as any, langs);
-        default:
-            return '';
-    }
-};
+// NOTE: Ideally this would be a union of all possible types, but there's actually so 
+// many types that it causes a heap out of memory error :(
+export type ListObjectType = {
+    completedAt?: number | null;
+    startedAt?: number | null;
+    name?: string | null;
+    projectVersion?: ListObjectType;
+    root?: ListObjectType;
+    routineVersion?: ListObjectType;
+    translations?: {
+        id: string;
+        language: string;
+        name?: string;
+    }[];
+    versions?: ListObjectType[];
+    you?: Partial<YouInflated>;
+} & NavigableObject
 
 /**
- * Gets the subtitle of a list object
- * @param object A list object
- * @param languages User languages
+ * All possible permissions/user-statuses any object can have
  */
-export const getListItemSubtitle = (
-    object: ListObjectType | null | undefined,
-    languages?: readonly string[]
-): string => {
-    if (!object) return "";
-    const langs: readonly string[] = languages ?? getUserLanguages(undefined);
-    switch (object.__typename) {
-        case 'Organization':
-            return firstString(getTranslation(object, langs, true).bio);
-        case 'Project':
-            return firstString(getTranslation(object, langs, true).description);
-        case 'Routine':
-            return firstString(getTranslation(object, langs, true).description);
-        case 'Run':
-            // Subtitle for a run is the time started/completed, or nothing (depending on status)
-            const startedAt: string | null = object?.timeStarted ? displayDate(object.timeStarted) : null;
-            const completedAt: string | null = object?.timeCompleted ? displayDate(object.timeCompleted) : null;
-            if (completedAt) return `Completed: ${completedAt}`;
-            if (startedAt) return `Started: ${startedAt}`;
-            return '';
-        case 'Standard':
-            return firstString(getTranslation(object, langs, true).description);
-        case 'Star':
-            return getListItemSubtitle(object.to as any, langs);
-        case 'User':
-            return firstString(getTranslation(object, langs, true).bio);
-        case 'View':
-            return getListItemSubtitle(object.to as any, langs);
-        default:
-            return '';
-    }
-};
-
-/**
- * All possible permissions any object can have
- */
-export type PermissionsInflated = {
+export type YouInflated = {
     canComment: boolean;
+    canCopy: boolean;
     canDelete: boolean;
     canEdit: boolean;
-    canFork: boolean;
     canReport: boolean;
     canShare: boolean;
     canStar: boolean;
     canView: boolean;
     canVote: boolean;
+    isStarred: boolean;
+    isUpvoted: boolean | null;
+    isViewed: boolean;
 }
 
 /**
- * Gets the permissions of a list object
- * @param object A list object
- * @param session The current session
+ * Most possible counts (including score) any object can have
  */
-export const getListItemPermissions = (
-    object: ListObjectType | null | undefined,
-    session: Session,
-): PermissionsInflated => {
-    const defaultPermissions = { canComment: false, canDelete: false, canEdit: false, canFork: false, canReport: false, canShare: false, canStar: false, canView: false, canVote: false };
-    if (!object) return defaultPermissions;
-    // Helper function to convert every field in an object to boolean
-    const toBoolean = <T extends { [key: string]: any }>(obj: T | null | undefined): { [K in keyof T]?: boolean } => {
-        if (!obj) return {};
-        const newObj: { [K in keyof T]?: boolean } = {};
-        for (const key in obj) {
-            newObj[key] = obj[key] === true;
-        }
-        return newObj as { [K in keyof T]: boolean };
-    };
-    switch (object.__typename) {
-        case 'Organization':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsOrganization), canShare: object.isPrivate !== true };
-        case 'Project':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsProject), canShare: object.isPrivate !== true };
-        case 'Routine':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsRoutine), canShare: object.isPrivate !== true };
-        case 'Run':
-            return { ...defaultPermissions, ...toBoolean(object.routine?.permissionsRoutine), canShare: object.routine?.isPrivate !== true };
-        case 'Standard':
-            return { ...defaultPermissions, ...toBoolean(object.permissionsStandard), canShare: object.isPrivate !== true };
-        case 'Star':
-            return getListItemPermissions(object.to as any, session);
-        case 'User':
-            const isOwn = object.id === getCurrentUser(session).id;
-            return { canComment: false, canDelete: isOwn, canEdit: isOwn, canFork: false, canReport: !isOwn, canShare: true, canStar: !isOwn, canView: true, canVote: false };
-        case 'View':
-            return getListItemPermissions(object.to as any, session);
-        default:
-            return defaultPermissions;
-    }
+export type CountsInflated = {
+    comments: number;
+    forks: number;
+    issues: number;
+    labels: number;
+    pullRequests: number;
+    questions: number;
+    reports: number;
+    score: number;
+    stars: number;
+    transfers: number;
+    translations: number;
+    versions: number;
+    views: number;
 }
 
 /**
- * Gets stars for a single object
- * @param object A searchable object
- * @returns stars
+ * Finds dot notation for the location of the "you" property in an object which contains the specified property
+ * @param object An object
+ * @param property A property to find in the "you" property of the object
  */
-export const getListItemStars = (
+export const getYouDot = (
     object: ListObjectType | null | undefined,
-): number => {
-    if (!object) return 0;
-    switch (object.__typename) {
-        case 'Organization':
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-        case 'User':
-            return object.stars;
-        case 'Run':
-            return object.routine?.stars ?? 0;
-        case 'Star':
-        case 'View':
-            return getListItemStars(object.to as any);
-        default:
-            return 0;
-    }
-}
-
-export const getListItemStarFor = (
-    object: ListObjectType | null | undefined,
-): StarFor | null => {
+    property: keyof YouInflated,
+): DotNotation<typeof object> | null => {
+    // If no object, return null
     if (!object) return null;
-    switch (object.__typename) {
-        case 'Organization':
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-        case 'User':
-            return object.__typename as StarFor;
-        case 'Run':
-            return StarFor.Routine;
-        case 'Star':
-        case 'View':
-            return getListItemStarFor(object.to as any);
-        default:
-            return null;
-    }
+    // If the object is a star, view, or vote, use the "to" object
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getYouDot(object.to as ListObjectType, property);
+    // If the object is a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getYouDot(object.routineVersion as ListObjectType, property);
+    // If the object is a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getYouDot(object.projectVersion as ListObjectType, property);
+    // Check object.you
+    if (exists((object as any).you?.[property])) return 'you';
+    // Check object.root.you
+    if (exists((object as any).root?.you?.[property])) return 'root.you';
+    // If not found, return null
+    return null;
 }
 
 /**
- * Gets isStarred for a single object
- * @param object A searchable object
- * @returns isStarred
+ * Gets user permissions and statuses for an object. These are inflated to match YouInflated, so any fields not present are false
+ * @param object An object
  */
-export const getListItemIsStarred = (
-    object: ListObjectType | null | undefined,
-): boolean => {
-    if (!object) return false;
-    switch (object.__typename) {
-        case 'Organization':
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-        case 'User':
-            return object.isStarred;
-        case 'Run':
-            return object.routine?.isStarred ?? false;
-        case 'Star':
-        case 'View':
-            return getListItemIsStarred(object.to as any);
-        default:
-            return false;
+export const getYou = (
+    object: ListObjectType | null | undefined
+): YouInflated => {
+    // Initialize fields to false (except isUpvoted, where false means downvoted)
+    const defaultPermissions = {
+        canComment: false,
+        canCopy: false,
+        canDelete: false,
+        canEdit: false,
+        canReport: false,
+        canShare: false,
+        canStar: false,
+        canView: false,
+        canVote: false,
+        isStarred: false,
+        isUpvoted: null,
+        isViewed: false,
+    };
+    if (!object) return defaultPermissions;
+    // If a star, view, or vote, use the "to" object
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getYou(object.to as ListObjectType);
+    // If a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getYou(object.routineVersion as ListObjectType);
+    // If a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getYou(object.projectVersion as ListObjectType);
+    // Otherwise, get the permissions from the object
+    // Loop through all permission fields
+    for (const key in defaultPermissions) {
+        // Check if the field is in the object
+        const field = valueFromDot(object, `you.${key}`);
+        if (field === true || field === false) defaultPermissions[key] = field;
+        // If not, check if the field is in the root.you object
+        else {
+            const field = valueFromDot(object, `root.you.${key}`);
+            if (field === true || field === false) defaultPermissions[key] = field;
+        }
     }
+    return defaultPermissions;
 }
 
 /**
- * Gets isUpvoted for a single object
- * @param object A searchable object
- * @returns isUpvoted
+ * Gets counts for an object. These are inflated to match CountsInflated, so any fields not present are 0
+ * @param object An object
  */
-export const getListItemIsUpvoted = (
-    object: ListObjectType | null | undefined,
-): boolean | null => {
-    if (!object) return false;
-    switch (object.__typename) {
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-            return object.isUpvoted;
-        case 'Run':
-            return object.routine?.isUpvoted ?? null;
-        case 'Star':
-        case 'View':    
-            return getListItemIsUpvoted(object.to as any);
-        default:
-            return null;
+export const getCounts = (
+    object: ListObjectType | null | undefined
+): CountsInflated => {
+    // Initialize fields to 0
+    const defaultCounts = {
+        comments: 0,
+        forks: 0,
+        issues: 0,
+        labels: 0,
+        pullRequests: 0,
+        questions: 0,
+        reports: 0,
+        score: 0,
+        stars: 0,
+        transfers: 0,
+        translations: 0,
+        versions: 0,
+        views: 0,
+    };
+    if (!object) return defaultCounts;
+    // If a star, view, or vote, use the "to" object
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getCounts(object.to as ListObjectType);
+    // If a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getCounts(object.routineVersion as ListObjectType);
+    // If a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getCounts(object.projectVersion as ListObjectType);
+    // If a NodeRoutineListItem, use the routine version
+    if (isOfType(object, 'NodeRoutineListItem')) return getCounts(object.routineVersion as ListObjectType);
+    // Otherwise, get the counts from the object
+    // Loop through all count fields
+    for (const key in defaultCounts) {
+        // Check if the field is in the object
+        const field = valueFromDot(object, `${key}Count`);
+        if (field !== undefined) defaultCounts[key] = field;
+        // If not, check if the field is in the root.counts object
+        else {
+            const field = valueFromDot(object, `root.${key}Count`);
+            if (field !== undefined) defaultCounts[key] = field;
+        }
     }
+    return defaultCounts;
 }
 
 /**
- * Gets reportsCount for a single object
- * @param object A searchable object
- * @returns number of reports
+ * Gets the name and subtitle of a list object
+ * @param object A list object
+ * @param languages User languages
+ * @returns The name and subtitle of the object
  */
-export const getListItemReportsCount = (
+export const getDisplay = (
     object: ListObjectType | null | undefined,
-): number => {
-    if (!object) return 0;
-    switch (object.__typename) {
-        case 'Organization':
-        case 'Project':
-        case 'Routine':
-        case 'Standard':
-        case 'User':
-            return object.reportsCount;
-        case 'Star':
-        case 'View':
-            return getListItemStars(object.to as any);
-        default:
-            return 0;
+    languages?: readonly string[]
+): { title: string, subtitle: string } => {
+    if (!object) return { title: '', subtitle: '' };
+    // If a star, view, or vote, use the "to" object
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getDisplay(object.to as ListObjectType);
+    const langs: readonly string[] = languages ?? getUserLanguages(undefined);
+    // If a run routine, use the routine version's display and the startedAt/completedAt date
+    if (isOfType(object, 'RunRoutine')) {
+        const { completedAt, name, routineVersion, startedAt } = object;
+        const title = firstString(name, getTranslation(routineVersion!, langs, true).name);
+        const started = startedAt ? displayDate(startedAt) : null;
+        const completed = completedAt ? displayDate(completedAt) : null;
+        return {
+            title: started ? `${title} (started)` : title,
+            subtitle: started ? 'Started: ' + started : completed ? 'Completed: ' + completed : ''
+        }
     }
+    // If a run project, use the project version's display and the startedAt/completedAt date
+    if (isOfType(object, 'RunProject')) {
+        const { completedAt, name, projectVersion, startedAt } = object;
+        const title = firstString(name, getTranslation(projectVersion!, langs, true).name);
+        const started = startedAt ? displayDate(startedAt) : null;
+        const completed = completedAt ? displayDate(completedAt) : null;
+        return {
+            title: started ? `${title} (started)` : title,
+            subtitle: started ? 'Started: ' + started : completed ? 'Completed: ' + completed : ''
+        }
+    }
+    // For all other objects, fields may differ. 
+    // Priority for title is: title, name, translations[number].title, translations[number].name, handle
+    // Priority for subtitle is: bio, description, summary, details, text, translations[number].bio, translations[number].description, translations[number].summary, translations[number].details, translations[number].text
+    // If all else fails, attempt to find in "root" object
+    const tryTitle = (obj: Record<string, any>) => {
+        const translations: Record<string, any> = getTranslation(obj, langs, true);
+        return firstString(
+            obj.title,
+            obj.name,
+            translations.title,
+            translations.name,
+            obj.handle ? `$${obj.handle}` : null,
+        );
+    }
+    const trySubtitle = (obj: Record<string, any>) => {
+        const translations: Record<string, any> = getTranslation(obj, langs, true);
+        return firstString(
+            obj.bio,
+            obj.description,
+            obj.summary,
+            obj.details,
+            obj.text,
+            translations.bio,
+            translations.description,
+            translations.summary,
+            translations.details,
+            translations.text,
+        );
+    }
+    const title = tryTitle(object) ?? tryTitle((object as any).root) ?? '';
+    const subtitle = trySubtitle(object) ?? trySubtitle((object as any).root) ?? '';
+    // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
+    if (isOfType(object, 'NodeRoutineListItem') && title.length === 0 && subtitle.length === 0) {
+        const routineVersionDisplay = getDisplay(object.routineVersion as ListObjectType, languages);
+        return {
+            title: title.length === 0 ? routineVersionDisplay.title : title,
+            subtitle: subtitle.length === 0 ? routineVersionDisplay.subtitle : subtitle,
+        }
+    }
+    return { title, subtitle };
+};
+
+/**
+ * Finds the information required to star an object
+ * @param object 
+ * @returns StarFor type and ID of the object. For versions, for example, 
+ * the ID is of the root object instead of the version passed in.
+ */
+export const getStarFor = (
+    object: ListObjectType | null | undefined,
+): { starFor: StarFor, starForId: string } | { starFor: null, starForId: null } => {
+    if (!object) return { starFor: null, starForId: null };
+    // If a star, view, or vote, use the "to" object
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getStarFor(object.to as ListObjectType);
+    // If a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getStarFor(object.routineVersion as ListObjectType);
+    // If a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getStarFor(object.projectVersion as ListObjectType);
+    // If a NodeRoutineListItem, use the routine version
+    if (isOfType(object, 'NodeRoutineListItem')) return getStarFor(object.routineVersion as ListObjectType);
+    // If the object contains a root object, use that
+    if ((object as any).root) return getStarFor((object as any).root);
+    // Use current object
+    return { starFor: object.__typename as unknown as StarFor, starForId: object.id };
 }
 
 /**
@@ -280,12 +297,17 @@ export function listToAutocomplete(
     return objects.map(o => ({
         __typename: o.__typename,
         id: o.id,
-        isStarred: getListItemIsStarred(o),
-        label: getListItemSubtitle(o, languages),
-        routine: o.__typename === 'Run' ? o.routine : undefined,
-        stars: getListItemStars(o),
-        to: o.__typename === 'View' || o.__typename === 'Star' ? o.to : undefined,
-        versionGroupId: undefined// TODO o.__typename === 'Routine' || o.__typename === 'Standard' ? o.versionGroupId : undefined,
+        isStarred: getYou(o).isStarred,
+        label: getDisplay(o, languages).title,
+        runnableObject: o.__typename === 'RunProject' ?
+            o.projectVersion :
+            o.__typename === 'RunRoutine' ?
+                o.routineVersion :
+                undefined,
+        stars: getCounts(o).stars,
+        to: isOfType(o, 'Star', 'View', 'Vote') ? o.to : undefined,
+        versions: isOfType(o, 'Api', 'Note', 'Project', 'Routine', 'SmartContract', 'Standard') ? o.versions : undefined,
+        root: isOfType(o, 'ApiVersion', 'NoteVersion', 'ProjectVersion', 'RoutineVersion', 'SmartContractVersion', 'StandardVersion') ? o.root : undefined,
     }));
 }
 
@@ -355,14 +377,12 @@ export function listToListItems({
     if (!items) return listItems;
     for (let i = 0; i < items.length; i++) {
         let curr = items[i];
-        // If "View" or "Star" item, display the object it points to
-        if (curr.__typename === 'View' || curr.__typename === 'Star') {
-            curr = (curr as ListStar | ListView).to as ObjectListItemType;
-        }
+        // If "Star", "View", or "Vote", use the "to" object
+        if (isOfType(curr, 'Star', 'View', 'Vote')) curr = curr.to as ListObjectType;
         listItems.push(<ObjectListItem
             key={`${keyPrefix}-${curr.id}`}
             beforeNavigation={beforeNavigation}
-            data={curr}
+            data={curr as ListObjectType}
             hideRole={hideRoles}
             index={i}
             loading={false}

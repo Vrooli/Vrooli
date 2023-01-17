@@ -2,24 +2,23 @@
  * Navigate to various objects and object search pages
  */
 
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, GqlModelType, RunProject, RunRoutine, Star, View, Vote } from "@shared/consts";
+import { isOfType } from "@shared/utils";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
 import { NavigableObject, SetLocation } from "types";
 import { ResourceType } from "utils/consts";
 import { stringifySearchParams, uuidToBase36 } from "./urlTools";
 
-export enum ObjectType {
-    Comment = 'Comment',
-    Organization = 'Organization',
-    Project = 'Project',
-    Routine = 'Routine',
-    Run = 'Run',
-    Standard = 'Standard',
-    Star = 'Star',
-    Tag = 'Tag',
-    User = 'User',
-    View = 'View',
-}
+export type ObjectType = 'Comment' |
+    'Organization' |
+    'Project' |
+    'Routine' |
+    'Run' |
+    'Standard' |
+    'Star' |
+    'Tag' |
+    'User' |
+    'View';
 
 /**
  * Gets URL base for object type
@@ -27,28 +26,14 @@ export enum ObjectType {
  * @returns Search URL base for object type
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
-    switch (object.__typename) {
-        case ObjectType.Organization:
-            return APP_LINKS.Organization;
-        case ObjectType.Project:
-            return APP_LINKS.Project;
-        case ObjectType.Routine:
-            return APP_LINKS.Routine;
-        case ObjectType.Standard:
-            return APP_LINKS.Standard;
-        case ObjectType.User:
-            return APP_LINKS.Profile;
-        case ObjectType.Star:
-        case ObjectType.View:
-            return getObjectUrlBase(object.to as any);
-        case ObjectType.Run:
-            return getObjectUrlBase({
-                __typename: ObjectType.Routine,
-                id: object.routine?.id,
-            } as any);
-        default:
-            return '';
-    }
+    // If object is a star/vote/some other type that links to a main object, use the "to" property
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getObjectUrlBase((object as Star | View | Vote).to as any);
+    // If the object is a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getObjectUrlBase((object as RunRoutine).routineVersion as any);
+    // If the object is a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getObjectUrlBase((object as RunProject).projectVersion as any);
+    // Otherwise, use __typename (or root if versioned object)
+    return APP_LINKS[object.__typename.replace('Version', '')];
 }
 
 /**
@@ -56,19 +41,15 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
  * @param object Object being navigated to
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: NavigableObject): string => {
-    // If object is a star/vote/some other type that links to a main object, use that object's slug
-    if (object.to) return getObjectSlug(object.to);
-    // If object is a run, navigate to the routine
-    if (object.routine) return getObjectSlug(object.routine);
-    // If object has a handle, use that (Note: objects with handles don't have versioning, so we don't need to worry about that)
-    if (object.handle) return object.handle;
-    // If object has a versionGroupId, and an id, use versionGroupId/id
-    if (object.versionGroupId && object.id) return `${uuidToBase36(object.versionGroupId)}/${uuidToBase36(object.id)}`;
-    // If object only has a versionGroupId, use that
-    if (object.versionGroupId) return uuidToBase36(object.versionGroupId);
-    // Otherwise, use the id
-    return uuidToBase36(object.id);
+export const getObjectSlug = (object: { __typename: `${GqlModelType}`, id: string, handle?: string | null}): string => {
+    // If object is a star/vote/some other __typename that links to a main object, use that object's slug
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getObjectSlug((object as Star | View | Vote).to as any);
+    // If the object is a run routine, use the routine version
+    if (isOfType(object, 'RunRoutine')) return getObjectSlug((object as RunRoutine).routineVersion as any);
+    // If the object is a run project, use the project version
+    if (isOfType(object, 'RunProject')) return getObjectSlug((object as RunProject).projectVersion as any);
+    // Otherwise, use handle or id
+    return object.handle ?? uuidToBase36(object.id);
 }
 
 /**
@@ -76,46 +57,46 @@ export const getObjectSlug = (object: NavigableObject): string => {
  * @param object Object being navigated to
  * @returns Stringified search params for object
  */
-export const getObjectSearchParams = (object: any) => {
+export const getObjectSearchParams = (object: { __typename: `${GqlModelType}`, id: string }) => {
     // If object is a run
-    if (object.__typename === ObjectType.Run) return stringifySearchParams({ run: uuidToBase36(object.id) });
+    if (object.__typename === 'RunRoutine') return stringifySearchParams({ run: uuidToBase36(object.id) });
     return '';
 }
 
 /**
- * Finds view page URL for any object with an id and __typename
+ * Finds view page URL for any object with an id and type
  * @param object Object being navigated to
  */
 export const getObjectUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
 
 /**
- * Opens any object with an id and __typename
+ * Opens any object with an id and type
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
 export const openObject = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectUrl(object));
 
 /**
- * Finds edit page URL for any object with an id and __typename
+ * Finds edit page URL for any object with an id and type
  * @param object Object being navigated to
  */
 export const getObjectEditUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/edit/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
 
 /**
- * Opens the edit page for an object with an id and __typename
+ * Opens the edit page for an object with an id and type
  * @param object Object to open
  * @param setLocation Function to set location in history
  */
 export const openObjectEdit = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectEditUrl(object));
 
 /**
- * Finds report page URL for any object with an id and __typename
+ * Finds report page URL for any object with an id and type
  * @param object Object being navigated to
  */
 export const getObjectReportUrl = (object: NavigableObject) => `${getObjectUrlBase(object)}/reports/${getObjectSlug(object)}`;
 
 /**
- * Opens the report page for an object with an id and __typename
+ * Opens the report page for an object with an id and type
  * @param object Object to open
  */
 export const openObjectReport = (object: NavigableObject, setLocation: SetLocation) => setLocation(getObjectReportUrl(object));

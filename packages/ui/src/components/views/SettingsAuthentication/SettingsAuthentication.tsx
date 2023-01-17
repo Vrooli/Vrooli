@@ -1,27 +1,19 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { useCallback, useState } from "react";
-import { mutationWrapper } from 'graphql/utils/graphqlWrapper';
-import { profileUpdateSchema as validationSchema } from '@shared/validation';
-import { APP_LINKS } from '@shared/consts';
+import { mutationWrapper } from 'graphql/utils';
+import { APP_LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { useFormik } from 'formik';
-import { profileEmailUpdateMutation } from "graphql/mutation";
 import { PubSub, usePromptBeforeUnload } from "utils";
 import { SettingsAuthenticationProps } from "../types";
 import { useLocation } from '@shared/route';
-import { logOutMutation } from 'graphql/mutation';
 import { GridSubmitButtons, HelpButton } from "components/buttons";
 import { EmailList, WalletList } from "components/lists";
-import { Email, Wallet } from "types";
 import { DeleteAccountDialog, PageTitle, PasswordTextField, SnackSeverity } from "components";
-import { profileEmailUpdateVariables, profileEmailUpdate_profileEmailUpdate } from "graphql/generated/profileEmailUpdate";
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
-import { logOutVariables, logOut_logOut } from "graphql/generated/logOut";
 import { SettingsFormData } from "pages";
-
-const helpText =
-    `This page allows you to manage your wallets, emails, and other authentication settings.`;
+import { authEndpoint, userEndpoint } from "graphql/endpoints";
 
 const walletHelpText =
     `This list contains all of your connected wallets. If a custom name has not been set, 
@@ -45,10 +37,10 @@ export const SettingsAuthentication = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [logOut] = useMutation(logOutMutation);
+    const [logOut] = useMutation<Session, LogOutInput>(...authEndpoint.logOut);
     const onLogOut = useCallback(() => {
         const { id } = getCurrentUser(session);
-        mutationWrapper<logOut_logOut, logOutVariables>({ 
+        mutationWrapper<Session, LogOutInput>({ 
             mutation: logOut,
             input: { id },
             onSuccess: (data) => { PubSub.get().publishSession(data) },
@@ -84,7 +76,7 @@ export const SettingsAuthentication = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation] = useMutation(profileEmailUpdateMutation);
+    const [mutation] = useMutation<User, ProfileEmailUpdateInput, 'profileEmailUpdate'>(...userEndpoint.profileEmailUpdate);
     const formik = useFormik({
         initialValues: {
             currentPassword: '',
@@ -99,7 +91,7 @@ export const SettingsAuthentication = ({
                 return;
             }
             if (!formik.isValid) return;
-            mutationWrapper<profileEmailUpdate_profileEmailUpdate, profileEmailUpdateVariables>({
+            mutationWrapper<User, ProfileEmailUpdateInput>({
                 mutation,
                 input: {
                     currentPassword: values.currentPassword,
@@ -125,7 +117,7 @@ export const SettingsAuthentication = ({
                 session={session}
                 zIndex={100}
             />
-            <PageTitle title="Authentication" helpText={helpText} />
+            <PageTitle titleKey='Authentication' helpKey='AuthenticationHelp' session={session} />
             <Stack direction="row" marginRight="auto" alignItems="center" justifyContent="center">
                 <WalletIcon fill={palette.background.textPrimary} />
                 <Typography component="h2" variant="h5" textAlign="center" ml={1}>Connected Wallets</Typography>

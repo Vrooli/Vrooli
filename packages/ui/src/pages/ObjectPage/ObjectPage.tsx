@@ -2,11 +2,10 @@ import { useCallback, useMemo } from "react";
 import { ObjectPageProps } from "../types";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useLocation } from '@shared/route';
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, GqlModelType, Organization, ProjectVersion, RoutineVersion, Session, StandardVersion, User } from "@shared/consts";
 import { lazily } from "react-lazily";
 import { ObjectType, parseSearchParams, PubSub, uuidToBase36 } from "utils";
-import { Organization, Project, Routine, Session, Standard, User } from "types";
-import { CommentReportsView, OrganizationReportsView, PageContainer, ProjectReportsView, RoutineReportsView, SnackSeverity, StandardReportsView, TagReportsView, UserReportsView } from "components";
+import { PageContainer, ReportsView, SnackSeverity } from "components";
 
 const { OrganizationCreate, OrganizationUpdate, OrganizationView } = lazily(() => import('../../components/views/Organization'));
 const { ProjectCreate, ProjectUpdate, ProjectView } = lazily(() => import('../../components/views/Project'));
@@ -15,14 +14,14 @@ const { StandardCreate, StandardUpdate, StandardView } = lazily(() => import('..
 
 export interface CreatePageProps {
     onCancel: () => void;
-    onCreated: (item: { __typename: string, id: string }) => void;
+    onCreated: (item: { __typename: `${GqlModelType}`, id: string }) => void;
     session: Session;
     zIndex: number;
 }
 
 export interface UpdatePageProps {
     onCancel: () => void;
-    onUpdated: (item: { __typename: string, id: string }) => void;
+    onUpdated: (item: { __typename: `${GqlModelType}`, id: string }) => void;
     session: Session;
     zIndex: number;
 }
@@ -32,7 +31,7 @@ export interface ViewPageProps {
      * Any data about the object which is already known, 
      * such as its name. Can be displayed while fetching the full object
      */
-    partialData?: Partial<Organization & Project & Routine & Standard & User>
+    partialData?: Partial<Organization & ProjectVersion & RoutineVersion & StandardVersion & User>
     session: Session;
     zIndex: number;
 }
@@ -50,63 +49,50 @@ enum PageType {
  * Maps links to object types
  */
 const typeMap: { [key in APP_LINKS]?: ObjectType } = {
-    [APP_LINKS.Organization]: ObjectType.Organization,
-    [APP_LINKS.Project]: ObjectType.Project,
-    [APP_LINKS.Routine]: ObjectType.Routine,
-    [APP_LINKS.Standard]: ObjectType.Standard,
+    [APP_LINKS.Organization]: 'Organization',
+    [APP_LINKS.Project]: 'Project',
+    [APP_LINKS.Routine]: 'Routine',
+    [APP_LINKS.Standard]: 'Standard',
 }
 
 /**
  * Maps object types to dialog titles
  */
 const titleMap: { [key in ObjectType]?: string } = {
-    [ObjectType.Organization]: 'Organization',
-    [ObjectType.Project]: 'Project',
-    [ObjectType.Routine]: 'Routine',
-    [ObjectType.Standard]: 'Standard',
+    'Organization': 'Organization',
+    'Project': 'Project',
+    'Routine': 'Routine',
+    'Standard': 'Standard',
 }
 
 /**
  * Maps object types to create components
  */
 const createMap: { [key in ObjectType]?: (props: CreatePageProps) => JSX.Element } = {
-    [ObjectType.Organization]: OrganizationCreate,
-    [ObjectType.Project]: ProjectCreate,
-    [ObjectType.Routine]: RoutineCreate as any, //TODO
-    [ObjectType.Standard]: StandardCreate as any, //TODO
+    'Organization': OrganizationCreate,
+    'Project': ProjectCreate,
+    'Routine': RoutineCreate,
+    'Standard': StandardCreate,
 }
 
 /**
  * Maps object types to update components
  */
 const updateMap: { [key in ObjectType]?: (props: UpdatePageProps) => JSX.Element } = {
-    [ObjectType.Organization]: OrganizationUpdate,
-    [ObjectType.Project]: ProjectUpdate,
-    [ObjectType.Routine]: RoutineUpdate as any, //TODO
-    [ObjectType.Standard]: StandardUpdate as any, //TODO
+    'Organization': OrganizationUpdate,
+    'Project': ProjectUpdate,
+    'Routine': RoutineUpdate,
+    'Standard': StandardUpdate,
 }
 
 /**
  * Maps object types to view components
  */
 const viewMap: { [key in ObjectType]?: (props: ViewPageProps) => JSX.Element } = {
-    [ObjectType.Organization]: OrganizationView,
-    [ObjectType.Project]: ProjectView,
-    [ObjectType.Routine]: RoutineView as any, //TODO
-    [ObjectType.Standard]: StandardView as any, //TODO
-}
-
-/**
- * Maps object types to reports view components
- */
-const reportsMap: { [key in ObjectType]?: (props: ReportsPageProps) => JSX.Element } = {
-    [ObjectType.Comment]: CommentReportsView,
-    [ObjectType.Organization]: OrganizationReportsView,
-    [ObjectType.Project]: ProjectReportsView,
-    [ObjectType.Routine]: RoutineReportsView,
-    [ObjectType.Standard]: StandardReportsView,
-    [ObjectType.Tag]: TagReportsView,
-    [ObjectType.User]: UserReportsView,
+    'Organization': OrganizationView,
+    'Project': ProjectView,
+    'Routine': RoutineView,
+    'Standard': StandardView,
 }
 
 export const ObjectPage = ({
@@ -163,7 +149,6 @@ export const ObjectPage = ({
         const searchParams = parseSearchParams();
         if (pageType === PageType.View || searchParams.build === true) {
             const View = viewMap[objectType];
-            document.title = `View ${titleMap[objectType]}`;
             return View && <View session={session} zIndex={200} />
         }
         if (pageType === PageType.Create) {
@@ -187,12 +172,10 @@ export const ObjectPage = ({
             />)
         }
         if (pageType === PageType.Reports) {
-            const Reports = reportsMap[objectType];
             document.title = `Reports | ${titleMap[objectType]}`;
-            return (Reports && <Reports />)
+            return <ReportsView session={session} />
         }
         const View = viewMap[objectType];
-        document.title = `View ${titleMap[objectType]}`;
         return View && <View session={session} zIndex={200} />
     }, [objectType, onAction, pageType, session]);
 

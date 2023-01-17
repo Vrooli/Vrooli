@@ -1,20 +1,18 @@
-import { useMutation } from "@apollo/client";
+import { useMutation } from "graphql/hooks";
 import { DUMMY_ID } from "@shared/uuid";
-import { commentTranslationUpdate } from "@shared/validation";
 import { CommentDialog } from "components/dialogs"
 import { useCallback, useMemo } from "react";
-import { getFormikErrorsWithTranslations, getTranslationData, handleTranslationChange, shapeCommentUpdate, usePromptBeforeUnload, useWindowSize } from "utils";
+import { handleTranslationChange, shapeComment, usePromptBeforeUnload, useTranslatedFields, useWindowSize } from "utils";
 import { CommentUpdateInputProps } from "../types"
-import { commentCreate as validationSchema } from '@shared/validation';
-import { commentUpdateMutation } from "graphql/mutation";
+import { commentValidation, commentTranslationValidation } from '@shared/validation';
 import { getCurrentUser } from "utils/authentication";
 import { mutationWrapper } from "graphql/utils";
 import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
-import { commentUpdateVariables, commentUpdate_commentUpdate } from "graphql/generated/commentUpdate";
-
+import { Comment, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
+import { commentEndpoint } from "graphql/endpoints";
 
 /**
  * MarkdownInput/CommentContainer wrapper for creating comments
@@ -34,7 +32,7 @@ export const CommentUpdateInput = ({
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
     const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
-    const [updateMutation, { loading: loadingAdd }] = useMutation(commentUpdateMutation);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<Comment, CommentUpdateInputType, 'commentUpdate'>(...commentEndpoint.update);
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,
@@ -47,16 +45,18 @@ export const CommentUpdateInput = ({
                 text: '',
             }],
         },
-        validationSchema,
+        validationSchema: commentValidation.update(),
         onSubmit: (values) => {
             // If not logged in, open login dialog
             //TODO
-            mutationWrapper<commentUpdate_commentUpdate, commentUpdateVariables>({
+            const input = shapeComment.update(comment, {
+                ...comment,
+                commentedOn: { __typename: values.createdFor, id: values.forId },
+                translations: values.translationsUpdate,
+            }, true)
+            input !== undefined && mutationWrapper<Comment, CommentUpdateInputType>({
                 mutation: updateMutation,
-                input: shapeCommentUpdate(comment as any, {
-                    ...comment,
-                    translations: values.translationsUpdate,
-                } as any),
+                input,
                 successCondition: (data) => data !== null,
                 successMessage: () => ({ key: 'CommentUpdated' }),
                 onSuccess: (data) => {
@@ -69,14 +69,13 @@ export const CommentUpdateInput = ({
     });
     usePromptBeforeUnload({ shouldPrompt: formik.dirty && formik.values.translationsUpdate.some(t => t.text.trim().length > 0) });
 
-    const { text, errorText, errors } = useMemo(() => {
-        const { error, value } = getTranslationData(formik, 'translationsUpdate', language);
-        return {
-            text: value?.text ?? '',
-            errorText: error?.text ?? '',
-            errors: getFormikErrorsWithTranslations(formik, 'translationsUpdate', commentTranslationUpdate),
-        }
-    }, [formik, language]);
+    const translations = useTranslatedFields({
+        fields: ['text'],
+        formik,
+        formikField: 'translationsUpdate',
+        language,
+        validationSchema: commentTranslationValidation.update(),
+    });
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {
         handleTranslationChange(formik, 'translationsUpdate', e, language);
     }, [formik, language]);
@@ -84,7 +83,7 @@ export const CommentUpdateInput = ({
     // If mobile, use CommentDialog
     if (isMobile) return (
         <CommentDialog
-            errorText={errorText}
+            errorText={translations.errorText}
             handleClose={handleClose}
             handleSubmit={formik.handleSubmit}
             isAdding={false}
@@ -92,7 +91,7 @@ export const CommentUpdateInput = ({
             language={language}
             onTranslationChange={onTranslationChange}
             parent={parent}
-            text={text}
+            text={translations.text}
             zIndex={zIndex + 1}
         />
     )
@@ -104,11 +103,11 @@ export const CommentUpdateInput = ({
                 <MarkdownInput
                     id="update-comment"
                     placeholder="Please be nice to each other."
-                    value={text}
+                    value={translations.text}
                     minRows={3}
                     onChange={(newText: string) => onTranslationChange({ target: { name: 'text', value: newText } })}
-                    error={text.length > 0 && Boolean(errorText)}
-                    helperText={text.length > 0 ? errorText : ''}
+                    error={translations.text.length > 0 && Boolean(translations.errorText)}
+                    helperText={translations.text.length > 0 ? translations.errorText : ''}
                 />
                 <Grid container spacing={1} sx={{
                     width: 'min(100%, 400px)',
@@ -117,9 +116,9 @@ export const CommentUpdateInput = ({
                 }}>
                     <GridSubmitButtons
                         disabledSubmit={!isLoggedIn}
-                        errors={errors}
+                        errors={translations.errorsWithTranslations}
                         isCreate={true}
-                        loading={formik.isSubmitting || loadingAdd}
+                        loading={formik.isSubmitting || loadingUpdate}
                         onCancel={formik.resetForm}
                         onSetSubmitting={formik.setSubmitting}
                         onSubmit={formik.submitForm}

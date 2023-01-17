@@ -16,15 +16,18 @@ export const Navbar = ({
     const [, setLocation] = useLocation();
 
     const toHome = useCallback(() => setLocation(APP_LINKS.Home), [setLocation]);
+    const scrollToTop = useCallback(() => window.scrollTo({ top: 0, behavior: 'smooth' }), []);
 
     return (
         <HideOnScroll>
-            <AppBar sx={{
-                ...noSelect,
-                background: palette.primary.dark,
-                height: { xs: '64px', md: '80px' },
-                zIndex: 100,
-            }}>
+            <AppBar
+                onClick={scrollToTop}
+                sx={{
+                    ...noSelect,
+                    background: palette.primary.dark,
+                    height: { xs: '64px', md: '80px' },
+                    zIndex: 100,
+                }}>
                 <Toolbar>
                     <Box
                         onClick={toHome}

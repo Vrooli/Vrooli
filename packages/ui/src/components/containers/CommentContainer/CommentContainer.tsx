@@ -3,21 +3,20 @@
  */
 import { Box, Button, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
-import { useLazyQuery } from '@apollo/client';
+import { useLazyQuery } from 'graphql/hooks';
 import { CommentCreateInput } from 'components/inputs';
 import { addSearchParams, labelledSortOptions, parseSearchParams, removeSearchParams, SearchType, searchTypeToParams, SortValueToLabelMap, useWindowSize } from 'utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { TimeFrame } from 'graphql/generated/globalTypes';
-import { comments, commentsVariables } from 'graphql/generated/comments';
 import { useLocation } from '@shared/route';
-import { commentsQuery } from 'graphql/query';
-import { Comment, CommentThread as ThreadType } from 'types';
+import { Wrap } from 'types';
 import { CommentThread } from 'components/lists/comment';
 import { uuidValidate } from '@shared/uuid';
 import { AdvancedSearchDialog } from 'components/dialogs';
 import { SortMenu, TimeMenu } from 'components/lists';
 import { BuildIcon, SortIcon, HistoryIcon as TimeIcon, CreateIcon } from '@shared/icons';
 import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
+import { CommentThread as ThreadType, CommentSearchInput, CommentSearchResult, CommentSortBy, TimeFrame, Comment } from '@shared/consts';
+import { commentEndpoint } from 'graphql/endpoints';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = searchTypeToParams.Comment;
 const sortOptionsLabelled = labelledSortOptions(sortByOptions);
@@ -99,21 +98,19 @@ export function CommentContainer({
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<comments, commentsVariables>(commentsQuery, {
-        variables: ({
-            input: {
-                after: after.current,
-                take: 20,
-                sortBy,
-                searchString,
-                createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
-                    after: timeFrame.after?.toISOString(),
-                    before: timeFrame.before?.toISOString(),
-                } : undefined,
-                [`${objectType.toLowerCase()}Id`]: objectId,
-                ...advancedSearchParams
-            }
-        } as any),
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<CommentSearchResult, CommentSearchInput, 'comments'>(...commentEndpoint.findMany, {
+        variables: {
+            after: after.current,
+            take: 20,
+            sortBy: sortBy as CommentSortBy,
+            searchString,
+            createdTimeFrame: (timeFrame && Object.keys(timeFrame).length > 0) ? {
+                after: timeFrame.after?.toISOString(),
+                before: timeFrame.before?.toISOString(),
+            } : undefined,
+            [`${objectType.toLowerCase()}Id`]: objectId,
+            ...advancedSearchParams
+        },
         errorPolicy: 'all',
     });
     const [allData, setAllData] = useState<ThreadType[]>([]);
@@ -141,7 +138,7 @@ export function CommentContainer({
     /**
      * Helper method for converting fetched data to an array of object data
      */
-    const parseData = useCallback((data: comments | undefined): ThreadType[] => {
+    const parseData = useCallback((data: Wrap<CommentSearchResult, 'comments'> | undefined): ThreadType[] => {
         if (!data) return [];
         return data.comments.threads ?? [];
     }, []);

@@ -8,9 +8,8 @@ import { Box, Stack, useTheme } from '@mui/material';
 import { NodeColumn, NodeEdge, SnackSeverity } from 'components';
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NodeGraphProps } from '../types';
-import { Node } from 'types';
-import { NodeType } from 'graphql/generated/globalTypes';
 import { firstString, PubSub, usePinchZoom } from 'utils';
+import { Node, NodeType } from '@shared/consts';
 
 type DragRefs = {
     currPosition: { x: number, y: number } | null; // Current position of the cursor
@@ -299,17 +298,17 @@ export const NodeGraph = ({
         // (i.e. no links, or column dimensions not complete)
         if (!links) return [];
         return links?.map(link => {
-            if (!link.fromId || !link.toId) return null;
-            const fromNode = nodesById[link.fromId];
-            const toNode = nodesById[link.toId];
+            if (!link.from.id || !link.to.id) return null;
+            const fromNode = nodesById[link.from.id];
+            const toNode = nodesById[link.to.id];
             if (!fromNode || !toNode) return null;
             return <NodeEdge
                 key={`edge-${firstString(link.id, 'new-') + fromNode.id + '-to-' + toNode.id}`}
                 fastUpdate={fastUpdate}
                 link={link}
                 isEditing={isEditing}
-                isFromRoutineList={fromNode.type === NodeType.RoutineList}
-                isToRoutineList={toNode.type === NodeType.RoutineList}
+                isFromRoutineList={fromNode.nodeType === NodeType.RoutineList}
+                isToRoutineList={toNode.nodeType === NodeType.RoutineList}
                 scale={scale}
                 handleAdd={handleNodeInsert}
                 handleBranch={handleBranchInsert}

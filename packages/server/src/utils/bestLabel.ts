@@ -5,15 +5,18 @@
  * @param labelField The field to search for the label in
  * @param languages The preferred languages
  */
-export const bestLabel = <Translation extends { [x: string]: any }>(
+export const bestLabel = <
+    LabelField extends string,
+    Translation extends { [key in LabelField]: string | null } & { language: string }
+>(
     translations: Translation[],
-    labelField: string,
+    labelField: LabelField,
     languages: string[],
 ): string => {
     for (const language of languages) {
         const translation = translations.find(({ language: lang }) => lang === language);
-        if (translation) return translation[labelField];
+        if (translation) return translation[labelField] ?? '';
     }
-    if (translations.length > 0) return translations[0][labelField];
+    if (translations.length > 0) return translations[0][labelField] ?? '';
     return '';
 }

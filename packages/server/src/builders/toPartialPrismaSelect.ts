@@ -1,8 +1,7 @@
 import { ObjectMap } from "../models";
-import { Formatter, GraphQLModelType } from "../models/types";
 import { addCountFields } from "./addCountFields";
 import { addJoinTables } from "./addJoinTables";
-import { deconstructRelationships } from "./deconstructRelationships";
+import { deconstructUnions } from "./deconstructUnions";
 import { isRelationshipObject } from "./isRelationshipObject";
 import { removeSupplementalFields } from "./removeSupplementalFields";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
@@ -13,7 +12,7 @@ import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
  * but not actually query the database.
  * @param partial GraphQL info object, partially converted to Prisma select
  * @returns Prisma select object with calculated fields, unions and join tables removed, 
- * and count fields and __typenames added
+ * and count fields and types added
  */
 export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrismaSelect): PartialPrismaSelect => {
     // Create result object
@@ -30,13 +29,15 @@ export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrism
         }
     }
     // Handle base case
-    const type: GraphQLModelType | undefined = partial?.__typename;
-    const formatter: Formatter<any, any> | undefined = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
-    if (formatter) {
-        result = removeSupplementalFields(type as GraphQLModelType, result);
-        result = deconstructRelationships(result, formatter.relationshipMap);
-        result = addJoinTables(result, formatter.joinMap);
-        result = addCountFields(result, formatter.countMap);
+    const type = partial.__typename;
+    const format = typeof type === 'string' ? ObjectMap[type as keyof typeof ObjectMap]?.format : undefined;
+    if (type && format) {
+        result = removeSupplementalFields(type, result);
+        console.log('before deconstruct', JSON.stringify(result), '\n\n');
+        result = deconstructUnions(result, format.gqlRelMap);
+        console.log('after deconstruct', JSON.stringify(result), '\n\n');
+        result = addJoinTables(result, format.joinMap as any);
+        result = addCountFields(result, format.countFields);
     }
     return result;
 }

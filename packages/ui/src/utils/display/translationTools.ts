@@ -1,9 +1,10 @@
 import { FormikErrors, FormikProps } from "formik";
 import { ObjectSchema, ValidationError } from 'yup';
-import { Session } from "types";
+import { CommonKey, ErrorKey } from "types";
 import { uuid } from '@shared/uuid';
 import { getCurrentUser } from "utils/authentication";
-import i18next, { TFuncKey } from 'i18next';
+import i18next from 'i18next';
+import { Session } from "@shared/consts";
 
 export type TranslationObject = {
     id: string,
@@ -353,7 +354,7 @@ export const AllLanguages = {
  */
 export const getTranslation = <
     Translation extends { language: string },
->(obj: { translations?: Translation[] | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
+>(obj: { translations?: Translation[] | null | undefined } | null | undefined, languages: readonly string[], showAny: boolean = true): Partial<Translation> => {
     if (!obj || !obj.translations) return {}
     // Loop through translations
     for (const translation of obj.translations) {
@@ -502,7 +503,7 @@ export const getTranslationData = <
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
 >(formik: FormikProps<Values>, field: KeyField, language: string): {
-    error: FormikErrors<Values[KeyField][0]> | undefined,
+    error: { [key in keyof Values[KeyField][0]]: string } | undefined,
     index: number,
     touched: { [key in keyof Values[KeyField][0]]: boolean } | undefined,
     value: Values[KeyField][0] | undefined
@@ -652,9 +653,6 @@ export const removeTranslation = <
     formik.setFieldValue(translationField, translations);
 }
 
-type ErrKey = TFuncKey<'error', undefined>
-type CommonKey = TFuncKey<'common', undefined>
-
 /**
  * Converts a common key to a translated string. 
  * @param key The key to convert
@@ -663,12 +661,12 @@ type CommonKey = TFuncKey<'common', undefined>
  * @returns The translated string
  */
  export const translateCommonKey = (
-    key:  CommonKey,
+    key: CommonKey,
     variables: { [x: string]: number | string } | undefined,
     languages: string[]
 ): string  => {
     const lng = languages.length > 0 ? languages[0] : 'en';
-    return i18next.t(`common:${key}`, { lng, ...(variables ?? {}) }) ?? '';
+    return i18next.t(`common:${key}`, { lng, ...(variables ?? {}) });
 };
 
 /**
@@ -679,12 +677,13 @@ type CommonKey = TFuncKey<'common', undefined>
  * @returns The translated string
  */
  export const translateErrorKey = (
-    key:  ErrKey,
+    key: ErrorKey,
     variables: { [x: string]: number | string } | undefined,
     languages: string[]
 ): string => {
     const lng = languages.length > 0 ? languages[0] : 'en';
-    return i18next.t(`error:${key}`, { lng, ...(variables ?? {}) }) ?? '';
+    const translated = i18next.t(`error:${key}`, { lng, ...(variables ?? {}) })
+    return translated !== key ? translated : '';
 };
 
 /**
@@ -696,15 +695,16 @@ type CommonKey = TFuncKey<'common', undefined>
  * @returns Object with message and details
  */
  export const translateSnackMessage = (
-    key: ErrKey | CommonKey,
+    key: ErrorKey | CommonKey,
     variables: { [x: string]: number | string } | undefined,
     languages: string[]
 ): { message: string, details: string | undefined } => {
     const lng = languages.length > 0 ? languages[0] : 'en';
-    const messageAsError = translateErrorKey(key as ErrKey, variables, languages);
+    const messageAsError = translateErrorKey(key as ErrorKey, variables, languages);
     const messageAsCommon = translateCommonKey(key as CommonKey, variables, languages);
     if (messageAsError.length > 0) {
-        return { message: messageAsError, details: i18next.t(`error:${key}Details` as any, { lng }) };
+        const details = i18next.t(`error:${key}Details` as any, { lng });
+        return { message: messageAsError, details: (details === `${key}Details` ? undefined : details) };
     }
     return { message: messageAsCommon, details: undefined };
 };

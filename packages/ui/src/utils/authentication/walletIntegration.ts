@@ -2,11 +2,10 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
+import { WalletComplete } from '@shared/consts';
 import { SnackSeverity } from 'components';
-import { walletComplete_walletComplete as WalletCompleteResult } from 'graphql/generated/walletComplete';
-import { walletInitMutation, walletCompleteMutation } from 'graphql/mutation';
-import { errorToCode } from 'graphql/utils/errorParser';
-import { initializeApollo } from 'graphql/utils/initialize';
+import { authEndpoint } from 'graphql/endpoints';
+import { errorToCode, initializeApollo } from 'graphql/utils';
 import { ApolloError } from 'types';
 import { PubSub } from 'utils';
 
@@ -111,7 +110,7 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
     PubSub.get().publishLoading(500);
     const client = initializeApollo();
     const data = await client.mutate({
-        mutation: walletInitMutation,
+        mutation: authEndpoint.walletInit[0],
         variables: { input: { stakingAddress } }
     }).catch((error: ApolloError) => {
         PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error });
@@ -126,11 +125,11 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
  * @param signedPayload Message signed by wallet
  * @returns Session object if successful, null if not
  */
-const walletComplete = async (stakingAddress: string, signedPayload: string): Promise<WalletCompleteResult | null> => {
+const walletComplete = async (stakingAddress: string, signedPayload: string): Promise<WalletComplete | null> => {
     PubSub.get().publishLoading(500);
     const client = initializeApollo();
     const data = await client.mutate({
-        mutation: walletCompleteMutation,
+        mutation: authEndpoint.walletComplete[0],
         variables: { input: { stakingAddress, signedPayload } }
     }).catch((error: ApolloError) => {
         PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error });
@@ -161,8 +160,8 @@ const signPayload = async (key: string, walletActions: WalletActions, stakingAdd
  * @param key The wallet provider to use
  * @returns WalletCompleteResult or null
  */
-export const validateWallet = async (key: string): Promise<WalletCompleteResult | null> => {
-    let result: WalletCompleteResult | null = null;
+export const validateWallet = async (key: string): Promise<WalletComplete | null> => {
+    let result: WalletComplete | null = null;
     try {
         // Connect to wallet extension
         const walletActions = await connectWallet(key);

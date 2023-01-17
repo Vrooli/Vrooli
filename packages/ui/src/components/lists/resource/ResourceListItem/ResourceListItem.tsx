@@ -3,11 +3,10 @@ import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from '@m
 import { ResourceListItemProps } from '../types';
 import { multiLineEllipsis } from 'styles';
 import { useCallback, useMemo } from 'react';
-import { ResourceSortBy, ResourceUsedFor } from '@shared/consts';
+import { ResourceUsedFor } from '@shared/consts';
 import { adaHandleRegex, urlRegex, walletAddressRegex } from '@shared/validation';
 import { useLocation } from '@shared/route';
-import { firstString, getResourceUrl, getTranslation, getUserLanguages, LabelledSortOption, labelledSortOptions, openLink, PubSub, ResourceType, usePress } from 'utils';
-import { Resource } from 'types';
+import { firstString, getDisplay, getResourceUrl, getUserLanguages, openLink, PubSub, ResourceType, usePress } from 'utils';
 import { getResourceIcon } from '..';
 import { SnackSeverity, TextLoading } from 'components';
 import { DeleteIcon, EditIcon, OpenInNewIcon } from '@shared/icons';
@@ -36,14 +35,7 @@ export function ResourceListItem({
 }: ResourceListItemProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
-    const { description, title } = useMemo(() => {
-        const languages = getUserLanguages(session);
-        const { description, title } = getTranslation(data, languages, true);
-        return {
-            description,
-            title,
-        };
-    }, [data, session]);
+    const { title, subtitle } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
 
     const Icon = useMemo(() => getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link), [data]);
 
@@ -107,7 +99,7 @@ export function ResourceListItem({
                     />}
                     {/* Bio/Description */}
                     {loading ? <TextLoading /> : <ListItemText
-                        primary={description}
+                        primary={subtitle}
                         sx={{ ...multiLineEllipsis(2), color: palette.text.secondary }}
                     />}
                 </Stack>
@@ -128,7 +120,3 @@ export function ResourceListItem({
         </Tooltip>
     )
 }
-
-export const ResourceSortOptions: LabelledSortOption<ResourceSortBy>[] = labelledSortOptions(ResourceSortBy);
-export const resourceDefaultSortOption = ResourceSortOptions[1];
-export const resourceOptionLabel = (o: Resource, languages: readonly string[]) => getTranslation(o, languages, true).title ?? '';

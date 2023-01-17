@@ -1,7 +1,7 @@
 import { AppBar, Box, Button, Dialog, Stack, Typography, useTheme } from "@mui/material";
 import { MarkdownInput } from "components/inputs";
 import { useCallback, useMemo, useState } from "react";
-import { getTranslation, useKeyboardOpen } from "utils";
+import { getDisplay, useKeyboardOpen } from "utils";
 import { PopoverWithArrow } from "../PopoverWithArrow/PopoverWithArrow";
 import { UpTransition } from "../transitions";
 import { CommentDialogProps } from "../types"
@@ -30,12 +30,7 @@ export const CommentDialog = ({
     // Add padding when keyboard open to make sure input is visible
     const isKeyboardOpen = useKeyboardOpen();
 
-    const { parentText } = useMemo(() => {
-        const { text } = getTranslation(parent, [language]);
-        return {
-            parentText: text,
-        };
-    }, [language, parent]);
+    const { subtitle: parentText } = useMemo(() => getDisplay(parent, [language]), [language, parent]);
 
     // Errors popup
     const [errorAnchorEl, setErrorAnchorEl] = useState<any | null>(null);

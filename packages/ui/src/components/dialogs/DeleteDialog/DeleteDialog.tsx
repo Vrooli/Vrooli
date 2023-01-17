@@ -10,13 +10,12 @@ import {
 import { DeleteDialogProps } from '../types';
 import { useCallback, useState } from 'react';
 import { mutationWrapper } from 'graphql/utils';
-import { useMutation } from '@apollo/client';
-import { deleteOneMutation } from 'graphql/mutation';
-import { deleteOneVariables, deleteOne_deleteOne } from 'graphql/generated/deleteOne';
-import { APP_LINKS } from '@shared/consts';
+import { useMutation } from 'graphql/hooks';
+import { APP_LINKS, DeleteOneInput, Success } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { DeleteIcon } from '@shared/icons';
+import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
 
 export const DeleteDialog = ({
     handleClose,
@@ -37,9 +36,9 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useMutation(deleteOneMutation);
+    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
     const handleDelete = useCallback(() => {
-        mutationWrapper<deleteOne_deleteOne, deleteOneVariables>({
+        mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,
             input: { id: objectId, objectType },
             successCondition: (data) => data.success,

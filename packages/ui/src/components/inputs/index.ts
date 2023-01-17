@@ -13,7 +13,7 @@ export * from './RelationshipButtons/RelationshipButtons';
 export * from './SearchBar/SearchBar';
 export * from './Selector/Selector';
 export * from './standards';
-export * from './StandardSelectSwitch/StandardSelectSwitch';
+export * from './StandardVersionSelectSwitch/StandardVersionSelectSwitch';
 export * from './TagSelector/TagSelector';
 export * from './ThemeSwitch/ThemeSwitch';
 export * from './VersionInput/VersionInput';

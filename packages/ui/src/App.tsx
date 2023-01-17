@@ -10,19 +10,18 @@ import {
     SnackSeverity,
     SnackStack,
 } from 'components';
-import { getUserLanguages, PubSub, themes, useReactHash } from 'utils';
+import { PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useMutation } from '@apollo/client';
-import { validateSessionMutation } from 'graphql/mutation';
+import { useMutation } from 'graphql/hooks';
 import SakBunderan from './assets/font/SakBunderan.woff';
-import { Session } from 'types';
 import Confetti from 'react-confetti';
 import { guestSession } from 'utils/authentication';
 import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
+import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'graphql/utils';
-import { validateSessionVariables, validateSession_validateSession } from 'graphql/generated/validateSession';
+import { authEndpoint } from 'graphql/endpoints';
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -81,12 +80,11 @@ export function App() {
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
-    const [languages, setLanguages] = useState<string[]>(['en']);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useMutation<any>(validateSessionMutation);
+    const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(...authEndpoint.validateSession);
 
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to
@@ -209,17 +207,13 @@ export function App() {
     const checkSession = useCallback((session?: Session) => {
         if (session) {
             setSession(session);
-            setLanguages(getUserLanguages(session));
             return;
         }
         // Check if previous log in exists
-        mutationWrapper<validateSession_validateSession, validateSessionVariables>({
+        mutationWrapper<Session, ValidateSessionInput>({
             mutation: validateSession,
             input: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-            onSuccess: (data) => { 
-                setSession(data);
-                setLanguages(getUserLanguages(data));
-            },
+            onSuccess: (data) => { setSession(data) },
             onError: (error: any) => {
                 let isInvalidSession = false;
                 // Check if error is expired/invalid session
@@ -240,7 +234,6 @@ export function App() {
                 // If not logged in as guest and failed to log in as user, set guest session
                 if (!session) {
                     setSession(guestSession)
-                    setLanguages(getUserLanguages(guestSession));
                 }
             },
         })
@@ -332,8 +325,8 @@ export function App() {
                             }}
                         />
                     }
-                    <AlertDialog languages={languages} />
-                    <SnackStack languages={languages} />
+                    <AlertDialog session={session} />
+                    <SnackStack session={session} />
                     <Box id="content-wrap" sx={{
                         background: theme.palette.mode === 'light' ? '#c2cadd' : theme.palette.background.default,
                         minHeight: { xs: 'calc(100vh - 56px - env(safe-area-inset-bottom))', md: '100vh' },

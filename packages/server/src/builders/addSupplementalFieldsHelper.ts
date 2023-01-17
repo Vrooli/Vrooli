@@ -1,8 +1,9 @@
 import { ObjectMap } from "../models";
-import { GraphQLModelType, SupplementalConverter } from "../models/types";
-import { SessionUser } from "../schema/types";
+import { DotNotation, GqlModelType, SessionUser } from '@shared/consts';
 import { PrismaType, RecursivePartial } from "../types";
 import { PartialGraphQLInfo } from "./types";
+import { SupplementalConverter } from "../models/types";
+import { setDotNotationValue } from "@shared/utils";
 
 /**
  * Adds supplemental fields data to the given objects
@@ -10,24 +11,24 @@ import { PartialGraphQLInfo } from "./types";
 export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: string]: any }>({ languages, objects, objectType, partial, prisma, userData }: {
     languages: string[],
     objects: ({ id: string } & { [x: string]: any })[],
-    objectType: GraphQLModelType,
+    objectType: `${GqlModelType}`,
     partial: PartialGraphQLInfo,
     prisma: PrismaType,
     userData: SessionUser | null,
 }): Promise<RecursivePartial<GraphQLModel>[]> => {
     if (!objects || objects.length === 0) return [];
     // Get supplemental info for object
-    const supplementer: SupplementalConverter<GraphQLModel, any> | undefined = ObjectMap[objectType]?.format?.supplemental;
+    const supplementer: SupplementalConverter<any> | undefined = ObjectMap[objectType]?.format?.supplemental;
     if (!supplementer) return objects;
     // Get IDs from objects
     const ids = objects.map(({ id }) => id);
-    // Call each resolver to get supplemental data
-    const resolvers = supplementer.toGraphQL({ ids, languages, objects, partial, prisma, userData });
-    for (const [field, resolver] of resolvers) {
-        // If not in partial, skip
-        if (!partial[field]) continue;
-        const supplemental = await resolver();
-        objects = objects.map((x, i) => ({ ...x, [field]: supplemental[i] }));
+    // Get supplemental data by field
+    const supplementalData = await supplementer.toGraphQL({ ids, languages, objects, partial, prisma, userData });
+    // Loop through each field in supplemental data
+    for (const [field, data] of Object.entries(supplementalData)) {
+        // Each value is an array of data for each object, in the same order as the objects
+        // Set the value for each object
+        objects = objects.map((x, i) => setDotNotationValue(x, field as never, data[i])) as any[];
     }
     return objects;
 }

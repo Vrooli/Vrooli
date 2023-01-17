@@ -1,21 +1,19 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
-import { APP_LINKS, StarFor } from "@shared/consts";
+import { APP_LINKS, FindByIdOrHandleInput, ResourceList, StarFor, User, VisibilityType } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
-import { useLazyQuery } from "@apollo/client";
-import { user, userVariables } from "graphql/generated/user";
-import { userQuery } from "graphql/query";
+import { useLazyQuery } from "graphql/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { UserViewProps } from "../types";
-import { base36ToUuid, getLanguageSubtag, getLastUrlPart, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, placeholderColor, SearchType } from "utils";
-import { ResourceList, User } from "types";
+import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, placeholderColor, SearchType } from "utils";
 import { SearchListGenerator } from "components/lists/types";
 import { uuidValidate } from '@shared/uuid';
-import { ResourceListUsedFor, VisibilityType } from "graphql/generated/globalTypes";
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
+import { userEndpoint } from "graphql/endpoints";
+import { setDotNotationValue } from "@shared/utils";
 
 enum TabOptions {
     Resources = "Resources",
@@ -34,20 +32,17 @@ export const UserView = ({
     const [, setLocation] = useLocation();
     const profileColors = useMemo(() => placeholderColor(), []);
     // Get URL params
-    const id: string = useMemo(() => {
-        const pathnameEnd = base36ToUuid(getLastUrlPart());
-        // If no id is provided, use the current user's id
-        if (!uuidValidate(pathnameEnd)) return getCurrentUser(session).id ?? '';
-        // Otherwise, use the id provided in the URL
-        return pathnameEnd;
+    const id = useMemo(() => {
+        const { id } = parseSingleItemUrl();
+        return id ?? getCurrentUser(session).id ?? '';
     }, [session]);
     const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session).id === id), [id, session]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<user, userVariables>(userQuery, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<User, FindByIdOrHandleInput>(...userEndpoint.findOne, { errorPolicy: 'all' });
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
-        if (uuidValidate(id)) getData({ variables: { input: { id } } })
-        else if (adaHandleRegex.test(id)) getData({ variables: { input: { handle: id } } })
+        if (uuidValidate(id)) getData({ variables: { id } })
+        else if (adaHandleRegex.test(id)) getData({ variables: { handle: id } })
     }, [getData, id]);
     useEffect(() => {
         setUser((data?.user as User) ?? partialData);
@@ -61,7 +56,7 @@ export const UserView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { bio, name, handle, resourceList } = useMemo(() => {
-        const resourceList: ResourceList | undefined = Array.isArray(user?.resourceLists) ? user?.resourceLists?.find(r => r.usedFor === ResourceListUsedFor.Display) : undefined;
+        const resourceList: ResourceList | undefined = user?.resourceList;
         const { bio } = getTranslation(user ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,
@@ -85,7 +80,7 @@ export const UserView = ({
                 if (!user) return;
                 setUser({
                     ...user,
-                    resourceLists: [updatedList]
+                    resourceList: updatedList
                 })
             }}
             loading={loading}
@@ -189,11 +184,8 @@ export const UserView = ({
         switch (action) {
             case ObjectActionComplete.Star:
             case ObjectActionComplete.StarUndo:
-                if (data.success) {
-                    setUser({
-                        ...user,
-                        isStarred: action === ObjectActionComplete.Star,
-                    } as any)
+                if (data.success && user) {
+                    setUser(setDotNotationValue(user, 'you.isStarred', action === ObjectActionComplete.Star))
                 }
                 break;
             case ObjectActionComplete.Fork:
@@ -320,7 +312,7 @@ export const UserView = ({
                         session={session}
                         objectId={user?.id ?? ''}
                         starFor={StarFor.User}
-                        isStar={user?.isStarred ?? false}
+                        isStar={user?.you?.isStarred ?? false}
                         stars={user?.stars ?? 0}
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
