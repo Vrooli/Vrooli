@@ -42,7 +42,7 @@ export const tagShapeHelper = async <
     relTypes,
     userData,
 }: TagShapeHelperProps<Input, Types, FieldName>):
-    Promise<ShapeHelperOutput<false, false, Types[number], FieldName, 'tag'>> => {
+    Promise<ShapeHelperOutput<false, false, Types[number], any, 'tag'>> => { // Can't specify FieldName in output because ShapeHelperOutput doesn't support join tables. The expected fieldName is the unique field name, which is found inside this function
     // Tags get special logic because they are treated as strings in GraphQL, 
     // instead of a normal relationship object
     // If any tag creates/connects, make sure they exist/not exist

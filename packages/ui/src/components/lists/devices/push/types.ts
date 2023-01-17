@@ -1,4 +1,4 @@
-import { PushDevice } from "types";
+import { PushDevice } from "@shared/consts";
 
 export interface PushListProps {
     handleUpdate: (devices: PushDevice[]) => void;

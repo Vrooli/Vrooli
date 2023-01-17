@@ -1,4 +1,4 @@
-import { ApiSortBy, ApiVersionSortBy, CommentSortBy, InputType, IssueSortBy, LabelSortBy, MeetingInviteSortBy, MeetingSortBy, MemberInviteSortBy, MemberSortBy, NoteSortBy, NoteVersionSortBy, NotificationSortBy, NotificationSubscriptionSortBy, OrganizationSortBy, PostSortBy, ProjectOrOrganizationSortBy, ProjectOrRoutineSortBy, ProjectSortBy, ProjectVersionSortBy, PullRequestSortBy, QuestionAnswerSortBy, QuestionSortBy, QuizAttemptSortBy, QuizQuestionResponseSortBy, QuizQuestionSortBy, QuizSortBy, ReminderListSortBy, ReminderSortBy, ReportResponseSortBy, ReportSortBy, ReputationHistorySortBy, ResourceListSortBy, ResourceSortBy, RoleSortBy, RoutineSortBy, RoutineVersionSortBy, RunProjectScheduleSortBy, RunProjectSortBy, RunRoutineInputSortBy, RunRoutineScheduleSortBy, RunRoutineSortBy, RunStatus, Session, SmartContractSortBy, SmartContractVersionSortBy, StandardSortBy, StandardVersionSortBy, StarSortBy, StatsApiSortBy, StatsOrganizationSortBy, StatsProjectSortBy, StatsQuizSortBy, StatsRoutineSortBy, StatsSiteSortBy, StatsSmartContractSortBy, StatsStandardSortBy, StatsUserSortBy, Tag, TagSortBy, TransferSortBy, UserScheduleSortBy, UserSortBy, ViewSortBy, VoteSortBy } from '@shared/consts';
+import { ApiSortBy, ApiVersionSortBy, CommentSortBy, InputType, IssueSortBy, LabelSortBy, MeetingInviteSortBy, MeetingSortBy, MemberInviteSortBy, MemberSortBy, NoteSortBy, NoteVersionSortBy, NotificationSortBy, NotificationSubscriptionSortBy, OrganizationSortBy, PostSortBy, ProjectOrOrganizationSortBy, ProjectOrRoutineSortBy, ProjectSortBy, ProjectVersionSortBy, PullRequestSortBy, QuestionAnswerSortBy, QuestionSortBy, QuizAttemptSortBy, QuizQuestionResponseSortBy, QuizQuestionSortBy, QuizSortBy, ReminderListSortBy, ReminderSortBy, ReportResponseSortBy, ReportSortBy, ReputationHistorySortBy, ResourceListSortBy, ResourceSortBy, RoleSortBy, RoutineSortBy, RoutineVersionSortBy, RunProjectOrRunRoutineSortBy, RunProjectScheduleSortBy, RunProjectSortBy, RunRoutineInputSortBy, RunRoutineScheduleSortBy, RunRoutineSortBy, RunStatus, Session, SmartContractSortBy, SmartContractVersionSortBy, StandardSortBy, StandardVersionSortBy, StarSortBy, StatsApiSortBy, StatsOrganizationSortBy, StatsProjectSortBy, StatsQuizSortBy, StatsRoutineSortBy, StatsSiteSortBy, StatsSmartContractSortBy, StatsStandardSortBy, StatsUserSortBy, Tag, TagSortBy, TransferSortBy, UserScheduleSortBy, UserSortBy, ViewSortBy, VoteSortBy } from '@shared/consts';
 import { FormSchema } from 'forms/types';
 import { DocumentNode } from 'graphql';
 import { getLocalStorageKeys } from 'utils/localStorage';
@@ -1305,6 +1305,7 @@ export enum SearchType {
     Routine = 'Routine',
     RoutineVersion = 'RoutineVersion',
     RunProject = 'RunProject',
+    RunProjectOrRunRoutine = 'RunProjectOrRunRoutine',
     RunProjectSchedule = 'RunProjectSchedule',
     RunRoutine = 'RunRoutine',
     RunRoutineSchedule = 'RunRoutineSchedule',
@@ -1621,6 +1622,13 @@ export const searchTypeToParams: { [key in SearchType]: SearchParams } = {
         endpoint: runProjectEndpoint.findMany[1],
         query: runProjectEndpoint.findMany[0],
         sortByOptions: RunProjectSortBy,
+    },
+    [SearchType.RunProjectOrRunRoutine]: {
+        advancedSearchSchema: runProjectOrRunRoutineSearchSchema,
+        defaultSortBy: RunProjectOrRunRoutineSortBy.DateStartedAsc,
+        endpoint: unionEndpoint.runProjectOrRunRoutines[1],
+        query: unionEndpoint.runProjectOrRunRoutines[0],
+        sortByOptions: RunProjectOrRunRoutineSortBy,
     },
     [SearchType.RunProjectSchedule]: {
         advancedSearchSchema: runProjectScheduleSearchSchema,

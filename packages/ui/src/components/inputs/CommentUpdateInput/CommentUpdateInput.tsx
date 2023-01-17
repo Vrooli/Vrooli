@@ -51,6 +51,7 @@ export const CommentUpdateInput = ({
             //TODO
             const input = shapeComment.update(comment, {
                 ...comment,
+                commentedOn: { __typename: values.createdFor, id: values.forId },
                 translations: values.translationsUpdate,
             }, true)
             input !== undefined && mutationWrapper<Comment, CommentUpdateInputType>({

@@ -24,7 +24,7 @@ import { RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOu
 //             }
 //         },
 //     },
-//     yup: { create: {} as any, update: {} as any },
+//     yup: routineVersionOutputValidation,
 // })
 
 const __typename = 'RoutineVersionOutput' as const;

@@ -121,11 +121,11 @@ export const HomePage = ({
         // If "help" typed, add help and faq shortcuts as first result
         if (searchString.toLowerCase().startsWith('help')) {
             firstResults.push({
-                type: "Shortcut",
+                __typename: "Shortcut",
                 label: `Help - Beginner's Guide`,
                 id: APP_LINKS.Welcome,
             }, {
-                type: "Shortcut",
+                __typename: "Shortcut",
                 label: 'Help - FAQ',
                 id: APP_LINKS.FAQ,
             });

@@ -12,7 +12,7 @@ import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
 import { commentEndpoint } from "graphql/endpoints";
-import { Comment, CommentCreateInput as CommentCreateInputType, GqlModelType } from "@shared/consts";
+import { Comment, CommentCreateInput as CommentCreateInputType } from "@shared/consts";
 
 
 /**
@@ -53,7 +53,7 @@ export const CommentCreateInput = ({
                 mutation: addMutation,
                 input: shapeComment.create({
                     id: uuid(),
-                    commentedOn: { type: values.createdFor as unknown as GqlModelType, id: values.forId },
+                    commentedOn: { __typename: values.createdFor, id: values.forId },
                     threadId: parent?.id ?? null,
                     translations: values.translationsCreate,
                 }),
@@ -71,9 +71,9 @@ export const CommentCreateInput = ({
 
     const translations = useTranslatedFields({
         fields: ['text'],
-        formik, 
-        formikField: 'translationsCreate', 
-        language, 
+        formik,
+        formikField: 'translationsCreate',
+        language,
         validationSchema: commentTranslationValidation.create(),
     });
     const onTranslationChange = useCallback((e: { target: { name: string, value: string } }) => {

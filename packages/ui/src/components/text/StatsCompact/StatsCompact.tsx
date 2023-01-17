@@ -39,12 +39,12 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
             }}
         >
             {/* Votes */}
-            <UpvoteDownvote
+            {object && object.__typename in VoteFor && <UpvoteDownvote
                 direction="row"
                 disabled={!you.canVote}
                 session={session}
-                objectId={object?.id ?? ''}
-                voteFor={object?.__typename ?? VoteFor.Routine}
+                objectId={object.id}
+                voteFor={object.__typename as VoteFor}
                 isUpvoted={you.isUpvoted}
                 score={counts.score}
                 onChange={(isUpvote, score) => { object && handleObjectUpdate({ 
@@ -52,7 +52,7 @@ export const StatsCompact = <T extends StatsCompactPropsObject>({
                     isUpvoted: isUpvote, //TODO
                     score: score, //TODO
                 }); }}
-            />
+            />}
             {/* Views */}
             <ViewsDisplay views={(object as any)?.views} />
             {/* Reports */}

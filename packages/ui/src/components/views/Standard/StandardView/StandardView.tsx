@@ -75,7 +75,8 @@ export const StandardView = ({
 
     const { canEdit, description, name } = useMemo(() => {
         const { canEdit } = standardVersion?.you ?? {};
-        const { description, name } = getTranslation(standardVersion ?? partialData, [language]);
+        const { description } = getTranslation(standardVersion ?? partialData, [language]);
+        const { name } = standardVersion?.root ?? partialData?.root ?? {};
         return { canEdit, description, name };
     }, [standardVersion, language, partialData]);
 

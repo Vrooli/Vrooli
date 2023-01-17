@@ -83,7 +83,7 @@ export const typeDef = gql`
         excludeIds: [ID!]
         ids: [ID!]
         status: RunStatus
-        routineId: ID
+        projectVersionId: ID
         searchString: String
         sortBy: RunProjectSortBy
         take: Int

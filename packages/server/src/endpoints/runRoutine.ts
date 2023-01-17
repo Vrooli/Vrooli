@@ -18,8 +18,6 @@ export const typeDef = gql`
         DateStartedDesc
         DateUpdatedAsc
         DateUpdatedDesc
-        RunRoutinesAsc
-        RunRoutinesDesc
         StepsAsc
         StepsDesc
     }
@@ -90,7 +88,7 @@ export const typeDef = gql`
         excludeIds: [ID!]
         ids: [ID!]
         status: RunStatus
-        routineId: ID
+        routineVersionId: ID
         searchString: String
         sortBy: RunRoutineSortBy
         take: Int

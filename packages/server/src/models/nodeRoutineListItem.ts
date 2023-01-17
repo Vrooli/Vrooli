@@ -6,6 +6,7 @@ import { bestLabel, translationShapeHelper } from "../utils";
 import { noNull, padSelect, shapeHelper } from "../builders";
 import { RoutineModel } from "./routine";
 import { SelectWrap } from "../builders/types";
+import { nodeRoutineListItemValidation } from '@shared/validation';
 
 const __typename = 'NodeRoutineListItem' as const;
 
@@ -69,6 +70,6 @@ export const NodeRoutineListItemModel: ModelLogic<{
                 ...(await translationShapeHelper({ relTypes: ['Create', 'Update', 'Delete'], isRequired: false, data, prisma, userData })),
             }),
         },
-        yup: { create: {} as any, update: {} as any },
+        yup: nodeRoutineListItemValidation,
     },
 })

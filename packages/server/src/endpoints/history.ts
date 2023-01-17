@@ -36,8 +36,14 @@ export const resolvers: {
             await rateLimit({ info, maxUser: 5000, req });
             const partial = toPartialGraphQLInfo(info, {
                 __typename: 'HistoryResult',
-                activeRuns: 'RunRoutine',
-                completedRuns: 'RunRoutine',
+                activeRuns: {
+                    RunProject: 'RunProject',
+                    RunRoutine: 'RunRoutine',
+                },
+                completedRuns: {
+                    RunProject: 'RunProject',
+                    RunRoutine: 'RunRoutine',
+                },
                 recentlyViewed: 'View',
                 recentlyStarred: 'Star',
             }, req.languages, true);
@@ -45,18 +51,32 @@ export const resolvers: {
             const take = 5;
             const commonReadParams = { prisma, req }
             // Query for incomplete runs
-            const { nodes: activeRuns } = await readManyAsFeedHelper({
+            const { nodes: activeRunProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { userId },
-                info: partial.activeRuns as PartialGraphQLInfo,
+                info: (partial.activeRuns as PartialGraphQLInfo)?.RunProject as PartialGraphQLInfo,
+                input: { take, ...input, status: RunStatus.InProgress, sortBy: RunRoutineSortBy.DateUpdatedDesc },
+                objectType: 'RunProject',
+            });
+            const { nodes: activeRunRoutines } = await readManyAsFeedHelper({
+                ...commonReadParams,
+                additionalQueries: { userId },
+                info: (partial.activeRuns as PartialGraphQLInfo)?.RunRoutine as PartialGraphQLInfo,
                 input: { take, ...input, status: RunStatus.InProgress, sortBy: RunRoutineSortBy.DateUpdatedDesc },
                 objectType: 'RunRoutine',
             });
             // Query for complete runs
-            const { nodes: completedRuns } = await readManyAsFeedHelper({
+            const { nodes: completedRunProjects } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { userId },
-                info: partial.completedRuns as PartialGraphQLInfo,
+                info: (partial.completedRuns as PartialGraphQLInfo)?.RunProject as PartialGraphQLInfo,
+                input: { take, ...input, status: RunStatus.Completed, sortBy: RunRoutineSortBy.DateUpdatedDesc },
+                objectType: 'RunProject',
+            });
+            const { nodes: completedRunRoutines } = await readManyAsFeedHelper({
+                ...commonReadParams,
+                additionalQueries: { userId },
+                info: (partial.completedRuns as PartialGraphQLInfo)?.RunRoutine as PartialGraphQLInfo,
                 input: { take, ...input, status: RunStatus.Completed, sortBy: RunRoutineSortBy.DateUpdatedDesc },
                 objectType: 'RunRoutine',
             });
@@ -78,16 +98,26 @@ export const resolvers: {
             });
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
-                [activeRuns, completedRuns, recentlyViewed, recentlyStarred],
-                [partial.activeRuns, partial.completedRuns, partial.recentlyViewed, partial.recentlyStarred] as PartialGraphQLInfo[],
-                ['ar', 'cr', 'rv', 'rs'],
+                [activeRunProjects, activeRunRoutines, completedRunProjects, completedRunRoutines, recentlyViewed, recentlyStarred],
+                [(partial.activeRuns as PartialGraphQLInfo)?.RunProject, (partial.activeRuns as PartialGraphQLInfo)?.RunRoutine, (partial.completedRuns as PartialGraphQLInfo)?.RunProject, (partial.completedRuns as PartialGraphQLInfo)?.RunRoutine, partial.recentlyViewed, partial.recentlyStarred] as PartialGraphQLInfo[],
+                ['arp', 'arr', 'crp', 'crr', 'rv', 'rs'],
                 getUser(req),
                 prisma,
             )
             // Return results
             return {
-                activeRuns: withSupplemental['ar'],
-                completedRuns: withSupplemental['cr'],
+                // activeRuns combines projects and routines, and sorts by date started
+                activeRuns: [...withSupplemental['arp'], ...withSupplemental['arr']].sort((a, b) => {
+                    if (a.startedAt < b.startedAt) return -1;
+                    if (a.startedAt > b.startedAt) return 1;
+                    return 0;
+                }),
+                // completedRuns combines projects and routines, and sorts by date completed
+                completedRuns: [...withSupplemental['crp'], ...withSupplemental['crr']].sort((a, b) => {
+                    if (a.completedAt < b.completedAt) return -1;
+                    if (a.completedAt > b.completedAt) return 1;
+                    return 0;
+                }),
                 recentlyViewed: withSupplemental['rv'],
                 recentlyStarred: withSupplemental['rs'],
             } as any

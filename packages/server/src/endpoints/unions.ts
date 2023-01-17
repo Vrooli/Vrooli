@@ -2,7 +2,7 @@
  * Endpoints optimized for specific pages
  */
 import { gql } from 'apollo-server-express';
-import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutine, ProjectOrOrganization } from '@shared/consts';
+import { OrganizationSortBy, ProjectSortBy, RoutineSortBy, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrOrganizationSearchInput, ProjectOrOrganizationSearchResult, ProjectOrRoutine, ProjectOrOrganization, ProjectOrRoutineSortBy, ProjectOrOrganizationSortBy, RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutine, RunProjectSortBy, RunProjectOrRunRoutineSearchResult } from '@shared/consts';
 import { FindManyResult, GQLEndpoint, UnionResolver } from '../types';
 import { rateLimit } from '../middleware';
 import { resolveUnion } from './resolvers';
@@ -44,8 +44,24 @@ export const typeDef = gql`
         StarsDesc
     }
 
+    enum RunProjectOrRunRoutineSortBy {
+        ContextSwitchesAsc
+        ContextSwitchesDesc
+        DateCompletedAsc
+        DateCompletedDesc
+        DateCreatedAsc
+        DateCreatedDesc
+        DateStartedAsc
+        DateStartedDesc
+        DateUpdatedAsc
+        DateUpdatedDesc
+        StepsAsc
+        StepsDesc
+    }
+
     union ProjectOrRoutine = Project | Routine
     union ProjectOrOrganization = Project | Organization
+    union RunProjectOrRunRoutine = RunProject | RunRoutine
 
     input ProjectOrRoutineSearchInput {
         createdTimeFrame: TimeFrame
@@ -80,18 +96,15 @@ export const typeDef = gql`
         userId: ID
         visibility: VisibilityType
     }
-
     type ProjectOrRoutineSearchResult {
         pageInfo: ProjectOrRoutinePageInfo!
         edges: [ProjectOrRoutineEdge!]!
     }
-
     type ProjectOrRoutinePageInfo {
         hasNextPage: Boolean!
         endCursorProject: String
         endCursorRoutine: String
     }
-
     type ProjectOrRoutineEdge {
         cursor: String!
         node: ProjectOrRoutine!
@@ -125,39 +138,74 @@ export const typeDef = gql`
         userId: ID
         visibility: VisibilityType
     }
-
     type ProjectOrOrganizationSearchResult {
         pageInfo: ProjectOrOrganizationPageInfo!
         edges: [ProjectOrOrganizationEdge!]!
     }
-
     type ProjectOrOrganizationPageInfo {
         hasNextPage: Boolean!
         endCursorProject: String
         endCursorOrganization: String
     }
-
     type ProjectOrOrganizationEdge {
         cursor: String!
         node: ProjectOrOrganization!
     }
 
+    input RunProjectOrRunRoutineSearchInput {
+        createdTimeFrame: TimeFrame
+        startedTimeFrame: TimeFrame
+        completedTimeFrame: TimeFrame
+        excludeIds: [ID!]
+        ids: [ID!]
+        status: RunStatus
+        objectType: String
+        projectVersionId: ID
+        routineVersionId: ID
+        runProjectAfter: String
+        runRoutineAfter: String
+        searchString: String
+        sortBy: RunProjectOrRunRoutineSortBy
+        take: Int
+        updatedTimeFrame: TimeFrame
+        visibility: VisibilityType
+    }
+    type RunProjectOrRunRoutineSearchResult {
+        pageInfo: RunProjectOrRunRoutinePageInfo!
+        edges: [RunProjectOrRunRoutineEdge!]!
+    }
+    type RunProjectOrRunRoutinePageInfo {
+        hasNextPage: Boolean!
+        endCursorProject: String
+        endCursorRoutine: String
+    }
+    type RunProjectOrRunRoutineEdge {
+        cursor: String!
+        node: RunProjectOrRunRoutine!
+    }
+
     type Query {
         projectOrRoutines(input: ProjectOrRoutineSearchInput!): ProjectOrRoutineSearchResult!
         projectOrOrganizations(input: ProjectOrOrganizationSearchInput!): ProjectOrOrganizationSearchResult!
+        runProjectOrRunRoutines(input: RunProjectOrRunRoutineSearchInput!): RunProjectOrRunRoutineSearchResult!
     }
 `
 
 export const resolvers: {
+    ProjectOrRoutineSortBy: typeof ProjectOrRoutineSortBy,
+    ProjectOrOrganizationSortBy: typeof ProjectOrOrganizationSortBy,
+    RunProjectOrRunRoutineSortBy: typeof RunProjectOrRunRoutineSortBy,
     ProjectOrRoutine: UnionResolver;
     ProjectOrOrganization: UnionResolver;
     Query: {
         projectOrRoutines: GQLEndpoint<ProjectOrRoutineSearchInput, FindManyResult<ProjectOrRoutine>>;
         projectOrOrganizations: GQLEndpoint<ProjectOrOrganizationSearchInput, FindManyResult<ProjectOrOrganization>>;
+        runProjectOrRunRoutines: GQLEndpoint<RunProjectOrRunRoutineSearchInput, FindManyResult<RunProjectOrRunRoutine>>;
     },
 } = {
-    // ProjectOrRoutineSortBy: ProjectOrRoutineSortBy,
-    // ProjectOrOrganizationSortBy: ProjectOrOrganizationSortBy,
+    ProjectOrRoutineSortBy,
+    ProjectOrOrganizationSortBy,
+    RunProjectOrRunRoutineSortBy,
     ProjectOrRoutine: { __resolveType(obj: any) { return resolveUnion(obj) } },
     ProjectOrOrganization: { __resolveType(obj: any) { return resolveUnion(obj) } },
     Query: {
@@ -372,6 +420,96 @@ export const resolvers: {
                     endCursorOrganization: organizations?.pageInfo?.endCursor ?? '',
                 },
                 edges: nodes.map((node) => ({ __typename: 'ProjectOrOrganizationEdge' as const, cursor: node.id, node })),
+            }
+            return combined;
+        },
+        runProjectOrRunRoutines: async (_, { input }, { prisma, req }, info) => {
+            await rateLimit({ info, maxUser: 2000, req });
+            const partial = toPartialGraphQLInfo(info, {
+                __typename: 'RunProjectOrRunRoutineSearchResult',
+                RunProject: 'RunProject',
+                RunRoutine: 'RunRoutine',
+            }, req.languages, true);
+            const take = Math.ceil((input.take ?? 10) / 2);
+            const commonReadParams = { prisma, req }
+            // Query run projects
+            let runProjects;
+            if (input.objectType === undefined || input.objectType === 'RunProject') {
+                runProjects = await readManyAsFeedHelper({
+                    ...commonReadParams,
+                    info: (partial as any).RunProject,
+                    input: {
+                        after: input.runProjectAfter,
+                        createdTimeFrame: input.createdTimeFrame,
+                        startedTimeFrame: input.startedTimeFrame,
+                        completedTimeFrame: input.completedTimeFrame,
+                        excludeIds: input.excludeIds,
+                        ids: input.ids,
+                        status: input.status,
+                        projectVersionId: input.projectVersionId,
+                        searchString: input.searchString,
+                        sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
+                        take: take,
+                        updatedTimeFrame: input.updatedTimeFrame,
+                        userId: getUser(req)?.id,
+                        visibility: input.visibility,
+                    },
+                    objectType: 'RunProject',
+                });
+            }
+            // Query routines
+            let runRoutines;
+            if (input.objectType === undefined || input.objectType === 'RunRoutine') {
+                runRoutines = await readManyAsFeedHelper({
+                    ...commonReadParams,
+                    info: (partial as any).RunRoutine,
+                    input: {
+                        after: input.runRoutineAfter,
+                        createdTimeFrame: input.createdTimeFrame,
+                        startedTimeFrame: input.startedTimeFrame,
+                        completedTimeFrame: input.completedTimeFrame,
+                        excludeIds: input.excludeIds,
+                        ids: input.ids,
+                        status: input.status,
+                        routineVersionId: input.routineVersionId,
+                        searchString: input.searchString,
+                        sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
+                        take: take,
+                        updatedTimeFrame: input.updatedTimeFrame,
+                        userId: getUser(req)?.id,
+                        visibility: input.visibility,
+                    },
+                    objectType: 'RunRoutine',
+                });
+            }
+            // Add supplemental fields to every result
+            const withSupplemental = await addSupplementalFieldsMultiTypes(
+                [runProjects?.nodes ?? [], runRoutines?.nodes ?? []],
+                [{ type: 'RunProject', ...(partial as any).RunProject }, { type: 'RunRoutine', ...(partial as any).RunRoutine }] as PartialGraphQLInfo[],
+                ['p', 'r'],
+                getUser(req),
+                prisma,
+            )
+            // Combine nodes, alternating between runProjects and runRoutines
+            const nodes: RunProjectOrRunRoutine[] = [];
+            for (let i = 0; i < Math.max(withSupplemental['p'].length, withSupplemental['r'].length); i++) {
+                if (i < withSupplemental['p'].length) {
+                    nodes.push(withSupplemental['p'][i]);
+                }
+                if (i < withSupplemental['r'].length) {
+                    nodes.push(withSupplemental['r'][i]);
+                }
+            }
+            // Combine pageInfo
+            const combined: RunProjectOrRunRoutineSearchResult = {
+                __typename: 'RunProjectOrRunRoutineSearchResult' as const,
+                pageInfo: {
+                    __typename: 'RunProjectOrRunRoutinePageInfo' as const,
+                    hasNextPage: runProjects?.pageInfo?.hasNextPage ?? runRoutines?.pageInfo?.hasNextPage ?? false,
+                    endCursorProject: runProjects?.pageInfo?.endCursor ?? '',
+                    endCursorRoutine: runRoutines?.pageInfo?.endCursor ?? '',
+                },
+                edges: nodes.map((node) => ({ __typename: 'RunProjectOrRunRoutineEdge' as const, cursor: node.id, node })),
             }
             return combined;
         },

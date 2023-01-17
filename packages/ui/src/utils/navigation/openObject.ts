@@ -2,7 +2,8 @@
  * Navigate to various objects and object search pages
  */
 
-import { APP_LINKS, GqlModelType, Star, View, Vote } from "@shared/consts";
+import { APP_LINKS, GqlModelType, RunProject, RunRoutine, Star, View, Vote } from "@shared/consts";
+import { isOfType } from "@shared/utils";
 import { adaHandleRegex, urlRegex, walletAddressRegex } from "@shared/validation";
 import { NavigableObject, SetLocation } from "types";
 import { ResourceType } from "utils/consts";
@@ -26,11 +27,11 @@ export type ObjectType = 'Comment' |
  */
 export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string => {
     // If object is a star/vote/some other type that links to a main object, use the "to" property
-    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getObjectUrlBase((object as Star | View | Vote).to as any);
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getObjectUrlBase((object as Star | View | Vote).to as any);
     // If the object is a run routine, use the routine version
-    if (object.__typename === 'RunRoutine') return getObjectUrlBase(object.routineVersion as any);
+    if (isOfType(object, 'RunRoutine')) return getObjectUrlBase((object as RunRoutine).routineVersion as any);
     // If the object is a run project, use the project version
-    if (object.__typename === 'RunProject') return getObjectUrlBase(object.projectVersion as any);
+    if (isOfType(object, 'RunProject')) return getObjectUrlBase((object as RunProject).projectVersion as any);
     // Otherwise, use __typename (or root if versioned object)
     return APP_LINKS[object.__typename.replace('Version', '')];
 }
@@ -42,13 +43,13 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, 'id'>): string =>
  */
 export const getObjectSlug = (object: { __typename: `${GqlModelType}`, id: string, handle?: string | null}): string => {
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
-    if (['Star', 'View', 'Vote'].includes(object.__typename)) return getObjectSlug((object as Star | View | Vote).to as any);
+    if (isOfType(object, 'Star', 'View', 'Vote')) return getObjectSlug((object as Star | View | Vote).to as any);
     // If the object is a run routine, use the routine version
-    if (object.__typename === 'RunRoutine') return getObjectSlug(object.routineVersion as any);
+    if (isOfType(object, 'RunRoutine')) return getObjectSlug((object as RunRoutine).routineVersion as any);
     // If the object is a run project, use the project version
-    if (object.__typename === 'RunProject') return getObjectSlug(object.projectVersion as any);
+    if (isOfType(object, 'RunProject')) return getObjectSlug((object as RunProject).projectVersion as any);
     // Otherwise, use handle or id
-    return (object as any).handle ?? uuidToBase36(object.id);
+    return object.handle ?? uuidToBase36(object.id);
 }
 
 /**

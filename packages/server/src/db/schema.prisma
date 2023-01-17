@@ -260,14 +260,14 @@ model label {
     ownedByOrganizationId String?                       @db.Uuid
     apis                  api_labels[]
     issues                issue_labels[]
+    meetings              meeting_labels[]
     notes                 note_labels[]
     projects              project_labels[]
     routines              routine_labels[]
-    smartContracts        smart_contract_labels[]
-    standards             standard_labels[]
-    meetings              meeting_labels[]
     runProjectSchedules   run_project_schedule_labels[]
     runRoutineSchedules   run_routine_schedule_labels[]
+    smartContracts        smart_contract_labels[]
+    standards             standard_labels[]
     userSchedules         user_schedule_labels[]
     ownedByUser           user?                         @relation(fields: [ownedByUserId], references: [id], onDelete: Cascade)
     ownedByOrganization   organization?                 @relation(fields: [ownedByOrganizationId], references: [id], onDelete: Cascade)

@@ -285,7 +285,7 @@ export const RunRoutineModel: ModelLogic<{
             completedTimeFrame: true,
             createdTimeFrame: true,
             excludeIds: true,
-            routineId: true,
+            routineVersionId: true,
             startedTimeFrame: true,
             status: true,
             updatedTimeFrame: true,

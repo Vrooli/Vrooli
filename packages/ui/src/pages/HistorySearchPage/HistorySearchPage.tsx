@@ -20,7 +20,7 @@ type BaseParams = {
 const tabParams: { [key in TabOption]: BaseParams } = {
     [TabOption.Runs]: {
         itemKeyPrefix: 'runs-list-item',
-        searchType: SearchType.Run,
+        searchType: SearchType.RunProjectOrRunRoutine,
         title: 'Runs',
         where: {},
     },

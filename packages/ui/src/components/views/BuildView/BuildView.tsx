@@ -707,8 +707,9 @@ export const BuildView = ({
                 ...changedRoutineVersion.nodes[nodeIndex],
                 routineList: {
                     ...routineList,
-                    items: items as NodeRoutineListItem[],
-                }
+                    __typename: 'NodeRoutineList',
+                    items: items,
+                } as NodeRoutineList
             }),
         });
     }, [addToChangeStack, changedRoutineVersion]);
@@ -1007,7 +1008,7 @@ export const BuildView = ({
                 isOpen={Boolean(addSubroutineNode)}
                 nodeId={addSubroutineNode}
                 owner={owner}
-                routineId={routineVersion?.id}
+                routineVersionId={routineVersion?.id}
                 session={session}
                 zIndex={zIndex + 3}
             />}
@@ -1035,8 +1036,8 @@ export const BuildView = ({
             />}
             {/* Popup for creating new links */}
             {changedRoutineVersion ? <LinkDialog
-                handleClose={handleLinkDialogClose}
-                handleDelete={handleLinkDelete}
+                handleClose={handleLinkDialogClose as any}
+                handleDelete={handleLinkDelete as any}
                 isAdd={true}
                 isOpen={isLinkDialogOpen}
                 language={translationData.language}
@@ -1053,7 +1054,7 @@ export const BuildView = ({
                 isOpen={Boolean(moveNode)}
                 language={translationData.language}
                 node={moveNode}
-                routineVersion={changedRoutineVersion}
+                routineVersion={changedRoutineVersion as RoutineVersion}
                 zIndex={zIndex + 3}
             />}
             {/* Displays routine information when you click on a routine list item*/}

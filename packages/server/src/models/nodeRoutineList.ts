@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { noNull, padSelect, shapeHelper } from "../builders";
 import { NodeModel } from "./node";
 import { SelectWrap } from "../builders/types";
+import { nodeRoutineListValidation } from '@shared/validation';
 
 const __typename = 'NodeRoutineList' as const;
 
@@ -57,6 +58,6 @@ export const NodeRoutineListModel: ModelLogic<{
                 ...(await shapeHelper({ relation: 'items', relTypes: ['Create', 'Update', 'Delete'], isOneToOne: false, isRequired: false, objectType: 'NodeRoutineListItem', parentRelationshipName: 'list', data, prisma, userData })),
             }),
         },
-        yup: { create: {} as any, update: {} as any },
+        yup: nodeRoutineListValidation,
     },
 })
