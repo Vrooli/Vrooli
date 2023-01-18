@@ -24,6 +24,8 @@ export enum AccountStatus {
   Unlocked = 'Unlocked'
 }
 
+export type AnyRun = RunProject | RunRoutine;
+
 export type Api = {
   __typename: 'Api';
   createdBy?: Maybe<User>;
@@ -733,8 +735,8 @@ export type HistoryInput = {
 
 export type HistoryResult = {
   __typename: 'HistoryResult';
-  activeRuns: Array<RunRoutine>;
-  completedRuns: Array<RunRoutine>;
+  activeRuns: Array<AnyRun>;
+  completedRuns: Array<AnyRun>;
   recentlyStarred: Array<Star>;
   recentlyViewed: Array<View>;
 };
@@ -8779,6 +8781,7 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 /** Mapping between all available schema types and the resolvers types */
 export type ResolversTypes = {
   AccountStatus: AccountStatus;
+  AnyRun: ResolversTypes['RunProject'] | ResolversTypes['RunRoutine'];
   Api: ResolverTypeWrapper<Omit<Api, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   ApiCreateInput: ApiCreateInput;
   ApiEdge: ResolverTypeWrapper<ApiEdge>;
@@ -8841,7 +8844,7 @@ export type ResolversTypes = {
   GqlModelType: GqlModelType;
   Handle: ResolverTypeWrapper<Handle>;
   HistoryInput: HistoryInput;
-  HistoryResult: ResolverTypeWrapper<HistoryResult>;
+  HistoryResult: ResolverTypeWrapper<Omit<HistoryResult, 'activeRuns' | 'completedRuns'> & { activeRuns: Array<ResolversTypes['AnyRun']>, completedRuns: Array<ResolversTypes['AnyRun']> }>;
   ID: ResolverTypeWrapper<Scalars['ID']>;
   Int: ResolverTypeWrapper<Scalars['Int']>;
   Issue: ResolverTypeWrapper<Omit<Issue, 'to'> & { to: ResolversTypes['IssueTo'] }>;
@@ -9472,6 +9475,7 @@ export type ResolversTypes = {
 
 /** Mapping between all available schema types and the resolvers parents */
 export type ResolversParentTypes = {
+  AnyRun: ResolversParentTypes['RunProject'] | ResolversParentTypes['RunRoutine'];
   Api: Omit<Api, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   ApiCreateInput: ApiCreateInput;
   ApiEdge: ApiEdge;
@@ -9526,7 +9530,7 @@ export type ResolversParentTypes = {
   Float: Scalars['Float'];
   Handle: Handle;
   HistoryInput: HistoryInput;
-  HistoryResult: HistoryResult;
+  HistoryResult: Omit<HistoryResult, 'activeRuns' | 'completedRuns'> & { activeRuns: Array<ResolversParentTypes['AnyRun']>, completedRuns: Array<ResolversParentTypes['AnyRun']> };
   ID: Scalars['ID'];
   Int: Scalars['Int'];
   Issue: Omit<Issue, 'to'> & { to: ResolversParentTypes['IssueTo'] };
@@ -10071,6 +10075,10 @@ export type ResolversParentTypes = {
   WriteAssetsInput: WriteAssetsInput;
 };
 
+export type AnyRunResolvers<ContextType = any, ParentType extends ResolversParentTypes['AnyRun'] = ResolversParentTypes['AnyRun']> = {
+  __resolveType: TypeResolveFn<'RunProject' | 'RunRoutine', ParentType, ContextType>;
+};
+
 export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTypes['Api'] = ResolversParentTypes['Api']> = {
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -10289,8 +10297,8 @@ export type HandleResolvers<ContextType = any, ParentType extends ResolversParen
 };
 
 export type HistoryResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['HistoryResult'] = ResolversParentTypes['HistoryResult']> = {
-  activeRuns?: Resolver<Array<ResolversTypes['RunRoutine']>, ParentType, ContextType>;
-  completedRuns?: Resolver<Array<ResolversTypes['RunRoutine']>, ParentType, ContextType>;
+  activeRuns?: Resolver<Array<ResolversTypes['AnyRun']>, ParentType, ContextType>;
+  completedRuns?: Resolver<Array<ResolversTypes['AnyRun']>, ParentType, ContextType>;
   recentlyStarred?: Resolver<Array<ResolversTypes['Star']>, ParentType, ContextType>;
   recentlyViewed?: Resolver<Array<ResolversTypes['View']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13256,6 +13264,7 @@ export type WalletCompleteResolvers<ContextType = any, ParentType extends Resolv
 };
 
 export type Resolvers<ContextType = any> = {
+  AnyRun?: AnyRunResolvers<ContextType>;
   Api?: ApiResolvers<ContextType>;
   ApiEdge?: ApiEdgeResolvers<ContextType>;
   ApiKey?: ApiKeyResolvers<ContextType>;

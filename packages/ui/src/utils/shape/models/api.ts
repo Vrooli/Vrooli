@@ -4,7 +4,7 @@ import { ApiVersionShape, createOwner, createPrims, createRel, createVersion, La
 
 export type ApiShape = Pick<Api, 'id' | 'isPrivate'> & {
     labels?: ({ id: string } | LabelShape)[];
-    owner?: { __typeanme: 'User' | 'Organization', id: string } | null;
+    owner?: { __typename: 'User' | 'Organization', id: string } | null;
     parent?: { id: string } | null;
     tags?: ({ tag: string } | TagShape)[];
     // Updating, deleting, and reordering versions must be done separately. 

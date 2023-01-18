@@ -16,7 +16,7 @@ export const SettingsNotifications = ({
     onUpdated,
     session,
 }: SettingsNotificationsProps) => {
-    return {};
+    return {} as any;
 
     // // Handle update
     // const [mutation] = useMutation<NotificationSettings, NotificationSettingsUpdateInput, 'notificationSettingsUpdate'>(...notificationSettingsEndpoint.update);
@@ -44,10 +44,7 @@ export const SettingsNotifications = ({
     //             id: profile.id,
     //             name: values.name,
     //             handle: selectedHandle,
-    //             translations: values.translationsUpdate.map(t => ({
-    //                 ...t,
-    //                 id: t.id === DUMMY_ID ? uuid() : t.id,
-    //             })),
+    //             translations: values.translationsUpdate,
     //         })
     //         if (!input || Object.keys(input).length === 0) {
     //             PubSub.get().publishSnack({ messageKey: 'NoChangesMade', severity: SnackSeverity.Info });

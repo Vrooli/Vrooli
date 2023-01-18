@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { APP_LINKS as LINKS } from '@shared/consts';
+import { APP_LINKS as LINKS, Session } from '@shared/consts';
 import {
     Badge,
     BottomNavigationAction,
@@ -7,7 +7,7 @@ import {
     IconButton,
 } from '@mui/material';
 import { openLink } from 'utils';
-import { Session, SetLocation } from 'types';
+import { SetLocation } from 'types';
 import { CreateAccountIcon, CreateIcon, HomeIcon, NotificationsAllIcon, SearchIcon, SettingsIcon, SvgComponent } from '@shared/icons';
 import { getCurrentUser, guestSession } from 'utils/authentication';
 

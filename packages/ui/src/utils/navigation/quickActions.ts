@@ -160,7 +160,7 @@ export const shortcuts: ShortcutItem[] = [
  * Shape shortcuts to match AutoCompleteListItem format.
  */
 export const shortcutsItems: ShortcutOption[] = shortcuts.map(({ label, link }) => ({
-    type: "Shortcut",
+    __typename: "Shortcut",
     label,
     id: link,
 }))
@@ -191,7 +191,7 @@ export const actions: ActionItem[] = [
  * Shape actions to match AutoCompleteListItem format.
  */
 export const actionsItems: ActionOption[] = actions.map(({ canPerform, id, label }) => ({
-    type: "Action",
+    __typename: "Action",
     canPerform,
     id,
     label,

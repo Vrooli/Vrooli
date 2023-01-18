@@ -33,13 +33,7 @@ import { subscribeUserToPush } from 'serviceWorkerRegistration';
 import { authEndpoint } from 'graphql/endpoints';
 
 const helpText =
-    `Logging in allows you to vote, save favorites, and contribute to the community.
-
-Choose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.
-
-Choose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.
-
-Choose **ENTER AS GUEST** if you only want to view the site or execute existing routines.`
+    `Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.\n\nChoose **ENTER AS GUEST** if you only want to view the site or execute existing routines.`
 
 const buttonProps: SxProps = {
     height: '4em',

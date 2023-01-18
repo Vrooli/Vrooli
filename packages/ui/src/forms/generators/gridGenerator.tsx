@@ -1,7 +1,7 @@
 import { Grid, GridSpacing, Stack, Theme } from '@mui/material';
+import { Session } from '@shared/consts';
 import { ContentCollapse } from 'components';
 import { FieldData, GridContainer, GridContainerBase } from 'forms/types';
-import { Session } from 'types';
 import { generateInputComponent } from '.';
 
 /**

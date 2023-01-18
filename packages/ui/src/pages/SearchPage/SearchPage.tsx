@@ -8,7 +8,7 @@ import { centeredDiv } from "styles";
 import { useLocation } from '@shared/route';
 import { SearchPageProps } from "../types";
 import { getObjectUrlBase, PubSub, parseSearchParams, stringifySearchParams, SearchType, SearchPageTabOption as TabOption, addSearchParams } from "utils";
-import { APP_LINKS } from "@shared/consts";
+import { APP_LINKS, GqlModelType } from "@shared/consts";
 import { AddIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 
@@ -110,7 +110,7 @@ export function SearchPage({
     }, [tabIndex]);
 
     const onAddClick = useCallback((ev: any) => {
-        const addUrl = `${getObjectUrlBase({ type: searchType })}/add`
+        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`
         // If not logged in, redirect to login page
         if (!getCurrentUser(session).id) {
             PubSub.get().publishSnack({ messageKey: 'MustBeLoggedIn', severity: SnackSeverity.Error });

@@ -8,11 +8,7 @@ import { OpenInNewIcon } from "@shared/icons";
 import { Node, NodeLink, NodeType } from "@shared/consts";
 
 const helpText = 
-`The routine has encountered multiple possible paths to take, with no way to decide automatically which one to take. 
-
-Paths which lead to another subroutine are shown in blue. Paths that end the routine are either red or green, depending on whether the routine will be marked as successful or not.
-
-Please select the path you would like to take. You can always navigate back to this decision later through the "Steps" side menu.`;
+`The routine has encountered multiple possible paths to take, with no way to decide automatically which one to take.\n\nPaths which lead to another subroutine are shown in blue. Paths that end the routine are either red or green, depending on whether the routine will be marked as successful or not.\n\nPlease select the path you would like to take. You can always navigate back to this decision later through the "Steps" side menu.`;
 
 type Decision = {
     node: Node;

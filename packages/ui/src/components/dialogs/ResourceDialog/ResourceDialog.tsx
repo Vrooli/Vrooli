@@ -17,19 +17,7 @@ import { useQuery } from '@apollo/client';
 import { useTranslation } from 'react-i18next';
 
 const helpText =
-    `## What are resources?
-
-Resources provide context to the object they are attached to, such as a  user, organization, project, or routine.
-
-## Examples
-**For a user** - Social media links, GitHub profile, Patreon
-
-**For an organization** - Official website, tools used by your team, news article explaining the vision
-
-**For a project** - Project Catalyst proposal, Donation wallet address
-
-**For a routine** - Guide, external service
-`
+    `## What are resources?\n\nResources provide context to the object they are attached to, such as a  user, organization, project, or routine.\n\n## Examples\n**For a user** - Social media links, GitHub profile, Patreon\n\n**For an organization** - Official website, tools used by your team, news article explaining the vision\n\n**For a project** - Project Catalyst proposal, Donation wallet address\n\n**For a routine** - Guide, external service`
 
 const titleAria = "resource-dialog-title";
 const searchTitleAria = "search-vrooli-for-link-title"
@@ -77,7 +65,6 @@ export const ResourceDialog = ({
                 translations: values.translationsUpdate.map(t => ({
                     ...t,
                     __typename: 'ResourceTranslation',
-                    id: t.id === DUMMY_ID ? uuid() : t.id,
                 })),
             };
             if (mutate) {

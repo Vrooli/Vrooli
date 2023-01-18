@@ -1624,7 +1624,7 @@ export const searchTypeToParams: { [key in SearchType]: SearchParams } = {
         sortByOptions: RunProjectSortBy,
     },
     [SearchType.RunProjectOrRunRoutine]: {
-        advancedSearchSchema: runProjectOrRunRoutineSearchSchema,
+        advancedSearchSchema: {} as any,/// TODO runProjectOrRunRoutineSearchSchema,
         defaultSortBy: RunProjectOrRunRoutineSortBy.DateStartedAsc,
         endpoint: unionEndpoint.runProjectOrRunRoutines[1],
         query: unionEndpoint.runProjectOrRunRoutines[0],

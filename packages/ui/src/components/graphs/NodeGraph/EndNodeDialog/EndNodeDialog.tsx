@@ -47,10 +47,7 @@ export const EndNodeDialog = ({
                     __typename: 'NodeEnd',
                     wasSuccessful: values.wasSuccessful,
                 },
-                translations: values.translationsUpdate.map(t => ({
-                    ...t,
-                    id: t.id === DUMMY_ID ? uuid() : t.id,
-                })),
+                translations: values.translationsUpdate,
             })
         },
     });

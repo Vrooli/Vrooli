@@ -17,15 +17,10 @@ import { authEndpoint, userEndpoint } from "graphql/endpoints";
 import { userValidation } from "@shared/validation";
 
 const walletHelpText =
-    `This list contains all of your connected wallets. If a custom name has not been set, 
-the wallet's reward address will be displayed.
-
-You may add or remove as many wallets as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
+    `This list contains all of your connected wallets. If a custom name has not been set, the wallet's reward address will be displayed.\n\nYou may add or remove as many wallets as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
 
 const emailHelpText =
-    `This list contains all of your connected email addresses.
-
-You may add or remove as many email addresses as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
+    `This list contains all of your connected email addresses.\n\nYou may add or remove as many email addresses as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
 
 const passwordHelpText =
     `Change the password you use for email log ins. Wallet log ins use your wallet's extension, so no need to set a password here.`

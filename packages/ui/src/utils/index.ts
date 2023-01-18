@@ -1,5 +1,6 @@
 export * from './actions';
 export * from './consts';
+export * from './defaults';
 export * from './display';
 export * from './hooks';
 export * from './localStorage';

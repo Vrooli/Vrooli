@@ -56,7 +56,7 @@ export const UserView = ({
     }, [availableLanguages, setLanguage, session]);
 
     const { bio, name, handle, resourceList } = useMemo(() => {
-        const resourceList: ResourceList | undefined = user?.resourceList;
+        const resourceList: ResourceList | undefined = undefined;// TODO user?.resourceList;
         const { bio } = getTranslation(user ?? partialData, [language]);
         return {
             bio: bio && bio.trim().length > 0 ? bio : undefined,
@@ -80,7 +80,7 @@ export const UserView = ({
                 if (!user) return;
                 setUser({
                     ...user,
-                    resourceList: updatedList
+                    //resourceList: updatedList TODO
                 })
             }}
             loading={loading}

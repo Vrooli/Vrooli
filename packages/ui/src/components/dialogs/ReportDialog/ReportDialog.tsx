@@ -13,10 +13,7 @@ import { Report, ReportCreateInput } from '@shared/consts';
 import { mutationWrapper } from 'graphql/utils';
 
 const helpText =
-    `Reports help us moderate content. For now, reports will be handled by moderators. 
-
-In the future, we would like to implement a community governance system.
-`
+    `Reports help us moderate content. For now, reports will be handled by moderators.\n\nIn the future, we would like to implement a community governance system.`
 
 enum ReportOptions {
     Inappropriate = 'Inappropriate',

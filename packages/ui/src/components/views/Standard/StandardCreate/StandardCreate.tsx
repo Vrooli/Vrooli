@@ -2,13 +2,13 @@ import { Box, Grid, TextField } from "@mui/material";
 import { useMutation } from "graphql/hooks";
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { StandardCreateProps } from "../types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GridSubmitButtons, LanguageInput, PageTitle, ResourceListHorizontal, Selector, TagSelector } from "components";
 import { uuid } from '@shared/uuid';
 import { FieldData } from "forms/types";
-import { BaseStandardInput, defaultRelationships, PreviewSwitch, RelationshipButtons } from "components/inputs";
+import { BaseStandardInput, PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
@@ -52,10 +52,8 @@ export const StandardCreate = ({
     });
 
     // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
-    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        setResourceList(updatedList);
-    }, [setResourceList]);
+   const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
+   const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -94,10 +92,10 @@ export const StandardCreate = ({
                     id: values.id,
                     default: values.default,
                     isComplete: relationships.isComplete,
+                    isLatest: true,
                     isPrivate: relationships.isPrivate,
                     props: JSON.stringify(schema?.props),
                     yup: JSON.stringify(schema?.yup),
-                    translations: values.translationsCreate,
                     resourceList: resourceList,
                     root: {
                         id: uuid(),
@@ -109,7 +107,8 @@ export const StandardCreate = ({
                         permissions: JSON.stringify({}),
                         tags: tags,
                     },
-                    type: inputType.value,
+                    standardType: inputType.value,
+                    translations: values.translationsCreate,
                     ...values.versionInfo,
                 }),
                 onSuccess: (data) => {

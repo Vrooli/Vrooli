@@ -2,27 +2,28 @@ import { AutocompleteOption, NavigableObject } from "types";
 import { getTranslation, getUserLanguages } from "./translationTools";
 import { displayDate, firstString } from "./stringTools";
 import { ObjectListItem } from "components";
-import { DotNotation, Session, StarFor } from "@shared/consts";
+import { DotNotation, GqlModelType, Session, StarFor } from "@shared/consts";
 import { valueFromDot } from "utils/shape";
 import { exists, isOfType } from "@shared/utils";
 
 // NOTE: Ideally this would be a union of all possible types, but there's actually so 
 // many types that it causes a heap out of memory error :(
 export type ListObjectType = {
+    __typename: `${GqlModelType}`;
     completedAt?: number | null;
     startedAt?: number | null;
     name?: string | null;
-    projectVersion?: ListObjectType;
-    root?: ListObjectType;
-    routineVersion?: ListObjectType;
+    projectVersion?: ListObjectType | null;
+    root?: ListObjectType | null;
+    routineVersion?: ListObjectType | null;
     translations?: {
         id: string;
         language: string;
         name?: string | null;
-    }[];
-    versions?: ListObjectType[];
-    you?: Partial<YouInflated>;
-} & NavigableObject
+    }[] | null;
+    versions?: ListObjectType[] | null;
+    you?: Partial<YouInflated> | null;
+} & Omit<NavigableObject, '__typename'>;
 
 /**
  * All possible permissions/user-statuses any object can have

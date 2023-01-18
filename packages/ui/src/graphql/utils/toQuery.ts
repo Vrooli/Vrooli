@@ -26,12 +26,20 @@ export const toQuery = <Endpoint extends string>(
     fragments: Array<readonly [string, string]>,
     selectionSet: string | null
 ) => {
+    console.log('toQuery start', endpointName, inputType)
     let fragmentStrings: string[] = [];
     for (let i = 0; i < fragments.length; i++) {
         fragmentStrings.push(`${toFragment(endpointName + i, fragments[i])}\n`);
     }
     const selection = selectionSet ? `{\n${selectionSet}\n}` : '';
     const signature = inputType ? `($input: ${inputType}!)` : '';
+    console.log('hereeeee');
+    console.log(gql`
+    ${fragmentStrings}
+    query ${endpointName}($input: ${inputType}!) {
+        ${endpointName}${signature} ${selection}
+    }
+`)
     return [gql`
         ${fragmentStrings}
         query ${endpointName}($input: ${inputType}!) {

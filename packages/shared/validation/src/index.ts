@@ -5,5 +5,5 @@
  * by using formik.
  */
 export * from './utils';
-export * from './endpoints';
+export * from './models';
 export * from './forms';

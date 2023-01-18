@@ -13,9 +13,11 @@ export const typeDef = gql`
         take: Int
     }
 
+    union AnyRun = RunProject | RunRoutine
+
     type HistoryResult {
-        activeRuns: [RunRoutine!]!
-        completedRuns: [RunRoutine!]!
+        activeRuns: [AnyRun!]!
+        completedRuns: [AnyRun!]!
         recentlyViewed: [View!]!
         recentlyStarred: [Star!]!
     }
@@ -106,6 +108,7 @@ export const resolvers: {
             )
             // Return results
             return {
+                __typename: 'HistoryResult',
                 // activeRuns combines projects and routines, and sorts by date started
                 activeRuns: [...withSupplemental['arp'], ...withSupplemental['arr']].sort((a, b) => {
                     if (a.startedAt < b.startedAt) return -1;
@@ -120,7 +123,7 @@ export const resolvers: {
                 }),
                 recentlyViewed: withSupplemental['rv'],
                 recentlyStarred: withSupplemental['rs'],
-            } as any
+            }
         },
     },
 }

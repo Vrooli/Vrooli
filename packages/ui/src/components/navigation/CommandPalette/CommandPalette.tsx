@@ -16,9 +16,7 @@ import { uuidValidate } from '@shared/uuid';
 import { feedEndpoint } from 'graphql/endpoints';
 
 const helpText =
-    `Use this dialog to quickly navigate to other pages.
-
-It can be opened at any time by entering CTRL + P.`
+    `Use this dialog to quickly navigate to other pages.\n\nIt can be opened at any time by entering CTRL + P.`
 
 /**
  * Strips URL for comparison against the current URL.
@@ -101,27 +99,16 @@ export const CommandPalette = ({
         // Clear search string and close command palette
         close();
         setSearchString('');
-        // If selected item is an action (i.e. no navigation required), do nothing 
-        // (search bar performs actions automatically)
-        if (newValue.__typename === 'Action') {
-            return;
-        }
-        let newLocation: string;
-        // If selected item is a shortcut, newLocation is in the id field
-        if (newValue.__typename === 'Shortcut') {
-            newLocation = newValue.id
-        }
-        // Otherwise, object url must be constructed
-        else {
-            newLocation = getObjectUrl(newValue);
-        }
+        // Get object url
+        // NOTE: actions don't require navigation, so they are ignored. 
+        // The search bar performs the action automatically
+        const newLocation = getObjectUrl(newValue);
+        if (!Boolean(newLocation)) return;
         // If new pathname is the same, reload page
         const shouldReload = stripUrl(`${window.location.origin}${newLocation}`) === stripUrl(window.location.href);
         // Set new location
         setLocation(newLocation);
-        if (shouldReload) {
-            window.location.reload();
-        }
+        if (shouldReload) window.location.reload();
     }, [close, setLocation]);
 
     return (

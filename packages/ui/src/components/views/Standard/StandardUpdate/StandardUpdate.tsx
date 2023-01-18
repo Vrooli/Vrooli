@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { StandardUpdateProps } from "../types";
 import { mutationWrapper } from 'graphql/utils';
 import { useFormik } from 'formik';
-import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
-import { defaultRelationships, GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector } from "components";
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
+import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, ResourceListHorizontal, SnackSeverity, TagSelector } from "components";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindVersionInput, ResourceList, Standard, StandardUpdateInput, StandardVersion, StandardVersionUpdateInput } from "@shared/consts";
@@ -31,11 +31,9 @@ export const StandardUpdate = ({
     const [relationships, setRelationships] = useState<RelationshipsObject>(defaultRelationships(true, session));
     const onRelationshipsChange = useCallback((change: Partial<RelationshipsObject>) => setRelationships({ ...relationships, ...change }), [relationships]);
 
-    // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({ id: uuid() } as any);
-    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        setResourceList(updatedList);
-    }, [setResourceList]);
+   // Handle resources
+   const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
+   const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -82,6 +80,8 @@ export const StandardUpdate = ({
                 mutation,
                 input: shapeStandardVersion.update(standardVersion, {
                     id: standardVersion.id,
+                    isComplete: relationships.isComplete,
+                    isLatest: true,
                     isPrivate: relationships.isPrivate,
                     resourceList: resourceList,
                     root: {
@@ -93,12 +93,10 @@ export const StandardUpdate = ({
                         permissions: JSON.stringify({}),
                         tags: tags,
                     },
-                    translations: values.translationsUpdate.map(t => ({
-                        ...t,
-                        id: t.id === DUMMY_ID ? uuid() : t.id,
-                    })),
+                    standardType: standardVersion.standardType,
+                    translations: values.translationsUpdate,
                     ...values.versionInfo,
-                }),
+                } as any), //TODO
                 onSuccess: (data) => { onUpdated(data) },
                 onError: () => { formik.setSubmitting(false) },
             })
@@ -113,7 +111,7 @@ export const StandardUpdate = ({
         formik,
         formikField: 'translationsUpdate',
         language,
-        validationSchema: standardVersionTranslationValidation.update(),
+        validationSchema: {} as any,//standardVersionTranslationValidation.update(), TODO
     });
     const languages = useMemo(() => formik.values.translationsUpdate.map(t => t.language), [formik.values.translationsUpdate]);
     const handleAddLanguage = useCallback((newLanguage: string) => {

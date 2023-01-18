@@ -5,8 +5,9 @@
  *      import { PubSub } from 'utils';
  *      PubSub.get().publishSnack({ messageKey: 'HelloWorld' });
  */
+import { Session } from '@shared/consts';
 import { SnackSeverity } from 'components';
-import { CommonKey, ErrorKey, Session } from 'types';
+import { CommonKey, ErrorKey } from 'types';
 
 export type Pubs = 'Celebration' | 
     'CommandPalette' |

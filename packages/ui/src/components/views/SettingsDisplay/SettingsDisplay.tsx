@@ -17,16 +17,10 @@ import { userValidation } from "@shared/validation";
 import { currentSchedules } from "utils/display/scheduleTools";
 
 const interestsHelpText =
-    `Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.
-
-**None** of this information is available to the public, and **none** of it is sold to advertisers.
-`
+    `Specifying your interests can simplify the discovery of routines, projects, organizations, and standards, via customized feeds.\n\n**None** of this information is available to the public, and **none** of it is sold to advertisers.`
 
 const hiddenHelpText =
-    `Specify tags which should be hidden from your feeds.
-
-**None** of this information is available to the public, and **none** of it is sold to advertisers.
-`
+    `Specify tags which should be hidden from your feeds.\n\n**None** of this information is available to the public, and **none** of it is sold to advertisers.`
 
 export const SettingsDisplay = ({
     session,

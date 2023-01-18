@@ -27,7 +27,7 @@ export type IWrap<T> = { input: T }
  * An object connected to routing
  */
 export type NavigableObject = {
-    __typename: `${GqlModelType}`,
+    __typename: `${GqlModelType}` | 'Shortcut' | 'Action',
     handle?: string | null,
     id: string,
     projectVersion?: {

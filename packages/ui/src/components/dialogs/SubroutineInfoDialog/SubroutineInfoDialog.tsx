@@ -14,9 +14,9 @@ import {
     useTheme,
 } from '@mui/material';
 import { SubroutineInfoDialogProps } from '../types';
-import { addEmptyTranslation, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
+import { addEmptyTranslation, defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, TagShape, usePromptBeforeUnload, useTranslatedFields } from 'utils';
 import { routineUpdate as validationSchema, routineVersionTranslationValidation } from '@shared/validation';
-import { defaultRelationships, EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
+import { EditableTextCollapse, GridSubmitButtons, InputOutputContainer, LanguageInput, QuantityBox, RelationshipButtons, ResourceListHorizontal, SelectLanguageMenu, TagList, TagSelector, VersionDisplay, VersionInput } from 'components';
 import { useFormik } from 'formik';
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { CloseIcon, OpenInNewIcon } from '@shared/icons';
@@ -60,15 +60,9 @@ export const SubroutineInfoDialog = ({
         setOutputsList(updatedList);
     }, [setOutputsList]);
 
-    // Handle resources
-    const [resourceList, setResourceList] = useState<ResourceList>({
-        type: 'ResourceList',
-        id: uuid(),
-        resources: [],
-    } as any);
-    const handleResourcesUpdate = useCallback((updatedList: ResourceList) => {
-        setResourceList(updatedList);
-    }, [setResourceList]);
+   // Handle resources
+   const [resourceList, setResourceList] = useState<ResourceList>(defaultResourceList);
+   const handleResourcesUpdate = useCallback((updatedList: ResourceList) => setResourceList(updatedList), [setResourceList]);
 
     // Handle tags
     const [tags, setTags] = useState<TagShape[]>([]);
@@ -131,10 +125,7 @@ export const SubroutineInfoDialog = ({
                     outputs: outputsList,
                     resourceList: resourceList,
                     tags,
-                    translations: values.translationsUpdate.map(t => ({
-                        ...t,
-                        id: t.id === DUMMY_ID ? uuid() : t.id,
-                    })),
+                    translations: values.translationsUpdate,
                     ...values.versionInfo
                 }
             } as any);

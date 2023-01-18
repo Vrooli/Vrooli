@@ -19,6 +19,7 @@ import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
 import { errorToCode, hasErrorCode, mutationWrapper } from 'graphql/utils';
 import { authEndpoint } from 'graphql/endpoints';
+import { emailLogInFormValidation } from '@shared/validation';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -40,7 +41,7 @@ export const LogInForm = ({
             email: '',
             password: ''
         },
-        validationSchema: emailLogInForm,
+        validationSchema: emailLogInFormValidation,
         onSubmit: (values) => {
             mutationWrapper<Session, EmailLogInInput>({
                 mutation: emailLogIn,
