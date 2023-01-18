@@ -6,7 +6,7 @@ import { NavList } from '../NavList/NavList';
 import { useLocation } from '@shared/route';
 import { NavbarProps } from '../types';
 import { HideOnScroll } from '..';
-import { noSelect } from 'styles';
+import { noSelect } from 'styles'
 
 export const Navbar = ({
     session,
@@ -25,7 +25,7 @@ export const Navbar = ({
                 sx={{
                     ...noSelect,
                     background: palette.primary.dark,
-                    height: { xs: '64px', md: '80px' },
+                    height: '64px!important',
                     zIndex: 100,
                 }}>
                 <Toolbar>
@@ -67,6 +67,7 @@ export const Navbar = ({
                             sx={{
                                 position: 'relative',
                                 cursor: 'pointer',
+                                lineHeight: '1.3',
                                 fontSize: '3.5em',
                                 fontFamily: `SakBunderan`,
                                 color: palette.primary.contrastText,

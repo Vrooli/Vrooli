@@ -26,16 +26,16 @@ export const toMutation = <Endpoint extends string>(
     selectionSet: string | null,
     fragments: Array<readonly [string, string]> = [],
 ) => {
-    console.log('toMutation start', endpointName, inputType)
+    // console.log('toMutation start', endpointName, inputType)
     let fragmentStrings: string[] = [];
     for (let i = 0; i < fragments.length; i++) {
         fragmentStrings.push(`${toFragment(endpointName + i, fragments[i])}\n`);
     }
     const signature = inputType ? `(input: $input)` : '';
-    console.log(`${fragmentStrings.join('\n')}
-mutation ${endpointName}($input: ${inputType}!) {
-    ${endpointName}${signature} ${selectionSet ?? ''}
-}`)
+//     console.log(`${fragmentStrings.join('\n')}
+// mutation ${endpointName}($input: ${inputType}!) {
+//     ${endpointName}${signature} ${selectionSet ?? ''}
+// }`)
     return [gql`${fragmentStrings.join('\n')}
 mutation ${endpointName}($input: ${inputType}!) {
     ${endpointName}${signature} ${selectionSet ?? ''}

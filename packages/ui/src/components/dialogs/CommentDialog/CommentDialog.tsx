@@ -82,7 +82,7 @@ export const CommentDialog = ({
                 {errorText}
             </PopoverWithArrow>
             {/* App bar with Cancel, title, and Submit */}
-            <AppBar sx={{ position: 'relative', background: palette.primary.dark }}>
+            <AppBar sx={{ position: 'relative', background: palette.primary.dark, height: '64px!important' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1 }}>
                     {/* Cancel button */}
                     <Button variant="text" onClick={handleClose}>

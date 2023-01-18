@@ -18,7 +18,7 @@ export const Navbar = () => {
             <AppBar sx={{
                 ...noSelect,
                 background: palette.primary.dark,
-                height: '64px',
+                height: '64px!important',
                 zIndex: 100,
             }}>
                 <Toolbar>
