@@ -3,7 +3,7 @@ import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { Path } from '@shared/route/src/useLocation';
 import { TFuncKey } from 'i18next';
-import { GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { DeepPartialBoolean, GqlModelType, NodeLink, NonMaybe, RoutineVersion, SearchException, Session } from '@shared/consts';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -170,3 +170,33 @@ export type CommonKey = TFuncKey<'common', undefined>
 
 // Miscellaneous types
 export type SetLocation = (to: Path, options?: { replace?: boolean }) => void;
+
+/**
+ * Ensures that a GraphQL selection is valid for a given type.
+ */
+export type GqlPartial<
+    T extends { __typename: string },
+> = {
+    /**
+     * Must specify the typename, in case we need to use it in a fragment.
+     */
+    __typename: T['__typename'];
+    /**
+     * Fields which are always included. This is is recursive partial of T
+     */
+    common?: DeepPartialBoolean<NonMaybe<T>>;
+    /**
+     * Fields included in the full selection. Combined with common.
+     */
+    full: DeepPartialBoolean<NonMaybe<T>>;
+    /**
+     * Fields included in the minimal (list) selection. Combined with common.
+     * If not provided, defaults to the same as full.
+     */
+    list?: DeepPartialBoolean<NonMaybe<T>>;
+    /**
+     * Fields included to get the name of the object. NOT combined with common.
+     */
+    name?: DeepPartialBoolean<NonMaybe<T>>;
+
+}

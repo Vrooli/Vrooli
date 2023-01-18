@@ -1,62 +1,79 @@
-import { resourceFields } from "./resource";
-import { tagFields } from "./tag";
+import { Organization, OrganizationTranslation, OrganizationYou } from "@shared/consts";
+import { GqlPartial } from "types";
 
-export const organizationNameFields = ['Organization', `{
-    id
-    handle
-    translatedName
-}`] as const;
-export const organizationTranslationFields = ['OrganizationTranslation', `{
-    id
-    language
-    bio
-    name
-}`] as const;
-export const organizationPermissionFields = ['OrganizationPermission', `{
-    canAddMembers
-    canDelete
-    canEdit
-    canStar
-    canReport
-    canView
-    isMember
-}`] as const;
-export const listOrganizationFields = ['Organization', `{
-    id
-    commentsCount
-    handle
-    stars
-    isOpenToNewMembers
-    isPrivate
-    isStarred
-    membersCount
-    reportsCount
-    permissionsOrganization ${organizationPermissionFields[1]}
-    tags ${tagFields[1]}
-    translations ${organizationTranslationFields[1]}
-}`] as const;
-export const organizationFields = ['Organization', `{
-    id
-    created_at
-    handle
-    isOpenToNewMembers
-    isPrivate
-    isStarred
-    stars
-    reportsCount
-    permissionsOrganization ${organizationPermissionFields[1]}
-    resourceList ${resourceFields[1]}
-    roles {
-        id
-        created_at
-        updated_at
-        title
-        translations {
-            id
-            language
-            description
+export const organizationTranslationPartial: GqlPartial<OrganizationTranslation> = {
+    __typename: 'OrganizationTranslation',
+    full: {
+        id: true,
+        language: true,
+        bio: true,
+        name: true,
+    },
+}
+
+export const organizationYouPartial: GqlPartial<OrganizationYou> = {
+    __typename: 'OrganizationYou',
+    full: {
+        canAddMembers: true,
+        canDelete: true,
+        canEdit: true,
+        canStar: true,
+        canReport: true,
+        canView: true,
+        isStarred: true,
+        isViewed: true,
+        yourMembership: {
+            id: true,
+            created_at: true,
+            updated_at: true,
+            isAdmin: true,
+            permissions: true,
         }
+    },
+}
+
+export const organizationPartial: GqlPartial<Organization> = {
+    __typename: 'Organization',
+    full: {
+        id: true,
+        created_at: true,
+        handle: true,
+        isOpenToNewMembers: true,
+        isPrivate: true,
+        stars: true,
+        reportsCount: true,
+        resourceList: resourcePartial.list,
+        roles: {
+            id: true,
+            created_at: true,
+            updated_at: true,
+            name: true,
+            translations: {
+                id: true,
+                language: true,
+                description: true,
+            },
+        },
+        tags: tagPartial.list,
+        translations: organizationTranslationPartial.full,
+        you: organizationYouPartial.full,
+    },
+    list: {
+        id: true,
+        commentsCount: true,
+        handle: true,
+        stars: true,
+        isOpenToNewMembers: true,
+        isPrivate: true,
+        membersCount: true,
+        reportsCount: true,
+        tags: tagPartial.list,
+        translations: organizationTranslationPartial.full,
+        you: organizationYouPartial.full,
+    },
+    name: {
+        id: true,
+        handle: true,
+        translatedName: true,
     }
-    tags ${tagFields[1]}
-    translations ${organizationTranslationFields[1]}
-}`] as const;
+}

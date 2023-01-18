@@ -29,3 +29,25 @@ export type DotNotation<T> = Join<Extract<DottablePaths<T, 3>, string[]>, ".">;
 export type PrependString<T extends Record<string, any>, Prefix extends string> = {
     [K in keyof T as `${Prefix}${K & string}`]: T[K]
 }
+
+/**
+ * Makes a value nullable
+ */
+export type Maybe<T> = T | null;
+
+/**
+ * Recursively removes the Maybe type from all fields in a type, and makes them required.
+ */
+export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNullable<T[K]> : T[K] };
+
+/**
+ * A nested Partial type, where each non-object field is a boolean.
+ * Arrays are also treated as objects.
+ */
+export type DeepPartialBoolean<T> = {
+    [P in keyof T]?: T[P] extends Array<infer U> ?
+    DeepPartialBoolean<U> :
+    T[P] extends object ?
+    DeepPartialBoolean<T[P]> :
+    boolean;
+};
