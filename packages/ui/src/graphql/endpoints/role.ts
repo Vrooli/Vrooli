@@ -2,8 +2,8 @@ import { roleFields as fullFields, listRoleFields as listFields } from 'graphql/
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const roleEndpoint = {
-    findOne: toQuery('role', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('roles', 'RoleSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('roleCreate', 'RoleCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('roleUpdate', 'RoleUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('role', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('roles', 'RoleSearchInput', toSearch(listFields)),
+    create: toMutation('roleCreate', 'RoleCreateInput', fullFields[1]),
+    update: toMutation('roleUpdate', 'RoleUpdateInput', fullFields[1])
 }

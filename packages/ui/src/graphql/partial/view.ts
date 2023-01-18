@@ -12,7 +12,7 @@ import { listStandardFields } from "./standard";
 import { listUserFields } from "./user";
 
 const __typename = 'View';
-export const listViewFields = [__typename, `
+export const listViewFields = [__typename, `{
     ${toFragment('listViewApiFields', listApiFields)}
     ${toFragment('listViewIssueFields', listIssueFields)}
     ${toFragment('listViewNoteFields', listNoteFields)}
@@ -40,4 +40,4 @@ export const listViewFields = [__typename, `
             ... on User { ...listViewUserFields }
         }
     }
-`] as const;
+}`] as const;

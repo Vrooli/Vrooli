@@ -2,8 +2,8 @@ import { projectFields as fullFields, listProjectFields as listFields } from 'gr
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const projectEndpoint = {
-    findOne: toQuery('project', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('projects', 'ProjectSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('projectCreate', 'ProjectCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('projectUpdate', 'ProjectUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('project', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('projects', 'ProjectSearchInput', toSearch(listFields)),
+    create: toMutation('projectCreate', 'ProjectCreateInput', fullFields[1]),
+    update: toMutation('projectUpdate', 'ProjectUpdateInput', fullFields[1])
 }

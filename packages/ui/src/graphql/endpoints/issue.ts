@@ -2,9 +2,9 @@ import { issueFields as fullFields, listIssueFields as listFields } from 'graphq
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const issueEndpoint = {
-    findOne: toQuery('issue', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('issues', 'IssueSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('issueCreate', 'IssueCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('issueUpdate', 'IssueUpdateInput', [fullFields], `...fullFields`),
-    close: toMutation('issueClose', 'IssueCloseInput', [fullFields], `...fullFields`),
+    findOne: toQuery('issue', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('issues', 'IssueSearchInput', toSearch(listFields)),
+    create: toMutation('issueCreate', 'IssueCreateInput', fullFields[1]),
+    update: toMutation('issueUpdate', 'IssueUpdateInput', fullFields[1]),
+    close: toMutation('issueClose', 'IssueCloseInput', fullFields[1]),
 }

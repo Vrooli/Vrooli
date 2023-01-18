@@ -2,79 +2,79 @@ import { listOrganizationFields, listProjectFields, listRoutineFields, listStand
 import { toQuery } from 'graphql/utils';
 
 export const feedEndpoint = {
-    popular: toQuery('popular', 'PopularInput', [listOrganizationFields, listProjectFields, listRoutineFields, listStandardFields, listUserFields], `
+    popular: toQuery('popular', 'PopularInput', `{
         organizations {
-            ...listOrganizationFields
+            ...popular0
         }
         projects {
-            ...listProjectFields
+            ...popular1
         }
         routines {
-            ...listRoutineFields
+            ...popular2
         }
         standards {
-            ...listStandardFields
+            ...popular3
         }
         users {
-            ...listUserFields
+            ...popular4
         }
-    `),
-    learn: toQuery('learn', null, [listProjectFields, listRoutineFields], `
+    }`, [listOrganizationFields, listProjectFields, listRoutineFields, listStandardFields, listUserFields]),
+    learn: toQuery('learn', null, `{
         learn {
             courses {
-                ...listProjectFields
+                ...learn0
             }
             tutorials {
-                ...listRoutineFields
+                ...learn1
             }
         }
-    `),
-    research: toQuery('research', null, [listOrganizationFields, listProjectFields, listRoutineFields], `
+    }`, [listProjectFields, listRoutineFields]),
+    research: toQuery('research', null, `{
         processes {
-            ...listRoutineFields
+            ...research2
         }
         newlyCompleted {
             ... on Project {
-                ...listProjectFields
+                ...research1
             }
             ... on Routine {
-                ...listRoutineFields
+                ...research2
             }
         }
         needVotes {
-            ...listProjectFields
+            ...research1
         }
         needInvestments {
-            ...listProjectFields
+            ...research1
         }
         needMembers {
-            ...listOrganizationFields
+            ...research0
         }
-    `),
-    develop: toQuery('develop', null, [listProjectFields, listRoutineFields], `
+    }`, [listOrganizationFields, listProjectFields, listRoutineFields]),
+    develop: toQuery('develop', null, `{
         completed {
             ... on Project {
-                ...listProjectFields
+                ...develop0
             }
             ... on Routine {
-                ...listRoutineFields
+                ...develop1
             }
         }
         inProgress {
             ... on Project {
-                ...listProjectFields
+                ...develop0
             }
             ... on Routine {
-                ...listRoutineFields
+                ...develop1
             }
         }
         recent {
             ... on Project {
-                ...listProjectFields
+                ...develop0
             }
             ... on Routine {
-                ...listRoutineFields
+                ...develop1
             }
         }
-    `),
+    }`, [listProjectFields, listRoutineFields]),
 }

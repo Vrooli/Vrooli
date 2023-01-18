@@ -4,7 +4,7 @@ import { toFragment } from './toFragment';
 /**
  * Helper function for generating a GraphQL query for a given endpoint.
  * 
- * Example: toQuery('api', 'FindByIdInput', [fullFields], `...fullFields`) => 
+ * Example: toQuery('api', 'FindByIdInput', fullFields[1]) => 
  * gql`
  *      ${fullFields}
  *      query api($input: FindByIdInput!) {
@@ -23,27 +23,21 @@ import { toFragment } from './toFragment';
 export const toQuery = <Endpoint extends string>(
     endpointName: Endpoint,
     inputType: string | null,
-    fragments: Array<readonly [string, string]>,
-    selectionSet: string | null
+    selectionSet: string | null,
+    fragments: Array<readonly [string, string]> = [],
 ) => {
     console.log('toQuery start', endpointName, inputType)
     let fragmentStrings: string[] = [];
     for (let i = 0; i < fragments.length; i++) {
         fragmentStrings.push(`${toFragment(endpointName + i, fragments[i])}\n`);
     }
-    const selection = selectionSet ? `{\n${selectionSet}\n}` : '';
-    const signature = inputType ? `($input: ${inputType}!)` : '';
-    console.log('hereeeee');
-    console.log(gql`
-    ${fragmentStrings}
-    query ${endpointName}($input: ${inputType}!) {
-        ${endpointName}${signature} ${selection}
-    }
-`)
-    return [gql`
-        ${fragmentStrings}
-        query ${endpointName}($input: ${inputType}!) {
-            ${endpointName}${signature} ${selection}
-        }
-    `, endpointName] as const;
+    const signature = inputType ? `(input: $input)` : '';
+    console.log(`${fragmentStrings.join('\n')}
+query ${endpointName}($input: ${inputType}!) {
+    ${endpointName}${signature} ${selectionSet ?? ''}
+}`)
+    return [gql`${fragmentStrings.join('\n')}
+query ${endpointName}($input: ${inputType}!) {
+    ${endpointName}${signature} ${selectionSet ?? ''}
+}`, endpointName] as const;
 }

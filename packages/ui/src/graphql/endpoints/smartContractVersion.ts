@@ -2,8 +2,8 @@ import { smartContractVersionFields as fullFields, listSmartContractVersionField
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const smartContractVersionEndpoint = {
-    findOne: toQuery('smartContractVersion', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('smartContractVersions', 'SmartContractVersionSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('smartContractVersionCreate', 'SmartContractVersionCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('smartContractVersionUpdate', 'SmartContractVersionUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('smartContractVersion', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('smartContractVersions', 'SmartContractVersionSearchInput', toSearch(listFields)),
+    create: toMutation('smartContractVersionCreate', 'SmartContractVersionCreateInput', fullFields[1]),
+    update: toMutation('smartContractVersionUpdate', 'SmartContractVersionUpdateInput', fullFields[1])
 }

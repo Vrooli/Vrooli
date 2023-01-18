@@ -2,10 +2,10 @@ import { pullRequestFields as fullFields, listPullRequestFields as listFields } 
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const pullRequestEndpoint = {
-    findOne: toQuery('pullRequest', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('pullRequests', 'PullRequestSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('pullRequestCreate', 'PullRequestCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('pullRequestUpdate', 'PullRequestUpdateInput', [fullFields], `...fullFields`),
-    accept: toMutation('pullRequestAcdept', 'FindByIdInput', [fullFields], `...fullFields`),
-    reject: toMutation('pullRequestReject', 'FindByIdInput', [fullFields], `...fullFields`),
+    findOne: toQuery('pullRequest', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('pullRequests', 'PullRequestSearchInput', toSearch(listFields)),
+    create: toMutation('pullRequestCreate', 'PullRequestCreateInput', fullFields[1]),
+    update: toMutation('pullRequestUpdate', 'PullRequestUpdateInput', fullFields[1]),
+    accept: toMutation('pullRequestAcdept', 'FindByIdInput', fullFields[1]),
+    reject: toMutation('pullRequestReject', 'FindByIdInput', fullFields[1]),
 }

@@ -2,7 +2,7 @@ import { memberFields as fullFields, listMemberFields as listFields } from 'grap
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const memberEndpoint = {
-    findOne: toQuery('member', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('members', 'MemberSearchInput', [listFields], toSearch(listFields)),
-    update: toMutation('memberUpdate', 'MemberUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('member', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('members', 'MemberSearchInput', toSearch(listFields)),
+    update: toMutation('memberUpdate', 'MemberUpdateInput', fullFields[1])
 }

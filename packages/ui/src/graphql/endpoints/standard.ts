@@ -2,8 +2,8 @@ import { standardFields as fullFields, listStandardFields as listFields } from '
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const standardEndpoint = {
-    findOne: toQuery('standard', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('standards', 'StandardSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('standardCreate', 'StandardCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('standardUpdate', 'StandardUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('standard', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('standards', 'StandardSearchInput', toSearch(listFields)),
+    create: toMutation('standardCreate', 'StandardCreateInput', fullFields[1]),
+    update: toMutation('standardUpdate', 'StandardUpdateInput', fullFields[1])
 }

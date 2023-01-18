@@ -12,13 +12,13 @@ export const commentFields = ['Comment', `{
     isUpvoted
     isStarred
     commentedOn {
-        ... on Project ${projectNameFields}
-        ... on Routine ${routineNameFields}
-        ... on Standard ${standardNameFields}
+        ... on Project ${projectNameFields[1]}
+        ... on Routine ${routineNameFields[1]}
+        ... on Standard ${standardNameFields[1]}
     }
     creator {
-        ... on Organization ${organizationNameFields}
-        ... on User ${userNameFields}
+        ... on Organization ${organizationNameFields[1]}
+        ... on User ${userNameFields[1]}
     }
     permissionsComment {
         canDelete

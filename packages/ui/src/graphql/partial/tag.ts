@@ -10,5 +10,5 @@ export const tagFields = [__typename, `{
     created_at
     stars
     isStarred
-    translations ${tagTranslationFields}
+    translations ${tagTranslationFields[1]}
 }`] as const;

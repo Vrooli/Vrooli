@@ -2,8 +2,8 @@ import { standardVersionFields as fullFields, listStandardVersionFields as listF
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const standardVersionEndpoint = {
-    findOne: toQuery('standardVersion', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('standardVersions', 'StandardVersionSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('standardVersionCreate', 'StandardVersionCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('standardVersionUpdate', 'StandardVersionUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('standardVersion', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('standardVersions', 'StandardVersionSearchInput', toSearch(listFields)),
+    create: toMutation('standardVersionCreate', 'StandardVersionCreateInput', fullFields[1]),
+    update: toMutation('standardVersionUpdate', 'StandardVersionUpdateInput', fullFields[1])
 }

@@ -2,8 +2,8 @@ import { userScheduleFields as fullFields, listUserScheduleFields as listFields 
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const userScheduleEndpoint = {
-    findOne: toQuery('userSchedule', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('userSchedules', 'UserScheduleSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('userScheduleCreate', 'UserScheduleCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('userScheduleUpdate', 'UserScheduleUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('userSchedule', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('userSchedules', 'UserScheduleSearchInput', toSearch(listFields)),
+    create: toMutation('userScheduleCreate', 'UserScheduleCreateInput', fullFields[1]),
+    update: toMutation('userScheduleUpdate', 'UserScheduleUpdateInput', fullFields[1])
 }

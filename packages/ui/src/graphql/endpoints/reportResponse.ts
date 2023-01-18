@@ -2,8 +2,8 @@ import { reportResponseFields as fullFields, listReportResponseFields as listFie
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const reportResponseEndpoint = {
-    findOne: toQuery('reportResponse', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('reportResponses', 'ReportResponseSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('reportResponseCreate', 'ReportResponseCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('reportResponseUpdate', 'ReportResponseUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('reportResponse', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('reportResponses', 'ReportResponseSearchInput', toSearch(listFields)),
+    create: toMutation('reportResponseCreate', 'ReportResponseCreateInput', fullFields[1]),
+    update: toMutation('reportResponseUpdate', 'ReportResponseUpdateInput', fullFields[1])
 }

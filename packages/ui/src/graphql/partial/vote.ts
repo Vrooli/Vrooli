@@ -13,7 +13,7 @@ import { listSmartContractFields } from "./smartContract";
 import { listStandardFields } from "./standard";
 
 const __typename = 'Vote';
-export const listVoteFields = [__typename, `
+export const listVoteFields = [__typename, `{
     ${toFragment('listVoteApiFields', listApiFields)}
     ${toFragment('listVoteCommentFields', commentFields)}
     ${toFragment('listVoteIssueFields', listIssueFields)}
@@ -43,4 +43,4 @@ export const listVoteFields = [__typename, `
             ... on Standard { ...listVoteStandardFields }
         }
     }
-`] as const;
+}`] as const;

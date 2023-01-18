@@ -15,7 +15,7 @@ export const toSearch = (
         }
         edges {
             cursor
-            node ...${selectionSet}
+            node ${selectionSet}
         }
     }`;
 }

@@ -2,8 +2,8 @@ import { reminderListFields as fullFields, listReminderListFields as listFields 
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const reminderListEndpoint = {
-    findOne: toQuery('reminderList', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('reminderLists', 'ReminderListSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('reminderListCreate', 'ReminderListCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('reminderListUpdate', 'ReminderListUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('reminderList', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('reminderLists', 'ReminderListSearchInput', toSearch(listFields)),
+    create: toMutation('reminderListCreate', 'ReminderListCreateInput', fullFields[1]),
+    update: toMutation('reminderListUpdate', 'ReminderListUpdateInput', fullFields[1])
 }

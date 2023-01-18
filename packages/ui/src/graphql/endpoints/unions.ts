@@ -2,7 +2,7 @@ import { listProjectOrOrganizationFields, listProjectOrRoutineFields, listRunPro
 import { toQuery, toSearch } from 'graphql/utils';
 
 export const unionEndpoint = {
-    projectOrRoutines: toQuery('projectOrRoutines', 'ProjectOrRoutineSearchInput', [listProjectOrRoutineFields], toSearch(listProjectOrRoutineFields)),
-    projectOrOrganizations: toQuery('projectOrOrganizations', 'ProjectOrOrganizationSearchInput', [listProjectOrOrganizationFields], toSearch(listProjectOrOrganizationFields)),
-    runProjectOrRunRoutines: toQuery('runProjectOrRunRoutines', 'RunProjectOrRunRoutineSearchInput', [listRunProjectOrRunRoutineFields], toSearch(listRunProjectOrRunRoutineFields)),
+    projectOrRoutines: toQuery('projectOrRoutines', 'ProjectOrRoutineSearchInput', toSearch(listProjectOrRoutineFields)),
+    projectOrOrganizations: toQuery('projectOrOrganizations', 'ProjectOrOrganizationSearchInput', toSearch(listProjectOrOrganizationFields)),
+    runProjectOrRunRoutines: toQuery('runProjectOrRunRoutines', 'RunProjectOrRunRoutineSearchInput', toSearch(listRunProjectOrRunRoutineFields)),
 }

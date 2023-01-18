@@ -25,9 +25,5 @@ export const toFragment = (
     fragmentName: string,
     [type, selectionSet]: readonly [string, string]
 ) => {
-    return `
-        fragment ${fragmentName} on ${type} {
-            ${selectionSet}
-        }
-    `;
+    return `fragment ${fragmentName} on ${type} ${selectionSet}`;
 }

@@ -2,8 +2,8 @@ import { noteFields as fullFields, listNoteFields as listFields } from 'graphql/
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const noteEndpoint = {
-    findOne: toQuery('note', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('notes', 'NoteSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('noteCreate', 'NoteCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('noteUpdate', 'NoteUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('note', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('notes', 'NoteSearchInput', toSearch(listFields)),
+    create: toMutation('noteCreate', 'NoteCreateInput', fullFields[1]),
+    update: toMutation('noteUpdate', 'NoteUpdateInput', fullFields[1])
 }

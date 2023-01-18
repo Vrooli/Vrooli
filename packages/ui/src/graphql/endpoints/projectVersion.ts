@@ -2,8 +2,8 @@ import { projectVersionFields as fullFields, listProjectVersionFields as listFie
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const projectVersionEndpoint = {
-    findOne: toQuery('projectVersion', 'FindByIdInput', [fullFields], `...fullFields`),
-    findMany: toQuery('projectVersions', 'ProjectVersionSearchInput', [listFields], toSearch(listFields)),
-    create: toMutation('projectVersionCreate', 'ProjectVersionCreateInput', [fullFields], `...fullFields`),
-    update: toMutation('projectVersionUpdate', 'ProjectVersionUpdateInput', [fullFields], `...fullFields`)
+    findOne: toQuery('projectVersion', 'FindByIdInput', fullFields[1]),
+    findMany: toQuery('projectVersions', 'ProjectVersionSearchInput', toSearch(listFields)),
+    create: toMutation('projectVersionCreate', 'ProjectVersionCreateInput', fullFields[1]),
+    update: toMutation('projectVersionUpdate', 'ProjectVersionUpdateInput', fullFields[1])
 }

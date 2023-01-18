@@ -2,22 +2,22 @@ import { sessionFields, walletFields } from 'graphql/partial';
 import { toMutation } from 'graphql/utils';
 
 export const authEndpoint = {
-    emailLogIn: toMutation('emailLogIn', 'EmailLogInInput', [sessionFields], `...sessionFields`),
-    emailSignUp: toMutation('emailSignUp', 'EmailSignUpInput', [sessionFields], `...sessionFields`),
-    emailRequestPasswordChange: toMutation('emailRequestPasswordChange', 'EmailRequestPasswordChangeInput', [], `success`),
-    emailResetPassword: toMutation('emailResetPassword', 'EmailResetPasswordInput', [sessionFields], `...sessionFields`),
-    guestLogIn: toMutation('guestLogIn', null, [sessionFields], `...sessionFields`),
-    logOut: toMutation('logOut', 'LogOutInput', [sessionFields], `...sessionFields`),
-    validateSession: toMutation('validateSession', 'ValidateSessionInput', [sessionFields], `...sessionFields`),
-    switchCurrentAccount: toMutation('switchCurrentAccount', 'SwitchCurrentAccountInput', [sessionFields], `...sessionFields`),
-    walletInit: toMutation('walletInit', 'WalletInitInput', [], null),
-    walletComplete: toMutation('walletComplete', 'WalletCompleteInput', [sessionFields, walletFields], `
+    emailLogIn: toMutation('emailLogIn', 'EmailLogInInput', sessionFields[1]),
+    emailSignUp: toMutation('emailSignUp', 'EmailSignUpInput', sessionFields[1]),
+    emailRequestPasswordChange: toMutation('emailRequestPasswordChange', 'EmailRequestPasswordChangeInput', `{ success }`),
+    emailResetPassword: toMutation('emailResetPassword', 'EmailResetPasswordInput', sessionFields[1]),
+    guestLogIn: toMutation('guestLogIn', null, sessionFields[1]),
+    logOut: toMutation('logOut', 'LogOutInput', sessionFields[1]),
+    validateSession: toMutation('validateSession', 'ValidateSessionInput', sessionFields[1]),
+    switchCurrentAccount: toMutation('switchCurrentAccount', 'SwitchCurrentAccountInput', sessionFields[1]),
+    walletInit: toMutation('walletInit', 'WalletInitInput', null),
+    walletComplete: toMutation('walletComplete', 'WalletCompleteInput', `{
         firstLogIn
         session {
-            ...sessionFields
+            ...walletComplete0
         }
         wallet {
-            ...walletFields
+            ...walletComplete1
         }
-    `),
+    }`, [sessionFields, walletFields]),
 }

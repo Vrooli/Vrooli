@@ -2,27 +2,27 @@ import { apiVersionFields, noteVersionFields, organizationFields, projectVersion
 import { toMutation } from 'graphql/utils';
 
 export const copyEndpoint = {
-    copy: toMutation('copy', 'CopyInput', [apiVersionFields, noteVersionFields, organizationFields, projectVersionFields, routineVersionFields, smartContractVersionFields, standardVersionFields], `
+    copy: toMutation('copy', 'CopyInput', `
         apiVersion {
-            ...apiVersionFields
+            ...copy0
         }
         noteVersion {
-            ...noteVersionFields
+            ...copy1
         }
         organization {
-            ...organizationFields
+            ...copy2
         }
         projectVersion {
-            ...projectVersionFields
+            ...copy3
         }
         routineVersion {
-            ...routineVersionFields
+            ...copy4
         }
         smartContractVersion {
-            ...smartContractVersionFields
+            ...copy5
         }
         standardVersion {
-            ...standardVersionFields
+            ...copy6
         }
-    `),
+    `, [apiVersionFields, noteVersionFields, organizationFields, projectVersionFields, routineVersionFields, smartContractVersionFields, standardVersionFields]),
 }

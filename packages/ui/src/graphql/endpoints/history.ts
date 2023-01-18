@@ -2,18 +2,18 @@ import { listRunRoutineFields, listStarFields, listViewFields } from 'graphql/pa
 import { toQuery } from 'graphql/utils';
 
 export const historyEndpoint = {
-    history: toQuery('history', 'HistoryInput', [listRunRoutineFields, listStarFields, listViewFields], `
+    history: toQuery('history', 'HistoryInput', `{
         activeRuns {
-            ...listRunRoutineFields
+            ...history0
         }
         completedRuns {
-            ...listRunRoutineFields
-        }
-        recentlyViewed {
-            ...listViewFields
+            ...history0
         }
         recentlyStarred {
-            ...listStarFields
+            ...history1
         }
-    `),
+        recentlyViewed {
+            ...history2
+        }
+    }`, [listRunRoutineFields, listStarFields, listViewFields]),
 }
