@@ -177,7 +177,7 @@ export const AccountMenu = ({
                     color: palette.primary.contrastText,
                     textAlign: 'center',
                     fontSize: { xs: '1.5rem', sm: '2rem' },
-                    height: { xs: '64px', md: '80px' }, // Matches navbar height
+                    height: '64px', // Matches Navbar height
                     paddingRight: 3, // Matches navbar padding
                 }}
             >

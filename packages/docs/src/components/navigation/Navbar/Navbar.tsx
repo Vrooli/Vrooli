@@ -18,7 +18,7 @@ export const Navbar = () => {
             <AppBar sx={{
                 ...noSelect,
                 background: palette.primary.dark,
-                height: { xs: '64px', md: '80px' },
+                height: '64px',
                 zIndex: 100,
             }}>
                 <Toolbar>
@@ -60,6 +60,7 @@ export const Navbar = () => {
                             sx={{
                                 position: 'relative',
                                 cursor: 'pointer',
+                                lineHeight: '1.3',
                                 fontSize: '3.5em',
                                 fontFamily: `SakBunderan`,
                                 color: palette.primary.contrastText,

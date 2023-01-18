@@ -6,8 +6,8 @@
  */
 import { ReportFor } from '@shared/consts';
 import * as yup from 'yup';
-import { blankToUndefined, reqArr } from './builders';
-import { maxNumErr, maxStrErr, minNumErr, minStrErr, passwordErr } from './errors';
+import { blankToUndefined } from './builders';
+import { maxNumErr, maxStrErr, minNumErr, minStrErr, passwordErr, reqErr } from './errors';
 import { adaHandleRegex, passwordRegex, urlRegex } from './regex';
 import { minVersionTest } from './versions';
 
@@ -63,8 +63,8 @@ export const name = yup.string().transform(blankToUndefined).min(3, minStrErr).m
 export const tag = yup.string().transform(blankToUndefined).min(2, minStrErr).max(64, maxStrErr)
 export const versionLabel = (minVersion: string = '0.0.1') => yup.string().transform(blankToUndefined).max(16, maxStrErr).test(...minVersionTest(minVersion))
 export const versionNotes = yup.string().transform(blankToUndefined).max(4092, maxStrErr)
-export const idArray = reqArr(id)
-export const tagArray = reqArr(tag)
+export const idArray = yup.array().of(id.required(reqErr));
+export const tagArray = yup.array().of(tag.required(reqErr));
 export const nodeCondition = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
 export const nodeOperation = yup.string().transform(blankToUndefined).max(512, maxStrErr)
 export const permissions = yup.string().transform(blankToUndefined).max(8192, maxStrErr)
