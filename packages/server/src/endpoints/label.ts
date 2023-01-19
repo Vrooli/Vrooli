@@ -59,22 +59,23 @@ export const typeDef = gql`
         apisCount: Int!
         issues: [Issue!]
         issuesCount: Int!
+        meetings: [Meeting!]
+        meetingsCount: Int!
         notes: [Note!]
         notesCount: Int!
+        owner: Owner!
         projects: [Project!]
         projectsCount: Int!
         routines: [Routine!]
         routinesCount: Int!
-        smartContracts: [SmartContract!]
-        smartContractsCount: Int!
-        standards: [Standard!]
-        standardsCount: Int!
-        meetings: [Meeting!]
-        meetingsCount: Int!
         runProjectSchedules: [RunProjectSchedule!]
         runProjectSchedulesCount: Int!
         runRoutineSchedules: [RunRoutineSchedule!]
         runRoutineSchedulesCount: Int!
+        smartContracts: [SmartContract!]
+        smartContractsCount: Int!
+        standards: [Standard!]
+        standardsCount: Int!
         userSchedules: [UserSchedule!]
         userSchedulesCount: Int!
         translations: [LabelTranslation!]!

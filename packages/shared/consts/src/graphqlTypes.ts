@@ -915,6 +915,7 @@ export type Label = {
   meetingsCount: Scalars['Int'];
   notes?: Maybe<Array<Note>>;
   notesCount: Scalars['Int'];
+  owner: Owner;
   projects?: Maybe<Array<Project>>;
   projectsCount: Scalars['Int'];
   routines?: Maybe<Array<Routine>>;
@@ -3789,6 +3790,7 @@ export type ProjectYou = {
 export type PullRequest = {
   __typename: 'PullRequest';
   comments: Array<Comment>;
+  commentsCount: Scalars['Int'];
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   from: PullRequestFrom;
@@ -8863,7 +8865,7 @@ export type ResolversTypes = {
   IssueTranslationUpdateInput: IssueTranslationUpdateInput;
   IssueUpdateInput: IssueUpdateInput;
   IssueYou: ResolverTypeWrapper<IssueYou>;
-  Label: ResolverTypeWrapper<Label>;
+  Label: ResolverTypeWrapper<Omit<Label, 'owner'> & { owner: ResolversTypes['Owner'] }>;
   LabelCreateInput: LabelCreateInput;
   LabelEdge: ResolverTypeWrapper<LabelEdge>;
   LabelSearchInput: LabelSearchInput;
@@ -9546,7 +9548,7 @@ export type ResolversParentTypes = {
   IssueTranslationUpdateInput: IssueTranslationUpdateInput;
   IssueUpdateInput: IssueUpdateInput;
   IssueYou: IssueYou;
-  Label: Label;
+  Label: Omit<Label, 'owner'> & { owner: ResolversParentTypes['Owner'] };
   LabelCreateInput: LabelCreateInput;
   LabelEdge: LabelEdge;
   LabelSearchInput: LabelSearchInput;
@@ -10382,6 +10384,7 @@ export type LabelResolvers<ContextType = any, ParentType extends ResolversParent
   meetingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   notes?: Resolver<Maybe<Array<ResolversTypes['Note']>>, ParentType, ContextType>;
   notesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  owner?: Resolver<ResolversTypes['Owner'], ParentType, ContextType>;
   projects?: Resolver<Maybe<Array<ResolversTypes['Project']>>, ParentType, ContextType>;
   projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   routines?: Resolver<Maybe<Array<ResolversTypes['Routine']>>, ParentType, ContextType>;
@@ -11371,6 +11374,7 @@ export type ProjectYouResolvers<ContextType = any, ParentType extends ResolversP
 
 export type PullRequestResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequest'] = ResolversParentTypes['PullRequest']> = {
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
+  commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   from?: Resolver<ResolversTypes['PullRequestFrom'], ParentType, ContextType>;

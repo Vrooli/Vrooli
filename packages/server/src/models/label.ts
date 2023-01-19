@@ -36,6 +36,10 @@ export const LabelModel: ModelLogic<{
             issues: 'Issue',
             meetings: 'Meeting',
             notes: 'Note',
+            owner: {
+                ownedByUser: 'User',
+                ownedByOrganization: 'Organization',
+            },
             projects: 'Project',
             routines: 'Routine',
             runProjectSchedules: 'RunProjectSchedule',

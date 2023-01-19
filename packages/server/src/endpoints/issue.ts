@@ -41,7 +41,7 @@ export const typeDef = gql`
         Standard
     } 
 
-    union IssueTo = Api | Organization | Note | Project | Routine | SmartContract | Standard
+    union IssueTo = Api | Note | Organization | Project | Routine | SmartContract | Standard
 
     input IssueCreateInput {
         id: ID!
@@ -49,6 +49,7 @@ export const typeDef = gql`
         forConnect: ID!
         labelsConnect: [ID!]
         labelsCreate: [LabelCreateInput!]
+        referencedVersionIdConnect: ID
         translationsCreate: [IssueTranslationCreateInput!]
     }
     input IssueUpdateInput {
@@ -69,7 +70,7 @@ export const typeDef = gql`
         createdBy: User
         status: IssueStatus!
         to: IssueTo!
-        referencedVersionConnect: ID
+        referencedVersionId: String
         comments: [Comment!]!
         commentsCount: Int!
         labels: [Label!]!

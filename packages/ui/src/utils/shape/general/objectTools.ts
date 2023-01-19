@@ -2,6 +2,7 @@
  * Functions for manipulating state objects
  */
 import { isObject } from "@shared/utils";
+import { MaybeLazy } from "types";
 
 /**
  * Grabs data from an object using dot notation (ex: 'parent.child.property')

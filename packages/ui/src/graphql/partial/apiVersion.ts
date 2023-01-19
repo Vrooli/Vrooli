@@ -1,6 +1,8 @@
 import { ApiVersion, ApiVersionTranslation } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { apiPartial } from "./api";
+import { pullRequestPartial } from "./pullRequest";
 import { versionYouPartial } from "./root";
 
 export const apiVersionTranslationPartial: GqlPartial<ApiVersionTranslation> = {
@@ -28,16 +30,16 @@ export const apiVersionPartial: GqlPartial<ApiVersion> = {
         reportsCount: true,
         versionIndex: true,
         versionLabel: true,
-        you: versionYouPartial.full,
+        you: relPartial(versionYouPartial, 'full'),
     }),
     full: () => ({
-        pullRequest: pullRequestPartial.full,
-        root: without(apiPartial.full, 'versions'),
-        translations: apiVersionTranslationPartial.full,
+        pullRequest: relPartial(pullRequestPartial, 'full'),
+        root: relPartial(apiPartial, 'full', { omit: 'versions' }),
+        translations: relPartial(apiVersionTranslationPartial, 'full'),
         versionNotes: true,
     }),
     list: () => ({
-        root: without(apiPartial.list, 'versions'),
-        translations: apiVersionTranslationPartial.list,
+        root: relPartial(apiPartial, 'list', { omit: 'versions' }),
+        translations: relPartial(apiVersionTranslationPartial, 'list'),
     })
 }

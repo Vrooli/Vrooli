@@ -54,6 +54,7 @@ export const typeDef = gql`
         to: PullRequestTo!
         createdBy: User
         comments: [Comment!]!
+        commentsCount: Int!
         you: PullRequestYou!
     }
 

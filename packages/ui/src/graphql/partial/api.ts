@@ -1,8 +1,12 @@
 import { Api, ApiYou } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { apiVersionPartial } from "./apiVersion";
+import { labelPartial } from "./label";
 import { organizationPartial } from "./organization";
+import { statsApiPartial } from "./statsApi";
 import { tagPartial } from "./tag";
+import { userPartial } from "./user";
 
 export const apiYouPartial: GqlPartial<ApiYou> = {
     __typename: 'ApiYou',
@@ -26,28 +30,27 @@ export const apiPartial: GqlPartial<Api> = {
         created_at: true,
         isPrivate: true,
         issuesCount: true,
+        labels: relPartial(labelPartial, 'list'),
+        owner: {
+            __union: {
+                Organization: relPartial(organizationPartial, 'nav'),
+                User: relPartial(userPartial, 'nav'),
+            }
+        },
         permissions: true,
         questionsCount: true,
         score: true,
         stars: true,
-        tags: tagPartial.list,
+        tags: relPartial(tagPartial, 'list'),
         transfersCount: true,
         views: true,
-        you: apiYouPartial.full,
+        you: relPartial(apiYouPartial, 'full'),
     }),
     full: () => ({
-        owner: {
-            __union: {
-                Organization: organizationPartial.nav,
-                User: userPartial.nav
-            }
-        },
-        versions: without(apiVersionPartial.full, 'root'),
-        labels: labelPartial.list,
-        stats: apiStatsPartial.full,
+        versions: relPartial(apiVersionPartial, 'full', { omit: 'root' }),
+        stats: relPartial(statsApiPartial, 'full'),
     }),
     list: () => ({
-        versions: apiVersionPartial.list,
-        labels: labelPartial.list,
+        versions: relPartial(apiVersionPartial, 'list'),
     })
 }

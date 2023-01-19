@@ -1,10 +1,19 @@
-import { CommentYou } from "@shared/consts";
+import { Comment, CommentTranslation, CommentYou } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
+import { apiVersionPartial } from "./apiVersion";
+import { issuePartial } from "./issue";
 import { organizationPartial } from "./organization";
-import { projectNameFields } from "./project";
-import { routineNameFields } from "./routine";
-import { standardNameFields } from "./standard";
-import { userNameFields } from "./user";
+import { userPartial } from "./user";
+
+export const commentTranslationPartial: GqlPartial<CommentTranslation> = {
+    __typename: 'CommentTranslation',
+    full: () => ({
+        id: true,
+        language: true,
+        text: true,
+    }),
+}
 
 export const commentYouPartial: GqlPartial<CommentYou> = {
     __typename: 'CommentYou',
@@ -20,48 +29,42 @@ export const commentYouPartial: GqlPartial<CommentYou> = {
     }),
 }
 
-export const commentFields = ['Comment', `{
-    id
-    created_at
-    updated_at
-    score
-    isUpvoted
-    isStarred
-    commentedOn {
-        ... on Project ${projectNameFields[1]}
-        ... on Routine ${routineNameFields[1]}
-        ... on Standard ${standardNameFields[1]}
-    }
-    creator {
-        ... on Organization ${organizationPartial.nav}
-        ... on User ${userPartial.nav}
-    }
-    permissionsComment {
-        canDelete
-        canEdit
-        canStar
-        canReply
-        canReport
-        canVote
-    }
-    translations {
-        id
-        language
-        text
-    }
-}`] as const;
-export const commentThreadFields = ['CommentThread', `{
-    childThreads {
-        childThreads {
-            comment ${commentFields[1]}
-            endCursor
-            totalInThread
-        }
-        comment ${commentFields[1]}
-        endCursor
-        totalInThread
-    }
-    comment ${commentFields[1]}
-    endCursor
-    totalInThread
-}`] as const;
+export const commentPartial: GqlPartial<Comment> = {
+    __typename: 'Comment',
+    common: () => ({
+        id: true,
+        created_at: true,
+        updated_at: true,
+        commentedOn: {
+            __union: {
+                ApiVersion: relPartial(apiVersionPartial, 'nav'),
+                Issue: relPartial(issuePartial, 'nav'),
+                NoteVersion: relPartial(noteVersionPartial, 'nav'),
+                Post: relPartial(postPartial, 'nav'),
+                ProjectVersion: relPartial(projectVersionPartial, 'nav'),
+                PullRequest: relPartial(pullRequestPartial, 'nav'),
+                Question: relPartial(questionPartial, 'nav'),
+                QuestionAnswer: relPartial(questionAnswerPartial, 'nav'),
+                RoutineVersion: relPartial(routineVersionPartial, 'nav'),
+                SmartContractVersion: relPartial(smartContractVersionPartial, 'nav'),
+                StandardVersion: relPartial(standardVersionPartial, 'nav'),
+            }
+        },
+        owner: {
+            __union: {
+                Organization: relPartial(organizationPartial, 'nav'),
+                User: relPartial(userPartial, 'nav'),
+            }
+        },
+        score: true,
+        stars: true,
+        reportsCount: true,
+        you: relPartial(commentYouPartial, 'full'),
+    }),
+    full: () => ({
+        translations: relPartial(commentTranslationPartial, 'full'),
+    }),
+    list: () => ({
+        translations: relPartial(commentTranslationPartial, 'list'),
+    })
+}

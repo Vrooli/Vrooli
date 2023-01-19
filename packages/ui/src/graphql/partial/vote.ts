@@ -15,7 +15,7 @@ import { standardPartial } from "./standard";
 
 export const votePartial: GqlPartial<Vote> = {
     __typename: 'Vote',
-    list: {
+    list: () => ({
         __define: {
             0: [apiPartial, 'list'],
             1: [commentPartial, 'list'],
@@ -47,5 +47,5 @@ export const votePartial: GqlPartial<Vote> = {
                 Standard: 11
             }
         }
-    }
+    })
 }

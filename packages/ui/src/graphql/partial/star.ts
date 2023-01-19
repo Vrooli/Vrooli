@@ -18,7 +18,7 @@ import { userPartial } from "./user";
 
 export const starPartial: GqlPartial<Star> = {
     __typename: 'Star',
-    list: {
+    list: () => ({
         __define: {
             0: [apiPartial, 'list'],
             1: [commentPartial, 'list'],
@@ -56,5 +56,5 @@ export const starPartial: GqlPartial<Star> = {
                 User: 14,
             }
         }
-    }
+    })
 }

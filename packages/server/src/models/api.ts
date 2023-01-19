@@ -83,6 +83,7 @@ export const ApiModel: ModelLogic<{
         },
         joinMap: { labels: 'label', starredBy: 'user', tags: 'tag' },
         countFields: {
+            issuesCount: true,
             pullRequestsCount: true,
             questionsCount: true,
             transfersCount: true,

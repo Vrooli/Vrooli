@@ -197,7 +197,7 @@ export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = 
     /**
      * Fragments to include in the selection. Each fragment's key can be used to reference it in the selection.
      */
-    __define?: { [key: string]: [GqlPartial<any>, 'common' | 'full' | 'list' | 'name'] };
+    __define?: { [key: string]: [GqlPartial<any>, 'common' | 'full' | 'list' | 'nav'] };
     /**
      * Creates a union of the specified types
      */

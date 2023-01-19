@@ -1,5 +1,7 @@
-import { SmartContractYou } from "@shared/consts";
+import { SmartContract, SmartContractYou } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
+import { statsSmartContractPartial } from "./statsSmartContract";
 
 export const smartContractYouPartial: GqlPartial<SmartContractYou> = {
     __typename: 'SmartContractYou',
@@ -16,13 +18,34 @@ export const smartContractYouPartial: GqlPartial<SmartContractYou> = {
     }),
 }
 
-export const smartContractNameFields = ['SmartContract', `{
-    id
-    translatedName
-}`] as const;
-export const listSmartContractFields = ['SmartContract', `{
-    id
-}`] as const;
-export const smartContractFields = ['SmartContract', `{
-    id
-}`] as const;
+export const smartContractPartial: GqlPartial<SmartContract> = {
+    __typename: 'SmartContract',
+    common: () => ({
+        id: true,
+        created_at: true,
+        isPrivate: true,
+        issuesCount: true,
+        labels: relPartial(labelPartial, 'list'),
+        owner: {
+            __union: {
+                Organization: relPartial(organizationPartial, 'nav'),
+                User: relPartial(userPartial, 'nav'),
+            }
+        },
+        permissions: true,
+        questionsCount: true,
+        score: true,
+        stars: true,
+        tags: relPartial(tagPartial, 'list'),
+        transfersCount: true,
+        views: true,
+        you: relPartial(smartContractYouPartial, 'full'),
+    }),
+    full: () => ({
+        versions: relPartial(smartContractVersionPartial, 'full', { omit: 'root' }),
+        stats: relPartial(statsSmartContractPartial, 'full'),
+    }),
+    list: () => ({
+        versions: relPartial(smartContractVersionPartial, 'list'),
+    })
+}

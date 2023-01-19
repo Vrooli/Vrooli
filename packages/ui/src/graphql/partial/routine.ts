@@ -1,8 +1,11 @@
-import { RoutineYou } from "@shared/consts";
+import { Routine, RoutineYou } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
-import { nodeFields } from "./node";
-import { resourceListPartial } from "./resourceList";
+import { labelPartial } from "./label";
+import { organizationPartial } from "./organization";
+import { statsRoutinePartial } from "./statsRoutine";
 import { tagPartial } from "./tag";
+import { userPartial } from "./user";
 
 export const routineYouPartial: GqlPartial<RoutineYou> = {
     __typename: 'RoutineYou',
@@ -19,206 +22,35 @@ export const routineYouPartial: GqlPartial<RoutineYou> = {
     }),
 }
 
-export const routineNameFields = ['Routine', `{
-    id
-    translatedName
-}`] as const;
-export const listRoutineFields = ['Routine', `{
-    id
-    commentsCount
-    completedAt
-    complexity
-    created_at
-    isAutomatable
-    isDeleted
-    isInternal
-    isComplete
-    isPrivate
-    isStarred
-    isUpvoted
-    reportsCount
-    score
-    simplicity
-    stars
-    permissionsRoutine {
-        canComment
-        canCopy
-        canDelete
-        canEdit
-        canStar
-        canReport
-        canRun
-        canVote
-    }
-    tags ${tagPartial.list}
-    translations {
-        id
-        language
-        description
-        title
-    }
-}`] as const;
-export const routineFields = ['Routine', `{
-    id
-    completedAt
-    complexity
-    created_at
-    inputs {
-        id
-        isRequired
-        name
-        translations {
-            id
-            language
-            description
-            helpText
-        }
-        standard {
-            id
-            default
-            isDeleted
-            isInternal
-            isPrivate
-            name
-            type
-            props
-            yup
-            translations {
-                id
-                language
-                description
-                jsonVariable
+export const routinePartial: GqlPartial<Routine> = {
+    __typename: 'Routine',
+    common: () => ({
+        id: true,
+        created_at: true,
+        isInternal: true,
+        isPrivate: true,
+        issuesCount: true,
+        labels: relPartial(labelPartial, 'list'),
+        owner: {
+            __union: {
+                Organization: relPartial(organizationPartial, 'nav'),
+                User: relPartial(userPartial, 'nav'),
             }
-        }
-    }
-    isAutomatable
-    isComplete
-    isDeleted
-    isInternal
-    isPrivate
-    isStarred
-    isUpvoted
-    nodeLinks {
-        id
-        fromId
-        toId
-        operation
-        whens {
-            id
-            condition
-            translations {
-                id
-                language
-                description
-                title
-            }
-        }
-    }
-    nodes ${nodeFields[1]}
-    outputs {
-        id
-        name
-        translations {
-            id
-            language
-            description
-            helpText
-        }
-        standard {
-            id
-            default
-            isDeleted
-            isInternal
-            isPrivate
-            name
-            type
-            props
-            yup
-            translations {
-                id
-                language
-                description
-                jsonVariable
-            }
-        }
-    }
-    owner {
-        ... on Organization {
-            id
-            handle
-            translations {
-                id
-                language
-                name
-            }
-        }
-        ... on User {
-            id
-            name
-            handle
-        }
-    }
-    parent {
-        id
-        translations {
-            id
-            language
-            title
-        }
-    }
-    reportsCount
-    resourceList ${resourceListPartial.full}
-    runs {
-        id
-        completedComplexity
-        contextSwitches
-        inputs {
-            id
-            data
-            input {
-                id
-            }
-        }
-        startedAt
-        timeElapsed
-        completedAt
-        title
-        status
-        steps {
-            id
-            order
-            contextSwitches
-            startedAt
-            timeElapsed
-            completedAt
-            title
-            status
-            step
-            node {
-                id
-            }
-        }
-    }
-    score
-    simplicity
-    stars
-    permissionsRoutine {
-        canComment
-        canCopy
-        canDelete
-        canEdit
-        canStar
-        canReport
-        canRun
-        canVote
-    }
-    tags ${tagPartial.full}
-    translations {
-        id
-        language
-        description
-        instructions
-        title
-    }
-    updated_at
-}`] as const;
+        },
+        permissions: true,
+        questionsCount: true,
+        score: true,
+        stars: true,
+        tags: relPartial(tagPartial, 'list'),
+        transfersCount: true,
+        views: true,
+        you: relPartial(routineYouPartial, 'full'),
+    }),
+    full: () => ({
+        versions: relPartial(routineVersionPartial, 'full', { omit: 'root' }),
+        stats: relPartial(statsRoutinePartial, 'full'),
+    }),
+    list: () => ({
+        versions: relPartial(routineVersionPartial, 'list'),
+    })
+}

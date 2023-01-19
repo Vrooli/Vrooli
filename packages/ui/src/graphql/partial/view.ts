@@ -14,7 +14,7 @@ import { userPartial } from "./user";
 
 export const viewPartial: GqlPartial<View> = {
     __typename: 'View',
-    list: {
+    list: () => ({
         __define: {
             0: [apiPartial, 'list'],
             1: [issuePartial, 'list'],
@@ -44,5 +44,5 @@ export const viewPartial: GqlPartial<View> = {
                 User: 10
             }
         }
-    }
+    })
 }

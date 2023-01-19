@@ -111,7 +111,9 @@ export const PullRequestModel: ModelLogic<{
             createdBy: 'User',
             comments: 'Comment',
         },
-        countFields: {},
+        countFields: {
+            commentsCount: true,
+        },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
