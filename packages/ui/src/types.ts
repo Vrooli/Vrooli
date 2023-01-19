@@ -182,6 +182,11 @@ export type Maybe<T> = T | null;
 export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNullable<T[K]> : T[K] };
 
 /**
+ * Makes a value lazy or not
+ */
+export type MaybeLazy<T> = T | (() => T);
+
+/**
  * A nested Partial type, where each non-object field is a boolean.
  * Arrays are also treated as objects. Also adds:
  * - The __define field, which can be used to define fragments to include in the selection.
@@ -196,7 +201,7 @@ export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = 
     /**
      * Creates a union of the specified types
      */
-    __union?: { [key in `${GqlModelType}`]?: key extends T['__typename'] ? (string | number | DeepPartialBooleanWithFragments<T>) : never };
+    __union?: { [key in `${GqlModelType}`]?: key extends T['__typename'] ? (string | number | MaybeLazy<DeepPartialBooleanWithFragments<T>>) : never };
     /**
      * Defines a fragment to include in the selection. The fragment can be referenced in the selection using the __use field.
      */
@@ -204,10 +209,10 @@ export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = 
 } & {
         [P in keyof T]?: T[P] extends Array<infer U> ?
         U extends { __typename: string } ?
-        DeepPartialBooleanWithFragments<NonMaybe<U>> :
+        MaybeLazy<DeepPartialBooleanWithFragments<NonMaybe<U>>> :
         boolean :
         T[P] extends { __typename: string } ?
-        DeepPartialBooleanWithFragments<NonMaybe<T[P]>> :
+        MaybeLazy<DeepPartialBooleanWithFragments<NonMaybe<T[P]>>> :
         boolean;
     }
 
@@ -224,20 +229,20 @@ export type GqlPartial<
     /**
      * Fields which are always included. This is is recursive partial of T
      */
-    common?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
+    common?: () => DeepPartialBooleanWithFragments<NonMaybe<T>>;
     /**
      * Fields included in the full selection. Combined with common.
      */
-    full?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
+    full?: () => DeepPartialBooleanWithFragments<NonMaybe<T>>;
     /**
      * Fields included in the minimal (list) selection. Combined with common.
      * If not provided, defaults to the same as full.
      */
-    list?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
+    list?: () => DeepPartialBooleanWithFragments<NonMaybe<T>>;
     /**
      * Fields included to get the name and navigation info for an object.
      * NOT combined with common.
      */
-    nav?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
+    nav?: () => DeepPartialBooleanWithFragments<NonMaybe<T>>;
 
 }

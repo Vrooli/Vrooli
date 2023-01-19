@@ -3,10 +3,10 @@ import { GqlPartial } from "types";
 
 export const quizAttemptYouPartial: GqlPartial<QuizAttemptYou> = {
     __typename: 'QuizAttemptYou',
-    full: {
+    full: () => ({
         canDelete: true,
         canEdit: true,
-    },
+    }),
 }
 
 export const quizAttemptFields = ['QuizAttempt', `{

@@ -3,17 +3,17 @@ import { GqlPartial } from "types";
 
 export const projectTranslationPartial: GqlPartial<ProjectVersionTranslation> = {
     __typename: 'ProjectVersionTranslation',
-    full: {
+    full: () => ({
         id: true,
         language: true,
         description: true,
         name: true,
-    },
+    }),
 }
 
 export const projectVersionYouPartial: GqlPartial<ProjectVersionYou> = {
     __typename: 'ProjectVersionYou',
-    common: {
+    common: () => ({
         canComment: true,
         canCopy: true,
         canDelete: true,
@@ -21,13 +21,13 @@ export const projectVersionYouPartial: GqlPartial<ProjectVersionYou> = {
         canReport: true,
         canUse: true,
         canView: true,
-    },
-    full: {
+    }),
+    full: () => ({
         runs: runProjectPartial.full,
-    },
-    list: {
+    }),
+    list: () => ({
         runs: runProjectPartial.list,
-    }
+    })
 }
 
 export const listProjectVersionFields = ['ProjectVersion', `{

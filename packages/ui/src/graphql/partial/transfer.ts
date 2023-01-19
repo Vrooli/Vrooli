@@ -3,10 +3,10 @@ import { GqlPartial } from "types";
 
 export const transferYouPartial: GqlPartial<TransferYou> = {
     __typename: 'TransferYou',
-    full: {
+    full: () => ({
         canDelete: true,
         canEdit: true,
-    },
+    }),
 }
 
 export const listTransferFields = ['Transfer', `{

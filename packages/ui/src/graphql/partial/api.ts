@@ -1,11 +1,12 @@
 import { Api, ApiYou } from "@shared/consts";
 import { GqlPartial } from "types";
+import { apiVersionPartial } from "./apiVersion";
 import { organizationPartial } from "./organization";
 import { tagPartial } from "./tag";
 
 export const apiYouPartial: GqlPartial<ApiYou> = {
     __typename: 'ApiYou',
-    full: {
+    full: () => ({
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -15,12 +16,12 @@ export const apiYouPartial: GqlPartial<ApiYou> = {
         isStarred: true,
         isUpvoted: true,
         isViewed: true,
-    },
+    }),
 }
 
 export const apiPartial: GqlPartial<Api> = {
     __typename: 'Api',
-    common: {
+    common: () => ({
         id: true,
         created_at: true,
         isPrivate: true,
@@ -33,20 +34,20 @@ export const apiPartial: GqlPartial<Api> = {
         transfersCount: true,
         views: true,
         you: apiYouPartial.full,
-    },
-    full: {
+    }),
+    full: () => ({
         owner: {
             __union: {
                 Organization: organizationPartial.nav,
                 User: userPartial.nav
             }
         },
-        versions: apiVersionPartial.full,
+        versions: without(apiVersionPartial.full, 'root'),
         labels: labelPartial.list,
         stats: apiStatsPartial.full,
-    },
-    list: {
+    }),
+    list: () => ({
         versions: apiVersionPartial.list,
         labels: labelPartial.list,
-    }
+    })
 }

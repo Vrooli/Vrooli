@@ -8,7 +8,7 @@ import { userNameFields } from "./user";
 
 export const commentYouPartial: GqlPartial<CommentYou> = {
     __typename: 'CommentYou',
-    full: {
+    full: () => ({
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -17,7 +17,7 @@ export const commentYouPartial: GqlPartial<CommentYou> = {
         canVote: true,
         isStarred: true,
         isUpvoted: true,
-    },
+    }),
 }
 
 export const commentFields = ['Comment', `{
@@ -33,8 +33,8 @@ export const commentFields = ['Comment', `{
         ... on Standard ${standardNameFields[1]}
     }
     creator {
-        ... on Organization ${organizationPartial.name}
-        ... on User ${userNameFields[1]}
+        ... on Organization ${organizationPartial.nav}
+        ... on User ${userPartial.nav}
     }
     permissionsComment {
         canDelete

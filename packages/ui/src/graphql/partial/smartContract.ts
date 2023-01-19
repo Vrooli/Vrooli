@@ -3,7 +3,7 @@ import { GqlPartial } from "types";
 
 export const smartContractYouPartial: GqlPartial<SmartContractYou> = {
     __typename: 'SmartContractYou',
-    full: {
+    full: () => ({
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -13,7 +13,7 @@ export const smartContractYouPartial: GqlPartial<SmartContractYou> = {
         isStarred: true,
         isUpvoted: true,
         isViewed: true,
-    },
+    }),
 }
 
 export const smartContractNameFields = ['SmartContract', `{

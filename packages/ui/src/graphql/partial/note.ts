@@ -3,7 +3,7 @@ import { GqlPartial } from "types";
 
 export const noteYouPartial: GqlPartial<NoteYou> = {
     __typename: 'NoteYou',
-    full: {
+    full: () => ({
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -13,7 +13,7 @@ export const noteYouPartial: GqlPartial<NoteYou> = {
         isStarred: true,
         isUpvoted: true,
         isViewed: true,
-    },
+    }),
 }
 
 export const listNoteFields = ['Note', `{

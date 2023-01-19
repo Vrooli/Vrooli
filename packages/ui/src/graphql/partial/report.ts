@@ -3,11 +3,11 @@ import { GqlPartial } from "types";
 
 export const reportYouPartial: GqlPartial<ReportYou> = {
     __typename: 'ReportYou',
-    full: {
+    full: () => ({
         canDelete: true,
         canEdit: true,
         canRespond: true,
-    },
+    }),
 }
 
 export const listReportFields = ['Report', `{

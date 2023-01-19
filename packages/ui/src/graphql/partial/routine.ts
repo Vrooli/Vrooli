@@ -6,7 +6,7 @@ import { tagPartial } from "./tag";
 
 export const routineYouPartial: GqlPartial<RoutineYou> = {
     __typename: 'RoutineYou',
-    full: {
+    full: () => ({
         canComment: true,
         canDelete: true,
         canEdit: true,
@@ -16,7 +16,7 @@ export const routineYouPartial: GqlPartial<RoutineYou> = {
         isStarred: true,
         isUpvoted: true,
         isViewed: true,
-    },
+    }),
 }
 
 export const routineNameFields = ['Routine', `{

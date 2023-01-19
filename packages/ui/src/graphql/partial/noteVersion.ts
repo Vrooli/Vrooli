@@ -3,12 +3,12 @@ import { GqlPartial } from "types";
 
 export const noteVersionTranslationPartial: GqlPartial<NoteVersionTranslation> = {
     __typename: 'NoteVersionTranslation',
-    full: {
+    full: () => ({
         id: true,
         language: true,
         description: true,
         text: true,
-    },
+    }),
 }
 
 export const listNoteVersionFields = ['NoteVersion', `{

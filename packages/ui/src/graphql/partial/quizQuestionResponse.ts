@@ -3,19 +3,19 @@ import { GqlPartial } from "types";
 
 export const quizQuestionResponseTranslationPartial: GqlPartial<QuizQuestionResponseTranslation> = {
     __typename: 'QuizQuestionResponseTranslation',
-    full: {
+    full: () => ({
         id: true,
         language: true,
         response: true,
-    },
+    }),
 }
 
 export const quizQuestionRepsonseYouPartial: GqlPartial<QuizQuestionResponseYou> = {
     __typename: 'QuizQuestionResponseYou',
-    full: {
+    full: () => ({
         canDelete: true,
         canEdit: true,
-    },
+    }),
 }
 
 export const quizQuestionResponseFields = ['QuizQuestionResponse', `{
