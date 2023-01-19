@@ -1,8 +1,24 @@
-import { organizationNameFields } from "./organization";
+import { CommentYou } from "@shared/consts";
+import { GqlPartial } from "types";
+import { organizationPartial } from "./organization";
 import { projectNameFields } from "./project";
 import { routineNameFields } from "./routine";
 import { standardNameFields } from "./standard";
 import { userNameFields } from "./user";
+
+export const commentYouPartial: GqlPartial<CommentYou> = {
+    __typename: 'CommentYou',
+    full: {
+        canDelete: true,
+        canEdit: true,
+        canStar: true,
+        canReply: true,
+        canReport: true,
+        canVote: true,
+        isStarred: true,
+        isUpvoted: true,
+    },
+}
 
 export const commentFields = ['Comment', `{
     id
@@ -17,7 +33,7 @@ export const commentFields = ['Comment', `{
         ... on Standard ${standardNameFields[1]}
     }
     creator {
-        ... on Organization ${organizationNameFields[1]}
+        ... on Organization ${organizationPartial.name}
         ... on User ${userNameFields[1]}
     }
     permissionsComment {

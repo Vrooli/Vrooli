@@ -3,7 +3,7 @@ import { RoutineStepType } from 'utils';
 import { FetchResult } from "@apollo/client";
 import { Path } from '@shared/route/src/useLocation';
 import { TFuncKey } from 'i18next';
-import { DeepPartialBoolean, GqlModelType, NodeLink, NonMaybe, RoutineVersion, SearchException, Session } from '@shared/consts';
+import { GqlModelType, NodeLink, RoutineVersion, SearchException, Session } from '@shared/consts';
 
 // Top-level props that can be passed into any routed component
 export type SessionChecked = boolean;
@@ -64,7 +64,7 @@ export type ShapeModel<
     TCreate extends {} | null,
     TUpdate extends {} | null
 > = (TCreate extends null ? {} : { create: (item: T) => TCreate }) &
-    (TUpdate extends null ? {} : { 
+    (TUpdate extends null ? {} : {
         update: (o: T, u: T, assertHasUpdate?: boolean) => TUpdate | undefined,
         hasObjectChanged?: (o: T, u: T) => boolean,
     }) & { idField?: keyof T & string }
@@ -172,6 +172,46 @@ export type CommonKey = TFuncKey<'common', undefined>
 export type SetLocation = (to: Path, options?: { replace?: boolean }) => void;
 
 /**
+ * Makes a value nullable. Mimics the Maybe type in GraphQL.
+ */
+export type Maybe<T> = T | null;
+
+/**
+ * Recursively removes the Maybe type from all fields in a type, and makes them required.
+ */
+export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNullable<T[K]> : T[K] };
+
+/**
+ * A nested Partial type, where each non-object field is a boolean.
+ * Arrays are also treated as objects. Also adds:
+ * - The __define field, which can be used to define fragments to include in the selection.
+ * - The __union field, which can be used to define a union type (supports using fragments from the __define field)
+ * - The __use field, which can be used to reference a single fragment from the __define field 
+ */
+export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = {
+    /**
+     * Fragments to include in the selection. Each fragment's key can be used to reference it in the selection.
+     */
+    __define?: { [key: string]: [GqlPartial<any>, 'common' | 'full' | 'list' | 'name'] };
+    /**
+     * Creates a union of the specified types
+     */
+    __union?: { [key in `${GqlModelType}`]?: key extends T['__typename'] ? (string | number | DeepPartialBooleanWithFragments<T>) : never };
+    /**
+     * Defines a fragment to include in the selection. The fragment can be referenced in the selection using the __use field.
+     */
+    __use?: string | number
+} & {
+        [P in keyof T]?: T[P] extends Array<infer U> ?
+        U extends { __typename: string } ?
+        DeepPartialBooleanWithFragments<NonMaybe<U>> :
+        boolean :
+        T[P] extends { __typename: string } ?
+        DeepPartialBooleanWithFragments<NonMaybe<T[P]>> :
+        boolean;
+    }
+
+/**
  * Ensures that a GraphQL selection is valid for a given type.
  */
 export type GqlPartial<
@@ -184,19 +224,20 @@ export type GqlPartial<
     /**
      * Fields which are always included. This is is recursive partial of T
      */
-    common?: DeepPartialBoolean<NonMaybe<T>>;
+    common?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
     /**
      * Fields included in the full selection. Combined with common.
      */
-    full: DeepPartialBoolean<NonMaybe<T>>;
+    full?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
     /**
      * Fields included in the minimal (list) selection. Combined with common.
      * If not provided, defaults to the same as full.
      */
-    list?: DeepPartialBoolean<NonMaybe<T>>;
+    list?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
     /**
-     * Fields included to get the name of the object. NOT combined with common.
+     * Fields included to get the name and navigation info for an object.
+     * NOT combined with common.
      */
-    name?: DeepPartialBoolean<NonMaybe<T>>;
+    nav?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
 
 }

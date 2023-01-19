@@ -1,6 +1,23 @@
+import { RoutineYou } from "@shared/consts";
+import { GqlPartial } from "types";
 import { nodeFields } from "./node";
-import { resourceListFields } from "./resourceList";
-import { tagFields } from "./tag";
+import { resourceListPartial } from "./resourceList";
+import { tagPartial } from "./tag";
+
+export const routineYouPartial: GqlPartial<RoutineYou> = {
+    __typename: 'RoutineYou',
+    full: {
+        canComment: true,
+        canDelete: true,
+        canEdit: true,
+        canStar: true,
+        canView: true,
+        canVote: true,
+        isStarred: true,
+        isUpvoted: true,
+        isViewed: true,
+    },
+}
 
 export const routineNameFields = ['Routine', `{
     id
@@ -33,7 +50,7 @@ export const listRoutineFields = ['Routine', `{
         canRun
         canVote
     }
-    tags ${tagFields[1]}
+    tags ${tagPartial.list}
     translations {
         id
         language
@@ -150,7 +167,7 @@ export const routineFields = ['Routine', `{
         }
     }
     reportsCount
-    resourceList ${resourceListFields[1]}
+    resourceList ${resourceListPartial.full}
     runs {
         id
         completedComplexity
@@ -195,7 +212,7 @@ export const routineFields = ['Routine', `{
         canRun
         canVote
     }
-    tags ${tagFields[1]}
+    tags ${tagPartial.full}
     translations {
         id
         language

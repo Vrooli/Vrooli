@@ -31,16 +31,6 @@ export type PrependString<T extends Record<string, any>, Prefix extends string> 
 }
 
 /**
- * Makes a value nullable
- */
-export type Maybe<T> = T | null;
-
-/**
- * Recursively removes the Maybe type from all fields in a type, and makes them required.
- */
-export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNullable<T[K]> : T[K] };
-
-/**
  * A nested Partial type, where each non-object field is a boolean.
  * Arrays are also treated as objects.
  */

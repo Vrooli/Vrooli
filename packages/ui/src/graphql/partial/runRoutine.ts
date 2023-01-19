@@ -1,6 +1,17 @@
+import { RunRoutineYou } from "@shared/consts";
+import { GqlPartial } from "types";
 import { nodeFields } from "./node";
-import { resourceListFields } from "./resourceList";
-import { tagFields } from "./tag";
+import { resourceListPartial } from "./resourceList";
+import { tagPartial } from "./tag";
+
+export const runRoutineYouPartial: GqlPartial<RunRoutineYou> = {
+    __typename: 'RunRoutineYou',
+    full: {
+        canDelete: true,
+        canEdit: true,
+        canView: true,
+    },
+}
 
 export const listRunRoutineFields = ['RunRoutine', `{
     id
@@ -36,7 +47,7 @@ export const listRunRoutineFields = ['RunRoutine', `{
             canRun
             canVote
         }
-        tags ${tagFields[1]}
+        tags ${tagPartial.list}
         translations {
             id
             language
@@ -78,7 +89,7 @@ export const runRoutineFields = ['RunRoutine', `{
                 type
                 props
                 yup
-                tags ${tagFields[1]}
+                tags ${tagPartial.list}
                 translations {
                     id
                     language
@@ -138,7 +149,7 @@ export const runRoutineFields = ['RunRoutine', `{
                 type
                 props
                 yup
-                tags ${tagFields[1]}
+                tags ${tagPartial.list}
                 translations {
                     id
                     language
@@ -170,7 +181,7 @@ export const runRoutineFields = ['RunRoutine', `{
                 title
             }
         }
-        resourceList ${resourceListFields[1]}
+        resourceList ${resourceListPartial.full}
         score
         simplicity
         stars
@@ -183,7 +194,7 @@ export const runRoutineFields = ['RunRoutine', `{
             canRun
             canVote
         }
-        tags ${tagFields[1]}
+        tags ${tagPartial.list}
         translations {
             id
             language

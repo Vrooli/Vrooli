@@ -1,6 +1,22 @@
-import { resourceListFields } from "./resourceList";
-import { rootPermissionFields } from "./root";
-import { tagFields } from "./tag";
+import { ProjectYou } from "@shared/consts";
+import { GqlPartial } from "types";
+import { resourceListPartial } from "./resourceList";
+import { tagPartial } from "./tag";
+
+export const projectYouPartial: GqlPartial<ProjectYou> = {
+    __typename: 'ProjectYou',
+    full: {
+        canDelete: true,
+        canEdit: true,
+        canStar: true,
+        canTransfer: true,
+        canView: true,
+        canVote: true,
+        isStarred: true,
+        isUpvoted: true,
+        isViewed: true,
+    },
+}
 
 export const projectNameFields = ['Project', `{
     id
@@ -15,17 +31,15 @@ export const listProjectFields = ['Project', `{
     stars
     isComplete
     isPrivate
-    isUpvoted
-    isStarred
     reportsCount
-    permissionsRoot ${rootPermissionFields[1]}
-    tags ${tagFields[1]}
+    tags ${tagPartial.list}
     translations {
         id
         language
         name
         description
     }
+    you ${projectYouPartial.full}
 }`] as const;
 export const projectFields = ['Project', `{
     id
@@ -34,13 +48,10 @@ export const projectFields = ['Project', `{
     handle
     isComplete
     isPrivate
-    isStarred
-    isUpvoted
     score
     stars
-    permissionsRoot ${rootPermissionFields[1]}
-    resourceList ${resourceListFields[1]}
-    tags ${tagFields[1]}
+    resourceList ${resourceListPartial.full}
+    tags ${tagPartial.list}
     translations {
         id
         language
@@ -71,4 +82,5 @@ export const projectFields = ['Project', `{
             handle
         }
     }
+    you ${projectYouPartial.full}
 }`] as const;

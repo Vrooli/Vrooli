@@ -1,21 +1,29 @@
+import { GqlPartial } from "types";
+
+
+
 /**
  * Helper function for generating a GraphQL selection of a 
  * paginated search result using a template literal.
  * 
- * @param selectionSet A tuple of the object type and selection set (i.e. what fields to include) for the fragment.
- * @returns a graphql-tag string for the fragment.
+ * @param partial A GqlPartial object for the object type being searched
+ * @returns A new GqlPartial object like the one passed in, but wrapped 
+ * in a paginated search result.
  */
-export const toSearch = (
-    [_, selectionSet]: readonly [string, string]
-) => {
-    return `{
-        pageInfo {
-            endCursor
-            hasNextPage
+export const toSearch = <
+    GqlObject extends { __typename: string }
+>(
+    partial: GqlPartial<GqlObject>,
+): GqlPartial<any> => {
+    return {
+        __typename: `${partial.__typename}SearchResult`,
+        edges: {
+            cursor: true,
+            node: asdfasfd, //TODO combine list with common here
+        },
+        pageInfo: {
+            endCursor: true,
+            hasNextPage: true,
         }
-        edges {
-            cursor
-            node ${selectionSet}
-        }
-    }`;
+    }
 }

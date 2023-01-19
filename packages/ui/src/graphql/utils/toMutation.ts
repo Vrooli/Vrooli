@@ -1,4 +1,5 @@
 import { gql } from 'graphql-tag';
+import { DeepPartialBooleanWithFragments } from 'types';
 import { toFragment } from './toFragment';
 
 /**
@@ -20,12 +21,15 @@ import { toFragment } from './toFragment';
  * @param selectionSet The selection set for the operation.
  * @returns a tuple of: a graphql-tag string for the endpoint, and the endpoint's name.
  */
-export const toMutation = <Endpoint extends string>(
+export const toMutation = <
+    Endpoint extends string,
+    GqlObject extends { __typename: string },
+>(
     endpointName: Endpoint,
     inputType: string | null,
-    selectionSet: string | null,
-    fragments: Array<readonly [string, string]> = [],
+    selectionSet?: DeepPartialBooleanWithFragments<GqlObject> | null | undefined,
 ) => {
+    //TODO rewrite
     // console.log('toMutation start', endpointName, inputType)
     let fragmentStrings: string[] = [];
     for (let i = 0; i < fragments.length; i++) {

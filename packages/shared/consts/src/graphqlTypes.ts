@@ -33,6 +33,7 @@ export type Api = {
   id: Scalars['ID'];
   isPrivate: Scalars['Boolean'];
   issues: Array<Issue>;
+  issuesCount: Scalars['Int'];
   labels: Array<Label>;
   owner?: Maybe<Owner>;
   parent?: Maybe<ApiVersion>;
@@ -10085,6 +10086,7 @@ export type ApiResolvers<ContextType = any, ParentType extends ResolversParentTy
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
+  issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   owner?: Resolver<Maybe<ResolversTypes['Owner']>, ParentType, ContextType>;
   parent?: Resolver<Maybe<ResolversTypes['ApiVersion']>, ParentType, ContextType>;
