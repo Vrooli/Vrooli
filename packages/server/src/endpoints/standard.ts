@@ -85,6 +85,8 @@ export const typeDef = gql`
         parent: StandardVersion
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
+        questions: [Question!]!
+        questionsCount: Int!
         starredBy: [User!]!
         tags: [Tag!]!
         versions: [StandardVersion!]!

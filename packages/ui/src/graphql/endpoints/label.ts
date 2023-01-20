@@ -1,9 +1,9 @@
-import { labelFields as fullFields } from 'graphql/partial';
+import { labelPartial } from 'graphql/partial';
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const labelEndpoint = {
-    findOne: toQuery('label', 'FindByIdInput', fullFields[1]),
-    findMany: toQuery('labels', 'LabelSearchInput', toSearch(fullFields)),
-    create: toMutation('labelCreate', 'LabelCreateInput', fullFields[1]),
-    update: toMutation('labelUpdate', 'LabelUpdateInput', fullFields[1])
+    findOne: toQuery('label', 'FindByIdInput', labelPartial, 'full'),
+    findMany: toQuery('labels', 'LabelSearchInput', ...toSearch(labelPartial)),
+    create: toMutation('labelCreate', 'LabelCreateInput', labelPartial, 'full'),
+    update: toMutation('labelUpdate', 'LabelUpdateInput', labelPartial, 'full')
 }

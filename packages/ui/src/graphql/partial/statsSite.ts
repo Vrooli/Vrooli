@@ -3,7 +3,7 @@ import { GqlPartial } from "types";
 
 export const statsSitePartial: GqlPartial<StatsSite> = {
     __typename: 'StatsSite',
-    full: () => ({
+    full: {
         id: true,
         created_at: true,
         periodStart: true,
@@ -36,5 +36,5 @@ export const statsSitePartial: GqlPartial<StatsSite> = {
         standardsCompletionTimeAverageInPeriod: true,
         verifiedEmails: true,     
         verifiedWallets: true,        
-    }),
+    },
 }

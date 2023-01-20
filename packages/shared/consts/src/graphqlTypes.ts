@@ -753,7 +753,7 @@ export type Issue = {
   id: Scalars['ID'];
   labels: Array<Label>;
   labelsCount: Scalars['Int'];
-  referencedVersionConnect?: Maybe<Scalars['ID']>;
+  referencedVersionId?: Maybe<Scalars['String']>;
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   score: Scalars['Int'];
@@ -779,6 +779,7 @@ export type IssueCreateInput = {
   issueFor: IssueFor;
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  referencedVersionIdConnect?: InputMaybe<Scalars['ID']>;
   translationsCreate?: InputMaybe<Array<IssueTranslationCreateInput>>;
 };
 
@@ -2510,6 +2511,7 @@ export type Note = {
   createdBy?: Maybe<User>;
   created_at: Scalars['Date'];
   id: Scalars['ID'];
+  isPrivate: Scalars['Boolean'];
   issues: Array<Issue>;
   issuesCount: Scalars['Int'];
   labels: Array<Label>;
@@ -3124,12 +3126,14 @@ export type PopularResult = {
 export type Post = {
   __typename: 'Post';
   comments: Array<Comment>;
+  commentsCount: Scalars['Int'];
   created_at: Scalars['Date'];
   id: Scalars['ID'];
   owner: Owner;
   reports: Array<Report>;
   repostedFrom?: Maybe<Post>;
   reposts: Array<Post>;
+  repostsCount: Scalars['Int'];
   resourceList: ResourceList;
   score: Scalars['Int'];
   starredBy: Array<User>;
@@ -3309,6 +3313,7 @@ export type Project = {
   stats: Array<StatsProject>;
   tags: Array<Tag>;
   transfers: Array<Transfer>;
+  transfersCount: Scalars['Int'];
   translatedName: Scalars['String'];
   updated_at: Scalars['Date'];
   versions: Array<ProjectVersion>;
@@ -5882,10 +5887,17 @@ export type Routine = {
   permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
+  questions: Array<Question>;
+  questionsCount: Scalars['Int'];
+  quizzes: Array<Quiz>;
+  quizzesCount: Scalars['Int'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
+  stats: Array<StatsRoutine>;
   tags: Array<Tag>;
+  transfers: Array<Transfer>;
+  transfersCount: Scalars['Int'];
   translatedName: Scalars['String'];
   updated_at: Scalars['Date'];
   versions: Array<RoutineVersion>;
@@ -7055,9 +7067,12 @@ export type SmartContract = {
   permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
+  questions: Array<Question>;
+  questionsCount: Scalars['Int'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
+  stats: Array<StatsSmartContract>;
   tags: Array<Tag>;
   transfers: Array<Transfer>;
   transfersCount: Scalars['Int'];
@@ -7335,6 +7350,8 @@ export type Standard = {
   permissions: Scalars['String'];
   pullRequests: Array<PullRequest>;
   pullRequestsCount: Scalars['Int'];
+  questions: Array<Question>;
+  questionsCount: Scalars['Int'];
   score: Scalars['Int'];
   starredBy: Array<User>;
   stars: Scalars['Int'];
@@ -7836,6 +7853,9 @@ export type StatsRoutine = {
   periodEnd: Scalars['Date'];
   periodStart: Scalars['Date'];
   periodType: StatPeriodType;
+  runCompletionTimeAverageInPeriod: Scalars['Float'];
+  runsCompleted: Scalars['Int'];
+  runsStarted: Scalars['Int'];
 };
 
 export type StatsRoutineEdge = {
@@ -10318,7 +10338,7 @@ export type IssueResolvers<ContextType = any, ParentType extends ResolversParent
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
   labelsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  referencedVersionConnect?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  referencedVersionId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -10826,6 +10846,7 @@ export type NoteResolvers<ContextType = any, ParentType extends ResolversParentT
   createdBy?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   issues?: Resolver<Array<ResolversTypes['Issue']>, ParentType, ContextType>;
   issuesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
@@ -11124,12 +11145,14 @@ export type PopularResultResolvers<ContextType = any, ParentType extends Resolve
 
 export type PostResolvers<ContextType = any, ParentType extends ResolversParentTypes['Post'] = ResolversParentTypes['Post']> = {
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
+  commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   owner?: Resolver<ResolversTypes['Owner'], ParentType, ContextType>;
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   repostedFrom?: Resolver<Maybe<ResolversTypes['Post']>, ParentType, ContextType>;
   reposts?: Resolver<Array<ResolversTypes['Post']>, ParentType, ContextType>;
+  repostsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<ResolversTypes['ResourceList'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
@@ -11196,6 +11219,7 @@ export type ProjectResolvers<ContextType = any, ParentType extends ResolversPare
   stats?: Resolver<Array<ResolversTypes['StatsProject']>, ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
+  transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['ProjectVersion']>, ParentType, ContextType>;
@@ -12057,10 +12081,17 @@ export type RoutineResolvers<ContextType = any, ParentType extends ResolversPare
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
+  questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  quizzes?: Resolver<Array<ResolversTypes['Quiz']>, ParentType, ContextType>;
+  quizzesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  stats?: Resolver<Array<ResolversTypes['StatsRoutine']>, ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
+  transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
+  transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   translatedName?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   versions?: Resolver<Array<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
@@ -12473,9 +12504,12 @@ export type SmartContractResolvers<ContextType = any, ParentType extends Resolve
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
+  questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  stats?: Resolver<Array<ResolversTypes['StatsSmartContract']>, ParentType, ContextType>;
   tags?: Resolver<Array<ResolversTypes['Tag']>, ParentType, ContextType>;
   transfers?: Resolver<Array<ResolversTypes['Transfer']>, ParentType, ContextType>;
   transfersCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12584,6 +12618,8 @@ export type StandardResolvers<ContextType = any, ParentType extends ResolversPar
   permissions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   pullRequests?: Resolver<Array<ResolversTypes['PullRequest']>, ParentType, ContextType>;
   pullRequestsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  questions?: Resolver<Array<ResolversTypes['Question']>, ParentType, ContextType>;
+  questionsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   score?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   starredBy?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   stars?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12806,6 +12842,9 @@ export type StatsRoutineResolvers<ContextType = any, ParentType extends Resolver
   periodEnd?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodStart?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   periodType?: Resolver<ResolversTypes['StatPeriodType'], ParentType, ContextType>;
+  runCompletionTimeAverageInPeriod?: Resolver<ResolversTypes['Float'], ParentType, ContextType>;
+  runsCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  runsStarted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

@@ -14,16 +14,18 @@ export const toSearch = <
     GqlObject extends { __typename: string }
 >(
     partial: GqlPartial<GqlObject>,
-): GqlPartial<any> => {
-    return {
+): [GqlPartial<any>, 'list'] => {
+    return [{
         __typename: `${partial.__typename}SearchResult`,
-        edges: {
-            cursor: true,
-            node: asdfasfd, //TODO combine list with common here
-        },
-        pageInfo: {
-            endCursor: true,
-            hasNextPage: true,
+        list: {
+            edges: {
+                cursor: true,
+                node: asdfasfd, //TODO combine list with common here
+            },
+            pageInfo: {
+                endCursor: true,
+                hasNextPage: true,
+            }
         }
-    }
+    }, 'list']
 }

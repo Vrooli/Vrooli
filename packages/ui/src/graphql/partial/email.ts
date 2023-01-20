@@ -3,9 +3,9 @@ import { GqlPartial } from "types";
 
 export const emailPartial: GqlPartial<Email> = {
     __typename: 'Email',
-    full: () => ({
+    full: {
         id: true,
         emailAddress: true,
         verified: true,
-    }),
+    },
 }

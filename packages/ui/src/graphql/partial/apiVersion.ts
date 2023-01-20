@@ -7,17 +7,17 @@ import { versionYouPartial } from "./root";
 
 export const apiVersionTranslationPartial: GqlPartial<ApiVersionTranslation> = {
     __typename: 'ApiVersionTranslation',
-    full: () => ({
+    full: {
         id: true,
         language: true,
         details: true,
         summary: true,
-    }),
+    },
 }
 
 export const apiVersionPartial: GqlPartial<ApiVersion> = {
     __typename: 'ApiVersion',
-    common: () => ({
+    common: {
         id: true,
         created_at: true,
         updated_at: true,
@@ -30,16 +30,16 @@ export const apiVersionPartial: GqlPartial<ApiVersion> = {
         reportsCount: true,
         versionIndex: true,
         versionLabel: true,
-        you: relPartial(versionYouPartial, 'full'),
-    }),
-    full: () => ({
-        pullRequest: relPartial(pullRequestPartial, 'full'),
-        root: relPartial(apiPartial, 'full', { omit: 'versions' }),
-        translations: relPartial(apiVersionTranslationPartial, 'full'),
+        you: () => relPartial(versionYouPartial, 'full'),
+    },
+    full: {
+        pullRequest: () => relPartial(pullRequestPartial, 'full'),
+        root: () => relPartial(apiPartial, 'full', { omit: 'versions' }),
+        translations: () => relPartial(apiVersionTranslationPartial, 'full'),
         versionNotes: true,
-    }),
-    list: () => ({
-        root: relPartial(apiPartial, 'list', { omit: 'versions' }),
-        translations: relPartial(apiVersionTranslationPartial, 'list'),
-    })
+    },
+    list: {
+        root: () => relPartial(apiPartial, 'list', { omit: 'versions' }),
+        translations: () => relPartial(apiVersionTranslationPartial, 'list'),
+    }
 }

@@ -3,10 +3,10 @@ import { GqlPartial } from "types";
 
 export const memberInviteYouPartial: GqlPartial<MemberInviteYou> = {
     __typename: 'MemberInviteYou',
-    full: () => ({
+    full: {
         canDelete: true,
         canEdit: true,
-    }),
+    },
 }
 
 export const listMemberInviteFields = ['MemberInvite', `{

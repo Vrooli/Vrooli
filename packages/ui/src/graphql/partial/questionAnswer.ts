@@ -3,11 +3,11 @@ import { GqlPartial } from "types";
 
 export const questionAnswerTranslationPartial: GqlPartial<QuestionAnswerTranslation> = {
     __typename: 'QuestionAnswerTranslation',
-    full: () => ({
+    full: {
         id: true,
         language: true,
         description: true,
-    }),
+    },
 }
 
 export const listQuestionAnswerFields = ['QuestionAnswer', `{

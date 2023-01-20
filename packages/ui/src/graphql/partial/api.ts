@@ -10,7 +10,7 @@ import { userPartial } from "./user";
 
 export const apiYouPartial: GqlPartial<ApiYou> = {
     __typename: 'ApiYou',
-    full: () => ({
+    full: {
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -20,37 +20,37 @@ export const apiYouPartial: GqlPartial<ApiYou> = {
         isStarred: true,
         isUpvoted: true,
         isViewed: true,
-    }),
+    },
 }
 
 export const apiPartial: GqlPartial<Api> = {
     __typename: 'Api',
-    common: () => ({
+    common: {
         id: true,
         created_at: true,
         isPrivate: true,
         issuesCount: true,
-        labels: relPartial(labelPartial, 'list'),
+        labels: () => relPartial(labelPartial, 'list'),
         owner: {
             __union: {
-                Organization: relPartial(organizationPartial, 'nav'),
-                User: relPartial(userPartial, 'nav'),
+                Organization: () => relPartial(organizationPartial, 'nav'),
+                User: () => relPartial(userPartial, 'nav'),
             }
         },
         permissions: true,
         questionsCount: true,
         score: true,
         stars: true,
-        tags: relPartial(tagPartial, 'list'),
+        tags: () => relPartial(tagPartial, 'list'),
         transfersCount: true,
         views: true,
-        you: relPartial(apiYouPartial, 'full'),
-    }),
-    full: () => ({
-        versions: relPartial(apiVersionPartial, 'full', { omit: 'root' }),
-        stats: relPartial(statsApiPartial, 'full'),
-    }),
-    list: () => ({
-        versions: relPartial(apiVersionPartial, 'list'),
-    })
+        you: () => relPartial(apiYouPartial, 'full'),
+    },
+    full: {
+        versions: () => relPartial(apiVersionPartial, 'full', { omit: 'root' }),
+        stats: () => relPartial(statsApiPartial, 'full'),
+    },
+    list: {
+        versions: () => relPartial(apiVersionPartial, 'list'),
+    }
 }

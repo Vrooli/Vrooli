@@ -1,11 +1,14 @@
-import { ProjectYou } from "@shared/consts";
+import { Project, ProjectYou } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
-import { resourceListPartial } from "./resourceList";
+import { labelPartial } from "./label";
+import { organizationPartial } from "./organization";
 import { tagPartial } from "./tag";
+import { userPartial } from "./user";
 
 export const projectYouPartial: GqlPartial<ProjectYou> = {
     __typename: 'ProjectYou',
-    full: {
+    full: () => ({
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -15,72 +18,37 @@ export const projectYouPartial: GqlPartial<ProjectYou> = {
         isStarred: true,
         isUpvoted: true,
         isViewed: true,
-    },
+    }),
 }
 
-export const projectNameFields = ['Project', `{
-    id
-    handle
-    translatedName
-}`] as const;
-export const listProjectFields = ['Project', `{
-    id
-    commentsCount
-    handle
-    score
-    stars
-    isComplete
-    isPrivate
-    reportsCount
-    tags ${tagPartial.list}
-    translations {
-        id
-        language
-        name
-        description
-    }
-    you ${projectYouPartial.full}
-}`] as const;
-export const projectFields = ['Project', `{
-    id
-    completedAt
-    created_at
-    handle
-    isComplete
-    isPrivate
-    score
-    stars
-    resourceList ${resourceListPartial.full}
-    tags ${tagPartial.list}
-    translations {
-        id
-        language
-        description
-        name
-    }
-    owner {
-        ... on Organization {
-            id
-            handle
-            translations {
-                id
-                language
-                name
+export const projectPartial: GqlPartial<Project> = {
+    __typename: 'Project',
+    common: () => ({
+        id: true,
+        created_at: true,
+        isPrivate: true,
+        issuesCount: true,
+        labels: () => relPartial(labelPartial, 'list'),
+        owner: {
+            __union: {
+                Organization: () => relPartial(organizationPartial, 'nav'),
+                User: () => relPartial(userPartial, 'nav'),
             }
-            permissionsOrganization {
-                canAddMembers
-                canDelete
-                canEdit
-                canStar
-                canReport
-                isMember
-            }
-        }
-        ... on User {
-            id
-            name
-            handle
-        }
-    }
-    you ${projectYouPartial.full}
-}`] as const;
+        },
+        permissions: true,
+        questionsCount: true,
+        score: true,
+        stars: true,
+        tags: () => relPartial(tagPartial, 'list'),
+        transfersCount: true,
+        views: true,
+        you: () => relPartial(projectYouPartial, 'full'),
+    }),
+    full: () => ({
+        versions: () => relPartial(projectVersionPartial, 'full', { omit: 'root' }),
+        stats: () => relPartial(statsProjectPartial, 'full'),
+    }),
+    list: () => ({
+        versions: () => relPartial(projectVersionPartial, 'list'),
+    })
+}

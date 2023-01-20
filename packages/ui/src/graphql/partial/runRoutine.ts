@@ -6,11 +6,11 @@ import { tagPartial } from "./tag";
 
 export const runRoutineYouPartial: GqlPartial<RunRoutineYou> = {
     __typename: 'RunRoutineYou',
-    full: () => ({
+    full: {
         canDelete: true,
         canEdit: true,
         canView: true,
-    }),
+    },
 }
 
 export const listRunRoutineFields = ['RunRoutine', `{

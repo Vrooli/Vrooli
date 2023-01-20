@@ -2,57 +2,59 @@ import { User, UserTranslation, UserYou } from "@shared/consts";
 import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { emailPartial } from "./email";
+import { pushDevicePartial } from "./pushDevice";
 import { statsUserPartial } from "./statsUser";
+import { userSchedulePartial } from "./userSchedule";
 import { walletPartial } from "./wallet";
 
 export const userTranslationPartial: GqlPartial<UserTranslation> = {
     __typename: 'UserTranslation',
-    full: () => ({
+    full: {
         id: true,
         language: true,
         bio: true,
-    }),
+    },
 }
 
 export const userYouPartial: GqlPartial<UserYou> = {
     __typename: 'UserYou',
-    full: () => ({
+    full: {
         canDelete: true,
         canEdit: true,
         canReport: true,
         isStarred: true,
         isViewed: true,
-    }),
+    },
 }
 
 export const userPartial: GqlPartial<User> = {
     __typename: 'User',
-    common: () => ({
+    common: {
         id: true,
         created_at: true,
         handle: true,
         name: true,
         stars: true,
         reportsCount: true,
-        you: relPartial(userYouPartial, 'full'),
-    }),
-    full: () => ({
-        stats: relPartial(statsUserPartial, 'full'),
-        translations: relPartial(userTranslationPartial, 'full'),
-    }),
-    list: () => ({
-        translations: relPartial(userTranslationPartial, 'list'),
-    }),
-    nav: () => ({
+        you: () => relPartial(userYouPartial, 'full'),
+    },
+    full: {
+        stats: () => relPartial(statsUserPartial, 'full'),
+        translations: () => relPartial(userTranslationPartial, 'full'),
+    },
+    list: {
+        translations: () => relPartial(userTranslationPartial, 'list'),
+    },
+    nav: {
         id: true,
         name: true,
         handle: true,
-    })
+    }
 }
 
 export const profilePartial: GqlPartial<User> = {
     __typename: 'User',
-    full: () => ({
+    full: {
         id: true,
         created_at: true,
         updated_at: true,
@@ -76,12 +78,12 @@ export const profilePartial: GqlPartial<User> = {
         isPrivateStars: true,
         isPrivateVotes: true,
         name: true,
-        emails: relPartial(emailPartial, 'full'),
-        pushDevices: relPartial(pushDevicePartial, 'full'),
-        wallets: relPartial(walletPartial, 'full'),
+        emails: () => relPartial(emailPartial, 'full'),
+        pushDevices: () => relPartial(pushDevicePartial, 'full'),
+        wallets: () => relPartial(walletPartial, 'full'),
         theme: true,
-        translations: relPartial(userTranslationPartial, 'full'),
-        schedules: relPartial(userSchedulePartial, 'full'),
-        stats: relPartial(statsUserPartial, 'full'),
-    }),
+        translations: () => relPartial(userTranslationPartial, 'full'),
+        schedules: () => relPartial(userSchedulePartial, 'full'),
+        stats: () => relPartial(statsUserPartial, 'full'),
+    },
 }

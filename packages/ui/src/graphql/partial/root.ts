@@ -3,7 +3,7 @@ import { GqlPartial } from "types";
 
 export const versionYouPartial: GqlPartial<VersionYou> = {
     __typename: 'VersionYou',
-    full: () => ({
+    full: {
         canComment: true,
         canCopy: true,
         canDelete: true,
@@ -11,5 +11,5 @@ export const versionYouPartial: GqlPartial<VersionYou> = {
         canReport: true,
         canUse: true,
         canView: true,
-    }),
+    },
 }

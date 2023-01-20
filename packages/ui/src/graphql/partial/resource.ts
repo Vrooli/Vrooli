@@ -3,21 +3,21 @@ import { GqlPartial } from "types";
 
 export const resourceTranslationPartial: GqlPartial<ResourceTranslation> = {
     __typename: 'ResourceTranslation',
-    full: () => ({
+    full: {
         id: true,
         language: true,
         description: true,
         name: true,
-    }),
+    },
 }
 
 export const resourcePartial: GqlPartial<Resource> = {
     __typename: 'Resource',
-    full: () => ({
+    full: {
         id: true,
         index: true,
         link: true,
         usedFor: true,
         translations: resourceTranslationPartial.full,
-    }),
+    },
 }

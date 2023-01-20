@@ -1,20 +1,21 @@
 import { RoutineVersionTranslation, RoutineVersionYou } from "@shared/consts";
 import { GqlPartial } from "types";
+import { resourceListPartial } from "./resourceList";
 
 export const routineVersionTranslationPartial: GqlPartial<RoutineVersionTranslation> = {
     __typename: 'RoutineVersionTranslation',
-    full: () => ({
+    full: {
         id: true,
         language: true,
         description: true,
         instructions: true,
         name: true,
-    }),
+    },
 }
 
 export const routineVersionYouPartial: GqlPartial<RoutineVersionYou> = {
     __typename: 'RoutineVersionYou',
-    common: () => ({
+    common: {
         canComment: true,
         canCopy: true,
         canDelete: true,
@@ -24,13 +25,13 @@ export const routineVersionYouPartial: GqlPartial<RoutineVersionYou> = {
         canRun: true,
         canView: true,
         canVote: true,
-    }),
-    full: () => ({
+    },
+    full: {
         runs: runRoutinePartial.full,
-    }),
-    list: () => ({
+    },
+    list: {
         runs: runRoutinePartial.list,
-    })
+    }
 }
 
 export const listRoutineVersionFields = ['RoutineVersion', `{

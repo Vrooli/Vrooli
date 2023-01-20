@@ -1,82 +1,51 @@
-import { resourceListFields } from "./resourceList";
-import { rootPermissionFields } from "./root";
-import { tagFields } from "./tag";
+import { Standard, StandardYou } from "@shared/consts";
+import { GqlPartial } from "types";
+import { statsStandardPartial } from "./statsStandard";
+import { tagPartial } from "./tag";
 
-export const standardNameFields = ['Standard', `{
-    id
-    translatedName
-}`] as const;
-export const listStandardFields = ['Standard', `{
-    id
-    commentsCount
-    default
-    score
-    stars
-    isDeleted
-    isInternal
-    isPrivate
-    isUpvoted
-    isStarred
-    props
-    reportsCount
-    permissionsRoot ${rootPermissionFields[1]}
-    tags ${tagFields[1]}
-    translations {
-        id
-        language
-        name
-        description
-        jsonVariable
-    }
-    type
-    yup
-}`] as const;
-export const standardFields = ['Standard', `{
-    id
-    isDeleted
-    isInternal
-    isPrivate
-    name
-    type
-    type
-    props
-    yup
-    default
-    created_at
-    permissionsStandard {
-        canComment
-        canDelete
-        canEdit
-        canStar
-        canReport
-        canVote
-    }
-    resourceList ${resourceListFields[1]}
-    tags ${tagFields[1]}
-    translations {
-        id
-        language
-        description
-        jsonVariable
-    }
-    creator {
-        ... on Organization {
-            id
-            handle
-            translations {
-                id
-                language
-                name
+export const standardYouPartial: GqlPartial<StandardYou> = {
+    __typename: 'StandardYou',
+    full: () => ({
+        canDelete: true,
+        canEdit: true,
+        canStar: true,
+        canTransfer: true,
+        canView: true,
+        canVote: true,
+        isStarred: true,
+        isUpvoted: true,
+        isViewed: true,
+    }),
+}
+
+export const standardPartial: GqlPartial<Standard> = {
+    __typename: 'Standard',
+    common: () => ({
+        id: true,
+        created_at: true,
+        isPrivate: true,
+        issuesCount: true,
+        labels: () => relPartial(labelPartial, 'list'),
+        owner: {
+            __union: {
+                Organization: () => relPartial(organizationPartial, 'nav'),
+                User: () => relPartial(userPartial, 'nav'),
             }
-        }
-        ... on User {
-            id
-            name
-            handle
-        }
-    }
-    stars
-    isStarred
-    score
-    isUpvoted
-}`] as const;
+        },
+        permissions: true,
+        questionsCount: true,
+        score: true,
+        stars: true,
+        tags: () => relPartial(tagPartial, 'list'),
+        transfersCount: true,
+        views: true,
+        you: () => relPartial(standardYouPartial, 'full'),
+    }),
+    full: () => ({
+        versions: () => relPartial(standardVersionPartial, 'full', { omit: 'root' }),
+        stats: () => relPartial(statsStandardPartial, 'full'),
+    }),
+    list: () => ({
+        versions: () => relPartial(standardVersionPartial, 'list'),
+    })
+}

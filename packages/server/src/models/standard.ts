@@ -95,6 +95,7 @@ export const StandardModel: ModelLogic<{
             forksCount: true,
             issuesCount: true,
             pullRequestsCount: true,
+            questionsCount: true,
             versionsCount: true,
         },
         supplemental: {

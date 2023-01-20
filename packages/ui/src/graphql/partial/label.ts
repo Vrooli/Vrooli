@@ -6,28 +6,28 @@ import { userPartial } from "./user";
 
 export const labelYouPartial: GqlPartial<LabelYou> = {
     __typename: 'LabelYou',
-    full: () => ({
+    full: {
         canDelete: true,
         canEdit: true,
-    }),
+    },
 }
 
 export const labelPartial: GqlPartial<Label> = {
     __typename: 'Label',
-    common: () => ({
+    common: {
         id: true,
         created_at: true,
         updated_at: true,
         color: true,
         owner: {
             __union: {
-                Organization: relPartial(organizationPartial, 'nav'),
-                User: relPartial(userPartial, 'nav'),
+                Organization: () => relPartial(organizationPartial, 'nav'),
+                User: () => relPartial(userPartial, 'nav'),
             }
         },
-        you: relPartial(labelYouPartial, 'full'),
-    }),
-    full: () => ({
+        you: () => relPartial(labelYouPartial, 'full'),
+    },
+    full: {
         apisCount: true,
         issuesCount: true,
         meetingsCount: true,
@@ -38,5 +38,5 @@ export const labelPartial: GqlPartial<Label> = {
         runRoutineSchedulesCount: true,
         smartContractsCount: true,
         standardsCount: true,
-    }),
+    },
 }

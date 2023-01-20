@@ -229,20 +229,20 @@ export type GqlPartial<
     /**
      * Fields which are always included. This is is recursive partial of T
      */
-    common?: () => DeepPartialBooleanWithFragments<NonMaybe<T>>;
+    common?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
     /**
      * Fields included in the full selection. Combined with common.
      */
-    full?: () => DeepPartialBooleanWithFragments<NonMaybe<T>>;
+    full?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
     /**
      * Fields included in the minimal (list) selection. Combined with common.
      * If not provided, defaults to the same as full.
      */
-    list?: () => DeepPartialBooleanWithFragments<NonMaybe<T>>;
+    list?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
     /**
      * Fields included to get the name and navigation info for an object.
      * NOT combined with common.
      */
-    nav?: () => DeepPartialBooleanWithFragments<NonMaybe<T>>;
+    nav?: DeepPartialBooleanWithFragments<NonMaybe<T>>;
 
 }

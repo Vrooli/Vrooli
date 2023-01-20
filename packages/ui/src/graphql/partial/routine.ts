@@ -9,7 +9,7 @@ import { userPartial } from "./user";
 
 export const routineYouPartial: GqlPartial<RoutineYou> = {
     __typename: 'RoutineYou',
-    full: () => ({
+    full: {
         canComment: true,
         canDelete: true,
         canEdit: true,
@@ -19,38 +19,38 @@ export const routineYouPartial: GqlPartial<RoutineYou> = {
         isStarred: true,
         isUpvoted: true,
         isViewed: true,
-    }),
+    },
 }
 
 export const routinePartial: GqlPartial<Routine> = {
     __typename: 'Routine',
-    common: () => ({
+    common: {
         id: true,
         created_at: true,
         isInternal: true,
         isPrivate: true,
         issuesCount: true,
-        labels: relPartial(labelPartial, 'list'),
+        labels: () => relPartial(labelPartial, 'list'),
         owner: {
             __union: {
-                Organization: relPartial(organizationPartial, 'nav'),
-                User: relPartial(userPartial, 'nav'),
+                Organization: () => relPartial(organizationPartial, 'nav'),
+                User: () => relPartial(userPartial, 'nav'),
             }
         },
         permissions: true,
         questionsCount: true,
         score: true,
         stars: true,
-        tags: relPartial(tagPartial, 'list'),
+        tags: () => relPartial(tagPartial, 'list'),
         transfersCount: true,
         views: true,
-        you: relPartial(routineYouPartial, 'full'),
-    }),
-    full: () => ({
-        versions: relPartial(routineVersionPartial, 'full', { omit: 'root' }),
-        stats: relPartial(statsRoutinePartial, 'full'),
-    }),
-    list: () => ({
-        versions: relPartial(routineVersionPartial, 'list'),
-    })
+        you: () => relPartial(routineYouPartial, 'full'),
+    },
+    full: {
+        versions: () => relPartial(routineVersionPartial, 'full', { omit: 'root' }),
+        stats: () => relPartial(statsRoutinePartial, 'full'),
+    },
+    list: {
+        versions: () => relPartial(routineVersionPartial, 'list'),
+    }
 }

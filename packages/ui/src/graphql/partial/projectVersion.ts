@@ -1,19 +1,23 @@
-import { ProjectVersionTranslation, ProjectVersionYou } from "@shared/consts";
+import { ProjectVersion, ProjectVersionTranslation, ProjectVersionYou } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
+import { projectPartial } from "./project";
+import { pullRequestPartial } from "./pullRequest";
+import { versionYouPartial } from "./root";
 
-export const projectTranslationPartial: GqlPartial<ProjectVersionTranslation> = {
+export const projectVersionTranslationPartial: GqlPartial<ProjectVersionTranslation> = {
     __typename: 'ProjectVersionTranslation',
-    full: () => ({
+    full: {
         id: true,
         language: true,
         description: true,
         name: true,
-    }),
+    },
 }
 
 export const projectVersionYouPartial: GqlPartial<ProjectVersionYou> = {
     __typename: 'ProjectVersionYou',
-    common: () => ({
+    common: {
         canComment: true,
         canCopy: true,
         canDelete: true,
@@ -21,85 +25,41 @@ export const projectVersionYouPartial: GqlPartial<ProjectVersionYou> = {
         canReport: true,
         canUse: true,
         canView: true,
-    }),
-    full: () => ({
+    },
+    full: {
         runs: runProjectPartial.full,
-    }),
-    list: () => ({
+    },
+    list: {
         runs: runProjectPartial.list,
-    })
+    },
 }
 
-export const listProjectVersionFields = ['ProjectVersion', `{
-    id
-}`] as const;
-export const projectVersionFields = ['ProjectVersion', `{
-    id
-}`] as const;
-
-export const projectNameFields = ['Project', `{
-    id
-    handle
-    translatedName
-}`] as const;
-export const listProjectFields = ['Project', `{
-    id
-    commentsCount
-    handle
-    score
-    stars
-    isComplete
-    isPrivate
-    reportsCount
-    tags ${tagPartial.list}
-    translations {
-        id
-        language
-        name
-        description
+export const projectVersionPartial: GqlPartial<ProjectVersion> = {
+    __typename: 'ProjectVersion',
+    common: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        directoriesCount: true,
+        isLatest: true,
+        isPrivate: true,
+        reportsCount: true,
+        runsCount: true,
+        simplicity: true,
+        versionIndex: true,
+        versionLabel: true,
+        you: () => relPartial(versionYouPartial, 'full'),
+    },
+    full: {
+        directories: () => relPartial(projectVersionDirectoryPartial, 'full'),
+        pullRequest: () => relPartial(pullRequestPartial, 'full'),
+        root: () => relPartial(projectPartial, 'full', { omit: 'versions' }),
+        translations: () => relPartial(projectVersionTranslationPartial, 'full'),
+        versionNotes: true,
+    },
+    list: {
+        directories: () => relPartial(projectVersionDirectoryPartial, 'list'),
+        root: () => relPartial(projectPartial, 'list', { omit: 'versions' }),
+        translations: () => relPartial(projectVersionTranslationPartial, 'list'),
     }
-    you ${projectYouPartial.full}
-}`] as const;
-export const projectFields = ['Project', `{
-    id
-    completedAt
-    created_at
-    handle
-    isComplete
-    isPrivate
-    score
-    stars
-    resourceList ${resourceListPartial.full}
-    tags ${tagPartial.list}
-    translations {
-        id
-        language
-        description
-        name
-    }
-    owner {
-        ... on Organization {
-            id
-            handle
-            translations {
-                id
-                language
-                name
-            }
-            permissionsOrganization {
-                canAddMembers
-                canDelete
-                canEdit
-                canStar
-                canReport
-                isMember
-            }
-        }
-        ... on User {
-            id
-            name
-            handle
-        }
-    }
-    you ${projectYouPartial.full}
-}`] as const;
+}

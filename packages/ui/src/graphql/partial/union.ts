@@ -1,4 +1,6 @@
 import { organizationPartial } from "./organization";
+import { projectPartial } from "./project";
+import { routinePartial } from "./routine";
 
 export const listProjectOrOrganizationFields = ['ProjectOrOrganization', `{
     ... on Project ${projectPartial.list}

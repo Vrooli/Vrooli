@@ -1,9 +1,9 @@
-import { smartContractFields as fullFields, listSmartContractFields as listFields } from 'graphql/partial';
+import { smartContractPartial } from 'graphql/partial';
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const smartContractEndpoint = {
-    findOne: toQuery('smartContract', 'FindByIdInput', fullFields[1]),
-    findMany: toQuery('smartContracts', 'SmartContractSearchInput', toSearch(listFields)),
-    create: toMutation('smartContractCreate', 'SmartContractCreateInput', fullFields[1]),
-    update: toMutation('smartContractUpdate', 'SmartContractUpdateInput', fullFields[1])
+    findOne: toQuery('smartContract', 'FindByIdInput', smartContractPartial, 'full'),
+    findMany: toQuery('smartContracts', 'SmartContractSearchInput', ...toSearch(smartContractPartial)),
+    create: toMutation('smartContractCreate', 'SmartContractCreateInput', smartContractPartial, 'full'),
+    update: toMutation('smartContractUpdate', 'SmartContractUpdateInput', smartContractPartial, 'full')
 }

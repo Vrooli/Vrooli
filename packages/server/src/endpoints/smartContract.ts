@@ -78,7 +78,10 @@ export const typeDef = gql`
         parent: SmartContractVersion
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
+        questions: [Question!]!
+        questionsCount: Int!
         starredBy: [User!]!
+        stats: [StatsSmartContract!]!
         tags: [Tag!]!
         transfers: [Transfer!]!
         transfersCount: Int!

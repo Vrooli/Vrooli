@@ -1,6 +1,6 @@
-import { listViewFields as listFields } from 'graphql/partial';
+import { viewPartial } from 'graphql/partial';
 import { toQuery, toSearch } from 'graphql/utils';
 
 export const viewEndpoint = {
-    views: toQuery('views', 'ViewSearchInput', toSearch(listFields)),
+    views: toQuery('views', 'ViewSearchInput', ...toSearch(viewPartial)),
 }

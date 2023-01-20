@@ -1,5 +1,5 @@
 import { gql } from 'graphql-tag';
-import { DeepPartialBooleanWithFragments } from 'types';
+import { DeepPartialBooleanWithFragments, GqlPartial } from 'types';
 import { toFragment } from './toFragment';
 
 /**
@@ -23,11 +23,13 @@ import { toFragment } from './toFragment';
  */
 export const toMutation = <
     Endpoint extends string,
-    GqlObject extends { __typename: string },
+    Partial extends GqlPartial<any>,
+    Selection extends 'common' | 'full' | 'list' | 'nav',
 >(
     endpointName: Endpoint,
     inputType: string | null,
-    selectionSet?: DeepPartialBooleanWithFragments<GqlObject> | null | undefined,
+    partial?: Partial,
+    selection?: Selection | null | undefined
 ) => {
     //TODO rewrite
     // console.log('toMutation start', endpointName, inputType)
