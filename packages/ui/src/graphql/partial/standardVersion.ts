@@ -1,84 +1,51 @@
+import { StandardVersion, StandardVersionTranslation } from "@shared/consts";
+import { relPartial } from "graphql/utils";
+import { GqlPartial } from "types";
+import { pullRequestPartial } from "./pullRequest";
 import { resourceListPartial } from "./resourceList";
+import { versionYouPartial } from "./root";
+import { standardPartial } from "./standard";
 
-export const listStandardVersionFields = ['StandardVersionVersion', `{
-    id
-}`] as const;
-export const standardVersionFields = ['StandardVersionVersion', `{
-    id
-}`] as const;
+export const standardVersionTranslationPartial: GqlPartial<StandardVersionTranslation> = {
+    __typename: 'StandardVersionTranslation',
+    full: {
+        id: true,
+        language: true,
+        description: true,
+        jsonVariable: true,
+    },
+}
 
-export const standardNameFields = ['Standard', `{
-    id
-    translatedName
-}`] as const;
-export const listStandardFields = ['Standard', `{
-    id
-    commentsCount
-    default
-    score
-    stars
-    isDeleted
-    isInternal
-    isPrivate
-    props
-    reportsCount
-    tags ${tagPartial.list}
-    translations {
-        id
-        language
-        name
-        description
-        jsonVariable
+export const standardVersionPartial: GqlPartial<StandardVersion> = {
+    __typename: 'StandardVersion',
+    common: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        isComplete: true,
+        isFile: true,
+        isLatest: true,
+        isPrivate: true,
+        default: true,
+        standardType: true,
+        props: true,
+        yup: true,
+        versionIndex: true,
+        versionLabel: true,
+        commentsCount: true,
+        directoryListingsCount: true,
+        forksCount: true,
+        reportsCount: true,
+        you: () => relPartial(versionYouPartial, 'full'),
+    },
+    full: {
+        versionNotes: true,
+        pullRequest: () => relPartial(pullRequestPartial, 'full'),
+        resourceList: () => relPartial(resourceListPartial, 'full'),
+        root: () => relPartial(standardPartial, 'full', { omit: 'versions' }),
+        translations: () => relPartial(standardVersionTranslationPartial, 'full'),
+    },
+    list: {
+        translations: () => relPartial(standardVersionTranslationPartial, 'list'),
     }
-    type
-    you ${standardYouPartial.full}
-    yup
-}`] as const;
-export const standardFields = ['Standard', `{
-    id
-    isDeleted
-    isInternal
-    isPrivate
-    name
-    type
-    type
-    props
-    yup
-    default
-    created_at
-    permissionsStandard {
-        canComment
-        canDelete
-        canEdit
-        canStar
-        canReport
-        canVote
-    }
-    resourceList ${resourceListPartial.full}
-    tags ${tagPartial.list}
-    translations {
-        id
-        language
-        description
-        jsonVariable
-    }
-    creator {
-        ... on Organization {
-            id
-            handle
-            translations {
-                id
-                language
-                name
-            }
-        }
-        ... on User {
-            id
-            name
-            handle
-        }
-    }
-    stars
-    score
-    you ${standardYouPartial.full
-}`] as const;
+}

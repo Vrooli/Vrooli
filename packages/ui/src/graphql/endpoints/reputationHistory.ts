@@ -1,7 +1,7 @@
-import { reputationHistoryFields as fullFields } from 'graphql/partial';
+import { reputationHistoryPartial } from 'graphql/partial';
 import { toQuery, toSearch } from 'graphql/utils';
 
 export const reputationHistoryEndpoint = {
-    findOne: toQuery('reputationHistory', 'FindByIdInput', fullFields[1]),
-    findMany: toQuery('reputationHistories', 'ReputationHistorySearchInput', toSearch(fullFields)),
+    findOne: toQuery('reputationHistory', 'FindByIdInput', reputationHistoryPartial, 'full'),
+    findMany: toQuery('reputationHistories', 'ReputationHistorySearchInput', ...toSearch(reputationHistoryPartial)),
 }

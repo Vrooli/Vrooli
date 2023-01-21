@@ -1,8 +1,9 @@
-import { RunRoutineYou } from "@shared/consts";
+import { RunRoutine, RunRoutineYou } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
-import { nodeFields } from "./node";
-import { resourceListPartial } from "./resourceList";
-import { tagPartial } from "./tag";
+import { organizationPartial } from "./organization";
+import { routineVersionPartial } from "./routineVersion";
+import { userPartial } from "./user";
 
 export const runRoutineYouPartial: GqlPartial<RunRoutineYou> = {
     __typename: 'RunRoutineYou',
@@ -13,209 +14,29 @@ export const runRoutineYouPartial: GqlPartial<RunRoutineYou> = {
     },
 }
 
-export const listRunRoutineFields = ['RunRoutine', `{
-    id
-    completedComplexity
-    contextSwitches
-    isPrivate
-    startedAt
-    timeElapsed
-    completedAt
-    title
-    status
-    routine {
-        id
-        completedAt
-        complexity
-        created_at
-        isAutomatable
-        isDeleted
-        isInternal
-        isPrivate
-        isComplete
-        isStarred
-        isUpvoted
-        score
-        simplicity
-        stars
-        permissionsRoutine {
-            canCopy
-            canDelete
-            canEdit
-            canStar
-            canReport
-            canRun
-            canVote
-        }
-        tags ${tagPartial.list}
-        translations {
-            id
-            language
-            description
-            title
-        }
-    }
-}`] as const;
-export const runRoutineFields = ['RunRoutine', `{
-    id
-    completedComplexity
-    contextSwitches
-    isPrivate
-    startedAt
-    timeElapsed
-    completedAt
-    title
-    status
-    inputs {
-        id
-        data
-        input {
-            id
-            isRequired
-            name
-            translations {
-                id
-                language
-                description
-                helpText
-            }
-            standard {
-                id
-                default
-                isDeleted
-                isInternal
-                isPrivate
-                name
-                type
-                props
-                yup
-                tags ${tagPartial.list}
-                translations {
-                    id
-                    language
-                    description
-                }
-            }
-        }
-    }
-    routine {
-        id
-        completedAt
-        complexity
-        created_at
-        inputs {
-            ...runRoutineInputItemFields
-        }
-        isAutomatable
-        isComplete
-        isDeleted
-        isInternal
-        isPrivate
-        isStarred
-        isUpvoted
-        nodeLinks {
-            id
-            fromId
-            toId
-            operation
-            whens {
-                id
-                condition
-                translations {
-                    id
-                    language
-                    description
-                    title
-                }
-            }
-        }
-        nodes ${nodeFields[1]}
-        outputs {
-            id
-            name
-            translations {
-                id
-                language
-                description
-                helpText
-            }
-            standard {
-                id
-                default
-                isDeleted
-                isInternal
-                isPrivate
-                name
-                type
-                props
-                yup
-                tags ${tagPartial.list}
-                translations {
-                    id
-                    language
-                    description
-                }
-            }
-        }
-        owner {
-            ... on Organization {
-                id
-                handle
-                translations {
-                    id
-                    language
-                    name
-                }
-            }
-            ... on User {
-                id
-                name
-                handle
-            }
-        }
-        parent {
-            id
-            translations {
-                id
-                language
-                title
-            }
-        }
-        resourceList ${resourceListPartial.full}
-        score
-        simplicity
-        stars
-        permissionsRoutine {
-            canCopy
-            canDelete
-            canEdit
-            canStar
-            canReport
-            canRun
-            canVote
-        }
-        tags ${tagPartial.list}
-        translations {
-            id
-            language
-            description
-            instructions
-            title
-        }
-        updated_at
-    }
-    steps {
-        id
-        order
-        contextSwitches
-        startedAt
-        timeElapsed
-        completedAt
-        title
-        status
-        step
-        node {
-            id
-        }
-    }
-}`] as const;
+export const runRoutinePartial: GqlPartial<RunRoutine> = {
+    __typename: 'RunRoutine',
+    common: {
+        id: true,
+        isPrivate: true,
+        completedComplexity: true,
+        contextSwitches: true,
+        startedAt: true,
+        timeElapsed: true,
+        completedAt: true,
+        name: true,
+        status: true,
+        stepsCount: true,
+        inputsCount: true,
+        wasRunAutomaticaly: true,
+        organization: () => relPartial(organizationPartial, 'nav'),
+        routineVersion: () => relPartial(routineVersionPartial, 'nav', { omit: 'you' }),
+        runRoutineSchedule: () => relPartial(runRoutineSchedulePartial, 'full', { omit: 'runRoutine' }),
+        user: () => relPartial(userPartial, 'nav'),
+        you: () => relPartial(runRoutineYouPartial, 'full'),
+    },
+    full: {
+        inputs: () => relPartial(runRoutineInputPartial, 'list'),
+        steps: () => relPartial(runRoutineStepPartial, 'list'),
+    },
+}

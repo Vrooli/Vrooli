@@ -3,6 +3,7 @@ import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { labelPartial } from "./label";
 import { organizationPartial } from "./organization";
+import { smartContractVersionPartial } from "./smartContractVersion";
 import { statsSmartContractPartial } from "./statsSmartContract";
 import { tagPartial } from "./tag";
 import { userPartial } from "./user";

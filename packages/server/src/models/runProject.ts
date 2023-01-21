@@ -46,7 +46,9 @@ export const RunProjectModel: ModelLogic<{
             user: 'User',
             organization: 'Organization',
         },
-        countFields: {},
+        countFields: {
+            stepsCount: true,
+        },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {

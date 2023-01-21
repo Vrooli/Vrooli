@@ -8,8 +8,11 @@ import { noteVersionPartial } from "./noteVersion";
 import { projectPartial } from "./project";
 import { projectVersionPartial } from "./projectVersion";
 import { routinePartial } from "./routine";
+import { routineVersionPartial } from "./routineVersion";
 import { smartContractPartial } from "./smartContract";
+import { smartContractVersionPartial } from "./smartContractVersion";
 import { standardPartial } from "./standard";
+import { standardVersionPartial } from "./standardVersion";
 import { userPartial } from "./user";
 
 export const pullRequestYouPartial: GqlPartial<PullRequestYou> = {

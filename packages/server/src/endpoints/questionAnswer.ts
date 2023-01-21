@@ -39,6 +39,7 @@ export const typeDef = gql`
         isAccepted: Boolean!
         question: Question!
         comments: [Comment!]!
+        commentsCount: Int!
         starredBy: [User!]!
         translations: [QuestionAnswerTranslation!]!
     }

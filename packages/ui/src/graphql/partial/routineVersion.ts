@@ -1,6 +1,12 @@
-import { RoutineVersionTranslation, RoutineVersionYou } from "@shared/consts";
+import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
+import { apiVersionPartial } from "./apiVersion";
+import { pullRequestPartial } from "./pullRequest";
 import { resourceListPartial } from "./resourceList";
+import { routinePartial } from "./routine";
+import { runRoutinePartial } from "./runRoutine";
+import { smartContractVersionPartial } from "./smartContractVersion";
 
 export const routineVersionTranslationPartial: GqlPartial<RoutineVersionTranslation> = {
     __typename: 'RoutineVersionTranslation',
@@ -27,220 +33,56 @@ export const routineVersionYouPartial: GqlPartial<RoutineVersionYou> = {
         canVote: true,
     },
     full: {
-        runs: runRoutinePartial.full,
+        runs: () => relPartial(runRoutinePartial, 'full', { omit: 'routineVersion' }),
     },
     list: {
-        runs: runRoutinePartial.list,
+        runs: () => relPartial(runRoutinePartial, 'full', { omit: 'routineVersion' }),
     }
 }
 
-export const listRoutineVersionFields = ['RoutineVersion', `{
-    id
-}`] as const;
-export const routineVersionFields = ['RoutineVersion', `{
-    id
-}`] as const;
-
-export const routineNameFields = ['Routine', `{
-    id
-    translatedName
-}`] as const;
-export const listRoutineFields = ['Routine', `{
-    id
-    commentsCount
-    completedAt
-    complexity
-    created_at
-    isAutomatable
-    isDeleted
-    isInternal
-    isComplete
-    isPrivate
-    isStarred
-    isUpvoted
-    reportsCount
-    score
-    simplicity
-    stars
-    permissionsRoutine {
-        canComment
-        canCopy
-        canDelete
-        canEdit
-        canStar
-        canReport
-        canRun
-        canVote
+export const routineVersionPartial: GqlPartial<RoutineVersion> = {
+    __typename: 'RoutineVersion',
+    common: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        completedAt: true,
+        complexity: true,
+        isAutomatable: true,
+        isComplete: true,
+        isDeleted: true,
+        isLatest: true,
+        isPrivate: true,
+        simplicity: true,
+        timesStarted: true,
+        timesCompleted: true,
+        smartContractCallData: true,
+        apiCallData: true,
+        versionIndex: true,
+        versionLabel: true,
+        commentsCount: true,
+        directoryListingsCount: true,
+        forksCount: true,
+        inputsCount: true,
+        nodesCount: true,
+        outputsCount: true,
+        reportsCount: true,
+        you: () => relPartial(routineVersionYouPartial, 'full'),
+    },
+    full: {
+        versionNotes: true,
+        apiVersion: () => relPartial(apiVersionPartial, 'full'),
+        inputs: () => relPartial(routineVersionInputPartial, 'full'),
+        nodes: () => relPartial(nodePartial, 'full'),
+        outputs: () => relPartial(routineVersionOutputPartial, 'full'),
+        pullRequest: () => relPartial(pullRequestPartial, 'full'),
+        resourceList: () => relPartial(resourceListPartial, 'full'),
+        root: () => relPartial(routinePartial, 'full', { omit: 'versions' }),
+        smartContractVersion: () => relPartial(smartContractVersionPartial, 'full'),
+        suggestedNextByRoutineVersion: () => relPartial(routineVersionPartial, 'nav'),
+        translations: () => relPartial(routineVersionTranslationPartial, 'full'),
+    },
+    list: {
+        translations: () => relPartial(routineVersionTranslationPartial, 'list'),
     }
-    tags ${tagPartial.list}
-    translations {
-        id
-        language
-        description
-        title
-    }
-}`] as const;
-export const routineFields = ['Routine', `{
-    id
-    completedAt
-    complexity
-    created_at
-    inputs {
-        id
-        isRequired
-        name
-        translations {
-            id
-            language
-            description
-            helpText
-        }
-        standard {
-            id
-            default
-            isDeleted
-            isInternal
-            isPrivate
-            name
-            type
-            props
-            yup
-            translations {
-                id
-                language
-                description
-                jsonVariable
-            }
-        }
-    }
-    isAutomatable
-    isComplete
-    isDeleted
-    isInternal
-    isPrivate
-    isStarred
-    isUpvoted
-    nodeLinks {
-        id
-        fromId
-        toId
-        operation
-        whens {
-            id
-            condition
-            translations {
-                id
-                language
-                description
-                title
-            }
-        }
-    }
-    nodes ${nodeFields[1]}
-    outputs {
-        id
-        name
-        translations {
-            id
-            language
-            description
-            helpText
-        }
-        standard {
-            id
-            default
-            isDeleted
-            isInternal
-            isPrivate
-            name
-            type
-            props
-            yup
-            translations {
-                id
-                language
-                description
-                jsonVariable
-            }
-        }
-    }
-    owner {
-        ... on Organization {
-            id
-            handle
-            translations {
-                id
-                language
-                name
-            }
-        }
-        ... on User {
-            id
-            name
-            handle
-        }
-    }
-    parent {
-        id
-        translations {
-            id
-            language
-            title
-        }
-    }
-    reportsCount
-    resourceList ${resourceListPartial.full}
-    runs {
-        id
-        completedComplexity
-        contextSwitches
-        inputs {
-            id
-            data
-            input {
-                id
-            }
-        }
-        startedAt
-        timeElapsed
-        completedAt
-        title
-        status
-        steps {
-            id
-            order
-            contextSwitches
-            startedAt
-            timeElapsed
-            completedAt
-            title
-            status
-            step
-            node {
-                id
-            }
-        }
-    }
-    score
-    simplicity
-    stars
-    permissionsRoutine {
-        canComment
-        canCopy
-        canDelete
-        canEdit
-        canStar
-        canReport
-        canRun
-        canVote
-    }
-    tags ${tagPartial.full}
-    translations {
-        id
-        language
-        description
-        instructions
-        title
-    }
-    updated_at
-}`] as const;
+}

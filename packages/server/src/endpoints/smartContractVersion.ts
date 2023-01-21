@@ -66,6 +66,7 @@ export const typeDef = gql`
         completedAt: Date
         isComplete: Boolean!
         isDeleted: Boolean!
+        isLatest: Boolean!
         isPrivate: Boolean!
         default: String
         contractType: String!

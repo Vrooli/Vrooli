@@ -25,8 +25,8 @@ export const statsUserPartial: GqlPartial<StatsUser> = {
         smartContractsCreated: true,
         smartContractsCompleted: true,
         smartContractsCompletionTimeAverageInPeriod: true,
-        UsersCreated: true,
-        UsersCompleted: true,
-        UsersCompletionTimeAverageInPeriod: true,
+        standardsCreated: true,
+        standardsCompleted: true,
+        standardsCompletionTimeAverageInPeriod: true,
     },
 }

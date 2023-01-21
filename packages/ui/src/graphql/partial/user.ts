@@ -2,6 +2,7 @@ import { User, UserTranslation, UserYou } from "@shared/consts";
 import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { emailPartial } from "./email";
+import { notificationPartial } from "./notification";
 import { pushDevicePartial } from "./pushDevice";
 import { statsUserPartial } from "./statsUser";
 import { userSchedulePartial } from "./userSchedule";
@@ -78,10 +79,12 @@ export const profilePartial: GqlPartial<User> = {
         isPrivateStars: true,
         isPrivateVotes: true,
         name: true,
+        theme: true,
         emails: () => relPartial(emailPartial, 'full'),
         pushDevices: () => relPartial(pushDevicePartial, 'full'),
         wallets: () => relPartial(walletPartial, 'full'),
-        theme: true,
+        notifications: () => relPartial(notificationPartial, 'full'),
+        notificationSettings: true,
         translations: () => relPartial(userTranslationPartial, 'full'),
         schedules: () => relPartial(userSchedulePartial, 'full'),
         stats: () => relPartial(statsUserPartial, 'full'),

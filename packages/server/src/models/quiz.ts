@@ -52,7 +52,10 @@ export const QuizModel: ModelLogic<{
             starredBy: 'User',
         },
         joinMap: { starredBy: 'user' },
-        countFields: {},
+        countFields: {
+            attemptsCount: true,
+            quizQuestionsCount: true,
+        },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {

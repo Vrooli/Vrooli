@@ -1,9 +1,9 @@
-import { quizQuestionResponseFields as fullFields } from 'graphql/partial';
+import { quizQuestionResponsePartial } from 'graphql/partial';
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const quizQuestionResponseEndpoint = {
-    findOne: toQuery('quizQuestionResponse', 'FindByIdInput', fullFields[1]),
-    findMany: toQuery('quizQuestionResponses', 'QuizQuestionResponseSearchInput', toSearch(fullFields)),
-    create: toMutation('quizQuestionResponseCreate', 'QuizQuestionResponseCreateInput', fullFields[1]),
-    update: toMutation('quizQuestionResponseUpdate', 'QuizQuestionResponseUpdateInput', fullFields[1])
+    findOne: toQuery('quizQuestionResponse', 'FindByIdInput', quizQuestionResponsePartial, 'full'),
+    findMany: toQuery('quizQuestionResponses', 'QuizQuestionResponseSearchInput', ...toSearch(quizQuestionResponsePartial)),
+    create: toMutation('quizQuestionResponseCreate', 'QuizQuestionResponseCreateInput', quizQuestionResponsePartial, 'full'),
+    update: toMutation('quizQuestionResponseUpdate', 'QuizQuestionResponseUpdateInput', quizQuestionResponsePartial, 'full')
 }

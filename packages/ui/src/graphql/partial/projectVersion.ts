@@ -2,8 +2,10 @@ import { ProjectVersion, ProjectVersionTranslation, ProjectVersionYou } from "@s
 import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { projectPartial } from "./project";
+import { projectVersionDirectoryPartial } from "./projectVersionDirectory";
 import { pullRequestPartial } from "./pullRequest";
 import { versionYouPartial } from "./root";
+import { runProjectPartial } from "./runProject";
 
 export const projectVersionTranslationPartial: GqlPartial<ProjectVersionTranslation> = {
     __typename: 'ProjectVersionTranslation',
@@ -27,10 +29,10 @@ export const projectVersionYouPartial: GqlPartial<ProjectVersionYou> = {
         canView: true,
     },
     full: {
-        runs: runProjectPartial.full,
+        runs: () => relPartial(runProjectPartial, 'full', { omit: 'projectVersion' }),
     },
     list: {
-        runs: runProjectPartial.list,
+        runs: () => relPartial(runProjectPartial, 'list', { omit: 'projectVersion' }),
     },
 }
 
@@ -51,14 +53,14 @@ export const projectVersionPartial: GqlPartial<ProjectVersion> = {
         you: () => relPartial(versionYouPartial, 'full'),
     },
     full: {
-        directories: () => relPartial(projectVersionDirectoryPartial, 'full'),
+        directories: () => relPartial(projectVersionDirectoryPartial, 'full', { omit: 'projectVersion '}),
         pullRequest: () => relPartial(pullRequestPartial, 'full'),
         root: () => relPartial(projectPartial, 'full', { omit: 'versions' }),
         translations: () => relPartial(projectVersionTranslationPartial, 'full'),
         versionNotes: true,
     },
     list: {
-        directories: () => relPartial(projectVersionDirectoryPartial, 'list'),
+        directories: () => relPartial(projectVersionDirectoryPartial, 'list', { omit: 'projectVersion '}),
         root: () => relPartial(projectPartial, 'list', { omit: 'versions' }),
         translations: () => relPartial(projectVersionTranslationPartial, 'list'),
     }

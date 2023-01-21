@@ -88,8 +88,14 @@ export const ReportModel: ModelLogic<{
         }
     },
     format: {
-        gqlRelMap: { __typename },
-        prismaRelMap: { __typename },
+        gqlRelMap: { 
+            __typename,
+            responses: 'ReportResponse',
+        },
+        prismaRelMap: { 
+            __typename,
+            responses: 'ReportResponse',
+        },
         hiddenFields: ['userId'], // Always hide report creator
         supplemental: {
             graphqlFields: suppFields,
@@ -99,7 +105,9 @@ export const ReportModel: ModelLogic<{
                 return Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>
             },
         },
-        countFields: {},
+        countFields: {
+            responsesCount: true,
+        },
     },
     mutate: {
         shape: {

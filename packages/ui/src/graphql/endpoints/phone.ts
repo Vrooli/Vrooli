@@ -1,7 +1,7 @@
-import { phoneFields as fullFields } from 'graphql/partial';
+import { phonePartial, successPartial } from 'graphql/partial';
 import { toMutation } from 'graphql/utils';
 
 export const phoneEndpoint = {
-    create: toMutation('phoneCreate', 'PhoneCreateInput', fullFields[1]),
-    update: toMutation('sendVerificationText', 'SendVerificationTextInput', `{ success }`)
+    create: toMutation('phoneCreate', 'PhoneCreateInput', phonePartial, 'full'),
+    update: toMutation('sendVerificationText', 'SendVerificationTextInput', successPartial, 'full')
 }

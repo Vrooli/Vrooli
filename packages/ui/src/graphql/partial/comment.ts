@@ -6,6 +6,13 @@ import { issuePartial } from "./issue";
 import { noteVersionPartial } from "./noteVersion";
 import { organizationPartial } from "./organization";
 import { postPartial } from "./post";
+import { projectVersionPartial } from "./projectVersion";
+import { pullRequestPartial } from "./pullRequest";
+import { questionPartial } from "./question";
+import { questionAnswerPartial } from "./questionAnswer";
+import { routineVersionPartial } from "./routineVersion";
+import { smartContractVersionPartial } from "./smartContractVersion";
+import { standardVersionPartial } from "./standardVersion";
 import { userPartial } from "./user";
 
 export const commentTranslationPartial: GqlPartial<CommentTranslation> = {

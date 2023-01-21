@@ -88,7 +88,10 @@ export const typeDef = gql`
         questions: [Question!]!
         questionsCount: Int!
         starredBy: [User!]!
+        stats: [StatsStandard!]!
         tags: [Tag!]!
+        transfers: [Transfer!]!
+        transfersCount: Int!
         versions: [StandardVersion!]!
         versionsCount: Int
         you: StandardYou!

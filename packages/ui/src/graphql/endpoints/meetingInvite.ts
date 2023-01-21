@@ -1,11 +1,11 @@
-import { meetingInviteFields as fullFields, listMeetingInviteFields as listFields } from 'graphql/partial';
+import { meetingInvitePartial } from 'graphql/partial';
 import { toMutation, toQuery, toSearch } from 'graphql/utils';
 
 export const meetingInviteEndpoint = {
-    findOne: toQuery('meetingInvite', 'FindByIdInput', fullFields[1]),
-    findMany: toQuery('meetingInvites', 'MeetingInviteSearchInput', toSearch(listFields)),
-    create: toMutation('meetingInviteCreate', 'MeetingInviteCreateInput', fullFields[1]),
-    update: toMutation('meetingInviteUpdate', 'MeetingInviteUpdateInput', fullFields[1]),
-    accept: toMutation('meetingInviteAccept', 'FindByIdInput', fullFields[1]),
-    decline: toMutation('meetingInviteDecline', 'FindByIdInput', fullFields[1])
+    findOne: toQuery('meetingInvite', 'FindByIdInput', meetingInvitePartial, 'full'),
+    findMany: toQuery('meetingInvites', 'MeetingInviteSearchInput', ...toSearch(meetingInvitePartial)),
+    create: toMutation('meetingInviteCreate', 'MeetingInviteCreateInput', meetingInvitePartial, 'full'),
+    update: toMutation('meetingInviteUpdate', 'MeetingInviteUpdateInput', meetingInvitePartial, 'full'),
+    accept: toMutation('meetingInviteAccept', 'FindByIdInput', meetingInvitePartial, 'full'),
+    decline: toMutation('meetingInviteDecline', 'FindByIdInput', meetingInvitePartial, 'full')
 }

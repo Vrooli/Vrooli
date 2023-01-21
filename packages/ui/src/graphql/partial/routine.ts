@@ -3,6 +3,7 @@ import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { labelPartial } from "./label";
 import { organizationPartial } from "./organization";
+import { routineVersionPartial } from "./routineVersion";
 import { statsRoutinePartial } from "./statsRoutine";
 import { tagPartial } from "./tag";
 import { userPartial } from "./user";
