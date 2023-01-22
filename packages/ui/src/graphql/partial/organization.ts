@@ -1,5 +1,9 @@
 import { Organization, OrganizationTranslation, OrganizationYou } from "@shared/consts";
+import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
+import { resourceListPartial } from "./resourceList";
+import { rolePartial } from "./role";
+import { tagPartial } from "./tag";
 
 export const organizationTranslationPartial: GqlPartial<OrganizationTranslation> = {
     __typename: 'OrganizationTranslation',
@@ -34,46 +38,34 @@ export const organizationYouPartial: GqlPartial<OrganizationYou> = {
 
 export const organizationPartial: GqlPartial<Organization> = {
     __typename: 'Organization',
-    full: {
+    common: {
         id: true,
-        created_at: true,
         handle: true,
+        created_at: true,
+        updated_at: true,
         isOpenToNewMembers: true,
         isPrivate: true,
-        stars: true,
+        commentsCount: true,
+        membersCount: true,
         reportsCount: true,
-        resourceList: resourcePartial.list,
-        roles: {
-            id: true,
-            created_at: true,
-            updated_at: true,
-            name: true,
-            translations: {
-                id: true,
-                language: true,
-                description: true,
-            },
-        },
+        stars: true,
         tags: tagPartial.list,
+    },
+    full: {
+        resourceList: resourceListPartial.list,
+        roles: () => relPartial(rolePartial, 'full', { omit: 'organization' }),
         translations: organizationTranslationPartial.full,
         you: organizationYouPartial.full,
     },
     list: {
-        id: true,
-        commentsCount: true,
-        handle: true,
-        stars: true,
-        isOpenToNewMembers: true,
-        isPrivate: true,
-        membersCount: true,
-        reportsCount: true,
-        tags: tagPartial.list,
+        roles: () => relPartial(rolePartial, 'list', { omit: 'organization' }),
         translations: organizationTranslationPartial.full,
         you: organizationYouPartial.full,
     },
-    name: {
+    nav: {
         id: true,
         handle: true,
-        translatedName: true,
+        translations: organizationTranslationPartial.list,
+        you: organizationYouPartial.full,
     }
 }

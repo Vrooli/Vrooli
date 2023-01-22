@@ -83,7 +83,10 @@ export const RunRoutineModel: ModelLogic<{
             steps: 'RunRoutineStep',
             user: 'User',
         },
-        countFields: {},
+        countFields: {
+            inputsCount: true,
+            stepsCount: true,
+        },
         supplemental: {
             // Add fields needed for notifications when a run is started/completed
             dbFields: ['name'],

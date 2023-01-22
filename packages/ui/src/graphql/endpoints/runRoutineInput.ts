@@ -1,6 +1,6 @@
-import { runRoutineInputFields as fullFields } from 'graphql/partial';
+import { runRoutineInputPartial } from 'graphql/partial';
 import { toQuery, toSearch } from 'graphql/utils';
 
 export const runRoutineInputEndpoint = {
-    findMany: toQuery('runRoutineInputs', 'RunRoutineInputSearchInput', toSearch(fullFields)),
+    findMany: toQuery('runRoutineInputs', 'RunRoutineInputSearchInput', ...toSearch(runRoutineInputPartial)),
 }

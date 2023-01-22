@@ -2,6 +2,8 @@ import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@s
 import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { apiVersionPartial } from "./apiVersion";
+import { nodePartial } from "./node";
+import { nodeLinkPartial } from "./nodeLink";
 import { pullRequestPartial } from "./pullRequest";
 import { resourceListPartial } from "./resourceList";
 import { routinePartial } from "./routine";
@@ -65,6 +67,7 @@ export const routineVersionPartial: GqlPartial<RoutineVersion> = {
         forksCount: true,
         inputsCount: true,
         nodesCount: true,
+        nodeLinksCount: true,
         outputsCount: true,
         reportsCount: true,
         you: () => relPartial(routineVersionYouPartial, 'full'),
@@ -74,6 +77,7 @@ export const routineVersionPartial: GqlPartial<RoutineVersion> = {
         apiVersion: () => relPartial(apiVersionPartial, 'full'),
         inputs: () => relPartial(routineVersionInputPartial, 'full'),
         nodes: () => relPartial(nodePartial, 'full'),
+        nodeLinks: () => relPartial(nodeLinkPartial, 'full'),
         outputs: () => relPartial(routineVersionOutputPartial, 'full'),
         pullRequest: () => relPartial(pullRequestPartial, 'full'),
         resourceList: () => relPartial(resourceListPartial, 'full'),

@@ -47,7 +47,6 @@ export const typeDef = gql`
         updated_at: Date!
         columnIndex: Int
         nodeType: NodeType!
-        routineVersionId: ID!
         rowIndex: Int
         end: NodeEnd
         loop: NodeLoop

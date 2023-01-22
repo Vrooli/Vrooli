@@ -18,6 +18,8 @@ export const typeDef = gql`
 
     input RunRoutineScheduleCreateInput {
         id: ID!
+        attemptAutomatic: Boolean
+        maxAutomaticAttempts: Int
         timeZone: String
         windowStart: Date
         windowEnd: Date
@@ -31,6 +33,8 @@ export const typeDef = gql`
     }
     input RunRoutineScheduleUpdateInput {
         id: ID!
+        attemptAutomatic: Boolean
+        maxAutomaticAttempts: Int
         timeZone: String
         windowStart: Date
         windowEnd: Date
@@ -47,6 +51,8 @@ export const typeDef = gql`
     }
     type RunRoutineSchedule {
         id: ID!
+        attemptAutomatic: Boolean!
+        maxAutomaticAttempts: Int!
         timeZone: String
         windowStart: Date
         windowEnd: Date

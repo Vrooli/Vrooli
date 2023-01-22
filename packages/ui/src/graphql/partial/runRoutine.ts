@@ -3,6 +3,9 @@ import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { organizationPartial } from "./organization";
 import { routineVersionPartial } from "./routineVersion";
+import { runRoutineInputPartial } from "./runRoutineInput";
+import { runRoutineSchedulePartial } from "./runRoutineSchedule";
+import { runRoutineStepPartial } from "./runRoutineStep";
 import { userPartial } from "./user";
 
 export const runRoutineYouPartial: GqlPartial<RunRoutineYou> = {
@@ -36,7 +39,7 @@ export const runRoutinePartial: GqlPartial<RunRoutine> = {
         you: () => relPartial(runRoutineYouPartial, 'full'),
     },
     full: {
-        inputs: () => relPartial(runRoutineInputPartial, 'list'),
+        inputs: () => relPartial(runRoutineInputPartial, 'list', { omit: 'runRoutine' }),
         steps: () => relPartial(runRoutineStepPartial, 'list'),
     },
 }

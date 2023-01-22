@@ -2194,7 +2194,6 @@ export type Node = {
   nodeType: NodeType;
   routineList?: Maybe<NodeRoutineList>;
   routineVersion: RoutineVersion;
-  routineVersionId: Scalars['ID'];
   rowIndex?: Maybe<Scalars['Int']>;
   translations: Array<NodeTranslation>;
   updated_at: Scalars['Date'];
@@ -6804,8 +6803,10 @@ export type RunRoutineInputUpdateInput = {
 
 export type RunRoutineSchedule = {
   __typename: 'RunRoutineSchedule';
+  attemptAutomatic: Scalars['Boolean'];
   id: Scalars['ID'];
   labels: Array<Label>;
+  maxAutomaticAttempts: Scalars['Int'];
   recurrEnd?: Maybe<Scalars['Date']>;
   recurrStart?: Maybe<Scalars['Date']>;
   recurring: Scalars['Boolean'];
@@ -6817,9 +6818,11 @@ export type RunRoutineSchedule = {
 };
 
 export type RunRoutineScheduleCreateInput = {
+  attemptAutomatic?: InputMaybe<Scalars['Boolean']>;
   id: Scalars['ID'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
+  maxAutomaticAttempts?: InputMaybe<Scalars['Int']>;
   recurrEnd?: InputMaybe<Scalars['Date']>;
   recurrStart?: InputMaybe<Scalars['Date']>;
   recurring?: InputMaybe<Scalars['Boolean']>;
@@ -6898,10 +6901,12 @@ export type RunRoutineScheduleTranslationUpdateInput = {
 };
 
 export type RunRoutineScheduleUpdateInput = {
+  attemptAutomatic?: InputMaybe<Scalars['Boolean']>;
   id: Scalars['ID'];
   labelsConnect?: InputMaybe<Array<Scalars['ID']>>;
   labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
   labelsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
+  maxAutomaticAttempts?: InputMaybe<Scalars['Int']>;
   recurrEnd?: InputMaybe<Scalars['Date']>;
   recurrStart?: InputMaybe<Scalars['Date']>;
   recurring?: InputMaybe<Scalars['Boolean']>;
@@ -10787,7 +10792,6 @@ export type NodeResolvers<ContextType = any, ParentType extends ResolversParentT
   nodeType?: Resolver<ResolversTypes['NodeType'], ParentType, ContextType>;
   routineList?: Resolver<Maybe<ResolversTypes['NodeRoutineList']>, ParentType, ContextType>;
   routineVersion?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType>;
-  routineVersionId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   rowIndex?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['NodeTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
@@ -12471,8 +12475,10 @@ export type RunRoutineInputSearchResultResolvers<ContextType = any, ParentType e
 };
 
 export type RunRoutineScheduleResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineSchedule'] = ResolversParentTypes['RunRoutineSchedule']> = {
+  attemptAutomatic?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   labels?: Resolver<Array<ResolversTypes['Label']>, ParentType, ContextType>;
+  maxAutomaticAttempts?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   recurrEnd?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   recurrStart?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   recurring?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;

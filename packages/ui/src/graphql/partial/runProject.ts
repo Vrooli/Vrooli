@@ -3,6 +3,8 @@ import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { organizationPartial } from "./organization";
 import { projectVersionPartial } from "./projectVersion";
+import { runProjectSchedulePartial } from "./runProjectSchedule";
+import { runProjectStepPartial } from "./runProjectStep";
 import { userPartial } from "./user";
 
 export const runProjectYouPartial: GqlPartial<RunProjectYou> = {

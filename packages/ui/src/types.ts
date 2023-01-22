@@ -201,7 +201,7 @@ export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = 
     /**
      * Creates a union of the specified types
      */
-    __union?: { [key in `${GqlModelType}`]?: key extends T['__typename'] ? (string | number | MaybeLazy<DeepPartialBooleanWithFragments<T>>) : never };
+    __union?: { [key in T['__typename']]?: (string | number | MaybeLazy<DeepPartialBooleanWithFragments<T>>) };
     /**
      * Defines a fragment to include in the selection. The fragment can be referenced in the selection using the __use field.
      */

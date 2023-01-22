@@ -3,12 +3,14 @@ import { relPartial } from "graphql/utils";
 import { GqlPartial } from "types";
 import { labelPartial } from "./label";
 import { organizationPartial } from "./organization";
+import { projectVersionPartial } from "./projectVersion";
+import { statsProjectPartial } from "./statsProject";
 import { tagPartial } from "./tag";
 import { userPartial } from "./user";
 
 export const projectYouPartial: GqlPartial<ProjectYou> = {
     __typename: 'ProjectYou',
-    full: () => ({
+    full: {
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -18,12 +20,12 @@ export const projectYouPartial: GqlPartial<ProjectYou> = {
         isStarred: true,
         isUpvoted: true,
         isViewed: true,
-    }),
+    },
 }
 
 export const projectPartial: GqlPartial<Project> = {
     __typename: 'Project',
-    common: () => ({
+    common: {
         id: true,
         created_at: true,
         isPrivate: true,
@@ -43,12 +45,12 @@ export const projectPartial: GqlPartial<Project> = {
         transfersCount: true,
         views: true,
         you: () => relPartial(projectYouPartial, 'full'),
-    }),
-    full: () => ({
+    },
+    full: {
         versions: () => relPartial(projectVersionPartial, 'full', { omit: 'root' }),
         stats: () => relPartial(statsProjectPartial, 'full'),
-    }),
-    list: () => ({
+    },
+    list: {
         versions: () => relPartial(projectVersionPartial, 'list'),
-    })
+    }
 }
