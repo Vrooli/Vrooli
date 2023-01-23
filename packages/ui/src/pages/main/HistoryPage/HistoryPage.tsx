@@ -8,7 +8,7 @@ import { HistoryPageProps } from '../types';
 import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption, Wrap } from 'types';
 import { centeredDiv } from 'styles';
-import { historyEndpoint } from 'graphql/endpoints';
+import { historyEndpoint } from 'api/endpoints';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 

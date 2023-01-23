@@ -1,5 +1,5 @@
 import { Button, Checkbox, Dialog, FormControlLabel, Grid, Stack, TextField, Tooltip, Typography } from "@mui/material";
-import { useMutation } from "graphql/hooks";
+import { useMutation } from "api/hooks";
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSearchParams, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -12,8 +12,8 @@ import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/
 import { getCurrentUser } from "utils/authentication";
 import { RoutineIcon } from "@shared/icons";
 import { Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
-import { routineVersionEndpoint } from "graphql/endpoints";
-import { mutationWrapper } from "graphql/utils";
+import { routineVersionEndpoint } from "api/endpoints";
+import { mutationWrapper } from "api/utils";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
 

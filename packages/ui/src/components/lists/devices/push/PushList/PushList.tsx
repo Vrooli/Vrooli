@@ -4,8 +4,8 @@
 import { PushListProps } from '../types';
 import { useCallback } from 'react';
 import { Box, Stack, TextField, useTheme } from '@mui/material';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { useMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { getDeviceName, PubSub, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { PushListItem } from '../PushListItem/PushListItem';
@@ -13,7 +13,7 @@ import { AddIcon } from '@shared/icons';
 import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Success } from '@shared/consts';
-import { deleteOneOrManyEndpoint, pushDeviceEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyEndpoint, pushDeviceEndpoint } from 'api/endpoints';
 import { pushDeviceValidation } from '@shared/validation';
 
 //TODO copied from emaillist. need to rewrite

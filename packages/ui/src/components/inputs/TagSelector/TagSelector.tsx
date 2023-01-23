@@ -5,7 +5,7 @@ import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
 import { SnackSeverity, StarButton } from 'components';
 import { PubSub, TagShape } from 'utils';
-import { tagEndpoint } from 'graphql/endpoints';
+import { tagEndpoint } from 'api/endpoints';
 import { Wrap } from 'types';
 
 export const TagSelector = ({

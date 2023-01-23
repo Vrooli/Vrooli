@@ -1,6 +1,6 @@
 import { Grid, TextField } from "@mui/material";
-import { useMutation } from "graphql/hooks";
-import { mutationWrapper } from 'graphql/utils';
+import { useMutation } from "api/hooks";
+import { mutationWrapper } from 'api/utils';
 import { projectVersionTranslationValidation, projectVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -10,7 +10,7 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
-import { projectVersionEndpoint } from "graphql/endpoints";
+import { projectVersionEndpoint } from "api/endpoints";
 import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
 
 export const ProjectCreate = ({

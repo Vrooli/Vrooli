@@ -1,7 +1,7 @@
 import { Box, CircularProgress, Palette, Stack, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { CommentFor, FindVersionInput, InputType, ResourceList, StandardVersion } from "@shared/consts";
-import { useLazyQuery } from "graphql/hooks";
+import { useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BaseStandardInput, CommentContainer, ResourceListHorizontal, TextCollapse, VersionDisplay, SnackSeverity, ObjectTitle, TagList, StatsCompact, DateDisplay, ObjectActionsRow, ColorIconButton } from "components";
 import { StandardViewProps } from "../types";
@@ -14,7 +14,7 @@ import { PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { EditIcon } from "@shared/icons";
-import { standardVersionEndpoint } from "graphql/endpoints";
+import { standardVersionEndpoint } from "api/endpoints";
 import { setDotNotationValue } from "@shared/utils";
 
 const containerProps = (palette: Palette) => ({

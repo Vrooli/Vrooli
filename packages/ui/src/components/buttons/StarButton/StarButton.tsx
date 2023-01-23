@@ -7,9 +7,9 @@ import { StarFilledIcon, StarOutlineIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
 import { PubSub } from 'utils';
 import { SnackSeverity } from 'components/dialogs';
-import { documentNodeWrapper } from 'graphql/utils';
+import { documentNodeWrapper } from 'api/utils';
 import { StarInput, Success } from '@shared/consts';
-import { starEndpoint } from 'graphql/endpoints';
+import { starEndpoint } from 'api/endpoints';
 
 export const StarButton = ({
     disabled = false,

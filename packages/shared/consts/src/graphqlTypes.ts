@@ -4972,6 +4972,7 @@ export type QuizQuestionResponse = {
   quizAttempt: QuizAttempt;
   quizQuestion: QuizQuestion;
   response?: Maybe<Scalars['String']>;
+  translations: Array<QuizQuestionResponseTranslation>;
   updated_at: Scalars['Date'];
   you: QuizQuestionResponseYou;
 };
@@ -6968,7 +6969,7 @@ export type RunRoutineStep = {
   startedAt?: Maybe<Scalars['Date']>;
   status: RunRoutineStepStatus;
   step: Array<Scalars['Int']>;
-  subroutine?: Maybe<Routine>;
+  subroutine?: Maybe<RoutineVersion>;
   timeElapsed?: Maybe<Scalars['Int']>;
 };
 
@@ -11790,6 +11791,7 @@ export type QuizQuestionResponseResolvers<ContextType = any, ParentType extends 
   quizAttempt?: Resolver<ResolversTypes['QuizAttempt'], ParentType, ContextType>;
   quizQuestion?: Resolver<ResolversTypes['QuizQuestion'], ParentType, ContextType>;
   response?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  translations?: Resolver<Array<ResolversTypes['QuizQuestionResponseTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   you?: Resolver<ResolversTypes['QuizQuestionResponseYou'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12527,7 +12529,7 @@ export type RunRoutineStepResolvers<ContextType = any, ParentType extends Resolv
   startedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['RunRoutineStepStatus'], ParentType, ContextType>;
   step?: Resolver<Array<ResolversTypes['Int']>, ParentType, ContextType>;
-  subroutine?: Resolver<Maybe<ResolversTypes['Routine']>, ParentType, ContextType>;
+  subroutine?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   timeElapsed?: Resolver<Maybe<ResolversTypes['Int']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };

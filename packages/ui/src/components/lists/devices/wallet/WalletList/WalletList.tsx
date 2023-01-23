@@ -4,15 +4,15 @@
 import { WalletListProps } from '../types';
 import { useCallback, useState } from 'react';
 import { Box, Button } from '@mui/material';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { useMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { PubSub, updateArray } from 'utils';
 import { hasWalletExtension, validateWallet } from 'utils/authentication/walletIntegration';
 import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
 import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from '@shared/consts';
-import { deleteOneOrManyEndpoint, walletEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyEndpoint, walletEndpoint } from 'api/endpoints';
 
 export const WalletList = ({
     handleUpdate,

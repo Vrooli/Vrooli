@@ -1,4 +1,4 @@
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { reportCreateForm as validationSchema } from '@shared/validation';
 import { Dialog, DialogContent, Grid, Stack, TextField } from '@mui/material';
 import { useFormik } from 'formik';
@@ -8,9 +8,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { DialogTitle, GridSubmitButtons, Selector } from 'components';
 import { uuid } from '@shared/uuid';
-import { reportEndpoint } from 'graphql/endpoints';
+import { reportEndpoint } from 'api/endpoints';
 import { Report, ReportCreateInput } from '@shared/consts';
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators.\n\nIn the future, we would like to implement a community governance system.`

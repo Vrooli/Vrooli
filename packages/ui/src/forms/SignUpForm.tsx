@@ -1,4 +1,4 @@
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { APP_LINKS, BUSINESS_NAME, EmailSignUpInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
@@ -14,7 +14,7 @@ import {
 } from '@mui/material';
 import { Forms, PubSub } from 'utils';
 import { emailSignUpFormValidation } from '@shared/validation';
-import { hasErrorCode, mutationWrapper } from 'graphql/utils';
+import { hasErrorCode, mutationWrapper } from 'api/utils';
 import { useLocation } from '@shared/route';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
@@ -22,7 +22,7 @@ import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
-import { authEndpoint } from 'graphql/endpoints';
+import { authEndpoint } from 'api/endpoints';
 
 export const SignUpForm = ({
     onFormChange = () => { },

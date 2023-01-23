@@ -17,15 +17,15 @@ import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
 import React, { useCallback, useMemo, useState } from 'react';
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { PubSub, shapeProfile } from 'utils';
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
 import { APP_LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { getCurrentUser, guestSession } from 'utils/authentication';
 import { ContactInfo } from 'components/navigation';
-import { authEndpoint, userEndpoint } from 'graphql/endpoints';
+import { authEndpoint, userEndpoint } from 'api/endpoints';
 import { userValidation } from '@shared/validation';
 
 // Maximum accounts to sign in with

@@ -1,6 +1,6 @@
 import { Checkbox, FormControlLabel, Grid, TextField, Tooltip } from "@mui/material";
-import { useMutation } from "graphql/hooks";
-import { mutationWrapper } from 'graphql/utils';
+import { useMutation } from "api/hooks";
+import { mutationWrapper } from 'api/utils';
 import { organizationValidation, organizationTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSearchParams, removeTranslation, shapeOrganization, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { Organization, OrganizationCreateInput, ResourceList } from "@shared/consts";
-import { organizationEndpoint } from "graphql/endpoints";
+import { organizationEndpoint } from "api/endpoints";
 
 export const OrganizationCreate = ({
     onCreated,

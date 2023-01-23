@@ -1,4 +1,4 @@
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { resourceTranslationValidation, resourceValidation } from '@shared/validation';
 import { Dialog, DialogContent, FormControl, Grid, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, TextField, useTheme } from '@mui/material';
 import { useFormik } from 'formik';
@@ -11,8 +11,8 @@ import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ColorIconButton, DialogTitle, getResourceIcon, GridSubmitButtons, SnackSeverity } from 'components';
 import { SearchIcon } from '@shared/icons';
 import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceList, ResourceTranslation, ResourceUpdateInput, ResourceUsedFor } from '@shared/consts';
-import { feedEndpoint, resourceEndpoint } from 'graphql/endpoints';
-import { mutationWrapper } from 'graphql/utils';
+import { feedEndpoint, resourceEndpoint } from 'api/endpoints';
+import { mutationWrapper } from 'api/utils';
 import { useQuery } from '@apollo/client';
 import { useTranslation } from 'react-i18next';
 

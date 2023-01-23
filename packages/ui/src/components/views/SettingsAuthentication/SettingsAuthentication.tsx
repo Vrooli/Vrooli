@@ -1,7 +1,7 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
-import { useMutation } from "graphql/hooks";
+import { useMutation } from "api/hooks";
 import { useCallback, useState } from "react";
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { useFormik } from 'formik';
 import { PubSub, usePromptBeforeUnload } from "utils";
@@ -13,7 +13,7 @@ import { DeleteAccountDialog, PageTitle, PasswordTextField, SnackSeverity } from
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { SettingsFormData } from "pages";
-import { authEndpoint, userEndpoint } from "graphql/endpoints";
+import { authEndpoint, userEndpoint } from "api/endpoints";
 import { userValidation } from "@shared/validation";
 
 const walletHelpText =

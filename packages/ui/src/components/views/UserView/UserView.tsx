@@ -2,7 +2,7 @@ import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typog
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, ResourceList, StarFor, User, VisibilityType } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
-import { useLazyQuery } from "graphql/hooks";
+import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { UserViewProps } from "../types";
@@ -12,7 +12,7 @@ import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
-import { userEndpoint } from "graphql/endpoints";
+import { userEndpoint } from "api/endpoints";
 import { setDotNotationValue } from "@shared/utils";
 
 enum TabOptions {

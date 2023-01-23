@@ -1,13 +1,13 @@
-import { useMutation } from "graphql/hooks";
+import { useMutation } from "api/hooks";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { DeleteType, CopyType, ReportFor, StarFor, VoteFor, CopyResult, CopyInput, Success, StarInput, VoteInput } from "@shared/consts";
 import { EllipsisIcon } from "@shared/icons";
 import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog, SnackSeverity } from "components/dialogs";
-import { mutationWrapper } from "graphql/utils";
+import { mutationWrapper } from "api/utils";
 import React, { useCallback, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
-import { copyEndpoint, starEndpoint, voteEndpoint } from "graphql/endpoints";
+import { copyEndpoint, starEndpoint, voteEndpoint } from "api/endpoints";
 
 const commonButtonSx = (palette: Palette) => ({
     color: 'inherit',

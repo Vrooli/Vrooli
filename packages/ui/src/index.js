@@ -2,7 +2,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { Router } from '@shared/route';
 import { ApolloProvider } from '@apollo/client';
-import { initializeApollo } from 'graphql/utils/initialize';
+import { initializeApollo } from 'api/utils/initialize';
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 import reportWebVitals from './reportWebVitals';
 import { ErrorBoundary } from 'components';

@@ -4,8 +4,8 @@
 import { EmailListProps } from '../types';
 import { useCallback } from 'react';
 import { Box, Stack, TextField, useTheme } from '@mui/material';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { useMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { PubSub } from 'utils';
 import { useFormik } from 'formik';
 import { EmailListItem } from '../EmailListItem/EmailListItem';
@@ -13,7 +13,7 @@ import { AddIcon } from '@shared/icons';
 import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, SendVerificationEmailInput, Success } from '@shared/consts';
-import { deleteOneOrManyEndpoint, emailEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyEndpoint, emailEndpoint } from 'api/endpoints';
 import { emailValidation } from '@shared/validation';
 
 export const EmailList = ({

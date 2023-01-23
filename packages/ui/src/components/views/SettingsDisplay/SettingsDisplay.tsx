@@ -1,7 +1,7 @@
 import { Box, Button, Grid, Stack, Typography, useTheme } from "@mui/material"
-import { useMutation } from "graphql/hooks";
+import { useMutation } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
 import { clearSearchHistory, PubSub, shapeProfile, TagShape, usePromptBeforeUnload, UserScheduleFilterShape } from "utils";
 import { SettingsDisplayProps } from "../types";
@@ -12,7 +12,7 @@ import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { SettingsFormData } from "pages";
 import { ProfileUpdateInput, User, UserScheduleFilterType } from "@shared/consts";
-import { userEndpoint } from "graphql/endpoints";
+import { userEndpoint } from "api/endpoints";
 import { userValidation } from "@shared/validation";
 import { currentSchedules } from "utils/display/scheduleTools";
 

@@ -1,7 +1,7 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindVersionInput, ProjectVersion, StarFor, VisibilityType } from "@shared/consts";
-import { useLazyQuery } from "graphql/hooks";
+import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { ProjectViewProps } from "../types";
@@ -9,7 +9,7 @@ import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, SearchType, uuidToBase36 } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { projectVersionEndpoint } from "graphql/endpoints";
+import { projectVersionEndpoint } from "api/endpoints";
 import { setDotNotationValue } from "@shared/utils";
 
 enum TabOptions {

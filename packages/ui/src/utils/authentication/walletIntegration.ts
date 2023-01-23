@@ -4,8 +4,8 @@
  */
 import { WalletComplete } from '@shared/consts';
 import { SnackSeverity } from 'components';
-import { authEndpoint } from 'graphql/endpoints';
-import { errorToCode, initializeApollo } from 'graphql/utils';
+import { authEndpoint } from 'api/endpoints';
+import { errorToCode, initializeApollo } from 'api/utils';
 import { ApolloError } from 'types';
 import { PubSub } from 'utils';
 

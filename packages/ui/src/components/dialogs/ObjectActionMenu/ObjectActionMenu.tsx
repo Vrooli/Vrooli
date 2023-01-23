@@ -1,12 +1,12 @@
-import { useMutation } from "graphql/hooks";
+import { useMutation } from "api/hooks";
 import { useCallback, useMemo, useState } from "react";
 import { CopyInput, CopyResult, CopyType, DeleteType, ReportFor, StarFor, StarInput, Success, VoteFor, VoteInput } from "@shared/consts";
 import { DeleteDialog, ListMenu, ReportDialog, SnackSeverity } from "..";
 import { ObjectActionMenuProps } from "../types";
-import { mutationWrapper } from "graphql/utils";
+import { mutationWrapper } from "api/utils";
 import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
-import { copyEndpoint, starEndpoint, voteEndpoint } from "graphql/endpoints";
+import { copyEndpoint, starEndpoint, voteEndpoint } from "api/endpoints";
 
 export const ObjectActionMenu = ({
     anchorEl,

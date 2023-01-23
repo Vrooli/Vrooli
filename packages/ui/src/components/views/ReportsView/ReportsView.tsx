@@ -6,7 +6,7 @@ import { PageTitle } from "components/text";
 import { ReportsViewPageProps } from "pages/view/types";
 import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
 import { Wrap } from "types";
-import { reportEndpoint } from "graphql/endpoints";
+import { reportEndpoint } from "api/endpoints";
 
 /**
  * Maps object types to the correct id fields

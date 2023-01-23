@@ -1,7 +1,7 @@
 import { Box, CircularProgress, Collapse, Divider, Grid, List, ListItem, ListItemIcon, ListItemText, Typography, useTheme } from '@mui/material';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SettingsPageProps } from '../types';
-import { useLazyQuery } from 'graphql/hooks';
+import { useLazyQuery } from 'api/hooks';
 import { APP_LINKS, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { SettingsProfile } from 'components/views/SettingsProfile/SettingsProfile';
@@ -15,7 +15,7 @@ import { getCurrentUser } from 'utils/authentication';
 import { noSelect } from 'styles';
 import { CommonKey } from 'types';
 import { useTranslation } from 'react-i18next';
-import { userEndpoint } from 'graphql/endpoints';
+import { userEndpoint } from 'api/endpoints';
 
 /**
  * Describes a settings page button

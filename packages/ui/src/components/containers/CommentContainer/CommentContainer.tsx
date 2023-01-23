@@ -3,7 +3,7 @@
  */
 import { Box, Button, Palette, Stack, Tooltip, Typography, useTheme } from '@mui/material';
 import { CommentContainerProps } from '../types';
-import { useLazyQuery } from 'graphql/hooks';
+import { useLazyQuery } from 'api/hooks';
 import { CommentCreateInput } from 'components/inputs';
 import { addSearchParams, labelledSortOptions, parseSearchParams, removeSearchParams, SearchType, searchTypeToParams, SortValueToLabelMap, useWindowSize } from 'utils';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,7 +16,7 @@ import { SortMenu, TimeMenu } from 'components/lists';
 import { BuildIcon, SortIcon, HistoryIcon as TimeIcon, CreateIcon } from '@shared/icons';
 import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
 import { CommentThread as ThreadType, CommentSearchInput, CommentSearchResult, CommentSortBy, TimeFrame, Comment } from '@shared/consts';
-import { commentEndpoint } from 'graphql/endpoints';
+import { commentEndpoint } from 'api/endpoints';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = searchTypeToParams.Comment;
 const sortOptionsLabelled = labelledSortOptions(sortByOptions);

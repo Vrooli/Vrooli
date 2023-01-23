@@ -1,8 +1,8 @@
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
-import { voteEndpoint } from 'graphql/endpoints';
-import { mutationWrapper } from 'graphql/utils';
+import { voteEndpoint } from 'api/endpoints';
+import { mutationWrapper } from 'api/utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getCurrentUser } from 'utils/authentication';
 import { UpvoteDownvoteProps } from '../types';

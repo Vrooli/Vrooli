@@ -1,5 +1,5 @@
 import { useLocation } from '@shared/route';
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
@@ -17,8 +17,8 @@ import { clickSize } from 'styles';
 import { PasswordTextField, SnackSeverity } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
-import { errorToCode, hasErrorCode, mutationWrapper } from 'graphql/utils';
-import { authEndpoint } from 'graphql/endpoints';
+import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
+import { authEndpoint } from 'api/endpoints';
 import { emailLogInFormValidation } from '@shared/validation';
 
 export const LogInForm = ({

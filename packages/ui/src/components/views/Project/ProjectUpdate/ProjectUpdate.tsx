@@ -1,7 +1,7 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useMutation, useLazyQuery } from "graphql/hooks";
+import { useMutation, useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -9,7 +9,7 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Snack
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
-import { projectVersionEndpoint } from "graphql/endpoints";
+import { projectVersionEndpoint } from "api/endpoints";
 import { FindVersionInput, ProjectVersion, ProjectVersionUpdateInput } from "@shared/consts";
 
 export const ProjectUpdate = ({

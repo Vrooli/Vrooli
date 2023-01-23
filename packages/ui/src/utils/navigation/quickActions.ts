@@ -1,7 +1,7 @@
 import { APP_LINKS, ProfileUpdateInput, Session, User } from "@shared/consts";
 import { SnackSeverity } from "components";
-import { userEndpoint } from "graphql/endpoints";
-import { documentNodeWrapper, errorToCode } from "graphql/utils";
+import { userEndpoint } from "api/endpoints";
+import { documentNodeWrapper, errorToCode } from "api/utils";
 import { ActionOption, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";

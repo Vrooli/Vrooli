@@ -8,12 +8,12 @@ import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSu
 import { AutocompleteSearchBar } from 'components/inputs';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { AutocompleteOption } from 'types';
-import { useLazyQuery } from 'graphql/hooks';
+import { useLazyQuery } from 'api/hooks';
 import { CommandPaletteProps } from '../types';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { uuidValidate } from '@shared/uuid';
-import { feedEndpoint } from 'graphql/endpoints';
+import { feedEndpoint } from 'api/endpoints';
 
 const helpText =
     `Use this dialog to quickly navigate to other pages.\n\nIt can be opened at any time by entering CTRL + P.`

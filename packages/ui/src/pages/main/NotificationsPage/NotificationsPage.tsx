@@ -9,7 +9,7 @@ import { CommonKey, Wrap } from 'types';
 import { APP_LINKS, Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useQuery } from '@apollo/client';
-import { notificationEndpoint } from 'graphql/endpoints';
+import { notificationEndpoint } from 'api/endpoints';
 
 export const NotificationsPage = ({
     session

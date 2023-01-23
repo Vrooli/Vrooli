@@ -7,11 +7,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { useMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { AddIcon } from '@shared/icons';
 import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyEndpoint } from 'api/endpoints';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',

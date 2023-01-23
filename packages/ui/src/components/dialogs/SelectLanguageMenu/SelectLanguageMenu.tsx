@@ -5,9 +5,9 @@ import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils
 import { FixedSizeList } from 'react-window';
 import { ListMenu, MenuTitle, SnackSeverity } from 'components';
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
-import { useLazyQuery } from 'graphql/hooks';
-import { queryWrapper } from 'graphql/utils';
-import { translateEndpoint } from 'graphql/endpoints';
+import { useLazyQuery } from 'api/hooks';
+import { queryWrapper } from 'api/utils';
+import { translateEndpoint } from 'api/endpoints';
 import { Translate, TranslateInput } from '@shared/consts';
 
 /**

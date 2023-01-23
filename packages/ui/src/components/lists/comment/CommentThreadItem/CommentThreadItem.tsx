@@ -4,8 +4,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { TextLoading, UpvoteDownvote } from '../..';
 import { displayDate, getTranslation, getUserLanguages, getYou, ObjectType, PubSub } from 'utils';
 import { CommentCreateInput } from 'components/inputs';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { useMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { CommentFor, DeleteOneInput, DeleteType, ReportFor, StarFor, Success, VoteFor } from '@shared/consts';
 import { OwnerLabel } from 'components/text';
 import { ShareButton } from 'components/buttons/ShareButton/ShareButton';
@@ -13,7 +13,7 @@ import { ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { getCurrentUser } from 'utils/authentication';
-import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyEndpoint } from 'api/endpoints';
 
 export function CommentThreadItem({
     data,

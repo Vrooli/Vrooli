@@ -1,7 +1,7 @@
 import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
-import { useLazyQuery, useMutation } from "graphql/hooks";
+import { useLazyQuery, useMutation } from "api/hooks";
 import { useCallback, useEffect, useState } from "react";
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfile, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -14,7 +14,7 @@ import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { PageTitle, SnackSeverity } from "components";
 import { SettingsFormData } from "pages";
-import { userEndpoint, walletEndpoint } from "graphql/endpoints";
+import { userEndpoint, walletEndpoint } from "api/endpoints";
 import { userTranslationValidation, userValidation } from "@shared/validation";
 
 export const SettingsProfile = ({

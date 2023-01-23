@@ -12,7 +12,7 @@ import { AutocompleteOption, NavigableObject, Wrap } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
-import { feedEndpoint } from 'graphql/endpoints';
+import { feedEndpoint } from 'api/endpoints';
 
 const faqText =
     `## What is This?

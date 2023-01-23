@@ -1,4 +1,4 @@
-import { useMutation } from "graphql/hooks";
+import { useMutation } from "api/hooks";
 import { DUMMY_ID } from "@shared/uuid";
 import { CommentDialog } from "components/dialogs"
 import { useCallback, useMemo } from "react";
@@ -6,13 +6,13 @@ import { handleTranslationChange, shapeComment, usePromptBeforeUnload, useTransl
 import { CommentUpdateInputProps } from "../types"
 import { commentValidation, commentTranslationValidation } from '@shared/validation';
 import { getCurrentUser } from "utils/authentication";
-import { mutationWrapper } from "graphql/utils";
+import { mutationWrapper } from "api/utils";
 import { useFormik } from "formik";
 import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
 import { Comment, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
-import { commentEndpoint } from "graphql/endpoints";
+import { commentEndpoint } from "api/endpoints";
 
 /**
  * MarkdownInput/CommentContainer wrapper for creating comments
