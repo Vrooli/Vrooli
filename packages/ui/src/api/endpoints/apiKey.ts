@@ -1,5 +1,5 @@
-import { apiKeyPartial, successPartial } from 'api/partial';
-import { toMutation } from 'api/utils';
+import { apiKeyPartial, successPartial } from '../partial';
+import { toMutation } from '../utils';
 
 export const apiKeyEndpoint = {
     create: toMutation('apiKeyCreate', 'ApiKeyCreateInput', apiKeyPartial, 'full'),

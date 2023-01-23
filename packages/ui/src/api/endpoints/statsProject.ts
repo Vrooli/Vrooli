@@ -1,5 +1,5 @@
-import { statsProjectPartial } from 'api/partial';
-import { toQuery, toSearch } from 'api/utils';
+import { statsProjectPartial } from '../partial';
+import { toQuery, toSearch } from '../utils';
 
 export const statsProjectEndpoint = {
     findMany: toQuery('statsProject', 'StatsProjectSearchInput', ...toSearch(statsProjectPartial)),

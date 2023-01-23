@@ -1,5 +1,5 @@
-import { projectOrOrganizationPartial, projectOrRoutinePartial, runProjectOrRunRoutinePartial } from 'api/partial';
-import { toQuery, toSearch } from 'api/utils';
+import { projectOrOrganizationPartial, projectOrRoutinePartial, runProjectOrRunRoutinePartial } from '../partial';
+import { toQuery, toSearch } from '../utils';
 
 export const unionEndpoint = {
     projectOrRoutines: toQuery('projectOrRoutines', 'ProjectOrRoutineSearchInput', ...toSearch(projectOrRoutinePartial)),

@@ -1,5 +1,5 @@
 import { Note, NoteYou } from "@shared/consts";
-import { relPartial } from "api/utils";
+import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 import { labelPartial } from "./label";
 import { noteVersionPartial } from "./noteVersion";

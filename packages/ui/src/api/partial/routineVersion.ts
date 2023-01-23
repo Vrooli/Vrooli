@@ -1,5 +1,5 @@
 import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@shared/consts";
-import { relPartial } from "api/utils";
+import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 
 export const routineVersionTranslationPartial: GqlPartial<RoutineVersionTranslation> = {

@@ -1,5 +1,5 @@
-import { countPartial, runProjectPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { countPartial, runProjectPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const runProjectEndpoint = {
     findOne: toQuery('runProject', 'FindByIdInput', runProjectPartial, 'full'),

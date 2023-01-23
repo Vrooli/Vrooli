@@ -1,5 +1,5 @@
-import { successPartial, votePartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { successPartial, votePartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const voteEndpoint = {
     votes: toQuery('votes', 'VoteSearchInput', ...toSearch(votePartial)),

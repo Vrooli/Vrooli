@@ -1,5 +1,5 @@
-import { commentPartial, commentThreadPartial } from 'api/partial';
-import { toMutation, toQuery } from 'api/utils';
+import { commentPartial, commentThreadPartial } from '../partial';
+import { toMutation, toQuery } from '../utils';
 
 export const commentEndpoint = {
     findOne: toQuery('comment', 'FindByIdInput', commentPartial, 'full'),

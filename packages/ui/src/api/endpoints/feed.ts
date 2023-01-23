@@ -1,5 +1,5 @@
-import { developResultPartial, learnResultPartial, popularResultPartial, researchResultPartial } from 'api/partial';
-import { toQuery } from 'api/utils';
+import { developResultPartial, learnResultPartial, popularResultPartial, researchResultPartial } from '../partial';
+import { toQuery } from '../utils';
 
 export const feedEndpoint = {
     popular: toQuery('popular', 'PopularInput', popularResultPartial, 'list'),

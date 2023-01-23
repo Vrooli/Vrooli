@@ -1,5 +1,5 @@
-import { routinePartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { routinePartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const routineEndpoint = {
     findOne: toQuery('routine', 'FindByIdInput', routinePartial, 'full'),

@@ -1,5 +1,5 @@
-import { labelPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { labelPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const labelEndpoint = {
     findOne: toQuery('label', 'FindByIdInput', labelPartial, 'full'),

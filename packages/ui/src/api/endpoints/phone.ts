@@ -1,5 +1,5 @@
-import { phonePartial, successPartial } from 'api/partial';
-import { toMutation } from 'api/utils';
+import { phonePartial, successPartial } from '../partial';
+import { toMutation } from '../utils';
 
 export const phoneEndpoint = {
     create: toMutation('phoneCreate', 'PhoneCreateInput', phonePartial, 'full'),

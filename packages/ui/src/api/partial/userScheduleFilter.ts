@@ -1,5 +1,5 @@
 import { UserScheduleFilter } from "@shared/consts";
-import { relPartial } from "api/utils";
+import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 
 export const userScheduleFilterPartial: GqlPartial<UserScheduleFilter> = {

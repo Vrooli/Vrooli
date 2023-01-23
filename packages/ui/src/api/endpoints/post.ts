@@ -1,5 +1,5 @@
-import { postPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { postPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const postEndpoint = {
     findOne: toQuery('post', 'FindByIdInput', postPartial, 'full'),

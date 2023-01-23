@@ -1,5 +1,5 @@
-import { countPartial, successPartial } from 'api/partial';
-import { toMutation } from 'api/utils';
+import { countPartial, successPartial } from '../partial';
+import { toMutation } from '../utils';
 
 export const deleteOneOrManyEndpoint = {
     deleteOne: toMutation('deleteOne', 'DeleteOneInput', successPartial, 'full'),

@@ -1,5 +1,5 @@
-import { userSchedulePartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { userSchedulePartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const userScheduleEndpoint = {
     findOne: toQuery('userSchedule', 'FindByIdInput', userSchedulePartial, 'full'),

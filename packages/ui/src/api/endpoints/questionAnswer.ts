@@ -1,5 +1,5 @@
-import { questionAnswerPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { questionAnswerPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const questionAnswerEndpoint = {
     findOne: toQuery('questionAnswer', 'FindByIdInput', questionAnswerPartial, 'full'),

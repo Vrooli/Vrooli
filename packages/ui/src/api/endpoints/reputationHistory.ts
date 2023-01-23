@@ -1,5 +1,5 @@
-import { reputationHistoryPartial } from 'api/partial';
-import { toQuery, toSearch } from 'api/utils';
+import { reputationHistoryPartial } from '../partial';
+import { toQuery, toSearch } from '../utils';
 
 export const reputationHistoryEndpoint = {
     findOne: toQuery('reputationHistory', 'FindByIdInput', reputationHistoryPartial, 'full'),

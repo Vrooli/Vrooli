@@ -1,7 +1,7 @@
-import { sessionPartial } from 'api/partial';
-import { successPartial } from 'api/partial/success';
-import { walletCompletePartial } from 'api/partial/walletComplete';
-import { toMutation } from 'api/utils';
+import { sessionPartial } from '../partial';
+import { successPartial } from '../partial/success';
+import { walletCompletePartial } from '../partial/walletComplete';
+import { toMutation } from '../utils';
 
 export const authEndpoint = {
     emailLogIn: toMutation('emailLogIn', 'EmailLogInInput', sessionPartial, 'full'),

@@ -1,5 +1,5 @@
-import { standardVersionPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { standardVersionPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const standardVersionEndpoint = {
     findOne: toQuery('standardVersion', 'FindByIdInput', standardVersionPartial, 'full'),

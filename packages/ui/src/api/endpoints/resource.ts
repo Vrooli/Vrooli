@@ -1,5 +1,5 @@
-import { resourcePartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { resourcePartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const resourceEndpoint = {
     findOne: toQuery('resource', 'FindByIdInput', resourcePartial, 'full'),

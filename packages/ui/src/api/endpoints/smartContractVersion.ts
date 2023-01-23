@@ -1,5 +1,5 @@
-import { smartContractVersionPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { smartContractVersionPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const smartContractVersionEndpoint = {
     findOne: toQuery('smartContractVersion', 'FindByIdInput', smartContractVersionPartial, 'full'),

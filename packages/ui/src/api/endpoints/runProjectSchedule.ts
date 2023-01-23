@@ -1,5 +1,5 @@
-import { runProjectSchedulePartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { runProjectSchedulePartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const runProjectScheduleEndpoint = {
     findOne: toQuery('runProjectSchedule', 'FindByIdInput', runProjectSchedulePartial, 'full'),

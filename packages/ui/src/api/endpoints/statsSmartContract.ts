@@ -1,5 +1,5 @@
-import { statsSmartContractPartial } from 'api/partial';
-import { toQuery, toSearch } from 'api/utils';
+import { statsSmartContractPartial } from '../partial';
+import { toQuery, toSearch } from '../utils';
 
 export const statsSmartContractEndpoint = {
     findMany: toQuery('statsSmartContract', 'StatsSmartContractSearchInput', ...toSearch(statsSmartContractPartial)),

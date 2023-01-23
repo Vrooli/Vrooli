@@ -1,5 +1,5 @@
-import { memberInvitePartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { memberInvitePartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const memberInviteEndpoint = {
     findOne: toQuery('memberInvite', 'FindByIdInput', memberInvitePartial, 'full'),

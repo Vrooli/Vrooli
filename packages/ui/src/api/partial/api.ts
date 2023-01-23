@@ -1,5 +1,5 @@
 import { Api, ApiYou } from "@shared/consts";
-import { relPartial } from "api/utils";
+import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 
 export const apiYouPartial: GqlPartial<ApiYou> = {

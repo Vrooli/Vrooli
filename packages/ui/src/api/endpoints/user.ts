@@ -1,5 +1,5 @@
-import { profilePartial, successPartial, userPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { profilePartial, successPartial, userPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const userEndpoint = {
     profile: toQuery('profile', null, profilePartial, 'full'),

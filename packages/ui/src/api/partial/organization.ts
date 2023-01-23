@@ -1,5 +1,5 @@
 import { Organization, OrganizationTranslation, OrganizationYou } from "@shared/consts";
-import { relPartial } from "api/utils";
+import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 import { resourceListPartial } from "./resourceList";
 import { rolePartial } from "./role";

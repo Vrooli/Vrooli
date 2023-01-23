@@ -1,5 +1,5 @@
 import { StandardVersion, StandardVersionTranslation } from "@shared/consts";
-import { relPartial } from "api/utils";
+import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 import { versionYouPartial } from "./root";
 

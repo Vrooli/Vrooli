@@ -1,5 +1,5 @@
-import { tagPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { tagPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const tagEndpoint = {
     findOne: toQuery('tag', 'FindByIdInput', tagPartial, 'full'),

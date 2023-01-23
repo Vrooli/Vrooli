@@ -1,5 +1,5 @@
-import { reminderPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { reminderPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const reminderEndpoint = {
     findOne: toQuery('reminder', 'FindByIdInput', reminderPartial, 'full'),

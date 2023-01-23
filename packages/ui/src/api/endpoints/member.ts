@@ -1,5 +1,5 @@
-import { memberPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { memberPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const memberEndpoint = {
     findOne: toQuery('member', 'FindByIdInput', memberPartial, 'full'),

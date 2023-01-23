@@ -1,5 +1,5 @@
 import { MeetingInvite, MeetingInviteYou } from "@shared/consts";
-import { relPartial } from "api/utils";
+import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 import { meetingPartial } from "./meeting";
 

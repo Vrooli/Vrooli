@@ -1,5 +1,5 @@
 import { RunProjectSchedule, RunProjectScheduleTranslation } from "@shared/consts";
-import { relPartial } from "api/utils";
+import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 
 export const runProjectScheduleTranslationPartial: GqlPartial<RunProjectScheduleTranslation> = {

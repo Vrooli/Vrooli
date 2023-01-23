@@ -1,5 +1,5 @@
-import { notificationSubscriptionPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { notificationSubscriptionPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const notificationSubscriptionEndpoint = {
     findOne: toQuery('notificationSubscription', 'FindByIdInput', notificationSubscriptionPartial, 'full'),

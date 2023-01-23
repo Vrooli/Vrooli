@@ -1,5 +1,5 @@
-import { countPartial, runRoutinePartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { countPartial, runRoutinePartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const runRoutineEndpoint = {
     findOne: toQuery('runRoutine', 'FindByIdInput', runRoutinePartial, 'full'),

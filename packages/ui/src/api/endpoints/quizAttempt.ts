@@ -1,5 +1,5 @@
-import { quizAttemptPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { quizAttemptPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const quizAttemptEndpoint = {
     findOne: toQuery('quizAttempt', 'FindByIdInput', quizAttemptPartial, 'full'),

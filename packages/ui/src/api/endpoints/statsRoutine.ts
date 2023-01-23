@@ -1,5 +1,5 @@
-import { statsRoutinePartial } from 'api/partial';
-import { toQuery, toSearch } from 'api/utils';
+import { statsRoutinePartial } from '../partial';
+import { toQuery, toSearch } from '../utils';
 
 export const statsRoutineEndpoint = {
     findMany: toQuery('statsRoutine', 'StatsRoutineSearchInput', ...toSearch(statsRoutinePartial)),

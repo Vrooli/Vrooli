@@ -1,5 +1,5 @@
-import { organizationPartial } from 'api/partial';
-import { toMutation, toQuery, toSearch } from 'api/utils';
+import { organizationPartial } from '../partial';
+import { toMutation, toQuery, toSearch } from '../utils';
 
 export const organizationEndpoint = {
     findOne: toQuery('organization', 'FindByIdInput', organizationPartial, 'full'),
