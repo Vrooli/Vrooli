@@ -7,6 +7,8 @@ import { nodeLinkPartial } from "./nodeLink";
 import { pullRequestPartial } from "./pullRequest";
 import { resourceListPartial } from "./resourceList";
 import { routinePartial } from "./routine";
+import { routineVersionInputPartial } from "./routineVersionInput";
+import { routineVersionOutputPartial } from "./routineVersionOutput";
 import { runRoutinePartial } from "./runRoutine";
 import { smartContractVersionPartial } from "./smartContractVersion";
 

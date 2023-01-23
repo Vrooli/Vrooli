@@ -17,18 +17,19 @@ export const relPartial = <
     selection: Selection,
     exceptions?: { omit: OmitField | OmitField[] }
 ): any => { // DeepPartialBooleanWithFragments<NonMaybe<T>>
-    // Find selection, using fallbacks if necessary
-    // Nav does not have a fallback
-    // TODO also handle combining with 'common'
-    const selectionFn = selection === 'nav' ? partial[selection] :
-        (partial[selection] || partial.list || partial.full || partial.common);
-    if (!selectionFn) return {};
-    // If no exceptions, return selection
-    if (!exceptions || !exceptions.omit) return selectionFn();
-    // Get selection
-    const selectionData = selectionFn();
-    // Remove all exceptions
-    if (Array.isArray(exceptions.omit)) exceptions.omit.forEach(e => delete selectionData[e]);
-    else delete selectionData[exceptions.omit];
-    return selectionData;
+    return {}
+    // // Find selection, using fallbacks if necessary
+    // // Nav does not have a fallback
+    // // TODO also handle combining with 'common'
+    // const selectionFn = selection === 'nav' ? partial[selection] :
+    //     (partial[selection] || partial.list || partial.full || partial.common);
+    // if (!selectionFn) return {};
+    // // If no exceptions, return selection
+    // if (!exceptions || !exceptions.omit) return selectionFn();
+    // // Get selection
+    // const selectionData = selectionFn();
+    // // Remove all exceptions
+    // if (Array.isArray(exceptions.omit)) exceptions.omit.forEach(e => delete selectionData[e]);
+    // else delete selectionData[exceptions.omit];
+    // return selectionData;
 }
