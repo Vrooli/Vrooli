@@ -12,7 +12,6 @@ import { HeartFilledIcon, InvisibleIcon, SearchIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { SettingsFormData } from "pages";
 import { ProfileUpdateInput, User, UserScheduleFilterType } from "@shared/consts";
-import { userEndpoint } from "api/endpoints";
 import { userValidation } from "@shared/validation";
 import { currentSchedules } from "utils/display/scheduleTools";
 
@@ -67,7 +66,7 @@ export const SettingsDisplay = ({
     // }, [profile]);
 
     // // Handle update
-    // const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...userEndpoint.profileUpdate);
+    // const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...endpoints.user().profileUpdate);
     // const formik = useFormik({
     //     initialValues: {
     //         theme: getCurrentUser(session).theme ?? 'light',

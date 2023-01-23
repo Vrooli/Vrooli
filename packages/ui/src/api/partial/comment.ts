@@ -1,4 +1,4 @@
-import { Comment, CommentTranslation, CommentYou } from "@shared/consts";
+import { Comment, CommentThread, CommentTranslation, CommentYou } from "@shared/consts";
 import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 
@@ -63,4 +63,23 @@ export const commentPartial: GqlPartial<Comment> = {
     list: {
         translations: () => relPartial(commentTranslationPartial, 'list'),
     }
+}
+
+export const commentThreadPartial: GqlPartial<CommentThread> = {
+    __typename: 'CommentThread',
+    common: {
+        childThreads: {
+            childThreads: {
+                comment: () => relPartial(commentPartial, 'list'),
+                endCursor: true,
+                totalInThread: true,
+            },
+            comment: () => relPartial(commentPartial, 'list'),
+            endCursor: true,
+            totalInThread: true,
+        },
+        comment: () => relPartial(commentPartial, 'list'),
+        endCursor: true,
+        totalInThread: true,
+    },
 }

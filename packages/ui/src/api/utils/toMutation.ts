@@ -1,3 +1,4 @@
+import { DocumentNode } from 'graphql';
 import { gql } from 'graphql-tag';
 import { DeepPartialBooleanWithFragments, GqlPartial } from 'types';
 import { toFragment } from './toFragment';
@@ -30,20 +31,21 @@ export const toMutation = <
     inputType: string | null,
     partial?: Partial,
     selection?: Selection | null | undefined
-) => {
-    //TODO rewrite
-    // console.log('toMutation start', endpointName, inputType)
-    let fragmentStrings: string[] = [];
-    for (let i = 0; i < fragments.length; i++) {
-        fragmentStrings.push(`${toFragment(endpointName + i, fragments[i])}\n`);
-    }
-    const signature = inputType ? `(input: $input)` : '';
-//     console.log(`${fragmentStrings.join('\n')}
+): [any, any] => {
+    return [``, 'asdf'] as any;
+//     //TODO rewrite
+//     // console.log('toMutation start', endpointName, inputType)
+//     let fragmentStrings: string[] = [];
+//     for (let i = 0; i < fragments.length; i++) {
+//         fragmentStrings.push(`${toFragment(endpointName + i, fragments[i])}\n`);
+//     }
+//     const signature = inputType ? `(input: $input)` : '';
+// //     console.log(`${fragmentStrings.join('\n')}
+// // mutation ${endpointName}($input: ${inputType}!) {
+// //     ${endpointName}${signature} ${selectionSet ?? ''}
+// // }`)
+//     return [gql`${fragmentStrings.join('\n')}
 // mutation ${endpointName}($input: ${inputType}!) {
 //     ${endpointName}${signature} ${selectionSet ?? ''}
-// }`)
-    return [gql`${fragmentStrings.join('\n')}
-mutation ${endpointName}($input: ${inputType}!) {
-    ${endpointName}${signature} ${selectionSet ?? ''}
-}`, endpointName] as const;
+// }`, endpointName] as const;
 }

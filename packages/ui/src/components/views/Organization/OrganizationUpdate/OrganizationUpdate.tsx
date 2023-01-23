@@ -10,7 +10,7 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindByIdInput, Organization, OrganizationUpdateInput, ResourceList } from "@shared/consts";
-import { organizationEndpoint } from "api/endpoints";
+import { endpoints } from "api";
 
 export const OrganizationUpdate = ({
     onCancel,
@@ -20,7 +20,7 @@ session,
 }: OrganizationUpdateProps) => {
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdInput, 'organization'>(...organizationEndpoint.findOne);
+    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdInput, 'organization'>(...endpoints.organization().findOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
     const organization = useMemo(() => data?.organization, [data]);
 
@@ -37,7 +37,7 @@ session,
     const handleTagsUpdate = useCallback((updatedList: TagShape[]) => { setTags(updatedList); }, [setTags]);
 
     // Handle update
-    const [mutation] = useMutation<Organization, OrganizationUpdateInput, 'organizationUpdate'>(...organizationEndpoint.update);
+    const [mutation] = useMutation<Organization, OrganizationUpdateInput, 'organizationUpdate'>(...endpoints.organization().update);
     const formik = useFormik({
         initialValues: {
             id: organization?.id ?? uuid(),

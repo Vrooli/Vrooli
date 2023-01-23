@@ -12,7 +12,7 @@ import { AutocompleteOption, NavigableObject, Wrap } from 'types';
 import { ListMenuItemData } from 'components/dialogs/types';
 import { CreateIcon, OrganizationIcon, ProjectIcon, RoutineIcon, SearchIcon, StandardIcon, UserIcon } from '@shared/icons';
 import { getCurrentUser } from 'utils/authentication';
-import { feedEndpoint } from 'api/endpoints';
+import { endpoints } from 'api';
 
 const faqText =
     `## What is This?
@@ -100,7 +100,7 @@ export const HomePage = ({
         if (typeof searchParams.search === 'string') setSearchString(searchParams.search);
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
-    const { data, refetch, loading } = useQuery<Wrap<PopularResult, 'popular'>, Wrap<PopularInput, 'input'>>(feedEndpoint.popular[0], { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const { data, refetch, loading } = useQuery<Wrap<PopularResult, 'popular'>, Wrap<PopularInput, 'input'>>(endpoints.feed().popular[0], { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch, searchString]);
     const showHistoryTab = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 

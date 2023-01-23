@@ -13,7 +13,7 @@ import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { DeleteIcon } from "@shared/icons";
 import { SnackSeverity } from "components";
-import { deleteOneOrManyEndpoint, runProjectEndpoint, runRoutineEndpoint } from "api/endpoints";
+import { endpoints } from "api";
 
 const titleAria = 'run-picker-dialog-title';
 
@@ -42,8 +42,8 @@ export const RunPickerMenu = ({
         }
     }, [runnableObject, onSelect, handleClose]);
 
-    const [runProjectCreate] = useMutation<RunProject, RunProjectCreateInput, 'runProjectCreate'>(...runProjectEndpoint.create);
-    const [runRoutineCreate] = useMutation<RunRoutine, RunRoutineCreateInput, 'runRoutineCreate'>(...runRoutineEndpoint.create);
+    const [runProjectCreate] = useMutation<RunProject, RunProjectCreateInput, 'runProjectCreate'>(...endpoints.runProject().create);
+    const [runRoutineCreate] = useMutation<RunRoutine, RunRoutineCreateInput, 'runRoutineCreate'>(...endpoints.runRoutine().create);
     const createNewRun = useCallback(() => {
         if (!runnableObject) {
             PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
@@ -87,7 +87,7 @@ export const RunPickerMenu = ({
         }
     }, [handleClose, onAdd, onSelect, runnableObject, runProjectCreate, runRoutineCreate, session]);
 
-    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne)
+    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...endpoints.deleteOneOrMany().deleteOne)
     const deleteRun = useCallback((run: RunProject | RunRoutine) => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,

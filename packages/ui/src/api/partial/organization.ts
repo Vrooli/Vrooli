@@ -2,8 +2,6 @@ import { Organization, OrganizationTranslation, OrganizationYou } from "@shared/
 import { relPartial } from '../utils';
 import { GqlPartial } from "types";
 import { resourceListPartial } from "./resourceList";
-import { rolePartial } from "./role";
-import { tagPartial } from "./tag";
 
 export const organizationTranslationPartial: GqlPartial<OrganizationTranslation> = {
     __typename: 'OrganizationTranslation',
@@ -49,16 +47,16 @@ export const organizationPartial: GqlPartial<Organization> = {
         membersCount: true,
         reportsCount: true,
         stars: true,
-        tags: tagPartial.list,
+        tags: () => relPartial(require('./tag').tagPartial, 'list'),
     },
     full: {
         resourceList: resourceListPartial.list,
-        roles: () => relPartial(require().rolePartial, 'full', { omit: 'organization' }),
+        roles: () => relPartial(require('./role').rolePartial, 'full', { omit: 'organization' }),
         translations: organizationTranslationPartial.full,
         you: organizationYouPartial.full,
     },
     list: {
-        roles: () => relPartial(require().rolePartial, 'list', { omit: 'organization' }),
+        roles: () => relPartial(require('./role').rolePartial, 'list', { omit: 'organization' }),
         translations: organizationTranslationPartial.full,
         you: organizationYouPartial.full,
     },

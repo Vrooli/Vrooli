@@ -9,8 +9,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindVersionInput, ResourceList, Standard, StandardUpdateInput, StandardVersion, StandardVersionUpdateInput } from "@shared/consts";
-import { standardVersionEndpoint } from "api/endpoints";
 import { standardVersionValidation } from "@shared/validation";
+import { endpoints } from "api";
 
 export const StandardUpdate = ({
     onCancel,
@@ -20,7 +20,7 @@ export const StandardUpdate = ({
 }: StandardUpdateProps) => {
     // Fetch existing data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(...standardVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(...endpoints.standardVersion().findOne, { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
@@ -53,7 +53,7 @@ export const StandardUpdate = ({
     }, [standardVersion]);
 
     // Handle update
-    const [mutation] = useMutation<StandardVersion, StandardVersionUpdateInput, 'standardVersionUpdate'>(...standardVersionEndpoint.update);
+    const [mutation] = useMutation<StandardVersion, StandardVersionUpdateInput, 'standardVersionUpdate'>(...endpoints.standardVersion().update);
     const formik = useFormik({
         initialValues: {
             translationsUpdate: standardVersion?.translations ?? [{

@@ -22,7 +22,7 @@ export const nodePartial: GqlPartial<Node> = {
         columnIndex: true,
         nodeType: true,
         rowIndex: true,
-        // loopCreate: () => relPartial(require().nodeLoopCreatePartial, 'full', { omit: 'node' }),
+        // loopCreate: () => relPartial(require('./nodeLoop').nodeLoopCreatePartial, 'full', { omit: 'node' }),
         end: () => relPartial(require('./nodeEnd').nodeEndPartial, 'full', { omit: 'node' }),
         routineList: () => relPartial(require('./nodeRoutineList').nodeRoutineListPartial, 'full', { omit: 'node' }),
         routineVersion: () => relPartial(require('./routineVersion').routineVersionPartial, 'full', { omit: ['nodes', 'nodeLinks'] }),

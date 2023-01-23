@@ -2,10 +2,9 @@
  * Custom useMutation hook to simplify types
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { DocumentNode } from 'api';
 import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import { equal } from '@wry/equality';
-import { ApolloCache, ApolloError, DefaultContext, mergeOptions, MutationFunctionOptions, MutationHookOptions, MutationResult, MutationTuple, OperationVariables, useApolloClient } from '@apollo/client';
+import { ApolloCache, ApolloError, DefaultContext, DocumentNode, mergeOptions, MutationFunctionOptions, MutationHookOptions, MutationResult, MutationTuple, OperationVariables, useApolloClient } from '@apollo/client';
 import { DocumentType, verifyDocumentType } from '@apollo/client/react/parser';
 
 export function useMutation<

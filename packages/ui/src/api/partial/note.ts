@@ -43,7 +43,7 @@ export const notePartial: GqlPartial<Note> = {
         tags: () => relPartial(require('./tag').tagPartial, 'list'),
         transfersCount: true,
         views: true,
-        you: () => relPartial(require().noteYouPartial, 'full'),
+        you: () => relPartial(noteYouPartial, 'full'),
     },
     full: {
         versions: () => relPartial(require('./noteVersion').noteVersionPartial, 'full', { omit: 'root' }),

@@ -13,8 +13,8 @@ import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
-import { standardVersionEndpoint } from "api/endpoints";
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
+import { endpoints } from "api";
 
 export const StandardCreate = ({
     onCreated,
@@ -66,7 +66,7 @@ export const StandardCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<StandardVersion, StandardVersionCreateInput, 'standardVersionCreate'>(...standardVersionEndpoint.create);
+    const [mutation] = useMutation<StandardVersion, StandardVersionCreateInput, 'standardVersionCreate'>(...endpoints.standardVersion().create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

@@ -14,8 +14,8 @@ import { PreviewSwitch, RelationshipButtons } from "components/inputs";
 import { RelationshipsObject } from "components/inputs/types";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { EditIcon } from "@shared/icons";
-import { standardVersionEndpoint } from "api/endpoints";
 import { setDotNotationValue } from "@shared/utils";
+import { endpoints } from "api";
 
 const containerProps = (palette: Palette) => ({
     boxShadow: 1,
@@ -36,7 +36,7 @@ export const StandardView = ({
     const [, setLocation] = useLocation();
     // Fetch data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(...standardVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(...endpoints.standardVersion().findOne, { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });

@@ -1,10 +1,9 @@
 /**
  * Custom useLazyQuery hook to simplify usage
  */
-import { DocumentNode } from 'api';
 import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import { useCallback, useMemo, useRef } from 'react';
-import { LazyQueryHookOptions, LazyQueryResultTuple, mergeOptions, OperationVariables, QueryResult, useApolloClient } from '@apollo/client';
+import { DocumentNode, LazyQueryHookOptions, LazyQueryResultTuple, mergeOptions, OperationVariables, QueryResult, useApolloClient } from '@apollo/client';
 import { useInternalState } from '@apollo/client/react/hooks/useQuery';
 import { IWrap, Wrap } from 'types';
 

@@ -18,8 +18,8 @@ import { PasswordTextField, SnackSeverity } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
 import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
-import { authEndpoint } from 'api/endpoints';
 import { emailLogInFormValidation } from '@shared/validation';
+import { endpoints } from 'api';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -31,7 +31,7 @@ export const LogInForm = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn, { loading }] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(...authEndpoint.emailLogIn);  
+    const [emailLogIn, { loading }] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(...endpoints.auth().emailLogIn);  
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);

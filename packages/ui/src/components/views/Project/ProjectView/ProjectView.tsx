@@ -9,8 +9,8 @@ import { SearchListGenerator } from "components/lists/types";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages, ObjectAction, ObjectActionComplete, openObject, parseSingleItemUrl, SearchType, uuidToBase36 } from "utils";
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { projectVersionEndpoint } from "api/endpoints";
 import { setDotNotationValue } from "@shared/utils";
+import { endpoints } from "api";
 
 enum TabOptions {
     Resources = "Resources",
@@ -27,7 +27,7 @@ export const ProjectView = ({
     const [, setLocation] = useLocation();
     // Fetch data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(...projectVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(...endpoints.projectVersion().findOne, { errorPolicy: 'all' });
     const [projectVersion, setProjectVersion] = useState<ProjectVersion | null | undefined>(null);
     useEffect(() => {
         if (urlData.id || urlData.idRoot || urlData.handleRoot) getData({ variables: urlData })

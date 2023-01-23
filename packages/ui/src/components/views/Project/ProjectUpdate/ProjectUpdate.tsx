@@ -9,8 +9,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Snack
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
-import { projectVersionEndpoint } from "api/endpoints";
 import { FindVersionInput, ProjectVersion, ProjectVersionUpdateInput } from "@shared/consts";
+import { endpoints } from "api";
 
 export const ProjectUpdate = ({
     onCancel,
@@ -20,7 +20,7 @@ export const ProjectUpdate = ({
 }: ProjectUpdateProps) => {
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(...projectVersionEndpoint.findOne);
+    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(...endpoints.projectVersion().findOne);
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
     const projectVersion = useMemo(() => data?.projectVersion, [data]);
 
@@ -44,7 +44,7 @@ export const ProjectUpdate = ({
     }, [projectVersion]);
 
     // Handle update
-    const [mutation] = useMutation<ProjectVersion, ProjectVersionUpdateInput, 'projectVersionUpdate'>(...projectVersionEndpoint.update);
+    const [mutation] = useMutation<ProjectVersion, ProjectVersionUpdateInput, 'projectVersionUpdate'>(...endpoints.projectVersion().update);
     const formik = useFormik({
         initialValues: {
             id: projectVersion?.id ?? uuid(),

@@ -8,9 +8,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { SelectLanguageMenu } from '../SelectLanguageMenu/SelectLanguageMenu';
 import { DialogTitle, GridSubmitButtons, Selector } from 'components';
 import { uuid } from '@shared/uuid';
-import { reportEndpoint } from 'api/endpoints';
 import { Report, ReportCreateInput } from '@shared/consts';
 import { mutationWrapper } from 'api/utils';
+import { endpoints } from 'api';
 
 const helpText =
     `Reports help us moderate content. For now, reports will be handled by moderators.\n\nIn the future, we would like to implement a community governance system.`
@@ -45,7 +45,7 @@ export const ReportDialog = ({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
     useEffect(() => { setLanguage(getUserLanguages(session)[0]) }, [session]);
 
-    const [mutation, { loading }] = useMutation<Report, ReportCreateInput, 'reportCreate'>(...reportEndpoint.create);
+    const [mutation, { loading }] = useMutation<Report, ReportCreateInput, 'reportCreate'>(...endpoints.report().create);
     const formik = useFormik({
         initialValues: {
             createdFor: reportFor,

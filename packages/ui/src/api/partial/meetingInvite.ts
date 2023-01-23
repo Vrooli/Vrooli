@@ -19,14 +19,14 @@ export const meetingInvitePartial: GqlPartial<MeetingInvite> = {
         updated_at: true,
         message: true,
         status: true,
-        you: () => relPartial(require().meetingInviteYouPartial, 'full'),
+        you: () => relPartial(meetingInviteYouPartial, 'full'),
     },
     full: {
-        meeting: () => relPartial(require().meetingPartial, 'full', { omit: 'invites' }),
+        meeting: () => relPartial(require('./meeting').meetingPartial, 'full', { omit: 'invites' }),
 
     },
     list: {
-        meeting: () => relPartial(require().meetingPartial, 'list', { omit: 'invites' }),
+        meeting: () => relPartial(require('./meeting').meetingPartial, 'list', { omit: 'invites' }),
 
     }
 }

@@ -15,7 +15,7 @@ import { getCurrentUser } from 'utils/authentication';
 import { noSelect } from 'styles';
 import { CommonKey } from 'types';
 import { useTranslation } from 'react-i18next';
-import { userEndpoint } from 'api/endpoints';
+import { endpoints } from 'api';
 
 /**
  * Describes a settings page button
@@ -59,7 +59,7 @@ export function SettingsPage({
     }), [searchParams]);
 
     // Fetch profile data
-    const [getData, { data, loading }] = useLazyQuery<User, null, 'profile'>(...userEndpoint.profile, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<User, null, 'profile'>(...endpoints.user().profile, { errorPolicy: 'all' });
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
     }, [getData, session])

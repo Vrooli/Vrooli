@@ -16,8 +16,8 @@ import { EditIcon, RoutineIcon, SuccessIcon } from "@shared/icons";
 import { getCurrentUser } from "utils/authentication";
 import { smallHorizontalScrollbar } from "components/lists/styles";
 import { RelationshipsObject } from "components/inputs/types";
-import { routineVersionEndpoint, runRoutineEndpoint } from "api/endpoints";
 import { setDotNotationValue } from "@shared/utils";
+import { endpoints } from "api";
 
 const statsHelpText =
     `Statistics are calculated to measure various aspects of a routine. \n\n**Complexity** is a rough measure of the maximum amount of effort it takes to complete a routine. This takes into account the number of inputs, the structure of its subroutine graph, and the complexity of every subroutine.\n\n**Simplicity** is calculated similarly to complexity, but takes the shortest path through the subroutine graph.\n\nThere will be many more statistics in the near future.`
@@ -43,7 +43,7 @@ export const RoutineView = ({
 
     // Fetch data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(...endpoints.routineVersion().findOne, { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         // If IDs are not invalid, throw error if we are not creating a new routine
@@ -171,7 +171,7 @@ export const RoutineView = ({
         onSubmit: () => { },
     });
 
-    const [runComplete] = useMutation<RunRoutine, RunRoutineCompleteInput, 'runRoutineComplete'>(...runRoutineEndpoint.complete);
+    const [runComplete] = useMutation<RunRoutine, RunRoutineCompleteInput, 'runRoutineComplete'>(...endpoints.runRoutine().complete);
     const markAsComplete = useCallback(() => {
         if (!routineVersion) return;
         mutationWrapper<RunRoutine, RunRoutineCompleteInput>({

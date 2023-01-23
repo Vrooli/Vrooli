@@ -12,7 +12,7 @@ import { WalletListItem } from '../WalletListItem/WalletListItem';
 import { SnackSeverity, WalletInstallDialog, WalletSelectDialog } from 'components';
 import { AddIcon } from '@shared/icons';
 import { DeleteOneInput, Success, Wallet, WalletUpdateInput } from '@shared/consts';
-import { deleteOneOrManyEndpoint, walletEndpoint } from 'api/endpoints';
+import { endpoints } from 'api';
 
 export const WalletList = ({
     handleUpdate,
@@ -20,7 +20,7 @@ export const WalletList = ({
     list,
 }: WalletListProps) => {
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<Wallet, WalletUpdateInput, 'walletUpdate'>(...walletEndpoint.update);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<Wallet, WalletUpdateInput, 'walletUpdate'>(...endpoints.wallet().update);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
         mutationWrapper<Wallet, WalletUpdateInput>({
@@ -35,7 +35,7 @@ export const WalletList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...endpoints.deleteOneOrMany().deleteOne);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 

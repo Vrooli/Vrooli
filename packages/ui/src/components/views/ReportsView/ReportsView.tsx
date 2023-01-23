@@ -6,7 +6,7 @@ import { PageTitle } from "components/text";
 import { ReportsViewPageProps } from "pages/view/types";
 import { Report, ReportSearchInput, ReportSearchResult } from "@shared/consts";
 import { Wrap } from "types";
-import { reportEndpoint } from "api/endpoints";
+import { endpoints } from "api";
 
 /**
  * Maps object types to the correct id fields
@@ -29,7 +29,7 @@ export const ReportsView = ({
     const objectType = useMemo(() => getLastUrlPart(1), []);
 
     const { data } = useQuery<Wrap<ReportSearchResult, 'reports'>, Wrap<ReportSearchInput, 'input'>>(
-        reportEndpoint.findMany[0],
+        endpoints.report().findMany[0],
         { variables: { input: { [objectTypeToIdField[objectType]]: id } } },
     );
     const reports = useMemo<Report[]>(() => {

@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { Organization, OrganizationCreateInput, ResourceList } from "@shared/consts";
-import { organizationEndpoint } from "api/endpoints";
+import { endpoints } from "api";
 
 export const OrganizationCreate = ({
     onCreated,
@@ -39,7 +39,7 @@ export const OrganizationCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<Organization, OrganizationCreateInput, 'organizationCreate'>(...organizationEndpoint.create);
+    const [mutation] = useMutation<Organization, OrganizationCreateInput, 'organizationCreate'>(...endpoints.organization().create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

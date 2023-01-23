@@ -10,8 +10,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Resou
 import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
-import { projectVersionEndpoint } from "api/endpoints";
 import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
+import { endpoints } from "api";
 
 export const ProjectCreate = ({
     onCreated,
@@ -40,7 +40,7 @@ export const ProjectCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<ProjectVersion, ProjectVersionCreateInput, 'projectVersionCreate'>(...projectVersionEndpoint.create);
+    const [mutation] = useMutation<ProjectVersion, ProjectVersionCreateInput, 'projectVersionCreate'>(...endpoints.projectVersion().create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

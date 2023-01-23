@@ -13,7 +13,7 @@ import { CommandPaletteProps } from '../types';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { uuidValidate } from '@shared/uuid';
-import { feedEndpoint } from 'api/endpoints';
+import { endpoints } from 'api';
 
 const helpText =
     `Use this dialog to quickly navigate to other pages.\n\nIt can be opened at any time by entering CTRL + P.`
@@ -62,7 +62,7 @@ export const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const [refetch, { data, loading }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(...feedEndpoint.popular, {
+    const [refetch, { data, loading }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(...endpoints.feed().popular, {
         variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') },
         errorPolicy: 'all'
     });

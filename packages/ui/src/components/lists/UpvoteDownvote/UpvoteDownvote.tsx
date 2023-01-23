@@ -1,12 +1,12 @@
 import { useMutation } from 'api/hooks';
 import { Box, Stack, Typography, useTheme } from '@mui/material';
 import { DownvoteTallIcon, DownvoteWideIcon, UpvoteTallIcon, UpvoteWideIcon } from '@shared/icons';
-import { voteEndpoint } from 'api/endpoints';
 import { mutationWrapper } from 'api/utils';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getCurrentUser } from 'utils/authentication';
 import { UpvoteDownvoteProps } from '../types';
 import { Success, VoteInput } from '@shared/consts';
+import { endpoints } from 'api';
 
 export const UpvoteDownvote = ({
     direction = "column",
@@ -39,7 +39,7 @@ export const UpvoteDownvote = ({
         return scoreNum;
     }, [internalIsUpvoted, isUpvoted, score]);
 
-    const [mutation] = useMutation<Success, VoteInput, 'vote'>(...voteEndpoint.vote);
+    const [mutation] = useMutation<Success, VoteInput, 'vote'>(...endpoints.vote().vote);
     const handleVote = useCallback((e: any, isUpvote: boolean | null, oldIsUpvote: boolean | null) => {
         // Prevent propagation of normal click event
         e.stopPropagation();

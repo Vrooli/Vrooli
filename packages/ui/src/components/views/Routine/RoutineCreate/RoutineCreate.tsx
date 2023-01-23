@@ -12,8 +12,8 @@ import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/
 import { getCurrentUser } from "utils/authentication";
 import { RoutineIcon } from "@shared/icons";
 import { Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionCreateInput } from "@shared/consts";
-import { routineVersionEndpoint } from "api/endpoints";
 import { mutationWrapper } from "api/utils";
+import { endpoints } from "api";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
 
@@ -56,7 +56,7 @@ export const RoutineCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<RoutineVersion, RoutineVersionCreateInput, 'routineVersionCreate'>(...routineVersionEndpoint.create);
+    const [mutation] = useMutation<RoutineVersion, RoutineVersionCreateInput, 'routineVersionCreate'>(...endpoints.routineVersion().create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

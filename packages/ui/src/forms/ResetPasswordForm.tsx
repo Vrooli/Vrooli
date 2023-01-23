@@ -13,14 +13,14 @@ import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
 import { PasswordTextField, SnackSeverity } from 'components';
 import { PubSub } from 'utils';
-import { authEndpoint } from 'api/endpoints';
+import { endpoints } from 'api';
 
 export const ResetPasswordForm = ({
     userId,
     code,
 }: ResetPasswordFormProps) => {
     const [, setLocation] = useLocation();
-    const [emailResetPassword, { loading }] = useMutation<Session, EmailResetPasswordInput, 'emailResetPassword'>(...authEndpoint.emailResetPassword);
+    const [emailResetPassword, { loading }] = useMutation<Session, EmailResetPasswordInput, 'emailResetPassword'>(...endpoints.auth().emailResetPassword);
 
     const formik = useFormik({
         initialValues: {

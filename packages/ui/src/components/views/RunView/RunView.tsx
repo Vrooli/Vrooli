@@ -13,7 +13,6 @@ import { addSearchParams, base36ToUuid, removeSearchParams } from "utils/navigat
 import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
-import { routineVersionEndpoint, runRoutineEndpoint } from "api/endpoints";
 import { exists } from "@shared/utils";
 
 /**
