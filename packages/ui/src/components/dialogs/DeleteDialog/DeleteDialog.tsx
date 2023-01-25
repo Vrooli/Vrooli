@@ -9,13 +9,13 @@ import {
 } from '@mui/material';
 import { DeleteDialogProps } from '../types';
 import { useCallback, useState } from 'react';
-import { mutationWrapper } from 'graphql/utils';
-import { useMutation } from 'graphql/hooks';
+import { mutationWrapper } from 'api/utils';
+import { useMutation } from 'api/hooks';
 import { APP_LINKS, DeleteOneInput, Success } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { DeleteIcon } from '@shared/icons';
-import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
+import { endpoints } from 'api';
 
 export const DeleteDialog = ({
     handleClose,
@@ -36,7 +36,7 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...deleteOneOrManyEndpoint.deleteOne);
+    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...endpoints.deleteOneOrMany().deleteOne);
     const handleDelete = useCallback(() => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,

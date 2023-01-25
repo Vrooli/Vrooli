@@ -1,4 +1,4 @@
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { emailRequestPasswordChangeSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import {
@@ -11,19 +11,19 @@ import {
 } from '@mui/material';
 import { APP_LINKS, EmailRequestPasswordChangeInput, Success } from '@shared/consts';
 import { Forms } from 'utils';
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { useLocation } from '@shared/route';
 import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { CSSProperties } from '@mui/styles';
-import { authEndpoint } from 'graphql/endpoints';
+import { endpoints } from 'api';
 
 export const ForgotPasswordForm = ({
     onFormChange = () => { }
 }: FormProps) => {
     const [, setLocation] = useLocation();
-    const [emailRequestPasswordChange, { loading }] = useMutation<Success, EmailRequestPasswordChangeInput, 'emailRequestPasswordChange'>(...authEndpoint.emailRequestPasswordChange);
+    const [emailRequestPasswordChange, { loading }] = useMutation<Success, EmailRequestPasswordChangeInput, 'emailRequestPasswordChange'>(...endpoints.auth().emailRequestPasswordChange);
 
     const formik = useFormik({
         initialValues: {

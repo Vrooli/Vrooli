@@ -1,7 +1,7 @@
 import { exists, uniqBy } from "@shared/utils";
 import { uuid } from '@shared/uuid';
 import { Status } from "./consts";
-import { GqlModelType, Node, NodeLink, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
+import { Node, NodeType, ProjectVersion, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput } from "@shared/consts";
 import { NodeLinkShape, NodeShape, shapeRunRoutineInput, updateRel } from "./shape";
 
 /**

@@ -1,6 +1,6 @@
 import { Box, Grid, TextField } from "@mui/material";
-import { useMutation } from "graphql/hooks";
-import { mutationWrapper } from 'graphql/utils';
+import { useMutation } from "api/hooks";
+import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getUserLanguages, handleTranslationBlur, handleTranslationChange, InputTypeOption, InputTypeOptions, parseSearchParams, removeTranslation, shapeStandardVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
 import { StandardCreateProps } from "../types";
@@ -13,8 +13,8 @@ import { generateInputComponent, generateYupSchema } from "forms/generators";
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
-import { standardVersionEndpoint } from "graphql/endpoints";
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
+import { endpoints } from "api";
 
 export const StandardCreate = ({
     onCreated,
@@ -66,7 +66,7 @@ export const StandardCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<StandardVersion, StandardVersionCreateInput, 'standardVersionCreate'>(...standardVersionEndpoint.create);
+    const [mutation] = useMutation<StandardVersion, StandardVersionCreateInput, 'standardVersionCreate'>(...endpoints.standardVersion().create);
     const formik = useFormik({
         initialValues: {
             id: uuid(),

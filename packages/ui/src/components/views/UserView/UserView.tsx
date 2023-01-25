@@ -2,7 +2,7 @@ import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typog
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, ResourceList, StarFor, User, VisibilityType } from "@shared/consts";
 import { adaHandleRegex } from '@shared/validation';
-import { useLazyQuery } from "graphql/hooks";
+import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, ResourceListVertical, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { UserViewProps } from "../types";
@@ -12,8 +12,8 @@ import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
-import { userEndpoint } from "graphql/endpoints";
 import { setDotNotationValue } from "@shared/utils";
+import { endpoints } from "api";
 
 enum TabOptions {
     Resources = "Resources",
@@ -38,7 +38,7 @@ export const UserView = ({
     }, [session]);
     const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session).id === id), [id, session]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<User, FindByIdOrHandleInput>(...userEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<User, FindByIdOrHandleInput>(...endpoints.user().findOne, { errorPolicy: 'all' });
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { id } })

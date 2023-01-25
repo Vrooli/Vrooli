@@ -1,13 +1,13 @@
-import { useMutation } from "graphql/hooks";
+import { useMutation } from "api/hooks";
 import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
 import { DeleteType, CopyType, ReportFor, StarFor, VoteFor, CopyResult, CopyInput, Success, StarInput, VoteInput } from "@shared/consts";
 import { EllipsisIcon } from "@shared/icons";
 import { DeleteDialog, ObjectActionMenu, ReportDialog, ShareObjectDialog, SnackSeverity } from "components/dialogs";
-import { mutationWrapper } from "graphql/utils";
+import { mutationWrapper } from "api/utils";
 import React, { useCallback, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
-import { copyEndpoint, starEndpoint, voteEndpoint } from "graphql/endpoints";
+import { endpoints } from "api";
 
 const commonButtonSx = (palette: Palette) => ({
     color: 'inherit',
@@ -77,9 +77,9 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [copy] = useMutation<CopyResult, CopyInput, 'copy'>(...copyEndpoint.copy);
-    const [star] = useMutation<Success, StarInput, 'star'>(...starEndpoint.star);
-    const [vote] = useMutation<Success, VoteInput, 'vote'>(...voteEndpoint.vote);
+    const [copy] = useMutation<CopyResult, CopyInput, 'copy'>(...endpoints.copy().copy);
+    const [star] = useMutation<Success, StarInput, 'star'>(...endpoints.star().star);
+    const [vote] = useMutation<Success, VoteInput, 'vote'>(...endpoints.vote().vote);
 
     const handleCopy = useCallback(() => {
         if (!id) return;

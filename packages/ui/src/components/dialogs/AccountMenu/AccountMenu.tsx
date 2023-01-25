@@ -17,16 +17,16 @@ import { AccountMenuProps } from '../types';
 import { noSelect } from 'styles';
 import { ThemeSwitch } from 'components/inputs';
 import React, { useCallback, useMemo, useState } from 'react';
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { PubSub, shapeProfile } from 'utils';
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { useFormik } from 'formik';
 import { APP_LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { getCurrentUser, guestSession } from 'utils/authentication';
 import { ContactInfo } from 'components/navigation';
-import { authEndpoint, userEndpoint } from 'graphql/endpoints';
 import { userValidation } from '@shared/validation';
+import { endpoints } from 'api';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;
@@ -47,7 +47,7 @@ export const AccountMenu = ({
     const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false) }, []);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
-    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...userEndpoint.profileUpdate);
+    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...endpoints.user().profileUpdate);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? 'light',
@@ -87,7 +87,7 @@ export const AccountMenu = ({
         closeAdditionalResources();
     }, [closeAdditionalResources, formik, onClose]);
 
-    const [switchCurrentAccount] = useMutation<Session, SwitchCurrentAccountInput, 'switchCurrentAccount'>(...authEndpoint.switchCurrentAccount);
+    const [switchCurrentAccount] = useMutation<Session, SwitchCurrentAccountInput, 'switchCurrentAccount'>(...endpoints.auth().switchCurrentAccount);
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
         // Close menu
         handleClose(event);
@@ -111,7 +111,7 @@ export const AccountMenu = ({
         handleClose(event);
     }, [handleClose, setLocation]);
 
-    const [logOut] = useMutation<Session, LogOutInput, 'logOut'>(...authEndpoint.logOut);
+    const [logOut] = useMutation<Session, LogOutInput, 'logOut'>(...endpoints.auth().logOut);
     const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
         handleClose(event);
         const user = getCurrentUser(session);
