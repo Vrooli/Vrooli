@@ -27,11 +27,11 @@ export const findSelection = (
         result = exists(obj.nav) ? 'nav' : exists(obj['common']) ? 'common' : exists(obj.list) ? 'list' : exists(obj.full) ? 'full' : undefined;
     // If result is undefined, throw an error
     if (!exists(result)) {
-        throw new Error(`Could not determine actual selection type for ${obj.__typename} ${selection}`);
+        throw new Error(`Could not determine actual selection type for '${obj.__typename}' '${selection}'`);
     }
     // If result is not the same as the specified selection type, throw a warning
     if (result !== selection) {
-        console.warn(`Specified selection type ${selection} for ${obj.__typename} does not exist. Using ${result} instead.`);
+        console.warn(`Specified selection type '${selection}' for '${obj.__typename}' does not exist. Using '${result}' instead.`);
     }
     return result;
 }

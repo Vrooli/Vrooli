@@ -19,9 +19,9 @@ export const relPartial = <
     // Find correct selection to use
     const selection = partial[findSelection(partial, selectionType)]!;
     // If no exceptions, return selection
-    if (!exceptions || !exceptions.omit) return selection;
+    if (!exceptions || !exceptions.omit) return { __typename: partial.__typename, ...selection } as any;
     // Remove all exceptions
     if (Array.isArray(exceptions.omit)) exceptions.omit.forEach(e => delete selection[e]);
     else delete selection[exceptions.omit];
-    return selection;
+    return { __typename: partial.__typename, ...selection } as any;
 }

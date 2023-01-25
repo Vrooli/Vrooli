@@ -91,12 +91,13 @@ export const partialCombine = <T extends { __typename: string }>(
                 }
             }
         }
-        // If the key is __use, replace value with `${objectType}_${selectionType}`. This will ensure that it is unique
-        // across all objects.
-        else if (key === '__use') {
+        // If the value is an object with a single key named __use, replace value with `${objectType}_${selectionType}`. 
+        // This will ensure that it is unique across all objects.
+        else if ((Object.keys(a[key] ?? {}).length === 1 || Object.keys(b[key] ?? {}).length === 1) && ('__use' in a[key] || '__use' in b[key])) {
+            console.log('partialcombine found __use', key, a[key], b[key]);
             // This is a single value instead of an object, so logic is much simpler than __union
-            const [shapeObj, selectionType] = define![(a.__use ?? b.__use)!];
-            combined.__use = `${shapeObj.__typename}_${selectionType}`;
+            const [shapeObj, selectionType] = define![(a[key]?.__use ?? b[key]?.__use)!];
+            combined[key] = { __typename: key, __use: `${shapeObj.__typename}_${selectionType}` };
         }
         // Otherwise, combine the values of the key
         else {

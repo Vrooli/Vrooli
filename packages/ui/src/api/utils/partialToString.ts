@@ -85,11 +85,18 @@ ${' '.repeat(indent)}${endpointType} ${endpointName}`;
     // Add the opening bracket
     str += ` {
 ${' '.repeat(indent + 2)}`;
+    // Add name of the query/mutation and input
+    str += `${endpointName}${exists(inputType) ? '(input: $input)' : ''}`;
     // If there is a partial, add the fields
-    if (exists(combined)) {
-        str += partialToStringHelper(rest, indent + 2);
+    if (exists(rest) && Object.keys(rest).length > 0) {
+        // Add another opening bracket
+        str += ` {
+`;
+        str += partialToStringHelper(rest, indent + 4);
+        // Add a closing bracket
+        str += `${' '.repeat(indent + 2)}}`;
     }
-    // Add the closing bracket and parentheses
+    // Add the final closing bracket
     str += `
 ${' '.repeat(indent)}}`;
     console.log('partialToString result', str)

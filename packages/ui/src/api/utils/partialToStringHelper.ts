@@ -1,3 +1,4 @@
+import { exists } from "@shared/utils";
 import { DeepPartialBooleanWithFragments } from "types";
 import { fragmentsToString } from "./fragmentsToString";
 import { unionToString } from "./unionToString";
@@ -12,10 +13,15 @@ export const partialToStringHelper = (
     partial: DeepPartialBooleanWithFragments<any>,
     indent: number = 0,
 ) => {
+    console.log('partialToStringHelper start', partial);
+    Array.isArray(partial) && console.error('Array partiallll in partialToStringHelper', partial);
     // Initialize the result string.
     let result = '';
     // Loop through the partial object.
     for (const [key, value] of Object.entries(partial)) {
+        Array.isArray(value) && console.error('Array value in partialToStringHelper', key, value);
+        // If key is __typename, skip it.
+        if (key === '__typename') continue;
         // Add indentation.
         result += ' '.repeat(indent);
         // If key is __define, use fragmentToString to convert the fragment.
@@ -28,18 +34,26 @@ export const partialToStringHelper = (
         }
         // If key is __use, use value as fragment name
         else if (key === '__use') {
+            console.log('IN USE', key, value);
             result += `...${value}\n`;
         }
         // If value is a boolean, add the key.
-        if (typeof value === 'boolean') {
+        else if (typeof value === 'boolean') {
             result += `${key}\n`;
         } 
         // Otherwise, value must be an (possibly lazy) object. So we can recurse.
         else {
-            result += `${key} {\n`;
+            // If object has __typename, use it to add the object type.
+            // if (exists(typeof value === 'function' ? value().__typename : (value as any).__typename)) {
+                result += `${key} `;
+            // }
+            result += `{\n`;
+            console.log('partialToStringHelper recurse', key, value);
             result += partialToStringHelper(typeof value === 'function' ? value() : value as any, indent + 4);
             result += `${' '.repeat(indent)}}\n`;
         }
     }
     return result;
+    // Return wrapped in braces
+    // return `{\n${result}${' '.repeat(indent)}}\n`;
 }

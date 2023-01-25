@@ -26,6 +26,7 @@ export const unionToString = (
         }
         // If an object, convert 
         else if (typeof value === 'object') {
+            console.log('union before ptsh', key, value)
             result += partialToStringHelper(value, indent + 4);
         }
     }

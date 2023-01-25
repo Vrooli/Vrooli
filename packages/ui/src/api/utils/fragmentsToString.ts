@@ -15,8 +15,9 @@ export const fragmentsToString = (
     // Initialize the fragment string.
     let fragmentString = '';
     for (const [name, [partial, type]] of Object.entries(fragments)) {
-        fragmentString += `${' '.repeat(indent)}fragment ${name} on ${type} {\n`;
-        fragmentString += partialToStringHelper(partial[findSelection(partial, type)]!, indent + 4);
+        console.log('fragment before prsh', name, partial.__typename, findSelection(partial, type))
+        fragmentString += `fragment ${name} on ${partial.__typename} {\n`;
+        fragmentString += partialToStringHelper(partial[findSelection(partial, type)]!, indent + 4)
         fragmentString += `${' '.repeat(indent)}}\n`;
     }
     return fragmentString;

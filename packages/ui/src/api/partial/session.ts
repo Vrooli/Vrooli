@@ -1,12 +1,12 @@
 import { Session } from "@shared/consts";
+import { relPartial } from "../utils";
 import { GqlPartial } from "types";
-import { sessionUserPartial } from "./sessionUser";
 
 export const sessionPartial: GqlPartial<Session> = {
     __typename: 'Session',
     full: {
         isLoggedIn: true,
         timeZone: true,
-        users: sessionUserPartial.full,
+        users: () => relPartial(require('./sessionUser').sessionUserPartial, 'full'),
     }
 }

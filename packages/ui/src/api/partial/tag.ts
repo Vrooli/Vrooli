@@ -1,4 +1,5 @@
 import { Tag, TagTranslation, TagYou } from "@shared/consts";
+import { relPartial } from "api/utils";
 import { GqlPartial } from "types";
 
 export const tagTranslationPartial: GqlPartial<TagTranslation> = {
@@ -25,7 +26,7 @@ export const tagPartial: GqlPartial<Tag> = {
         created_at: true,
         tag: true,
         stars: true,
-        translations: tagTranslationPartial.full,
-        you: tagYouPartial.full,
+        translations: () => relPartial(tagTranslationPartial, 'full'),
+        you: () => relPartial(tagYouPartial, 'full'),
     },
 }
