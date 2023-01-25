@@ -1,4 +1,5 @@
 import { GqlPartial } from "types";
+import { partialCombine } from "./partialCombine";
 
 
 
@@ -15,18 +16,17 @@ export const toSearch = <
 >(
     partial: GqlPartial<GqlObject>,
 ): [GqlPartial<any>, 'list'] => {
-    return {} as any;//
-    // return [{
-    //     __typename: `${partial.__typename}SearchResult`,
-    //     list: {
-    //         edges: {
-    //             cursor: true,
-    //             node: asdfasfd, //TODO combine list with common here
-    //         },
-    //         pageInfo: {
-    //             endCursor: true,
-    //             hasNextPage: true,
-    //         }
-    //     }
-    // }, 'list']
+    return [{
+        __typename: `${partial.__typename}SearchResult`,
+        list: {
+            edges: {
+                cursor: true,
+                node: partialCombine(partial.list ?? {}, partial.common ?? {}),
+            },
+            pageInfo: {
+                endCursor: true,
+                hasNextPage: true,
+            }
+        }
+    }, 'list']
 }

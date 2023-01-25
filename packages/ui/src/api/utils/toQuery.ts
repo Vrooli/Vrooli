@@ -1,25 +1,13 @@
-import { DocumentNode } from 'graphql';
-import { gql } from 'graphql-tag';
-import { DeepPartialBooleanWithFragments, GqlPartial } from 'types';
-import { toFragment } from './toFragment';
+import gql from 'graphql-tag';
+import { GqlPartial } from 'types';
+import { partialToString } from './partialToString';
 
 /**
  * Helper function for generating a GraphQL query for a given endpoint.
- * 
- * Example: toQuery('api', 'FindByIdInput', fullFields[1]) => 
- * gql`
- *      ${fullFields}
- *      query api($input: FindByIdInput!) {
- *          api(input: $input) {
- *              ...fullFields
- *          }
- *      }
- *  `
- * 
  * @param endpointName The name of the operation (endpoint).
  * @param inputType The name of the input type.
- * @param fragments An array of GraphQL fragments to include in the operation.
- * @param selectionSet The selection set for the operation.
+ * @param partial GqlPartial object containing selection data
+ * @param selectionType Which selection in the GqlPartial to use
  * @returns a tuple of: a graphql-tag string for the endpoint, and the endpoint's name.
  */
 export const toQuery = <
@@ -30,22 +18,14 @@ export const toQuery = <
     endpointName: Endpoint,
     inputType: string | null,
     partial?: Partial,
-    selection?: Selection | null | undefined
-): [any, any] => {
-    return [``, 'asdf'] as any;
-//     //TODO rewrite
-//     // console.log('toQuery start', endpointName, inputType)
-//     let fragmentStrings: string[] = [];
-//     for (let i = 0; i < fragments.length; i++) {
-//         fragmentStrings.push(`${toFragment(endpointName + i, fragments[i])}\n`);
-//     }
-//     const signature = inputType ? `(input: $input)` : '';
-// //     console.log(`${fragmentStrings.join('\n')}
-// // query ${endpointName}($input: ${inputType}!) {
-// //     ${endpointName}${signature} ${selectionSet ?? ''}
-// // }`)
-//     return [gql`${fragmentStrings.join('\n')}
-// query ${endpointName}($input: ${inputType}!) {
-//     ${endpointName}${signature} ${selectionSet ?? ''}
-// }`, endpointName] as const;
+    selectionType?: Selection | null | undefined
+) => {
+    return [gql`${partialToString({
+        endpointType: 'query',
+        endpointName,
+        inputType,
+        indent: 0,
+        partial,
+        selectionType
+    })}`, endpointName] as const
 }

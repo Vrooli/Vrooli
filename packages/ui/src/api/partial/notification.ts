@@ -39,6 +39,6 @@ export const notificationSettingsPartial: GqlPartial<NotificationSettings> = {
         toPush: true,
         dailyLimit: true,
         enabled: true,
-        categories: () => relPartial(notificationSettingsCategoryPartial, 'full', { omit: 'notificationSettings' }),
+        categories: () => relPartial(notificationSettingsCategoryPartial, 'full'),
     },
 }

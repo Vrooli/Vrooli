@@ -1,11 +1,6 @@
 import { Note, NoteYou } from "@shared/consts";
 import { relPartial } from '../utils';
 import { GqlPartial } from "types";
-import { labelPartial } from "./label";
-import { noteVersionPartial } from "./noteVersion";
-import { organizationPartial } from "./organization";
-import { tagPartial } from "./tag";
-import { userPartial } from "./user";
 
 export const noteYouPartial: GqlPartial<NoteYou> = {
     __typename: 'NoteYou',

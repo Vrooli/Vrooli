@@ -1,21 +1,9 @@
-import { DocumentNode } from 'graphql';
-import { gql } from 'graphql-tag';
-import { DeepPartialBooleanWithFragments, GqlPartial } from 'types';
-import { toFragment } from './toFragment';
+import gql from 'graphql-tag';
+import { GqlPartial } from 'types';
+import { partialToString } from './partialToString';
 
 /**
  * Helper function for generating a GraphQL muation for a given endpoint.
- * 
- * Example: toMutation('api', 'FindByIdInput', fullFields[1]) => 
- * gql`
- *      ${fullFields}
- *      mutation api($input: FindByIdInput!) {
- *          api(input: $input) {
- *              ...fullFields
- *          }
- *      }
- *  `
- * 
  * @param endpointName The name of the operation (endpoint).
  * @param inputType The name of the input type.
  * @param fragments An array of GraphQL fragments to include in the operation.
@@ -30,22 +18,14 @@ export const toMutation = <
     endpointName: Endpoint,
     inputType: string | null,
     partial?: Partial,
-    selection?: Selection | null | undefined
-): [any, any] => {
-    return [``, 'asdf'] as any;
-//     //TODO rewrite
-//     // console.log('toMutation start', endpointName, inputType)
-//     let fragmentStrings: string[] = [];
-//     for (let i = 0; i < fragments.length; i++) {
-//         fragmentStrings.push(`${toFragment(endpointName + i, fragments[i])}\n`);
-//     }
-//     const signature = inputType ? `(input: $input)` : '';
-// //     console.log(`${fragmentStrings.join('\n')}
-// // mutation ${endpointName}($input: ${inputType}!) {
-// //     ${endpointName}${signature} ${selectionSet ?? ''}
-// // }`)
-//     return [gql`${fragmentStrings.join('\n')}
-// mutation ${endpointName}($input: ${inputType}!) {
-//     ${endpointName}${signature} ${selectionSet ?? ''}
-// }`, endpointName] as const;
+    selectionType?: Selection | null | undefined
+) => {
+    return [gql`${partialToString({
+        endpointType: 'mutation',
+        endpointName,
+        inputType,
+        indent: 0,
+        partial,
+        selectionType
+    })}`, endpointName] as const
 }
