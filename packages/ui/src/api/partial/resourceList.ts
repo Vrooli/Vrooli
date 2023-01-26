@@ -5,20 +5,24 @@ import { resourcePartial } from "./resource";
 
 export const resourceListTranslationPartial: GqlPartial<ResourceListTranslation> = {
     __typename: 'ResourceListTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const resourceListPartial: GqlPartial<ResourceList> = {
     __typename: 'ResourceList',
-    full: {
+    common: {
         id: true,
         created_at: true,
         translations: () => relPartial(resourceListTranslationPartial, 'full'),
         resources: () => relPartial(resourcePartial, 'full'),
     },
+    full: {},
+    list: {},
 }

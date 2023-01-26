@@ -4,7 +4,7 @@ import { GqlPartial } from "types";
 
 export const projectYouPartial: GqlPartial<ProjectYou> = {
     __typename: 'ProjectYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -15,6 +15,8 @@ export const projectYouPartial: GqlPartial<ProjectYou> = {
         isUpvoted: true,
         isViewed: true,
     },
+    full: {},
+    list: {},
 }
 
 export const projectPartial: GqlPartial<Project> = {

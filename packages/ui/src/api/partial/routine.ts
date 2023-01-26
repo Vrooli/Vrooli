@@ -4,7 +4,7 @@ import { GqlPartial } from "types";
 
 export const routineYouPartial: GqlPartial<RoutineYou> = {
     __typename: 'RoutineYou',
-    full: {
+    common: {
         canComment: true,
         canDelete: true,
         canEdit: true,
@@ -15,6 +15,8 @@ export const routineYouPartial: GqlPartial<RoutineYou> = {
         isUpvoted: true,
         isViewed: true,
     },
+    full: {},
+    list: {},
 }
 
 export const routinePartial: GqlPartial<Routine> = {

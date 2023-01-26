@@ -5,12 +5,14 @@ import { versionYouPartial } from "./root";
 
 export const projectVersionTranslationPartial: GqlPartial<ProjectVersionTranslation> = {
     __typename: 'ProjectVersionTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const projectVersionYouPartial: GqlPartial<ProjectVersionYou> = {

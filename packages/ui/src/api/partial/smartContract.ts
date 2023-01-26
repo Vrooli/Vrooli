@@ -4,7 +4,7 @@ import { GqlPartial } from "types";
 
 export const smartContractYouPartial: GqlPartial<SmartContractYou> = {
     __typename: 'SmartContractYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -15,6 +15,8 @@ export const smartContractYouPartial: GqlPartial<SmartContractYou> = {
         isUpvoted: true,
         isViewed: true,
     },
+    full: {},
+    list: {},
 }
 
 export const smartContractPartial: GqlPartial<SmartContract> = {

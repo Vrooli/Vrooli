@@ -4,16 +4,18 @@ import { GqlPartial } from "types";
 
 export const commentTranslationPartial: GqlPartial<CommentTranslation> = {
     __typename: 'CommentTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         text: true,
     },
+    full: {},
+    list: {},
 }
 
 export const commentYouPartial: GqlPartial<CommentYou> = {
     __typename: 'CommentYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -23,6 +25,8 @@ export const commentYouPartial: GqlPartial<CommentYou> = {
         isStarred: true,
         isUpvoted: true,
     },
+    full: {},
+    list: {},
 }
 
 export const commentPartial: GqlPartial<Comment> = {

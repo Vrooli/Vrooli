@@ -4,13 +4,15 @@ import { GqlPartial } from "types";
 
 export const routineVersionTranslationPartial: GqlPartial<RoutineVersionTranslation> = {
     __typename: 'RoutineVersionTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         instructions: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const routineVersionYouPartial: GqlPartial<RoutineVersionYou> = {
@@ -80,5 +82,16 @@ export const routineVersionPartial: GqlPartial<RoutineVersion> = {
     },
     list: {
         translations: () => relPartial(routineVersionTranslationPartial, 'list'),
+    },
+    nav: {
+        id: true,
+        isAutomatable: true,
+        isComplete: true,
+        isDeleted: true,
+        isLatest: true,
+        isPrivate: true,
+        translations: () => relPartial(routineVersionTranslationPartial, 'full'),
+        versionIndex: true,
+        versionLabel: true,
     }
 }

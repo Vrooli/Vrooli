@@ -4,12 +4,14 @@ import { GqlPartial } from "types";
 
 export const runRoutineScheduleTranslationPartial: GqlPartial<RunRoutineScheduleTranslation> = {
     __typename: 'RunRoutineScheduleTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const runRoutineSchedulePartial: GqlPartial<RunRoutineSchedule> = {

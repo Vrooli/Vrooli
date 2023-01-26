@@ -4,7 +4,7 @@ import { GqlPartial } from "types";
 
 export const noteYouPartial: GqlPartial<NoteYou> = {
     __typename: 'NoteYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -15,6 +15,8 @@ export const noteYouPartial: GqlPartial<NoteYou> = {
         isUpvoted: true,
         isViewed: true,
     },
+    full: {},
+    list: {},
 }
 
 export const notePartial: GqlPartial<Note> = {

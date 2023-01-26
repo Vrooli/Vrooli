@@ -11,19 +11,23 @@ import { standardPartial } from "./standard";
 
 export const questionTranslationPartial: GqlPartial<QuestionTranslation> = {
     __typename: 'QuestionTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const questionYouPartial: GqlPartial<QuestionYou> = {
     __typename: 'QuestionYou',
-    full: {
+    common: {
         isUpvoted: true,
     },
+    full: {},
+    list: {},
 }
 
 export const questionPartial: GqlPartial<Question> = {

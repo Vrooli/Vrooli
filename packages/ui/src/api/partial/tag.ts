@@ -4,24 +4,28 @@ import { GqlPartial } from "types";
 
 export const tagTranslationPartial: GqlPartial<TagTranslation> = {
     __typename: 'TagTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
-    }
+    },
+    full: {},
+    list: {},
 }
 
 export const tagYouPartial: GqlPartial<TagYou> = {
     __typename: 'TagYou',
-    full: {
+    common: {
         isOwn: true,
         isStarred: true,
     },
+    full: {},
+    list: {},
 }
 
 export const tagPartial: GqlPartial<Tag> = {
     __typename: 'Tag',
-    full: {
+    common: {
         id: true,
         created_at: true,
         tag: true,
@@ -29,4 +33,6 @@ export const tagPartial: GqlPartial<Tag> = {
         translations: () => relPartial(tagTranslationPartial, 'full'),
         you: () => relPartial(tagYouPartial, 'full'),
     },
+    full: {},
+    list: {},
 }

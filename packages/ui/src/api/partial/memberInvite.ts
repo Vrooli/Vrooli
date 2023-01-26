@@ -4,10 +4,12 @@ import { GqlPartial } from "types";
 
 export const memberInviteYouPartial: GqlPartial<MemberInviteYou> = {
     __typename: 'MemberInviteYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
     },
+    full: {},
+    list: {},
 }
 
 export const memberInvitePartial: GqlPartial<MemberInvite> = {
@@ -24,4 +26,6 @@ export const memberInvitePartial: GqlPartial<MemberInvite> = {
         user: () => relPartial(require('./user').userPartial, 'nav'),
         you: () => relPartial(memberInviteYouPartial, 'full'),
     },
+    full: {},
+    list: {},
 }

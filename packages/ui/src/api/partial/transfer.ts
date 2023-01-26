@@ -4,10 +4,12 @@ import { GqlPartial } from "types";
 
 export const transferYouPartial: GqlPartial<TransferYou> = {
     __typename: 'TransferYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
     },
+    full: {},
+    list: {},
 }
 
 export const transferPartial: GqlPartial<Transfer> = {
@@ -40,4 +42,6 @@ export const transferPartial: GqlPartial<Transfer> = {
         },
         you: () => relPartial(transferYouPartial, 'full'),
     },
+    full: {},
+    list: {},
 }

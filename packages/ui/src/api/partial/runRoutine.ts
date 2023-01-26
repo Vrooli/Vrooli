@@ -4,11 +4,13 @@ import { GqlPartial } from "types";
 
 export const runRoutineYouPartial: GqlPartial<RunRoutineYou> = {
     __typename: 'RunRoutineYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canView: true,
     },
+    full: {},
+    list: {},
 }
 
 export const runRoutinePartial: GqlPartial<RunRoutine> = {
@@ -36,4 +38,5 @@ export const runRoutinePartial: GqlPartial<RunRoutine> = {
         inputs: () => relPartial(require('./runRoutineInput').runRoutineInputPartial, 'list', { omit: ['runRoutine', 'input.routineVersion'] }),
         steps: () => relPartial(require('./runRoutineStep').runRoutineStepPartial, 'list'),
     },
+    list: {},
 }

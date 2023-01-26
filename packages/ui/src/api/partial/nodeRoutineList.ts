@@ -10,4 +10,6 @@ export const nodeRoutineListPartial: GqlPartial<NodeRoutineList> = {
         isOptional: true,
         items: () => relPartial(require('./nodeRoutineListItem').nodeRoutineListItemPartial, 'full'),
     },
+    full: {},
+    list: {},
 }

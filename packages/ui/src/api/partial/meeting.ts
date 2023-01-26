@@ -4,22 +4,26 @@ import { GqlPartial } from "types";
 
 export const meetingTranslationPartial: GqlPartial<MeetingTranslation> = {
     __typename: 'MeetingTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         link: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const meetingYouPartial: GqlPartial<MeetingYou> = {
     __typename: 'MeetingYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canInvite: true,
     },
+    full: {},
+    list: {},
 }
 
 export const meetingPartial: GqlPartial<Meeting> = {
@@ -35,7 +39,7 @@ export const meetingPartial: GqlPartial<Meeting> = {
         recurrStart: true,
         recurrEnd: true,
         organization: () => relPartial(require('./organization').organizationPartial, 'nav'),
-        restrictedToRoles: () => relPartial(require('./role').rolePartial, 'list'),
+        restrictedToRoles: () => relPartial(require('./role').rolePartial, 'full'),
         attendeesCount: true,
         invitesCount: true,
         you: () => relPartial(meetingYouPartial, 'full'),

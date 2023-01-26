@@ -5,12 +5,14 @@ import { versionYouPartial } from "./root";
 
 export const smartContractVersionTranslationPartial: GqlPartial<SmartContractVersionTranslation> = {
     __typename: 'SmartContractVersionTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         jsonVariable: true,
     },
+    full: {},
+    list: {},
 }
 
 export const smartContractVersionPartial: GqlPartial<SmartContractVersion> = {

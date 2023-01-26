@@ -5,12 +5,14 @@ import { versionYouPartial } from "./root";
 
 export const standardVersionTranslationPartial: GqlPartial<StandardVersionTranslation> = {
     __typename: 'StandardVersionTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         jsonVariable: true,
     },
+    full: {},
+    list: {},
 }
 
 export const standardVersionPartial: GqlPartial<StandardVersion> = {

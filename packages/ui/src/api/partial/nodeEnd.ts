@@ -9,4 +9,6 @@ export const nodeEndPartial: GqlPartial<NodeEnd> = {
         wasSuccessful: true,
         suggestedNextRoutineVersions: () => relPartial(require('./routineVersion').routineVersionPartial, 'nav'),
     },
+    full: {},
+    list: {},
 }

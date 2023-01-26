@@ -4,12 +4,14 @@ import { GqlPartial } from "types";
 
 export const pullRequestYouPartial: GqlPartial<PullRequestYou> = {
     __typename: 'PullRequestYou',
-    full: {
+    common: {
         canComment: true,
         canDelete: true,
         canEdit: true,
         canReport: true,
     },
+    full: {},
+    list: {},
 }
 
 export const pullRequestPartial: GqlPartial<PullRequest> = {

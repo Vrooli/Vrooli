@@ -6,7 +6,7 @@ export const walletCompletePartial: GqlPartial<WalletComplete> = {
     full: {
         __define: {
             0: [require('./session').sessionPartial, 'full'],
-            1: [require('./wallet').walletPartial, 'full'],
+            1: [require('./wallet').walletPartial, 'common'],
         },
         firstLogIn: true,
         session: { __use: 0 },

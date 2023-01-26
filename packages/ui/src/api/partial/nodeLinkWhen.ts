@@ -4,12 +4,14 @@ import { GqlPartial } from "types";
 
 export const nodeLinkWhenTranslationPartial: GqlPartial<NodeLinkWhenTranslation> = {
     __typename: 'NodeLinkWhenTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const nodeLinkWhenPartial: GqlPartial<NodeLinkWhen> = {
@@ -19,4 +21,6 @@ export const nodeLinkWhenPartial: GqlPartial<NodeLinkWhen> = {
         condition: true,
         translations: () => relPartial(nodeLinkWhenTranslationPartial, 'full'),
     },
+    full: {},
+    list: {},
 }

@@ -4,11 +4,13 @@ import { GqlPartial } from "types";
 
 export const roleTranslationPartial: GqlPartial<RoleTranslation> = {
     __typename: 'RoleTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
     },
+    full: {},
+    list: {},
 }
 
 export const rolePartial: GqlPartial<Role> = {
@@ -21,12 +23,10 @@ export const rolePartial: GqlPartial<Role> = {
         permissions: true,
         membersCount: true,
         organization: () => relPartial(require('./organization').organizationPartial, 'nav', { omit: 'roles' }),
+        translations: () => relPartial(roleTranslationPartial, 'full'),
     },
     full: {
         members: () => relPartial(require('./member').memberPartial, 'nav', { omit: 'reminder' }),
-        translations: () => relPartial(roleTranslationPartial, 'full'),
     },
-    list: {
-        translations: () => relPartial(roleTranslationPartial, 'list'),
-    }
+    list: {},
 }

@@ -4,17 +4,19 @@ import { GqlPartial } from "types";
 
 export const issueTranslationPartial: GqlPartial<IssueTranslation> = {
     __typename: 'IssueTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const issueYouPartial: GqlPartial<IssueYou> = {
     __typename: 'IssueYou',
-    full: {
+    common: {
         canComment: true,
         canDelete: true,
         canEdit: true,
@@ -25,6 +27,8 @@ export const issueYouPartial: GqlPartial<IssueYou> = {
         isStarred: true,
         isUpvoted: true,
     },
+    full: {},
+    list: {},
 }
 
 export const issuePartial: GqlPartial<Issue> = {

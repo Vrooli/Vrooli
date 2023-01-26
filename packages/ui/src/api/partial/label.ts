@@ -37,4 +37,5 @@ export const labelPartial: GqlPartial<Label> = {
         smartContractsCount: true,
         standardsCount: true,
     },
+    list: {},
 }

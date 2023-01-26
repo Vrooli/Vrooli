@@ -4,12 +4,14 @@ import { GqlPartial } from "types";
 
 export const nodeTranslationPartial: GqlPartial<NodeTranslation> = {
     __typename: 'NodeTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 
@@ -28,4 +30,6 @@ export const nodePartial: GqlPartial<Node> = {
         routineVersion: () => relPartial(require('./routineVersion').routineVersionPartial, 'full', { omit: ['nodes', 'nodeLinks'] }),
         translations: () => relPartial(nodeTranslationPartial, 'full'),
     },
+    full: {},
+    list: {},
 }

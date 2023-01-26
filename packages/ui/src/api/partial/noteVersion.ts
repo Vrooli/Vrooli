@@ -5,12 +5,14 @@ import { versionYouPartial } from "./root";
 
 export const noteVersionTranslationPartial: GqlPartial<NoteVersionTranslation> = {
     __typename: 'NoteVersionTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         text: true,
     },
+    full: {},
+    list: {},
 }
 
 export const noteVersionPartial: GqlPartial<NoteVersion> = {

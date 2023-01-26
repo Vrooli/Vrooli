@@ -9,4 +9,6 @@ export const nodeLinkPartial: GqlPartial<NodeLink> = {
         operation: true,
         whens: () => relPartial(require('./nodeLinkWhen').nodeLinkWhenPartial, 'full', { omit: 'nodeLink' }),
     },
+    full: {},
+    list: {},
 }

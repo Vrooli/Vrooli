@@ -4,10 +4,12 @@ import { GqlPartial } from "types";
 
 export const quizAttemptYouPartial: GqlPartial<QuizAttemptYou> = {
     __typename: 'QuizAttemptYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
     },
+    full: {},
+    list: {},
 }
 
 export const quizAttemptPartial: GqlPartial<QuizAttempt> = {
@@ -28,4 +30,5 @@ export const quizAttemptPartial: GqlPartial<QuizAttempt> = {
     full: {
         responses: () => relPartial(require('./quizQuestionResponse').quizQuestionResponsePartial, 'full'),
     },
+    list: {},
 }

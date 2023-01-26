@@ -16,4 +16,6 @@ export const runRoutineInputPartial: GqlPartial<RunRoutineInput> = {
             standardVersion: () => relPartial(require('./standardVersion').standardVersionPartial, 'list'),
         },
     },
+    full: {},
+    list: {},
 }

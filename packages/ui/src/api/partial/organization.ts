@@ -4,17 +4,19 @@ import { GqlPartial } from "types";
 
 export const organizationTranslationPartial: GqlPartial<OrganizationTranslation> = {
     __typename: 'OrganizationTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         bio: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const organizationYouPartial: GqlPartial<OrganizationYou> = {
     __typename: 'OrganizationYou',
-    full: {
+    common: {
         canAddMembers: true,
         canDelete: true,
         canEdit: true,
@@ -31,6 +33,8 @@ export const organizationYouPartial: GqlPartial<OrganizationYou> = {
             permissions: true,
         }
     },
+    full: {},
+    list: {},
 }
 
 export const organizationPartial: GqlPartial<Organization> = {
@@ -47,21 +51,16 @@ export const organizationPartial: GqlPartial<Organization> = {
         reportsCount: true,
         stars: true,
         tags: () => relPartial(require('./tag').tagPartial, 'list'),
+        translations: () => relPartial(organizationTranslationPartial, 'full'),
+        you: () => relPartial(organizationYouPartial, 'full'),
     },
     full: {
         roles: () => relPartial(require('./role').rolePartial, 'full', { omit: 'organization' }),
-        translations: () => relPartial(organizationTranslationPartial, 'full'),
-        you: () => relPartial(organizationYouPartial, 'full'),
     },
-    list: {
-        roles: () => relPartial(require('./role').rolePartial, 'list', { omit: 'organization' }),
-        translations: () => relPartial(organizationTranslationPartial, 'full'),
-        you: () => relPartial(organizationYouPartial, 'full'),
-    },
+    list: { },
     nav: {
         id: true,
         handle: true,
-        translations: () => relPartial(organizationTranslationPartial, 'list'),
         you: () => relPartial(organizationYouPartial, 'full'),
     }
 }

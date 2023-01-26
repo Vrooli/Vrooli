@@ -12,5 +12,7 @@ export const memberPartial: GqlPartial<Member> = {
         permissions: true,
         organization: () => relPartial(require('./organization').organizationPartial, 'nav'),
         user: () => relPartial(require('./user').userPartial, 'nav'),
-    }
+    },
+    full: {},
+    list: {},
 }

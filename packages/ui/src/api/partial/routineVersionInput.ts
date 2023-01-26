@@ -4,12 +4,14 @@ import { GqlPartial } from "types";
 
 export const routineVersionInputTranslationPartial: GqlPartial<RoutineVersionInputTranslation> = {
     __typename: 'RoutineVersionInputTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         helpText: true,
     },
+    full: {},
+    list: {},
 }
 
 export const routineVersionInputPartial: GqlPartial<RoutineVersionInput> = {
@@ -22,4 +24,6 @@ export const routineVersionInputPartial: GqlPartial<RoutineVersionInput> = {
         standardVersion: () => relPartial(require('./standardVersion').standardVersionPartial, 'list'),
         translations: () => relPartial(routineVersionInputTranslationPartial, 'full'),
     },
+    full: {},
+    list: {},
 }

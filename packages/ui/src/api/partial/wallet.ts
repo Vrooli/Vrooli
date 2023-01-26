@@ -14,4 +14,6 @@ export const walletPartial: GqlPartial<Wallet> = {
         stakingAddress: true,
         verified: true,
     },
+    full: {},
+    list: {},
 }

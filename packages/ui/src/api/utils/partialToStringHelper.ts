@@ -12,10 +12,15 @@ export const partialToStringHelper = (
     partial: DeepPartialBooleanWithFragments<any>,
     indent: number = 0,
 ) => {
-    console.log('partialToStringHelper start', indent, JSON.stringify(partial, null, 4));
+    console.log('partialToStringHelper start', indent, JSON.stringify(partial, function(k, v) {
+        if (typeof v === 'function') {
+          return v + '';
+        }
+        return v;
+      }));
     Array.isArray(partial) && console.error('Array partiallll in partialToStringHelper', partial);
     // If indent is too high, throw an error.
-    if (indent > 100) {
+    if (indent > 69) {
         throw new Error('partialToStringHelper indent too high. Possible infinite loop.');
     }
     // Initialize the result string.

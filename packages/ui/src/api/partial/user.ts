@@ -4,22 +4,26 @@ import { GqlPartial } from "types";
 
 export const userTranslationPartial: GqlPartial<UserTranslation> = {
     __typename: 'UserTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         bio: true,
     },
+    full: {},
+    list: {},
 }
 
 export const userYouPartial: GqlPartial<UserYou> = {
     __typename: 'UserYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canReport: true,
         isStarred: true,
         isViewed: true,
     },
+    full: {},
+    list: {},
 }
 
 export const userPartial: GqlPartial<User> = {
@@ -49,7 +53,7 @@ export const userPartial: GqlPartial<User> = {
 
 export const profilePartial: GqlPartial<User> = {
     __typename: 'User',
-    full: {
+    common: {
         id: true,
         created_at: true,
         updated_at: true,
@@ -76,11 +80,13 @@ export const profilePartial: GqlPartial<User> = {
         theme: true,
         emails: () => relPartial(require('./email').emailPartial, 'full'),
         pushDevices: () => relPartial(require('./pushDevice').pushDevicePartial, 'full'),
-        wallets: () => relPartial(require('./wallet').walletPartial, 'full'),
+        wallets: () => relPartial(require('./wallet').walletPartial, 'common'),
         notifications: () => relPartial(require('./notification').notificationPartial, 'full'),
         notificationSettings: true,
         translations: () => relPartial(userTranslationPartial, 'full'),
         schedules: () => relPartial(require('./userSchedule').userSchedulePartial, 'full'),
         stats: () => relPartial(require('./statsUser').statsUserPartial, 'full'),
     },
+    full: {},
+    list: {},
 }

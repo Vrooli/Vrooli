@@ -8,6 +8,6 @@ export const userScheduleFilterPartial: GqlPartial<UserScheduleFilter> = {
         id: true,
         filterType: true,
         tag: () => relPartial(require('./tag').tagPartial, 'list'),
-        userSchedule: () => relPartial(require('./userSchedule').userSchedulePartial, 'nav', { omit: 'filters' }),
+        userSchedule: () => relPartial(require('./userSchedule').userSchedulePartial, 'list', { omit: 'filters' }),
     },
 }

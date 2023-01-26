@@ -24,9 +24,9 @@ export const arrayValueFromDot = (object, notation, index) => {
  * NOTE 2: Modifies the original object
  */
 export const removeValuesUsingDot = (obj, ...keys) => {
+    console.log('removeValuesUsingDot start', obj, keys)
     keys.forEach(key => {
         const keyArr = key.split('.'); // split the key into an array of keys
-
         // loop through the keys, checking if each level is lazy-loaded
         let currentObject = obj;
         let currentKey;
@@ -40,6 +40,7 @@ export const removeValuesUsingDot = (obj, ...keys) => {
         currentKey = keyArr[keyArr.length - 1];
         delete currentObject[currentKey];
     });
+    console.log('removeValuesUsingDot end', obj)
 }
 
 /**

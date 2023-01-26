@@ -4,11 +4,13 @@ import { GqlPartial } from "types";
 
 export const reportYouPartial: GqlPartial<ReportYou> = {
     __typename: 'ReportYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canRespond: true,
     },
+    full: {},
+    list: {},
 }
 
 export const reportPartial: GqlPartial<Report> = {
@@ -25,5 +27,6 @@ export const reportPartial: GqlPartial<Report> = {
     },
     full: {
         responses: () => relPartial(require('./reportResponse').reportResponsePartial, 'full', { omit: 'report' }),
-    }
+    },
+    list: {},
 }

@@ -4,7 +4,7 @@ import { GqlPartial } from "types";
 
 export const standardYouPartial: GqlPartial<StandardYou> = {
     __typename: 'StandardYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canStar: true,
@@ -15,6 +15,8 @@ export const standardYouPartial: GqlPartial<StandardYou> = {
         isUpvoted: true,
         isViewed: true,
     },
+    full: {},
+    list: {},
 }
 
 export const standardPartial: GqlPartial<Standard> = {

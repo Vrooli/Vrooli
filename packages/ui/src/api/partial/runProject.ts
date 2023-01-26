@@ -4,11 +4,13 @@ import { GqlPartial } from "types";
 
 export const runProjectYouPartial: GqlPartial<RunProjectYou> = {
     __typename: 'RunProjectYou',
-    full: {
+    common: {
         canDelete: true,
         canEdit: true,
         canView: true,
     },
+    full: {},
+    list: {},
 }
 
 export const runProjectPartial: GqlPartial<RunProject> = {
@@ -34,4 +36,5 @@ export const runProjectPartial: GqlPartial<RunProject> = {
     full: {
         steps: () => relPartial(require('./runProjectStep').runProjectStepPartial, 'full', { omit: 'run' }),
     },
+    list: {},
 }

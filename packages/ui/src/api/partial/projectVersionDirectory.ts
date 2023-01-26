@@ -4,12 +4,14 @@ import { GqlPartial } from "types";
 
 export const projectVersionDirectoryTranslationPartial: GqlPartial<ProjectVersionDirectoryTranslation> = {
     __typename: 'ProjectVersionDirectoryTranslation',
-    full: {
+    common: {
         id: true,
         language: true,
         description: true,
         name: true,
     },
+    full: {},
+    list: {},
 }
 
 export const projectVersionDirectoryPartial: GqlPartial<ProjectVersionDirectory> = {
