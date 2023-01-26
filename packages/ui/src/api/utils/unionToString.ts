@@ -17,18 +17,25 @@ export const unionToString = (
     for (const [key, value] of Object.entries(union)) {
         // Add indentation.
         result += ' '.repeat(indent);
-        // Add ellipsis and object type
+        // Add ellipsis, object type, and open brace.
         result += `... on ${key} {\n`;
         // Value should be either a string, object, or function.
         // If a string, treat as fragment name
         if (typeof value === 'string') {
+            console.log('union was string, so no ptsh', key, value)
             result += `${' '.repeat(indent + 4)}...${value}\n`;
         }
-        // If an object, convert 
-        else if (typeof value === 'object') {
-            console.log('union before ptsh', key, value)
-            result += partialToStringHelper(value, indent + 4);
+        // If an object or function, convert 
+        else if (typeof value === 'object' || typeof value === 'function') {
+            typeof value === 'function' && console.log('union before ptsh', key, value())
+            result += partialToStringHelper(typeof value === 'function' ? value() : value, indent + 4);
         }
+        // Shouldn't be anything else.
+        else {
+            console.error('unionToString got unexpected value', key, value);
+        }
+        // Close the brace.
+        result += `${' '.repeat(indent)}}\n`;
     }
     return result;
 }

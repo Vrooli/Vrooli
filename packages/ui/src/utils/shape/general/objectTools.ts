@@ -2,7 +2,6 @@
  * Functions for manipulating state objects
  */
 import { isObject } from "@shared/utils";
-import { MaybeLazy } from "types";
 
 /**
  * Grabs data from an object using dot notation (ex: 'parent.child.property')
@@ -17,6 +16,30 @@ export const arrayValueFromDot = (object, notation, index) => {
     const value = valueFromDot(object, notation);
     if (!value || !Array.isArray(value) || index <= 0 || value.length >= index) return null;
     return value[index];
+}
+
+/**
+ * Removes one or more properties from an object using dot notation (ex: 'parent.child.property'). 
+ * NOTE 1: Supports lazy values, but removes the lazy part
+ * NOTE 2: Modifies the original object
+ */
+export const removeValuesUsingDot = (obj, ...keys) => {
+    keys.forEach(key => {
+        const keyArr = key.split('.'); // split the key into an array of keys
+
+        // loop through the keys, checking if each level is lazy-loaded
+        let currentObject = obj;
+        let currentKey;
+        for (let i = 0; i < keyArr.length - 1; i++) {
+            currentKey = keyArr[i];
+            if (typeof currentObject[currentKey] === 'function') {
+                currentObject[currentKey] = currentObject[currentKey]();
+            }
+            currentObject = currentObject[currentKey];
+        }
+        currentKey = keyArr[keyArr.length - 1];
+        delete currentObject[currentKey];
+    });
 }
 
 /**

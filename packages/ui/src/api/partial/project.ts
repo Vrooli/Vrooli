@@ -45,6 +45,6 @@ export const projectPartial: GqlPartial<Project> = {
         stats: () => relPartial(require('./statsProject').statsProjectPartial, 'full'),
     },
     list: {
-        versions: () => relPartial(require('./projectVersion').projectVersionPartial, 'list'),
+        versions: () => relPartial(require('./projectVersion').projectVersionPartial, 'list', { omit: 'root' }),
     }
 }

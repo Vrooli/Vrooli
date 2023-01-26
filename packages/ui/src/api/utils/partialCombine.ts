@@ -23,6 +23,7 @@ export const partialCombine = <T extends { __typename: string }>(
     const combined: DeepPartialBooleanWithFragments<NonMaybe<T>> = {};
     // Combine top-level keys so we can iterate over them
     const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    console.log('partialcombine keys set', a.__typename, keys);
     // If the key is __define (i.e. specifies fragments), add each fragment in a and b to the combined object
     // We do this first so that the fragments are available in "combined" for use in __union and __use
     let define = { ...(a.__define ?? {}), ...(b.__define ?? {}) };
@@ -47,54 +48,57 @@ export const partialCombine = <T extends { __typename: string }>(
     for (const key of keys) {
         // Skip __define because we handle it separately
         if (key === '__define') continue;
-        // If the key is __union, rename each field in the union to `${objectType}_${selectionType}`. This will ensure 
-        // that it is unique across all objects.
-        else if (key === '__union') {
+        // If the value is an object with key __union, rename each field in the union to `${objectType}_${selectionType}`. 
+        // This will ensure that it is unique across all objects.
+        else if (exists(a[key]?.__union) || exists(b[key]?.__union)) {
+            console.log('key is __union!!!', key, a, b)
             // If the __union field doesn't exist in the combined object, add it
-            if (combined.__union === undefined) {
-                combined.__union = {};
+            if (combined[key] === undefined) {
+                combined[key] = { __union: {} };
             }
             // If the __union field exists in the combined object, add the fields from the __union field in a
-            if (exists(a.__union)) {
-                for (const [key, value] of Object.entries(a.__union)) {
+            if (exists(a[key]?.__union)) {
+                for (const [unionKey, value] of Object.entries(a[key].__union)) {
                     // If value is a string or number, it must be a key for a fragment in the __define field. 
                     if (typeof value === 'string' || typeof value === 'number') {
                         // Rename the field to `${objectType}_${selectionType}`
                         const [shapeObj, selectionType] = define![value];
-                        combined.__union![key] = `${shapeObj.__typename}_${selectionType}`;
+                        combined[key].__union![unionKey] = `${shapeObj.__typename}_${selectionType}`;
                     }
-                    // If not in b, add as-is to the combined object
-                    else if (!exists(b.__union![key])) {
-                        combined.__union![`${key}_${value}`] = value;
+                    // Otherwise (i.e. its a [possibly lazy] object), if not in b, add as-is to the combined object
+                    else if (!exists(b[key]?.__union![unionKey])) {
+                        console.log('union adding as-is 1', key, unionKey, value);
+                        combined[key].__union![unionKey] = value;
                     }
                 }
             }
             // If the __union field exists in the combined object, add the fields from the __union field in b
-            if (exists(b.__union)) {
-                for (const [key, value] of Object.entries(b.__union)) {
+            if (exists(b[key]?.__union)) {
+                for (const [unionKey, value] of Object.entries(b[key].__union)) {
                     // If already in combined, skip
-                    if (exists(combined.__union![key])) continue;
+                    if (exists(combined[key].__union![unionKey])) continue;
                     // If value is a string or number, it must be a key for a fragment in the __define field. 
                     if (typeof value === 'string' || typeof value === 'number') {
                         // Rename the field to `${objectType}_${selectionType}`
                         const [shapeObj, selectionType] = define![value];
-                        combined.__union![key] = `${shapeObj.__typename}_${selectionType}`;
+                        combined[key].__union![unionKey] = `${shapeObj.__typename}_${selectionType}`;
                     }
-                    // If not in a, add as-is to the combined object
-                    else if (!exists(a.__union![key])) {
-                        combined.__union![`${key}_${value}`] = value;
+                    // Otherwise (i.e. its a [possibly lazy] object), if not in a, add as-is to the combined object
+                    else if (!exists(a[key]?.__union![unionKey])) {
+                        console.log('union adding as-is 2', key, unionKey, value)
+                        combined[key].__union![unionKey] = value;
                     }
-                    // If in a, combine the values
+                    // Otherwise, it must also be in a, so combine the values
                     else {
-                        combined.__union![`${key}_${value}`] = partialCombine(a.__union![key], b.__union![key], define);
+                        console.log('union partial combineeeeeee');
+                        combined[key].__union![unionKey] = partialCombine(a[key].__union![unionKey], b[key].__union![unionKey], define);
                     }
                 }
             }
         }
-        // If the value is an object with a single key named __use, replace value with `${objectType}_${selectionType}`. 
+        // If the value is an object with key __use (i.e. references a fragment), replace value with `${objectType}_${selectionType}`. 
         // This will ensure that it is unique across all objects.
-        else if ((Object.keys(a[key] ?? {}).length === 1 || Object.keys(b[key] ?? {}).length === 1) && ('__use' in a[key] || '__use' in b[key])) {
-            console.log('partialcombine found __use', key, a[key], b[key]);
+        else if (exists(a[key]?.__use) || exists(b[key]?.__use)) { 
             // This is a single value instead of an object, so logic is much simpler than __union
             const [shapeObj, selectionType] = define![(a[key]?.__use ?? b[key]?.__use)!];
             combined[key] = { __typename: key, __use: `${shapeObj.__typename}_${selectionType}` };

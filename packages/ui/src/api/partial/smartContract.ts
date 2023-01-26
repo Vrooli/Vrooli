@@ -45,6 +45,6 @@ export const smartContractPartial: GqlPartial<SmartContract> = {
         stats: () => relPartial(require('./statsSmartContract').statsSmartContractPartial, 'full'),
     },
     list: {
-        versions: () => relPartial(require('./smartContractVersion').smartContractVersionPartial, 'list'),
+        versions: () => relPartial(require('./smartContractVersion').smartContractVersionPartial, 'list', { omit: 'root' }),
     }
 }

@@ -1,4 +1,5 @@
 import { ResourceList, ResourceListTranslation } from "@shared/consts";
+import { relPartial } from "../utils";
 import { GqlPartial } from "types";
 import { resourcePartial } from "./resource";
 
@@ -17,7 +18,7 @@ export const resourceListPartial: GqlPartial<ResourceList> = {
     full: {
         id: true,
         created_at: true,
-        translations: resourceListTranslationPartial.full,
-        resources: resourcePartial.full,
+        translations: () => relPartial(resourceListTranslationPartial, 'full'),
+        resources: () => relPartial(resourcePartial, 'full'),
     },
 }

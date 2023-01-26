@@ -46,6 +46,6 @@ export const routinePartial: GqlPartial<Routine> = {
         stats: () => relPartial(require('./statsRoutine').statsRoutinePartial, 'full'),
     },
     list: {
-        versions: () => relPartial(require('./routineVersion').routineVersionPartial, 'list'),
+        versions: () => relPartial(require('./routineVersion').routineVersionPartial, 'list', { omit: 'root' }),
     }
 }

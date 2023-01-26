@@ -45,6 +45,6 @@ export const apiPartial: GqlPartial<Api> = {
         stats: () => relPartial(require('./statsApi').statsApiPartial, 'full'),
     },
     list: {
-        versions: () => relPartial(require('./apiVersion').apiVersionPartial, 'list'),
+        versions: () => relPartial(require('./apiVersion').apiVersionPartial, 'list', { omit: 'root' }),
     }
 }

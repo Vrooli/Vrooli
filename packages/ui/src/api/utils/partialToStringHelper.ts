@@ -1,4 +1,3 @@
-import { exists } from "@shared/utils";
 import { DeepPartialBooleanWithFragments } from "types";
 import { fragmentsToString } from "./fragmentsToString";
 import { unionToString } from "./unionToString";
@@ -13,8 +12,12 @@ export const partialToStringHelper = (
     partial: DeepPartialBooleanWithFragments<any>,
     indent: number = 0,
 ) => {
-    console.log('partialToStringHelper start', partial);
+    console.log('partialToStringHelper start', indent, JSON.stringify(partial, null, 4));
     Array.isArray(partial) && console.error('Array partiallll in partialToStringHelper', partial);
+    // If indent is too high, throw an error.
+    if (indent > 100) {
+        throw new Error('partialToStringHelper indent too high. Possible infinite loop.');
+    }
     // Initialize the result string.
     let result = '';
     // Loop through the partial object.
@@ -40,20 +43,15 @@ export const partialToStringHelper = (
         // If value is a boolean, add the key.
         else if (typeof value === 'boolean') {
             result += `${key}\n`;
-        } 
+        }
         // Otherwise, value must be an (possibly lazy) object. So we can recurse.
         else {
-            // If object has __typename, use it to add the object type.
-            // if (exists(typeof value === 'function' ? value().__typename : (value as any).__typename)) {
-                result += `${key} `;
-            // }
+            result += `${key} `;
             result += `{\n`;
-            console.log('partialToStringHelper recurse', key, value);
+            console.log('partialToStringHelper recurse', key, JSON.stringify(value, null, 4));
             result += partialToStringHelper(typeof value === 'function' ? value() : value as any, indent + 4);
             result += `${' '.repeat(indent)}}\n`;
         }
     }
     return result;
-    // Return wrapped in braces
-    // return `{\n${result}${' '.repeat(indent)}}\n`;
 }

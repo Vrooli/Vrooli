@@ -33,7 +33,7 @@ export const runRoutinePartial: GqlPartial<RunRoutine> = {
         you: () => relPartial(runRoutineYouPartial, 'full'),
     },
     full: {
-        inputs: () => relPartial(require('./runRoutineInput').runRoutineInputPartial, 'list', { omit: 'runRoutine' }),
+        inputs: () => relPartial(require('./runRoutineInput').runRoutineInputPartial, 'list', { omit: ['runRoutine', 'input.routineVersion'] }),
         steps: () => relPartial(require('./runRoutineStep').runRoutineStepPartial, 'list'),
     },
 }

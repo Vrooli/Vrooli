@@ -45,6 +45,6 @@ export const standardPartial: GqlPartial<Standard> = {
         stats: () => relPartial(require('./statsStandard').statsStandardPartial, 'full'),
     },
     list: {
-        versions: () => relPartial(require('./standardVersion').standardVersionPartial, 'list'),
+        versions: () => relPartial(require('./standardVersion').standardVersionPartial, 'list', { omit: 'root' }),
     }
 }

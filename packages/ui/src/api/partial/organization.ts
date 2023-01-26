@@ -1,7 +1,6 @@
 import { Organization, OrganizationTranslation, OrganizationYou } from "@shared/consts";
 import { relPartial } from '../utils';
 import { GqlPartial } from "types";
-import { resourceListPartial } from "./resourceList";
 
 export const organizationTranslationPartial: GqlPartial<OrganizationTranslation> = {
     __typename: 'OrganizationTranslation',
@@ -50,20 +49,19 @@ export const organizationPartial: GqlPartial<Organization> = {
         tags: () => relPartial(require('./tag').tagPartial, 'list'),
     },
     full: {
-        resourceList: resourceListPartial.list,
         roles: () => relPartial(require('./role').rolePartial, 'full', { omit: 'organization' }),
-        translations: organizationTranslationPartial.full,
-        you: organizationYouPartial.full,
+        translations: () => relPartial(organizationTranslationPartial, 'full'),
+        you: () => relPartial(organizationYouPartial, 'full'),
     },
     list: {
         roles: () => relPartial(require('./role').rolePartial, 'list', { omit: 'organization' }),
-        translations: organizationTranslationPartial.full,
-        you: organizationYouPartial.full,
+        translations: () => relPartial(organizationTranslationPartial, 'full'),
+        you: () => relPartial(organizationYouPartial, 'full'),
     },
     nav: {
         id: true,
         handle: true,
-        translations: organizationTranslationPartial.list,
-        you: organizationYouPartial.full,
+        translations: () => relPartial(organizationTranslationPartial, 'list'),
+        you: () => relPartial(organizationYouPartial, 'full'),
     }
 }
