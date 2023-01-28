@@ -41,5 +41,14 @@ export const apiVersionPartial: GqlPartial<ApiVersion> = {
     list: {
         root: () => relPartial(require('./api').apiPartial, 'list', { omit: 'versions' }),
         translations: () => relPartial(apiVersionTranslationPartial, 'list'),
+    },
+    nav: {
+        id: true,
+        isLatest: true,
+        isPrivate: true,
+        versionIndex: true,
+        versionLabel: true,
+        root: () => relPartial(require('./api').apiPartial, 'nav'),
+        translations: () => relPartial(apiVersionTranslationPartial, 'list'),
     }
 }

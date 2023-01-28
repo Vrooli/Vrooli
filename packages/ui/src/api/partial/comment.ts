@@ -32,28 +32,43 @@ export const commentYouPartial: GqlPartial<CommentYou> = {
 export const commentPartial: GqlPartial<Comment> = {
     __typename: 'Comment',
     common: {
+        __define: {
+            0: [require('./apiVersion').apiVersionPartial, 'nav'],
+            1: [require('./issue').issuePartial, 'nav'],
+            2: [require('./noteVersion').noteVersionPartial, 'nav'],
+            3: [require('./post').postPartial, 'nav'],
+            4: [require('./projectVersion').projectVersionPartial, 'nav'],
+            5: [require('./pullRequest').pullRequestPartial, 'nav'],
+            6: [require('./question').questionPartial, 'nav'],
+            7: [require('./questionAnswer').questionAnswerPartial, 'nav'],
+            8: [require('./routineVersion').routineVersionPartial, 'nav'],
+            9: [require('./smartContractVersion').smartContractVersionPartial, 'nav'],
+            10: [require('./standardVersion').standardVersionPartial, 'nav'],
+            11: [require('./organization').organizationPartial, 'nav'],
+            12: [require('./user').userPartial, 'nav']
+        },
         id: true,
         created_at: true,
         updated_at: true,
         commentedOn: {
             __union: {
-                ApiVersion: () => relPartial(require('./apiVersion').apiVersionPartial, 'nav'),
-                Issue: () => relPartial(require('./issue').issuePartial, 'nav'),
-                NoteVersion: () => relPartial(require('./noteVersion').noteVersionPartial, 'nav'),
-                Post: () => relPartial(require('./post').postPartial, 'nav'),
-                ProjectVersion: () => relPartial(require('./projectVersion').projectVersionPartial, 'nav'),
-                PullRequest: () => relPartial(require('./pullRequest').pullRequestPartial, 'nav'),
-                Question: () => relPartial(require('./question').questionPartial, 'nav'),
-                QuestionAnswer: () => relPartial(require('./questionAnswer').questionAnswerPartial, 'nav'),
-                RoutineVersion: () => relPartial(require('./routineVersion').routineVersionPartial, 'nav'),
-                SmartContractVersion: () => relPartial(require('./smartContractVersion').smartContractVersionPartial, 'nav'),
-                StandardVersion: () => relPartial(require('./standardVersion').standardVersionPartial, 'nav'),
+                ApiVersion: 0,
+                Issue: 1,
+                NoteVersion: 2,
+                Post: 3,
+                ProjectVersion: 4,
+                PullRequest: 5,
+                Question: 6,
+                QuestionAnswer: 7,
+                RoutineVersion: 8,
+                SmartContractVersion: 9,
+                StandardVersion: 10,
             }
         },
         owner: {
             __union: {
-                Organization: () => relPartial(require('./organization').organizationPartial, 'nav'),
-                User: () => relPartial(require('./user').userPartial, 'nav'),
+                Organization: 11,
+                User: 12,
             }
         },
         score: true,

@@ -40,6 +40,9 @@ export const organizationYouPartial: GqlPartial<OrganizationYou> = {
 export const organizationPartial: GqlPartial<Organization> = {
     __typename: 'Organization',
     common: {
+        __define: {
+            0: [require('./tag').tagPartial, 'list'],
+        },
         id: true,
         handle: true,
         created_at: true,
@@ -50,7 +53,7 @@ export const organizationPartial: GqlPartial<Organization> = {
         membersCount: true,
         reportsCount: true,
         stars: true,
-        tags: () => relPartial(require('./tag').tagPartial, 'list'),
+        tags: { __use: 0 },
         translations: () => relPartial(organizationTranslationPartial, 'full'),
         you: () => relPartial(organizationYouPartial, 'full'),
     },

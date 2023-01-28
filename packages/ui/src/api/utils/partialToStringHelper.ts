@@ -18,7 +18,6 @@ export const partialToStringHelper = (
         }
         return v;
       }));
-    Array.isArray(partial) && console.error('Array partiallll in partialToStringHelper', partial);
     // If indent is too high, throw an error.
     if (indent > 69) {
         throw new Error('partialToStringHelper indent too high. Possible infinite loop.');
@@ -30,8 +29,6 @@ export const partialToStringHelper = (
         Array.isArray(value) && console.error('Array value in partialToStringHelper', key, value);
         // If key is __typename, skip it.
         if (key === '__typename') continue;
-        // Add indentation.
-        result += ' '.repeat(indent);
         // If key is __define, use fragmentToString to convert the fragment.
         if (key === '__define') {
             result += fragmentsToString(value as Exclude<DeepPartialBooleanWithFragments<any>['__define'], undefined>, indent);
@@ -43,17 +40,15 @@ export const partialToStringHelper = (
         // If key is __use, use value as fragment name
         else if (key === '__use') {
             console.log('IN USE', key, value);
-            result += `...${value}\n`;
+            result += `${' '.repeat(indent)}...${value}\n`;
         }
         // If value is a boolean, add the key.
         else if (typeof value === 'boolean') {
-            result += `${key}\n`;
+            result += `${' '.repeat(indent)}${key}\n`;
         }
         // Otherwise, value must be an (possibly lazy) object. So we can recurse.
         else {
-            result += `${key} `;
-            result += `{\n`;
-            console.log('partialToStringHelper recurse', key, JSON.stringify(value, null, 4));
+            result += `${' '.repeat(indent)}${key} {\n`;
             result += partialToStringHelper(typeof value === 'function' ? value() : value as any, indent + 4);
             result += `${' '.repeat(indent)}}\n`;
         }

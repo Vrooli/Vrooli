@@ -45,5 +45,14 @@ export const smartContractVersionPartial: GqlPartial<SmartContractVersion> = {
     },
     list: {
         translations: () => relPartial(smartContractVersionTranslationPartial, 'list'),
+    },
+    nav: {
+        id: true,
+        isLatest: true,
+        isPrivate: true,
+        versionIndex: true,
+        versionLabel: true,
+        root: () => relPartial(require('./smartContract').smartContractPartial, 'nav'),
+        translations: () => relPartial(smartContractVersionTranslationPartial, 'list'),
     }
 }

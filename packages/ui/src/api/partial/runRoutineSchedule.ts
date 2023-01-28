@@ -29,10 +29,15 @@ export const runRoutineSchedulePartial: GqlPartial<RunRoutineSchedule> = {
         translations: () => relPartial(runRoutineScheduleTranslationPartial, 'full'),
     },
     full: {
-        labels: () => relPartial(require('./label').labelPartial, 'full'),
+        __define: {
+            0: [require('./label').labelPartial, 'full'],
+        },
+        labels: { __use: 0 },
     },
     list: {
-        labels: () => relPartial(require('./label').labelPartial, 'list'),
-
+        __define: {
+            0: [require('./label').labelPartial, 'list'],
+        },
+        labels: { __use: 0 },
     }
 }

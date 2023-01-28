@@ -5,7 +5,7 @@ import { Box, Dialog, Palette, Stack, Tooltip, useTheme } from '@mui/material';
 import { ShareObjectDialogProps } from '../types';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
 import { useMemo } from 'react';
-import { getObjectUrl, ObjectType, PubSub, usePress } from 'utils';
+import { getDeviceInfo, getObjectUrl, ObjectType, PubSub, usePress } from 'utils';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 import { ColorIconButton, SnackSeverity } from 'components';
@@ -58,7 +58,7 @@ export const ShareObjectDialog = ({
     * When QR code is long-pressed in standalone mode (i.e. app is downloaded), open copy/save photo dialog
     */
     const handleQRCodeLongPress = () => {
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        const { isStandalone } = getDeviceInfo();
         if (!isStandalone) return;
         // Find image using parent element's ID
         const qrCode = document.getElementById('qr-code-box')?.firstChild as HTMLImageElement;

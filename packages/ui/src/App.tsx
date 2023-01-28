@@ -311,7 +311,7 @@ export function App() {
                     {/* Command palette */}
                     <CommandPalette session={session ?? guestSession} />
                     {/* Find in page */}
-                    <FindInPage />
+                    <FindInPage session={session ?? guestSession} />
                     {/* Celebratory confetti. To be used sparingly */}
                     {
                         celebrating && <Confetti
@@ -351,7 +351,7 @@ export function App() {
                         />
                     </Box>
                     <BottomNav session={session ?? guestSession} />
-                    <Footer />
+                    <Footer session={session ?? guestSession} />
                 </Box>
             </ThemeProvider>
         </StyledEngineProvider>

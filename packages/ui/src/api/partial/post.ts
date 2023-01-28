@@ -33,5 +33,9 @@ export const postPartial: GqlPartial<Post> = {
     list: {
         resourceList: () => relPartial(require('./resourceList').resourceListPartial, 'list'),
         translations: () => relPartial(postTranslationPartial, 'list'),
+    },
+    nav: {
+        id: true,
+        translations: () => relPartial(postTranslationPartial, 'list'),
     }
 }

@@ -30,7 +30,8 @@ export const unionToString = (
             typeof value === 'function' && console.log('union before ptsh', key, value())
             result += partialToStringHelper(typeof value === 'function' ? value() : value, indent + 4);
         }
-        // Shouldn't be anything else.
+        // Shouldn't be anything else. If so, there was likely an issue with 
+        // converting union references (which can be a string, number, or symbol) to unique strings
         else {
             console.error('unionToString got unexpected value', key, value);
         }

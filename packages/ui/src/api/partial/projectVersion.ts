@@ -51,15 +51,24 @@ export const projectVersionPartial: GqlPartial<ProjectVersion> = {
         you: () => relPartial(versionYouPartial, 'full'),
     },
     full: {
-        directories: () => relPartial(require('./projectVersionDirectory').projectVersionDirectoryPartial, 'full', { omit: 'projectVersion '}),
+        directories: () => relPartial(require('./projectVersionDirectory').projectVersionDirectoryPartial, 'full', { omit: 'projectVersion ' }),
         pullRequest: () => relPartial(require('./pullRequest').pullRequestPartial, 'full'),
         root: () => relPartial(require('./project').projectPartial, 'full', { omit: 'versions' }),
         translations: () => relPartial(projectVersionTranslationPartial, 'full'),
         versionNotes: true,
     },
     list: {
-        directories: () => relPartial(require('./projectVersionDirectory').projectVersionDirectoryPartial, 'list', { omit: 'projectVersion '}),
+        directories: () => relPartial(require('./projectVersionDirectory').projectVersionDirectoryPartial, 'list', { omit: 'projectVersion ' }),
         root: () => relPartial(require('./project').projectPartial, 'list', { omit: 'versions' }),
+        translations: () => relPartial(projectVersionTranslationPartial, 'list'),
+    },
+    nav: {
+        id: true,
+        isLatest: true,
+        isPrivate: true,
+        versionIndex: true,
+        versionLabel: true,
+        root: () => relPartial(require('./project').projectPartial, 'nav'),
         translations: () => relPartial(projectVersionTranslationPartial, 'list'),
     }
 }

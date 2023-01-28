@@ -34,6 +34,16 @@ export const issueYouPartial: GqlPartial<IssueYou> = {
 export const issuePartial: GqlPartial<Issue> = {
     __typename: 'Issue',
     common: {
+        __define: {
+            0: [require('./api').apiPartial, 'nav'],
+            1: [require('./note').notePartial, 'nav'],
+            2: [require('./organization').organizationPartial, 'nav'],
+            3: [require('./project').projectPartial, 'nav'],
+            4: [require('./routine').routinePartial, 'nav'],
+            5: [require('./smartContract').smartContractPartial, 'nav'],
+            6: [require('./standard').standardPartial, 'nav'],
+            7: [require('./label').labelPartial, 'list'],
+        },
         id: true,
         created_at: true,
         updated_at: true,
@@ -42,13 +52,13 @@ export const issuePartial: GqlPartial<Issue> = {
         status: true,
         to: {
             __union: {
-                Api: () => relPartial(require('./api').apiPartial, 'nav'),
-                Note: () => relPartial(require('./note').notePartial, 'nav'),
-                Organization: () => relPartial(require('./organization').organizationPartial, 'nav'),
-                Project: () => relPartial(require('./project').projectPartial, 'nav'),
-                Routine: () => relPartial(require('./routine').routinePartial, 'nav'),
-                SmartContract: () => relPartial(require('./smartContract').smartContractPartial, 'nav'),
-                Standard: () => relPartial(require('./standard').standardPartial, 'nav'),
+                Api: 0,
+                Note: 1,
+                Organization: 2,
+                Project: 3,
+                Routine: 4,
+                SmartContract: 5,
+                Standard: 6,
             }
         },
         commentsCount: true,
@@ -56,7 +66,7 @@ export const issuePartial: GqlPartial<Issue> = {
         score: true,
         stars: true,
         views: true,
-        labels: () => relPartial(require('./label').labelPartial, 'list'),
+        labels: { __use: 7 },
         you: () => relPartial(issueYouPartial, 'full'),
     },
     full: {
@@ -65,6 +75,10 @@ export const issuePartial: GqlPartial<Issue> = {
         translations: () => relPartial(issueTranslationPartial, 'full'),
     },
     list: {
+        translations: () => relPartial(issueTranslationPartial, 'list'),
+    },
+    nav: {
+        id: true,
         translations: () => relPartial(issueTranslationPartial, 'list'),
     }
 }

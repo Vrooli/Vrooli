@@ -244,7 +244,7 @@ export const AccountMenu = ({
                 {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} /> : <ExpandLessIcon fill={palette.background.textPrimary} />}
             </Stack>
             <Collapse in={isAdditionalResourcesOpen} sx={{ display: 'inline-block' }}>
-                <ContactInfo />
+                <ContactInfo session={session} />
             </Collapse>
         </SwipeableDrawer>
     )

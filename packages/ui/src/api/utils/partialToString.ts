@@ -75,6 +75,7 @@ export const partialToString = <
     if (exists(__define) && Object.keys(__define).length > 0) {
         str += partialToStringHelper({ __define } as any, indent);
     }
+    console.log('PARTIAL TO STRING WITHOUT FRAGMENTS', rest)
     // Add the query/mutation itself
     str += `
 ${' '.repeat(indent)}${endpointType} ${endpointName}`;

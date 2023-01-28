@@ -6,7 +6,7 @@ import { useCallback } from 'react';
 import { Box, Stack, TextField, useTheme } from '@mui/material';
 import { useMutation } from 'api/hooks';
 import { mutationWrapper } from 'api/utils';
-import { getDeviceName, PubSub, updateArray } from 'utils';
+import { getDeviceInfo, PubSub, updateArray } from 'utils';
 import { useFormik } from 'formik';
 import { PushListItem } from '../PushListItem/PushListItem';
 import { AddIcon } from '@shared/icons';
@@ -44,7 +44,7 @@ export const PushList = ({
                     endpoint: values.endpoint,
                     expires: values.expires,
                     keys: values.keys,
-                    name: getDeviceName(),
+                    name: getDeviceInfo().deviceName,
                 },
                 onSuccess: (data) => {
                     PubSub.get().publishSnack({ messageKey: 'CompleteVerificationInEmail', severity: SnackSeverity.Info });

@@ -46,5 +46,14 @@ export const standardVersionPartial: GqlPartial<StandardVersion> = {
     },
     list: {
         translations: () => relPartial(standardVersionTranslationPartial, 'list'),
+    },
+    nav: {
+        id: true,
+        isLatest: true,
+        isPrivate: true,
+        versionIndex: true,
+        versionLabel: true,
+        root: () => relPartial(require('./standard').standardPartial, 'nav'),
+        translations: () => relPartial(standardVersionTranslationPartial, 'list'),
     }
 }

@@ -16,12 +16,17 @@ export const toSearch = <
 >(
     partial: GqlPartial<GqlObject>,
 ): [GqlPartial<any>, 'list'] => {
+    // Combine the common and list selections from the partial
+    const combinedSelection = partialCombine(partial.list ?? {}, partial.common ?? {});
+    // Remove __define (i.e. fragments) from the combined selection, so we can put it in the top level
+    const { __define, ...node } = combinedSelection;
     return [{
         __typename: `${partial.__typename}SearchResult`,
         list: {
+            __define: __define as any,
             edges: {
                 cursor: true,
-                node: partialCombine(partial.list ?? {}, partial.common ?? {}),
+                node,
             },
             pageInfo: {
                 endCursor: true,

@@ -16,11 +16,17 @@ export const userSchedulePartial: GqlPartial<UserSchedule> = {
         recurrEnd: true,
     },
     full: {
+        __define: {
+            0: [require('./label').labelPartial, 'full'],
+        },
         filters: () => relPartial(require('./userScheduleFilter').userScheduleFilterPartial, 'full'),
-        labels: () => relPartial(require('./label').labelPartial, 'full'),
+        labels: { __use: 0 },
         reminderList: () => relPartial(require('./reminderList').reminderListPartial, 'full', { omit: 'userSchedule' }),
     },
     list: {
-        labels: () => relPartial(require('./label').labelPartial, 'list'),
+        __define: {
+            0: [require('./label').labelPartial, 'list'],
+        },
+        labels: { __use: 0 },
     }
 }

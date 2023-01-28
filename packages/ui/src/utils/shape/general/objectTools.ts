@@ -1,7 +1,7 @@
 /**
  * Functions for manipulating state objects
  */
-import { isObject } from "@shared/utils";
+import { exists, isObject } from "@shared/utils";
 
 /**
  * Grabs data from an object using dot notation (ex: 'parent.child.property')
@@ -36,8 +36,10 @@ export const removeValuesUsingDot = (obj, ...keys) => {
                 currentObject[currentKey] = currentObject[currentKey]();
             }
             currentObject = currentObject[currentKey];
+            if (!exists(currentObject)) break;
         }
         currentKey = keyArr[keyArr.length - 1];
+        if (!exists(currentObject) || !exists(currentObject[currentKey])) return;
         delete currentObject[currentKey];
     });
     console.log('removeValuesUsingDot end', obj)

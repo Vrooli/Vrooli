@@ -60,4 +60,13 @@ export const pullRequestPartial: GqlPartial<PullRequest> = {
         createdBy: () => relPartial(require('./user').userPartial, 'nav'),
         you: () => relPartial(pullRequestYouPartial, 'full'),
     },
+    full: {},
+    list: {},
+    nav: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        mergedOrRejectedAt: true,
+        status: true,
+    }
 }

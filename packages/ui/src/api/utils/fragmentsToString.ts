@@ -17,14 +17,12 @@ export const fragmentsToString = (
     // Initialize the fragment string.
     let fragmentString = '';
     for (const [name, [partial, type]] of Object.entries(fragments)) {
-        console.log('fragment before prsh', name, partial.__typename, findSelection(partial, type))
         // Get the selection type for the partial
         const actualType = findSelection(partial, type);
         // Get selection data for the partial
         let selectionData = partial[actualType]!;
         // If the selectiion type is 'full' or 'list', and the 'common' selection is defined, combine the two.
         if ((actualType === 'full' || actualType === 'list') && exists(partial.common)) {
-            console.log('fragmentsToSTring doing partialCombine', actualType, partial.__typename)
             selectionData = partialCombine(selectionData, partial.common);
         }
         fragmentString += `${' '.repeat(indent)}fragment ${name} on ${partial.__typename} {\n`;

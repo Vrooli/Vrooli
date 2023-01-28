@@ -20,22 +20,29 @@ export const apiYouPartial: GqlPartial<ApiYou> = {
 export const apiPartial: GqlPartial<Api> = {
     __typename: 'Api',
     common: {
+        __define: {
+            0: [require('./organization').organizationPartial, 'nav'],
+            1: [require('./user').userPartial, 'nav'],
+            2: [require('./tag').tagPartial, 'list'],
+            3: [require('./label').labelPartial, 'list'],
+        },
         id: true,
         created_at: true,
+        updated_at: true,
         isPrivate: true,
         issuesCount: true,
-        labels: () => relPartial(require('./label').labelPartial, 'list'),
+        labels: { __use: 3 },
         owner: {
             __union: {
-                Organization: () => relPartial(require('./organization').organizationPartial, 'nav'),
-                User: () => relPartial(require('./user').userPartial, 'nav'),
+                Organization: 0,
+                User: 1,
             }
         },
         permissions: true,
         questionsCount: true,
         score: true,
         stars: true,
-        tags: () => relPartial(require('./tag').tagPartial, 'list'),
+        tags: { __use: 2 },
         transfersCount: true,
         views: true,
         you: () => relPartial(apiYouPartial, 'full'),
@@ -46,5 +53,9 @@ export const apiPartial: GqlPartial<Api> = {
     },
     list: {
         versions: () => relPartial(require('./apiVersion').apiVersionPartial, 'list', { omit: 'root' }),
+    },
+    nav: {
+        id: true,
+        isPrivate: true,
     }
 }

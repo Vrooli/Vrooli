@@ -1,6 +1,8 @@
+import { exists } from "@shared/utils";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "types";
 import { removeValuesUsingDot } from "utils";
 import { findSelection } from "./findSelection";
+import { partialCombine } from "./partialCombine";
 
 /**
  * Adds a relation to an GraphQL selection set, while optionally omitting one or more fields.
@@ -17,11 +19,18 @@ export const relPartial = <
     selectionType: Selection,
     exceptions?: { omit: OmitField | OmitField[] }
 ): DeepPartialBooleanWithFragments<any> => {
+    const hasExceptions = exists(exceptions) && exists(exceptions.omit)
     // Find correct selection to use
-    let selection = partial[findSelection(partial, selectionType)]!;
-    // If no exceptions, return selection
-    if (!exceptions || !exceptions.omit) return { __typename: partial.__typename, ...selection } as any;
+    const actualSelectionType = findSelection(partial, selectionType);
+    // Get selection data for the partial
+    let selectionData = partial[actualSelectionType]!;
     // Remove all exceptions. Supports dot notation.
-    removeValuesUsingDot(selection, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
-    return { __typename: partial.__typename, ...selection } as any;
+    hasExceptions && removeValuesUsingDot(selectionData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
+    // If the selectiion type is 'full' or 'list', and the 'common' selection is defined, combine the two.
+    if ((actualSelectionType === 'full' || actualSelectionType === 'list') && exists(partial.common)) {
+        selectionData = partialCombine(selectionData, partial.common);
+    }
+    // Remove exceptions again, in case they were added to the common selection
+    hasExceptions && removeValuesUsingDot(selectionData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
+    return { __typename: partial.__typename, ...selectionData } as any;
 }

@@ -1,6 +1,7 @@
 import { Box, IconButton, useTheme } from "@mui/material";
 import { RefreshIcon } from "@shared/icons";
 import { useEffect, useRef, useState } from "react";
+import { getDeviceInfo } from "utils";
 
 /**
  * Pull-to-refresh component. Needed because iOS PWAs don't support this natively.
@@ -14,7 +15,7 @@ export const PullToRefresh = () => {
         startX: null,
     });
     // Determine if in standalone (i.e. app is downloaded) mode
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    const { isStandalone } = getDeviceInfo();
 
     // Detect scroll
     useEffect(() => {

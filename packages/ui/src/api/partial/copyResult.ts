@@ -3,7 +3,7 @@ import { GqlPartial } from "types";
 
 export const copyResultPartial: GqlPartial<CopyResult> = {
     __typename: 'CopyResult',
-    list: {
+    common: {
         __define: {
             0: [require('./apiVersion').apiVersionPartial, 'list'],
             1: [require('./noteVersion').noteVersionPartial, 'list'],
@@ -20,5 +20,7 @@ export const copyResultPartial: GqlPartial<CopyResult> = {
         routineVersion: { __use: 4 },
         smartContractVersion: { __use: 5 },
         standardVersion: { __use: 6 }
-    }
+    },
+    full: {},
+    list: {},
 }

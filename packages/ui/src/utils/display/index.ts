@@ -1,4 +1,4 @@
-export * from './deviceName';
+export * from './device';
 export * from './documentTools';
 export * from './listTools';
 export * from './scheduleTools';

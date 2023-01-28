@@ -90,7 +90,8 @@ export const routineVersionPartial: GqlPartial<RoutineVersion> = {
         isDeleted: true,
         isLatest: true,
         isPrivate: true,
-        translations: () => relPartial(routineVersionTranslationPartial, 'full'),
+        root: () => relPartial(require('./routine').routinePartial, 'nav'),
+        translations: () => relPartial(routineVersionTranslationPartial, 'list'),
         versionIndex: true,
         versionLabel: true,
     }

@@ -13,14 +13,18 @@ export const labelYouPartial: GqlPartial<LabelYou> = {
 export const labelPartial: GqlPartial<Label> = {
     __typename: 'Label',
     common: {
+        __define: {
+            0: [require('./organization').organizationPartial, 'nav'],
+            1: [require('./user').userPartial, 'nav']
+        },
         id: true,
         created_at: true,
         updated_at: true,
         color: true,
         owner: {
             __union: {
-                Organization: () => relPartial(require('./organization').organizationPartial, 'nav'),
-                User: () => relPartial(require('./user').userPartial, 'nav'),
+                Organization: 0,
+                User: 1,
             }
         },
         you: () => relPartial(labelYouPartial, 'full'),
