@@ -31,6 +31,8 @@ const addFragments = <T extends { __typename: string }>(
             // Use partialShape to recurse on partial. This allows us to combine fragments that are nested within fragments.
             const { __define, ...rest } = partial;// partialShape(partial);
             result[actualKey] = rest as DeepPartialBooleanWithFragments<NonMaybe<T>>;
+            // Add fragments from __define to result
+            result = { ...result, ...__define } as any;
         }
     }
     console.log('addfragments end', result);
@@ -48,7 +50,9 @@ export const partialShape = <T extends { __typename: string }>(
     selection: MaybeLazy<DeepPartialBooleanWithFragments<NonMaybe<T>>>,
     lastDefine: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = {}
 ): DeepPartialBooleanWithFragments<NonMaybe<T>> => {
-    console.log('partialShape start ', { ...selection }, { ...lastDefine });
+    // temporary number for debugging
+    const num = Math.floor(Math.random() * 10000);
+    console.log('partialShape', num, 'a', { ...selection }, { ...lastDefine });
     // Initialize result
     const result: DeepPartialBooleanWithFragments<NonMaybe<T>> = {};
     // Unlazy the selection
@@ -58,6 +62,7 @@ export const partialShape = <T extends { __typename: string }>(
     let uniqueFragments: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = {};
     // Add top-level fragments to uniqueFragments
     uniqueFragments = addFragments(uniqueFragments, data.__define as any);
+    console.log('partialShape', num, 'b', { ...data }, { ...uniqueFragments }, { ...lastDefine });
     // Create currDefine object to hold current fragments (which haven't been renamed yet). 
     // Prefer the __define field from first and second object (i.e. current) over lastDefine (i.e. parent, grandparent, etc.).
     let currDefine: { [x: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = { ...(data.__define ?? {}) } as any;
@@ -123,7 +128,7 @@ export const partialShape = <T extends { __typename: string }>(
     }
     // Set the __define field of the combined object
     result.__define = uniqueFragments;
-    console.log('partialcombine complete', result)
+    console.log('partialcombine', num, 'end', { ...result });
     // Return the combined object
     return result;
 }
