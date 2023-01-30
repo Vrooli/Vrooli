@@ -13,9 +13,10 @@ import { AdvancedSearchDialogProps } from '../types';
 import { useFormik } from 'formik';
 import { FieldData, FormSchema } from 'forms/types';
 import { generateDefaultProps, generateGrid, generateYupSchema } from 'forms/generators';
-import { convertFormikForSearch, convertSearchForFormik, parseSearchParams, searchTypeToParams } from 'utils';
+import { convertFormikForSearch, convertSearchForFormik, getUserLanguages, parseSearchParams, searchTypeToParams } from 'utils';
 import { DialogTitle } from 'components';
 import { CancelIcon, SearchIcon } from '@shared/icons';
+import { useTranslation } from 'react-i18next';
 
 const titleAria = 'advanced-search-dialog-title';
 
@@ -28,6 +29,8 @@ export const AdvancedSearchDialog = ({
     zIndex,
 }: AdvancedSearchDialogProps) => {
     const theme = useTheme();
+    const { t } = useTranslation();
+    const lng = getUserLanguages(session)[0];
     // Search schema to use
     const [schema, setSchema] = useState<FormSchema | null>(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null);
     useEffect(() => { setSchema(searchType in searchTypeToParams ? searchTypeToParams[searchType].advancedSearchSchema : null) }, [searchType]);
@@ -112,7 +115,7 @@ export const AdvancedSearchDialog = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                title={'Advanced Search'}
+                title={t(`common:AdvancedSearch`)}
                 onClose={handleClose}
             />
             <form onSubmit={formik.handleSubmit}>
@@ -137,14 +140,14 @@ export const AdvancedSearchDialog = ({
                             fullWidth
                             startIcon={<SearchIcon />}
                             type="submit"
-                        >Search</Button>
+                        >{t(`common:Search`, { lng })}</Button>
                     </Grid>
                     <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
                         <Button
                             fullWidth
                             startIcon={<CancelIcon />}
                             onClick={handleClose}
-                        >Cancel</Button>
+                        >{t(`common:Cancel`, { lng })}</Button>
                     </Grid>
                 </Grid>
             </form>

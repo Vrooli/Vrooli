@@ -37,6 +37,7 @@ export interface CommentDialogProps {
     language: string;
     onTranslationChange: (e: { target: { name: string; value: string; }; }) => void;
     parent: Comment | null;
+    session: Session;
     text: string;
     zIndex: number;
 }

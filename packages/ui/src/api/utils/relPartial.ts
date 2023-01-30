@@ -19,11 +19,13 @@ export const relPartial = <
     selectionType: Selection,
     exceptions?: { omit: OmitField | OmitField[] }
 ): DeepPartialBooleanWithFragments<any> => {
+    console.log('relPartial start', partial.__typename, selectionType, exceptions)
     const hasExceptions = exists(exceptions) && exists(exceptions.omit)
     // Find correct selection to use
     const actualSelectionType = findSelection(partial, selectionType);
     // Get selection data for the partial
     let selectionData = partial[actualSelectionType]!;
+    console.log('relPartial selectionData', actualSelectionType, {...selectionData})
     // Remove all exceptions. Supports dot notation.
     hasExceptions && removeValuesUsingDot(selectionData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
     // If the selectiion type is 'full' or 'list', and the 'common' selection is defined, combine the two.
@@ -32,5 +34,8 @@ export const relPartial = <
     }
     // Remove exceptions again, in case they were added to the common selection
     hasExceptions && removeValuesUsingDot(selectionData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
+    // TODO seems like issue may be that relPartial renames fields, while fields remain with inital name 
+    // during __define logic somewhere
+    console.log('relPartial complete', { __typename: partial.__typename, ...selectionData });
     return { __typename: partial.__typename, ...selectionData } as any;
 }

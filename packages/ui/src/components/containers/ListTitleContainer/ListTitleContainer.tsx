@@ -5,13 +5,18 @@
 import { List, Typography } from '@mui/material';
 import { ListTitleContainerProps } from '../types';
 import { TitleContainer } from 'components';
+import { useTranslation } from 'react-i18next';
+import { getUserLanguages } from 'utils';
 
 export function ListTitleContainer({
     children,
-    emptyText = 'No results',
+    emptyText,
     isEmpty,
+    session,
     ...props
 }: ListTitleContainerProps) {
+    const { t } = useTranslation();
+    const lng = getUserLanguages(session)[0];
 
     return (
         <TitleContainer {...props}>
@@ -20,7 +25,7 @@ export function ListTitleContainer({
                     <Typography variant="h6" sx={{
                         textAlign: 'center',
                         paddingTop: '8px',
-                    }}>{emptyText}</Typography> :
+                    }}>{emptyText ?? t(`common:NoResult`, { lng, count: 2 })}</Typography> :
                     <List sx={{ overflow: 'hidden' }}>
                         {children}
                     </List>

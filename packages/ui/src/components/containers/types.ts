@@ -21,13 +21,14 @@ export interface TitleContainerProps {
     onClick?: (event: React.MouseEvent) => void;
     options?: [string, (e?: any) => void][];
     sx?: object;
-    title?: string;
+    title: string;
     tooltip?: string;
 }
 
 export interface ListTitleContainerProps extends TitleContainerProps {
     emptyText?: string;
     isEmpty: boolean;
+    session: Session;
 }
 
 // label, Icon, disabled, isSubmit, onClick

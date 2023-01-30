@@ -16,6 +16,10 @@ export const runProjectYouPartial: GqlPartial<RunProjectYou> = {
 export const runProjectPartial: GqlPartial<RunProject> = {
     __typename: 'RunProject',
     common: {
+        __define: {
+            0: [require('./organization').organizationPartial, 'nav'],
+            1: [require('./user').userPartial, 'nav'],
+        },
         id: true,
         isPrivate: true,
         completedComplexity: true,
@@ -27,10 +31,10 @@ export const runProjectPartial: GqlPartial<RunProject> = {
         status: true,
         stepsCount: true,
         wasRunAutomaticaly: true,
-        organization: () => relPartial(require('./organization').organizationPartial, 'nav'),
+        organization: { __use: 0 },
         projectVersion: () => relPartial(require('./projectVersion').projectVersionPartial, 'nav', { omit: 'you' }),
         runProjectSchedule: () => relPartial(require('./runProjectSchedule').runProjectSchedulePartial, 'full', { omit: 'runProject' }),
-        user: () => relPartial(require('./user').userPartial, 'nav'),
+        user: { __use: 1 },
         you: () => relPartial(runProjectYouPartial, 'full'),
     },
     full: {

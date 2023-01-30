@@ -197,6 +197,7 @@ export const HistoryPage = ({
                     isEmpty={activeRuns.length === 0}
                     onClick={toSeeAllActiveRuns}
                     options={[['See all', toSeeAllActiveRuns]]}
+                    session={session}
                 >
                     {activeRuns}
                 </ListTitleContainer>
@@ -206,6 +207,7 @@ export const HistoryPage = ({
                     isEmpty={completedRuns.length === 0}
                     onClick={toSeeAllCompletedRuns}
                     options={[['See all', toSeeAllCompletedRuns]]}
+                    session={session}
                 >
                     {completedRuns}
                 </ListTitleContainer>
@@ -215,6 +217,7 @@ export const HistoryPage = ({
                     isEmpty={recent.length === 0}
                     onClick={toSeeAllViewed}
                     options={[['See all', toSeeAllViewed]]}
+                    session={session}
                 >
                     {recent}
                 </ListTitleContainer>
@@ -224,6 +227,7 @@ export const HistoryPage = ({
                     isEmpty={starred.length === 0}
                     onClick={toSeeAllStarred}
                     options={[['See all', toSeeAllStarred]]}
+                    session={session}
                 >
                     {starred}
                 </ListTitleContainer>

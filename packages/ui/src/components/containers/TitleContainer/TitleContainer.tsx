@@ -6,7 +6,7 @@ import { HelpButton } from 'components';
 
 export function TitleContainer({
     id,
-    title = 'Popular Items',
+    title,
     onClick,
     loading = false,
     tooltip = '',

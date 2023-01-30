@@ -251,6 +251,7 @@ export const HomePage = ({
                         title={getFeedTitle(`${tab}`)}
                         onClick={(e) => toSearchPage(e, tab)}
                         options={[['See more results', (e) => { toSearchPage(e, tab) }]]}
+                        session={session}
                     >
                         {listFeedItems}
                     </ListTitleContainer>

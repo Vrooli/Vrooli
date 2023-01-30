@@ -16,6 +16,10 @@ export const runRoutineYouPartial: GqlPartial<RunRoutineYou> = {
 export const runRoutinePartial: GqlPartial<RunRoutine> = {
     __typename: 'RunRoutine',
     common: {
+        __define: {
+            0: [require('./organization').organizationPartial, 'nav'],
+            1: [require('./user').userPartial, 'nav'],
+        },
         id: true,
         isPrivate: true,
         completedComplexity: true,
@@ -28,10 +32,10 @@ export const runRoutinePartial: GqlPartial<RunRoutine> = {
         stepsCount: true,
         inputsCount: true,
         wasRunAutomaticaly: true,
-        organization: () => relPartial(require('./organization').organizationPartial, 'nav'),
+        organization: { __use: 0 },
         routineVersion: () => relPartial(require('./routineVersion').routineVersionPartial, 'nav', { omit: 'you' }),
         runRoutineSchedule: () => relPartial(require('./runRoutineSchedule').runRoutineSchedulePartial, 'full', { omit: 'runRoutine' }),
-        user: () => relPartial(require('./user').userPartial, 'nav'),
+        user: { __use: 1 },
         you: () => relPartial(runRoutineYouPartial, 'full'),
     },
     full: {

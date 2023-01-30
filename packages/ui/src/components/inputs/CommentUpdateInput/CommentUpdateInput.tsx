@@ -91,6 +91,7 @@ export const CommentUpdateInput = ({
             language={language}
             onTranslationChange={onTranslationChange}
             parent={parent}
+            session={session}
             text={translations.text}
             zIndex={zIndex + 1}
         />

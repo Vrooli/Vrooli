@@ -14,12 +14,12 @@ export const PullToRefresh = () => {
         willRefresh: false,
         startX: null,
     });
-    // Determine if in standalone (i.e. app is downloaded) mode
+    // Determine if in standalone (i.e. app is downloaded)
     const { isStandalone } = getDeviceInfo();
 
     // Detect scroll
     useEffect(() => {
-        const handleScroll = (e: Event) => {
+        const handleScroll = () => {
             // Find scroll y position
             const scrollY = window.scrollY;
             // If scrolled far enough upwards, then indicate that the user wants to refresh
