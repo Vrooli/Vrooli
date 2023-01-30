@@ -2,7 +2,8 @@ import { exists } from "@shared/utils";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "types";
 import { removeValuesUsingDot } from "utils";
 import { findSelection } from "./findSelection";
-import { partialCombine } from "./partialCombine";
+import { partialShape } from "./partialShape";
+import { merge } from "lodash";
 
 /**
  * Adds a relation to an GraphQL selection set, while optionally omitting one or more fields.
@@ -25,17 +26,23 @@ export const relPartial = <
     const actualSelectionType = findSelection(partial, selectionType);
     // Get selection data for the partial
     let selectionData = partial[actualSelectionType]!;
-    console.log('relPartial selectionData', actualSelectionType, {...selectionData})
     // Remove all exceptions. Supports dot notation.
     hasExceptions && removeValuesUsingDot(selectionData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
+    // Shape selection data
+    selectionData = partialShape(selectionData);
     // If the selectiion type is 'full' or 'list', and the 'common' selection is defined, combine the two.
-    if ((actualSelectionType === 'full' || actualSelectionType === 'list') && exists(partial.common)) {
-        selectionData = partialCombine(selectionData, partial.common);
+    if (['full', 'list'].includes(actualSelectionType) && exists(partial.common)) {
+        let commonData = partial.common;
+        // Remove exceptions from common selection
+        hasExceptions && removeValuesUsingDot(commonData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
+        // Shape common selection
+        commonData = partialShape(commonData);
+        // Merge common selection into selection data
+        selectionData = merge(selectionData, commonData);
     }
-    // Remove exceptions again, in case they were added to the common selection
-    hasExceptions && removeValuesUsingDot(selectionData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
+    console.log('relPartial selectionData', actualSelectionType, {...selectionData})
     // TODO seems like issue may be that relPartial renames fields, while fields remain with inital name 
     // during __define logic somewhere
     console.log('relPartial complete', { __typename: partial.__typename, ...selectionData });
-    return { __typename: partial.__typename, ...selectionData } as any;
+    return { __typename: partial.__typename, __selectionType: actualSelectionType, ...selectionData } as any;
 }

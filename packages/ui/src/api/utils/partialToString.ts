@@ -1,8 +1,7 @@
 import { exists } from "@shared/utils";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "types";
-import { findSelection } from "./findSelection";
-import { partialCombine } from "./partialCombine";
 import { partialToStringHelper } from "./partialToStringHelper";
+import { relPartial } from "./relPartial";
 
 type PartialToStringProps<
     EndpointType extends 'query' | 'mutation',
@@ -49,24 +48,7 @@ export const partialToString = <
     // Calculate the fragments and selection set by combining partials
     let combined: DeepPartialBooleanWithFragments<any> = {};
     if (exists(partial) && exists(selectionType)) {
-        // Find the actual selection type to use, based on which fields in partial are provided
-        const actualSelectionType = findSelection(partial, selectionType);
-        // To get the full selection, we must use partialCombine. This function 
-        // combines two fields in partial, but also renames fields and removes duplicate 
-        // fragments.
-        // 'full' combines with 'common'
-        if (actualSelectionType === 'full') {
-            combined = partialCombine(partial.full!, partial.common ?? {});
-        }
-        // 'list' combines with 'common'
-        else if (actualSelectionType === 'list') {
-            combined = partialCombine(partial.list!, partial.common ?? {});
-        }
-        // 'common' and 'nav' combine with nothing, but we still use partialCombine for the 
-        // renaming and fragment removal.
-        else {
-            combined = partialCombine(partial[actualSelectionType]!, {});
-        }
+        combined = relPartial(partial, selectionType)
     }
     // Initialize the string to return
     let str = '';

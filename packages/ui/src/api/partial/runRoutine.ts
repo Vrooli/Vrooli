@@ -17,8 +17,8 @@ export const runRoutinePartial: GqlPartial<RunRoutine> = {
     __typename: 'RunRoutine',
     common: {
         __define: {
-            0: [require('./organization').organizationPartial, 'nav'],
-            1: [require('./user').userPartial, 'nav'],
+            0: () => relPartial(require('./organization').organizationPartial, 'nav'),
+            1: () => relPartial(require('./user').userPartial, 'nav'),
         },
         id: true,
         isPrivate: true,

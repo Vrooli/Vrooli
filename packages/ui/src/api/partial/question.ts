@@ -1,13 +1,6 @@
 import { Question, QuestionTranslation, QuestionYou } from "@shared/consts";
 import { relPartial } from '../utils';
 import { GqlPartial } from "types";
-import { apiPartial } from "./api";
-import { notePartial } from "./note";
-import { organizationPartial } from "./organization";
-import { projectPartial } from "./project";
-import { routinePartial } from "./routine";
-import { smartContractPartial } from "./smartContract";
-import { standardPartial } from "./standard";
 
 export const questionTranslationPartial: GqlPartial<QuestionTranslation> = {
     __typename: 'QuestionTranslation',
@@ -34,13 +27,13 @@ export const questionPartial: GqlPartial<Question> = {
     __typename: 'Question',
     common: {
         __define: {
-            0: [apiPartial, 'nav'],
-            1: [notePartial, 'nav'],
-            2: [organizationPartial, 'nav'],
-            3: [projectPartial, 'nav'],
-            4: [routinePartial, 'nav'],
-            5: [smartContractPartial, 'nav'],
-            6: [standardPartial, 'nav'],
+            0: () => relPartial(require('./api').apiPartial, 'nav'),
+            1: () => relPartial(require('./note').notePartial, 'nav'),
+            2: () => relPartial(require('./organization').organizationPartial, 'nav'),
+            3: () => relPartial(require('./project').projectPartial, 'nav'),
+            4: () => relPartial(require('./routine').routinePartial, 'nav'),
+            5: () => relPartial(require('./smartContract').smartContractPartial, 'nav'),
+            6: () => relPartial(require('./standard').standardPartial, 'nav'),
         },
         id: true,
         created_at: true,

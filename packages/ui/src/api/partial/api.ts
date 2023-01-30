@@ -21,10 +21,10 @@ export const apiPartial: GqlPartial<Api> = {
     __typename: 'Api',
     common: {
         __define: {
-            0: [require('./organization').organizationPartial, 'nav'],
-            1: [require('./user').userPartial, 'nav'],
-            2: [require('./tag').tagPartial, 'list'],
-            3: [require('./label').labelPartial, 'list'],
+            0: () => relPartial(require('./organization').organizationPartial, 'nav'),
+            1: () => relPartial(require('./user').userPartial, 'nav'),
+            2: () => relPartial(require('./tag').tagPartial, 'list'),
+            3: () => relPartial(require('./label').labelPartial, 'list'),
         },
         id: true,
         created_at: true,

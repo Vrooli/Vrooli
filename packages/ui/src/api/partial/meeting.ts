@@ -46,7 +46,7 @@ export const meetingPartial: GqlPartial<Meeting> = {
     },
     full: {
         __define: {
-            0: [require('./label').labelPartial, 'full'],
+            0: () => relPartial(require('./label').labelPartial, 'full'),
         },
         attendees: () => relPartial(require('./user').userPartial, 'nav'),
         invites: () => relPartial(require('./meetingInvite').meetingInvitePartial, 'list', { omit: 'meeting' }),
@@ -55,7 +55,7 @@ export const meetingPartial: GqlPartial<Meeting> = {
     },
     list: {
         __define: {
-            0: [require('./label').labelPartial, 'list'],
+            0: () => relPartial(require('./label').labelPartial, 'list'),
         },
         labels: { __use: 0 },
         translations: () => relPartial(meetingTranslationPartial, 'list'),

@@ -1,22 +1,23 @@
 import { Vote } from "@shared/consts";
+import { relPartial } from "../utils";
 import { GqlPartial } from "types";
 
 export const votePartial: GqlPartial<Vote> = {
     __typename: 'Vote',
     list: {
         __define: {
-            0: [require('./api').apiPartial, 'list'],
-            1: [require('./comment').commentPartial, 'list'],
-            2: [require('./issue').issuePartial, 'list'],
-            3: [require('./note').notePartial, 'list'],
-            4: [require('./post').postPartial, 'list'],
-            5: [require('./project').projectPartial, 'list'],
-            6: [require('./question').questionPartial, 'list'],
-            7: [require('./questionAnswer').questionAnswerPartial, 'list'],
-            8: [require('./quiz').quizPartial, 'list'],
-            9: [require('./routine').routinePartial, 'list'],
-            10: [require('./smartContract').smartContractPartial, 'list'],
-            11: [require('./standard').standardPartial, 'list'],
+            0: () => relPartial(require('./api').apiPartial, 'list'),
+            1: () => relPartial(require('./comment').commentPartial, 'list'),
+            2: () => relPartial(require('./issue').issuePartial, 'list'),
+            3: () => relPartial(require('./note').notePartial, 'list'),
+            4: () => relPartial(require('./post').postPartial, 'list'),
+            5: () => relPartial(require('./project').projectPartial, 'list'),
+            6: () => relPartial(require('./question').questionPartial, 'list'),
+            7: () => relPartial(require('./questionAnswer').questionAnswerPartial, 'list'),
+            8: () => relPartial(require('./quiz').quizPartial, 'list'),
+            9: () => relPartial(require('./routine').routinePartial, 'list'),
+            10: () => relPartial(require('./smartContract').smartContractPartial, 'list'),
+            11: () => relPartial(require('./standard').standardPartial, 'list'),
         },
         id: true,
         to: {

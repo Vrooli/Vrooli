@@ -22,8 +22,8 @@ export const partialToStringHelper = (
     // Loop through the partial object.
     for (const [key, value] of Object.entries(partial)) {
         Array.isArray(value) && console.error('Array value in partialToStringHelper', key, value);
-        // If key is __typename, skip it.
-        if (key === '__typename') continue;
+        // If key is __typename or __selectionType, skip it.
+        if (['__typename', '__selectionType'].includes(key)) continue;
         // If key is __define, use fragmentToString to convert the fragment.
         if (key === '__define') {
             result += fragmentsToString(value as Exclude<DeepPartialBooleanWithFragments<any>['__define'], undefined>, indent);

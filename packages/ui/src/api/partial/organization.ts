@@ -41,7 +41,7 @@ export const organizationPartial: GqlPartial<Organization> = {
     __typename: 'Organization',
     common: {
         __define: {
-            0: [require('./tag').tagPartial, 'list'],
+            0: () => relPartial(require('./tag').tagPartial, 'list'),
         },
         id: true,
         handle: true,

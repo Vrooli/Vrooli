@@ -1,14 +1,15 @@
 import { HistoryResult } from "@shared/consts";
+import { relPartial } from "../utils";
 import { GqlPartial } from "types";
 
 export const historyResultPartial: GqlPartial<HistoryResult> = {
     __typename: 'HistoryResult',
     list: {
         __define: {
-            0: [require('./runProject').runProjectPartial, 'list'],
-            1: [require('./runRoutine').runRoutinePartial, 'list'],
-            2: [require('./view').viewPartial, 'list'],
-            3: [require('./star').starPartial, 'list'],
+            0: () => relPartial(require('./runProject').runProjectPartial, 'list'),
+            1: () => relPartial(require('./runRoutine').runRoutinePartial, 'list'),
+            2: () => relPartial(require('./view').viewPartial, 'list'),
+            3: () => relPartial(require('./star').starPartial, 'list'),
         },
         activeRuns: {
             __union: {

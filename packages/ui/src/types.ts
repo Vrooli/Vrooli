@@ -195,9 +195,17 @@ export type MaybeLazy<T> = T | (() => T);
  */
 export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = {
     /**
+     * Specifies the selection type
+     */
+    __selectionType?: 'common' | 'full' | 'list' | 'nav';
+    /**
+     * Specifies the object type
+     */
+    __typename?: T['__typename'];
+    /**
      * Fragments to include in the selection. Each fragment's key can be used to reference it in the selection.
      */
-    __define?: { [key: string]: [GqlPartial<any>, 'common' | 'full' | 'list' | 'nav'] };
+    __define?: { [key: string]: MaybeLazy<DeepPartialBooleanWithFragments<T>> };
     /**
      * Creates a union of the specified types
      */

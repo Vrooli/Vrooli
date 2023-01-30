@@ -16,12 +16,12 @@ export const transferPartial: GqlPartial<Transfer> = {
     __typename: 'Transfer',
     common: {
         __define: {
-            0: [require('./api').apiPartial, 'list'],
-            1: [require('./note').notePartial, 'list'],
-            2: [require('./project').projectPartial, 'list'],
-            3: [require('./routine').routinePartial, 'list'],
-            4: [require('./smartContract').smartContractPartial, 'list'],
-            5: [require('./standard').standardPartial, 'list'],
+            0: () => relPartial(require('./api').apiPartial, 'list'),
+            1: () => relPartial(require('./note').notePartial, 'list'),
+            2: () => relPartial(require('./project').projectPartial, 'list'),
+            3: () => relPartial(require('./routine').routinePartial, 'list'),
+            4: () => relPartial(require('./smartContract').smartContractPartial, 'list'),
+            5: () => relPartial(require('./standard').standardPartial, 'list'),
         },
         id: true,
         created_at: true,

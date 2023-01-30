@@ -17,7 +17,7 @@ export const userSchedulePartial: GqlPartial<UserSchedule> = {
     },
     full: {
         __define: {
-            0: [require('./label').labelPartial, 'full'],
+            0: () => relPartial(require('./label').labelPartial, 'full'),
         },
         filters: () => relPartial(require('./userScheduleFilter').userScheduleFilterPartial, 'full'),
         labels: { __use: 0 },
@@ -25,7 +25,7 @@ export const userSchedulePartial: GqlPartial<UserSchedule> = {
     },
     list: {
         __define: {
-            0: [require('./label').labelPartial, 'list'],
+            0: () => relPartial(require('./label').labelPartial, 'list'),
         },
         labels: { __use: 0 },
     }

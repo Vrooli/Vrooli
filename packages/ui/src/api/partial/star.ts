@@ -1,25 +1,26 @@
 import { Star } from "@shared/consts";
+import { relPartial } from "../utils";
 import { GqlPartial } from "types";
 
 export const starPartial: GqlPartial<Star> = {
     __typename: 'Star',
     list: {
         __define: {
-            0: [require('./api').apiPartial, 'list'],
-            1: [require('./comment').commentPartial, 'list'],
-            2: [require('./issue').issuePartial, 'list'],
-            3: [require('./note').notePartial, 'list'],
-            4: [require('./organization').organizationPartial, 'list'],
-            5: [require('./post').postPartial, 'list'],
-            6: [require('./project').projectPartial, 'list'],
-            7: [require('./question').questionPartial, 'list'],
-            8: [require('./questionAnswer').questionAnswerPartial, 'list'],
-            9: [require('./quiz').quizPartial, 'list'],
-            10: [require('./routine').routinePartial, 'list'],
-            11: [require('./smartContract').smartContractPartial, 'list'],
-            12: [require('./standard').standardPartial, 'list'],
-            13: [require('./tag').tagPartial, 'list'],
-            14: [require('./user').userPartial, 'list']
+            0: () => relPartial(require('./api').apiPartial, 'list'),
+            1: () => relPartial(require('./comment').commentPartial, 'list'),
+            2: () => relPartial(require('./issue').issuePartial, 'list'),
+            3: () => relPartial(require('./note').notePartial, 'list'),
+            4: () => relPartial(require('./organization').organizationPartial, 'list'),
+            5: () => relPartial(require('./post').postPartial, 'list'),
+            6: () => relPartial(require('./project').projectPartial, 'list'),
+            7: () => relPartial(require('./question').questionPartial, 'list'),
+            8: () => relPartial(require('./questionAnswer').questionAnswerPartial, 'list'),
+            9: () => relPartial(require('./quiz').quizPartial, 'list'),
+            10: () => relPartial(require('./routine').routinePartial, 'list'),
+            11: () => relPartial(require('./smartContract').smartContractPartial, 'list'),
+            12: () => relPartial(require('./standard').standardPartial, 'list'),
+            13: () => relPartial(require('./tag').tagPartial, 'list'),
+            14: () => relPartial(require('./user').userPartial, 'list'),
         },
         id: true,
         to: {

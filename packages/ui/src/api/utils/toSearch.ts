@@ -1,5 +1,5 @@
 import { GqlPartial } from "types";
-import { partialCombine } from "./partialCombine";
+import { relPartial } from "./relPartial";
 
 
 
@@ -16,14 +16,12 @@ export const toSearch = <
 >(
     partial: GqlPartial<GqlObject>,
 ): [GqlPartial<any>, 'list'] => {
-    // Combine the common and list selections from the partial
-    const combinedSelection = partialCombine(partial.list ?? {}, partial.common ?? {});
-    // Remove __define (i.e. fragments) from the combined selection, so we can put it in the top level
-    const { __define, ...node } = combinedSelection;
+    // Combine and remove fragments, so we can put them in the top level
+    const { __define, ...node } = relPartial(partial, 'list');
     return [{
         __typename: `${partial.__typename}SearchResult`,
         list: {
-            __define: __define as any,
+            __define,
             edges: {
                 cursor: true,
                 node,

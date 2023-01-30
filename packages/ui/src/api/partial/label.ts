@@ -14,8 +14,8 @@ export const labelPartial: GqlPartial<Label> = {
     __typename: 'Label',
     common: {
         __define: {
-            0: [require('./organization').organizationPartial, 'nav'],
-            1: [require('./user').userPartial, 'nav']
+            0: () => relPartial(require('./organization').organizationPartial, 'nav'),
+            1: () => relPartial(require('./user').userPartial, 'nav'),
         },
         id: true,
         created_at: true,
