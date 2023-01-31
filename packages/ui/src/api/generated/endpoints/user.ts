@@ -1,0 +1,604 @@
+import gql from 'graphql-tag';
+
+export const userProfile = gql`...${Label_full}
+...${Organization_nav}
+...${User_nav}
+...${Label_list}
+
+query profile {
+  profile {
+    id
+    created_at
+    updated_at
+    handle
+    isPrivate
+    isPrivateApis
+    isPrivateApisCreated
+    isPrivateMemberships
+    isPrivateOrganizationsCreated
+    isPrivateProjects
+    isPrivateProjectsCreated
+    isPrivatePullRequests
+    isPrivateQuestionsAnswered
+    isPrivateQuestionsAsked
+    isPrivateQuizzesCreated
+    isPrivateRoles
+    isPrivateRoutines
+    isPrivateRoutinesCreated
+    isPrivateStandards
+    isPrivateStandardsCreated
+    isPrivateStars
+    isPrivateVotes
+    name
+    theme
+    emails {
+        id
+        emailAddress
+        verified
+    }
+    pushDevices {
+        id
+        expires
+        name
+    }
+    wallets {
+        id
+        handles {
+            id
+            handle
+        }
+        name
+        publicAddress
+        stakingAddress
+        verified
+    }
+    notifications {
+        id
+        created_at
+        category
+        isRead
+        title
+        description
+        link
+        imgLink
+    }
+    notificationSettings
+    translations {
+        id
+        language
+        bio
+    }
+    schedules {
+        filters {
+            id
+            filterType
+            tag {
+                id
+                created_at
+                tag
+                stars
+                translations {
+                    id
+                    language
+                    description
+                }
+                you {
+                    isOwn
+                    isStarred
+                }
+            }
+            userSchedule {
+                labels {
+                    ...Label_list
+                }
+                id
+                name
+                description
+                timeZone
+                eventStart
+                eventEnd
+                recurring
+                recurrStart
+                recurrEnd
+            }
+        }
+        labels {
+            ...Label_full
+        }
+        reminderList {
+            id
+            created_at
+            updated_at
+            reminders {
+                id
+                created_at
+                updated_at
+                name
+                description
+                dueDate
+                completed
+                index
+                reminderItems {
+                    id
+                    created_at
+                    updated_at
+                    name
+                    description
+                    dueDate
+                    completed
+                    index
+                }
+            }
+        }
+        id
+        name
+        description
+        timeZone
+        eventStart
+        eventEnd
+        recurring
+        recurrStart
+        recurrEnd
+    }
+    stats {
+        id
+        created_at
+        periodStart
+        periodEnd
+        periodType
+        apis
+        organizations
+        projects
+        projectsCompleted
+        projectsCompletionTimeAverageInPeriod
+        quizzesPassed
+        quizzesFailed
+        routines
+        routinesCompleted
+        routinesCompletionTimeAverageInPeriod
+        runsStarted
+        runsCompleted
+        runsCompletionTimeAverageInPeriod
+        smartContractsCreated
+        smartContractsCompleted
+        smartContractsCompletionTimeAverageInPeriod
+        standardsCreated
+        standardsCompleted
+        standardsCompletionTimeAverageInPeriod
+    }
+  }
+}`;
+
+export const userFindOne = gql`
+query user($input: FindByIdInput!) {
+  user(input: $input) {
+    stats {
+        id
+        created_at
+        periodStart
+        periodEnd
+        periodType
+        apis
+        organizations
+        projects
+        projectsCompleted
+        projectsCompletionTimeAverageInPeriod
+        quizzesPassed
+        quizzesFailed
+        routines
+        routinesCompleted
+        routinesCompletionTimeAverageInPeriod
+        runsStarted
+        runsCompleted
+        runsCompletionTimeAverageInPeriod
+        smartContractsCreated
+        smartContractsCompleted
+        smartContractsCompletionTimeAverageInPeriod
+        standardsCreated
+        standardsCompleted
+        standardsCompletionTimeAverageInPeriod
+    }
+    translations {
+        id
+        language
+        bio
+    }
+    id
+    created_at
+    handle
+    name
+    stars
+    reportsCount
+    you {
+        canDelete
+        canEdit
+        canReport
+        isStarred
+        isViewed
+    }
+  }
+}`;
+
+export const userFindMany = gql`
+query users($input: UserSearchInput!) {
+  users(input: $input) {
+    edges {
+        cursor
+        node {
+            translations {
+                id
+                language
+                bio
+            }
+            id
+            created_at
+            handle
+            name
+            stars
+            reportsCount
+            you {
+                canDelete
+                canEdit
+                canReport
+                isStarred
+                isViewed
+            }
+        }
+    }
+    pageInfo {
+        endCursor
+        hasNextPage
+    }
+  }
+}`;
+
+export const userProfileUpdate = gql`...${Label_full}
+...${Organization_nav}
+...${User_nav}
+...${Label_list}
+
+mutation profileUpdate($input: ProfileUpdateInput!) {
+  profileUpdate(input: $input) {
+    id
+    created_at
+    updated_at
+    handle
+    isPrivate
+    isPrivateApis
+    isPrivateApisCreated
+    isPrivateMemberships
+    isPrivateOrganizationsCreated
+    isPrivateProjects
+    isPrivateProjectsCreated
+    isPrivatePullRequests
+    isPrivateQuestionsAnswered
+    isPrivateQuestionsAsked
+    isPrivateQuizzesCreated
+    isPrivateRoles
+    isPrivateRoutines
+    isPrivateRoutinesCreated
+    isPrivateStandards
+    isPrivateStandardsCreated
+    isPrivateStars
+    isPrivateVotes
+    name
+    theme
+    emails {
+        id
+        emailAddress
+        verified
+    }
+    pushDevices {
+        id
+        expires
+        name
+    }
+    wallets {
+        id
+        handles {
+            id
+            handle
+        }
+        name
+        publicAddress
+        stakingAddress
+        verified
+    }
+    notifications {
+        id
+        created_at
+        category
+        isRead
+        title
+        description
+        link
+        imgLink
+    }
+    notificationSettings
+    translations {
+        id
+        language
+        bio
+    }
+    schedules {
+        filters {
+            id
+            filterType
+            tag {
+                id
+                created_at
+                tag
+                stars
+                translations {
+                    id
+                    language
+                    description
+                }
+                you {
+                    isOwn
+                    isStarred
+                }
+            }
+            userSchedule {
+                labels {
+                    ...Label_list
+                }
+                id
+                name
+                description
+                timeZone
+                eventStart
+                eventEnd
+                recurring
+                recurrStart
+                recurrEnd
+            }
+        }
+        labels {
+            ...Label_full
+        }
+        reminderList {
+            id
+            created_at
+            updated_at
+            reminders {
+                id
+                created_at
+                updated_at
+                name
+                description
+                dueDate
+                completed
+                index
+                reminderItems {
+                    id
+                    created_at
+                    updated_at
+                    name
+                    description
+                    dueDate
+                    completed
+                    index
+                }
+            }
+        }
+        id
+        name
+        description
+        timeZone
+        eventStart
+        eventEnd
+        recurring
+        recurrStart
+        recurrEnd
+    }
+    stats {
+        id
+        created_at
+        periodStart
+        periodEnd
+        periodType
+        apis
+        organizations
+        projects
+        projectsCompleted
+        projectsCompletionTimeAverageInPeriod
+        quizzesPassed
+        quizzesFailed
+        routines
+        routinesCompleted
+        routinesCompletionTimeAverageInPeriod
+        runsStarted
+        runsCompleted
+        runsCompletionTimeAverageInPeriod
+        smartContractsCreated
+        smartContractsCompleted
+        smartContractsCompletionTimeAverageInPeriod
+        standardsCreated
+        standardsCompleted
+        standardsCompletionTimeAverageInPeriod
+    }
+  }
+}`;
+
+export const userProfileEmailUpdate = gql`...${Label_full}
+...${Organization_nav}
+...${User_nav}
+...${Label_list}
+
+mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
+  profileEmailUpdate(input: $input) {
+    id
+    created_at
+    updated_at
+    handle
+    isPrivate
+    isPrivateApis
+    isPrivateApisCreated
+    isPrivateMemberships
+    isPrivateOrganizationsCreated
+    isPrivateProjects
+    isPrivateProjectsCreated
+    isPrivatePullRequests
+    isPrivateQuestionsAnswered
+    isPrivateQuestionsAsked
+    isPrivateQuizzesCreated
+    isPrivateRoles
+    isPrivateRoutines
+    isPrivateRoutinesCreated
+    isPrivateStandards
+    isPrivateStandardsCreated
+    isPrivateStars
+    isPrivateVotes
+    name
+    theme
+    emails {
+        id
+        emailAddress
+        verified
+    }
+    pushDevices {
+        id
+        expires
+        name
+    }
+    wallets {
+        id
+        handles {
+            id
+            handle
+        }
+        name
+        publicAddress
+        stakingAddress
+        verified
+    }
+    notifications {
+        id
+        created_at
+        category
+        isRead
+        title
+        description
+        link
+        imgLink
+    }
+    notificationSettings
+    translations {
+        id
+        language
+        bio
+    }
+    schedules {
+        filters {
+            id
+            filterType
+            tag {
+                id
+                created_at
+                tag
+                stars
+                translations {
+                    id
+                    language
+                    description
+                }
+                you {
+                    isOwn
+                    isStarred
+                }
+            }
+            userSchedule {
+                labels {
+                    ...Label_list
+                }
+                id
+                name
+                description
+                timeZone
+                eventStart
+                eventEnd
+                recurring
+                recurrStart
+                recurrEnd
+            }
+        }
+        labels {
+            ...Label_full
+        }
+        reminderList {
+            id
+            created_at
+            updated_at
+            reminders {
+                id
+                created_at
+                updated_at
+                name
+                description
+                dueDate
+                completed
+                index
+                reminderItems {
+                    id
+                    created_at
+                    updated_at
+                    name
+                    description
+                    dueDate
+                    completed
+                    index
+                }
+            }
+        }
+        id
+        name
+        description
+        timeZone
+        eventStart
+        eventEnd
+        recurring
+        recurrStart
+        recurrEnd
+    }
+    stats {
+        id
+        created_at
+        periodStart
+        periodEnd
+        periodType
+        apis
+        organizations
+        projects
+        projectsCompleted
+        projectsCompletionTimeAverageInPeriod
+        quizzesPassed
+        quizzesFailed
+        routines
+        routinesCompleted
+        routinesCompletionTimeAverageInPeriod
+        runsStarted
+        runsCompleted
+        runsCompletionTimeAverageInPeriod
+        smartContractsCreated
+        smartContractsCompleted
+        smartContractsCompletionTimeAverageInPeriod
+        standardsCreated
+        standardsCompleted
+        standardsCompletionTimeAverageInPeriod
+    }
+  }
+}`;
+
+export const userDeleteOne = gql`
+mutation userDeleteOne($input: UserDeleteInput!) {
+  userDeleteOne(input: $input) {
+    success
+  }
+}`;
+
+export const userExportData = gql`
+mutation exportData {
+  exportData
+}`;
+

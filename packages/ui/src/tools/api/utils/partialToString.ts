@@ -1,5 +1,6 @@
 import { exists } from "@shared/utils";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
+import { fragmentsToString } from "./fragmentsToString";
 import { partialToStringHelper } from "./partialToStringHelper";
 import { rel } from "./relPartial";
 
@@ -44,43 +45,51 @@ export const partialToString = async <
     inputType,
     partial,
     selectionType,
-}: PartialToStringProps<EndpointType, EndpointName, Partial, Selection>): Promise<string> => {
+}: PartialToStringProps<EndpointType, EndpointName, Partial, Selection>): Promise<{
+    fragments: [string, string][],
+    tag: string
+}> => {
+    // Initialize return data
+    let fragments: [string, string][] = [];
+    let tag = '';
     // Calculate the fragments and selection set by combining partials
     let combined: DeepPartialBooleanWithFragments<any> = {};
     if (exists(partial) && exists(selectionType)) {
         combined = await rel(partial, selectionType)
     }
-    // Initialize the string to return
-    let str = '';
-    // If there are fragments, add them first
+    // If there are fragments, convert them to strings
     const { __define, ...rest } = combined;
     if (exists(__define) && Object.keys(__define).length > 0) {
-        str += await partialToStringHelper({ __define } as any, indent);
+        fragments = await fragmentsToString(__define)
+        // For every fragment, add reference to it in the tag
+        fragments.forEach(([fragmentName]) => {
+            tag += `${' '.repeat(indent)}...\${${fragmentName}}\n`
+        })
     }
-    // Add the query/mutation itself
-    str += `
+    // Add the query/mutation to the tag
+    tag += `
 ${' '.repeat(indent)}${endpointType} ${endpointName}`;
     // If there is an input type, add it
     if (exists(inputType)) {
-        str += `($input: ${inputType}!)`;
+        tag += `($input: ${inputType}!)`;
     }
     // Add the opening bracket
-    str += ` {
+    tag += ` {
 ${' '.repeat(indent + 2)}`;
     // Add name of the query/mutation and input
-    str += `${endpointName}${exists(inputType) ? '(input: $input)' : ''}`;
+    tag += `${endpointName}${exists(inputType) ? '(input: $input)' : ''}`;
     // If there is a partial, add the fields
     if (exists(rest) && Object.keys(rest).length > 0) {
         // Add another opening bracket
-        str += ` {
+        tag += ` {
 `;
-        str += await partialToStringHelper(rest, indent + 4);
+        tag += await partialToStringHelper(rest, indent + 4);
         // Add a closing brackets
-        str += `${' '.repeat(indent + 2)}}`;
+        tag += `${' '.repeat(indent + 2)}}`;
     }
     // Add the final closing bracket
-    str += `
+    tag += `
 ${' '.repeat(indent)}}`;
-    // Return the string
-    return str;
+    // Return the tag and fragments
+    return { fragments, tag };
 };

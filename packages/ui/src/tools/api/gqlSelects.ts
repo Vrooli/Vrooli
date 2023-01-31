@@ -6,27 +6,63 @@ import fs from 'fs';
 import { endpoints } from '../api/endpoints';
 
 console.info('Generating graphql-tag strings for endpoints...');
-// Create the output folder if it doesn't exist
+
+// Step 1: Create output folders
+// Create the output folders if they doesn't exist
 const outputFolder = './src/api/generated';
 if (!fs.existsSync(outputFolder)) {
     console.info(`Creating output folder: ${outputFolder}`)
     fs.mkdirSync(outputFolder);
 }
+if (!fs.existsSync(`${outputFolder}/fragments`)) {
+    console.info(`Creating output folder: ${outputFolder}/fragments`)
+    fs.mkdirSync(`${outputFolder}/fragments`);
+}
+if (!fs.existsSync(`${outputFolder}/endpoints`)) {
+    console.info(`Creating output folder: ${outputFolder}/endpoints`)
+    fs.mkdirSync(`${outputFolder}/endpoints`);
+}
+
+// Step 2: Find data and write endoints to files
+// Initialize fragments list to store all fragment definitions
+const allFragments: { [name: string]: string } = {};
 // Unlazy each endpoint property and write it to a separate file
 for (const objectType of Object.keys(endpoints)) {
     const endpointGroup = await endpoints[objectType]();
-    const outputPath = `${outputFolder}/${objectType}.ts`;
+    const outputPath = `${outputFolder}/endpoints/${objectType}.ts`;
     console.log(`generating endpoints for ${objectType}...`);
-    let outputContents = '';
-    // Add import for gql
-    outputContents += `import gql from 'graphql-tag';\n\n`;
-    // For each endpoint in the group, unlazy it and write it to the file
+    let endpointString = '';
+    let currFragmentNames: string[] = [];
+    // For each endpoint in the group
     for (const endpointName of Object.keys(endpointGroup)) {
-        const endpoint = await endpointGroup[endpointName];
-        outputContents += `export const ${objectType}${endpointName[0].toUpperCase() + endpointName.slice(1)} = gql\`${endpoint[0]}\`;\n\n`;
+        // Get the endpoint data
+        const { fragments, tag } = await endpointGroup[endpointName] as { fragments: [string, string][], tag: string };
+        // Add the fragments to the endpoint list and total fragment object
+        currFragmentNames = fragments.map(f => f[0]);
+        for (const [name, fragment] of fragments) {
+            allFragments[name] = fragment;
+        }
+        endpointString += `export const ${objectType}${endpointName[0].toUpperCase() + endpointName.slice(1)} = gql\`${tag}\`;\n\n`;
     }
-    fs.writeFileSync(outputPath, outputContents);
+    // Calculate imports, startig with the gql import
+    let importsString = `import gql from 'graphql-tag';`;
+    // Add import for each fragment
+    for (const fragmentName of currFragmentNames) {
+        importsString += `\nimport { ${fragmentName} } from '../fragments/${fragmentName}';`;
+    }
+    // Write imports and endpoints to file
+    fs.writeFileSync(outputPath, `${importsString}\n\n${endpointString}`);
 }
-// Load endpoints object from file
-console.log('didnt crash!');
-export {}
+
+// Step 3: Write fragments to files
+// Note: These do not use gql tags because they are always used in other gql tags. 
+// If we made these gql tags, we'd have to import nested fragments, which might 
+// cause duplicate imports.
+for (const [name, fragment] of Object.entries(allFragments)) {
+    const outputPath = `${outputFolder}/fragments/${name}.ts`;
+    console.log(`generating fragment ${name}...`);
+    // Write to file
+    fs.writeFileSync(outputPath, `export const ${name} = \`${fragment}\`;`);
+}
+
+console.info('Finished generating graphql-tag strings for endpoints🚀');

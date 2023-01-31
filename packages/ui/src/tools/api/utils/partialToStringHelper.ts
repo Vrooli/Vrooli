@@ -1,5 +1,4 @@
 import { DeepPartialBooleanWithFragments } from "../types";
-import { fragmentsToString } from "./fragmentsToString";
 import { unionToString } from "./unionToString";
 
 /**
@@ -21,12 +20,9 @@ export const partialToStringHelper = async (
     // Loop through the partial object.
     for (const [key, value] of Object.entries(partial)) {
         Array.isArray(value) && console.error('Array value in partialToStringHelper', key, value);
-        // If key is __typename or __selectionType, skip it.
-        if (['__typename', '__selectionType'].includes(key)) continue;
-        // If key is __define, use fragmentToString to convert the fragment.
-        if (key === '__define') {
-            result += await fragmentsToString(value as Exclude<DeepPartialBooleanWithFragments<any>['__define'], undefined>, indent);
-        }
+        // If key is __typename, __selectionType, or __define, skip it.
+        // These are either not needed, or handled by other functions.
+        if (['__typename', '__selectionType', '__define'].includes(key)) continue;
         // If key is __union, use unionToString to convert the union.
         else if (key === '__union') {
             result += await unionToString(value as Exclude<DeepPartialBooleanWithFragments<any>['__union'], undefined>, indent);
