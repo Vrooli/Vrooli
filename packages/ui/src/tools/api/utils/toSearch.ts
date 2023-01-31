@@ -11,13 +11,13 @@ import { relPartial } from "./relPartial";
  * @returns A new GqlPartial object like the one passed in, but wrapped 
  * in a paginated search result.
  */
-export const toSearch = <
+export const toSearch = async <
     GqlObject extends { __typename: string }
 >(
     partial: GqlPartial<GqlObject>,
-): [GqlPartial<any>, 'list'] => {
+): Promise<[GqlPartial<any>, 'list']> => {
     // Combine and remove fragments, so we can put them in the top level
-    const { __define, ...node } = relPartial(partial, 'list');
+    const { __define, ...node } = await relPartial(partial, 'list');
     return [{
         __typename: `${partial.__typename}SearchResult`,
         list: {

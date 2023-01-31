@@ -25,18 +25,18 @@ export const runRoutineSchedulePartial: GqlPartial<RunRoutineSchedule> = {
         windowEnd: true,
         recurrStart: true,
         recurrEnd: true,
-        runRoutine: () => relPartial(require('./runRoutine').runRoutinePartial, 'nav', { omit: 'runRoutineSchedule' }),
+        runRoutine: async () => relPartial((await import('./runRoutine')).runRoutinePartial, 'nav', { omit: 'runRoutineSchedule' }),
         translations: () => relPartial(runRoutineScheduleTranslationPartial, 'full'),
     },
     full: {
         __define: {
-            0: () => relPartial(require('./label').labelPartial, 'full'),
+            0: async () => relPartial((await import('./label')).labelPartial, 'full'),
         },
         labels: { __use: 0 },
     },
     list: {
         __define: {
-            0: () => relPartial(require('./label').labelPartial, 'list'),
+            0: async () => relPartial((await import('./label')).labelPartial, 'list'),
         },
         labels: { __use: 0 },
     }

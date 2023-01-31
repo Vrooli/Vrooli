@@ -19,33 +19,6 @@ export const arrayValueFromDot = (object, notation, index) => {
 }
 
 /**
- * Removes one or more properties from an object using dot notation (ex: 'parent.child.property'). 
- * NOTE 1: Supports lazy values, but removes the lazy part
- * NOTE 2: Modifies the original object
- */
-export const removeValuesUsingDot = (obj, ...keys) => {
-    console.log('removeValuesUsingDot start', obj, keys)
-    keys.forEach(key => {
-        const keyArr = key.split('.'); // split the key into an array of keys
-        // loop through the keys, checking if each level is lazy-loaded
-        let currentObject = obj;
-        let currentKey;
-        for (let i = 0; i < keyArr.length - 1; i++) {
-            currentKey = keyArr[i];
-            if (typeof currentObject[currentKey] === 'function') {
-                currentObject[currentKey] = currentObject[currentKey]();
-            }
-            currentObject = currentObject[currentKey];
-            if (!exists(currentObject)) break;
-        }
-        currentKey = keyArr[keyArr.length - 1];
-        if (!exists(currentObject) || !exists(currentObject[currentKey])) return;
-        delete currentObject[currentKey];
-    });
-    console.log('removeValuesUsingDot end', obj)
-}
-
-/**
  * Maps the keys of an object to dot notation
  */
 export function convertToDot(obj, parent = [], keyValue = {}) {

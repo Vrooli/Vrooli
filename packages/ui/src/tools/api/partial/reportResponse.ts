@@ -22,7 +22,7 @@ export const reportResponsePartial: GqlPartial<ReportResponse> = {
         actionSuggested: true,
         details: true,
         language: true,
-        report: () => relPartial(require('./report').reportPartial, 'nav', { omit: 'responses' }),
+        report: async () => relPartial((await import('./report')).reportPartial, 'nav', { omit: 'responses' }),
         you: () => relPartial(reportResponseYouPartial, 'full'),
     },
     full: {},

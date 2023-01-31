@@ -10,7 +10,7 @@ export const sessionUserPartial: GqlPartial<SessionUser> = {
         id: true,
         languages: true,
         name: true,
-        schedules: () => relPartial(require('./userSchedule').userSchedulePartial, 'full'),
+        schedules: async () => relPartial((await import('./userSchedule')).userSchedulePartial, 'full'),
         theme: true,
     }
 }

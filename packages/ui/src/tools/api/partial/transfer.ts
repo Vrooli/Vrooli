@@ -16,20 +16,20 @@ export const transferPartial: GqlPartial<Transfer> = {
     __typename: 'Transfer',
     common: {
         __define: {
-            0: () => relPartial(require('./api').apiPartial, 'list'),
-            1: () => relPartial(require('./note').notePartial, 'list'),
-            2: () => relPartial(require('./project').projectPartial, 'list'),
-            3: () => relPartial(require('./routine').routinePartial, 'list'),
-            4: () => relPartial(require('./smartContract').smartContractPartial, 'list'),
-            5: () => relPartial(require('./standard').standardPartial, 'list'),
+            0: async () => relPartial((await import('./api')).api, 'list'),
+            1: async () => relPartial((await import('./note')).notePartial, 'list'),
+            2: async () => relPartial((await import('./project')).projectPartial, 'list'),
+            3: async () => relPartial((await import('./routine')).routinePartial, 'list'),
+            4: async () => relPartial((await import('./smartContract')).smartContractPartial, 'list'),
+            5: async () => relPartial((await import('./standard')).standardPartial, 'list'),
         },
         id: true,
         created_at: true,
         updated_at: true,
         mergedOrRejectedAt: true,
         status: true,
-        fromOwner: () => relPartial(require('./user').userPartial, 'nav'),
-        toOwner: () => relPartial(require('./user').userPartial, 'nav'),
+        fromOwner: async () => relPartial((await import('./user')).userPartial, 'nav'),
+        toOwner: async () => relPartial((await import('./user')).userPartial, 'nav'),
         object: {
             __union: {
                 Api: 0,

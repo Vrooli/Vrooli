@@ -6,10 +6,10 @@ export const historyResultPartial: GqlPartial<HistoryResult> = {
     __typename: 'HistoryResult',
     list: {
         __define: {
-            0: () => relPartial(require('./runProject').runProjectPartial, 'list'),
-            1: () => relPartial(require('./runRoutine').runRoutinePartial, 'list'),
-            2: () => relPartial(require('./view').viewPartial, 'list'),
-            3: () => relPartial(require('./star').starPartial, 'list'),
+            0: async () => relPartial((await import('./runProject')).runProjectPartial, 'list'),
+            1: async () => relPartial((await import('./runRoutine')).runRoutinePartial, 'list'),
+            2: async () => relPartial((await import('./view')).viewPartial, 'list'),
+            3: async () => relPartial((await import('./star')).starPartial, 'list'),
         },
         activeRuns: {
             __union: {

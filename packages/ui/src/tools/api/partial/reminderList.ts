@@ -8,7 +8,7 @@ export const reminderListPartial: GqlPartial<ReminderList> = {
         id: true,
         created_at: true,
         updated_at: true,
-        reminders: () => relPartial(require('./reminder').reminderPartial, 'full', { omit: 'reminderList' }),
-        userSchedule: () => relPartial(require('./userSchedule').userSchedulePartial, 'list', { omit: 'reminderList' }),
+        reminders: async () => relPartial((await import('./reminder')).reminderPartial, 'full', { omit: 'reminderList' }),
+        userSchedule: async () => relPartial((await import('./userSchedule')).userSchedulePartial, 'list', { omit: 'reminderList' }),
     },
 }

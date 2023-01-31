@@ -7,7 +7,7 @@ export const nodeEndPartial: GqlPartial<NodeEnd> = {
     common: {
         id: true,
         wasSuccessful: true,
-        suggestedNextRoutineVersions: () => relPartial(require('./routineVersion').routineVersionPartial, 'nav'),
+        suggestedNextRoutineVersions: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav'),
     },
     full: {},
     list: {},

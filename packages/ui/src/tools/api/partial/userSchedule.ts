@@ -17,15 +17,15 @@ export const userSchedulePartial: GqlPartial<UserSchedule> = {
     },
     full: {
         __define: {
-            0: () => relPartial(require('./label').labelPartial, 'full'),
+            0: async () => relPartial((await import('./label')).labelPartial, 'full'),
         },
-        filters: () => relPartial(require('./userScheduleFilter').userScheduleFilterPartial, 'full'),
+        filters: async () => relPartial((await import('./userScheduleFilter')).userScheduleFilterPartial, 'full'),
         labels: { __use: 0 },
-        reminderList: () => relPartial(require('./reminderList').reminderListPartial, 'full', { omit: 'userSchedule' }),
+        reminderList: async () => relPartial((await import('./reminderList')).reminderListPartial, 'full', { omit: 'userSchedule' }),
     },
     list: {
         __define: {
-            0: () => relPartial(require('./label').labelPartial, 'list'),
+            0: async () => relPartial((await import('./label')).labelPartial, 'list'),
         },
         labels: { __use: 0 },
     }

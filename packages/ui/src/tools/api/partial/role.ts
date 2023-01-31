@@ -22,11 +22,11 @@ export const rolePartial: GqlPartial<Role> = {
         name: true,
         permissions: true,
         membersCount: true,
-        organization: () => relPartial(require('./organization').organizationPartial, 'nav', { omit: 'roles' }),
+        organization: async () => relPartial((await import('./organization')).organizationPartial, 'nav', { omit: 'roles' }),
         translations: () => relPartial(roleTranslationPartial, 'full'),
     },
     full: {
-        members: () => relPartial(require('./member').memberPartial, 'nav', { omit: 'reminder' }),
+        members: async () => relPartial((await import('./member')).memberPartial, 'nav', { omit: 'reminder' }),
     },
     list: {},
 }

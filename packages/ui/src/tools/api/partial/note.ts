@@ -23,10 +23,10 @@ export const notePartial: GqlPartial<Note> = {
     __typename: 'Note',
     common: {
         __define: {
-            0: () => relPartial(require('./organization').organizationPartial, 'nav'),
-            1: () => relPartial(require('./user').userPartial, 'nav'),
-            2: () => relPartial(require('./tag').tagPartial, 'list'),
-            3: () => relPartial(require('./label').labelPartial, 'list'),
+            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
+            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
+            2: async () => relPartial((await import('./tag')).tagPartial, 'list'),
+            3: async () => relPartial((await import('./label')).labelPartial, 'list'),
         },
         id: true,
         created_at: true,
@@ -50,10 +50,10 @@ export const notePartial: GqlPartial<Note> = {
         you: () => relPartial(noteYouPartial, 'full'),
     },
     full: {
-        versions: () => relPartial(require('./noteVersion').noteVersionPartial, 'full', { omit: 'root' }),
+        versions: async () => relPartial((await import('./noteVersion')).noteVersionPartial, 'full', { omit: 'root' }),
     },
     list: {
-        versions: () => relPartial(require('./noteVersion').noteVersionPartial, 'list', { omit: 'root' }),
+        versions: async () => relPartial((await import('./noteVersion')).noteVersionPartial, 'list', { omit: 'root' }),
     },
     nav: {
         id: true,

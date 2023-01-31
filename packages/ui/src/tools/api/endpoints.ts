@@ -1,18 +1,18 @@
 import { toMutation, toQuery, toSearch } from './utils';
 
 export const endpoints = {
-    api: () => {
-        const { apiPartial } = require('./partial/api');
+    api: async () => {
+        const { api: apiPartial } = await import('./partial/api');
         return {
             findOne: toQuery('api', 'FindByIdInput', apiPartial, 'full'),
-            findMany: toQuery('apis', 'ApiSearchInput', ...toSearch(apiPartial)),
+            findMany: toQuery('apis', 'ApiSearchInput', ...(await toSearch(apiPartial))),
             create: toMutation('apiCreate', 'ApiCreateInput', apiPartial, 'full'),
             update: toMutation('apiUpdate', 'ApiUpdateInput', apiPartial, 'full'),
         }
     },
-    apiKey: () => {
-        const { apiKeyPartial } = require('./partial/apiKey');
-        const { successPartial } = require('./partial/success');
+    apiKey: async () => {
+        const { apiKey: apiKeyPartial } = await import('./partial/apiKey');
+        const { successPartial } = await import('./partial/success');
         return {
             create: toMutation('apiKeyCreate', 'ApiKeyCreateInput', apiKeyPartial, 'full'),
             update: toMutation('apiKeyUpdate', 'ApiKeyUpdateInput', apiKeyPartial, 'full'),
@@ -20,19 +20,19 @@ export const endpoints = {
             validate: toMutation('apiKeyValidate', 'ApiKeyValidateInput', apiKeyPartial, 'full'),
         }
     },
-    apiVersion: () => {
-        const { apiVersionPartial } = require('./partial/apiVersion');
+    apiVersion: async () => {
+        const { apiVersion: apiVersionPartial } = await import('./partial/apiVersion');
         return {
             findOne: toQuery('apiVersion', 'FindByIdInput', apiVersionPartial, 'full'),
-            findMany: toQuery('apiVersions', 'ApiVersionSearchInput', ...toSearch(apiVersionPartial)),
+            findMany: toQuery('apiVersions', 'ApiVersionSearchInput', ...(await toSearch(apiVersionPartial))),
             create: toMutation('apiVersionCreate', 'ApiVersionCreateInput', apiVersionPartial, 'full'),
             update: toMutation('apiVersionUpdate', 'ApiVersionUpdateInput', apiVersionPartial, 'full'),
         }
     },
-    auth: () => {
-        const { sessionPartial } = require('./partial/session');
-        const { successPartial } = require('./partial/success');
-        const { walletCompletePartial } = require('./partial/walletComplete');
+    auth: async () => {
+        const { sessionPartial } = await import('./partial/session');
+        const { successPartial } = await import('./partial/success');
+        const { walletCompletePartial } = await import('./partial/walletComplete');
         return {
             emailLogIn: toMutation('emailLogIn', 'EmailLogInInput', sessionPartial, 'full'),
             emailSignUp: toMutation('emailSignUp', 'EmailSignUpInput', sessionPartial, 'full'),
@@ -46,8 +46,8 @@ export const endpoints = {
             walletComplete: toMutation('walletComplete', 'WalletCompleteInput', walletCompletePartial, 'full'),
         }
     },
-    comment: () => {
-        const { commentPartial, commentThreadPartial } = require('./partial/comment');
+    comment: async () => {
+        const { comment: commentPartial, commentThreadPartial } = await import('./partial/comment');
         return {
             findOne: toQuery('comment', 'FindByIdInput', commentPartial, 'full'),
             findMany: toQuery('comments', 'CommentSearchInput', commentThreadPartial, 'full'),
@@ -55,30 +55,30 @@ export const endpoints = {
             update: toMutation('commentUpdate', 'CommentUpdateInput', commentPartial, 'full'),
         }
     },
-    copy: () => {
-        const { copyResultPartial } = require('./partial/copyResult');
+    copy: async () => {
+        const { copyResultPartial } = await import('./partial/copyResult');
         return {
             copy: toMutation('copy', 'CopyInput', copyResultPartial, 'full'),
         }
     },
-    deleteOneOrMany: () => {
-        const { successPartial } = require('./partial/success');
-        const { countPartial } = require('./partial/count');
+    deleteOneOrMany: async () => {
+        const { successPartial } = await import('./partial/success');
+        const { countPartial } = await import('./partial/count');
         return {
             deleteOne: toMutation('deleteOne', 'DeleteOneInput', successPartial, 'full'),
             deleteMany: toMutation('deleteMany', 'DeleteManyInput', countPartial, 'full'),
         }
     },
-    email: () => {
-        const { emailPartial } = require('./partial/email');
-        const { successPartial } = require('./partial/success');
+    email: async () => {
+        const { emailPartial } = await import('./partial/email');
+        const { successPartial } = await import('./partial/success');
         return {
             create: toMutation('emailCreate', 'PhoneCreateInput', emailPartial, 'full'),
             verify: toMutation('sendVerificationEmail', 'SendVerificationEmailInput', successPartial, 'full'),
         }
     },
-    feed: () => {
-        const { developResultPartial, learnResultPartial, popularResultPartial, researchResultPartial } = require('./partial/feed');
+    feed: async () => {
+        const { developResultPartial, learnResultPartial, popularResultPartial, researchResultPartial } = await import('./partial/feed');
         return {
             popular: toQuery('popular', 'PopularInput', popularResultPartial, 'list'),
             learn: toQuery('learn', null, learnResultPartial, 'list'),
@@ -86,338 +86,338 @@ export const endpoints = {
             develop: toQuery('develop', null, developResultPartial, 'list'),
         }
     },
-    history: () => {
-        const { historyResultPartial } = require('./partial/historyResult');
+    history: async () => {
+        const { historyResultPartial } = await import('./partial/historyResult');
         return {
             history: toQuery('history', 'HistoryInput', historyResultPartial, 'list'),
         }
     },
-    issue: () => {
-        const { issuePartial } = require('./partial/issue');
+    issue: async () => {
+        const { issuePartial } = await import('./partial/issue');
         return {
             findOne: toQuery('issue', 'FindByIdInput', issuePartial, 'full'),
-            findMany: toQuery('issues', 'IssueSearchInput', ...toSearch(issuePartial)),
+            findMany: toQuery('issues', 'IssueSearchInput', ...(await toSearch(issuePartial))),
             create: toMutation('issueCreate', 'IssueCreateInput', issuePartial, 'full'),
             update: toMutation('issueUpdate', 'IssueUpdateInput', issuePartial, 'full'),
             close: toMutation('issueClose', 'IssueCloseInput', issuePartial, 'full'),
         }
     },
-    label: () => {
-        const { labelPartial } = require('./partial/label');
+    label: async () => {
+        const { labelPartial } = await import('./partial/label');
         return {
             findOne: toQuery('label', 'FindByIdInput', labelPartial, 'full'),
-            findMany: toQuery('labels', 'LabelSearchInput', ...toSearch(labelPartial)),
+            findMany: toQuery('labels', 'LabelSearchInput', ...(await toSearch(labelPartial))),
             create: toMutation('labelCreate', 'LabelCreateInput', labelPartial, 'full'),
             update: toMutation('labelUpdate', 'LabelUpdateInput', labelPartial, 'full'),
         }
     },
-    meeting: () => {
-        const { meetingPartial } = require('./partial/meeting');
+    meeting: async () => {
+        const { meetingPartial } = await import('./partial/meeting');
         return {
             findOne: toQuery('meeting', 'FindByIdInput', meetingPartial, 'full'),
-            findMany: toQuery('meetings', 'MeetingSearchInput', ...toSearch(meetingPartial)),
+            findMany: toQuery('meetings', 'MeetingSearchInput', ...(await toSearch(meetingPartial))),
             create: toMutation('meetingCreate', 'MeetingCreateInput', meetingPartial, 'full'),
             update: toMutation('meetingUpdate', 'MeetingUpdateInput', meetingPartial, 'full'),
         }
     },
-    meetingInvite: () => {
-        const { meetingInvitePartial } = require('./partial/meetingInvite');
+    meetingInvite: async () => {
+        const { meetingInvitePartial } = await import('./partial/meetingInvite');
         return {
             findOne: toQuery('meetingInvite', 'FindByIdInput', meetingInvitePartial, 'full'),
-            findMany: toQuery('meetingInvites', 'MeetingInviteSearchInput', ...toSearch(meetingInvitePartial)),
+            findMany: toQuery('meetingInvites', 'MeetingInviteSearchInput', ...(await toSearch(meetingInvitePartial))),
             create: toMutation('meetingInviteCreate', 'MeetingInviteCreateInput', meetingInvitePartial, 'full'),
             update: toMutation('meetingInviteUpdate', 'MeetingInviteUpdateInput', meetingInvitePartial, 'full'),
             accept: toMutation('meetingInviteAccept', 'FindByIdInput', meetingInvitePartial, 'full'),
             decline: toMutation('meetingInviteDecline', 'FindByIdInput', meetingInvitePartial, 'full'),
         }
     },
-    member: () => {
-        const { memberPartial } = require('./partial/member');
+    member: async () => {
+        const { memberPartial } = await import('./partial/member');
         return {
             findOne: toQuery('member', 'FindByIdInput', memberPartial, 'full'),
-            findMany: toQuery('members', 'MemberSearchInput', ...toSearch(memberPartial)),
+            findMany: toQuery('members', 'MemberSearchInput', ...(await toSearch(memberPartial))),
             update: toMutation('memberUpdate', 'MemberUpdateInput', memberPartial, 'full'),
         }
     },
-    memberInvite: () => {
-        const { memberInvitePartial } = require('./partial/memberInvite');
+    memberInvite: async () => {
+        const { memberInvitePartial } = await import('./partial/memberInvite');
         return {
             findOne: toQuery('memberInvite', 'FindByIdInput', memberInvitePartial, 'full'),
-            findMany: toQuery('memberInvites', 'MemberInviteSearchInput', ...toSearch(memberInvitePartial)),
+            findMany: toQuery('memberInvites', 'MemberInviteSearchInput', ...(await toSearch(memberInvitePartial))),
             create: toMutation('memberInviteCreate', 'MemberInviteCreateInput', memberInvitePartial, 'full'),
             update: toMutation('memberInviteUpdate', 'MemberInviteUpdateInput', memberInvitePartial, 'full'),
             accept: toMutation('memberInviteAccept', 'FindByIdInput', memberInvitePartial, 'full'),
             decline: toMutation('memberInviteDecline', 'FindByIdInput', memberInvitePartial, 'full'),
         }
     },
-    node: () => {
-        const { nodePartial } = require('./partial/node');
+    node: async () => {
+        const { nodePartial } = await import('./partial/node');
         return {
             create: toMutation('nodeCreate', 'NodeCreateInput', nodePartial, 'full'),
             update: toMutation('nodeUpdate', 'NodeUpdateInput', nodePartial, 'full'),
         }
     },
-    note: () => {
-        const { notePartial } = require('./partial/note');
+    note: async () => {
+        const { notePartial } = await import('./partial/note');
         return {
             findOne: toQuery('note', 'FindByIdInput', notePartial, 'full'),
-            findMany: toQuery('notes', 'NoteSearchInput', ...toSearch(notePartial)),
+            findMany: toQuery('notes', 'NoteSearchInput', ...(await toSearch(notePartial))),
             create: toMutation('noteCreate', 'NoteCreateInput', notePartial, 'full'),
             update: toMutation('noteUpdate', 'NoteUpdateInput', notePartial, 'full'),
         }
     },
-    noteVersion: () => {
-        const { noteVersionPartial } = require('./partial/noteVersion');
+    noteVersion: async () => {
+        const { noteVersionPartial } = await import('./partial/noteVersion');
         return {
             findOne: toQuery('noteVersion', 'FindByIdInput', noteVersionPartial, 'full'),
-            findMany: toQuery('noteVersions', 'NoteVersionSearchInput', ...toSearch(noteVersionPartial)),
+            findMany: toQuery('noteVersions', 'NoteVersionSearchInput', ...(await toSearch(noteVersionPartial))),
             create: toMutation('noteVersionCreate', 'NoteVersionCreateInput', noteVersionPartial, 'full'),
             update: toMutation('noteVersionUpdate', 'NoteVersionUpdateInput', noteVersionPartial, 'full'),
         }
     },
-    notification: () => {
-        const { notificationPartial, notificationSettingsPartial } = require('./partial/notification');
-        const { successPartial } = require('./partial/success');
-        const { countPartial } = require('./partial/count');
+    notification: async () => {
+        const { notificationPartial, notificationSettingsPartial } = await import('./partial/notification');
+        const { successPartial } = await import('./partial/success');
+        const { countPartial } = await import('./partial/count');
         return {
             findOne: toQuery('notification', 'FindByIdInput', notificationPartial, 'full'),
-            findMany: toQuery('notifications', 'NotificationSearchInput', ...toSearch(notificationPartial)),
+            findMany: toQuery('notifications', 'NotificationSearchInput', ...(await toSearch(notificationPartial))),
             markAsRead: toMutation('notificationMarkAsRead', 'FindByIdInput', successPartial, 'full'),
             update: toMutation('notificationMarkAllAsRead', null, countPartial, 'full'),
             settingsUpdate: toMutation('notificationSettingsUpdate', 'NotificationSettingsUpdateInput', notificationSettingsPartial, 'full'),
         }
     },
-    notificationSubscription: () => {
-        const { notificationSubscriptionPartial } = require('./partial/notificationSubscription');
+    notificationSubscription: async () => {
+        const { notificationSubscriptionPartial } = await import('./partial/notificationSubscription');
         return {
             findOne: toQuery('notificationSubscription', 'FindByIdInput', notificationSubscriptionPartial, 'full'),
-            findMany: toQuery('notificationSubscriptions', 'NotificationSubscriptionSearchInput', ...toSearch(notificationSubscriptionPartial)),
+            findMany: toQuery('notificationSubscriptions', 'NotificationSubscriptionSearchInput', ...(await toSearch(notificationSubscriptionPartial))),
             create: toMutation('notificationSubscriptionCreate', 'NotificationSubscriptionCreateInput', notificationSubscriptionPartial, 'full'),
             update: toMutation('notificationSubscriptionUpdate', 'NotificationSubscriptionUpdateInput', notificationSubscriptionPartial, 'full'),
         }
     },
-    organization: () => {
-        const { organizationPartial } = require('./partial/organization');
+    organization: async () => {
+        const { organizationPartial } = await import('./partial/organization');
         return {
             findOne: toQuery('organization', 'FindByIdInput', organizationPartial, 'full'),
-            findMany: toQuery('organizations', 'OrganizationSearchInput', ...toSearch(organizationPartial)),
+            findMany: toQuery('organizations', 'OrganizationSearchInput', ...(await toSearch(organizationPartial))),
             create: toMutation('organizationCreate', 'OrganizationCreateInput', organizationPartial, 'full'),
             update: toMutation('organizationUpdate', 'OrganizationUpdateInput', organizationPartial, 'full'),
         }
     },
-    phone: () => {
-        const { phonePartial } = require('./partial/phone');
-        const { successPartial } = require('./partial/success');
+    phone: async () => {
+        const { phonePartial } = await import('./partial/phone');
+        const { successPartial } = await import('./partial/success');
         return {
             create: toMutation('phoneCreate', 'PhoneCreateInput', phonePartial, 'full'),
             update: toMutation('sendVerificationText', 'SendVerificationTextInput', successPartial, 'full'),
         }
     },
-    post: () => {
-        const { postPartial } = require('./partial/post');
+    post: async () => {
+        const { postPartial } = await import('./partial/post');
         return {
             findOne: toQuery('post', 'FindByIdInput', postPartial, 'full'),
-            findMany: toQuery('posts', 'PostSearchInput', ...toSearch(postPartial)),
+            findMany: toQuery('posts', 'PostSearchInput', ...(await toSearch(postPartial))),
             create: toMutation('postCreate', 'PostCreateInput', postPartial, 'full'),
             update: toMutation('postUpdate', 'PostUpdateInput', postPartial, 'full'),
         }
     },
-    project: () => {
-        const { projectPartial } = require('./partial/project');
+    project: async () => {
+        const { projectPartial } = await import('./partial/project');
         return {
             findOne: toQuery('project', 'FindByIdInput', projectPartial, 'full'),
-            findMany: toQuery('projects', 'ProjectSearchInput', ...toSearch(projectPartial)),
+            findMany: toQuery('projects', 'ProjectSearchInput', ...(await toSearch(projectPartial))),
             create: toMutation('projectCreate', 'ProjectCreateInput', projectPartial, 'full'),
             update: toMutation('projectUpdate', 'ProjectUpdateInput', projectPartial, 'full'),
         }
     },
-    projectOrOrganization: () => {
-        const { projectOrOrganizationPartial } = require('./partial/projectOrOrganization');
+    projectOrOrganization: async () => {
+        const { projectOrOrganizationPartial } = await import('./partial/projectOrOrganization');
         return {
-            findMany: toQuery('projectOrOrganizations', 'ProjectOrOrganizationSearchInput', ...toSearch(projectOrOrganizationPartial)),
+            findMany: toQuery('projectOrOrganizations', 'ProjectOrOrganizationSearchInput', ...(await toSearch(projectOrOrganizationPartial))),
         }
     },
-    projectOrRoutine: () => {
-        const { projectOrRoutinePartial } = require('./partial/projectOrRoutine');
+    projectOrRoutine: async () => {
+        const { projectOrRoutinePartial } = await import('./partial/projectOrRoutine');
         return {
-            findMany: toQuery('projectOrRoutines', 'ProjectOrRoutineSearchInput', ...toSearch(projectOrRoutinePartial)),
+            findMany: toQuery('projectOrRoutines', 'ProjectOrRoutineSearchInput', ...(await toSearch(projectOrRoutinePartial))),
         }
     },
-    projectVersion: () => {
-        const { projectVersionPartial } = require('./partial/projectVersion');
+    projectVersion: async () => {
+        const { projectVersionPartial } = await import('./partial/projectVersion');
         return {
             findOne: toQuery('projectVersion', 'FindByIdInput', projectVersionPartial, 'full'),
-            findMany: toQuery('projectVersions', 'ProjectVersionSearchInput', ...toSearch(projectVersionPartial)),
+            findMany: toQuery('projectVersions', 'ProjectVersionSearchInput', ...(await toSearch(projectVersionPartial))),
             create: toMutation('projectVersionCreate', 'ProjectVersionCreateInput', projectVersionPartial, 'full'),
             update: toMutation('projectVersionUpdate', 'ProjectVersionUpdateInput', projectVersionPartial, 'full'),
         }
     },
-    pullRequest: () => {
-        const { pullRequestPartial } = require('./partial/pullRequest');
+    pullRequest: async () => {
+        const { pullRequestPartial } = await import('./partial/pullRequest');
         return {
             findOne: toQuery('pullRequest', 'FindByIdInput', pullRequestPartial, 'full'),
-            findMany: toQuery('pullRequests', 'PullRequestSearchInput', ...toSearch(pullRequestPartial)),
+            findMany: toQuery('pullRequests', 'PullRequestSearchInput', ...(await toSearch(pullRequestPartial))),
             create: toMutation('pullRequestCreate', 'PullRequestCreateInput', pullRequestPartial, 'full'),
             update: toMutation('pullRequestUpdate', 'PullRequestUpdateInput', pullRequestPartial, 'full'),
             accept: toMutation('pullRequestAcdept', 'FindByIdInput', pullRequestPartial, 'full'),
             reject: toMutation('pullRequestReject', 'FindByIdInput', pullRequestPartial, 'full'),
         }
     },
-    pushDevice: () => {
-        const { pushDevicePartial } = require('./partial/pushDevice');
+    pushDevice: async () => {
+        const { pushDevicePartial } = await import('./partial/pushDevice');
         return {
-            findMany: toQuery('pushDevices', 'PushDeviceSearchInput', ...toSearch(pushDevicePartial)),
+            findMany: toQuery('pushDevices', 'PushDeviceSearchInput', ...(await toSearch(pushDevicePartial))),
             create: toMutation('pushDeviceCreate', 'PushDeviceCreateInput', pushDevicePartial, 'full'),
             update: toMutation('pushDeviceUpdate', 'PushDeviceUpdateInput', pushDevicePartial, 'full'),
         }
     },
-    question: () => {
-        const { questionPartial } = require('./partial/question');
+    question: async () => {
+        const { questionPartial } = await import('./partial/question');
         return {
             findOne: toQuery('question', 'FindByIdInput', questionPartial, 'full'),
-            findMany: toQuery('questions', 'QuestionSearchInput', ...toSearch(questionPartial)),
+            findMany: toQuery('questions', 'QuestionSearchInput', ...(await toSearch(questionPartial))),
             create: toMutation('questionCreate', 'QuestionCreateInput', questionPartial, 'full'),
             update: toMutation('questionUpdate', 'QuestionUpdateInput', questionPartial, 'full'),
         }
     },
-    questionAnswer: () => {
-        const { questionAnswerPartial } = require('./partial/questionAnswer');
+    questionAnswer: async () => {
+        const { questionAnswerPartial } = await import('./partial/questionAnswer');
         return {
             findOne: toQuery('questionAnswer', 'FindByIdInput', questionAnswerPartial, 'full'),
-            findMany: toQuery('questionAnswers', 'QuestionAnswerSearchInput', ...toSearch(questionAnswerPartial)),
+            findMany: toQuery('questionAnswers', 'QuestionAnswerSearchInput', ...(await toSearch(questionAnswerPartial))),
             create: toMutation('questionAnswerCreate', 'QuestionAnswerCreateInput', questionAnswerPartial, 'full'),
             update: toMutation('questionAnswerUpdate', 'QuestionAnswerUpdateInput', questionAnswerPartial, 'full'),
             accept: toMutation('questionAnswerMarkAsAccepted', 'FindByIdInput', questionAnswerPartial, 'full'),
         }
     },
-    quiz: () => {
-        const { quizPartial } = require('./partial/quiz');
+    quiz: async () => {
+        const { quizPartial } = await import('./partial/quiz');
         return {
             findOne: toQuery('quiz', 'FindByIdInput', quizPartial, 'full'),
-            findMany: toQuery('quizzes', 'QuizSearchInput', ...toSearch(quizPartial)),
+            findMany: toQuery('quizzes', 'QuizSearchInput', ...(await toSearch(quizPartial))),
             create: toMutation('quizCreate', 'QuizCreateInput', quizPartial, 'full'),
             update: toMutation('quizUpdate', 'QuizUpdateInput', quizPartial, 'full'),
         }
     },
-    quizAttempt: () => {
-        const { quizAttemptPartial } = require('./partial/quizAttempt');
+    quizAttempt: async () => {
+        const { quizAttemptPartial } = await import('./partial/quizAttempt');
         return {
             findOne: toQuery('quizAttempt', 'FindByIdInput', quizAttemptPartial, 'full'),
-            findMany: toQuery('quizAttempts', 'QuizAttemptSearchInput', ...toSearch(quizAttemptPartial)),
+            findMany: toQuery('quizAttempts', 'QuizAttemptSearchInput', ...(await toSearch(quizAttemptPartial))),
             create: toMutation('quizAttemptCreate', 'QuizAttemptCreateInput', quizAttemptPartial, 'full'),
             update: toMutation('quizAttemptUpdate', 'QuizAttemptUpdateInput', quizAttemptPartial, 'full'),
         }
     },
-    quizQuestion: () => {
-        const { quizQuestionPartial } = require('./partial/quizQuestion');
+    quizQuestion: async () => {
+        const { quizQuestionPartial } = await import('./partial/quizQuestion');
         return {
             findOne: toQuery('quizQuestion', 'FindByIdInput', quizQuestionPartial, 'full'),
-            findMany: toQuery('quizQuestions', 'QuizQuestionSearchInput', ...toSearch(quizQuestionPartial)),
+            findMany: toQuery('quizQuestions', 'QuizQuestionSearchInput', ...(await toSearch(quizQuestionPartial))),
         }
     },
-    quizQuestionResponse: () => {
-        const { quizQuestionResponsePartial } = require('./partial/quizQuestionResponse');
+    quizQuestionResponse: async () => {
+        const { quizQuestionResponsePartial } = await import('./partial/quizQuestionResponse');
         return {
             findOne: toQuery('quizQuestionResponse', 'FindByIdInput', quizQuestionResponsePartial, 'full'),
-            findMany: toQuery('quizQuestionResponses', 'QuizQuestionResponseSearchInput', ...toSearch(quizQuestionResponsePartial)),
+            findMany: toQuery('quizQuestionResponses', 'QuizQuestionResponseSearchInput', ...(await toSearch(quizQuestionResponsePartial))),
             create: toMutation('quizQuestionResponseCreate', 'QuizQuestionResponseCreateInput', quizQuestionResponsePartial, 'full'),
             update: toMutation('quizQuestionResponseUpdate', 'QuizQuestionResponseUpdateInput', quizQuestionResponsePartial, 'full'),
         }
     },
-    reminder: () => {
-        const { reminderPartial } = require('./partial/reminder');
+    reminder: async () => {
+        const { reminderPartial } = await import('./partial/reminder');
         return {
             findOne: toQuery('reminder', 'FindByIdInput', reminderPartial, 'full'),
-            findMany: toQuery('reminders', 'ReminderSearchInput', ...toSearch(reminderPartial)),
+            findMany: toQuery('reminders', 'ReminderSearchInput', ...(await toSearch(reminderPartial))),
             create: toMutation('reminderCreate', 'ReminderCreateInput', reminderPartial, 'full'),
             update: toMutation('reminderUpdate', 'ReminderUpdateInput', reminderPartial, 'full'),
         }
     },
-    reminderList: () => {
-        const { reminderListPartial } = require('./partial/reminderList');
+    reminderList: async () => {
+        const { reminderListPartial } = await import('./partial/reminderList');
         return {
             findOne: toQuery('reminderList', 'FindByIdInput', reminderListPartial, 'full'),
-            findMany: toQuery('reminderLists', 'ReminderListSearchInput', ...toSearch(reminderListPartial)),
+            findMany: toQuery('reminderLists', 'ReminderListSearchInput', ...(await toSearch(reminderListPartial))),
             create: toMutation('reminderListCreate', 'ReminderListCreateInput', reminderListPartial, 'full'),
             update: toMutation('reminderListUpdate', 'ReminderListUpdateInput', reminderListPartial, 'full'),
         }
     },
-    report: () => {
-        const { reportPartial } = require('./partial/report');
+    report: async () => {
+        const { reportPartial } = await import('./partial/report');
         return {
             findOne: toQuery('report', 'FindByIdInput', reportPartial, 'full'),
-            findMany: toQuery('reports', 'ReportSearchInput', ...toSearch(reportPartial)),
+            findMany: toQuery('reports', 'ReportSearchInput', ...(await toSearch(reportPartial))),
             create: toMutation('reportCreate', 'ReportCreateInput', reportPartial, 'full'),
             update: toMutation('reportUpdate', 'ReportUpdateInput', reportPartial, 'full'),
         }
     },
-    reportResponse: () => {
-        const { reportResponsePartial } = require('./partial/reportResponse');
+    reportResponse: async () => {
+        const { reportResponsePartial } = await import('./partial/reportResponse');
         return {
             findOne: toQuery('reportResponse', 'FindByIdInput', reportResponsePartial, 'full'),
-            findMany: toQuery('reportResponses', 'ReportResponseSearchInput', ...toSearch(reportResponsePartial)),
+            findMany: toQuery('reportResponses', 'ReportResponseSearchInput', ...(await toSearch(reportResponsePartial))),
             create: toMutation('reportResponseCreate', 'ReportResponseCreateInput', reportResponsePartial, 'full'),
             update: toMutation('reportResponseUpdate', 'ReportResponseUpdateInput', reportResponsePartial, 'full'),
         }
     },
-    reputationHistory: () => {
-        const { reputationHistoryPartial } = require('./partial/reputationHistory');
+    reputationHistory: async () => {
+        const { reputationHistoryPartial } = await import('./partial/reputationHistory');
         return {
             findOne: toQuery('reputationHistory', 'FindByIdInput', reputationHistoryPartial, 'full'),
-            findMany: toQuery('reputationHistories', 'ReputationHistorySearchInput', ...toSearch(reputationHistoryPartial)),
+            findMany: toQuery('reputationHistories', 'ReputationHistorySearchInput', ...(await toSearch(reputationHistoryPartial))),
         }
     },
-    resource: () => {
-        const { resourcePartial } = require('./partial/resource');
+    resource: async () => {
+        const { resourcePartial } = await import('./partial/resource');
         return {
             findOne: toQuery('resource', 'FindByIdInput', resourcePartial, 'full'),
-            findMany: toQuery('resources', 'ResourceSearchInput', ...toSearch(resourcePartial)),
+            findMany: toQuery('resources', 'ResourceSearchInput', ...(await toSearch(resourcePartial))),
             create: toMutation('resourceCreate', 'ResourceCreateInput', resourcePartial, 'full'),
             update: toMutation('resourceUpdate', 'ResourceUpdateInput', resourcePartial, 'full'),
         }
     },
-    resourceList: () => {
-        const { resourceListPartial } = require('./partial/resourceList');
+    resourceList: async () => {
+        const { resourceListPartial } = await import('./partial/resourceList');
         return {
             findOne: toQuery('resourceList', 'FindByIdInput', resourceListPartial, 'full'),
-            findMany: toQuery('resourceLists', 'ResourceListSearchInput', ...toSearch(resourceListPartial)),
+            findMany: toQuery('resourceLists', 'ResourceListSearchInput', ...(await toSearch(resourceListPartial))),
             create: toMutation('resourceListCreate', 'ResourceListCreateInput', resourceListPartial, 'full'),
             update: toMutation('resourceListUpdate', 'ResourceListUpdateInput', resourceListPartial, 'full'),
         }
     },
-    role: () => {
-        const { rolePartial } = require('./partial/role');
+    role: async () => {
+        const { rolePartial } = await import('./partial/role');
         return {
             findOne: toQuery('role', 'FindByIdInput', rolePartial, 'full'),
-            findMany: toQuery('roles', 'RoleSearchInput', ...toSearch(rolePartial)),
+            findMany: toQuery('roles', 'RoleSearchInput', ...(await toSearch(rolePartial))),
             create: toMutation('roleCreate', 'RoleCreateInput', rolePartial, 'full'),
             update: toMutation('roleUpdate', 'RoleUpdateInput', rolePartial, 'full'),
         }
     },
-    routine: () => {
-        const { routinePartial } = require('./partial/routine');
+    routine: async () => {
+        const { routinePartial } = await import('./partial/routine');
         return {
             findOne: toQuery('routine', 'FindByIdInput', routinePartial, 'full'),
-            findMany: toQuery('routines', 'RoutineSearchInput', ...toSearch(routinePartial)),
+            findMany: toQuery('routines', 'RoutineSearchInput', ...(await toSearch(routinePartial))),
             create: toMutation('routineCreate', 'RoutineCreateInput', routinePartial, 'full'),
             update: toMutation('routineUpdate', 'RoutineUpdateInput', routinePartial, 'full'),
         }
     },
-    routineVersion: () => {
-        const { routineVersionPartial } = require('./partial/routineVersion');
+    routineVersion: async () => {
+        const { routineVersionPartial } = await import('./partial/routineVersion');
         return {
             findOne: toQuery('routineVersion', 'FindByIdInput', routineVersionPartial, 'full'),
-            findMany: toQuery('routineVersions', 'RoutineVersionSearchInput', ...toSearch(routineVersionPartial)),
+            findMany: toQuery('routineVersions', 'RoutineVersionSearchInput', ...(await toSearch(routineVersionPartial))),
             create: toMutation('routineVersionCreate', 'RoutineVersionCreateInput', routineVersionPartial, 'full'),
             update: toMutation('routineVersionUpdate', 'RoutineVersionUpdateInput', routineVersionPartial, 'full'),
         }
     },
-    runProject: () => {
-        const { runProjectPartial } = require('./partial/runProject');
-        const { countPartial } = require('./partial/count');
+    runProject: async () => {
+        const { runProjectPartial } = await import('./partial/runProject');
+        const { countPartial } = await import('./partial/count');
         return {
             findOne: toQuery('runProject', 'FindByIdInput', runProjectPartial, 'full'),
-            findMany: toQuery('runProjects', 'RunProjectSearchInput', ...toSearch(runProjectPartial)),
+            findMany: toQuery('runProjects', 'RunProjectSearchInput', ...(await toSearch(runProjectPartial))),
             create: toMutation('runProjectCreate', 'RunProjectCreateInput', runProjectPartial, 'full'),
             update: toMutation('runProjectUpdate', 'RunProjectUpdateInput', runProjectPartial, 'full'),
             deleteAll: toMutation('runProjectDeleteAll', null, countPartial, 'full'),
@@ -425,27 +425,27 @@ export const endpoints = {
             cancel: toMutation('runProjectCancel', 'RunProjectCancelInput', runProjectPartial, 'full'),
         }
     },
-    runProjectOrRunRoutine: () => {
-        const { runProjectOrRunRoutinePartial } = require('./partial/runProjectOrRunRoutine');
+    runProjectOrRunRoutine: async () => {
+        const { runProjectOrRunRoutinePartial } = await import('./partial/runProjectOrRunRoutine');
         return {
-            findMany: toQuery('runProjectOrRunRoutines', 'RunProjectOrRunRoutineSearchInput', ...toSearch(runProjectOrRunRoutinePartial)),
+            findMany: toQuery('runProjectOrRunRoutines', 'RunProjectOrRunRoutineSearchInput', ...(await toSearch(runProjectOrRunRoutinePartial))),
         }
     },
-    runProjectSchedule: () => {
-        const { runProjectSchedulePartial } = require('./partial/runProjectSchedule');
+    runProjectSchedule: async () => {
+        const { runProjectSchedulePartial } = await import('./partial/runProjectSchedule');
         return {
             findOne: toQuery('runProjectSchedule', 'FindByIdInput', runProjectSchedulePartial, 'full'),
-            findMany: toQuery('runProjectSchedules', 'RunProjectScheduleSearchInput', ...toSearch(runProjectSchedulePartial)),
+            findMany: toQuery('runProjectSchedules', 'RunProjectScheduleSearchInput', ...(await toSearch(runProjectSchedulePartial))),
             create: toMutation('runProjectScheduleCreate', 'RunProjectScheduleCreateInput', runProjectSchedulePartial, 'full'),
             update: toMutation('runProjectScheduleUpdate', 'RunProjectScheduleUpdateInput', runProjectSchedulePartial, 'full'),
         }
     },
-    runRoutine: () => {
-        const { runRoutinePartial } = require('./partial/runRoutine');
-        const { countPartial } = require('./partial/count');
+    runRoutine: async () => {
+        const { runRoutinePartial } = await import('./partial/runRoutine');
+        const { countPartial } = await import('./partial/count');
         return {
             findOne: toQuery('runRoutine', 'FindByIdInput', runRoutinePartial, 'full'),
-            findMany: toQuery('runRoutines', 'RunRoutineSearchInput', ...toSearch(runRoutinePartial)),
+            findMany: toQuery('runRoutines', 'RunRoutineSearchInput', ...(await toSearch(runRoutinePartial))),
             create: toMutation('runRoutineCreate', 'RunRoutineCreateInput', runRoutinePartial, 'full'),
             update: toMutation('runRoutineUpdate', 'RunRoutineUpdateInput', runRoutinePartial, 'full'),
             deleteAll: toMutation('runRoutineDeleteAll', null, countPartial, 'full'),
@@ -453,133 +453,133 @@ export const endpoints = {
             cancel: toMutation('runRoutineCancel', 'RunRoutineCancelInput', runRoutinePartial, 'full'),
         }
     },
-    runRoutineInput: () => {
-        const { runRoutineInputPartial } = require('./partial/runRoutineInput');
+    runRoutineInput: async () => {
+        const { runRoutineInputPartial } = await import('./partial/runRoutineInput');
         return {
-            findMany: toQuery('runRoutineInputs', 'RunRoutineInputSearchInput', ...toSearch(runRoutineInputPartial)),
+            findMany: toQuery('runRoutineInputs', 'RunRoutineInputSearchInput', ...(await toSearch(runRoutineInputPartial))),
         }
     },
-    runRoutineSchedule: () => {
-        const { runRoutineSchedulePartial } = require('./partial/runRoutineSchedule');
+    runRoutineSchedule: async () => {
+        const { runRoutineSchedulePartial } = await import('./partial/runRoutineSchedule');
         return {
             findOne: toQuery('runRoutineSchedule', 'FindByIdInput', runRoutineSchedulePartial, 'full'),
-            findMany: toQuery('runRoutineSchedules', 'RunRoutineScheduleSearchInput', ...toSearch(runRoutineSchedulePartial)),
+            findMany: toQuery('runRoutineSchedules', 'RunRoutineScheduleSearchInput', ...(await toSearch(runRoutineSchedulePartial))),
             create: toMutation('runRoutineScheduleCreate', 'RunRoutineScheduleCreateInput', runRoutineSchedulePartial, 'full'),
             update: toMutation('runRoutineScheduleUpdate', 'RunRoutineScheduleUpdateInput', runRoutineSchedulePartial, 'full'),
         }
     },
-    smartContract: () => {
-        const { smartContractPartial } = require('./partial/smartContract');
+    smartContract: async () => {
+        const { smartContractPartial } = await import('./partial/smartContract');
         return {
             findOne: toQuery('smartContract', 'FindByIdInput', smartContractPartial, 'full'),
-            findMany: toQuery('smartContracts', 'SmartContractSearchInput', ...toSearch(smartContractPartial)),
+            findMany: toQuery('smartContracts', 'SmartContractSearchInput', ...(await toSearch(smartContractPartial))),
             create: toMutation('smartContractCreate', 'SmartContractCreateInput', smartContractPartial, 'full'),
             update: toMutation('smartContractUpdate', 'SmartContractUpdateInput', smartContractPartial, 'full'),
         }
     },
-    smartContractVersion: () => {
-        const { smartContractVersionPartial } = require('./partial/smartContractVersion');
+    smartContractVersion: async () => {
+        const { smartContractVersionPartial } = await import('./partial/smartContractVersion');
         return {
             findOne: toQuery('smartContractVersion', 'FindByIdInput', smartContractVersionPartial, 'full'),
-            findMany: toQuery('smartContractVersions', 'SmartContractVersionSearchInput', ...toSearch(smartContractVersionPartial)),
+            findMany: toQuery('smartContractVersions', 'SmartContractVersionSearchInput', ...(await toSearch(smartContractVersionPartial))),
             create: toMutation('smartContractVersionCreate', 'SmartContractVersionCreateInput', smartContractVersionPartial, 'full'),
             update: toMutation('smartContractVersionUpdate', 'SmartContractVersionUpdateInput', smartContractVersionPartial, 'full'),
         }
     },
-    standard: () => {
-        const { standardPartial } = require('./partial/standard');
+    standard: async () => {
+        const { standardPartial } = await import('./partial/standard');
         return {
             findOne: toQuery('standard', 'FindByIdInput', standardPartial, 'full'),
-            findMany: toQuery('standards', 'StandardSearchInput', ...toSearch(standardPartial)),
+            findMany: toQuery('standards', 'StandardSearchInput', ...(await toSearch(standardPartial))),
             create: toMutation('standardCreate', 'StandardCreateInput', standardPartial, 'full'),
             update: toMutation('standardUpdate', 'StandardUpdateInput', standardPartial, 'full'),
         }
     },
-    standardVersion: () => {
-        const { standardVersionPartial } = require('./partial/standardVersion');
+    standardVersion: async () => {
+        const { standardVersionPartial } = await import('./partial/standardVersion');
         return {
             findOne: toQuery('standardVersion', 'FindByIdInput', standardVersionPartial, 'full'),
-            findMany: toQuery('standardVersions', 'StandardVersionSearchInput', ...toSearch(standardVersionPartial)),
+            findMany: toQuery('standardVersions', 'StandardVersionSearchInput', ...(await toSearch(standardVersionPartial))),
             create: toMutation('standardVersionCreate', 'StandardVersionCreateInput', standardVersionPartial, 'full'),
             update: toMutation('standardVersionUpdate', 'StandardVersionUpdateInput', standardVersionPartial, 'full'),
         }
     },
-    star: () => {
-        const { starPartial } = require('./partial/star');
-        const { successPartial } = require('./partial/success');
+    star: async () => {
+        const { starPartial } = await import('./partial/star');
+        const { successPartial } = await import('./partial/success');
         return {
-            findMany: toQuery('stars', 'StarSearchInput', ...toSearch(starPartial)),
+            findMany: toQuery('stars', 'StarSearchInput', ...(await toSearch(starPartial))),
             star: toMutation('star', 'StarInput', successPartial, 'full'),
         }
     },
-    statsApi: () => {
-        const { statsApiPartial } = require('./partial/statsApi');
+    statsApi: async () => {
+        const { statsApiPartial } = await import('./partial/statsApi');
         return {
-            findMany: toQuery('statsApi', 'StatsApiSearchInput', ...toSearch(statsApiPartial)),
+            findMany: toQuery('statsApi', 'StatsApiSearchInput', ...(await toSearch(statsApiPartial))),
         }
     },
-    statsOrganization: () => {
-        const { statsOrganizationPartial } = require('./partial/statsOrganization');
+    statsOrganization: async () => {
+        const { statsOrganizationPartial } = await import('./partial/statsOrganization');
         return {
-            findMany: toQuery('statsOrganization', 'StatsOrganizationSearchInput', ...toSearch(statsOrganizationPartial)),
+            findMany: toQuery('statsOrganization', 'StatsOrganizationSearchInput', ...(await toSearch(statsOrganizationPartial))),
         }
     },
-    statsProject: () => {
-        const { statsProjectPartial } = require('./partial/statsProject');
+    statsProject: async () => {
+        const { statsProjectPartial } = await import('./partial/statsProject');
         return {
-            findMany: toQuery('statsProject', 'StatsProjectSearchInput', ...toSearch(statsProjectPartial)),
+            findMany: toQuery('statsProject', 'StatsProjectSearchInput', ...(await toSearch(statsProjectPartial))),
         }
     },
-    statsQuiz: () => {
-        const { statsQuizPartial } = require('./partial/statsQuiz');
+    statsQuiz: async () => {
+        const { statsQuizPartial } = await import('./partial/statsQuiz');
         return {
-            findMany: toQuery('statsQuiz', 'StatsQuizSearchInput', ...toSearch(statsQuizPartial)),
+            findMany: toQuery('statsQuiz', 'StatsQuizSearchInput', ...(await toSearch(statsQuizPartial))),
         }
     },
-    statsRoutine: () => {
-        const { statsRoutinePartial } = require('./partial/statsRoutine');
+    statsRoutine: async () => {
+        const { statsRoutinePartial } = await import('./partial/statsRoutine');
         return {
-            findMany: toQuery('statsRoutine', 'StatsRoutineSearchInput', ...toSearch(statsRoutinePartial)),
+            findMany: toQuery('statsRoutine', 'StatsRoutineSearchInput', ...(await toSearch(statsRoutinePartial))),
         }
     },
-    statsSite: () => {
-        const { statsSitePartial } = require('./partial/statsSite');
+    statsSite: async () => {
+        const { statsSitePartial } = await import('./partial/statsSite');
         return {
-            findMany: toQuery('statsSite', 'StatsSiteSearchInput', ...toSearch(statsSitePartial)),
+            findMany: toQuery('statsSite', 'StatsSiteSearchInput', ...(await toSearch(statsSitePartial))),
         }
     },
-    statsSmartContract: () => {
-        const { statsSmartContractPartial } = require('./partial/statsSmartContract');
+    statsSmartContract: async () => {
+        const { statsSmartContractPartial } = await import('./partial/statsSmartContract');
         return {
-            findMany: toQuery('statsSmartContract', 'StatsSmartContractSearchInput', ...toSearch(statsSmartContractPartial)),
+            findMany: toQuery('statsSmartContract', 'StatsSmartContractSearchInput', ...(await toSearch(statsSmartContractPartial))),
         }
     },
-    statsStandard: () => {
-        const { statsStandardPartial } = require('./partial/statsStandard');
+    statsStandard: async () => {
+        const { statsStandardPartial } = await import('./partial/statsStandard');
         return {
-            findMany: toQuery('statsStandard', 'StatsStandardSearchInput', ...toSearch(statsStandardPartial)),
+            findMany: toQuery('statsStandard', 'StatsStandardSearchInput', ...(await toSearch(statsStandardPartial))),
         }
     },
-    statsUser: () => {
-        const { statsUserPartial } = require('./partial/statsUser');
+    statsUser: async () => {
+        const { statsUserPartial } = await import('./partial/statsUser');
         return {
-            findMany: toQuery('statsUser', 'StatsUserSearchInput', ...toSearch(statsUserPartial)),
+            findMany: toQuery('statsUser', 'StatsUserSearchInput', ...(await toSearch(statsUserPartial))),
         }
     },
-    tag: () => {
-        const { tagPartial } = require('./partial/tag');
+    tag: async () => {
+        const { tagPartial } = await import('./partial/tag');
         return {
             findOne: toQuery('tag', 'FindByIdInput', tagPartial, 'full'),
-            findMany: toQuery('tags', 'TagSearchInput', ...toSearch(tagPartial)),
+            findMany: toQuery('tags', 'TagSearchInput', ...(await toSearch(tagPartial))),
             create: toMutation('tagCreate', 'TagCreateInput', tagPartial, 'full'),
             update: toMutation('tagUpdate', 'TagUpdateInput', tagPartial, 'full'),
         }
     },
-    transfer: () => {
-        const { transferPartial } = require('./partial/transfer');
+    transfer: async () => {
+        const { transferPartial } = await import('./partial/transfer');
         return {
             findOne: toQuery('transfer', 'FindByIdInput', transferPartial, 'full'),
-            findMany: toQuery('transfers', 'TransferSearchInput', ...toSearch(transferPartial)),
+            findMany: toQuery('transfers', 'TransferSearchInput', ...(await toSearch(transferPartial))),
             requestSend: toMutation('transferRequestSend', 'TransferRequestSendInput', transferPartial, 'full'),
             requestReceive: toMutation('transferRequestReceive', 'TransferRequestReceiveInput', transferPartial, 'full'),
             transferUpdate: toMutation('transferUpdate', 'TransferUpdateInput', transferPartial, 'full'),
@@ -588,49 +588,50 @@ export const endpoints = {
             transferDeny: toMutation('transferDeny', 'TransferDenyInput', transferPartial, 'full'),
         }
     },
-    translate: () => {
+    translate: async () => {
+        const { translatePartial } = await import('./partial/translate');
         return {
-            translate: toQuery('translate', 'FindByIdInput', {} as any, 'full'),//translatePartial, 'full'),
+            translate: toQuery('translate', 'FindByIdInput', translatePartial, 'full'),
         }
     },
-    user: () => {
-        const { userPartial, profilePartial } = require('./partial/user');
-        const { successPartial } = require('./partial/success');
+    user: async () => {
+        const { userPartial, profilePartial } = await import('./partial/user');
+        const { successPartial } = await import('./partial/success');
         return {
             profile: toQuery('profile', null, profilePartial, 'full'),
             findOne: toQuery('user', 'FindByIdInput', userPartial, 'full'),
-            findMany: toQuery('users', 'UserSearchInput', ...toSearch(userPartial)),
+            findMany: toQuery('users', 'UserSearchInput', ...(await toSearch(userPartial))),
             profileUpdate: toMutation('profileUpdate', 'ProfileUpdateInput', profilePartial, 'full'),
             profileEmailUpdate: toMutation('profileEmailUpdate', 'ProfileEmailUpdateInput', profilePartial, 'full'),
             deleteOne: toMutation('userDeleteOne', 'UserDeleteInput', successPartial, 'full'),
             exportData: toMutation('exportData', null),
         }
     },
-    userSchedule: () => {
-        const { userSchedulePartial } = require('./partial/userSchedule');
+    userSchedule: async () => {
+        const { userSchedulePartial } = await import('./partial/userSchedule');
         return {
             findOne: toQuery('userSchedule', 'FindByIdInput', userSchedulePartial, 'full'),
-            findMany: toQuery('userSchedules', 'UserScheduleSearchInput', ...toSearch(userSchedulePartial)),
+            findMany: toQuery('userSchedules', 'UserScheduleSearchInput', ...(await toSearch(userSchedulePartial))),
             create: toMutation('userScheduleCreate', 'UserScheduleCreateInput', userSchedulePartial, 'full'),
             update: toMutation('userScheduleUpdate', 'UserScheduleUpdateInput', userSchedulePartial, 'full'),
         }
     },
-    view: () => {
-        const { viewPartial } = require('./partial/view');
+    view: async () => {
+        const { viewPartial } = await import('./partial/view');
         return {
-            findMany: toQuery('views', 'ViewSearchInput', ...toSearch(viewPartial)),
+            findMany: toQuery('views', 'ViewSearchInput', ...(await toSearch(viewPartial))),
         }
     },
-    vote: () => {
-        const { votePartial } = require('./partial/vote');
-        const { successPartial } = require('./partial/success');
+    vote: async () => {
+        const { votePartial } = await import('./partial/vote');
+        const { successPartial } = await import('./partial/success');
         return {
-            findMany: toQuery('votes', 'VoteSearchInput', ...toSearch(votePartial)),
+            findMany: toQuery('votes', 'VoteSearchInput', ...(await toSearch(votePartial))),
             vote: toMutation('vote', 'VoteInput', successPartial, 'full'),
         }
     },
-    wallet: () => {
-        const { walletPartial } = require('./partial/wallet');
+    wallet: async () => {
+        const { walletPartial } = await import('./partial/wallet');
         return {
             findHandles: toQuery('findHandles', 'FindHandlesInput'),
             update: toMutation('walletUpdate', 'WalletUpdateInput', walletPartial, 'full'),

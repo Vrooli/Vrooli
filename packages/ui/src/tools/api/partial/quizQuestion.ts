@@ -33,12 +33,12 @@ export const quizQuestionPartial: GqlPartial<QuizQuestion> = {
         order: true,
         points: true,
         responsesCount: true,
-        quiz: () => relPartial(require('./quiz').quizPartial, 'nav', { omit: 'quizQuestions' }),
-        standardVersion: () => relPartial(require('./standardVersion').standardVersionPartial, 'nav'),
+        quiz: async () => relPartial((await import('./quiz')).quizPartial, 'nav', { omit: 'quizQuestions' }),
+        standardVersion: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'nav'),
         you: () => relPartial(quizQuestionYouPartial, 'full'),
     },
     full: {
-        responses: () => relPartial(require('./quizQuestionResponse').quizQuestionResponsePartial, 'full', { omit: 'quizQuestion' }),
+        responses: async () => relPartial((await import('./quizQuestionResponse')).quizQuestionResponsePartial, 'full', { omit: 'quizQuestion' }),
         translations: () => relPartial(quizQuestionTranslationPartial, 'full'),
     },
     list: {

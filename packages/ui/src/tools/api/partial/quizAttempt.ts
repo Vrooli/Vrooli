@@ -23,12 +23,12 @@ export const quizAttemptPartial: GqlPartial<QuizAttempt> = {
         contextSwitches: true,
         timeTaken: true,
         responsesCount: true,
-        quiz: () => relPartial(require('./quiz').quizPartial, 'nav'),
-        user: () => relPartial(require('./user').userPartial, 'nav'),
+        quiz: async () => relPartial((await import('./quiz')).quizPartial, 'nav'),
+        user: async () => relPartial((await import('./user')).userPartial, 'nav'),
         you: () => relPartial(quizAttemptYouPartial, 'full'),
     },
     full: {
-        responses: () => relPartial(require('./quizQuestionResponse').quizQuestionResponsePartial, 'full'),
+        responses: async () => relPartial((await import('./quizQuestionResponse')).quizQuestionResponsePartial, 'full'),
     },
     list: {},
 }

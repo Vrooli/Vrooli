@@ -4,6 +4,7 @@ export * from './partialShape';
 export * from './partialToString';
 export * from './partialToStringHelper';
 export * from './relPartial'
+export * from './removeValuesUsingDot';
 export * from './toMutation';
 export * from './toQuery';
 export * from './toSearch';

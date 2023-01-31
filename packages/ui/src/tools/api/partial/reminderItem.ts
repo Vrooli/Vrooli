@@ -13,6 +13,6 @@ export const reminderItemPartial: GqlPartial<ReminderItem> = {
         dueDate: true,
         completed: true,
         index: true,
-        reminder: () => relPartial(require('./reminder').reminderPartial, 'nav', { omit: 'reminderItems' }),
+        reminder: async () => relPartial((await import('./reminder')).reminderPartial, 'nav', { omit: 'reminderItems' }),
     },
 }

@@ -13,7 +13,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${HERE}/prettify.sh"
 
 # Read arguments
-while getopts ":v:d:h" opt; do
+while getopts ":v:d:h:g" opt; do
   case $opt in
     v)
       VERSION=$OPTARG
@@ -21,11 +21,15 @@ while getopts ":v:d:h" opt; do
     d)
       DEPLOY=$OPTARG
       ;;
+    g)
+      GRAPHQL_GENERATE=$OPTARG
+      ;;
     h)
       echo "Usage: $0 [-v VERSION] [-d DEPLOY] [-h]"
       echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
       echo "  -d --deploy: Deploy to VPS (y/N)"
       echo "  -h --help: Show this help message"
+      echo "  -g --graphql-generate: Generate GraphQL tags for queries/mutations"
       exit 0
       ;;
     \?)
@@ -101,12 +105,19 @@ echo "REACT_APP_SITE_IP=${SITE_IP}" >> .env
 trap "rm .env" EXIT
 
 # Generate query/mutation selectors
-ts-node --esm --experimental-specifier-resolution node  ./src/tools/api/gqlSelects.ts
-if [ $? -ne 0 ]; then
-    error "Failed to generate query/mutation selectors"
-    echo "${HERE}/../packages/ui/src/tools/api/gqlSelects.ts"
-    # This IS a critical error, so we'll exit
-    exit 1
+if [ -z "$GRAPHQL_GENERATE" ]; then
+    prompt "Do you want to generate GraphQL query/mutation selectors? (y/N)"
+    read -r GRAPHQL_GENERATE
+fi
+if [ "${GRAPHQL_GENERATE}" = "y" ] || [ "${GRAPHQL_GENERATE}" = "Y" ] || [ "${GRAPHQL_GENERATE}" = "yes" ] || [ "${GRAPHQL_GENERATE}" = "Yes" ]; then
+    info "Generating GraphQL query/mutation selectors... (this may take a minute)"
+    ts-node --esm --experimental-specifier-resolution node  ./src/tools/api/gqlSelects.ts
+    if [ $? -ne 0 ]; then
+        error "Failed to generate query/mutation selectors"
+        echo "${HERE}/../packages/ui/src/tools/api/gqlSelects.ts"
+        # This IS a critical error, so we'll exit
+        exit 1
+    fi
 fi
 
 # Build React app

@@ -19,15 +19,15 @@ export const questionAnswerPartial: GqlPartial<QuestionAnswer> = {
         id: true,
         created_at: true,
         updated_at: true,
-        createdBy: () => relPartial(require('./user').userPartial, 'nav'),
+        createdBy: async () => relPartial((await import('./user')).userPartial, 'nav'),
         score: true,
         stars: true,
         isAccepted: true,
         commentsCount: true,
     },
     full: {
-        comments: () => relPartial(require('./comment').commentPartial, 'full', { omit: 'commentedOn' }),
-        question: () => relPartial(require('./question').questionPartial, 'nav', { omit: 'answers' }),
+        comments: async () => relPartial((await import('./comment')).comment, 'full', { omit: 'commentedOn' }),
+        question: async () => relPartial((await import('./question')).questionPartial, 'nav', { omit: 'answers' }),
         translations: () => relPartial(questionAnswerTranslationPartial, 'full'),
     },
     list: {

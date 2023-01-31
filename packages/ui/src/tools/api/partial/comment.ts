@@ -2,7 +2,7 @@ import { Comment, CommentThread, CommentTranslation, CommentYou } from "@shared/
 import { relPartial } from '../utils';
 import { GqlPartial } from "../types";
 
-export const commentTranslationPartial: GqlPartial<CommentTranslation> = {
+export const commentTranslation: GqlPartial<CommentTranslation> = {
     __typename: 'CommentTranslation',
     common: {
         id: true,
@@ -13,7 +13,7 @@ export const commentTranslationPartial: GqlPartial<CommentTranslation> = {
     list: {},
 }
 
-export const commentYouPartial: GqlPartial<CommentYou> = {
+export const commentYou: GqlPartial<CommentYou> = {
     __typename: 'CommentYou',
     common: {
         canDelete: true,
@@ -29,23 +29,23 @@ export const commentYouPartial: GqlPartial<CommentYou> = {
     list: {},
 }
 
-export const commentPartial: GqlPartial<Comment> = {
+export const comment: GqlPartial<Comment> = {
     __typename: 'Comment',
     common: {
         __define: {
-            0: () => relPartial(require('./api').apiPartial, 'nav'),
-            1: () => relPartial(require('./issue').issuePartial, 'nav'),
-            2: () => relPartial(require('./noteVersion').noteVersionPartial, 'nav'),
-            3: () => relPartial(require('./post').postPartial, 'nav'),
-            4: () => relPartial(require('./projectVersion').projectVersionPartial, 'nav'),
-            5: () => relPartial(require('./pullRequest').pullRequestPartial, 'nav'),
-            6: () => relPartial(require('./question').questionPartial, 'nav'),
-            7: () => relPartial(require('./questionAnswer').questionAnswerPartial, 'nav'),
-            8: () => relPartial(require('./routineVersion').routineVersionPartial, 'nav'),
-            9: () => relPartial(require('./smartContractVersion').smartContractVersionPartial, 'nav'),
-            10: () => relPartial(require('./standardVersion').standardVersionPartial, 'nav'),
-            11: () => relPartial(require('./organization').organizationPartial, 'nav'),
-            12: () => relPartial(require('./user').userPartial, 'nav'),
+            0: async () => relPartial((await import('./api')).api, 'nav'),
+            1: async () => relPartial((await import('./issue')).issuePartial, 'nav'),
+            2: async () => relPartial((await import('./noteVersion')).noteVersionPartial, 'nav'),
+            3: async () => relPartial((await import('./post')).postPartial, 'nav'),
+            4: async () => relPartial((await import('./projectVersion')).projectVersionPartial, 'nav'),
+            5: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'nav'),
+            6: async () => relPartial((await import('./question')).questionPartial, 'nav'),
+            7: async () => relPartial((await import('./questionAnswer')).questionAnswerPartial, 'nav'),
+            8: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav'),
+            9: async () => relPartial((await import('./smartContractVersion')).smartContractVersionPartial, 'nav'),
+            10: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'nav'),
+            11: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
+            12: async () => relPartial((await import('./user')).userPartial, 'nav'),
         },
         id: true,
         created_at: true,
@@ -74,13 +74,13 @@ export const commentPartial: GqlPartial<Comment> = {
         score: true,
         stars: true,
         reportsCount: true,
-        you: () => relPartial(commentYouPartial, 'full'),
+        you: () => relPartial(commentYou, 'full'),
     },
     full: {
-        translations: () => relPartial(commentTranslationPartial, 'full'),
+        translations: () => relPartial(commentTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(commentTranslationPartial, 'list'),
+        translations: () => relPartial(commentTranslation, 'list'),
     }
 }
 
@@ -89,15 +89,15 @@ export const commentThreadPartial: GqlPartial<CommentThread> = {
     common: {
         childThreads: {
             childThreads: {
-                comment: () => relPartial(commentPartial, 'list'),
+                comment: () => relPartial(comment, 'list'),
                 endCursor: true,
                 totalInThread: true,
             },
-            comment: () => relPartial(commentPartial, 'list'),
+            comment: () => relPartial(comment, 'list'),
             endCursor: true,
             totalInThread: true,
         },
-        comment: () => relPartial(commentPartial, 'list'),
+        comment: () => relPartial(comment, 'list'),
         endCursor: true,
         totalInThread: true,
     },

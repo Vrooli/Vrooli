@@ -17,8 +17,8 @@ export const runProjectPartial: GqlPartial<RunProject> = {
     __typename: 'RunProject',
     common: {
         __define: {
-            0: () => relPartial(require('./organization').organizationPartial, 'nav'),
-            1: () => relPartial(require('./user').userPartial, 'nav'),
+            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
+            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
         },
         id: true,
         isPrivate: true,
@@ -32,13 +32,13 @@ export const runProjectPartial: GqlPartial<RunProject> = {
         stepsCount: true,
         wasRunAutomaticaly: true,
         organization: { __use: 0 },
-        projectVersion: () => relPartial(require('./projectVersion').projectVersionPartial, 'nav', { omit: 'you' }),
-        runProjectSchedule: () => relPartial(require('./runProjectSchedule').runProjectSchedulePartial, 'full', { omit: 'runProject' }),
+        projectVersion: async () => relPartial((await import('./projectVersion')).projectVersionPartial, 'nav', { omit: 'you' }),
+        runProjectSchedule: async () => relPartial((await import('./runProjectSchedule')).runProjectSchedulePartial, 'full', { omit: 'runProject' }),
         user: { __use: 1 },
         you: () => relPartial(runProjectYouPartial, 'full'),
     },
     full: {
-        steps: () => relPartial(require('./runProjectStep').runProjectStepPartial, 'full', { omit: 'run' }),
+        steps: async () => relPartial((await import('./runProjectStep')).runProjectStepPartial, 'full', { omit: 'run' }),
     },
     list: {},
 }

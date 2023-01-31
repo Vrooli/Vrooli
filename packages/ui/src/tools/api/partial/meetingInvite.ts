@@ -1,7 +1,6 @@
 import { MeetingInvite, MeetingInviteYou } from "@shared/consts";
 import { relPartial } from '../utils';
 import { GqlPartial } from "../types";
-import { meetingPartial } from "./meeting";
 
 export const meetingInviteYouPartial: GqlPartial<MeetingInviteYou> = {
     __typename: 'MeetingInviteYou',
@@ -22,11 +21,11 @@ export const meetingInvitePartial: GqlPartial<MeetingInvite> = {
         you: () => relPartial(meetingInviteYouPartial, 'full'),
     },
     full: {
-        meeting: () => relPartial(require('./meeting').meetingPartial, 'full', { omit: 'invites' }),
+        meeting: async () => relPartial((await import('./meeting')).meetingPartial, 'full', { omit: 'invites' }),
 
     },
     list: {
-        meeting: () => relPartial(require('./meeting').meetingPartial, 'list', { omit: 'invites' }),
+        meeting: async () => relPartial((await import('./meeting')).meetingPartial, 'list', { omit: 'invites' }),
 
     }
 }

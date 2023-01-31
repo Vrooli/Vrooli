@@ -38,9 +38,9 @@ export const smartContractVersionPartial: GqlPartial<SmartContractVersion> = {
     },
     full: {
         versionNotes: true,
-        pullRequest: () => relPartial(require('./pullRequest').pullRequestPartial, 'full'),
-        resourceList: () => relPartial(require('./resourceList').resourceListPartial, 'full'),
-        root: () => relPartial(require('./smartContract').smartContractPartial, 'full', { omit: 'versions' }),
+        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
+        resourceList: async () => relPartial((await import('./resourceList')).resourceListPartial, 'full'),
+        root: async () => relPartial((await import('./smartContract')).smartContractPartial, 'full', { omit: 'versions' }),
         translations: () => relPartial(smartContractVersionTranslationPartial, 'full'),
     },
     list: {
@@ -52,7 +52,7 @@ export const smartContractVersionPartial: GqlPartial<SmartContractVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: () => relPartial(require('./smartContract').smartContractPartial, 'nav'),
+        root: async () => relPartial((await import('./smartContract')).smartContractPartial, 'nav'),
         translations: () => relPartial(smartContractVersionTranslationPartial, 'list'),
     }
 }

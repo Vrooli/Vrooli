@@ -7,7 +7,7 @@ export const nodeLinkPartial: GqlPartial<NodeLink> = {
     common: {
         id: true,
         operation: true,
-        whens: () => relPartial(require('./nodeLinkWhen').nodeLinkWhenPartial, 'full', { omit: 'nodeLink' }),
+        whens: async () => relPartial((await import('./nodeLinkWhen')).nodeLinkWhenPartial, 'full', { omit: 'nodeLink' }),
     },
     full: {},
     list: {},

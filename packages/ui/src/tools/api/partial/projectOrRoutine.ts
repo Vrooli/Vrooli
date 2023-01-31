@@ -6,8 +6,8 @@ export const projectOrRoutinePartial: GqlPartial<ProjectOrRoutine> = {
     __typename: 'ProjectOrRoutine' as any,
     full: {
         __define: {
-            0: () => relPartial(require('./project').projectPartial, 'full'),
-            1: () => relPartial(require('./routine').routinePartial, 'full'),
+            0: async () => relPartial((await import('./project')).projectPartial, 'full'),
+            1: async () => relPartial((await import('./routine')).routinePartial, 'full'),
         },
         __union: {
             Project: 0,
@@ -16,8 +16,8 @@ export const projectOrRoutinePartial: GqlPartial<ProjectOrRoutine> = {
     },
     list: {
         __define: {
-            0: () => relPartial(require('./project').projectPartial, 'list'),
-            1: () => relPartial(require('./routine').routinePartial, 'list'),
+            0: async () => relPartial((await import('./project')).projectPartial, 'list'),
+            1: async () => relPartial((await import('./routine')).routinePartial, 'list'),
         },
         __union: {
             Project: 0,

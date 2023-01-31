@@ -184,4 +184,4 @@ export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNulla
 /**
  * Makes a value lazy or not
  */
-export type MaybeLazy<T> = T | (() => T);
+export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);

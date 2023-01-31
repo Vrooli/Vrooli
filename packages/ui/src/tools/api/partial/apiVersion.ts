@@ -3,7 +3,7 @@ import { relPartial } from '../utils';
 import { GqlPartial } from "../types";
 import { versionYouPartial } from "./root";
 
-export const apiVersionTranslationPartial: GqlPartial<ApiVersionTranslation> = {
+export const apiVersionTranslation: GqlPartial<ApiVersionTranslation> = {
     __typename: 'ApiVersionTranslation',
     common: {
         id: true,
@@ -15,7 +15,7 @@ export const apiVersionTranslationPartial: GqlPartial<ApiVersionTranslation> = {
     list: {},
 }
 
-export const apiVersionPartial: GqlPartial<ApiVersion> = {
+export const apiVersion: GqlPartial<ApiVersion> = {
     __typename: 'ApiVersion',
     common: {
         id: true,
@@ -33,14 +33,14 @@ export const apiVersionPartial: GqlPartial<ApiVersion> = {
         you: () => relPartial(versionYouPartial, 'full'),
     },
     full: {
-        pullRequest: () => relPartial(require('./pullRequest').pullRequestPartial, 'full'),
-        root: () => relPartial(require('./api').apiPartial, 'full', { omit: 'versions' }),
-        translations: () => relPartial(apiVersionTranslationPartial, 'full'),
+        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
+        root: async () => relPartial((await import('./api')).api, 'full', { omit: 'versions' }),
+        translations: () => relPartial(apiVersionTranslation, 'full'),
         versionNotes: true,
     },
     list: {
-        root: () => relPartial(require('./api').apiPartial, 'list', { omit: 'versions' }),
-        translations: () => relPartial(apiVersionTranslationPartial, 'list'),
+        root: async () => relPartial((await import('./api')).api, 'list', { omit: 'versions' }),
+        translations: () => relPartial(apiVersionTranslation, 'list'),
     },
     nav: {
         id: true,
@@ -48,7 +48,7 @@ export const apiVersionPartial: GqlPartial<ApiVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: () => relPartial(require('./api').apiPartial, 'nav'),
-        translations: () => relPartial(apiVersionTranslationPartial, 'list'),
+        root: async () => relPartial((await import('./api')).api, 'nav'),
+        translations: () => relPartial(apiVersionTranslation, 'list'),
     }
 }

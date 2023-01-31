@@ -8,7 +8,7 @@ export const nodeRoutineListPartial: GqlPartial<NodeRoutineList> = {
         id: true,
         isOrdered: true,
         isOptional: true,
-        items: () => relPartial(require('./nodeRoutineListItem').nodeRoutineListItemPartial, 'full'),
+        items: async () => relPartial((await import('./nodeRoutineListItem')).nodeRoutineListItemPartial, 'full'),
     },
     full: {},
     list: {},

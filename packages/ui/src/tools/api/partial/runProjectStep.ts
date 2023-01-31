@@ -14,7 +14,7 @@ export const runProjectStepPartial: GqlPartial<RunProjectStep> = {
         name: true,
         status: true,
         step: true,
-        directory: () => relPartial(require('./projectVersionDirectory').projectVersionDirectoryPartial, 'nav')
+        directory: async () => relPartial((await import('./projectVersionDirectory')).projectVersionDirectoryPartial, 'nav')
     },
     full: {},
     list: {},

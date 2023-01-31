@@ -1,4 +1,4 @@
-import { MaybeLazy, NonMaybe } from "../../types";
+import { MaybeLazyAsync, NonMaybe } from "../../types";
 
 /**
  * A nested Partial type, where each non-object field is a boolean.
@@ -19,11 +19,11 @@ export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = 
     /**
      * Fragments to include in the selection. Each fragment's key can be used to reference it in the selection.
      */
-    __define?: { [key: string]: MaybeLazy<DeepPartialBooleanWithFragments<T>> };
+    __define?: { [key: string]: MaybeLazyAsync<DeepPartialBooleanWithFragments<T>> };
     /**
      * Creates a union of the specified types
      */
-    __union?: { [key in T['__typename']]?: (string | number | MaybeLazy<DeepPartialBooleanWithFragments<T>>) };
+    __union?: { [key in T['__typename']]?: (string | number | MaybeLazyAsync<DeepPartialBooleanWithFragments<T>>) };
     /**
      * Defines a fragment to include in the selection. The fragment can be referenced in the selection using the __use field.
      */
@@ -31,10 +31,10 @@ export type DeepPartialBooleanWithFragments<T extends { __typename: string }> = 
 } & {
         [P in keyof T]?: T[P] extends Array<infer U> ?
         U extends { __typename: string } ?
-        MaybeLazy<DeepPartialBooleanWithFragments<NonMaybe<U>>> :
+        MaybeLazyAsync<DeepPartialBooleanWithFragments<NonMaybe<U>>> :
         boolean :
         T[P] extends { __typename: string } ?
-        MaybeLazy<DeepPartialBooleanWithFragments<NonMaybe<T[P]>>> :
+        MaybeLazyAsync<DeepPartialBooleanWithFragments<NonMaybe<T[P]>>> :
         boolean;
     }
 

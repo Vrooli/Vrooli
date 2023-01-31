@@ -41,7 +41,7 @@ export const organizationPartial: GqlPartial<Organization> = {
     __typename: 'Organization',
     common: {
         __define: {
-            0: () => relPartial(require('./tag').tagPartial, 'list'),
+            0: async () => relPartial((await import('./tag')).tagPartial, 'list'),
         },
         id: true,
         handle: true,
@@ -58,7 +58,7 @@ export const organizationPartial: GqlPartial<Organization> = {
         you: () => relPartial(organizationYouPartial, 'full'),
     },
     full: {
-        roles: () => relPartial(require('./role').rolePartial, 'full', { omit: 'organization' }),
+        roles: async () => relPartial((await import('./role')).rolePartial, 'full', { omit: 'organization' }),
     },
     list: { },
     nav: {

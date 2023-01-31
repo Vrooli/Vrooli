@@ -7,6 +7,6 @@ export const sessionPartial: GqlPartial<Session> = {
     full: {
         isLoggedIn: true,
         timeZone: true,
-        users: () => relPartial(require('./sessionUser').sessionUserPartial, 'full'),
+        users: async () => relPartial((await import('./sessionUser')).sessionUserPartial, 'full'),
     }
 }

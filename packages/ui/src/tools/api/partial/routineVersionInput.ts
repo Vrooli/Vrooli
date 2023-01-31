@@ -21,7 +21,7 @@ export const routineVersionInputPartial: GqlPartial<RoutineVersionInput> = {
         index: true,
         isRequired: true,
         name: true,
-        standardVersion: () => relPartial(require('./standardVersion').standardVersionPartial, 'list'),
+        standardVersion: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'list'),
         translations: () => relPartial(routineVersionInputTranslationPartial, 'full'),
     },
     full: {},

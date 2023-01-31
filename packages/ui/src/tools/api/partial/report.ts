@@ -26,7 +26,7 @@ export const reportPartial: GqlPartial<Report> = {
         you: () => relPartial(reportYouPartial, 'full'),
     },
     full: {
-        responses: () => relPartial(require('./reportResponse').reportResponsePartial, 'full', { omit: 'report' }),
+        responses: async () => relPartial((await import('./reportResponse')).reportResponsePartial, 'full', { omit: 'report' }),
     },
     list: {},
 }

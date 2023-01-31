@@ -7,7 +7,7 @@ export const userScheduleFilterPartial: GqlPartial<UserScheduleFilter> = {
     full: {
         id: true,
         filterType: true,
-        tag: () => relPartial(require('./tag').tagPartial, 'list'),
-        userSchedule: () => relPartial(require('./userSchedule').userSchedulePartial, 'list', { omit: 'filters' }),
+        tag: async () => relPartial((await import('./tag')).tagPartial, 'list'),
+        userSchedule: async () => relPartial((await import('./userSchedule')).userSchedulePartial, 'list', { omit: 'filters' }),
     },
 }

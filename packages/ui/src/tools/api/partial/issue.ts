@@ -35,14 +35,14 @@ export const issuePartial: GqlPartial<Issue> = {
     __typename: 'Issue',
     common: {
         __define: {
-            0: () => relPartial(require('./api').apiPartial, 'nav'),
-            1: () => relPartial(require('./note').notePartial, 'nav'),
-            2: () => relPartial(require('./organization').organizationPartial, 'nav'),
-            3: () => relPartial(require('./project').projectPartial, 'nav'),
-            4: () => relPartial(require('./routine').routinePartial, 'nav'),
-            5: () => relPartial(require('./smartContract').smartContractPartial, 'nav'),
-            6: () => relPartial(require('./standard').standardPartial, 'nav'),
-            7: () => relPartial(require('./label').labelPartial, 'nav'),
+            0: async () => relPartial((await import('./api')).api, 'nav'),
+            1: async () => relPartial((await import('./note')).notePartial, 'nav'),
+            2: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
+            3: async () => relPartial((await import('./project')).projectPartial, 'nav'),
+            4: async () => relPartial((await import('./routine')).routinePartial, 'nav'),
+            5: async () => relPartial((await import('./smartContract')).smartContractPartial, 'nav'),
+            6: async () => relPartial((await import('./standard')).standardPartial, 'nav'),
+            7: async () => relPartial((await import('./label')).labelPartial, 'nav'),
         },
         id: true,
         created_at: true,
@@ -70,8 +70,8 @@ export const issuePartial: GqlPartial<Issue> = {
         you: () => relPartial(issueYouPartial, 'full'),
     },
     full: {
-        closedBy: () => relPartial(require('./user').userPartial, 'nav'),
-        createdBy: () => relPartial(require('./user').userPartial, 'nav'),
+        closedBy: async () => relPartial((await import('./user')).userPartial, 'nav'),
+        createdBy: async () => relPartial((await import('./user')).userPartial, 'nav'),
         translations: () => relPartial(issueTranslationPartial, 'full'),
     },
     list: {

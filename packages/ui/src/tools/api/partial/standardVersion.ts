@@ -39,9 +39,9 @@ export const standardVersionPartial: GqlPartial<StandardVersion> = {
     },
     full: {
         versionNotes: true,
-        pullRequest: () => relPartial(require('./pullRequest').pullRequestPartial, 'full'),
-        resourceList: () => relPartial(require('./resourceList').resourceListPartial, 'full'),
-        root: () => relPartial(require('./standard').standardPartial, 'full', { omit: 'versions' }),
+        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
+        resourceList: async () => relPartial((await import('./resourceList')).resourceListPartial, 'full'),
+        root: async () => relPartial((await import('./standard')).standardPartial, 'full', { omit: 'versions' }),
         translations: () => relPartial(standardVersionTranslationPartial, 'full'),
     },
     list: {
@@ -53,7 +53,7 @@ export const standardVersionPartial: GqlPartial<StandardVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: () => relPartial(require('./standard').standardPartial, 'nav'),
+        root: async () => relPartial((await import('./standard')).standardPartial, 'nav'),
         translations: () => relPartial(standardVersionTranslationPartial, 'list'),
     }
 }

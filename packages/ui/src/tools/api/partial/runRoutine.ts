@@ -17,8 +17,8 @@ export const runRoutinePartial: GqlPartial<RunRoutine> = {
     __typename: 'RunRoutine',
     common: {
         __define: {
-            0: () => relPartial(require('./organization').organizationPartial, 'nav'),
-            1: () => relPartial(require('./user').userPartial, 'nav'),
+            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
+            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
         },
         id: true,
         isPrivate: true,
@@ -33,14 +33,14 @@ export const runRoutinePartial: GqlPartial<RunRoutine> = {
         inputsCount: true,
         wasRunAutomaticaly: true,
         organization: { __use: 0 },
-        routineVersion: () => relPartial(require('./routineVersion').routineVersionPartial, 'nav', { omit: 'you' }),
-        runRoutineSchedule: () => relPartial(require('./runRoutineSchedule').runRoutineSchedulePartial, 'full', { omit: 'runRoutine' }),
+        routineVersion: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav', { omit: 'you' }),
+        runRoutineSchedule: async () => relPartial((await import('./runRoutineSchedule')).runRoutineSchedulePartial, 'full', { omit: 'runRoutine' }),
         user: { __use: 1 },
         you: () => relPartial(runRoutineYouPartial, 'full'),
     },
     full: {
-        inputs: () => relPartial(require('./runRoutineInput').runRoutineInputPartial, 'list', { omit: ['runRoutine', 'input.routineVersion'] }),
-        steps: () => relPartial(require('./runRoutineStep').runRoutineStepPartial, 'list'),
+        inputs: async () => relPartial((await import('./runRoutineInput')).runRoutineInputPartial, 'list', { omit: ['runRoutine', 'input.routineVersion'] }),
+        steps: async () => relPartial((await import('./runRoutineStep')).runRoutineStepPartial, 'list'),
     },
     list: {},
 }

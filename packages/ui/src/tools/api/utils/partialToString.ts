@@ -32,7 +32,7 @@ type PartialToStringProps<
  * - The fields of the query/mutation, with fragments referenced by name and unions formatted correctly
  * - The closing parentheses and brackets
  */
-export const partialToString = <
+export const partialToString = async <
     EndpointType extends 'query' | 'mutation',
     EndpointName extends string,
     Partial extends GqlPartial<any>,
@@ -44,20 +44,20 @@ export const partialToString = <
     inputType,
     partial,
     selectionType,
-}: PartialToStringProps<EndpointType, EndpointName, Partial, Selection>): string => {
+}: PartialToStringProps<EndpointType, EndpointName, Partial, Selection>): Promise<string> => {
     // Calculate the fragments and selection set by combining partials
     let combined: DeepPartialBooleanWithFragments<any> = {};
     if (exists(partial) && exists(selectionType)) {
-        combined = relPartial(partial, selectionType)
+        combined = await relPartial(partial, selectionType)
     }
     // Initialize the string to return
     let str = '';
     // If there are fragments, add them first
     const { __define, ...rest } = combined;
     if (exists(__define) && Object.keys(__define).length > 0) {
-        str += partialToStringHelper({ __define } as any, indent);
+        str += await partialToStringHelper({ __define } as any, indent);
     }
-    console.log('PARTIAL TO STRING WITHOUT FRAGMENTS', rest)
+    // console.log('PARTIAL TO STRING WITHOUT FRAGMENTS', rest)
     // Add the query/mutation itself
     str += `
 ${' '.repeat(indent)}${endpointType} ${endpointName}`;
@@ -75,14 +75,14 @@ ${' '.repeat(indent + 2)}`;
         // Add another opening bracket
         str += ` {
 `;
-        str += partialToStringHelper(rest, indent + 4);
-        // Add a closing bracket
+        str += await partialToStringHelper(rest, indent + 4);
+        // Add a closing brackets
         str += `${' '.repeat(indent + 2)}}`;
     }
     // Add the final closing bracket
     str += `
 ${' '.repeat(indent)}}`;
-    console.log('partialToString result', str)
+    // console.log('partialToString result', str)
     // Return the string
     return str;
 };

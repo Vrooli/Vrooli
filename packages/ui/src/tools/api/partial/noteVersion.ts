@@ -29,13 +29,13 @@ export const noteVersionPartial: GqlPartial<NoteVersion> = {
         you: () => relPartial(versionYouPartial, 'full'),
     },
     full: {
-        pullRequest: () => relPartial(require('./pullRequest').pullRequestPartial, 'full'),
-        root: () => relPartial(require('./note').notePartial, 'full', { omit: 'versions' }),
+        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
+        root: async () => relPartial((await import('./note')).notePartial, 'full', { omit: 'versions' }),
         translations: () => relPartial(noteVersionTranslationPartial, 'full'),
         versionNotes: true,
     },
     list: {
-        root: () => relPartial(require('./note').notePartial, 'list', { omit: 'versions' }),
+        root: async () => relPartial((await import('./note')).notePartial, 'list', { omit: 'versions' }),
         translations: () => relPartial(noteVersionTranslationPartial, 'list'),
     },
     nav: {
@@ -44,7 +44,7 @@ export const noteVersionPartial: GqlPartial<NoteVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: () => relPartial(require('./note').notePartial, 'nav'),
+        root: async () => relPartial((await import('./note')).notePartial, 'nav'),
         translations: () => relPartial(noteVersionTranslationPartial, 'list'),
     }
 }

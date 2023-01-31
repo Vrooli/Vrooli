@@ -29,10 +29,10 @@ export const routineVersionYouPartial: GqlPartial<RoutineVersionYou> = {
         canVote: true,
     },
     full: {
-        runs: () => relPartial(require('./runRoutine').runRoutinePartial, 'full', { omit: 'routineVersion' }),
+        runs: async () => relPartial((await import('./runRoutine')).runRoutinePartial, 'full', { omit: 'routineVersion' }),
     },
     list: {
-        runs: () => relPartial(require('./runRoutine').runRoutinePartial, 'full', { omit: 'routineVersion' }),
+        runs: async () => relPartial((await import('./runRoutine')).runRoutinePartial, 'full', { omit: 'routineVersion' }),
     }
 }
 
@@ -68,16 +68,16 @@ export const routineVersionPartial: GqlPartial<RoutineVersion> = {
     },
     full: {
         versionNotes: true,
-        apiVersion: () => relPartial(require('./apiVersion').apiVersionPartial, 'full'),
-        inputs: () => relPartial(require('./routineVersionInput').routineVersionInputPartial, 'full'),
-        nodes: () => relPartial(require('./node').nodePartial, 'full'),
-        nodeLinks: () => relPartial(require('./nodeLink').nodeLinkPartial, 'full'),
-        outputs: () => relPartial(require('./routineVersionOutput').routineVersionOutputPartial, 'full'),
-        pullRequest: () => relPartial(require('./pullRequest').pullRequestPartial, 'full'),
-        resourceList: () => relPartial(require('./resourceList').resourceListPartial, 'full'),
-        root: () => relPartial(require('./routine').routinePartial, 'full', { omit: 'versions' }),
-        smartContractVersion: () => relPartial(require('./smartContractVersion').smartContractVersionPartial, 'full'),
-        suggestedNextByRoutineVersion: () => relPartial(require('./routineVersion').routineVersionPartial, 'nav'),
+        apiVersion: async () => relPartial((await import('./apiVersion')).apiVersion, 'full'),
+        inputs: async () => relPartial((await import('./routineVersionInput')).routineVersionInputPartial, 'full'),
+        nodes: async () => relPartial((await import('./node')).nodePartial, 'full'),
+        nodeLinks: async () => relPartial((await import('./nodeLink')).nodeLinkPartial, 'full'),
+        outputs: async () => relPartial((await import('./routineVersionOutput')).routineVersionOutputPartial, 'full'),
+        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
+        resourceList: async () => relPartial((await import('./resourceList')).resourceListPartial, 'full'),
+        root: async () => relPartial((await import('./routine')).routinePartial, 'full', { omit: 'versions' }),
+        smartContractVersion: async () => relPartial((await import('./smartContractVersion')).smartContractVersionPartial, 'full'),
+        suggestedNextByRoutineVersion: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav'),
         translations: () => relPartial(routineVersionTranslationPartial, 'full'),
     },
     list: {
@@ -90,7 +90,7 @@ export const routineVersionPartial: GqlPartial<RoutineVersion> = {
         isDeleted: true,
         isLatest: true,
         isPrivate: true,
-        root: () => relPartial(require('./routine').routinePartial, 'nav'),
+        root: async () => relPartial((await import('./routine')).routinePartial, 'nav'),
         translations: () => relPartial(routineVersionTranslationPartial, 'list'),
         versionIndex: true,
         versionLabel: true,

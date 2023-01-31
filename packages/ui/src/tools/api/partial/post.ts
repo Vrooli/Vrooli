@@ -27,11 +27,11 @@ export const postPartial: GqlPartial<Post> = {
         views: true,
     },
     full: {
-        resourceList: () => relPartial(require('./resourceList').resourceListPartial, 'full'),
+        resourceList: async () => relPartial((await import('./resourceList')).resourceListPartial, 'full'),
         translations: () => relPartial(postTranslationPartial, 'full'),
     },
     list: {
-        resourceList: () => relPartial(require('./resourceList').resourceListPartial, 'list'),
+        resourceList: async () => relPartial((await import('./resourceList')).resourceListPartial, 'list'),
         translations: () => relPartial(postTranslationPartial, 'list'),
     },
     nav: {

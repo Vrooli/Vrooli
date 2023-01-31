@@ -7,7 +7,7 @@ import { partialToStringHelper } from "./partialToStringHelper";
  * @param indent The number of spaces to indent the fragment by.
  * @returns a graphql-tag string for the fragment.
  */
-export const fragmentsToString = (
+export const fragmentsToString = async (
     fragments: Exclude<DeepPartialBooleanWithFragments<any>['__define'], undefined>,
     indent: number = 0,
 ) => {
@@ -16,7 +16,7 @@ export const fragmentsToString = (
     for (const [name, partial] of Object.entries(fragments)) {
         const objectType = name.split('_')[0];
         fragmentString += `${' '.repeat(indent)}fragment ${name} on ${objectType} {\n`;
-        fragmentString += partialToStringHelper(partial as any, indent + 4)
+        fragmentString += await partialToStringHelper(partial as any, indent + 4)
         fragmentString += `${' '.repeat(indent)}}\n\n`;
     }
     return fragmentString;

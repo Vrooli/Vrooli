@@ -27,10 +27,10 @@ export const projectVersionYouPartial: GqlPartial<ProjectVersionYou> = {
         canView: true,
     },
     full: {
-        runs: () => relPartial(require('./runProject').runProjectPartial, 'full', { omit: 'projectVersion' }),
+        runs: async () => relPartial((await import('./runProject')).runProjectPartial, 'full', { omit: 'projectVersion' }),
     },
     list: {
-        runs: () => relPartial(require('./runProject').runProjectPartial, 'list', { omit: 'projectVersion' }),
+        runs: async () => relPartial((await import('./runProject')).runProjectPartial, 'list', { omit: 'projectVersion' }),
     },
 }
 
@@ -51,15 +51,15 @@ export const projectVersionPartial: GqlPartial<ProjectVersion> = {
         you: () => relPartial(versionYouPartial, 'full'),
     },
     full: {
-        directories: () => relPartial(require('./projectVersionDirectory').projectVersionDirectoryPartial, 'full', { omit: 'projectVersion ' }),
-        pullRequest: () => relPartial(require('./pullRequest').pullRequestPartial, 'full'),
-        root: () => relPartial(require('./project').projectPartial, 'full', { omit: 'versions' }),
+        directories: async () => relPartial((await import('./projectVersionDirectory')).projectVersionDirectoryPartial, 'full', { omit: 'projectVersion ' }),
+        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
+        root: async () => relPartial((await import('./project')).projectPartial, 'full', { omit: 'versions' }),
         translations: () => relPartial(projectVersionTranslationPartial, 'full'),
         versionNotes: true,
     },
     list: {
-        directories: () => relPartial(require('./projectVersionDirectory').projectVersionDirectoryPartial, 'list', { omit: 'projectVersion ' }),
-        root: () => relPartial(require('./project').projectPartial, 'list', { omit: 'versions' }),
+        directories: async () => relPartial((await import('./projectVersionDirectory')).projectVersionDirectoryPartial, 'list', { omit: 'projectVersion ' }),
+        root: async () => relPartial((await import('./project')).projectPartial, 'list', { omit: 'versions' }),
         translations: () => relPartial(projectVersionTranslationPartial, 'list'),
     },
     nav: {
@@ -68,7 +68,7 @@ export const projectVersionPartial: GqlPartial<ProjectVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: () => relPartial(require('./project').projectPartial, 'nav'),
+        root: async () => relPartial((await import('./project')).projectPartial, 'nav'),
         translations: () => relPartial(projectVersionTranslationPartial, 'list'),
     }
 }

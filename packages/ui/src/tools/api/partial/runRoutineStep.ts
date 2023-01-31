@@ -14,7 +14,7 @@ export const runRoutineStepPartial: GqlPartial<RunRoutineStep> = {
         name: true,
         status: true,
         step: true,
-        subroutine: () => relPartial(require('./routineVersion').routineVersionPartial, 'nav'),
+        subroutine: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav'),
     },
     full: {},
     list: {},

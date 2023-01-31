@@ -2,7 +2,7 @@ import { Api, ApiYou } from "@shared/consts";
 import { relPartial } from '../utils';
 import { GqlPartial } from "../types";
 
-export const apiYouPartial: GqlPartial<ApiYou> = {
+export const apiYou: GqlPartial<ApiYou> = {
     __typename: 'ApiYou',
     full: {
         canDelete: true,
@@ -17,14 +17,14 @@ export const apiYouPartial: GqlPartial<ApiYou> = {
     },
 }
 
-export const apiPartial: GqlPartial<Api> = {
+export const api: GqlPartial<Api> = {
     __typename: 'Api',
     common: {
         __define: {
-            0: () => relPartial(require('./organization').organizationPartial, 'nav'),
-            1: () => relPartial(require('./user').userPartial, 'nav'),
-            2: () => relPartial(require('./tag').tagPartial, 'list'),
-            3: () => relPartial(require('./label').labelPartial, 'list'),
+            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
+            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
+            2: async () => relPartial((await import('./tag')).tagPartial, 'list'),
+            3: async () => relPartial((await import('./label')).labelPartial, 'list'),
         },
         id: true,
         created_at: true,
@@ -45,14 +45,14 @@ export const apiPartial: GqlPartial<Api> = {
         tags: { __use: 2 },
         transfersCount: true,
         views: true,
-        you: () => relPartial(apiYouPartial, 'full'),
+        you: () => relPartial(apiYou, 'full'),
     },
     full: {
-        versions: () => relPartial(require('./apiVersion').apiVersionPartial, 'full', { omit: 'root' }),
-        stats: () => relPartial(require('./statsApi').statsApiPartial, 'full'),
+        versions: async () => relPartial((await import('./apiVersion')).apiVersion, 'full', { omit: 'root' }),
+        stats: async () => relPartial((await import('./statsApi')).statsApiPartial, 'full'),
     },
     list: {
-        versions: () => relPartial(require('./apiVersion').apiVersionPartial, 'list', { omit: 'root' }),
+        versions: async () => relPartial((await import('./apiVersion')).apiVersion, 'list', { omit: 'root' }),
     },
     nav: {
         id: true,
