@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const resourceFindOne = gql`
 query resource($input: FindByIdInput!) {
   resource(input: $input) {
     id
@@ -16,7 +16,7 @@ query resource($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const resourceFindMany = gql`
 query resources($input: ResourceSearchInput!) {
   resources(input: $input) {
     edges {
@@ -41,7 +41,7 @@ query resources($input: ResourceSearchInput!) {
   }
 }`;
 
-export const create = gql`
+export const resourceCreate = gql`
 mutation resourceCreate($input: ResourceCreateInput!) {
   resourceCreate(input: $input) {
     id
@@ -57,7 +57,7 @@ mutation resourceCreate($input: ResourceCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const resourceUpdate = gql`
 mutation resourceUpdate($input: ResourceUpdateInput!) {
   resourceUpdate(input: $input) {
     id

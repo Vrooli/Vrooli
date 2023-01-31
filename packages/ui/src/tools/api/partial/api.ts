@@ -1,5 +1,5 @@
 import { Api, ApiYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
 export const apiYou: GqlPartial<ApiYou> = {
@@ -21,10 +21,10 @@ export const api: GqlPartial<Api> = {
     __typename: 'Api',
     common: {
         __define: {
-            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
-            2: async () => relPartial((await import('./tag')).tagPartial, 'list'),
-            3: async () => relPartial((await import('./label')).labelPartial, 'list'),
+            0: async () => rel((await import('./organization')).organization, 'nav'),
+            1: async () => rel((await import('./user')).user, 'nav'),
+            2: async () => rel((await import('./tag')).tag, 'list'),
+            3: async () => rel((await import('./label')).label, 'list'),
         },
         id: true,
         created_at: true,
@@ -45,14 +45,14 @@ export const api: GqlPartial<Api> = {
         tags: { __use: 2 },
         transfersCount: true,
         views: true,
-        you: () => relPartial(apiYou, 'full'),
+        you: () => rel(apiYou, 'full'),
     },
     full: {
-        versions: async () => relPartial((await import('./apiVersion')).apiVersion, 'full', { omit: 'root' }),
-        stats: async () => relPartial((await import('./statsApi')).statsApiPartial, 'full'),
+        versions: async () => rel((await import('./apiVersion')).apiVersion, 'full', { omit: 'root' }),
+        stats: async () => rel((await import('./statsApi')).statsApi, 'full'),
     },
     list: {
-        versions: async () => relPartial((await import('./apiVersion')).apiVersion, 'list', { omit: 'root' }),
+        versions: async () => rel((await import('./apiVersion')).apiVersion, 'list', { omit: 'root' }),
     },
     nav: {
         id: true,

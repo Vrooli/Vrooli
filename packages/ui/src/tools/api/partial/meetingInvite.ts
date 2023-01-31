@@ -1,8 +1,8 @@
 import { MeetingInvite, MeetingInviteYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const meetingInviteYouPartial: GqlPartial<MeetingInviteYou> = {
+export const meetingInviteYou: GqlPartial<MeetingInviteYou> = {
     __typename: 'MeetingInviteYou',
     full: {
         canDelete: true,
@@ -10,7 +10,7 @@ export const meetingInviteYouPartial: GqlPartial<MeetingInviteYou> = {
     },
 }
 
-export const meetingInvitePartial: GqlPartial<MeetingInvite> = {
+export const meetingInvite: GqlPartial<MeetingInvite> = {
     __typename: 'MeetingInvite',
     common: {
         id: true,
@@ -18,14 +18,14 @@ export const meetingInvitePartial: GqlPartial<MeetingInvite> = {
         updated_at: true,
         message: true,
         status: true,
-        you: () => relPartial(meetingInviteYouPartial, 'full'),
+        you: () => rel(meetingInviteYou, 'full'),
     },
     full: {
-        meeting: async () => relPartial((await import('./meeting')).meetingPartial, 'full', { omit: 'invites' }),
+        meeting: async () => rel((await import('./meeting')).meeting, 'full', { omit: 'invites' }),
 
     },
     list: {
-        meeting: async () => relPartial((await import('./meeting')).meetingPartial, 'list', { omit: 'invites' }),
+        meeting: async () => rel((await import('./meeting')).meeting, 'list', { omit: 'invites' }),
 
     }
 }

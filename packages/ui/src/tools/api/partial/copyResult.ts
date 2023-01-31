@@ -1,18 +1,18 @@
 import { CopyResult } from "@shared/consts";
-import { relPartial } from "../utils";
+import { rel } from "../utils";
 import { GqlPartial } from "../types";
 
-export const copyResultPartial: GqlPartial<CopyResult> = {
+export const copyResult: GqlPartial<CopyResult> = {
     __typename: 'CopyResult',
     common: {
         __define: {
-            0: async () => relPartial((await import('./api')).api, 'list'),
-            1: async () => relPartial((await import('./noteVersion')).noteVersionPartial, 'list'),
-            2: async () => relPartial((await import('./organization')).organizationPartial, 'list'),
-            3: async () => relPartial((await import('./projectVersion')).projectVersionPartial, 'list'),
-            4: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'list'),
-            5: async () => relPartial((await import('./smartContractVersion')).smartContractVersionPartial, 'list'),
-            6: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'list'),
+            0: async () => rel((await import('./api')).api, 'list'),
+            1: async () => rel((await import('./noteVersion')).noteVersion, 'list'),
+            2: async () => rel((await import('./organization')).organization, 'list'),
+            3: async () => rel((await import('./projectVersion')).projectVersion, 'list'),
+            4: async () => rel((await import('./routineVersion')).routineVersion, 'list'),
+            5: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'list'),
+            6: async () => rel((await import('./standardVersion')).standardVersion, 'list'),
         },
         apiVersion: { __use: 0 },
         noteVersion: { __use: 1 },

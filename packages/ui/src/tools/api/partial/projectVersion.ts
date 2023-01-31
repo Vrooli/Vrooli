@@ -1,9 +1,9 @@
 import { ProjectVersion, ProjectVersionTranslation, ProjectVersionYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
-import { versionYouPartial } from "./root";
+import { versionYou } from "./root";
 
-export const projectVersionTranslationPartial: GqlPartial<ProjectVersionTranslation> = {
+export const projectVersionTranslation: GqlPartial<ProjectVersionTranslation> = {
     __typename: 'ProjectVersionTranslation',
     common: {
         id: true,
@@ -15,7 +15,7 @@ export const projectVersionTranslationPartial: GqlPartial<ProjectVersionTranslat
     list: {},
 }
 
-export const projectVersionYouPartial: GqlPartial<ProjectVersionYou> = {
+export const projectVersionYou: GqlPartial<ProjectVersionYou> = {
     __typename: 'ProjectVersionYou',
     common: {
         canComment: true,
@@ -27,14 +27,14 @@ export const projectVersionYouPartial: GqlPartial<ProjectVersionYou> = {
         canView: true,
     },
     full: {
-        runs: async () => relPartial((await import('./runProject')).runProjectPartial, 'full', { omit: 'projectVersion' }),
+        runs: async () => rel((await import('./runProject')).runProject, 'full', { omit: 'projectVersion' }),
     },
     list: {
-        runs: async () => relPartial((await import('./runProject')).runProjectPartial, 'list', { omit: 'projectVersion' }),
+        runs: async () => rel((await import('./runProject')).runProject, 'list', { omit: 'projectVersion' }),
     },
 }
 
-export const projectVersionPartial: GqlPartial<ProjectVersion> = {
+export const projectVersion: GqlPartial<ProjectVersion> = {
     __typename: 'ProjectVersion',
     common: {
         id: true,
@@ -48,19 +48,19 @@ export const projectVersionPartial: GqlPartial<ProjectVersion> = {
         simplicity: true,
         versionIndex: true,
         versionLabel: true,
-        you: () => relPartial(versionYouPartial, 'full'),
+        you: () => rel(versionYou, 'full'),
     },
     full: {
-        directories: async () => relPartial((await import('./projectVersionDirectory')).projectVersionDirectoryPartial, 'full', { omit: 'projectVersion ' }),
-        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
-        root: async () => relPartial((await import('./project')).projectPartial, 'full', { omit: 'versions' }),
-        translations: () => relPartial(projectVersionTranslationPartial, 'full'),
+        directories: async () => rel((await import('./projectVersionDirectory')).projectVersionDirectory, 'full', { omit: 'projectVersion ' }),
+        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full'),
+        root: async () => rel((await import('./project')).project, 'full', { omit: 'versions' }),
+        translations: () => rel(projectVersionTranslation, 'full'),
         versionNotes: true,
     },
     list: {
-        directories: async () => relPartial((await import('./projectVersionDirectory')).projectVersionDirectoryPartial, 'list', { omit: 'projectVersion ' }),
-        root: async () => relPartial((await import('./project')).projectPartial, 'list', { omit: 'versions' }),
-        translations: () => relPartial(projectVersionTranslationPartial, 'list'),
+        directories: async () => rel((await import('./projectVersionDirectory')).projectVersionDirectory, 'list', { omit: 'projectVersion ' }),
+        root: async () => rel((await import('./project')).project, 'list', { omit: 'versions' }),
+        translations: () => rel(projectVersionTranslation, 'list'),
     },
     nav: {
         id: true,
@@ -68,7 +68,7 @@ export const projectVersionPartial: GqlPartial<ProjectVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => relPartial((await import('./project')).projectPartial, 'nav'),
-        translations: () => relPartial(projectVersionTranslationPartial, 'list'),
+        root: async () => rel((await import('./project')).project, 'nav'),
+        translations: () => rel(projectVersionTranslation, 'list'),
     }
 }

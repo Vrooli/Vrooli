@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findMany = gql`fragment Api_list on Api {
+export const viewFindMany = gql`fragment Api_list on Api {
     versions {
         translations {
             id

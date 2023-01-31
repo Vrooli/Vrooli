@@ -1,8 +1,8 @@
 import { QuizAttempt, QuizAttemptYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const quizAttemptYouPartial: GqlPartial<QuizAttemptYou> = {
+export const quizAttemptYou: GqlPartial<QuizAttemptYou> = {
     __typename: 'QuizAttemptYou',
     common: {
         canDelete: true,
@@ -12,7 +12,7 @@ export const quizAttemptYouPartial: GqlPartial<QuizAttemptYou> = {
     list: {},
 }
 
-export const quizAttemptPartial: GqlPartial<QuizAttempt> = {
+export const quizAttempt: GqlPartial<QuizAttempt> = {
     __typename: 'QuizAttempt',
     common: {
         id: true,
@@ -23,12 +23,12 @@ export const quizAttemptPartial: GqlPartial<QuizAttempt> = {
         contextSwitches: true,
         timeTaken: true,
         responsesCount: true,
-        quiz: async () => relPartial((await import('./quiz')).quizPartial, 'nav'),
-        user: async () => relPartial((await import('./user')).userPartial, 'nav'),
-        you: () => relPartial(quizAttemptYouPartial, 'full'),
+        quiz: async () => rel((await import('./quiz')).quiz, 'nav'),
+        user: async () => rel((await import('./user')).user, 'nav'),
+        you: () => rel(quizAttemptYou, 'full'),
     },
     full: {
-        responses: async () => relPartial((await import('./quizQuestionResponse')).quizQuestionResponsePartial, 'full'),
+        responses: async () => rel((await import('./quizQuestionResponse')).quizQuestionResponse, 'full'),
     },
     list: {},
 }

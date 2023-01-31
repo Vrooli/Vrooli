@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findMany = gql`
+export const statsQuizFindMany = gql`
 query statsQuiz($input: StatsQuizSearchInput!) {
   statsQuiz(input: $input) {
     edges {

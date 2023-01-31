@@ -1,8 +1,8 @@
 import { QuestionAnswer, QuestionAnswerTranslation } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const questionAnswerTranslationPartial: GqlPartial<QuestionAnswerTranslation> = {
+export const questionAnswerTranslation: GqlPartial<QuestionAnswerTranslation> = {
     __typename: 'QuestionAnswerTranslation',
     common: {
         id: true,
@@ -13,24 +13,24 @@ export const questionAnswerTranslationPartial: GqlPartial<QuestionAnswerTranslat
     list: {},
 }
 
-export const questionAnswerPartial: GqlPartial<QuestionAnswer> = {
+export const questionAnswer: GqlPartial<QuestionAnswer> = {
     __typename: 'QuestionAnswer',
     common: {
         id: true,
         created_at: true,
         updated_at: true,
-        createdBy: async () => relPartial((await import('./user')).userPartial, 'nav'),
+        createdBy: async () => rel((await import('./user')).user, 'nav'),
         score: true,
         stars: true,
         isAccepted: true,
         commentsCount: true,
     },
     full: {
-        comments: async () => relPartial((await import('./comment')).comment, 'full', { omit: 'commentedOn' }),
-        question: async () => relPartial((await import('./question')).questionPartial, 'nav', { omit: 'answers' }),
-        translations: () => relPartial(questionAnswerTranslationPartial, 'full'),
+        comments: async () => rel((await import('./comment')).comment, 'full', { omit: 'commentedOn' }),
+        question: async () => rel((await import('./question')).question, 'nav', { omit: 'answers' }),
+        translations: () => rel(questionAnswerTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(questionAnswerTranslationPartial, 'list'),
+        translations: () => rel(questionAnswerTranslation, 'list'),
     }
 }

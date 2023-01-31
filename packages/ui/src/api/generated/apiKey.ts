@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const create = gql`
+export const apiKeyCreate = gql`
 mutation apiKeyCreate($input: ApiKeyCreateInput!) {
   apiKeyCreate(input: $input) {
     id
@@ -12,7 +12,7 @@ mutation apiKeyCreate($input: ApiKeyCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const apiKeyUpdate = gql`
 mutation apiKeyUpdate($input: ApiKeyUpdateInput!) {
   apiKeyUpdate(input: $input) {
     id
@@ -24,14 +24,14 @@ mutation apiKeyUpdate($input: ApiKeyUpdateInput!) {
   }
 }`;
 
-export const deleteOne = gql`
+export const apiKeyDeleteOne = gql`
 mutation apiKeyDeleteOne($input: ApiKeyDeleteOneInput!) {
   apiKeyDeleteOne(input: $input) {
     success
   }
 }`;
 
-export const validate = gql`
+export const apiKeyValidate = gql`
 mutation apiKeyValidate($input: ApiKeyValidateInput!) {
   apiKeyValidate(input: $input) {
     id

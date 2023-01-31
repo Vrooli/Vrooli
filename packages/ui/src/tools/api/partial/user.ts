@@ -1,8 +1,8 @@
 import { User, UserTranslation, UserYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const userTranslationPartial: GqlPartial<UserTranslation> = {
+export const userTranslation: GqlPartial<UserTranslation> = {
     __typename: 'UserTranslation',
     common: {
         id: true,
@@ -13,7 +13,7 @@ export const userTranslationPartial: GqlPartial<UserTranslation> = {
     list: {},
 }
 
-export const userYouPartial: GqlPartial<UserYou> = {
+export const userYou: GqlPartial<UserYou> = {
     __typename: 'UserYou',
     common: {
         canDelete: true,
@@ -26,7 +26,7 @@ export const userYouPartial: GqlPartial<UserYou> = {
     list: {},
 }
 
-export const userPartial: GqlPartial<User> = {
+export const user: GqlPartial<User> = {
     __typename: 'User',
     common: {
         id: true,
@@ -35,14 +35,14 @@ export const userPartial: GqlPartial<User> = {
         name: true,
         stars: true,
         reportsCount: true,
-        you: () => relPartial(userYouPartial, 'full'),
+        you: () => rel(userYou, 'full'),
     },
     full: {
-        stats: async () => relPartial((await import('./statsUser')).statsUserPartial, 'full'),
-        translations: () => relPartial(userTranslationPartial, 'full'),
+        stats: async () => rel((await import('./statsUser')).statsUser, 'full'),
+        translations: () => rel(userTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(userTranslationPartial, 'list'),
+        translations: () => rel(userTranslation, 'list'),
     },
     nav: {
         id: true,
@@ -51,7 +51,7 @@ export const userPartial: GqlPartial<User> = {
     }
 }
 
-export const profilePartial: GqlPartial<User> = {
+export const profile: GqlPartial<User> = {
     __typename: 'User',
     common: {
         id: true,
@@ -78,14 +78,14 @@ export const profilePartial: GqlPartial<User> = {
         isPrivateVotes: true,
         name: true,
         theme: true,
-        emails: async () => relPartial((await import('./email')).emailPartial, 'full'),
-        pushDevices: async () => relPartial((await import('./pushDevice')).pushDevicePartial, 'full'),
-        wallets: async () => relPartial((await import('./wallet')).walletPartial, 'common'),
-        notifications: async () => relPartial((await import('./notification')).notificationPartial, 'full'),
+        emails: async () => rel((await import('./email')).email, 'full'),
+        pushDevices: async () => rel((await import('./pushDevice')).pushDevice, 'full'),
+        wallets: async () => rel((await import('./wallet')).wallet, 'common'),
+        notifications: async () => rel((await import('./notification')).notification, 'full'),
         notificationSettings: true,
-        translations: () => relPartial(userTranslationPartial, 'full'),
-        schedules: async () => relPartial((await import('./userSchedule')).userSchedulePartial, 'full'),
-        stats: async () => relPartial((await import('./statsUser')).statsUserPartial, 'full'),
+        translations: () => rel(userTranslation, 'full'),
+        schedules: async () => rel((await import('./userSchedule')).userSchedule, 'full'),
+        stats: async () => rel((await import('./statsUser')).statsUser, 'full'),
     },
     full: {},
     list: {},

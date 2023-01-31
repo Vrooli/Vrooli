@@ -1,8 +1,8 @@
 import { RunRoutine, RunRoutineYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const runRoutineYouPartial: GqlPartial<RunRoutineYou> = {
+export const runRoutineYou: GqlPartial<RunRoutineYou> = {
     __typename: 'RunRoutineYou',
     common: {
         canDelete: true,
@@ -13,12 +13,12 @@ export const runRoutineYouPartial: GqlPartial<RunRoutineYou> = {
     list: {},
 }
 
-export const runRoutinePartial: GqlPartial<RunRoutine> = {
+export const runRoutine: GqlPartial<RunRoutine> = {
     __typename: 'RunRoutine',
     common: {
         __define: {
-            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
+            0: async () => rel((await import('./organization')).organization, 'nav'),
+            1: async () => rel((await import('./user')).user, 'nav'),
         },
         id: true,
         isPrivate: true,
@@ -33,14 +33,14 @@ export const runRoutinePartial: GqlPartial<RunRoutine> = {
         inputsCount: true,
         wasRunAutomaticaly: true,
         organization: { __use: 0 },
-        routineVersion: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav', { omit: 'you' }),
-        runRoutineSchedule: async () => relPartial((await import('./runRoutineSchedule')).runRoutineSchedulePartial, 'full', { omit: 'runRoutine' }),
+        routineVersion: async () => rel((await import('./routineVersion')).routineVersion, 'nav', { omit: 'you' }),
+        runRoutineSchedule: async () => rel((await import('./runRoutineSchedule')).runRoutineSchedule, 'full', { omit: 'runRoutine' }),
         user: { __use: 1 },
-        you: () => relPartial(runRoutineYouPartial, 'full'),
+        you: () => rel(runRoutineYou, 'full'),
     },
     full: {
-        inputs: async () => relPartial((await import('./runRoutineInput')).runRoutineInputPartial, 'list', { omit: ['runRoutine', 'input.routineVersion'] }),
-        steps: async () => relPartial((await import('./runRoutineStep')).runRoutineStepPartial, 'list'),
+        inputs: async () => rel((await import('./runRoutineInput')).runRoutineInput, 'list', { omit: ['runRoutine', 'input.routineVersion'] }),
+        steps: async () => rel((await import('./runRoutineStep')).runRoutineStep, 'list'),
     },
     list: {},
 }

@@ -1,8 +1,8 @@
 import { ReportResponse, ReportResponseYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const reportResponseYouPartial: GqlPartial<ReportResponseYou> = {
+export const reportResponseYou: GqlPartial<ReportResponseYou> = {
     __typename: 'ReportResponseYou',
     common: {
         canDelete: true,
@@ -13,7 +13,7 @@ export const reportResponseYouPartial: GqlPartial<ReportResponseYou> = {
 }
 
 
-export const reportResponsePartial: GqlPartial<ReportResponse> = {
+export const reportResponse: GqlPartial<ReportResponse> = {
     __typename: 'ReportResponse',
     common: {
         id: true,
@@ -22,8 +22,8 @@ export const reportResponsePartial: GqlPartial<ReportResponse> = {
         actionSuggested: true,
         details: true,
         language: true,
-        report: async () => relPartial((await import('./report')).reportPartial, 'nav', { omit: 'responses' }),
-        you: () => relPartial(reportResponseYouPartial, 'full'),
+        report: async () => rel((await import('./report')).report, 'nav', { omit: 'responses' }),
+        you: () => rel(reportResponseYou, 'full'),
     },
     full: {},
     list: {},

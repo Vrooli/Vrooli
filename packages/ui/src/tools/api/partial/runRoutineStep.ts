@@ -1,8 +1,8 @@
 import { RunRoutineStep } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const runRoutineStepPartial: GqlPartial<RunRoutineStep> = {
+export const runRoutineStep: GqlPartial<RunRoutineStep> = {
     __typename: 'RunRoutineStep',
     common: {
         id: true,
@@ -14,7 +14,7 @@ export const runRoutineStepPartial: GqlPartial<RunRoutineStep> = {
         name: true,
         status: true,
         step: true,
-        subroutine: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav'),
+        subroutine: async () => rel((await import('./routineVersion')).routineVersion, 'nav'),
     },
     full: {},
     list: {},

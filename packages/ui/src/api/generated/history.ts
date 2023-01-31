@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const history = gql`fragment RunProject_list on RunProject {
+export const historyHistory = gql`fragment RunProject_list on RunProject {
     id
     isPrivate
     completedComplexity

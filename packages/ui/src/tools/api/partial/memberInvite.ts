@@ -1,8 +1,8 @@
 import { MemberInvite, MemberInviteYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const memberInviteYouPartial: GqlPartial<MemberInviteYou> = {
+export const memberInviteYou: GqlPartial<MemberInviteYou> = {
     __typename: 'MemberInviteYou',
     common: {
         canDelete: true,
@@ -12,7 +12,7 @@ export const memberInviteYouPartial: GqlPartial<MemberInviteYou> = {
     list: {},
 }
 
-export const memberInvitePartial: GqlPartial<MemberInvite> = {
+export const memberInvite: GqlPartial<MemberInvite> = {
     __typename: 'MemberInvite',
     common: {
         id: true,
@@ -22,9 +22,9 @@ export const memberInvitePartial: GqlPartial<MemberInvite> = {
         status: true,
         willBeAdmin: true,
         willHavePermissions: true,
-        organization: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-        user: async () => relPartial((await import('./user')).userPartial, 'nav'),
-        you: () => relPartial(memberInviteYouPartial, 'full'),
+        organization: async () => rel((await import('./organization')).organization, 'nav'),
+        user: async () => rel((await import('./user')).user, 'nav'),
+        you: () => rel(memberInviteYou, 'full'),
     },
     full: {},
     list: {},

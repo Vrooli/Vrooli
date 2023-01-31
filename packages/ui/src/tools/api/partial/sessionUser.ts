@@ -1,8 +1,8 @@
 import { SessionUser } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const sessionUserPartial: GqlPartial<SessionUser> = {
+export const sessionUser: GqlPartial<SessionUser> = {
     __typename: 'SessionUser',
     full: {
         handle: true,
@@ -10,7 +10,7 @@ export const sessionUserPartial: GqlPartial<SessionUser> = {
         id: true,
         languages: true,
         name: true,
-        schedules: async () => relPartial((await import('./userSchedule')).userSchedulePartial, 'full'),
+        schedules: async () => rel((await import('./userSchedule')).userSchedule, 'full'),
         theme: true,
     }
 }

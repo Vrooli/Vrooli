@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const quizQuestionFindOne = gql`
 query quizQuestion($input: FindByIdInput!) {
   quizQuestion(input: $input) {
     responses {
@@ -107,7 +107,7 @@ query quizQuestion($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const quizQuestionFindMany = gql`
 query quizQuestions($input: QuizQuestionSearchInput!) {
   quizQuestions(input: $input) {
     edges {

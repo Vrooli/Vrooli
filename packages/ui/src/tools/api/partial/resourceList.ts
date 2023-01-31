@@ -1,9 +1,9 @@
 import { ResourceList, ResourceListTranslation } from "@shared/consts";
-import { relPartial } from "../utils";
+import { rel } from "../utils";
 import { GqlPartial } from "../types";
-import { resourcePartial } from "./resource";
+import { resource } from "./resource";
 
-export const resourceListTranslationPartial: GqlPartial<ResourceListTranslation> = {
+export const resourceListTranslation: GqlPartial<ResourceListTranslation> = {
     __typename: 'ResourceListTranslation',
     common: {
         id: true,
@@ -15,13 +15,13 @@ export const resourceListTranslationPartial: GqlPartial<ResourceListTranslation>
     list: {},
 }
 
-export const resourceListPartial: GqlPartial<ResourceList> = {
+export const resourceList: GqlPartial<ResourceList> = {
     __typename: 'ResourceList',
     common: {
         id: true,
         created_at: true,
-        translations: () => relPartial(resourceListTranslationPartial, 'full'),
-        resources: () => relPartial(resourcePartial, 'full'),
+        translations: () => rel(resourceListTranslation, 'full'),
+        resources: () => rel(resource, 'full'),
     },
     full: {},
     list: {},

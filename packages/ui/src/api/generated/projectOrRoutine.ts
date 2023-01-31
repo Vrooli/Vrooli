@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findMany = gql`fragment Project_list on Project {
+export const projectOrRoutineFindMany = gql`fragment Project_list on Project {
     versions {
         directories {
             translations {

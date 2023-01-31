@@ -1,5 +1,5 @@
 import { GqlPartial } from "../types";
-import { relPartial } from "./relPartial";
+import { rel } from "./relPartial";
 
 
 
@@ -17,7 +17,7 @@ export const toSearch = async <
     partial: GqlPartial<GqlObject>,
 ): Promise<[GqlPartial<any>, 'list']> => {
     // Combine and remove fragments, so we can put them in the top level
-    const { __define, ...node } = await relPartial(partial, 'list');
+    const { __define, ...node } = await rel(partial, 'list');
     return [{
         __typename: `${partial.__typename}SearchResult`,
         list: {

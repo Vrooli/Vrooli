@@ -1,7 +1,7 @@
 import { ApiVersion, ApiVersionTranslation } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
-import { versionYouPartial } from "./root";
+import { versionYou } from "./root";
 
 export const apiVersionTranslation: GqlPartial<ApiVersionTranslation> = {
     __typename: 'ApiVersionTranslation',
@@ -30,17 +30,17 @@ export const apiVersion: GqlPartial<ApiVersion> = {
         reportsCount: true,
         versionIndex: true,
         versionLabel: true,
-        you: () => relPartial(versionYouPartial, 'full'),
+        you: () => rel(versionYou, 'full'),
     },
     full: {
-        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
-        root: async () => relPartial((await import('./api')).api, 'full', { omit: 'versions' }),
-        translations: () => relPartial(apiVersionTranslation, 'full'),
+        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full'),
+        root: async () => rel((await import('./api')).api, 'full', { omit: 'versions' }),
+        translations: () => rel(apiVersionTranslation, 'full'),
         versionNotes: true,
     },
     list: {
-        root: async () => relPartial((await import('./api')).api, 'list', { omit: 'versions' }),
-        translations: () => relPartial(apiVersionTranslation, 'list'),
+        root: async () => rel((await import('./api')).api, 'list', { omit: 'versions' }),
+        translations: () => rel(apiVersionTranslation, 'list'),
     },
     nav: {
         id: true,
@@ -48,7 +48,7 @@ export const apiVersion: GqlPartial<ApiVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => relPartial((await import('./api')).api, 'nav'),
-        translations: () => relPartial(apiVersionTranslation, 'list'),
+        root: async () => rel((await import('./api')).api, 'nav'),
+        translations: () => rel(apiVersionTranslation, 'list'),
     }
 }

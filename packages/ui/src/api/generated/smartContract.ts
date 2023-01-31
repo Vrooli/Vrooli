@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Organization_nav on Organization {
+export const smartContractFindOne = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -113,7 +113,7 @@ query smartContract($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`fragment Organization_nav on Organization {
+export const smartContractFindMany = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -260,7 +260,7 @@ query smartContracts($input: SmartContractSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Organization_nav on Organization {
+export const smartContractCreate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -373,7 +373,7 @@ mutation smartContractCreate($input: SmartContractCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Organization_nav on Organization {
+export const smartContractUpdate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {

@@ -1,8 +1,8 @@
 import { RoutineVersionInput, RoutineVersionInputTranslation } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const routineVersionInputTranslationPartial: GqlPartial<RoutineVersionInputTranslation> = {
+export const routineVersionInputTranslation: GqlPartial<RoutineVersionInputTranslation> = {
     __typename: 'RoutineVersionInputTranslation',
     common: {
         id: true,
@@ -14,15 +14,15 @@ export const routineVersionInputTranslationPartial: GqlPartial<RoutineVersionInp
     list: {},
 }
 
-export const routineVersionInputPartial: GqlPartial<RoutineVersionInput> = {
+export const routineVersionInput: GqlPartial<RoutineVersionInput> = {
     __typename: 'RoutineVersionInput',
     common: {
         id: true,
         index: true,
         isRequired: true,
         name: true,
-        standardVersion: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'list'),
-        translations: () => relPartial(routineVersionInputTranslationPartial, 'full'),
+        standardVersion: async () => rel((await import('./standardVersion')).standardVersion, 'list'),
+        translations: () => rel(routineVersionInputTranslation, 'full'),
     },
     full: {},
     list: {},

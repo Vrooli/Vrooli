@@ -1,5 +1,5 @@
 import { Comment, CommentThread, CommentTranslation, CommentYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
 export const commentTranslation: GqlPartial<CommentTranslation> = {
@@ -33,19 +33,19 @@ export const comment: GqlPartial<Comment> = {
     __typename: 'Comment',
     common: {
         __define: {
-            0: async () => relPartial((await import('./api')).api, 'nav'),
-            1: async () => relPartial((await import('./issue')).issuePartial, 'nav'),
-            2: async () => relPartial((await import('./noteVersion')).noteVersionPartial, 'nav'),
-            3: async () => relPartial((await import('./post')).postPartial, 'nav'),
-            4: async () => relPartial((await import('./projectVersion')).projectVersionPartial, 'nav'),
-            5: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'nav'),
-            6: async () => relPartial((await import('./question')).questionPartial, 'nav'),
-            7: async () => relPartial((await import('./questionAnswer')).questionAnswerPartial, 'nav'),
-            8: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav'),
-            9: async () => relPartial((await import('./smartContractVersion')).smartContractVersionPartial, 'nav'),
-            10: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'nav'),
-            11: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            12: async () => relPartial((await import('./user')).userPartial, 'nav'),
+            0: async () => rel((await import('./api')).api, 'nav'),
+            1: async () => rel((await import('./issue')).issue, 'nav'),
+            2: async () => rel((await import('./noteVersion')).noteVersion, 'nav'),
+            3: async () => rel((await import('./post')).post, 'nav'),
+            4: async () => rel((await import('./projectVersion')).projectVersion, 'nav'),
+            5: async () => rel((await import('./pullRequest')).pullRequest, 'nav'),
+            6: async () => rel((await import('./question')).question, 'nav'),
+            7: async () => rel((await import('./questionAnswer')).questionAnswer, 'nav'),
+            8: async () => rel((await import('./routineVersion')).routineVersion, 'nav'),
+            9: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'nav'),
+            10: async () => rel((await import('./standardVersion')).standardVersion, 'nav'),
+            11: async () => rel((await import('./organization')).organization, 'nav'),
+            12: async () => rel((await import('./user')).user, 'nav'),
         },
         id: true,
         created_at: true,
@@ -74,30 +74,30 @@ export const comment: GqlPartial<Comment> = {
         score: true,
         stars: true,
         reportsCount: true,
-        you: () => relPartial(commentYou, 'full'),
+        you: () => rel(commentYou, 'full'),
     },
     full: {
-        translations: () => relPartial(commentTranslation, 'full'),
+        translations: () => rel(commentTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(commentTranslation, 'list'),
+        translations: () => rel(commentTranslation, 'list'),
     }
 }
 
-export const commentThreadPartial: GqlPartial<CommentThread> = {
+export const commentThread: GqlPartial<CommentThread> = {
     __typename: 'CommentThread',
     common: {
         childThreads: {
             childThreads: {
-                comment: () => relPartial(comment, 'list'),
+                comment: () => rel(comment, 'list'),
                 endCursor: true,
                 totalInThread: true,
             },
-            comment: () => relPartial(comment, 'list'),
+            comment: () => rel(comment, 'list'),
             endCursor: true,
             totalInThread: true,
         },
-        comment: () => relPartial(comment, 'list'),
+        comment: () => rel(comment, 'list'),
         endCursor: true,
         totalInThread: true,
     },

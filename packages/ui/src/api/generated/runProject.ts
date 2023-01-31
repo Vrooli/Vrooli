@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Organization_nav on Organization {
+export const runProjectFindOne = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -154,7 +154,7 @@ query runProject($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`fragment Organization_nav on Organization {
+export const runProjectFindMany = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -282,7 +282,7 @@ query runProjects($input: RunProjectSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Organization_nav on Organization {
+export const runProjectCreate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -436,7 +436,7 @@ mutation runProjectCreate($input: RunProjectCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Organization_nav on Organization {
+export const runProjectUpdate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -590,14 +590,14 @@ mutation runProjectUpdate($input: RunProjectUpdateInput!) {
   }
 }`;
 
-export const deleteAll = gql`
+export const runProjectDeleteAll = gql`
 mutation runProjectDeleteAll {
   runProjectDeleteAll {
     count
   }
 }`;
 
-export const complete = gql`fragment Organization_nav on Organization {
+export const runProjectComplete = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -751,7 +751,7 @@ mutation runProjectComplete($input: RunProjectCompleteInput!) {
   }
 }`;
 
-export const cancel = gql`fragment Organization_nav on Organization {
+export const runProjectCancel = gql`fragment Organization_nav on Organization {
     id
     handle
     you {

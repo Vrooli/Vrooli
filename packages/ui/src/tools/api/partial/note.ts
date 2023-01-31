@@ -1,8 +1,8 @@
 import { Note, NoteYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const noteYouPartial: GqlPartial<NoteYou> = {
+export const noteYou: GqlPartial<NoteYou> = {
     __typename: 'NoteYou',
     common: {
         canDelete: true,
@@ -19,14 +19,14 @@ export const noteYouPartial: GqlPartial<NoteYou> = {
     list: {},
 }
 
-export const notePartial: GqlPartial<Note> = {
+export const note: GqlPartial<Note> = {
     __typename: 'Note',
     common: {
         __define: {
-            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
-            2: async () => relPartial((await import('./tag')).tagPartial, 'list'),
-            3: async () => relPartial((await import('./label')).labelPartial, 'list'),
+            0: async () => rel((await import('./organization')).organization, 'nav'),
+            1: async () => rel((await import('./user')).user, 'nav'),
+            2: async () => rel((await import('./tag')).tag, 'list'),
+            3: async () => rel((await import('./label')).label, 'list'),
         },
         id: true,
         created_at: true,
@@ -47,13 +47,13 @@ export const notePartial: GqlPartial<Note> = {
         tags: { __use: 2 },
         transfersCount: true,
         views: true,
-        you: () => relPartial(noteYouPartial, 'full'),
+        you: () => rel(noteYou, 'full'),
     },
     full: {
-        versions: async () => relPartial((await import('./noteVersion')).noteVersionPartial, 'full', { omit: 'root' }),
+        versions: async () => rel((await import('./noteVersion')).noteVersion, 'full', { omit: 'root' }),
     },
     list: {
-        versions: async () => relPartial((await import('./noteVersion')).noteVersionPartial, 'list', { omit: 'root' }),
+        versions: async () => rel((await import('./noteVersion')).noteVersion, 'list', { omit: 'root' }),
     },
     nav: {
         id: true,

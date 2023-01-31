@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const quizQuestionResponseFindOne = gql`
 query quizQuestionResponse($input: FindByIdInput!) {
   quizQuestionResponse(input: $input) {
     id
@@ -72,7 +72,7 @@ query quizQuestionResponse($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const quizQuestionResponseFindMany = gql`
 query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
   quizQuestionResponses(input: $input) {
     edges {
@@ -153,7 +153,7 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
   }
 }`;
 
-export const create = gql`
+export const quizQuestionResponseCreate = gql`
 mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
   quizQuestionResponseCreate(input: $input) {
     id
@@ -225,7 +225,7 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const quizQuestionResponseUpdate = gql`
 mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
   quizQuestionResponseUpdate(input: $input) {
     id

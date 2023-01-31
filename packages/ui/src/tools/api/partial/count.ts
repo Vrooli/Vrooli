@@ -1,7 +1,7 @@
 import { Count } from "@shared/consts";
 import { GqlPartial } from "../types";
 
-export const countPartial: GqlPartial<Count> = {
+export const count: GqlPartial<Count> = {
     __typename: 'Count',
     full: {
         count: true,

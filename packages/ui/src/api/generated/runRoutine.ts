@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Organization_nav on Organization {
+export const runRoutineFindOne = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -182,7 +182,7 @@ query runRoutine($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`fragment Organization_nav on Organization {
+export const runRoutineFindMany = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -296,7 +296,7 @@ query runRoutines($input: RunRoutineSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Organization_nav on Organization {
+export const runRoutineCreate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -478,7 +478,7 @@ mutation runRoutineCreate($input: RunRoutineCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Organization_nav on Organization {
+export const runRoutineUpdate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -660,14 +660,14 @@ mutation runRoutineUpdate($input: RunRoutineUpdateInput!) {
   }
 }`;
 
-export const deleteAll = gql`
+export const runRoutineDeleteAll = gql`
 mutation runRoutineDeleteAll {
   runRoutineDeleteAll {
     count
   }
 }`;
 
-export const complete = gql`fragment Organization_nav on Organization {
+export const runRoutineComplete = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -849,7 +849,7 @@ mutation runRoutineComplete($input: RunRoutineCompleteInput!) {
   }
 }`;
 
-export const cancel = gql`fragment Organization_nav on Organization {
+export const runRoutineCancel = gql`fragment Organization_nav on Organization {
     id
     handle
     you {

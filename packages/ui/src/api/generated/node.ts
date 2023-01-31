@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const create = gql`fragment Api_list on Api {
+export const nodeCreate = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -1744,7 +1744,7 @@ mutation nodeCreate($input: NodeCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Api_list on Api {
+export const nodeUpdate = gql`fragment Api_list on Api {
     versions {
         translations {
             id

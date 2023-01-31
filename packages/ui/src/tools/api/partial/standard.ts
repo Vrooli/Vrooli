@@ -1,8 +1,8 @@
 import { Standard, StandardYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const standardYouPartial: GqlPartial<StandardYou> = {
+export const standardYou: GqlPartial<StandardYou> = {
     __typename: 'StandardYou',
     common: {
         canDelete: true,
@@ -19,14 +19,14 @@ export const standardYouPartial: GqlPartial<StandardYou> = {
     list: {},
 }
 
-export const standardPartial: GqlPartial<Standard> = {
+export const standard: GqlPartial<Standard> = {
     __typename: 'Standard',
     common: {
         __define: {
-            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
-            2: async () => relPartial((await import('./tag')).tagPartial, 'list'),
-            3: async () => relPartial((await import('./label')).labelPartial, 'list'),
+            0: async () => rel((await import('./organization')).organization, 'nav'),
+            1: async () => rel((await import('./user')).user, 'nav'),
+            2: async () => rel((await import('./tag')).tag, 'list'),
+            3: async () => rel((await import('./label')).label, 'list'),
         },
         id: true,
         created_at: true,
@@ -47,14 +47,14 @@ export const standardPartial: GqlPartial<Standard> = {
         tags: { __use: 2 },
         transfersCount: true,
         views: true,
-        you: () => relPartial(standardYouPartial, 'full'),
+        you: () => rel(standardYou, 'full'),
     },
     full: {
-        versions: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'full', { omit: 'root' }),
-        stats: async () => relPartial((await import('./statsStandard')).statsStandardPartial, 'full'),
+        versions: async () => rel((await import('./standardVersion')).standardVersion, 'full', { omit: 'root' }),
+        stats: async () => rel((await import('./statsStandard')).statsStandard, 'full'),
     },
     list: {
-        versions: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'list', { omit: 'root' }),
+        versions: async () => rel((await import('./standardVersion')).standardVersion, 'list', { omit: 'root' }),
     },
     nav: {
         id: true,

@@ -1,8 +1,8 @@
 import { RunRoutineSchedule, RunRoutineScheduleTranslation } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const runRoutineScheduleTranslationPartial: GqlPartial<RunRoutineScheduleTranslation> = {
+export const runRoutineScheduleTranslation: GqlPartial<RunRoutineScheduleTranslation> = {
     __typename: 'RunRoutineScheduleTranslation',
     common: {
         id: true,
@@ -14,7 +14,7 @@ export const runRoutineScheduleTranslationPartial: GqlPartial<RunRoutineSchedule
     list: {},
 }
 
-export const runRoutineSchedulePartial: GqlPartial<RunRoutineSchedule> = {
+export const runRoutineSchedule: GqlPartial<RunRoutineSchedule> = {
     __typename: 'RunRoutineSchedule',
     common: {
         id: true,
@@ -25,18 +25,18 @@ export const runRoutineSchedulePartial: GqlPartial<RunRoutineSchedule> = {
         windowEnd: true,
         recurrStart: true,
         recurrEnd: true,
-        runRoutine: async () => relPartial((await import('./runRoutine')).runRoutinePartial, 'nav', { omit: 'runRoutineSchedule' }),
-        translations: () => relPartial(runRoutineScheduleTranslationPartial, 'full'),
+        runRoutine: async () => rel((await import('./runRoutine')).runRoutine, 'nav', { omit: 'runRoutineSchedule' }),
+        translations: () => rel(runRoutineScheduleTranslation, 'full'),
     },
     full: {
         __define: {
-            0: async () => relPartial((await import('./label')).labelPartial, 'full'),
+            0: async () => rel((await import('./label')).label, 'full'),
         },
         labels: { __use: 0 },
     },
     list: {
         __define: {
-            0: async () => relPartial((await import('./label')).labelPartial, 'list'),
+            0: async () => rel((await import('./label')).label, 'list'),
         },
         labels: { __use: 0 },
     }

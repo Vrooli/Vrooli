@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const popular = gql`fragment Organization_list on Organization {
+export const feedPopular = gql`fragment Organization_list on Organization {
     id
     handle
     created_at
@@ -549,7 +549,7 @@ query popular($input: PopularInput!) {
   }
 }`;
 
-export const learn = gql`fragment Project_list on Project {
+export const feedLearn = gql`fragment Project_list on Project {
     versions {
         directories {
             translations {
@@ -956,7 +956,7 @@ query learn {
   }
 }`;
 
-export const research = gql`fragment Routine_list on Routine {
+export const feedResearch = gql`fragment Routine_list on Routine {
     versions {
         translations {
             id
@@ -1416,7 +1416,7 @@ query research {
   }
 }`;
 
-export const develop = gql`fragment Project_list on Project {
+export const feedDevelop = gql`fragment Project_list on Project {
     versions {
         directories {
             translations {

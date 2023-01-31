@@ -1,8 +1,8 @@
 import { RunRoutineInput } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const runRoutineInputPartial: GqlPartial<RunRoutineInput> = {
+export const runRoutineInput: GqlPartial<RunRoutineInput> = {
     __typename: 'RunRoutineInput',
     common: {
         id: true,
@@ -12,8 +12,8 @@ export const runRoutineInputPartial: GqlPartial<RunRoutineInput> = {
             index: true,
             isRequired: true,
             name: true,
-            routineVersion: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav'),
-            standardVersion: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'list'),
+            routineVersion: async () => rel((await import('./routineVersion')).routineVersion, 'nav'),
+            standardVersion: async () => rel((await import('./standardVersion')).standardVersion, 'list'),
         },
     },
     full: {},

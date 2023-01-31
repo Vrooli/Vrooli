@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Tag_list on Tag {
+export const organizationFindOne = gql`fragment Tag_list on Tag {
     id
     created_at
     tag
@@ -104,7 +104,7 @@ query organization($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`fragment Tag_list on Tag {
+export const organizationFindMany = gql`fragment Tag_list on Tag {
     id
     created_at
     tag
@@ -171,7 +171,7 @@ query organizations($input: OrganizationSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Tag_list on Tag {
+export const organizationCreate = gql`fragment Tag_list on Tag {
     id
     created_at
     tag
@@ -275,7 +275,7 @@ mutation organizationCreate($input: OrganizationCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Tag_list on Tag {
+export const organizationUpdate = gql`fragment Tag_list on Tag {
     id
     created_at
     tag

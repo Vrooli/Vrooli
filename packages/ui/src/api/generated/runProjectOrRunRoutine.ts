@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findMany = gql`fragment RunProject_list on RunProject {
+export const runProjectOrRunRoutineFindMany = gql`fragment RunProject_list on RunProject {
     id
     isPrivate
     completedComplexity

@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const emailLogIn = gql`fragment Label_full on Label {
+export const authEmailLogIn = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -164,7 +164,7 @@ mutation emailLogIn($input: EmailLogInInput!) {
   }
 }`;
 
-export const emailSignUp = gql`fragment Label_full on Label {
+export const authEmailSignUp = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -328,14 +328,14 @@ mutation emailSignUp($input: EmailSignUpInput!) {
   }
 }`;
 
-export const emailRequestPasswordChange = gql`
+export const authEmailRequestPasswordChange = gql`
 mutation emailRequestPasswordChange($input: EmailRequestPasswordChangeInput!) {
   emailRequestPasswordChange(input: $input) {
     success
   }
 }`;
 
-export const emailResetPassword = gql`fragment Label_full on Label {
+export const authEmailResetPassword = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -499,7 +499,7 @@ mutation emailResetPassword($input: EmailResetPasswordInput!) {
   }
 }`;
 
-export const guestLogIn = gql`fragment Label_full on Label {
+export const authGuestLogIn = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -663,7 +663,7 @@ mutation guestLogIn {
   }
 }`;
 
-export const logOut = gql`fragment Label_full on Label {
+export const authLogOut = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -827,7 +827,7 @@ mutation logOut($input: LogOutInput!) {
   }
 }`;
 
-export const validateSession = gql`fragment Label_full on Label {
+export const authValidateSession = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -991,7 +991,7 @@ mutation validateSession($input: ValidateSessionInput!) {
   }
 }`;
 
-export const switchCurrentAccount = gql`fragment Label_full on Label {
+export const authSwitchCurrentAccount = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -1155,12 +1155,12 @@ mutation switchCurrentAccount($input: SwitchCurrentAccountInput!) {
   }
 }`;
 
-export const walletInit = gql`
+export const authWalletInit = gql`
 mutation walletInit($input: WalletInitInput!) {
   walletInit(input: $input)
 }`;
 
-export const walletComplete = gql`fragment Session_full on Session {
+export const authWalletComplete = gql`fragment Session_full on Session {
     isLoggedIn
     timeZone
     users {

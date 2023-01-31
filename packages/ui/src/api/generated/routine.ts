@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Organization_nav on Organization {
+export const routineFindOne = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -116,7 +116,7 @@ query routine($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`fragment Organization_nav on Organization {
+export const routineFindMany = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -426,7 +426,7 @@ query routines($input: RoutineSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Organization_nav on Organization {
+export const routineCreate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -542,7 +542,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Organization_nav on Organization {
+export const routineUpdate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {

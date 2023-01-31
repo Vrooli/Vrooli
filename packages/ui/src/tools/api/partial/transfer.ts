@@ -1,8 +1,8 @@
 import { Transfer, TransferYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const transferYouPartial: GqlPartial<TransferYou> = {
+export const transferYou: GqlPartial<TransferYou> = {
     __typename: 'TransferYou',
     common: {
         canDelete: true,
@@ -12,24 +12,24 @@ export const transferYouPartial: GqlPartial<TransferYou> = {
     list: {},
 }
 
-export const transferPartial: GqlPartial<Transfer> = {
+export const transfer: GqlPartial<Transfer> = {
     __typename: 'Transfer',
     common: {
         __define: {
-            0: async () => relPartial((await import('./api')).api, 'list'),
-            1: async () => relPartial((await import('./note')).notePartial, 'list'),
-            2: async () => relPartial((await import('./project')).projectPartial, 'list'),
-            3: async () => relPartial((await import('./routine')).routinePartial, 'list'),
-            4: async () => relPartial((await import('./smartContract')).smartContractPartial, 'list'),
-            5: async () => relPartial((await import('./standard')).standardPartial, 'list'),
+            0: async () => rel((await import('./api')).api, 'list'),
+            1: async () => rel((await import('./note')).note, 'list'),
+            2: async () => rel((await import('./project')).project, 'list'),
+            3: async () => rel((await import('./routine')).routine, 'list'),
+            4: async () => rel((await import('./smartContract')).smartContract, 'list'),
+            5: async () => rel((await import('./standard')).standard, 'list'),
         },
         id: true,
         created_at: true,
         updated_at: true,
         mergedOrRejectedAt: true,
         status: true,
-        fromOwner: async () => relPartial((await import('./user')).userPartial, 'nav'),
-        toOwner: async () => relPartial((await import('./user')).userPartial, 'nav'),
+        fromOwner: async () => rel((await import('./user')).user, 'nav'),
+        toOwner: async () => rel((await import('./user')).user, 'nav'),
         object: {
             __union: {
                 Api: 0,
@@ -40,7 +40,7 @@ export const transferPartial: GqlPartial<Transfer> = {
                 Standard: 5,
             }
         },
-        you: () => relPartial(transferYouPartial, 'full'),
+        you: () => rel(transferYou, 'full'),
     },
     full: {},
     list: {},

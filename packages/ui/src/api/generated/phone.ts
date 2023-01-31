@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const create = gql`
+export const phoneCreate = gql`
 mutation phoneCreate($input: PhoneCreateInput!) {
   phoneCreate(input: $input) {
     id
@@ -9,7 +9,7 @@ mutation phoneCreate($input: PhoneCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const phoneUpdate = gql`
 mutation sendVerificationText($input: SendVerificationTextInput!) {
   sendVerificationText(input: $input) {
     success

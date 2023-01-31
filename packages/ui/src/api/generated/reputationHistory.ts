@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const reputationHistoryFindOne = gql`
 query reputationHistory($input: FindByIdInput!) {
   reputationHistory(input: $input) {
     id
@@ -13,7 +13,7 @@ query reputationHistory($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const reputationHistoryFindMany = gql`
 query reputationHistories($input: ReputationHistorySearchInput!) {
   reputationHistories(input: $input) {
     edges {

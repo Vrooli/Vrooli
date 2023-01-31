@@ -1,8 +1,8 @@
 import { Issue, IssueTranslation, IssueYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const issueTranslationPartial: GqlPartial<IssueTranslation> = {
+export const issueTranslation: GqlPartial<IssueTranslation> = {
     __typename: 'IssueTranslation',
     common: {
         id: true,
@@ -14,7 +14,7 @@ export const issueTranslationPartial: GqlPartial<IssueTranslation> = {
     list: {},
 }
 
-export const issueYouPartial: GqlPartial<IssueYou> = {
+export const issueYou: GqlPartial<IssueYou> = {
     __typename: 'IssueYou',
     common: {
         canComment: true,
@@ -31,18 +31,18 @@ export const issueYouPartial: GqlPartial<IssueYou> = {
     list: {},
 }
 
-export const issuePartial: GqlPartial<Issue> = {
+export const issue: GqlPartial<Issue> = {
     __typename: 'Issue',
     common: {
         __define: {
-            0: async () => relPartial((await import('./api')).api, 'nav'),
-            1: async () => relPartial((await import('./note')).notePartial, 'nav'),
-            2: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            3: async () => relPartial((await import('./project')).projectPartial, 'nav'),
-            4: async () => relPartial((await import('./routine')).routinePartial, 'nav'),
-            5: async () => relPartial((await import('./smartContract')).smartContractPartial, 'nav'),
-            6: async () => relPartial((await import('./standard')).standardPartial, 'nav'),
-            7: async () => relPartial((await import('./label')).labelPartial, 'nav'),
+            0: async () => rel((await import('./api')).api, 'nav'),
+            1: async () => rel((await import('./note')).note, 'nav'),
+            2: async () => rel((await import('./organization')).organization, 'nav'),
+            3: async () => rel((await import('./project')).project, 'nav'),
+            4: async () => rel((await import('./routine')).routine, 'nav'),
+            5: async () => rel((await import('./smartContract')).smartContract, 'nav'),
+            6: async () => rel((await import('./standard')).standard, 'nav'),
+            7: async () => rel((await import('./label')).label, 'nav'),
         },
         id: true,
         created_at: true,
@@ -67,18 +67,18 @@ export const issuePartial: GqlPartial<Issue> = {
         stars: true,
         views: true,
         labels: { __use: 7 },
-        you: () => relPartial(issueYouPartial, 'full'),
+        you: () => rel(issueYou, 'full'),
     },
     full: {
-        closedBy: async () => relPartial((await import('./user')).userPartial, 'nav'),
-        createdBy: async () => relPartial((await import('./user')).userPartial, 'nav'),
-        translations: () => relPartial(issueTranslationPartial, 'full'),
+        closedBy: async () => rel((await import('./user')).user, 'nav'),
+        createdBy: async () => rel((await import('./user')).user, 'nav'),
+        translations: () => rel(issueTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(issueTranslationPartial, 'list'),
+        translations: () => rel(issueTranslation, 'list'),
     },
     nav: {
         id: true,
-        translations: () => relPartial(issueTranslationPartial, 'list'),
+        translations: () => rel(issueTranslation, 'list'),
     }
 }

@@ -1,7 +1,7 @@
 import { StatsProject } from "@shared/consts";
 import { GqlPartial } from "../types";
 
-export const statsProjectPartial: GqlPartial<StatsProject> = {
+export const statsProject: GqlPartial<StatsProject> = {
     __typename: 'StatsProject',
     full: {
         id: true,

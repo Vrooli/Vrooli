@@ -1,8 +1,8 @@
 import { Role, RoleTranslation } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const roleTranslationPartial: GqlPartial<RoleTranslation> = {
+export const roleTranslation: GqlPartial<RoleTranslation> = {
     __typename: 'RoleTranslation',
     common: {
         id: true,
@@ -13,7 +13,7 @@ export const roleTranslationPartial: GqlPartial<RoleTranslation> = {
     list: {},
 }
 
-export const rolePartial: GqlPartial<Role> = {
+export const role: GqlPartial<Role> = {
     __typename: 'Role',
     common: {
         id: true,
@@ -22,11 +22,11 @@ export const rolePartial: GqlPartial<Role> = {
         name: true,
         permissions: true,
         membersCount: true,
-        organization: async () => relPartial((await import('./organization')).organizationPartial, 'nav', { omit: 'roles' }),
-        translations: () => relPartial(roleTranslationPartial, 'full'),
+        organization: async () => rel((await import('./organization')).organization, 'nav', { omit: 'roles' }),
+        translations: () => rel(roleTranslation, 'full'),
     },
     full: {
-        members: async () => relPartial((await import('./member')).memberPartial, 'nav', { omit: 'reminder' }),
+        members: async () => rel((await import('./member')).member, 'nav', { omit: 'reminder' }),
     },
     list: {},
 }

@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const memberFindOne = gql`
 query member($input: FindByIdInput!) {
   member(input: $input) {
     id
@@ -37,7 +37,7 @@ query member($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const memberFindMany = gql`
 query members($input: MemberSearchInput!) {
   members(input: $input) {
     edges {
@@ -83,7 +83,7 @@ query members($input: MemberSearchInput!) {
   }
 }`;
 
-export const update = gql`
+export const memberUpdate = gql`
 mutation memberUpdate($input: MemberUpdateInput!) {
   memberUpdate(input: $input) {
     id

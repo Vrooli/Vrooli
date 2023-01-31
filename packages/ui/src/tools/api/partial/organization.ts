@@ -1,8 +1,8 @@
 import { Organization, OrganizationTranslation, OrganizationYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const organizationTranslationPartial: GqlPartial<OrganizationTranslation> = {
+export const organizationTranslation: GqlPartial<OrganizationTranslation> = {
     __typename: 'OrganizationTranslation',
     common: {
         id: true,
@@ -14,7 +14,7 @@ export const organizationTranslationPartial: GqlPartial<OrganizationTranslation>
     list: {},
 }
 
-export const organizationYouPartial: GqlPartial<OrganizationYou> = {
+export const organizationYou: GqlPartial<OrganizationYou> = {
     __typename: 'OrganizationYou',
     common: {
         canAddMembers: true,
@@ -37,11 +37,11 @@ export const organizationYouPartial: GqlPartial<OrganizationYou> = {
     list: {},
 }
 
-export const organizationPartial: GqlPartial<Organization> = {
+export const organization: GqlPartial<Organization> = {
     __typename: 'Organization',
     common: {
         __define: {
-            0: async () => relPartial((await import('./tag')).tagPartial, 'list'),
+            0: async () => rel((await import('./tag')).tag, 'list'),
         },
         id: true,
         handle: true,
@@ -54,16 +54,16 @@ export const organizationPartial: GqlPartial<Organization> = {
         reportsCount: true,
         stars: true,
         tags: { __use: 0 },
-        translations: () => relPartial(organizationTranslationPartial, 'full'),
-        you: () => relPartial(organizationYouPartial, 'full'),
+        translations: () => rel(organizationTranslation, 'full'),
+        you: () => rel(organizationYou, 'full'),
     },
     full: {
-        roles: async () => relPartial((await import('./role')).rolePartial, 'full', { omit: 'organization' }),
+        roles: async () => rel((await import('./role')).role, 'full', { omit: 'organization' }),
     },
     list: { },
     nav: {
         id: true,
         handle: true,
-        you: () => relPartial(organizationYouPartial, 'full'),
+        you: () => rel(organizationYou, 'full'),
     }
 }

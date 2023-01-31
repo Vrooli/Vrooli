@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findMany = gql`
+export const statsRoutineFindMany = gql`
 query statsRoutine($input: StatsRoutineSearchInput!) {
   statsRoutine(input: $input) {
     edges {

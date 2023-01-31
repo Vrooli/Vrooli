@@ -1,8 +1,8 @@
 import { Question, QuestionTranslation, QuestionYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const questionTranslationPartial: GqlPartial<QuestionTranslation> = {
+export const questionTranslation: GqlPartial<QuestionTranslation> = {
     __typename: 'QuestionTranslation',
     common: {
         id: true,
@@ -14,7 +14,7 @@ export const questionTranslationPartial: GqlPartial<QuestionTranslation> = {
     list: {},
 }
 
-export const questionYouPartial: GqlPartial<QuestionYou> = {
+export const questionYou: GqlPartial<QuestionYou> = {
     __typename: 'QuestionYou',
     common: {
         isUpvoted: true,
@@ -23,22 +23,22 @@ export const questionYouPartial: GqlPartial<QuestionYou> = {
     list: {},
 }
 
-export const questionPartial: GqlPartial<Question> = {
+export const question: GqlPartial<Question> = {
     __typename: 'Question',
     common: {
         __define: {
-            0: async () => relPartial((await import('./api')).api, 'nav'),
-            1: async () => relPartial((await import('./note')).notePartial, 'nav'),
-            2: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            3: async () => relPartial((await import('./project')).projectPartial, 'nav'),
-            4: async () => relPartial((await import('./routine')).routinePartial, 'nav'),
-            5: async () => relPartial((await import('./smartContract')).smartContractPartial, 'nav'),
-            6: async () => relPartial((await import('./standard')).standardPartial, 'nav'),
+            0: async () => rel((await import('./api')).api, 'nav'),
+            1: async () => rel((await import('./note')).note, 'nav'),
+            2: async () => rel((await import('./organization')).organization, 'nav'),
+            3: async () => rel((await import('./project')).project, 'nav'),
+            4: async () => rel((await import('./routine')).routine, 'nav'),
+            5: async () => rel((await import('./smartContract')).smartContract, 'nav'),
+            6: async () => rel((await import('./standard')).standard, 'nav'),
         },
         id: true,
         created_at: true,
         updated_at: true,
-        createdBy: async () => relPartial((await import('./user')).userPartial, 'nav'),
+        createdBy: async () => rel((await import('./user')).user, 'nav'),
         hasAcceptedAnswer: true,
         score: true,
         stars: true,
@@ -55,13 +55,13 @@ export const questionPartial: GqlPartial<Question> = {
                 Standard: 6,
             }
         },
-        you: () => relPartial(questionYouPartial, 'full'),
+        you: () => rel(questionYou, 'full'),
     },
     full: {
-        answers: async () => relPartial((await import('./questionAnswer')).questionAnswerPartial, 'full', { omit: 'question' }),
-        translations: () => relPartial(questionTranslationPartial, 'full'),
+        answers: async () => rel((await import('./questionAnswer')).questionAnswer, 'full', { omit: 'question' }),
+        translations: () => rel(questionTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(questionTranslationPartial, 'list'),
+        translations: () => rel(questionTranslation, 'list'),
     }
 }

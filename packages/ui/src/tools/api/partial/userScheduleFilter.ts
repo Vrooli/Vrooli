@@ -1,13 +1,13 @@
 import { UserScheduleFilter } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const userScheduleFilterPartial: GqlPartial<UserScheduleFilter> = {
+export const userScheduleFilter: GqlPartial<UserScheduleFilter> = {
     __typename: 'UserScheduleFilter',
     full: {
         id: true,
         filterType: true,
-        tag: async () => relPartial((await import('./tag')).tagPartial, 'list'),
-        userSchedule: async () => relPartial((await import('./userSchedule')).userSchedulePartial, 'list', { omit: 'filters' }),
+        tag: async () => rel((await import('./tag')).tag, 'list'),
+        userSchedule: async () => rel((await import('./userSchedule')).userSchedule, 'list', { omit: 'filters' }),
     },
 }

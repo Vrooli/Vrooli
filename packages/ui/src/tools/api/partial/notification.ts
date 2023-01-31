@@ -1,8 +1,8 @@
 import { Notification, NotificationSettings, NotificationSettingsCategory } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const notificationPartial: GqlPartial<Notification> = {
+export const notification: GqlPartial<Notification> = {
     __typename: 'Notification',
     full: {
         id: true,
@@ -16,7 +16,7 @@ export const notificationPartial: GqlPartial<Notification> = {
     },
 }
 
-export const notificationSettingsCategoryPartial: GqlPartial<NotificationSettingsCategory> = {
+export const notificationSettingsCategory: GqlPartial<NotificationSettingsCategory> = {
     __typename: 'NotificationSettingsCategory',
     full: {
         category: true,
@@ -28,7 +28,7 @@ export const notificationSettingsCategoryPartial: GqlPartial<NotificationSetting
     },
 }
 
-export const notificationSettingsPartial: GqlPartial<NotificationSettings> = {
+export const notificationSettings: GqlPartial<NotificationSettings> = {
     __typename: 'NotificationSettings',
     full: {
         includedEmails: true,
@@ -39,6 +39,6 @@ export const notificationSettingsPartial: GqlPartial<NotificationSettings> = {
         toPush: true,
         dailyLimit: true,
         enabled: true,
-        categories: () => relPartial(notificationSettingsCategoryPartial, 'full'),
+        categories: () => rel(notificationSettingsCategory, 'full'),
     },
 }

@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Api_nav on Api {
+export const questionAnswerFindOne = gql`fragment Api_nav on Api {
     id
     isPrivate
 }
@@ -293,7 +293,7 @@ query questionAnswer($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const questionAnswerFindMany = gql`
 query questionAnswers($input: QuestionAnswerSearchInput!) {
   questionAnswers(input: $input) {
     edges {
@@ -325,7 +325,7 @@ query questionAnswers($input: QuestionAnswerSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Api_nav on Api {
+export const questionAnswerCreate = gql`fragment Api_nav on Api {
     id
     isPrivate
 }
@@ -618,7 +618,7 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Api_nav on Api {
+export const questionAnswerUpdate = gql`fragment Api_nav on Api {
     id
     isPrivate
 }
@@ -911,7 +911,7 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
   }
 }`;
 
-export const accept = gql`fragment Api_nav on Api {
+export const questionAnswerAccept = gql`fragment Api_nav on Api {
     id
     isPrivate
 }

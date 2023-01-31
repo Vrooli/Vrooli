@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const notificationFindOne = gql`
 query notification($input: FindByIdInput!) {
   notification(input: $input) {
     id
@@ -14,7 +14,7 @@ query notification($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const notificationFindMany = gql`
 query notifications($input: NotificationSearchInput!) {
   notifications(input: $input) {
     edges {
@@ -37,21 +37,21 @@ query notifications($input: NotificationSearchInput!) {
   }
 }`;
 
-export const markAsRead = gql`
+export const notificationMarkAsRead = gql`
 mutation notificationMarkAsRead($input: FindByIdInput!) {
   notificationMarkAsRead(input: $input) {
     success
   }
 }`;
 
-export const update = gql`
+export const notificationUpdate = gql`
 mutation notificationMarkAllAsRead {
   notificationMarkAllAsRead {
     count
   }
 }`;
 
-export const settingsUpdate = gql`
+export const notificationSettingsUpdate = gql`
 mutation notificationSettingsUpdate($input: NotificationSettingsUpdateInput!) {
   notificationSettingsUpdate(input: $input) {
     includedEmails

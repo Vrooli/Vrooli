@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Api_list on Api {
+export const smartContractVersionFindOne = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -1188,7 +1188,7 @@ query smartContractVersion($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const smartContractVersionFindMany = gql`
 query smartContractVersions($input: SmartContractVersionSearchInput!) {
   smartContractVersions(input: $input) {
     edges {
@@ -1234,7 +1234,7 @@ query smartContractVersions($input: SmartContractVersionSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Api_list on Api {
+export const smartContractVersionCreate = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -2422,7 +2422,7 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Api_list on Api {
+export const smartContractVersionUpdate = gql`fragment Api_list on Api {
     versions {
         translations {
             id

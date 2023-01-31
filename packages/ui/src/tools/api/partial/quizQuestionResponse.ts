@@ -1,8 +1,8 @@
 import { QuizQuestionResponse, QuizQuestionResponseTranslation, QuizQuestionResponseYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const quizQuestionResponseTranslationPartial: GqlPartial<QuizQuestionResponseTranslation> = {
+export const quizQuestionResponseTranslation: GqlPartial<QuizQuestionResponseTranslation> = {
     __typename: 'QuizQuestionResponseTranslation',
     common: {
         id: true,
@@ -13,7 +13,7 @@ export const quizQuestionResponseTranslationPartial: GqlPartial<QuizQuestionResp
     list: {},
 }
 
-export const quizQuestionResponseYouPartial: GqlPartial<QuizQuestionResponseYou> = {
+export const quizQuestionResponseYou: GqlPartial<QuizQuestionResponseYou> = {
     __typename: 'QuizQuestionResponseYou',
     common: {
         canDelete: true,
@@ -23,17 +23,17 @@ export const quizQuestionResponseYouPartial: GqlPartial<QuizQuestionResponseYou>
     list: {},
 }
 
-export const quizQuestionResponsePartial: GqlPartial<QuizQuestionResponse> = {
+export const quizQuestionResponse: GqlPartial<QuizQuestionResponse> = {
     __typename: 'QuizQuestionResponse',
     common: {
         id: true,
         created_at: true,
         updated_at: true,
         response: true,
-        quizAttempt: async () => relPartial((await import('./quizAttempt')).quizAttemptPartial, 'nav', { omit: 'responses' }),
-        quizQuestion: async () => relPartial((await import('./quizQuestion')).quizQuestionPartial, 'nav', { omit: 'responses' }),
-        translations: () => relPartial(quizQuestionResponseTranslationPartial, 'full'),
-        you: () => relPartial(quizQuestionResponseYouPartial, 'full'),
+        quizAttempt: async () => rel((await import('./quizAttempt')).quizAttempt, 'nav', { omit: 'responses' }),
+        quizQuestion: async () => rel((await import('./quizQuestion')).quizQuestion, 'nav', { omit: 'responses' }),
+        translations: () => rel(quizQuestionResponseTranslation, 'full'),
+        you: () => rel(quizQuestionResponseYou, 'full'),
     },
     full: {},
     list: {},

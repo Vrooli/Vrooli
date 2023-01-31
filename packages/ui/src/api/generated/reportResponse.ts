@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const reportResponseFindOne = gql`
 query reportResponse($input: FindByIdInput!) {
   reportResponse(input: $input) {
     id
@@ -16,7 +16,7 @@ query reportResponse($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const reportResponseFindMany = gql`
 query reportResponses($input: ReportResponseSearchInput!) {
   reportResponses(input: $input) {
     edges {
@@ -41,7 +41,7 @@ query reportResponses($input: ReportResponseSearchInput!) {
   }
 }`;
 
-export const create = gql`
+export const reportResponseCreate = gql`
 mutation reportResponseCreate($input: ReportResponseCreateInput!) {
   reportResponseCreate(input: $input) {
     id
@@ -57,7 +57,7 @@ mutation reportResponseCreate($input: ReportResponseCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const reportResponseUpdate = gql`
 mutation reportResponseUpdate($input: ReportResponseUpdateInput!) {
   reportResponseUpdate(input: $input) {
     id

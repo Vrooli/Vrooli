@@ -1,8 +1,8 @@
 import { UserSchedule } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const userSchedulePartial: GqlPartial<UserSchedule> = {
+export const userSchedule: GqlPartial<UserSchedule> = {
     __typename: 'UserSchedule',
     common: {
         id: true,
@@ -17,15 +17,15 @@ export const userSchedulePartial: GqlPartial<UserSchedule> = {
     },
     full: {
         __define: {
-            0: async () => relPartial((await import('./label')).labelPartial, 'full'),
+            0: async () => rel((await import('./label')).label, 'full'),
         },
-        filters: async () => relPartial((await import('./userScheduleFilter')).userScheduleFilterPartial, 'full'),
+        filters: async () => rel((await import('./userScheduleFilter')).userScheduleFilter, 'full'),
         labels: { __use: 0 },
-        reminderList: async () => relPartial((await import('./reminderList')).reminderListPartial, 'full', { omit: 'userSchedule' }),
+        reminderList: async () => rel((await import('./reminderList')).reminderList, 'full', { omit: 'userSchedule' }),
     },
     list: {
         __define: {
-            0: async () => relPartial((await import('./label')).labelPartial, 'list'),
+            0: async () => rel((await import('./label')).label, 'list'),
         },
         labels: { __use: 0 },
     }

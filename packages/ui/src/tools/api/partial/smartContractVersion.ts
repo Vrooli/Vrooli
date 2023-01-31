@@ -1,9 +1,9 @@
 import { SmartContractVersion, SmartContractVersionTranslation } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
-import { versionYouPartial } from "./root";
+import { versionYou } from "./root";
 
-export const smartContractVersionTranslationPartial: GqlPartial<SmartContractVersionTranslation> = {
+export const smartContractVersionTranslation: GqlPartial<SmartContractVersionTranslation> = {
     __typename: 'SmartContractVersionTranslation',
     common: {
         id: true,
@@ -15,7 +15,7 @@ export const smartContractVersionTranslationPartial: GqlPartial<SmartContractVer
     list: {},
 }
 
-export const smartContractVersionPartial: GqlPartial<SmartContractVersion> = {
+export const smartContractVersion: GqlPartial<SmartContractVersion> = {
     __typename: 'SmartContractVersion',
     common: {
         id: true,
@@ -34,17 +34,17 @@ export const smartContractVersionPartial: GqlPartial<SmartContractVersion> = {
         directoryListingsCount: true,
         forksCount: true,
         reportsCount: true,
-        you: () => relPartial(versionYouPartial, 'full'),
+        you: () => rel(versionYou, 'full'),
     },
     full: {
         versionNotes: true,
-        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
-        resourceList: async () => relPartial((await import('./resourceList')).resourceListPartial, 'full'),
-        root: async () => relPartial((await import('./smartContract')).smartContractPartial, 'full', { omit: 'versions' }),
-        translations: () => relPartial(smartContractVersionTranslationPartial, 'full'),
+        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full'),
+        resourceList: async () => rel((await import('./resourceList')).resourceList, 'full'),
+        root: async () => rel((await import('./smartContract')).smartContract, 'full', { omit: 'versions' }),
+        translations: () => rel(smartContractVersionTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(smartContractVersionTranslationPartial, 'list'),
+        translations: () => rel(smartContractVersionTranslation, 'list'),
     },
     nav: {
         id: true,
@@ -52,7 +52,7 @@ export const smartContractVersionPartial: GqlPartial<SmartContractVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => relPartial((await import('./smartContract')).smartContractPartial, 'nav'),
-        translations: () => relPartial(smartContractVersionTranslationPartial, 'list'),
+        root: async () => rel((await import('./smartContract')).smartContract, 'nav'),
+        translations: () => rel(smartContractVersionTranslation, 'list'),
     }
 }

@@ -1,8 +1,8 @@
 import { RunProject, RunProjectYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const runProjectYouPartial: GqlPartial<RunProjectYou> = {
+export const runProjectYou: GqlPartial<RunProjectYou> = {
     __typename: 'RunProjectYou',
     common: {
         canDelete: true,
@@ -13,12 +13,12 @@ export const runProjectYouPartial: GqlPartial<RunProjectYou> = {
     list: {},
 }
 
-export const runProjectPartial: GqlPartial<RunProject> = {
+export const runProject: GqlPartial<RunProject> = {
     __typename: 'RunProject',
     common: {
         __define: {
-            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
+            0: async () => rel((await import('./organization')).organization, 'nav'),
+            1: async () => rel((await import('./user')).user, 'nav'),
         },
         id: true,
         isPrivate: true,
@@ -32,13 +32,13 @@ export const runProjectPartial: GqlPartial<RunProject> = {
         stepsCount: true,
         wasRunAutomaticaly: true,
         organization: { __use: 0 },
-        projectVersion: async () => relPartial((await import('./projectVersion')).projectVersionPartial, 'nav', { omit: 'you' }),
-        runProjectSchedule: async () => relPartial((await import('./runProjectSchedule')).runProjectSchedulePartial, 'full', { omit: 'runProject' }),
+        projectVersion: async () => rel((await import('./projectVersion')).projectVersion, 'nav', { omit: 'you' }),
+        runProjectSchedule: async () => rel((await import('./runProjectSchedule')).runProjectSchedule, 'full', { omit: 'runProject' }),
         user: { __use: 1 },
-        you: () => relPartial(runProjectYouPartial, 'full'),
+        you: () => rel(runProjectYou, 'full'),
     },
     full: {
-        steps: async () => relPartial((await import('./runProjectStep')).runProjectStepPartial, 'full', { omit: 'run' }),
+        steps: async () => rel((await import('./runProjectStep')).runProjectStep, 'full', { omit: 'run' }),
     },
     list: {},
 }

@@ -1,15 +1,15 @@
 import { HistoryResult } from "@shared/consts";
-import { relPartial } from "../utils";
+import { rel } from "../utils";
 import { GqlPartial } from "../types";
 
-export const historyResultPartial: GqlPartial<HistoryResult> = {
+export const historyResult: GqlPartial<HistoryResult> = {
     __typename: 'HistoryResult',
     list: {
         __define: {
-            0: async () => relPartial((await import('./runProject')).runProjectPartial, 'list'),
-            1: async () => relPartial((await import('./runRoutine')).runRoutinePartial, 'list'),
-            2: async () => relPartial((await import('./view')).viewPartial, 'list'),
-            3: async () => relPartial((await import('./star')).starPartial, 'list'),
+            0: async () => rel((await import('./runProject')).runProject, 'list'),
+            1: async () => rel((await import('./runRoutine')).runRoutine, 'list'),
+            2: async () => rel((await import('./view')).view, 'list'),
+            3: async () => rel((await import('./star')).star, 'list'),
         },
         activeRuns: {
             __union: {

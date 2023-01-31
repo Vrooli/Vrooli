@@ -1,8 +1,8 @@
 import { Meeting, MeetingTranslation, MeetingYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const meetingTranslationPartial: GqlPartial<MeetingTranslation> = {
+export const meetingTranslation: GqlPartial<MeetingTranslation> = {
     __typename: 'MeetingTranslation',
     common: {
         id: true,
@@ -15,7 +15,7 @@ export const meetingTranslationPartial: GqlPartial<MeetingTranslation> = {
     list: {},
 }
 
-export const meetingYouPartial: GqlPartial<MeetingYou> = {
+export const meetingYou: GqlPartial<MeetingYou> = {
     __typename: 'MeetingYou',
     common: {
         canDelete: true,
@@ -26,7 +26,7 @@ export const meetingYouPartial: GqlPartial<MeetingYou> = {
     list: {},
 }
 
-export const meetingPartial: GqlPartial<Meeting> = {
+export const meeting: GqlPartial<Meeting> = {
     __typename: 'Meeting',
     common: {
         id: true,
@@ -38,26 +38,26 @@ export const meetingPartial: GqlPartial<Meeting> = {
         recurring: true,
         recurrStart: true,
         recurrEnd: true,
-        organization: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-        restrictedToRoles: async () => relPartial((await import('./role')).rolePartial, 'full'),
+        organization: async () => rel((await import('./organization')).organization, 'nav'),
+        restrictedToRoles: async () => rel((await import('./role')).role, 'full'),
         attendeesCount: true,
         invitesCount: true,
-        you: () => relPartial(meetingYouPartial, 'full'),
+        you: () => rel(meetingYou, 'full'),
     },
     full: {
         __define: {
-            0: async () => relPartial((await import('./label')).labelPartial, 'full'),
+            0: async () => rel((await import('./label')).label, 'full'),
         },
-        attendees: async () => relPartial((await import('./user')).userPartial, 'nav'),
-        invites: async () => relPartial((await import('./meetingInvite')).meetingInvitePartial, 'list', { omit: 'meeting' }),
+        attendees: async () => rel((await import('./user')).user, 'nav'),
+        invites: async () => rel((await import('./meetingInvite')).meetingInvite, 'list', { omit: 'meeting' }),
         labels: { __use: 0 },
-        translations: () => relPartial(meetingTranslationPartial, 'full'),
+        translations: () => rel(meetingTranslation, 'full'),
     },
     list: {
         __define: {
-            0: async () => relPartial((await import('./label')).labelPartial, 'list'),
+            0: async () => rel((await import('./label')).label, 'list'),
         },
         labels: { __use: 0 },
-        translations: () => relPartial(meetingTranslationPartial, 'list'),
+        translations: () => rel(meetingTranslation, 'list'),
     }
 }

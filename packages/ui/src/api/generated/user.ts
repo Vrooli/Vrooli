@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const profile = gql`fragment Label_full on Label {
+export const userProfile = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -241,7 +241,7 @@ query profile {
   }
 }`;
 
-export const findOne = gql`
+export const userFindOne = gql`
 query user($input: FindByIdInput!) {
   user(input: $input) {
     stats {
@@ -291,7 +291,7 @@ query user($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const userFindMany = gql`
 query users($input: UserSearchInput!) {
   users(input: $input) {
     edges {
@@ -324,7 +324,7 @@ query users($input: UserSearchInput!) {
   }
 }`;
 
-export const profileUpdate = gql`fragment Label_full on Label {
+export const userProfileUpdate = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -565,7 +565,7 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
   }
 }`;
 
-export const profileEmailUpdate = gql`fragment Label_full on Label {
+export const userProfileEmailUpdate = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -806,14 +806,14 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
   }
 }`;
 
-export const deleteOne = gql`
+export const userDeleteOne = gql`
 mutation userDeleteOne($input: UserDeleteInput!) {
   userDeleteOne(input: $input) {
     success
   }
 }`;
 
-export const exportData = gql`
+export const userExportData = gql`
 mutation exportData {
   exportData
 }`;

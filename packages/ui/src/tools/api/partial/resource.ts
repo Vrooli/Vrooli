@@ -1,8 +1,8 @@
 import { Resource, ResourceTranslation } from "@shared/consts";
-import { relPartial } from "../utils";
+import { rel } from "../utils";
 import { GqlPartial } from "../types";
 
-export const resourceTranslationPartial: GqlPartial<ResourceTranslation> = {
+export const resourceTranslation: GqlPartial<ResourceTranslation> = {
     __typename: 'ResourceTranslation',
     common: {
         id: true,
@@ -14,14 +14,14 @@ export const resourceTranslationPartial: GqlPartial<ResourceTranslation> = {
     list: {},
 }
 
-export const resourcePartial: GqlPartial<Resource> = {
+export const resource: GqlPartial<Resource> = {
     __typename: 'Resource',
     common: {
         id: true,
         index: true,
         link: true,
         usedFor: true,
-        translations: () => relPartial(resourceTranslationPartial, 'full'),
+        translations: () => rel(resourceTranslation, 'full'),
     },
     full: {},
     list: {},

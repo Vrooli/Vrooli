@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const reminderListFindOne = gql`
 query reminderList($input: FindByIdInput!) {
   reminderList(input: $input) {
     id
@@ -29,7 +29,7 @@ query reminderList($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const reminderListFindMany = gql`
 query reminderLists($input: ReminderListSearchInput!) {
   reminderLists(input: $input) {
     edges {
@@ -67,7 +67,7 @@ query reminderLists($input: ReminderListSearchInput!) {
   }
 }`;
 
-export const create = gql`
+export const reminderListCreate = gql`
 mutation reminderListCreate($input: ReminderListCreateInput!) {
   reminderListCreate(input: $input) {
     id
@@ -96,7 +96,7 @@ mutation reminderListCreate($input: ReminderListCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const reminderListUpdate = gql`
 mutation reminderListUpdate($input: ReminderListUpdateInput!) {
   reminderListUpdate(input: $input) {
     id

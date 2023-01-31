@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const translate = gql`
+export const translateTranslate = gql`
 query translate($input: FindByIdInput!) {
   translate(input: $input) {
     fields

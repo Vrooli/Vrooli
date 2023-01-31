@@ -1,8 +1,8 @@
 import { PullRequest, PullRequestYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const pullRequestYouPartial: GqlPartial<PullRequestYou> = {
+export const pullRequestYou: GqlPartial<PullRequestYou> = {
     __typename: 'PullRequestYou',
     common: {
         canComment: true,
@@ -14,22 +14,22 @@ export const pullRequestYouPartial: GqlPartial<PullRequestYou> = {
     list: {},
 }
 
-export const pullRequestPartial: GqlPartial<PullRequest> = {
+export const pullRequest: GqlPartial<PullRequest> = {
     __typename: 'PullRequest',
     common: {
         __define: {
-            0: async () => relPartial((await import('./api')).api, 'list'),
-            1: async () => relPartial((await import('./apiVersion')).apiVersion, 'list'),
-            2: async () => relPartial((await import('./note')).notePartial, 'list'),
-            3: async () => relPartial((await import('./noteVersion')).noteVersionPartial, 'list'),
-            4: async () => relPartial((await import('./project')).projectPartial, 'list'),
-            5: async () => relPartial((await import('./projectVersion')).projectVersionPartial, 'list'),
-            6: async () => relPartial((await import('./routine')).routinePartial, 'list'),
-            7: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'list'),
-            8: async () => relPartial((await import('./smartContract')).smartContractPartial, 'list'),
-            9: async () => relPartial((await import('./smartContractVersion')).smartContractVersionPartial, 'list'),
-            10: async () => relPartial((await import('./standard')).standardPartial, 'list'),
-            11: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'list'),
+            0: async () => rel((await import('./api')).api, 'list'),
+            1: async () => rel((await import('./apiVersion')).apiVersion, 'list'),
+            2: async () => rel((await import('./note')).note, 'list'),
+            3: async () => rel((await import('./noteVersion')).noteVersion, 'list'),
+            4: async () => rel((await import('./project')).project, 'list'),
+            5: async () => rel((await import('./projectVersion')).projectVersion, 'list'),
+            6: async () => rel((await import('./routine')).routine, 'list'),
+            7: async () => rel((await import('./routineVersion')).routineVersion, 'list'),
+            8: async () => rel((await import('./smartContract')).smartContract, 'list'),
+            9: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'list'),
+            10: async () => rel((await import('./standard')).standard, 'list'),
+            11: async () => rel((await import('./standardVersion')).standardVersion, 'list'),
         },
         id: true,
         created_at: true,
@@ -57,8 +57,8 @@ export const pullRequestPartial: GqlPartial<PullRequest> = {
                 Standard: 10,
             }
         },
-        createdBy: async () => relPartial((await import('./user')).userPartial, 'nav'),
-        you: () => relPartial(pullRequestYouPartial, 'full'),
+        createdBy: async () => rel((await import('./user')).user, 'nav'),
+        you: () => rel(pullRequestYou, 'full'),
     },
     full: {},
     list: {},

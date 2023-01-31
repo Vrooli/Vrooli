@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const memberInviteFindOne = gql`
 query memberInvite($input: FindByIdInput!) {
   memberInvite(input: $input) {
     id
@@ -43,7 +43,7 @@ query memberInvite($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const memberInviteFindMany = gql`
 query memberInvites($input: MemberInviteSearchInput!) {
   memberInvites(input: $input) {
     edges {
@@ -95,7 +95,7 @@ query memberInvites($input: MemberInviteSearchInput!) {
   }
 }`;
 
-export const create = gql`
+export const memberInviteCreate = gql`
 mutation memberInviteCreate($input: MemberInviteCreateInput!) {
   memberInviteCreate(input: $input) {
     id
@@ -138,7 +138,7 @@ mutation memberInviteCreate($input: MemberInviteCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const memberInviteUpdate = gql`
 mutation memberInviteUpdate($input: MemberInviteUpdateInput!) {
   memberInviteUpdate(input: $input) {
     id
@@ -181,7 +181,7 @@ mutation memberInviteUpdate($input: MemberInviteUpdateInput!) {
   }
 }`;
 
-export const accept = gql`
+export const memberInviteAccept = gql`
 mutation memberInviteAccept($input: FindByIdInput!) {
   memberInviteAccept(input: $input) {
     id
@@ -224,7 +224,7 @@ mutation memberInviteAccept($input: FindByIdInput!) {
   }
 }`;
 
-export const decline = gql`
+export const memberInviteDecline = gql`
 mutation memberInviteDecline($input: FindByIdInput!) {
   memberInviteDecline(input: $input) {
     id

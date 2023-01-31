@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Organization_nav on Organization {
+export const labelFindOne = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -60,7 +60,7 @@ query label($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`fragment Organization_nav on Organization {
+export const labelFindMany = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -119,7 +119,7 @@ query labels($input: LabelSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Organization_nav on Organization {
+export const labelCreate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -179,7 +179,7 @@ mutation labelCreate($input: LabelCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Organization_nav on Organization {
+export const labelUpdate = gql`fragment Organization_nav on Organization {
     id
     handle
     you {

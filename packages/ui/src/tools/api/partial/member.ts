@@ -1,8 +1,8 @@
 import { Member } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const memberPartial: GqlPartial<Member> = {
+export const member: GqlPartial<Member> = {
     __typename: 'Member',
     common: {
         id: true,
@@ -10,8 +10,8 @@ export const memberPartial: GqlPartial<Member> = {
         updated_at: true,
         isAdmin: true,
         permissions: true,
-        organization: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-        user: async () => relPartial((await import('./user')).userPartial, 'nav'),
+        organization: async () => rel((await import('./organization')).organization, 'nav'),
+        user: async () => rel((await import('./user')).user, 'nav'),
     },
     full: {},
     list: {},

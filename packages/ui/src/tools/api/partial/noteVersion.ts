@@ -1,9 +1,9 @@
 import { NoteVersion, NoteVersionTranslation } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
-import { versionYouPartial } from "./root";
+import { versionYou } from "./root";
 
-export const noteVersionTranslationPartial: GqlPartial<NoteVersionTranslation> = {
+export const noteVersionTranslation: GqlPartial<NoteVersionTranslation> = {
     __typename: 'NoteVersionTranslation',
     common: {
         id: true,
@@ -15,7 +15,7 @@ export const noteVersionTranslationPartial: GqlPartial<NoteVersionTranslation> =
     list: {},
 }
 
-export const noteVersionPartial: GqlPartial<NoteVersion> = {
+export const noteVersion: GqlPartial<NoteVersion> = {
     __typename: 'NoteVersion',
     common: {
         id: true,
@@ -26,17 +26,17 @@ export const noteVersionPartial: GqlPartial<NoteVersion> = {
         reportsCount: true,
         versionIndex: true,
         versionLabel: true,
-        you: () => relPartial(versionYouPartial, 'full'),
+        you: () => rel(versionYou, 'full'),
     },
     full: {
-        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
-        root: async () => relPartial((await import('./note')).notePartial, 'full', { omit: 'versions' }),
-        translations: () => relPartial(noteVersionTranslationPartial, 'full'),
+        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full'),
+        root: async () => rel((await import('./note')).note, 'full', { omit: 'versions' }),
+        translations: () => rel(noteVersionTranslation, 'full'),
         versionNotes: true,
     },
     list: {
-        root: async () => relPartial((await import('./note')).notePartial, 'list', { omit: 'versions' }),
-        translations: () => relPartial(noteVersionTranslationPartial, 'list'),
+        root: async () => rel((await import('./note')).note, 'list', { omit: 'versions' }),
+        translations: () => rel(noteVersionTranslation, 'list'),
     },
     nav: {
         id: true,
@@ -44,7 +44,7 @@ export const noteVersionPartial: GqlPartial<NoteVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => relPartial((await import('./note')).notePartial, 'nav'),
-        translations: () => relPartial(noteVersionTranslationPartial, 'list'),
+        root: async () => rel((await import('./note')).note, 'nav'),
+        translations: () => rel(noteVersionTranslation, 'list'),
     }
 }

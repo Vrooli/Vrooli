@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Api_list on Api {
+export const routineVersionFindOne = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -1688,7 +1688,7 @@ query routineVersion($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`fragment Organization_nav on Organization {
+export const routineVersionFindMany = gql`fragment Organization_nav on Organization {
     id
     handle
     you {
@@ -1924,7 +1924,7 @@ query routineVersions($input: RoutineVersionSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Api_list on Api {
+export const routineVersionCreate = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -3612,7 +3612,7 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Api_list on Api {
+export const routineVersionUpdate = gql`fragment Api_list on Api {
     versions {
         translations {
             id

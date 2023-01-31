@@ -1,13 +1,13 @@
 import { DevelopResult, LearnResult, PopularResult, ResearchResult } from "@shared/consts";
-import { relPartial } from "../utils";
+import { rel } from "../utils";
 import { GqlPartial } from "../types";
 
-export const developResultPartial: GqlPartial<DevelopResult> = {
+export const developResult: GqlPartial<DevelopResult> = {
     __typename: 'DevelopResult',
     list: {
         __define: {
-            0: async () => relPartial((await import('./project')).projectPartial, 'list'),
-            1: async () => relPartial((await import('./routine')).routinePartial, 'list'),
+            0: async () => rel((await import('./project')).project, 'list'),
+            1: async () => rel((await import('./routine')).routine, 'list'),
         },
         completed: {
             __union: {
@@ -30,27 +30,27 @@ export const developResultPartial: GqlPartial<DevelopResult> = {
     }
 }
 
-export const learnResultPartial: GqlPartial<LearnResult> = {
+export const learnResult: GqlPartial<LearnResult> = {
     __typename: 'LearnResult',
     list: {
         __define: {
-            0: async () => relPartial((await import('./project')).projectPartial, 'list'),
-            1: async () => relPartial((await import('./routine')).routinePartial, 'list'),
+            0: async () => rel((await import('./project')).project, 'list'),
+            1: async () => rel((await import('./routine')).routine, 'list'),
         },
         courses: { __use: 0 },
         tutorials: { __use: 1 },
     }
 }
 
-export const popularResultPartial: GqlPartial<PopularResult> = {
+export const popularResult: GqlPartial<PopularResult> = {
     __typename: 'PopularResult',
     list: {
         __define: {
-            0: async () => relPartial((await import('./organization')).organizationPartial, 'list'),
-            1: async () => relPartial((await import('./project')).projectPartial, 'list'),
-            2: async () => relPartial((await import('./routine')).routinePartial, 'list'),
-            3: async () => relPartial((await import('./standard')).standardPartial, 'list'),
-            4: async () => relPartial((await import('./user')).userPartial, 'list'),
+            0: async () => rel((await import('./organization')).organization, 'list'),
+            1: async () => rel((await import('./project')).project, 'list'),
+            2: async () => rel((await import('./routine')).routine, 'list'),
+            3: async () => rel((await import('./standard')).standard, 'list'),
+            4: async () => rel((await import('./user')).user, 'list'),
         },
         organizations: { __use: 0 },
         projects: { __use: 1 },
@@ -60,13 +60,13 @@ export const popularResultPartial: GqlPartial<PopularResult> = {
     }
 }
 
-export const researchResultPartial: GqlPartial<ResearchResult> = {
+export const researchResult: GqlPartial<ResearchResult> = {
     __typename: 'ResearchResult',
     list: {
         __define: {
-            0: async () => relPartial((await import('./routine')).routinePartial, 'list'),
-            1: async () => relPartial((await import('./project')).projectPartial, 'list'),
-            2: async () => relPartial((await import('./organization')).organizationPartial, 'list'),
+            0: async () => rel((await import('./routine')).routine, 'list'),
+            1: async () => rel((await import('./project')).project, 'list'),
+            2: async () => rel((await import('./organization')).organization, 'list'),
         },
         processes: { __use: 0 },
         newlyCompleted: { 

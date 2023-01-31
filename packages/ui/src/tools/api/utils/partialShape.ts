@@ -14,7 +14,6 @@ const addFragments = <T extends { __typename: string }>(
     fragmentsByShape: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } | undefined,
     define: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } | undefined
 ): { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } => {
-    // console.log('addfragments start', fragmentsByShape, define)
     // Initialize object to store the combined fragments
     let result: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = { ...fragmentsByShape } ?? {};
     // Loop through values in __define. We ignore the keys because they are only important when we 
@@ -34,7 +33,6 @@ const addFragments = <T extends { __typename: string }>(
             result = { ...result, ...__define } as any;
         }
     }
-    // console.log('addfragments end', result);
     return result;
 }
 
@@ -49,9 +47,6 @@ export const partialShape = async <T extends { __typename: string }>(
     selection: MaybeLazyAsync<DeepPartialBooleanWithFragments<NonMaybe<T>>>,
     lastDefine: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = {}
 ): Promise<DeepPartialBooleanWithFragments<NonMaybe<T>>> => {
-    // temporary number for debugging
-    const num = Math.floor(Math.random() * 10000);
-    // console.log('partialShape', num, 'a', { ...selection }, { ...lastDefine });
     // Initialize result
     const result: DeepPartialBooleanWithFragments<NonMaybe<T>> = {};
     // Unlazy the selection
@@ -61,7 +56,6 @@ export const partialShape = async <T extends { __typename: string }>(
     let uniqueFragments: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = {};
     // Add top-level fragments to uniqueFragments
     uniqueFragments = addFragments(uniqueFragments, data.__define as any);
-    // console.log('partialShape', num, 'b', { ...data }, { ...uniqueFragments }, { ...lastDefine });
     // Create currDefine object to hold current fragments (which haven't been renamed yet). 
     // Prefer the __define field from first and second object (i.e. current) over lastDefine (i.e. parent, grandparent, etc.).
     let currDefine: { [x: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = { ...(data.__define ?? {}) } as any;
@@ -74,7 +68,6 @@ export const partialShape = async <T extends { __typename: string }>(
         // This will ensure that it is unique across all objects.
         else if (exists(data[key]?.__union)) {
             if (!exists(data[key]?.__union)) continue;
-            // console.log('key is __union!!!', key, { ...data }, { ...currDefine })
             // Initialize __union field if it doesn't exist
             if (!exists(result[key])) {
                 result[key] = { __union: {} };
@@ -99,12 +92,10 @@ export const partialShape = async <T extends { __typename: string }>(
         }
         // If the value is an object with key __use (i.e. references a fragment), replace value to ensure uniqueness 
         else if (exists(data[key]?.__use)) {
-            // console.log('partialcombineyyy before use', key, data[key], { ...currDefine }, { ...lastDefine });
             // This is a single value instead of an object, so logic is much simpler than __union
             const useKey = data[key].__use;
             if (!exists(currDefine[useKey])) continue;
             const defineData = currDefine[useKey];
-            // console.log('going to find unique name 1', defineData);
             result[key] = { __typename: key, __use: uniqueFragmentName(defineData.__typename!, defineData.__selectionType!) };
         }
         // Otherwise, combine the values of the key
@@ -116,7 +107,6 @@ export const partialShape = async <T extends { __typename: string }>(
             }
             // Otherwise, assume it's an object and recursively combine
             else {
-                // console.log('partialcombineeeee before recurse', key, { ...data[key] }, { ...currDefine }, { ...lastDefine });
                 // Split __define (i.e. fragments) from the object so we can move them to shared fragments
                 const { __define, ...rest } = await partialShape(data[key] ?? {}, currDefine);
                 uniqueFragments = addFragments(uniqueFragments, __define as any);
@@ -126,7 +116,6 @@ export const partialShape = async <T extends { __typename: string }>(
     }
     // Set the __define field of the combined object
     if(Object.keys(uniqueFragments).length > 0) result.__define = uniqueFragments;
-    // console.log('partialcombine', num, 'end', { ...result });
     // Return the combined object
     return result;
 }

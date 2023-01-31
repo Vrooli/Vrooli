@@ -1,13 +1,13 @@
 import gql from 'graphql-tag';
 
-export const deleteOne = gql`
+export const deleteOneOrManyDeleteOne = gql`
 mutation deleteOne($input: DeleteOneInput!) {
   deleteOne(input: $input) {
     success
   }
 }`;
 
-export const deleteMany = gql`
+export const deleteOneOrManyDeleteMany = gql`
 mutation deleteMany($input: DeleteManyInput!) {
   deleteMany(input: $input) {
     count

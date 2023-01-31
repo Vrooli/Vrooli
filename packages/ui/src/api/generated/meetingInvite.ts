@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Label_full on Label {
+export const meetingInviteFindOne = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -193,7 +193,7 @@ query meetingInvite($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const meetingInviteFindMany = gql`
 query meetingInvites($input: MeetingInviteSearchInput!) {
   meetingInvites(input: $input) {
     edges {
@@ -217,7 +217,7 @@ query meetingInvites($input: MeetingInviteSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Label_full on Label {
+export const meetingInviteCreate = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -410,7 +410,7 @@ mutation meetingInviteCreate($input: MeetingInviteCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Label_full on Label {
+export const meetingInviteUpdate = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -603,7 +603,7 @@ mutation meetingInviteUpdate($input: MeetingInviteUpdateInput!) {
   }
 }`;
 
-export const accept = gql`fragment Label_full on Label {
+export const meetingInviteAccept = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -796,7 +796,7 @@ mutation meetingInviteAccept($input: FindByIdInput!) {
   }
 }`;
 
-export const decline = gql`fragment Label_full on Label {
+export const meetingInviteDecline = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount

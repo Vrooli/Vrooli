@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findMany = gql`
+export const statsSmartContractFindMany = gql`
 query statsSmartContract($input: StatsSmartContractSearchInput!) {
   statsSmartContract(input: $input) {
     edges {

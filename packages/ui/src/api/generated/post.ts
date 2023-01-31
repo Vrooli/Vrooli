@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const postFindOne = gql`
 query post($input: FindByIdInput!) {
   post(input: $input) {
     resourceList {
@@ -42,7 +42,7 @@ query post($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const postFindMany = gql`
 query posts($input: PostSearchInput!) {
   posts(input: $input) {
     edges {
@@ -93,7 +93,7 @@ query posts($input: PostSearchInput!) {
   }
 }`;
 
-export const create = gql`
+export const postCreate = gql`
 mutation postCreate($input: PostCreateInput!) {
   postCreate(input: $input) {
     resourceList {
@@ -135,7 +135,7 @@ mutation postCreate($input: PostCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const postUpdate = gql`
 mutation postUpdate($input: PostUpdateInput!) {
   postUpdate(input: $input) {
     resourceList {

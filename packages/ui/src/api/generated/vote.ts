@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findMany = gql`fragment Api_list on Api {
+export const voteFindMany = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -1193,7 +1193,7 @@ query votes($input: VoteSearchInput!) {
   }
 }`;
 
-export const vote = gql`
+export const voteVote = gql`
 mutation vote($input: VoteInput!) {
   vote(input: $input) {
     success

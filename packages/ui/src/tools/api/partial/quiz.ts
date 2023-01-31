@@ -1,8 +1,8 @@
 import { Quiz, QuizTranslation, QuizYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const quizTranslationPartial: GqlPartial<QuizTranslation> = {
+export const quizTranslation: GqlPartial<QuizTranslation> = {
     __typename: 'QuizTranslation',
     common: {
         id: true,
@@ -14,7 +14,7 @@ export const quizTranslationPartial: GqlPartial<QuizTranslation> = {
     list: {},
 }
 
-export const quizYouPartial: GqlPartial<QuizYou> = {
+export const quizYou: GqlPartial<QuizYou> = {
     __typename: 'QuizYou',
     common: {
         canDelete: true,
@@ -29,29 +29,29 @@ export const quizYouPartial: GqlPartial<QuizYou> = {
     list: {},
 }
 
-export const quizPartial: GqlPartial<Quiz> = {
+export const quiz: GqlPartial<Quiz> = {
     __typename: 'Quiz',
     common: {
         id: true,
         created_at: true,
         updated_at: true,
-        createdBy: async () => relPartial((await import('./user')).userPartial, 'nav'),
+        createdBy: async () => rel((await import('./user')).user, 'nav'),
         isCompleted: true,
         score: true,
         stars: true,
         views: true,
         attemptsCount: true,
         quizQuestionsCount: true,
-        project: async () => relPartial((await import('./project')).projectPartial, 'nav'),
-        routine: async () => relPartial((await import('./routine')).routinePartial, 'nav'),
-        you: async () => relPartial((await import('./quiz')).quizYouPartial, 'full'),
+        project: async () => rel((await import('./project')).project, 'nav'),
+        routine: async () => rel((await import('./routine')).routine, 'nav'),
+        you: async () => rel((await import('./quiz')).quizYou, 'full'),
     },
     full: {
-        quizQuestions: async () => relPartial((await import('./quizQuestion')).quizQuestionPartial, 'full', { omit: 'quiz' }),
-        stats: async () => relPartial((await import('./statsQuiz')).statsQuizPartial, 'full'),
-        translations: () => relPartial(quizTranslationPartial, 'full'),
+        quizQuestions: async () => rel((await import('./quizQuestion')).quizQuestion, 'full', { omit: 'quiz' }),
+        stats: async () => rel((await import('./statsQuiz')).statsQuiz, 'full'),
+        translations: () => rel(quizTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(quizTranslationPartial, 'list'),
+        translations: () => rel(quizTranslation, 'list'),
     }
 }

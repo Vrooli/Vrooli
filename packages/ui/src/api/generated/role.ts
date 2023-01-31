@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const roleFindOne = gql`
 query role($input: FindByIdInput!) {
   role(input: $input) {
     members {
@@ -50,7 +50,7 @@ query role($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const roleFindMany = gql`
 query roles($input: RoleSearchInput!) {
   roles(input: $input) {
     edges {
@@ -76,7 +76,7 @@ query roles($input: RoleSearchInput!) {
   }
 }`;
 
-export const create = gql`
+export const roleCreate = gql`
 mutation roleCreate($input: RoleCreateInput!) {
   roleCreate(input: $input) {
     members {
@@ -126,7 +126,7 @@ mutation roleCreate($input: RoleCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const roleUpdate = gql`
 mutation roleUpdate($input: RoleUpdateInput!) {
   roleUpdate(input: $input) {
     members {

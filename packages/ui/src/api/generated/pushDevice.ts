@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findMany = gql`
+export const pushDeviceFindMany = gql`
 query pushDevices($input: PushDeviceSearchInput!) {
   pushDevices(input: $input) {
     edges {
@@ -18,7 +18,7 @@ query pushDevices($input: PushDeviceSearchInput!) {
   }
 }`;
 
-export const create = gql`
+export const pushDeviceCreate = gql`
 mutation pushDeviceCreate($input: PushDeviceCreateInput!) {
   pushDeviceCreate(input: $input) {
     id
@@ -27,7 +27,7 @@ mutation pushDeviceCreate($input: PushDeviceCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const pushDeviceUpdate = gql`
 mutation pushDeviceUpdate($input: PushDeviceUpdateInput!) {
   pushDeviceUpdate(input: $input) {
     id

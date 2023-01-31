@@ -13,21 +13,18 @@ if (!fs.existsSync(outputFolder)) {
     fs.mkdirSync(outputFolder);
 }
 // Unlazy each endpoint property and write it to a separate file
-for (const groupName of Object.keys(endpoints)) {
-    const endpointGroup = await endpoints[groupName]();
-    const outputPath = `${outputFolder}/${groupName}.ts`;
-    console.log(`generating endpoints for ${groupName}...`);
+for (const objectType of Object.keys(endpoints)) {
+    const endpointGroup = await endpoints[objectType]();
+    const outputPath = `${outputFolder}/${objectType}.ts`;
+    console.log(`generating endpoints for ${objectType}...`);
     let outputContents = '';
     // Add import for gql
     outputContents += `import gql from 'graphql-tag';\n\n`;
     // For each endpoint in the group, unlazy it and write it to the file
     for (const endpointName of Object.keys(endpointGroup)) {
         const endpoint = await endpointGroup[endpointName];
-        console.log('got output contentsssss 1')
-        outputContents += `export const ${endpointName} = gql\`${endpoint[0]}\`;\n\n`;
-        console.log('got output contentsssss 2')
+        outputContents += `export const ${objectType}${endpointName[0].toUpperCase() + endpointName.slice(1)} = gql\`${endpoint[0]}\`;\n\n`;
     }
-    console.log('printing to file', outputPath);
     fs.writeFileSync(outputPath, outputContents);
 }
 // Load endpoints object from file

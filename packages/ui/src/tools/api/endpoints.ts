@@ -12,7 +12,7 @@ export const endpoints = {
     },
     apiKey: async () => {
         const { apiKey: apiKeyPartial } = await import('./partial/apiKey');
-        const { successPartial } = await import('./partial/success');
+        const { success: successPartial } = await import('./partial/success');
         return {
             create: toMutation('apiKeyCreate', 'ApiKeyCreateInput', apiKeyPartial, 'full'),
             update: toMutation('apiKeyUpdate', 'ApiKeyUpdateInput', apiKeyPartial, 'full'),
@@ -30,9 +30,9 @@ export const endpoints = {
         }
     },
     auth: async () => {
-        const { sessionPartial } = await import('./partial/session');
-        const { successPartial } = await import('./partial/success');
-        const { walletCompletePartial } = await import('./partial/walletComplete');
+        const { session: sessionPartial } = await import('./partial/session');
+        const { success: successPartial } = await import('./partial/success');
+        const { walletComplete: walletCompletePartial } = await import('./partial/walletComplete');
         return {
             emailLogIn: toMutation('emailLogIn', 'EmailLogInInput', sessionPartial, 'full'),
             emailSignUp: toMutation('emailSignUp', 'EmailSignUpInput', sessionPartial, 'full'),
@@ -47,7 +47,7 @@ export const endpoints = {
         }
     },
     comment: async () => {
-        const { comment: commentPartial, commentThreadPartial } = await import('./partial/comment');
+        const { comment: commentPartial, commentThread: commentThreadPartial } = await import('./partial/comment');
         return {
             findOne: toQuery('comment', 'FindByIdInput', commentPartial, 'full'),
             findMany: toQuery('comments', 'CommentSearchInput', commentThreadPartial, 'full'),
@@ -56,29 +56,29 @@ export const endpoints = {
         }
     },
     copy: async () => {
-        const { copyResultPartial } = await import('./partial/copyResult');
+        const { copyResult: copyResultPartial } = await import('./partial/copyResult');
         return {
             copy: toMutation('copy', 'CopyInput', copyResultPartial, 'full'),
         }
     },
     deleteOneOrMany: async () => {
-        const { successPartial } = await import('./partial/success');
-        const { countPartial } = await import('./partial/count');
+        const { success: successPartial } = await import('./partial/success');
+        const { count: countPartial } = await import('./partial/count');
         return {
             deleteOne: toMutation('deleteOne', 'DeleteOneInput', successPartial, 'full'),
             deleteMany: toMutation('deleteMany', 'DeleteManyInput', countPartial, 'full'),
         }
     },
     email: async () => {
-        const { emailPartial } = await import('./partial/email');
-        const { successPartial } = await import('./partial/success');
+        const { email: emailPartial } = await import('./partial/email');
+        const { success: successPartial } = await import('./partial/success');
         return {
             create: toMutation('emailCreate', 'PhoneCreateInput', emailPartial, 'full'),
             verify: toMutation('sendVerificationEmail', 'SendVerificationEmailInput', successPartial, 'full'),
         }
     },
     feed: async () => {
-        const { developResultPartial, learnResultPartial, popularResultPartial, researchResultPartial } = await import('./partial/feed');
+        const { developResult: developResultPartial, learnResult: learnResultPartial, popularResult: popularResultPartial, researchResult: researchResultPartial } = await import('./partial/feed');
         return {
             popular: toQuery('popular', 'PopularInput', popularResultPartial, 'list'),
             learn: toQuery('learn', null, learnResultPartial, 'list'),
@@ -87,13 +87,13 @@ export const endpoints = {
         }
     },
     history: async () => {
-        const { historyResultPartial } = await import('./partial/historyResult');
+        const { historyResult: historyResultPartial } = await import('./partial/historyResult');
         return {
             history: toQuery('history', 'HistoryInput', historyResultPartial, 'list'),
         }
     },
     issue: async () => {
-        const { issuePartial } = await import('./partial/issue');
+        const { issue: issuePartial } = await import('./partial/issue');
         return {
             findOne: toQuery('issue', 'FindByIdInput', issuePartial, 'full'),
             findMany: toQuery('issues', 'IssueSearchInput', ...(await toSearch(issuePartial))),
@@ -103,7 +103,7 @@ export const endpoints = {
         }
     },
     label: async () => {
-        const { labelPartial } = await import('./partial/label');
+        const { label: labelPartial } = await import('./partial/label');
         return {
             findOne: toQuery('label', 'FindByIdInput', labelPartial, 'full'),
             findMany: toQuery('labels', 'LabelSearchInput', ...(await toSearch(labelPartial))),
@@ -112,7 +112,7 @@ export const endpoints = {
         }
     },
     meeting: async () => {
-        const { meetingPartial } = await import('./partial/meeting');
+        const { meeting: meetingPartial } = await import('./partial/meeting');
         return {
             findOne: toQuery('meeting', 'FindByIdInput', meetingPartial, 'full'),
             findMany: toQuery('meetings', 'MeetingSearchInput', ...(await toSearch(meetingPartial))),
@@ -121,7 +121,7 @@ export const endpoints = {
         }
     },
     meetingInvite: async () => {
-        const { meetingInvitePartial } = await import('./partial/meetingInvite');
+        const { meetingInvite: meetingInvitePartial } = await import('./partial/meetingInvite');
         return {
             findOne: toQuery('meetingInvite', 'FindByIdInput', meetingInvitePartial, 'full'),
             findMany: toQuery('meetingInvites', 'MeetingInviteSearchInput', ...(await toSearch(meetingInvitePartial))),
@@ -132,7 +132,7 @@ export const endpoints = {
         }
     },
     member: async () => {
-        const { memberPartial } = await import('./partial/member');
+        const { member: memberPartial } = await import('./partial/member');
         return {
             findOne: toQuery('member', 'FindByIdInput', memberPartial, 'full'),
             findMany: toQuery('members', 'MemberSearchInput', ...(await toSearch(memberPartial))),
@@ -140,7 +140,7 @@ export const endpoints = {
         }
     },
     memberInvite: async () => {
-        const { memberInvitePartial } = await import('./partial/memberInvite');
+        const { memberInvite: memberInvitePartial } = await import('./partial/memberInvite');
         return {
             findOne: toQuery('memberInvite', 'FindByIdInput', memberInvitePartial, 'full'),
             findMany: toQuery('memberInvites', 'MemberInviteSearchInput', ...(await toSearch(memberInvitePartial))),
@@ -151,14 +151,14 @@ export const endpoints = {
         }
     },
     node: async () => {
-        const { nodePartial } = await import('./partial/node');
+        const { node: nodePartial } = await import('./partial/node');
         return {
             create: toMutation('nodeCreate', 'NodeCreateInput', nodePartial, 'full'),
             update: toMutation('nodeUpdate', 'NodeUpdateInput', nodePartial, 'full'),
         }
     },
     note: async () => {
-        const { notePartial } = await import('./partial/note');
+        const { note: notePartial } = await import('./partial/note');
         return {
             findOne: toQuery('note', 'FindByIdInput', notePartial, 'full'),
             findMany: toQuery('notes', 'NoteSearchInput', ...(await toSearch(notePartial))),
@@ -167,7 +167,7 @@ export const endpoints = {
         }
     },
     noteVersion: async () => {
-        const { noteVersionPartial } = await import('./partial/noteVersion');
+        const { noteVersion: noteVersionPartial } = await import('./partial/noteVersion');
         return {
             findOne: toQuery('noteVersion', 'FindByIdInput', noteVersionPartial, 'full'),
             findMany: toQuery('noteVersions', 'NoteVersionSearchInput', ...(await toSearch(noteVersionPartial))),
@@ -176,9 +176,9 @@ export const endpoints = {
         }
     },
     notification: async () => {
-        const { notificationPartial, notificationSettingsPartial } = await import('./partial/notification');
-        const { successPartial } = await import('./partial/success');
-        const { countPartial } = await import('./partial/count');
+        const { notification: notificationPartial, notificationSettings: notificationSettingsPartial } = await import('./partial/notification');
+        const { success: successPartial } = await import('./partial/success');
+        const { count: countPartial } = await import('./partial/count');
         return {
             findOne: toQuery('notification', 'FindByIdInput', notificationPartial, 'full'),
             findMany: toQuery('notifications', 'NotificationSearchInput', ...(await toSearch(notificationPartial))),
@@ -188,7 +188,7 @@ export const endpoints = {
         }
     },
     notificationSubscription: async () => {
-        const { notificationSubscriptionPartial } = await import('./partial/notificationSubscription');
+        const { notificationSubscription: notificationSubscriptionPartial } = await import('./partial/notificationSubscription');
         return {
             findOne: toQuery('notificationSubscription', 'FindByIdInput', notificationSubscriptionPartial, 'full'),
             findMany: toQuery('notificationSubscriptions', 'NotificationSubscriptionSearchInput', ...(await toSearch(notificationSubscriptionPartial))),
@@ -197,7 +197,7 @@ export const endpoints = {
         }
     },
     organization: async () => {
-        const { organizationPartial } = await import('./partial/organization');
+        const { organization: organizationPartial } = await import('./partial/organization');
         return {
             findOne: toQuery('organization', 'FindByIdInput', organizationPartial, 'full'),
             findMany: toQuery('organizations', 'OrganizationSearchInput', ...(await toSearch(organizationPartial))),
@@ -206,15 +206,15 @@ export const endpoints = {
         }
     },
     phone: async () => {
-        const { phonePartial } = await import('./partial/phone');
-        const { successPartial } = await import('./partial/success');
+        const { phone: phonePartial } = await import('./partial/phone');
+        const { success: successPartial } = await import('./partial/success');
         return {
             create: toMutation('phoneCreate', 'PhoneCreateInput', phonePartial, 'full'),
             update: toMutation('sendVerificationText', 'SendVerificationTextInput', successPartial, 'full'),
         }
     },
     post: async () => {
-        const { postPartial } = await import('./partial/post');
+        const { post: postPartial } = await import('./partial/post');
         return {
             findOne: toQuery('post', 'FindByIdInput', postPartial, 'full'),
             findMany: toQuery('posts', 'PostSearchInput', ...(await toSearch(postPartial))),
@@ -223,7 +223,7 @@ export const endpoints = {
         }
     },
     project: async () => {
-        const { projectPartial } = await import('./partial/project');
+        const { project: projectPartial } = await import('./partial/project');
         return {
             findOne: toQuery('project', 'FindByIdInput', projectPartial, 'full'),
             findMany: toQuery('projects', 'ProjectSearchInput', ...(await toSearch(projectPartial))),
@@ -232,19 +232,19 @@ export const endpoints = {
         }
     },
     projectOrOrganization: async () => {
-        const { projectOrOrganizationPartial } = await import('./partial/projectOrOrganization');
+        const { projectOrOrganization: projectOrOrganizationPartial } = await import('./partial/projectOrOrganization');
         return {
             findMany: toQuery('projectOrOrganizations', 'ProjectOrOrganizationSearchInput', ...(await toSearch(projectOrOrganizationPartial))),
         }
     },
     projectOrRoutine: async () => {
-        const { projectOrRoutinePartial } = await import('./partial/projectOrRoutine');
+        const { projectOrRoutine: projectOrRoutinePartial } = await import('./partial/projectOrRoutine');
         return {
             findMany: toQuery('projectOrRoutines', 'ProjectOrRoutineSearchInput', ...(await toSearch(projectOrRoutinePartial))),
         }
     },
     projectVersion: async () => {
-        const { projectVersionPartial } = await import('./partial/projectVersion');
+        const { projectVersion: projectVersionPartial } = await import('./partial/projectVersion');
         return {
             findOne: toQuery('projectVersion', 'FindByIdInput', projectVersionPartial, 'full'),
             findMany: toQuery('projectVersions', 'ProjectVersionSearchInput', ...(await toSearch(projectVersionPartial))),
@@ -253,7 +253,7 @@ export const endpoints = {
         }
     },
     pullRequest: async () => {
-        const { pullRequestPartial } = await import('./partial/pullRequest');
+        const { pullRequest: pullRequestPartial } = await import('./partial/pullRequest');
         return {
             findOne: toQuery('pullRequest', 'FindByIdInput', pullRequestPartial, 'full'),
             findMany: toQuery('pullRequests', 'PullRequestSearchInput', ...(await toSearch(pullRequestPartial))),
@@ -264,7 +264,7 @@ export const endpoints = {
         }
     },
     pushDevice: async () => {
-        const { pushDevicePartial } = await import('./partial/pushDevice');
+        const { pushDevice: pushDevicePartial } = await import('./partial/pushDevice');
         return {
             findMany: toQuery('pushDevices', 'PushDeviceSearchInput', ...(await toSearch(pushDevicePartial))),
             create: toMutation('pushDeviceCreate', 'PushDeviceCreateInput', pushDevicePartial, 'full'),
@@ -272,7 +272,7 @@ export const endpoints = {
         }
     },
     question: async () => {
-        const { questionPartial } = await import('./partial/question');
+        const { question: questionPartial } = await import('./partial/question');
         return {
             findOne: toQuery('question', 'FindByIdInput', questionPartial, 'full'),
             findMany: toQuery('questions', 'QuestionSearchInput', ...(await toSearch(questionPartial))),
@@ -281,7 +281,7 @@ export const endpoints = {
         }
     },
     questionAnswer: async () => {
-        const { questionAnswerPartial } = await import('./partial/questionAnswer');
+        const { questionAnswer: questionAnswerPartial } = await import('./partial/questionAnswer');
         return {
             findOne: toQuery('questionAnswer', 'FindByIdInput', questionAnswerPartial, 'full'),
             findMany: toQuery('questionAnswers', 'QuestionAnswerSearchInput', ...(await toSearch(questionAnswerPartial))),
@@ -291,7 +291,7 @@ export const endpoints = {
         }
     },
     quiz: async () => {
-        const { quizPartial } = await import('./partial/quiz');
+        const { quiz: quizPartial } = await import('./partial/quiz');
         return {
             findOne: toQuery('quiz', 'FindByIdInput', quizPartial, 'full'),
             findMany: toQuery('quizzes', 'QuizSearchInput', ...(await toSearch(quizPartial))),
@@ -300,7 +300,7 @@ export const endpoints = {
         }
     },
     quizAttempt: async () => {
-        const { quizAttemptPartial } = await import('./partial/quizAttempt');
+        const { quizAttempt: quizAttemptPartial } = await import('./partial/quizAttempt');
         return {
             findOne: toQuery('quizAttempt', 'FindByIdInput', quizAttemptPartial, 'full'),
             findMany: toQuery('quizAttempts', 'QuizAttemptSearchInput', ...(await toSearch(quizAttemptPartial))),
@@ -309,14 +309,14 @@ export const endpoints = {
         }
     },
     quizQuestion: async () => {
-        const { quizQuestionPartial } = await import('./partial/quizQuestion');
+        const { quizQuestion: quizQuestionPartial } = await import('./partial/quizQuestion');
         return {
             findOne: toQuery('quizQuestion', 'FindByIdInput', quizQuestionPartial, 'full'),
             findMany: toQuery('quizQuestions', 'QuizQuestionSearchInput', ...(await toSearch(quizQuestionPartial))),
         }
     },
     quizQuestionResponse: async () => {
-        const { quizQuestionResponsePartial } = await import('./partial/quizQuestionResponse');
+        const { quizQuestionResponse: quizQuestionResponsePartial } = await import('./partial/quizQuestionResponse');
         return {
             findOne: toQuery('quizQuestionResponse', 'FindByIdInput', quizQuestionResponsePartial, 'full'),
             findMany: toQuery('quizQuestionResponses', 'QuizQuestionResponseSearchInput', ...(await toSearch(quizQuestionResponsePartial))),
@@ -325,7 +325,7 @@ export const endpoints = {
         }
     },
     reminder: async () => {
-        const { reminderPartial } = await import('./partial/reminder');
+        const { reminder: reminderPartial } = await import('./partial/reminder');
         return {
             findOne: toQuery('reminder', 'FindByIdInput', reminderPartial, 'full'),
             findMany: toQuery('reminders', 'ReminderSearchInput', ...(await toSearch(reminderPartial))),
@@ -334,7 +334,7 @@ export const endpoints = {
         }
     },
     reminderList: async () => {
-        const { reminderListPartial } = await import('./partial/reminderList');
+        const { reminderList: reminderListPartial } = await import('./partial/reminderList');
         return {
             findOne: toQuery('reminderList', 'FindByIdInput', reminderListPartial, 'full'),
             findMany: toQuery('reminderLists', 'ReminderListSearchInput', ...(await toSearch(reminderListPartial))),
@@ -343,7 +343,7 @@ export const endpoints = {
         }
     },
     report: async () => {
-        const { reportPartial } = await import('./partial/report');
+        const { report: reportPartial } = await import('./partial/report');
         return {
             findOne: toQuery('report', 'FindByIdInput', reportPartial, 'full'),
             findMany: toQuery('reports', 'ReportSearchInput', ...(await toSearch(reportPartial))),
@@ -352,7 +352,7 @@ export const endpoints = {
         }
     },
     reportResponse: async () => {
-        const { reportResponsePartial } = await import('./partial/reportResponse');
+        const { reportResponse: reportResponsePartial } = await import('./partial/reportResponse');
         return {
             findOne: toQuery('reportResponse', 'FindByIdInput', reportResponsePartial, 'full'),
             findMany: toQuery('reportResponses', 'ReportResponseSearchInput', ...(await toSearch(reportResponsePartial))),
@@ -361,14 +361,14 @@ export const endpoints = {
         }
     },
     reputationHistory: async () => {
-        const { reputationHistoryPartial } = await import('./partial/reputationHistory');
+        const { reputationHistory: reputationHistoryPartial } = await import('./partial/reputationHistory');
         return {
             findOne: toQuery('reputationHistory', 'FindByIdInput', reputationHistoryPartial, 'full'),
             findMany: toQuery('reputationHistories', 'ReputationHistorySearchInput', ...(await toSearch(reputationHistoryPartial))),
         }
     },
     resource: async () => {
-        const { resourcePartial } = await import('./partial/resource');
+        const { resource: resourcePartial } = await import('./partial/resource');
         return {
             findOne: toQuery('resource', 'FindByIdInput', resourcePartial, 'full'),
             findMany: toQuery('resources', 'ResourceSearchInput', ...(await toSearch(resourcePartial))),
@@ -377,7 +377,7 @@ export const endpoints = {
         }
     },
     resourceList: async () => {
-        const { resourceListPartial } = await import('./partial/resourceList');
+        const { resourceList: resourceListPartial } = await import('./partial/resourceList');
         return {
             findOne: toQuery('resourceList', 'FindByIdInput', resourceListPartial, 'full'),
             findMany: toQuery('resourceLists', 'ResourceListSearchInput', ...(await toSearch(resourceListPartial))),
@@ -386,7 +386,7 @@ export const endpoints = {
         }
     },
     role: async () => {
-        const { rolePartial } = await import('./partial/role');
+        const { role: rolePartial } = await import('./partial/role');
         return {
             findOne: toQuery('role', 'FindByIdInput', rolePartial, 'full'),
             findMany: toQuery('roles', 'RoleSearchInput', ...(await toSearch(rolePartial))),
@@ -395,7 +395,7 @@ export const endpoints = {
         }
     },
     routine: async () => {
-        const { routinePartial } = await import('./partial/routine');
+        const { routine: routinePartial } = await import('./partial/routine');
         return {
             findOne: toQuery('routine', 'FindByIdInput', routinePartial, 'full'),
             findMany: toQuery('routines', 'RoutineSearchInput', ...(await toSearch(routinePartial))),
@@ -404,7 +404,7 @@ export const endpoints = {
         }
     },
     routineVersion: async () => {
-        const { routineVersionPartial } = await import('./partial/routineVersion');
+        const { routineVersion: routineVersionPartial } = await import('./partial/routineVersion');
         return {
             findOne: toQuery('routineVersion', 'FindByIdInput', routineVersionPartial, 'full'),
             findMany: toQuery('routineVersions', 'RoutineVersionSearchInput', ...(await toSearch(routineVersionPartial))),
@@ -413,8 +413,8 @@ export const endpoints = {
         }
     },
     runProject: async () => {
-        const { runProjectPartial } = await import('./partial/runProject');
-        const { countPartial } = await import('./partial/count');
+        const { runProject: runProjectPartial } = await import('./partial/runProject');
+        const { count: countPartial } = await import('./partial/count');
         return {
             findOne: toQuery('runProject', 'FindByIdInput', runProjectPartial, 'full'),
             findMany: toQuery('runProjects', 'RunProjectSearchInput', ...(await toSearch(runProjectPartial))),
@@ -426,13 +426,13 @@ export const endpoints = {
         }
     },
     runProjectOrRunRoutine: async () => {
-        const { runProjectOrRunRoutinePartial } = await import('./partial/runProjectOrRunRoutine');
+        const { runProjectOrRunRoutine: runProjectOrRunRoutinePartial } = await import('./partial/runProjectOrRunRoutine');
         return {
             findMany: toQuery('runProjectOrRunRoutines', 'RunProjectOrRunRoutineSearchInput', ...(await toSearch(runProjectOrRunRoutinePartial))),
         }
     },
     runProjectSchedule: async () => {
-        const { runProjectSchedulePartial } = await import('./partial/runProjectSchedule');
+        const { runProjectSchedule: runProjectSchedulePartial } = await import('./partial/runProjectSchedule');
         return {
             findOne: toQuery('runProjectSchedule', 'FindByIdInput', runProjectSchedulePartial, 'full'),
             findMany: toQuery('runProjectSchedules', 'RunProjectScheduleSearchInput', ...(await toSearch(runProjectSchedulePartial))),
@@ -441,8 +441,8 @@ export const endpoints = {
         }
     },
     runRoutine: async () => {
-        const { runRoutinePartial } = await import('./partial/runRoutine');
-        const { countPartial } = await import('./partial/count');
+        const { runRoutine: runRoutinePartial } = await import('./partial/runRoutine');
+        const { count: countPartial } = await import('./partial/count');
         return {
             findOne: toQuery('runRoutine', 'FindByIdInput', runRoutinePartial, 'full'),
             findMany: toQuery('runRoutines', 'RunRoutineSearchInput', ...(await toSearch(runRoutinePartial))),
@@ -454,13 +454,13 @@ export const endpoints = {
         }
     },
     runRoutineInput: async () => {
-        const { runRoutineInputPartial } = await import('./partial/runRoutineInput');
+        const { runRoutineInput: runRoutineInputPartial } = await import('./partial/runRoutineInput');
         return {
             findMany: toQuery('runRoutineInputs', 'RunRoutineInputSearchInput', ...(await toSearch(runRoutineInputPartial))),
         }
     },
     runRoutineSchedule: async () => {
-        const { runRoutineSchedulePartial } = await import('./partial/runRoutineSchedule');
+        const { runRoutineSchedule: runRoutineSchedulePartial } = await import('./partial/runRoutineSchedule');
         return {
             findOne: toQuery('runRoutineSchedule', 'FindByIdInput', runRoutineSchedulePartial, 'full'),
             findMany: toQuery('runRoutineSchedules', 'RunRoutineScheduleSearchInput', ...(await toSearch(runRoutineSchedulePartial))),
@@ -469,7 +469,7 @@ export const endpoints = {
         }
     },
     smartContract: async () => {
-        const { smartContractPartial } = await import('./partial/smartContract');
+        const { smartContract: smartContractPartial } = await import('./partial/smartContract');
         return {
             findOne: toQuery('smartContract', 'FindByIdInput', smartContractPartial, 'full'),
             findMany: toQuery('smartContracts', 'SmartContractSearchInput', ...(await toSearch(smartContractPartial))),
@@ -478,7 +478,7 @@ export const endpoints = {
         }
     },
     smartContractVersion: async () => {
-        const { smartContractVersionPartial } = await import('./partial/smartContractVersion');
+        const { smartContractVersion: smartContractVersionPartial } = await import('./partial/smartContractVersion');
         return {
             findOne: toQuery('smartContractVersion', 'FindByIdInput', smartContractVersionPartial, 'full'),
             findMany: toQuery('smartContractVersions', 'SmartContractVersionSearchInput', ...(await toSearch(smartContractVersionPartial))),
@@ -487,7 +487,7 @@ export const endpoints = {
         }
     },
     standard: async () => {
-        const { standardPartial } = await import('./partial/standard');
+        const { standard: standardPartial } = await import('./partial/standard');
         return {
             findOne: toQuery('standard', 'FindByIdInput', standardPartial, 'full'),
             findMany: toQuery('standards', 'StandardSearchInput', ...(await toSearch(standardPartial))),
@@ -496,7 +496,7 @@ export const endpoints = {
         }
     },
     standardVersion: async () => {
-        const { standardVersionPartial } = await import('./partial/standardVersion');
+        const { standardVersion: standardVersionPartial } = await import('./partial/standardVersion');
         return {
             findOne: toQuery('standardVersion', 'FindByIdInput', standardVersionPartial, 'full'),
             findMany: toQuery('standardVersions', 'StandardVersionSearchInput', ...(await toSearch(standardVersionPartial))),
@@ -505,69 +505,69 @@ export const endpoints = {
         }
     },
     star: async () => {
-        const { starPartial } = await import('./partial/star');
-        const { successPartial } = await import('./partial/success');
+        const { star: starPartial } = await import('./partial/star');
+        const { success: successPartial } = await import('./partial/success');
         return {
             findMany: toQuery('stars', 'StarSearchInput', ...(await toSearch(starPartial))),
             star: toMutation('star', 'StarInput', successPartial, 'full'),
         }
     },
     statsApi: async () => {
-        const { statsApiPartial } = await import('./partial/statsApi');
+        const { statsApi: statsApiPartial } = await import('./partial/statsApi');
         return {
             findMany: toQuery('statsApi', 'StatsApiSearchInput', ...(await toSearch(statsApiPartial))),
         }
     },
     statsOrganization: async () => {
-        const { statsOrganizationPartial } = await import('./partial/statsOrganization');
+        const { statsOrganization: statsOrganizationPartial } = await import('./partial/statsOrganization');
         return {
             findMany: toQuery('statsOrganization', 'StatsOrganizationSearchInput', ...(await toSearch(statsOrganizationPartial))),
         }
     },
     statsProject: async () => {
-        const { statsProjectPartial } = await import('./partial/statsProject');
+        const { statsProject: statsProjectPartial } = await import('./partial/statsProject');
         return {
             findMany: toQuery('statsProject', 'StatsProjectSearchInput', ...(await toSearch(statsProjectPartial))),
         }
     },
     statsQuiz: async () => {
-        const { statsQuizPartial } = await import('./partial/statsQuiz');
+        const { statsQuiz: statsQuizPartial } = await import('./partial/statsQuiz');
         return {
             findMany: toQuery('statsQuiz', 'StatsQuizSearchInput', ...(await toSearch(statsQuizPartial))),
         }
     },
     statsRoutine: async () => {
-        const { statsRoutinePartial } = await import('./partial/statsRoutine');
+        const { statsRoutine: statsRoutinePartial } = await import('./partial/statsRoutine');
         return {
             findMany: toQuery('statsRoutine', 'StatsRoutineSearchInput', ...(await toSearch(statsRoutinePartial))),
         }
     },
     statsSite: async () => {
-        const { statsSitePartial } = await import('./partial/statsSite');
+        const { statsSite: statsSitePartial } = await import('./partial/statsSite');
         return {
             findMany: toQuery('statsSite', 'StatsSiteSearchInput', ...(await toSearch(statsSitePartial))),
         }
     },
     statsSmartContract: async () => {
-        const { statsSmartContractPartial } = await import('./partial/statsSmartContract');
+        const { statsSmartContract: statsSmartContractPartial } = await import('./partial/statsSmartContract');
         return {
             findMany: toQuery('statsSmartContract', 'StatsSmartContractSearchInput', ...(await toSearch(statsSmartContractPartial))),
         }
     },
     statsStandard: async () => {
-        const { statsStandardPartial } = await import('./partial/statsStandard');
+        const { statsStandard: statsStandardPartial } = await import('./partial/statsStandard');
         return {
             findMany: toQuery('statsStandard', 'StatsStandardSearchInput', ...(await toSearch(statsStandardPartial))),
         }
     },
     statsUser: async () => {
-        const { statsUserPartial } = await import('./partial/statsUser');
+        const { statsUser: statsUserPartial } = await import('./partial/statsUser');
         return {
             findMany: toQuery('statsUser', 'StatsUserSearchInput', ...(await toSearch(statsUserPartial))),
         }
     },
     tag: async () => {
-        const { tagPartial } = await import('./partial/tag');
+        const { tag: tagPartial } = await import('./partial/tag');
         return {
             findOne: toQuery('tag', 'FindByIdInput', tagPartial, 'full'),
             findMany: toQuery('tags', 'TagSearchInput', ...(await toSearch(tagPartial))),
@@ -576,7 +576,7 @@ export const endpoints = {
         }
     },
     transfer: async () => {
-        const { transferPartial } = await import('./partial/transfer');
+        const { transfer: transferPartial } = await import('./partial/transfer');
         return {
             findOne: toQuery('transfer', 'FindByIdInput', transferPartial, 'full'),
             findMany: toQuery('transfers', 'TransferSearchInput', ...(await toSearch(transferPartial))),
@@ -589,14 +589,14 @@ export const endpoints = {
         }
     },
     translate: async () => {
-        const { translatePartial } = await import('./partial/translate');
+        const { translate: translatePartial } = await import('./partial/translate');
         return {
             translate: toQuery('translate', 'FindByIdInput', translatePartial, 'full'),
         }
     },
     user: async () => {
-        const { userPartial, profilePartial } = await import('./partial/user');
-        const { successPartial } = await import('./partial/success');
+        const { user: userPartial, profile: profilePartial } = await import('./partial/user');
+        const { success: successPartial } = await import('./partial/success');
         return {
             profile: toQuery('profile', null, profilePartial, 'full'),
             findOne: toQuery('user', 'FindByIdInput', userPartial, 'full'),
@@ -608,7 +608,7 @@ export const endpoints = {
         }
     },
     userSchedule: async () => {
-        const { userSchedulePartial } = await import('./partial/userSchedule');
+        const { userSchedule: userSchedulePartial } = await import('./partial/userSchedule');
         return {
             findOne: toQuery('userSchedule', 'FindByIdInput', userSchedulePartial, 'full'),
             findMany: toQuery('userSchedules', 'UserScheduleSearchInput', ...(await toSearch(userSchedulePartial))),
@@ -617,21 +617,21 @@ export const endpoints = {
         }
     },
     view: async () => {
-        const { viewPartial } = await import('./partial/view');
+        const { view: viewPartial } = await import('./partial/view');
         return {
             findMany: toQuery('views', 'ViewSearchInput', ...(await toSearch(viewPartial))),
         }
     },
     vote: async () => {
-        const { votePartial } = await import('./partial/vote');
-        const { successPartial } = await import('./partial/success');
+        const { vote: votePartial } = await import('./partial/vote');
+        const { success: successPartial } = await import('./partial/success');
         return {
             findMany: toQuery('votes', 'VoteSearchInput', ...(await toSearch(votePartial))),
             vote: toMutation('vote', 'VoteInput', successPartial, 'full'),
         }
     },
     wallet: async () => {
-        const { walletPartial } = await import('./partial/wallet');
+        const { wallet: walletPartial } = await import('./partial/wallet');
         return {
             findHandles: toQuery('findHandles', 'FindHandlesInput'),
             update: toMutation('walletUpdate', 'WalletUpdateInput', walletPartial, 'full'),

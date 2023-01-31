@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const copy = gql`fragment Api_list on Api {
+export const copyCopy = gql`fragment Api_list on Api {
     versions {
         translations {
             id

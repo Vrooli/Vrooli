@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Api_list on Api {
+export const transferFindOne = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -717,7 +717,7 @@ query transfer($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`fragment Api_list on Api {
+export const transferFindMany = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -1443,7 +1443,7 @@ query transfers($input: TransferSearchInput!) {
   }
 }`;
 
-export const requestSend = gql`fragment Api_list on Api {
+export const transferRequestSend = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -2160,7 +2160,7 @@ mutation transferRequestSend($input: TransferRequestSendInput!) {
   }
 }`;
 
-export const requestReceive = gql`fragment Api_list on Api {
+export const transferRequestReceive = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -2877,7 +2877,7 @@ mutation transferRequestReceive($input: TransferRequestReceiveInput!) {
   }
 }`;
 
-export const transferUpdate = gql`fragment Api_list on Api {
+export const transferTransferUpdate = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -3594,7 +3594,7 @@ mutation transferUpdate($input: TransferUpdateInput!) {
   }
 }`;
 
-export const transferCancel = gql`fragment Api_list on Api {
+export const transferTransferCancel = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -4311,7 +4311,7 @@ mutation transferCancel($input: FindByIdInput!) {
   }
 }`;
 
-export const transferAccept = gql`fragment Api_list on Api {
+export const transferTransferAccept = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -5028,7 +5028,7 @@ mutation transferAccept($input: FindByIdInput!) {
   }
 }`;
 
-export const transferDeny = gql`fragment Api_list on Api {
+export const transferTransferDeny = gql`fragment Api_list on Api {
     versions {
         translations {
             id

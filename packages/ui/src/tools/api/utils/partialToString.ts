@@ -1,7 +1,7 @@
 import { exists } from "@shared/utils";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
 import { partialToStringHelper } from "./partialToStringHelper";
-import { relPartial } from "./relPartial";
+import { rel } from "./relPartial";
 
 type PartialToStringProps<
     EndpointType extends 'query' | 'mutation',
@@ -48,7 +48,7 @@ export const partialToString = async <
     // Calculate the fragments and selection set by combining partials
     let combined: DeepPartialBooleanWithFragments<any> = {};
     if (exists(partial) && exists(selectionType)) {
-        combined = await relPartial(partial, selectionType)
+        combined = await rel(partial, selectionType)
     }
     // Initialize the string to return
     let str = '';
@@ -57,7 +57,6 @@ export const partialToString = async <
     if (exists(__define) && Object.keys(__define).length > 0) {
         str += await partialToStringHelper({ __define } as any, indent);
     }
-    // console.log('PARTIAL TO STRING WITHOUT FRAGMENTS', rest)
     // Add the query/mutation itself
     str += `
 ${' '.repeat(indent)}${endpointType} ${endpointName}`;
@@ -82,7 +81,6 @@ ${' '.repeat(indent + 2)}`;
     // Add the final closing bracket
     str += `
 ${' '.repeat(indent)}}`;
-    // console.log('partialToString result', str)
     // Return the string
     return str;
 };

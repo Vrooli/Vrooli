@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findMany = gql`fragment Api_list on Api {
+export const starFindMany = gql`fragment Api_list on Api {
     versions {
         translations {
             id
@@ -1297,7 +1297,7 @@ query stars($input: StarSearchInput!) {
   }
 }`;
 
-export const star = gql`
+export const starStar = gql`
 mutation star($input: StarInput!) {
   star(input: $input) {
     success

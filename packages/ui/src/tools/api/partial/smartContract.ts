@@ -1,8 +1,8 @@
 import { SmartContract, SmartContractYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const smartContractYouPartial: GqlPartial<SmartContractYou> = {
+export const smartContractYou: GqlPartial<SmartContractYou> = {
     __typename: 'SmartContractYou',
     common: {
         canDelete: true,
@@ -19,14 +19,14 @@ export const smartContractYouPartial: GqlPartial<SmartContractYou> = {
     list: {},
 }
 
-export const smartContractPartial: GqlPartial<SmartContract> = {
+export const smartContract: GqlPartial<SmartContract> = {
     __typename: 'SmartContract',
     common: {
         __define: {
-            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
-            2: async () => relPartial((await import('./tag')).tagPartial, 'list'),
-            3: async () => relPartial((await import('./label')).labelPartial, 'list'),
+            0: async () => rel((await import('./organization')).organization, 'nav'),
+            1: async () => rel((await import('./user')).user, 'nav'),
+            2: async () => rel((await import('./tag')).tag, 'list'),
+            3: async () => rel((await import('./label')).label, 'list'),
         },
         id: true,
         created_at: true,
@@ -47,14 +47,14 @@ export const smartContractPartial: GqlPartial<SmartContract> = {
         tags: { __use: 2 },
         transfersCount: true,
         views: true,
-        you: () => relPartial(smartContractYouPartial, 'full'),
+        you: () => rel(smartContractYou, 'full'),
     },
     full: {
-        versions: async () => relPartial((await import('./smartContractVersion')).smartContractVersionPartial, 'full', { omit: 'root' }),
-        stats: async () => relPartial((await import('./statsSmartContract')).statsSmartContractPartial, 'full'),
+        versions: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'full', { omit: 'root' }),
+        stats: async () => rel((await import('./statsSmartContract')).statsSmartContract, 'full'),
     },
     list: {
-        versions: async () => relPartial((await import('./smartContractVersion')).smartContractVersionPartial, 'list', { omit: 'root' }),
+        versions: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'list', { omit: 'root' }),
     },
     nav: {
         id: true,

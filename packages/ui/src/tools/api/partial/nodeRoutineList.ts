@@ -1,14 +1,14 @@
 import { NodeRoutineList } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const nodeRoutineListPartial: GqlPartial<NodeRoutineList> = {
+export const nodeRoutineList: GqlPartial<NodeRoutineList> = {
     __typename: 'NodeRoutineList',
     common: {
         id: true,
         isOrdered: true,
         isOptional: true,
-        items: async () => relPartial((await import('./nodeRoutineListItem')).nodeRoutineListItemPartial, 'full'),
+        items: async () => rel((await import('./nodeRoutineListItem')).nodeRoutineListItem, 'full'),
     },
     full: {},
     list: {},

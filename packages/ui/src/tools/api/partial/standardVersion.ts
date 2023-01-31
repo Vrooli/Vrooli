@@ -1,9 +1,9 @@
 import { StandardVersion, StandardVersionTranslation } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
-import { versionYouPartial } from "./root";
+import { versionYou } from "./root";
 
-export const standardVersionTranslationPartial: GqlPartial<StandardVersionTranslation> = {
+export const standardVersionTranslation: GqlPartial<StandardVersionTranslation> = {
     __typename: 'StandardVersionTranslation',
     common: {
         id: true,
@@ -15,7 +15,7 @@ export const standardVersionTranslationPartial: GqlPartial<StandardVersionTransl
     list: {},
 }
 
-export const standardVersionPartial: GqlPartial<StandardVersion> = {
+export const standardVersion: GqlPartial<StandardVersion> = {
     __typename: 'StandardVersion',
     common: {
         id: true,
@@ -35,17 +35,17 @@ export const standardVersionPartial: GqlPartial<StandardVersion> = {
         directoryListingsCount: true,
         forksCount: true,
         reportsCount: true,
-        you: () => relPartial(versionYouPartial, 'full'),
+        you: () => rel(versionYou, 'full'),
     },
     full: {
         versionNotes: true,
-        pullRequest: async () => relPartial((await import('./pullRequest')).pullRequestPartial, 'full'),
-        resourceList: async () => relPartial((await import('./resourceList')).resourceListPartial, 'full'),
-        root: async () => relPartial((await import('./standard')).standardPartial, 'full', { omit: 'versions' }),
-        translations: () => relPartial(standardVersionTranslationPartial, 'full'),
+        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full'),
+        resourceList: async () => rel((await import('./resourceList')).resourceList, 'full'),
+        root: async () => rel((await import('./standard')).standard, 'full', { omit: 'versions' }),
+        translations: () => rel(standardVersionTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(standardVersionTranslationPartial, 'list'),
+        translations: () => rel(standardVersionTranslation, 'list'),
     },
     nav: {
         id: true,
@@ -53,7 +53,7 @@ export const standardVersionPartial: GqlPartial<StandardVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => relPartial((await import('./standard')).standardPartial, 'nav'),
-        translations: () => relPartial(standardVersionTranslationPartial, 'list'),
+        root: async () => rel((await import('./standard')).standard, 'nav'),
+        translations: () => rel(standardVersionTranslation, 'list'),
     }
 }

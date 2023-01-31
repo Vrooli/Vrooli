@@ -1,8 +1,8 @@
 import { ProjectVersionDirectory, ProjectVersionDirectoryTranslation } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const projectVersionDirectoryTranslationPartial: GqlPartial<ProjectVersionDirectoryTranslation> = {
+export const projectVersionDirectoryTranslation: GqlPartial<ProjectVersionDirectoryTranslation> = {
     __typename: 'ProjectVersionDirectoryTranslation',
     common: {
         id: true,
@@ -14,7 +14,7 @@ export const projectVersionDirectoryTranslationPartial: GqlPartial<ProjectVersio
     list: {},
 }
 
-export const projectVersionDirectoryPartial: GqlPartial<ProjectVersionDirectory> = {
+export const projectVersionDirectory: GqlPartial<ProjectVersionDirectory> = {
     __typename: 'ProjectVersionDirectory',
     common: {
         id: true,
@@ -22,21 +22,21 @@ export const projectVersionDirectoryPartial: GqlPartial<ProjectVersionDirectory>
         updated_at: true,
         childOrder: true,
         isRoot: true,
-        projectVersion: async () => relPartial((await import('./projectVersion')).projectVersionPartial, 'nav', { omit: 'directories' }),
+        projectVersion: async () => rel((await import('./projectVersion')).projectVersion, 'nav', { omit: 'directories' }),
     },
     full: {
-        children: () => relPartial(projectVersionDirectoryPartial, 'nav', { omit: ['parentDirectory', 'children'] }),
-        childApiVersions: async () => relPartial((await import('./apiVersion')).apiVersion, 'nav'),
-        childNoteVersions: async () => relPartial((await import('./noteVersion')).noteVersionPartial, 'nav'),
-        childOrganizations: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-        childProjectVersions: async () => relPartial((await import('./projectVersion')).projectVersionPartial, 'nav'),
-        childRoutineVersions: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav'),
-        childSmartContractVersions: async () => relPartial((await import('./smartContractVersion')).smartContractVersionPartial, 'nav'),
-        childStandardVersions: async () => relPartial((await import('./standardVersion')).standardVersionPartial, 'nav'),
-        parentDirectory: () => relPartial(projectVersionDirectoryPartial, 'nav', { omit: ['parentDirectory', 'children'] }),
-        translations: () => relPartial(projectVersionDirectoryTranslationPartial, 'full'),
+        children: () => rel(projectVersionDirectory, 'nav', { omit: ['parentDirectory', 'children'] }),
+        childApiVersions: async () => rel((await import('./apiVersion')).apiVersion, 'nav'),
+        childNoteVersions: async () => rel((await import('./noteVersion')).noteVersion, 'nav'),
+        childOrganizations: async () => rel((await import('./organization')).organization, 'nav'),
+        childProjectVersions: async () => rel((await import('./projectVersion')).projectVersion, 'nav'),
+        childRoutineVersions: async () => rel((await import('./routineVersion')).routineVersion, 'nav'),
+        childSmartContractVersions: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'nav'),
+        childStandardVersions: async () => rel((await import('./standardVersion')).standardVersion, 'nav'),
+        parentDirectory: () => rel(projectVersionDirectory, 'nav', { omit: ['parentDirectory', 'children'] }),
+        translations: () => rel(projectVersionDirectoryTranslation, 'full'),
     },
     list: {
-        translations: () => relPartial(projectVersionDirectoryTranslationPartial, 'list'),
+        translations: () => rel(projectVersionDirectoryTranslation, 'list'),
     }
 }

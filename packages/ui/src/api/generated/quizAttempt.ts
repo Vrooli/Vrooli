@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`
+export const quizAttemptFindOne = gql`
 query quizAttempt($input: FindByIdInput!) {
   quizAttempt(input: $input) {
     responses {
@@ -125,7 +125,7 @@ query quizAttempt($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`
+export const quizAttemptFindMany = gql`
 query quizAttempts($input: QuizAttemptSearchInput!) {
   quizAttempts(input: $input) {
     edges {
@@ -191,7 +191,7 @@ query quizAttempts($input: QuizAttemptSearchInput!) {
   }
 }`;
 
-export const create = gql`
+export const quizAttemptCreate = gql`
 mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
   quizAttemptCreate(input: $input) {
     responses {
@@ -316,7 +316,7 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
   }
 }`;
 
-export const update = gql`
+export const quizAttemptUpdate = gql`
 mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
   quizAttemptUpdate(input: $input) {
     responses {

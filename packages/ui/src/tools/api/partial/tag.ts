@@ -1,8 +1,8 @@
 import { Tag, TagTranslation, TagYou } from "@shared/consts";
-import { relPartial } from "../utils";
+import { rel } from "../utils";
 import { GqlPartial } from "../types";
 
-export const tagTranslationPartial: GqlPartial<TagTranslation> = {
+export const tagTranslation: GqlPartial<TagTranslation> = {
     __typename: 'TagTranslation',
     common: {
         id: true,
@@ -13,7 +13,7 @@ export const tagTranslationPartial: GqlPartial<TagTranslation> = {
     list: {},
 }
 
-export const tagYouPartial: GqlPartial<TagYou> = {
+export const tagYou: GqlPartial<TagYou> = {
     __typename: 'TagYou',
     common: {
         isOwn: true,
@@ -23,15 +23,15 @@ export const tagYouPartial: GqlPartial<TagYou> = {
     list: {},
 }
 
-export const tagPartial: GqlPartial<Tag> = {
+export const tag: GqlPartial<Tag> = {
     __typename: 'Tag',
     common: {
         id: true,
         created_at: true,
         tag: true,
         stars: true,
-        translations: () => relPartial(tagTranslationPartial, 'full'),
-        you: () => relPartial(tagYouPartial, 'full'),
+        translations: () => rel(tagTranslation, 'full'),
+        you: () => rel(tagYou, 'full'),
     },
     full: {},
     list: {},

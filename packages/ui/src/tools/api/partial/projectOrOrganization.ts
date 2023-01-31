@@ -1,13 +1,13 @@
 import { ProjectOrOrganization } from "@shared/consts";
-import { relPartial } from "../utils";
+import { rel } from "../utils";
 import { GqlPartial } from "../types";
 
-export const projectOrOrganizationPartial: GqlPartial<ProjectOrOrganization> = {
+export const projectOrOrganization: GqlPartial<ProjectOrOrganization> = {
     __typename: 'ProjectOrOrganization' as any,
     full: {
         __define: {
-            0: async () => relPartial((await import('./project')).projectPartial, 'full'),
-            1: async () => relPartial((await import('./organization')).organizationPartial, 'full'),
+            0: async () => rel((await import('./project')).project, 'full'),
+            1: async () => rel((await import('./organization')).organization, 'full'),
         },
         __union: {
             Project: 0,
@@ -16,8 +16,8 @@ export const projectOrOrganizationPartial: GqlPartial<ProjectOrOrganization> = {
     },
     list: {
         __define: {
-            0: async () => relPartial((await import('./project')).projectPartial, 'list'),
-            1: async () => relPartial((await import('./organization')).organizationPartial, 'list'),
+            0: async () => rel((await import('./project')).project, 'list'),
+            1: async () => rel((await import('./organization')).organization, 'list'),
         },
         __union: {
             Project: 0,

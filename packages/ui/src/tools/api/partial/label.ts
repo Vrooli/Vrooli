@@ -1,8 +1,8 @@
 import { Label, LabelYou } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const labelYouPartial: GqlPartial<LabelYou> = {
+export const labelYou: GqlPartial<LabelYou> = {
     __typename: 'LabelYou',
     full: {
         canDelete: true,
@@ -10,12 +10,12 @@ export const labelYouPartial: GqlPartial<LabelYou> = {
     },
 }
 
-export const labelPartial: GqlPartial<Label> = {
+export const label: GqlPartial<Label> = {
     __typename: 'Label',
     common: {
         __define: {
-            0: async () => relPartial((await import('./organization')).organizationPartial, 'nav'),
-            1: async () => relPartial((await import('./user')).userPartial, 'nav'),
+            0: async () => rel((await import('./organization')).organization, 'nav'),
+            1: async () => rel((await import('./user')).user, 'nav'),
         },
         id: true,
         created_at: true,
@@ -27,7 +27,7 @@ export const labelPartial: GqlPartial<Label> = {
                 User: 1,
             }
         },
-        you: () => relPartial(labelYouPartial, 'full'),
+        you: () => rel(labelYou, 'full'),
     },
     full: {
         apisCount: true,

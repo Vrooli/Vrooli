@@ -1,13 +1,13 @@
 import { NodeEnd } from "@shared/consts";
-import { relPartial } from '../utils';
+import { rel } from '../utils';
 import { GqlPartial } from "../types";
 
-export const nodeEndPartial: GqlPartial<NodeEnd> = {
+export const nodeEnd: GqlPartial<NodeEnd> = {
     __typename: 'NodeEnd',
     common: {
         id: true,
         wasSuccessful: true,
-        suggestedNextRoutineVersions: async () => relPartial((await import('./routineVersion')).routineVersionPartial, 'nav'),
+        suggestedNextRoutineVersions: async () => rel((await import('./routineVersion')).routineVersion, 'nav'),
     },
     full: {},
     list: {},

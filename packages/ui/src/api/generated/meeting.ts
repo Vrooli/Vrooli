@@ -1,6 +1,6 @@
 import gql from 'graphql-tag';
 
-export const findOne = gql`fragment Label_full on Label {
+export const meetingFindOne = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -193,7 +193,7 @@ query meeting($input: FindByIdInput!) {
   }
 }`;
 
-export const findMany = gql`fragment Label_list on Label {
+export const meetingFindMany = gql`fragment Label_list on Label {
     id
     created_at
     updated_at
@@ -369,7 +369,7 @@ query meetings($input: MeetingSearchInput!) {
   }
 }`;
 
-export const create = gql`fragment Label_full on Label {
+export const meetingCreate = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount
@@ -562,7 +562,7 @@ mutation meetingCreate($input: MeetingCreateInput!) {
   }
 }`;
 
-export const update = gql`fragment Label_full on Label {
+export const meetingUpdate = gql`fragment Label_full on Label {
     apisCount
     issuesCount
     meetingsCount

@@ -1,11 +1,11 @@
 import gql from 'graphql-tag';
 
-export const findHandles = gql`
+export const walletFindHandles = gql`
 query findHandles($input: FindHandlesInput!) {
   findHandles(input: $input)
 }`;
 
-export const update = gql`
+export const walletUpdate = gql`
 mutation walletUpdate($input: WalletUpdateInput!) {
   walletUpdate(input: $input) {
     id
