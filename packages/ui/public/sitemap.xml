@@ -1,57 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://app.vrooli.com/</loc>
+    <loc>https://app.vrooli.comLINKS.Home</loc>
     <priority>1.0</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com/learn</loc>
-    <priority>0.8</priority>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
-    <loc>https://app.vrooli.com/research</loc>
-    <priority>0.8</priority>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
-    <loc>https://app.vrooli.com/develop</loc>
-    <priority>0.8</priority>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
-    <loc>https://app.vrooli.com/search</loc>
+    <loc>https://app.vrooli.com`$LINKS.Search</loc>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com/start</loc>
+    <loc>https://app.vrooli.comLINKS.Create</loc>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://app.vrooli.comLINKS.Notifications</loc>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://app.vrooli.comLINKS.Start</loc>
     <priority>0.2</priority>
     <changefreq>yearly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com/forgot-password</loc>
+    <loc>https://app.vrooli.com`$LINKS.ForgotPassword</loc>
     <priority>0.2</priority>
     <changefreq>yearly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com/password-reset</loc>
+    <loc>https://app.vrooli.com`$LINKS.ResetPassword</loc>
     <priority>0.2</priority>
     <changefreq>yearly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com/tutorial</loc>
+    <loc>https://app.vrooli.comLINKS.Tutorial</loc>
     <priority>0.5</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com/welcome</loc>
+    <loc>https://app.vrooli.comLINKS.Welcome</loc>
     <priority>0.5</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com/stats</loc>
+    <loc>https://app.vrooli.comLINKS.Stats</loc>
     <priority>0.5</priority>
     <changefreq>weekly</changefreq>
   </url>

@@ -63,8 +63,15 @@ check_var SITE_IP
 
 # Ask for version number, if not supplied in arguments
 if [ -z "$VERSION" ]; then
-    echo "What version number do you want to deploy? (e.g. 1.0.0)"
+    prompt "What version number do you want to deploy? (e.g. 1.0.0). Leave blank if keeping the same version number."
+    warning "WARNING: Keeping the same version number will overwrite the previous build."
     read -r VERSION
+    # If no version number was entered, use the version number found in the package.json files
+    if [ -z "$VERSION" ]; then
+        info "No version number entered. Using version number found in package.json files."
+        VERSION=$(cat ${HERE}/../packages/ui/package.json | grep version | head -1 | awk -F: '{ print $2 }' | sed 's/[",]//g' | tr -d '[[:space:]]')
+        info "Version number found in package.json files: ${VERSION}"
+    fi
 fi
 
 # Update package.json files for every package
@@ -93,6 +100,15 @@ echo "REACT_APP_SITE_IP=${SITE_IP}" >> .env
 # Set trap to remove .env file on exit
 trap "rm .env" EXIT
 
+# Generate query/mutation selectors
+ts-node --esm --experimental-specifier-resolution node  ./src/tools/api/gqlSelects.ts
+if [ $? -ne 0 ]; then
+    error "Failed to generate query/mutation selectors"
+    echo "${HERE}/../packages/ui/src/tools/api/gqlSelects.ts"
+    # This IS a critical error, so we'll exit
+    exit 1
+fi
+
 # Build React app
 info "Building React app..."
 yarn build
@@ -109,10 +125,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # Generate sitemap.xml
-ts-node --esm --experimental-specifier-resolution node  ./src/sitemap.ts 
+ts-node --esm --experimental-specifier-resolution node  ./src/tools/sitemap.ts 
 if [ $? -ne 0 ]; then
     error "Failed to generate sitemap.xml"
-    echo "${HERE}/../packages/ui/src/sitemap.ts"
+    echo "${HERE}/../packages/ui/src/tools/sitemap.ts"
     # This is not a critical error, so we don't exit
 fi
 
@@ -142,7 +158,7 @@ fi
 
 # Copy build to VPS
 if [ -z "$DEPLOY" ]; then
-    success "Build successful! Would you like to send the build to the production server? (y/N)"
+    prompt "Build successful! Would you like to send the build to the production server? (y/N)"
     read -r DEPLOY
 fi
 
@@ -157,7 +173,7 @@ fi
 
 if [ "${DEPLOY}" = "y" ] || [ "${DEPLOY}" = "Y" ] || [ "${DEPLOY}" = "yes" ] || [ "${DEPLOY}" = "Yes" ]; then
     BUILD_DIR="${SITE_IP}:/var/tmp/${VERSION}/"
-    info "Going to copy build to ${BUILD_DIR}. Press any key to continue..."
+    prompt "Going to copy build to ${BUILD_DIR}. Press any key to continue..."
     read -r
     rsync -r build.tar.gz root@${BUILD_DIR}
     if [ $? -ne 0 ]; then
