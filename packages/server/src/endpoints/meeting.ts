@@ -89,9 +89,9 @@ export const typeDef = gql`
     input MeetingTranslationCreateInput {
         id: ID!
         language: String!
-        name: String
         description: String
         link: String
+        name: String
     }
     input MeetingTranslationUpdateInput {
         id: ID!

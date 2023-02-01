@@ -8,15 +8,13 @@ import { actionsItems, getObjectUrl, getUserLanguages, listToAutocomplete, PubSu
 import { AutocompleteSearchBar } from 'components/inputs';
 import { APP_LINKS, PopularInput, PopularResult } from '@shared/consts';
 import { AutocompleteOption } from 'types';
-import { useLazyQuery } from 'graphql/hooks';
+import { useLazyQuery } from 'api/hooks';
 import { CommandPaletteProps } from '../types';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { uuidValidate } from '@shared/uuid';
-import { feedEndpoint } from 'graphql/endpoints';
-
-const helpText =
-    `Use this dialog to quickly navigate to other pages.\n\nIt can be opened at any time by entering CTRL + P.`
+import { useTranslation } from 'react-i18next';
+import { feedPopular } from 'api/generated/endpoints/feed';
 
 /**
  * Strips URL for comparison against the current URL.
@@ -45,6 +43,7 @@ export const CommandPalette = ({
     session
 }: CommandPaletteProps) => {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -62,7 +61,7 @@ export const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const [refetch, { data, loading }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(...feedEndpoint.popular, {
+    const [refetch, { data, loading }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(feedPopular, 'popular', {
         variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') },
         errorPolicy: 'all'
     });
@@ -71,15 +70,16 @@ export const CommandPalette = ({
 
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];
-        // If "help" typed, add help and faq shortcuts as first result
-        if (searchString.toLowerCase().startsWith('help')) {
+        // If "help" typed (or your language's equivalent), add help and faq shortcuts as first result
+        const lowercaseHelp = t(`common:Help`, { lng: languages[0] }).toLowerCase();
+        if (searchString.toLowerCase().startsWith(lowercaseHelp)) {
             firstResults.push({
                 __typename: "Shortcut",
-                label: `Help - Beginner's Guide`,
+                label: t(`common:ShortcutBeginnersGuide`, { lng: languages[0] }),
                 id: APP_LINKS.Welcome,
             }, {
                 __typename: "Shortcut",
-                label: 'Help - FAQ',
+                label: t(`common:ShortcutFaq`, { lng: languages[0] }),
                 id: APP_LINKS.FAQ,
             });
         }
@@ -89,7 +89,7 @@ export const CommandPalette = ({
             return b.stars - a.stars;
         });
         return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
-    }, [languages, data, searchString]);
+    }, [searchString, data?.popular, languages, t]);
 
     /**
      * When an autocomplete item is selected, navigate to object
@@ -128,8 +128,8 @@ export const CommandPalette = ({
         >
             <DialogTitle
                 ariaLabel={titleAria}
-                helpText={helpText}
-                title={'What would you like to do?'}
+                helpText={t(`common:CommandPaletteHelp`, { lng: languages[0] })}
+                title={t(`common:CommandPaletteTitle`, { lng: languages[0] })}
                 onClose={close}
             />
             <DialogContent sx={{
@@ -143,7 +143,7 @@ export const CommandPalette = ({
                 <AutocompleteSearchBar
                     id="command-palette-search"
                     autoFocus={true}
-                    placeholder='Search content and quickly navigate the site'
+                    placeholder={t(`common:CommandPalettePlaceholder`, { lng: languages[0] })}
                     options={autocompleteOptions}
                     loading={loading}
                     value={searchString}

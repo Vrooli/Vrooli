@@ -5,8 +5,8 @@ import { TagSelectorProps } from '../types';
 import { Autocomplete, Chip, ListItemText, MenuItem, TextField, useTheme } from '@mui/material';
 import { SnackSeverity, StarButton } from 'components';
 import { PubSub, TagShape } from 'utils';
-import { tagEndpoint } from 'graphql/endpoints';
 import { Wrap } from 'types';
+import { tagFindMany } from 'api/generated/endpoints/tag';
 
 export const TagSelector = ({
     disabled,
@@ -86,7 +86,7 @@ export const TagSelector = ({
         });
     }, [tags]);
 
-    const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<Wrap<TagSearchResult, 'tags'>, Wrap<TagSearchInput, 'input'>>(tagEndpoint.findMany[0], {
+    const { data: autocompleteData, refetch: refetchAutocomplete } = useQuery<Wrap<TagSearchResult, 'tags'>, Wrap<TagSearchInput, 'input'>>(tagFindMany, {
         variables: {
             input: {
                 // Exclude tags that have already been fully queried, and match the search string

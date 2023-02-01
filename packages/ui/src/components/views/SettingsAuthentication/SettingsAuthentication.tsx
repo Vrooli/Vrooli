@@ -1,7 +1,7 @@
 import { Box, Button, Grid, Stack, TextField, Typography, useTheme } from "@mui/material"
-import { useMutation } from "graphql/hooks";
+import { useMutation } from "api/hooks";
 import { useCallback, useState } from "react";
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, Email, LogOutInput, ProfileEmailUpdateInput, Session, User, Wallet } from '@shared/consts';
 import { useFormik } from 'formik';
 import { PubSub, usePromptBeforeUnload } from "utils";
@@ -13,8 +13,9 @@ import { DeleteAccountDialog, PageTitle, PasswordTextField, SnackSeverity } from
 import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { SettingsFormData } from "pages";
-import { authEndpoint, userEndpoint } from "graphql/endpoints";
 import { userValidation } from "@shared/validation";
+import { authLogOut } from "api/generated/endpoints/auth";
+import { userProfileEmailUpdate } from "api/generated/endpoints/user";
 
 const walletHelpText =
     `This list contains all of your connected wallets. If a custom name has not been set, the wallet's reward address will be displayed.\n\nYou may add or remove as many wallets as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
@@ -33,7 +34,7 @@ export const SettingsAuthentication = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [logOut] = useMutation<Session, LogOutInput>(...authEndpoint.logOut);
+    const [logOut] = useMutation<Session, LogOutInput>(authLogOut, 'logOut');
     const onLogOut = useCallback(() => {
         const { id } = getCurrentUser(session);
         mutationWrapper<Session, LogOutInput>({ 
@@ -72,7 +73,7 @@ export const SettingsAuthentication = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation] = useMutation<User, ProfileEmailUpdateInput, 'profileEmailUpdate'>(...userEndpoint.profileEmailUpdate);
+    const [mutation] = useMutation<User, ProfileEmailUpdateInput, 'profileEmailUpdate'>(userProfileEmailUpdate, 'profileEmailUpdate');
     const formik = useFormik({
         initialValues: {
             currentPassword: '',

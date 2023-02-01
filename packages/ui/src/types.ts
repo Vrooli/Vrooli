@@ -64,7 +64,7 @@ export type ShapeModel<
     TCreate extends {} | null,
     TUpdate extends {} | null
 > = (TCreate extends null ? {} : { create: (item: T) => TCreate }) &
-    (TUpdate extends null ? {} : { 
+    (TUpdate extends null ? {} : {
         update: (o: T, u: T, assertHasUpdate?: boolean) => TUpdate | undefined,
         hasObjectChanged?: (o: T, u: T) => boolean,
     }) & { idField?: keyof T & string }
@@ -170,3 +170,18 @@ export type CommonKey = TFuncKey<'common', undefined>
 
 // Miscellaneous types
 export type SetLocation = (to: Path, options?: { replace?: boolean }) => void;
+
+/**
+ * Makes a value nullable. Mimics the Maybe type in GraphQL.
+ */
+export type Maybe<T> = T | null;
+
+/**
+ * Recursively removes the Maybe type from all fields in a type, and makes them required.
+ */
+export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<any> ? NonNullable<T[K]> : T[K] };
+
+/**
+ * Makes a value lazy or not
+ */
+export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);

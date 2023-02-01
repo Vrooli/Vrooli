@@ -33,6 +33,7 @@ export const typeDef = gql`
         quizAttempt: QuizAttempt!
         quizQuestion: QuizQuestion!
         you: QuizQuestionResponseYou!
+        translations: [QuizQuestionResponseTranslation!]!
     }
 
     type QuizQuestionResponseYou {

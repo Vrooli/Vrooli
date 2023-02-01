@@ -4,10 +4,10 @@
  */
 import { WalletComplete } from '@shared/consts';
 import { SnackSeverity } from 'components';
-import { authEndpoint } from 'graphql/endpoints';
-import { errorToCode, initializeApollo } from 'graphql/utils';
+import { errorToCode, initializeApollo } from 'api/utils';
 import { ApolloError } from 'types';
 import { PubSub } from 'utils';
+import { authWalletComplete, authWalletInit } from 'api/generated/endpoints/auth';
 
 /**
  * Object returned from await window.cardano[providerKey].enable()
@@ -110,7 +110,7 @@ const walletInit = async (stakingAddress: string): Promise<any> => {
     PubSub.get().publishLoading(500);
     const client = initializeApollo();
     const data = await client.mutate({
-        mutation: authEndpoint.walletInit[0],
+        mutation: authWalletInit,
         variables: { input: { stakingAddress } }
     }).catch((error: ApolloError) => {
         PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error });
@@ -129,7 +129,7 @@ const walletComplete = async (stakingAddress: string, signedPayload: string): Pr
     PubSub.get().publishLoading(500);
     const client = initializeApollo();
     const data = await client.mutate({
-        mutation: authEndpoint.walletComplete[0],
+        mutation: authWalletComplete,
         variables: { input: { stakingAddress, signedPayload } }
     }).catch((error: ApolloError) => {
         PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error });

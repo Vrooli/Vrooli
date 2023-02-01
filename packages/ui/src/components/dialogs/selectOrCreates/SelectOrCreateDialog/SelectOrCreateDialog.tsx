@@ -10,7 +10,7 @@ import { BaseObjectDialog, DialogTitle, OrganizationCreate, ProjectCreate, Routi
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SelectOrCreateDialogProps, SelectOrCreateObject, SelectOrCreateObjectType } from '../types';
 import { SearchList } from 'components/lists';
-import { useLazyQuery } from 'graphql/hooks';
+import { useLazyQuery } from 'api/hooks';
 import { SearchType, removeSearchParams, getUserLanguages, searchTypeToParams, SearchParams } from 'utils';
 import { useLocation } from '@shared/route';
 import { AddIcon } from '@shared/icons';

@@ -14,7 +14,7 @@ export const PageContainer = ({
             minHeight: '100vh',
             width: 'min(100%, 700px)',
             margin: 'auto',
-            paddingTop: { xs: '64px', md: '80px' },
+            paddingTop: '64px', // Matches Navbar height
             paddingBottom: 'calc(56px + env(safe-area-inset-bottom))',
             paddingLeft: { xs: 0, sm: 'max(1em, calc(15% - 75px))' },
             paddingRight: { xs: 0, sm: 'max(1em, calc(15% - 75px))' },

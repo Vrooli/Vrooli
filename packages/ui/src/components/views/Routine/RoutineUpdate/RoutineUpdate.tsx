@@ -1,8 +1,8 @@
 import { Box, Button, CircularProgress, Dialog, Grid, Stack, TextField, Typography } from "@mui/material"
-import { useMutation, useLazyQuery } from "graphql/hooks";
+import { useMutation, useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RoutineUpdateProps } from "../types";
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { routineVersionTranslationValidation, routineVersionValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, defaultResourceList, getMinimumVersion, getUserLanguages, handleTranslationBlur, handleTranslationChange, initializeRoutineGraph, NodeLinkShape, NodeShape, parseSingleItemUrl, PubSub, removeTranslation, RoutineVersionInputShape, RoutineVersionOutputShape, shapeRoutineVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -12,7 +12,7 @@ import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipItemRoutineVersion, RelationshipsObject } from "components/inputs/types";
 import { RoutineIcon } from "@shared/icons";
 import { FindVersionInput, Node, NodeLink, ResourceList, RoutineVersion, RoutineVersionUpdateInput } from "@shared/consts";
-import { routineVersionEndpoint } from "graphql/endpoints";
+import { routineVersionFindOne, routineVersionUpdate } from "api/generated/endpoints/routineVersion";
 
 const helpTextSubroutines = `A routine can be made from scratch (single-step), or by combining other routines (multi-step).\n\nA single-step routine defines inputs and outputs, as well as any other data required to display and execute the routine.\n\nA multi-step routine does not do this. Instead, it uses a graph to combine other routines, using nodes and links.`
 
@@ -24,7 +24,7 @@ export const RoutineUpdate = ({
 }: RoutineUpdateProps) => {
     // Fetch existing data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(...routineVersionEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<RoutineVersion, FindVersionInput, 'routineVersion'>(routineVersionFindOne, 'routineVersion', { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
@@ -71,7 +71,7 @@ export const RoutineUpdate = ({
     }, [routineVersion]);
 
     // Handle update
-    const [mutation] = useMutation<RoutineVersion, RoutineVersionUpdateInput, 'routineVersionUpdate'>(...routineVersionEndpoint.update);
+    const [mutation] = useMutation<RoutineVersion, RoutineVersionUpdateInput, 'routineVersionUpdate'>(routineVersionUpdate, 'routineVersionUpdate');
     const formik = useFormik({
         initialValues: {
             id: routineVersion?.id ?? DUMMY_ID,

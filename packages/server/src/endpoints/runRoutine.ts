@@ -68,7 +68,9 @@ export const typeDef = gql`
         runProject: RunProject
         runRoutineSchedule: RunRoutineSchedule
         steps: [RunRoutineStep!]!
+        stepsCount: Int!
         inputs: [RunRoutineInput!]!
+        inputsCount: Int!
         user: User
         organization: Organization
         you: RunRoutineYou!

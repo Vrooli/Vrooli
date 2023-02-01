@@ -1,5 +1,5 @@
 import { useLocation } from '@shared/route';
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { APP_LINKS, EmailLogInInput, Session } from '@shared/consts';
 import { useFormik } from 'formik';
 import {
@@ -17,9 +17,9 @@ import { clickSize } from 'styles';
 import { PasswordTextField, SnackSeverity } from 'components';
 import { useMemo } from 'react';
 import { CSSProperties } from '@mui/styles';
-import { errorToCode, hasErrorCode, mutationWrapper } from 'graphql/utils';
-import { authEndpoint } from 'graphql/endpoints';
+import { errorToCode, hasErrorCode, mutationWrapper } from 'api/utils';
 import { emailLogInFormValidation } from '@shared/validation';
+import { authEmailLogIn } from 'api/generated/endpoints/auth';
 
 export const LogInForm = ({
     onFormChange = () => { }
@@ -31,7 +31,7 @@ export const LogInForm = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn, { loading }] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(...authEndpoint.emailLogIn);  
+    const [emailLogIn, { loading }] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(authEmailLogIn, 'emailLogIn');  
 
     const toForgotPassword = () => onFormChange(Forms.ForgotPassword);
     const toSignUp = () => onFormChange(Forms.SignUp);

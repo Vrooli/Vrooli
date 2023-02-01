@@ -84,8 +84,15 @@ export const typeDef = gql`
         permissions: String!
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
+        questions: [Question!]!
+        questionsCount: Int!
+        quizzes: [Quiz!]!
+        quizzesCount: Int!
         starredBy: [User!]!
+        stats: [StatsRoutine!]!
         tags: [Tag!]!
+        transfers: [Transfer!]!
+        transfersCount: Int!
         versions: [RoutineVersion!]!
         versionsCount: Int
         you: RoutineYou!

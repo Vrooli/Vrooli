@@ -294,6 +294,9 @@ export const RoutineModel: ModelLogic<{
             forksCount: true,
             issuesCount: true,
             pullRequestsCount: true,
+            questionsCount: true,
+            quizzesCount: true,
+            transfersCount: true,
             versionsCount: true,
         },
         supplemental: {

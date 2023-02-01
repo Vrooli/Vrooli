@@ -1,7 +1,7 @@
 import { Box, CircularProgress, Grid, TextField } from "@mui/material"
-import { useMutation, useLazyQuery } from "graphql/hooks";
+import { useMutation, useLazyQuery } from "api/hooks";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { projectValidation, projectVersionTranslationValidation } from '@shared/validation';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, defaultRelationships, getUserLanguages, handleTranslationBlur, handleTranslationChange, parseSingleItemUrl, PubSub, removeTranslation, shapeProjectVersion, TagShape, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -9,8 +9,8 @@ import { GridSubmitButtons, LanguageInput, PageTitle, RelationshipButtons, Snack
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { ProjectUpdateProps } from "../types";
 import { RelationshipsObject } from "components/inputs/types";
-import { projectVersionEndpoint } from "graphql/endpoints";
 import { FindVersionInput, ProjectVersion, ProjectVersionUpdateInput } from "@shared/consts";
+import { projectVersionFindOne, projectVersionUpdate } from "api/generated/endpoints/projectVersion";
 
 export const ProjectUpdate = ({
     onCancel,
@@ -20,7 +20,7 @@ export const ProjectUpdate = ({
 }: ProjectUpdateProps) => {
     // Fetch existing data
     const { id } = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(...projectVersionEndpoint.findOne);
+    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(projectVersionFindOne, 'projectVersion');
     useEffect(() => { id && getData({ variables: { id } }) }, [getData, id])
     const projectVersion = useMemo(() => data?.projectVersion, [data]);
 
@@ -44,7 +44,7 @@ export const ProjectUpdate = ({
     }, [projectVersion]);
 
     // Handle update
-    const [mutation] = useMutation<ProjectVersion, ProjectVersionUpdateInput, 'projectVersionUpdate'>(...projectVersionEndpoint.update);
+    const [mutation] = useMutation<ProjectVersion, ProjectVersionUpdateInput, 'projectVersionUpdate'>(projectVersionUpdate, 'projectVersionUpdate');
     const formik = useFormik({
         initialValues: {
             id: projectVersion?.id ?? uuid(),

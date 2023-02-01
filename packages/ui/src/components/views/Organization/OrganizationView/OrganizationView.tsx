@@ -1,7 +1,7 @@
 import { Box, IconButton, LinearProgress, Link, Stack, Tab, Tabs, Tooltip, Typography, useTheme } from "@mui/material"
 import { useLocation } from '@shared/route';
 import { APP_LINKS, FindByIdOrHandleInput, Organization, ResourceList, StarFor, VisibilityType } from "@shared/consts";
-import { useLazyQuery } from "graphql/hooks";
+import { useLazyQuery } from "api/hooks";
 import { MouseEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { ObjectActionMenu, DateDisplay, ReportsLink, SearchList, SelectLanguageMenu, StarButton } from "components";
 import { OrganizationViewProps } from "../types";
@@ -11,8 +11,8 @@ import { ResourceListVertical } from "components/lists";
 import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { organizationEndpoint } from "graphql/endpoints";
 import { setDotNotationValue } from "@shared/utils";
+import { organizationFindOne } from "api/generated/endpoints/organization";
 
 enum TabOptions {
     Resources = "Resources",
@@ -32,7 +32,7 @@ export const OrganizationView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     // Fetch data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdOrHandleInput, 'organization'>(...organizationEndpoint.findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdOrHandleInput, 'organization'>(organizationFindOne, 'organization', { errorPolicy: 'all' });
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
         if (urlData.id || urlData.handle) getData({ variables: urlData })

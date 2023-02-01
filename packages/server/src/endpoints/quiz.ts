@@ -59,9 +59,11 @@ export const typeDef = gql`
         stars: Int!
         views: Int!
         attempts: [QuizAttempt!]!
+        attemptsCount: Int!
         createdBy: User
         project: Project
         quizQuestions: [QuizQuestion!]!
+        quizQuestionsCount: Int!
         routine: Routine
         starredBy: [User!]!
         stats: [StatsQuiz!]!

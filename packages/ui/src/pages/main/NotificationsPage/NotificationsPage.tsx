@@ -9,7 +9,7 @@ import { CommonKey, Wrap } from 'types';
 import { APP_LINKS, Notification, NotificationSearchInput, NotificationSearchResult } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { useQuery } from '@apollo/client';
-import { notificationEndpoint } from 'graphql/endpoints';
+import { notificationFindMany } from 'api/generated/endpoints/notification';
 
 export const NotificationsPage = ({
     session
@@ -19,7 +19,7 @@ export const NotificationsPage = ({
     const { palette } = useTheme();
 
     const [searchString, setSearchString] = useState('');
-    const { data, refetch, loading } = useQuery<Wrap<NotificationSearchResult, 'notifications'>, Wrap<NotificationSearchInput, 'input'>>(notificationEndpoint.findMany[0], { variables: { input: { searchString } }, errorPolicy: 'all' });
+    const { data, refetch, loading } = useQuery<Wrap<NotificationSearchResult, 'notifications'>, Wrap<NotificationSearchInput, 'input'>>(notificationFindMany, { variables: { input: { searchString } }, errorPolicy: 'all' });
     const [notifications, setNotifications] = useState<Notification[]>([]);
     useMemo(() => {
         if (data) {

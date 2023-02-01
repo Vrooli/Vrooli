@@ -11,8 +11,8 @@ import {
 } from '@mui/material';
 import { DeleteAccountDialogProps } from '../types';
 import { useCallback, useMemo } from 'react';
-import { mutationWrapper } from 'graphql/utils';
-import { useMutation } from 'graphql/hooks';
+import { mutationWrapper } from 'api/utils';
+import { useMutation } from 'api/hooks';
 import { APP_LINKS, Success, UserDeleteInput } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle, PasswordTextField, SnackSeverity } from 'components';
@@ -21,7 +21,7 @@ import { getCurrentUser } from 'utils/authentication';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
 import { PubSub } from 'utils';
 import { useFormik } from 'formik';
-import { userEndpoint } from 'graphql/endpoints';
+import { userDeleteOne } from 'api/generated/endpoints/user';
 
 const titleAria = 'delete-object-dialog-title';
 
@@ -40,7 +40,7 @@ export const DeleteAccountDialog = ({
 
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
 
-    const [deleteAccount] = useMutation<Success, UserDeleteInput, 'userDeleteOne'>(...userEndpoint.deleteOne);
+    const [deleteAccount] = useMutation<Success, UserDeleteInput, 'userDeleteOne'>(userDeleteOne, 'userDeleteOne');
     const formik = useFormik({
         initialValues: {
             password: '',

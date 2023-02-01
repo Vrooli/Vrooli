@@ -58,6 +58,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        isPrivate: Boolean!
         permissions: String!
         createdBy: User
         owner: Owner

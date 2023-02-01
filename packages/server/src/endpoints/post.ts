@@ -48,10 +48,12 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         comments: [Comment!]!
+        commentsCount: Int!
         owner: Owner!
         reports: [Report!]!
         repostedFrom: Post
         reposts: [Post!]!
+        repostsCount: Int!
         resourceList: ResourceList!
         score: Int!
         stars: Int!

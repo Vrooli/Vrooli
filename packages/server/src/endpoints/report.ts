@@ -43,10 +43,13 @@ export const typeDef = gql`
 
     type Report {
         id: ID
+        created_at: Date!
+        updated_at: Date!
         details: String
         language: String!
         reason: String!
         responses: [ReportResponse!]!
+        responsesCount: Int!
         you: ReportYou!
     }
 

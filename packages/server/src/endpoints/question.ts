@@ -55,12 +55,19 @@ export const typeDef = gql`
         hasAcceptedAnswer: Boolean!
         score: Int!
         stars: Int!
-        isUpvoted: Boolean
         forObject: QuestionFor!
         translations: [QuestionTranslation!]!
+        translationsCount: Int!
         answers: [QuestionAnswer!]!
+        answersCount: Int!
         comments: [Comment!]!
+        commentsCount: Int!
         starredBy: [User!]!
+        you: QuestionYou!
+    }
+
+    type QuestionYou {
+        isUpvoted: Boolean!
     }
 
     input QuestionTranslationCreateInput {

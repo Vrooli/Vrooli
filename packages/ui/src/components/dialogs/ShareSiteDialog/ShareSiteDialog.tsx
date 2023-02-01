@@ -7,7 +7,7 @@ import { ShareSiteDialogProps } from '../types';
 import QRCode from "react-qr-code";
 import { CopyIcon, EllipsisIcon, EmailIcon, LinkedInIcon, TwitterIcon } from '@shared/icons';
 import { DialogTitle } from '../DialogTitle/DialogTitle';
-import { PubSub, usePress } from 'utils';
+import { getDeviceInfo, PubSub, usePress } from 'utils';
 import { ColorIconButton, SnackSeverity } from 'components';
 
 // Invite link
@@ -57,7 +57,7 @@ export const ShareSiteDialog = ({
     * When QR code is long-pressed in standalone (i.e. app is downloaded), open copy/save photo dialog
     */
     const handleQRCodeLongPress = () => {
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        const { isStandalone } = getDeviceInfo();
         if (!isStandalone) return;
         // Find image using parent element's ID
         const qrCode = document.getElementById('qr-code-box')?.firstChild as HTMLImageElement;

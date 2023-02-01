@@ -1,4 +1,4 @@
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import { emailResetPasswordSchema } from '@shared/validation';
 import { useFormik } from 'formik';
 import {
@@ -7,20 +7,20 @@ import {
     Paper,
 } from '@mui/material';
 import { APP_LINKS, EmailResetPasswordInput, Session } from '@shared/consts';
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { useLocation } from '@shared/route';
 import { ResetPasswordFormProps } from './types';
 import { formPaper, formSubmit } from './styles';
 import { PasswordTextField, SnackSeverity } from 'components';
 import { PubSub } from 'utils';
-import { authEndpoint } from 'graphql/endpoints';
+import { authEmailResetPassword } from 'api/generated/endpoints/auth';
 
 export const ResetPasswordForm = ({
     userId,
     code,
 }: ResetPasswordFormProps) => {
     const [, setLocation] = useLocation();
-    const [emailResetPassword, { loading }] = useMutation<Session, EmailResetPasswordInput, 'emailResetPassword'>(...authEndpoint.emailResetPassword);
+    const [emailResetPassword, { loading }] = useMutation<Session, EmailResetPasswordInput, 'emailResetPassword'>(authEmailResetPassword, 'emailResetPassword');
 
     const formik = useFormik({
         initialValues: {

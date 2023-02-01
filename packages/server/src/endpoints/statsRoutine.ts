@@ -34,6 +34,9 @@ export const typeDef = gql`
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!
+        runsStarted: Int!
+        runsCompleted: Int!
+        runCompletionTimeAverageInPeriod: Float!
     }
 
     type Query {

@@ -6,14 +6,13 @@ import { useLocation } from '@shared/route';
 import { RunViewProps } from "../types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getRunPercentComplete, getTranslation, getUserLanguages, locationArraysMatch, PubSub, routineVersionHasSubroutines, RoutineStepType, runInputsUpdate, useReactSearch } from "utils";
-import { useLazyQuery, useMutation } from "graphql/hooks";
+import { useLazyQuery, useMutation } from "api/hooks";
 import { uuidValidate } from '@shared/uuid';
 import { DecisionStep, RoutineListStep, RoutineStep, SubroutineStep } from "types";
 import { addSearchParams, base36ToUuid, removeSearchParams } from "utils/navigation/urlTools";
-import { mutationWrapper } from "graphql/utils";
+import { mutationWrapper } from "api/utils";
 import { uuid } from '@shared/uuid';
 import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "@shared/icons";
-import { routineVersionEndpoint, runRoutineEndpoint } from "graphql/endpoints";
 import { exists } from "@shared/utils";
 
 /**

@@ -8,7 +8,7 @@ import { HistoryPageProps } from '../types';
 import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption, Wrap } from 'types';
 import { centeredDiv } from 'styles';
-import { historyEndpoint } from 'graphql/endpoints';
+import { historyHistory } from 'api/generated/endpoints/history';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 
@@ -44,7 +44,7 @@ export const HistoryPage = ({
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
 
-    const { data, refetch, loading } = useQuery<Wrap<HistoryResult, 'history'>, Wrap<HistoryInput, 'input'>>(historyEndpoint.history[0], { variables: { input: { searchString } }, errorPolicy: 'all' });
+    const { data, refetch, loading } = useQuery<Wrap<HistoryResult, 'history'>, Wrap<HistoryInput, 'input'>>(historyHistory, { variables: { input: { searchString } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch]);
 
     // Handle tabs
@@ -197,6 +197,7 @@ export const HistoryPage = ({
                     isEmpty={activeRuns.length === 0}
                     onClick={toSeeAllActiveRuns}
                     options={[['See all', toSeeAllActiveRuns]]}
+                    session={session}
                 >
                     {activeRuns}
                 </ListTitleContainer>
@@ -206,6 +207,7 @@ export const HistoryPage = ({
                     isEmpty={completedRuns.length === 0}
                     onClick={toSeeAllCompletedRuns}
                     options={[['See all', toSeeAllCompletedRuns]]}
+                    session={session}
                 >
                     {completedRuns}
                 </ListTitleContainer>
@@ -215,6 +217,7 @@ export const HistoryPage = ({
                     isEmpty={recent.length === 0}
                     onClick={toSeeAllViewed}
                     options={[['See all', toSeeAllViewed]]}
+                    session={session}
                 >
                     {recent}
                 </ListTitleContainer>
@@ -224,6 +227,7 @@ export const HistoryPage = ({
                     isEmpty={starred.length === 0}
                     onClick={toSeeAllStarred}
                     options={[['See all', toSeeAllStarred]]}
+                    session={session}
                 >
                     {starred}
                 </ListTitleContainer>

@@ -59,7 +59,10 @@ export const PostModel: ModelLogic<{
             reports: 'Report',
             tags: 'Tag',
         },
-        countFields: {},
+        countFields: {
+            commentsCount: true,
+            repostsCount: true,
+        },
     },
     mutate: {} as any,
     search: {} as any,

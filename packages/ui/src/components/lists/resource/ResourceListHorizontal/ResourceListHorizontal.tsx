@@ -7,11 +7,11 @@ import { useCallback, useMemo, useState } from 'react';
 import { cardRoot } from 'components/cards/styles';
 import { ResourceDialog } from 'components/dialogs';
 import { updateArray } from 'utils';
-import { useMutation } from 'graphql/hooks';
-import { mutationWrapper } from 'graphql/utils';
+import { useMutation } from 'api/hooks';
+import { mutationWrapper } from 'api/utils';
 import { AddIcon } from '@shared/icons';
 import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { deleteOneOrManyEndpoint } from 'graphql/endpoints';
+import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMany';
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
@@ -45,7 +45,7 @@ export const ResourceListHorizontal = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(...deleteOneOrManyEndpoint.deleteMany);
+    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(deleteOneOrManyDeleteMany, 'deleteMany');
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];

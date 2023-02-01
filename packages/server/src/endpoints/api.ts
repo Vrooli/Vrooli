@@ -72,6 +72,7 @@ export const typeDef = gql`
         views: Int!
         score: Int!
         issues: [Issue!]!
+        issuesCount: Int!
         pullRequests: [PullRequest!]!
         pullRequestsCount: Int!
         stats: [StatsApi!]!

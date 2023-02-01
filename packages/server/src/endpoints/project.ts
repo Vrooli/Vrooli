@@ -88,6 +88,7 @@ export const typeDef = gql`
         stats: [StatsProject!]!
         tags: [Tag!]!
         transfers: [Transfer!]!
+        transfersCount: Int!
         versions: [ProjectVersion!]!
         versionsCount: Int!
         you: ProjectYou!

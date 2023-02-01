@@ -3,13 +3,14 @@ import {
     ContactInfo,
     PopupMenu
 } from 'components';
-import { Action, actionsToMenu, ACTION_TAGS, getUserActions, openLink, useWindowSize } from 'utils';
+import { Action, actionsToMenu, ACTION_TAGS, getUserActions, getUserLanguages, openLink, useWindowSize } from 'utils';
 import { Button, Container, IconButton, Palette, useTheme } from '@mui/material';
 import { useLocation } from '@shared/route';
 import React, { useCallback, useMemo, useState } from 'react';
 import { NavListProps } from '../types';
 import { APP_LINKS } from '@shared/consts';
 import { LogInIcon, ProfileIcon } from '@shared/icons';
+import { useTranslation } from 'react-i18next';
 
 const navItemStyle = (palette: Palette) => ({
     background: 'transparent',
@@ -25,6 +26,8 @@ export const NavList = ({
     session,
     sessionChecked,
 }: NavListProps) => {
+    const { t } = useTranslation();
+    const lng = getUserLanguages(session)[0];
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -53,12 +56,12 @@ export const NavList = ({
         }}>
             {/* Contact menu */}
             {!isMobile && <PopupMenu
-                text="Contact"
+                text={t(`common:Contact`, { lng })}
                 variant="text"
                 size="large"
                 sx={navItemStyle(palette)}
             >
-                <ContactInfo />
+                <ContactInfo session={session} />
             </PopupMenu>}
             {/* Account menu */}
             <AccountMenu

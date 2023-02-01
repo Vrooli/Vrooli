@@ -14,14 +14,14 @@ import { PubSub, themes, useReactHash } from 'utils';
 import { Routes } from 'Routes';
 import { Box, CssBaseline, CircularProgress, StyledEngineProvider, ThemeProvider, Theme } from '@mui/material';
 import { makeStyles } from '@mui/styles';
-import { useMutation } from 'graphql/hooks';
+import { useMutation } from 'api/hooks';
 import SakBunderan from './assets/font/SakBunderan.woff';
 import Confetti from 'react-confetti';
 import { guestSession } from 'utils/authentication';
 import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
 import { Session, ValidateSessionInput } from '@shared/consts';
-import { hasErrorCode, mutationWrapper } from 'graphql/utils';
-import { authEndpoint } from 'graphql/endpoints';
+import { hasErrorCode, mutationWrapper } from 'api/utils';
+import { authValidateSession } from 'api/generated/endpoints/auth';
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -84,7 +84,7 @@ export function App() {
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(...authEndpoint.validateSession);
+    const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(authValidateSession, 'validateSession');
 
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to
@@ -311,7 +311,7 @@ export function App() {
                     {/* Command palette */}
                     <CommandPalette session={session ?? guestSession} />
                     {/* Find in page */}
-                    <FindInPage />
+                    <FindInPage session={session ?? guestSession} />
                     {/* Celebratory confetti. To be used sparingly */}
                     {
                         celebrating && <Confetti
@@ -351,7 +351,7 @@ export function App() {
                         />
                     </Box>
                     <BottomNav session={session ?? guestSession} />
-                    <Footer />
+                    <Footer session={session ?? guestSession} />
                 </Box>
             </ThemeProvider>
         </StyledEngineProvider>

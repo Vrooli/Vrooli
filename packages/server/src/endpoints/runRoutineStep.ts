@@ -50,7 +50,7 @@ export const typeDef = gql`
         step: [Int!]!
         run: RunRoutine!
         node: Node
-        subroutine: Routine
+        subroutine: RoutineVersion
     }
 
 `

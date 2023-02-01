@@ -2,7 +2,7 @@
     "name": "@shared/consts",
     "author": "Vrooli",
     "license": "GPL-3.0",
-    "version": "1.3.2",
+    "version": "2.0.0",
     "private": true,
     "description": "Common code shared between local packages",
     "main": "dist/index.js",

@@ -107,7 +107,7 @@ export const typeDef = gql`
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
-        api: Api
+        apiVersion: ApiVersion
         comments: [Comment!]!
         commentsCount: Int!
         directoryListings: [ProjectVersionDirectory!]!
@@ -127,7 +127,7 @@ export const typeDef = gql`
         reports: [Report!]!
         reportsCount: Int!
         root: Routine!
-        smartContract: SmartContract
+        smartContractVersion: SmartContractVersion
         suggestedNextByRoutineVersion: [RoutineVersion!]!
         suggestedNextByRoutineVersionCount: Int!
         translations: [RoutineVersionTranslation!]!

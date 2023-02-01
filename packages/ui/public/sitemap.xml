@@ -6,22 +6,17 @@
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com/learn</loc>
-    <priority>0.8</priority>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
-    <loc>https://app.vrooli.com/research</loc>
-    <priority>0.8</priority>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
-    <loc>https://app.vrooli.com/develop</loc>
-    <priority>0.8</priority>
-    <changefreq>weekly</changefreq>
-  </url>
-  <url>
     <loc>https://app.vrooli.com/search</loc>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://app.vrooli.com/create</loc>
+    <priority>0.4</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://app.vrooli.com/notifications</loc>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>

@@ -5,10 +5,10 @@ import { AllLanguages, getLanguageSubtag, getUserLanguages, PubSub } from 'utils
 import { FixedSizeList } from 'react-window';
 import { ListMenu, MenuTitle, SnackSeverity } from 'components';
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon, TranslateIcon } from '@shared/icons';
-import { useLazyQuery } from 'graphql/hooks';
-import { queryWrapper } from 'graphql/utils';
-import { translateEndpoint } from 'graphql/endpoints';
+import { useLazyQuery } from 'api/hooks';
+import { queryWrapper } from 'api/utils';
 import { Translate, TranslateInput } from '@shared/consts';
+import { translateTranslate } from 'api/generated/endpoints/translate';
 
 /**
  * Languages which support auto-translations through LibreTranslate. 
@@ -65,7 +65,7 @@ export const SelectLanguageMenu = ({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useLazyQuery<Translate, TranslateInput, 'translate'>(...translateEndpoint.translate);
+    const [getAutoTranslation] = useLazyQuery<Translate, TranslateInput, 'translate'>(translateTranslate, 'translate');
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
         const sourceTranslation = translations.find(t => t.language === source);

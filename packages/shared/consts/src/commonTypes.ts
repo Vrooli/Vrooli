@@ -29,3 +29,15 @@ export type DotNotation<T> = Join<Extract<DottablePaths<T, 3>, string[]>, ".">;
 export type PrependString<T extends Record<string, any>, Prefix extends string> = {
     [K in keyof T as `${Prefix}${K & string}`]: T[K]
 }
+
+/**
+ * A nested Partial type, where each non-object field is a boolean.
+ * Arrays are also treated as objects.
+ */
+export type DeepPartialBoolean<T> = {
+    [P in keyof T]?: T[P] extends Array<infer U> ?
+    DeepPartialBoolean<U> :
+    T[P] extends object ?
+    DeepPartialBoolean<T[P]> :
+    boolean;
+};

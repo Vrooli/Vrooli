@@ -34,6 +34,9 @@ export const typeDef = gql`
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!
+        linksToInputs: Int!
+        linksToOutputs: Int!
+        timesUsedInCompletedRoutines: Int!
     }
 
     type Query {

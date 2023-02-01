@@ -1,7 +1,7 @@
 import { Autocomplete, Container, Grid, Stack, TextField, useTheme } from "@mui/material"
-import { useLazyQuery, useMutation } from "graphql/hooks";
+import { useLazyQuery, useMutation } from "api/hooks";
 import { useCallback, useEffect, useState } from "react";
-import { mutationWrapper } from 'graphql/utils';
+import { mutationWrapper } from 'api/utils';
 import { APP_LINKS, FindHandlesInput, ProfileUpdateInput, User } from '@shared/consts';
 import { useFormik } from 'formik';
 import { addEmptyTranslation, getUserLanguages, handleTranslationBlur, handleTranslationChange, removeTranslation, shapeProfile, usePromptBeforeUnload, useTranslatedFields } from "utils";
@@ -14,8 +14,9 @@ import { RefreshIcon } from "@shared/icons";
 import { DUMMY_ID, uuid } from '@shared/uuid';
 import { PageTitle, SnackSeverity } from "components";
 import { SettingsFormData } from "pages";
-import { userEndpoint, walletEndpoint } from "graphql/endpoints";
 import { userTranslationValidation, userValidation } from "@shared/validation";
+import { walletFindHandles } from "api/generated/endpoints/wallet";
+import { userProfileUpdate } from "api/generated/endpoints/user";
 
 export const SettingsProfile = ({
     onUpdated,
@@ -27,7 +28,7 @@ export const SettingsProfile = ({
     const [, setLocation] = useLocation();
 
     // Query for handles associated with the user
-    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyQuery<string[], FindHandlesInput, 'findHandles'>(...walletEndpoint.findHandles);
+    const [findHandles, { data: handlesData, loading: handlesLoading }] = useLazyQuery<string[], FindHandlesInput, 'findHandles'>(walletFindHandles, 'findHandles');
     const [handles, setHandles] = useState<string[]>([]);
     const fetchHandles = useCallback(() => {
         const verifiedWallets = profile?.wallets?.filter(w => w.verified) ?? [];
@@ -57,7 +58,7 @@ export const SettingsProfile = ({
     }, [profile, session]);
 
     // Handle update
-    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...userEndpoint.profileUpdate);
+    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(userProfileUpdate, 'profileUpdate');
     const formik = useFormik({
         initialValues: {
             name: profile?.name ?? '',

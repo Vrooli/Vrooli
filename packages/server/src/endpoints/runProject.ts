@@ -64,6 +64,7 @@ export const typeDef = gql`
         projectVersion: ProjectVersion
         runProjectSchedule: RunProjectSchedule
         steps: [RunProjectStep!]!
+        stepsCount: Int!
         user: User
         organization: Organization
         you: RunProjectYou!

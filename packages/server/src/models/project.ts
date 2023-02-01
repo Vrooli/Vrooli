@@ -103,6 +103,7 @@ export const ProjectModel: ModelLogic<{
             pullRequestsCount: true,
             questionsCount: true,
             quizzesCount: true,
+            transfersCount: true,
             versionsCount: true,
         },
         supplemental: {

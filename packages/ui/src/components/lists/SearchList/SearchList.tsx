@@ -1,7 +1,7 @@
 /**
  * Search list for a single object type
  */
-import { useLazyQuery } from "graphql/hooks";
+import { useLazyQuery } from "api/hooks";
 import { Box, Button, List, Palette, Tooltip, Typography, useTheme } from "@mui/material";
 import { AdvancedSearchDialog, AutocompleteSearchBar, SortMenu, TimeMenu } from "components";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

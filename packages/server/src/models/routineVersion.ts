@@ -53,6 +53,7 @@ export const RoutineVersionModel: ModelLogic<{
     format: {
         gqlRelMap: {
             __typename,
+            apiVersion: 'ApiVersion',
             comments: 'Comment',
             directoryListings: 'ProjectVersionDirectory',
             forks: 'Routine',
@@ -63,7 +64,7 @@ export const RoutineVersionModel: ModelLogic<{
             resourceList: 'ResourceList',
             reports: 'Report',
             root: 'Routine',
-            smartContract: 'SmartContract',
+            smartContractVersion: 'SmartContractVersion',
             suggestedNextByRoutineVersion: 'RoutineVersion',
             // you.runs: 'RunRoutine', //TODO
         },

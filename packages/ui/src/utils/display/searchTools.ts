@@ -5,7 +5,162 @@ import { getLocalStorageKeys } from 'utils/localStorage';
 import { PubSub } from 'utils/pubsub';
 import { SnackSeverity } from 'components';
 import { getCurrentUser } from 'utils/authentication';
-import { apiEndpoint, apiVersionEndpoint, commentEndpoint, issueEndpoint, labelEndpoint, meetingEndpoint, meetingInviteEndpoint, memberEndpoint, memberInviteEndpoint, noteEndpoint, noteVersionEndpoint, notificationEndpoint, notificationSubscriptionEndpoint, organizationEndpoint, postEndpoint, projectEndpoint, projectVersionEndpoint, pullRequestEndpoint, questionAnswerEndpoint, questionEndpoint, quizAttemptEndpoint, quizEndpoint, quizQuestionEndpoint, quizQuestionResponseEndpoint, reminderEndpoint, reminderListEndpoint, reportEndpoint, reportResponseEndpoint, reputationHistoryEndpoint, resourceEndpoint, resourceListEndpoint, roleEndpoint, routineEndpoint, routineVersionEndpoint, runProjectEndpoint, runProjectScheduleEndpoint, runRoutineEndpoint, runRoutineInputEndpoint, runRoutineScheduleEndpoint, smartContractEndpoint, smartContractVersionEndpoint, standardEndpoint, standardVersionEndpoint, starEndpoint, statsApiEndpoint, statsOrganizationEndpoint, statsProjectEndpoint, statsQuizEndpoint, statsRoutineEndpoint, statsSiteEndpoint, statsSmartContractEndpoint, statsStandardEndpoint, statsUserEndpoint, tagEndpoint, transferEndpoint, unionEndpoint, userEndpoint, userScheduleEndpoint, viewEndpoint, voteEndpoint } from 'graphql/endpoints';
+import { apiFindMany } from 'api/generated/endpoints/api';
+import { apiVersionFindMany } from 'api/generated/endpoints/apiVersion';
+import { commentFindMany } from 'api/generated/endpoints/comment';
+import { issueFindMany } from 'api/generated/endpoints/issue';
+import { labelFindMany } from 'api/generated/endpoints/label';
+import { meetingFindMany } from 'api/generated/endpoints/meeting';
+import { meetingInviteFindMany } from 'api/generated/endpoints/meetingInvite';
+import { memberFindMany } from 'api/generated/endpoints/member';
+import { memberInviteFindMany } from 'api/generated/endpoints/memberInvite';
+import { noteFindMany } from 'api/generated/endpoints/note';
+import { noteVersionFindMany } from 'api/generated/endpoints/noteVersion';
+import { notificationFindMany } from 'api/generated/endpoints/notification';
+import { notificationSubscriptionFindMany } from 'api/generated/endpoints/notificationSubscription';
+import { organizationFindMany } from 'api/generated/endpoints/organization';
+import { postFindMany } from 'api/generated/endpoints/post';
+import { projectFindMany } from 'api/generated/endpoints/project';
+import { projectVersionFindMany } from 'api/generated/endpoints/projectVersion';
+import { projectOrOrganizationFindMany } from 'api/generated/endpoints/projectOrOrganization';
+import { projectOrRoutineFindMany } from 'api/generated/endpoints/projectOrRoutine';
+import { pullRequestFindMany } from 'api/generated/endpoints/pullRequest';
+import { questionFindMany } from 'api/generated/endpoints/question';
+import { questionAnswerFindMany } from 'api/generated/endpoints/questionAnswer';
+import { quizFindMany } from 'api/generated/endpoints/quiz';
+import { quizQuestionFindMany } from 'api/generated/endpoints/quizQuestion';
+import { quizQuestionResponseFindMany } from 'api/generated/endpoints/quizQuestionResponse';
+import { quizAttemptFindMany } from 'api/generated/endpoints/quizAttempt';
+import { reminderFindMany } from 'api/generated/endpoints/reminder';
+import { reminderListFindMany } from 'api/generated/endpoints/reminderList';
+import { reportFindMany } from 'api/generated/endpoints/report';
+import { reportResponseFindMany } from 'api/generated/endpoints/reportResponse';
+import { getOperationName } from '@apollo/client/utilities';
+import { reputationHistoryFindMany } from 'api/generated/endpoints/reputationHistory';
+import { resourceFindMany } from 'api/generated/endpoints/resource';
+import { resourceListFindMany } from 'api/generated/endpoints/resourceList';
+import { roleFindMany } from 'api/generated/endpoints/role';
+import { routineFindMany } from 'api/generated/endpoints/routine';
+import { routineVersionFindMany } from 'api/generated/endpoints/routineVersion';
+import { runProjectFindMany } from 'api/generated/endpoints/runProject';
+import { runProjectOrRunRoutineFindMany } from 'api/generated/endpoints/runProjectOrRunRoutine';
+import { runProjectScheduleFindMany } from 'api/generated/endpoints/runProjectSchedule';
+import { runRoutineFindMany } from 'api/generated/endpoints/runRoutine';
+import { runRoutineInputFindMany } from 'api/generated/endpoints/runRoutineInput';
+import { runRoutineScheduleFindMany } from 'api/generated/endpoints/runRoutineSchedule';
+import { smartContractFindMany } from 'api/generated/endpoints/smartContract';
+import { smartContractVersionFindMany } from 'api/generated/endpoints/smartContractVersion';
+import { standardFindMany } from 'api/generated/endpoints/standard';
+import { standardVersionFindMany } from 'api/generated/endpoints/standardVersion';
+import { starFindMany } from 'api/generated/endpoints/star';
+import { statsApiFindMany } from 'api/generated/endpoints/statsApi';
+import { statsOrganizationFindMany } from 'api/generated/endpoints/statsOrganization';
+import { voteFindMany } from 'api/generated/endpoints/vote';
+import { viewFindMany } from 'api/generated/endpoints/view';
+import { userFindMany } from 'api/generated/endpoints/user';
+import { userScheduleFindMany } from 'api/generated/endpoints/userSchedule';
+import { transferFindMany } from 'api/generated/endpoints/transfer';
+import { tagFindMany } from 'api/generated/endpoints/tag';
+import { statsUserFindMany } from 'api/generated/endpoints/statsUser';
+import { statsStandardFindMany } from 'api/generated/endpoints/statsStandard';
+import { statsSmartContractFindMany } from 'api/generated/endpoints/statsSmartContract';
+import { statsSiteFindMany } from 'api/generated/endpoints/statsSite';
+import { statsRoutineFindMany } from 'api/generated/endpoints/statsRoutine';
+import { statsQuizFindMany } from 'api/generated/endpoints/statsQuiz';
+import { statsProjectFindMany } from 'api/generated/endpoints/statsProject';
+
+export type SearchParams = {
+    advancedSearchSchema: FormSchema | null;
+    defaultSortBy: any;
+    endpoint: string;
+    sortByOptions: any;
+    query: DocumentNode;
+}
+
+export enum SearchType {
+    Api = 'Api',
+    ApiVersion = 'ApiVersion',
+    Comment = 'Comment',
+    Issue = 'Issue',
+    Label = 'Label',
+    MeetingInvite = 'MeetingInvite',
+    Meeting = 'Meeting',
+    MemberInvite = 'MemberInvite',
+    Member = 'Member',
+    Note = 'Note',
+    NoteVersion = 'NoteVersion',
+    Notification = 'Notification',
+    NotificationSubscription = 'NotificationSubscription',
+    Organization = 'Organization',
+    Post = 'Post',
+    ProjectOrOrganization = 'ProjectOrOrganization',
+    ProjectOrRoutine = 'ProjectOrRoutine',
+    Project = 'Project',
+    ProjectVersion = 'ProjectVersion',
+    PullRequest = 'PullRequest',
+    Question = 'Question',
+    QuestionAnswer = 'QuestionAnswer',
+    Quiz = 'Quiz',
+    QuizAttempt = 'QuizAttempt',
+    QuizQuestion = 'QuizQuestion',
+    QuizQuestionResponse = 'QuizQuestionResponse',
+    ReminderList = 'ReminderList',
+    Reminder = 'Reminder',
+    ReportResponse = 'ReportResponse',
+    Report = 'Report',
+    ReputationHistory = 'ReputationHistory',
+    ResourceList = 'ResourceList',
+    Resource = 'Resource',
+    Role = 'Role',
+    Routine = 'Routine',
+    RoutineVersion = 'RoutineVersion',
+    RunProject = 'RunProject',
+    RunProjectOrRunRoutine = 'RunProjectOrRunRoutine',
+    RunProjectSchedule = 'RunProjectSchedule',
+    RunRoutine = 'RunRoutine',
+    RunRoutineSchedule = 'RunRoutineSchedule',
+    RunRoutineInput = 'RunRoutineInput',
+    SmartContract = 'SmartContract',
+    SmartContractVersion = 'SmartContractVersion',
+    Standard = 'Standard',
+    StandardVersion = 'StandardVersion',
+    Star = 'Star',
+    StatsApi = 'StatsApi',
+    StatsOrganization = 'StatsOrganization',
+    StatsProject = 'StatsProject',
+    StatsQuiz = 'StatsQuiz',
+    StatsRoutine = 'StatsRoutine',
+    StatsSite = 'StatsSite',
+    StatsSmartContract = 'StatsSmartContract',
+    StatsStandard = 'StatsStandard',
+    StatsUser = 'StatsUser',
+    Tag = 'Tag',
+    Transfer = 'Transfer',
+    User = 'User',
+    UserSchedule = 'UserSchedule',
+    View = 'View',
+    Vote = 'Vote',
+}
+
+export enum DevelopSearchPageTabOption {
+    InProgress = 'InProgress',
+    Recent = 'Recent',
+    Completed = 'Completed',
+}
+
+export enum HistorySearchPageTabOption {
+    Runs = 'Runs',
+    Viewed = 'Viewed',
+    Starred = 'Starred',
+}
+
+export enum SearchPageTabOption {
+    Organizations = 'Organizations',
+    Projects = 'Projects',
+    Routines = 'Routines',
+    Standards = 'Standards',
+    Users = 'Users',
+}
 
 const starsDescription = `Stars are a way to bookmark an object. They don't affect the ranking of an object in default searches, but are still useful to get a feel for how popular an object is.`;
 const votesDescription = `Votes are a way to show support for an object, which affect the ranking of an object in default searches.`;
@@ -923,6 +1078,16 @@ export const runProjectSearchSchema: FormSchema = {
     fields: [], //TODO
 }
 
+export const runProjectOrRunRoutineSearchSchema: FormSchema = {
+    formLayout: {
+        title: "Search Runs",
+        direction: "column",
+        spacing: 4,
+    },
+    containers: [], //TODO
+    fields: [] //TODO
+}
+
 export const runProjectScheduleSearchSchema: FormSchema = {
     formLayout: {
         title: "Search Run Schedules (Projects)",
@@ -1267,537 +1432,88 @@ export const voteSearchSchema: FormSchema = {
     fields: [], //TODO
 }
 
-export enum SearchType {
-    Api = 'Api',
-    ApiVersion = 'ApiVersion',
-    Comment = 'Comment',
-    Issue = 'Issue',
-    Label = 'Label',
-    MeetingInvite = 'MeetingInvite',
-    Meeting = 'Meeting',
-    MemberInvite = 'MemberInvite',
-    Member = 'Member',
-    Note = 'Note',
-    NoteVersion = 'NoteVersion',
-    Notification = 'Notification',
-    NotificationSubscription = 'NotificationSubscription',
-    Organization = 'Organization',
-    Post = 'Post',
-    ProjectOrOrganization = 'ProjectOrOrganization',
-    ProjectOrRoutine = 'ProjectOrRoutine',
-    Project = 'Project',
-    ProjectVersion = 'ProjectVersion',
-    PullRequest = 'PullRequest',
-    Question = 'Question',
-    QuestionAnswer = 'QuestionAnswer',
-    Quiz = 'Quiz',
-    QuizAttempt = 'QuizAttempt',
-    QuizQuestion = 'QuizQuestion',
-    QuizQuestionResponse = 'QuizQuestionResponse',
-    ReminderList = 'ReminderList',
-    Reminder = 'Reminder',
-    ReportResponse = 'ReportResponse',
-    Report = 'Report',
-    ReputationHistory = 'ReputationHistory',
-    ResourceList = 'ResourceList',
-    Resource = 'Resource',
-    Role = 'Role',
-    Routine = 'Routine',
-    RoutineVersion = 'RoutineVersion',
-    RunProject = 'RunProject',
-    RunProjectOrRunRoutine = 'RunProjectOrRunRoutine',
-    RunProjectSchedule = 'RunProjectSchedule',
-    RunRoutine = 'RunRoutine',
-    RunRoutineSchedule = 'RunRoutineSchedule',
-    RunRoutineInput = 'RunRoutineInput',
-    SmartContract = 'SmartContract',
-    SmartContractVersion = 'SmartContractVersion',
-    Standard = 'Standard',
-    StandardVersion = 'StandardVersion',
-    Star = 'Star',
-    StatsApi = 'StatsApi',
-    StatsOrganization = 'StatsOrganization',
-    StatsProject = 'StatsProject',
-    StatsQuiz = 'StatsQuiz',
-    StatsRoutine = 'StatsRoutine',
-    StatsSite = 'StatsSite',
-    StatsSmartContract = 'StatsSmartContract',
-    StatsStandard = 'StatsStandard',
-    StatsUser = 'StatsUser',
-    Tag = 'Tag',
-    Transfer = 'Transfer',
-    User = 'User',
-    UserSchedule = 'UserSchedule',
-    View = 'View',
-    Vote = 'Vote',
-}
-
-export enum DevelopSearchPageTabOption {
-    InProgress = 'InProgress',
-    Recent = 'Recent',
-    Completed = 'Completed',
-}
-
-export enum HistorySearchPageTabOption {
-    Runs = 'Runs',
-    Viewed = 'Viewed',
-    Starred = 'Starred',
-}
-
-export enum SearchPageTabOption {
-    Organizations = 'Organizations',
-    Projects = 'Projects',
-    Routines = 'Routines',
-    Standards = 'Standards',
-    Users = 'Users',
-}
-
-export type SearchParams = {
-    advancedSearchSchema: FormSchema | null;
-    defaultSortBy: any;
-    endpoint: string;
-    sortByOptions: any;
-    query: DocumentNode;
-}
+/**
+ * Converts shorthand search info to SearchParams object
+ */
+const toParams = (
+    advancedSearchSchema: FormSchema,
+    query: DocumentNode,
+    sortByOptions: { [key: string]: string },
+    defaultSortBy: string,
+): SearchParams => ({
+    advancedSearchSchema,
+    defaultSortBy,
+    endpoint: getOperationName(query) ?? '',
+    query,
+    sortByOptions,
+})
 
 /**
  * Maps search types to values needed to query and display results
  */
 export const searchTypeToParams: { [key in SearchType]: SearchParams } = {
-    [SearchType.Api]: {
-        advancedSearchSchema: apiSearchSchema,
-        defaultSortBy: ApiSortBy.ScoreDesc,
-        endpoint: apiEndpoint.findMany[1],
-        query: apiEndpoint.findMany[0],
-        sortByOptions: ApiSortBy,
-    },
-    [SearchType.ApiVersion]: {
-        advancedSearchSchema: apiVersionSearchSchema,
-        defaultSortBy: ApiVersionSortBy.DateCreatedDesc,
-        endpoint: apiVersionEndpoint.findMany[1],
-        query: apiVersionEndpoint.findMany[0],
-        sortByOptions: ApiVersionSortBy,
-    },
-    [SearchType.Comment]: {
-        advancedSearchSchema: commentSearchSchema,
-        defaultSortBy: CommentSortBy.ScoreDesc,
-        endpoint: commentEndpoint.findMany[1],
-        query: commentEndpoint.findMany[0],
-        sortByOptions: CommentSortBy,
-    },
-    [SearchType.Issue]: {
-        advancedSearchSchema: issueSearchSchema,
-        defaultSortBy: IssueSortBy.ScoreDesc,
-        endpoint: issueEndpoint.findMany[1],
-        query: issueEndpoint.findMany[0],
-        sortByOptions: IssueSortBy,
-    },
-    [SearchType.Label]: {
-        advancedSearchSchema: labelSearchSchema,
-        defaultSortBy: LabelSortBy.DateCreatedDesc,
-        endpoint: labelEndpoint.findMany[1],
-        query: labelEndpoint.findMany[0],
-        sortByOptions: LabelSortBy,
-    },
-    [SearchType.Meeting]: {
-        advancedSearchSchema: meetingSearchSchema,
-        defaultSortBy: MeetingSortBy.EventStartDesc,
-        endpoint: meetingEndpoint.findMany[1],
-        query: meetingEndpoint.findMany[0],
-        sortByOptions: MeetingSortBy,
-    },
-    [SearchType.MeetingInvite]: {
-        advancedSearchSchema: meetingInviteSearchSchema,
-        defaultSortBy: MeetingInviteSortBy.DateCreatedDesc,
-        endpoint: meetingInviteEndpoint.findMany[1],
-        query: meetingInviteEndpoint.findMany[0],
-        sortByOptions: MeetingInviteSortBy,
-    },
-    [SearchType.Member]: {
-        advancedSearchSchema: memberSearchSchema,
-        defaultSortBy: MemberSortBy.DateCreatedDesc,
-        endpoint: memberEndpoint.findMany[1],
-        query: memberEndpoint.findMany[0],
-        sortByOptions: MemberSortBy,
-    },
-    [SearchType.MemberInvite]: {
-        advancedSearchSchema: memberInviteSearchSchema,
-        defaultSortBy: MemberInviteSortBy.DateCreatedDesc,
-        endpoint: memberInviteEndpoint.findMany[1],
-        query: memberInviteEndpoint.findMany[0],
-        sortByOptions: MemberInviteSortBy,
-    },
-    [SearchType.Note]: {
-        advancedSearchSchema: noteSearchSchema,
-        defaultSortBy: NoteSortBy.ScoreDesc,
-        endpoint: noteEndpoint.findMany[1],
-        query: noteEndpoint.findMany[0],
-        sortByOptions: NoteSortBy,
-    },
-    [SearchType.NoteVersion]: {
-        advancedSearchSchema: noteVersionSearchSchema,
-        defaultSortBy: NoteVersionSortBy.DateCreatedDesc,
-        endpoint: noteVersionEndpoint.findMany[1],
-        query: noteVersionEndpoint.findMany[0],
-        sortByOptions: NoteVersionSortBy,
-    },
-    [SearchType.Notification]: {
-        advancedSearchSchema: notificationSearchSchema,
-        defaultSortBy: NotificationSortBy.DateCreatedDesc,
-        endpoint: notificationEndpoint.findMany[1],
-        query: notificationEndpoint.findMany[0],
-        sortByOptions: NotificationSortBy,
-    },
-    [SearchType.NotificationSubscription]: {
-        advancedSearchSchema: notificationSubscriptionSearchSchema,
-        defaultSortBy: NotificationSubscriptionSortBy.DateCreatedDesc,
-        endpoint: notificationSubscriptionEndpoint.findMany[1],
-        query: notificationSubscriptionEndpoint.findMany[0],
-        sortByOptions: NotificationSubscriptionSortBy,
-    },
-    [SearchType.Organization]: {
-        advancedSearchSchema: organizationSearchSchema,
-        defaultSortBy: OrganizationSortBy.StarsDesc,
-        endpoint: organizationEndpoint.findMany[1],
-        query: organizationEndpoint.findMany[0],
-        sortByOptions: OrganizationSortBy,
-    },
-    [SearchType.Post]: {
-        advancedSearchSchema: postSearchSchema,
-        defaultSortBy: PostSortBy.DateCreatedDesc,
-        endpoint: postEndpoint.findMany[1],
-        query: postEndpoint.findMany[0],
-        sortByOptions: PostSortBy,
-    },
-    [SearchType.Project]: {
-        advancedSearchSchema: projectSearchSchema,
-        defaultSortBy: ProjectSortBy.ScoreDesc,
-        endpoint: projectEndpoint.findMany[1],
-        query: projectEndpoint.findMany[0],
-        sortByOptions: ProjectSortBy,
-    },
-    [SearchType.ProjectVersion]: {
-        advancedSearchSchema: projectVersionSearchSchema,
-        defaultSortBy: ProjectVersionSortBy.DateCreatedDesc,
-        endpoint: projectVersionEndpoint.findMany[1],
-        query: projectVersionEndpoint.findMany[0],
-        sortByOptions: ProjectVersionSortBy,
-    },
-    [SearchType.ProjectOrOrganization]: {
-        advancedSearchSchema: projectOrOrganizationSearchSchema,
-        defaultSortBy: ProjectOrOrganizationSortBy.StarsDesc,
-        endpoint: unionEndpoint.projectOrOrganizations[1],
-        query: unionEndpoint.projectOrOrganizations[0],
-        sortByOptions: ProjectOrOrganizationSortBy,
-    },
-    [SearchType.ProjectOrRoutine]: {
-        advancedSearchSchema: projectOrRoutineSearchSchema,
-        defaultSortBy: ProjectOrRoutineSortBy.StarsDesc,
-        endpoint: unionEndpoint.projectOrRoutines[1],
-        query: unionEndpoint.projectOrRoutines[0],
-        sortByOptions: ProjectOrRoutineSortBy,
-    },
-    [SearchType.PullRequest]: {
-        advancedSearchSchema: pullRequestSearchSchema,
-        defaultSortBy: PullRequestSortBy.DateCreatedDesc,
-        endpoint: pullRequestEndpoint.findMany[1],
-        query: pullRequestEndpoint.findMany[0],
-        sortByOptions: PullRequestSortBy,
-    },
-    [SearchType.Question]: {
-        advancedSearchSchema: questionSearchSchema,
-        defaultSortBy: QuestionSortBy.ScoreDesc,
-        endpoint: questionEndpoint.findMany[1],
-        query: questionEndpoint.findMany[0],
-        sortByOptions: QuestionSortBy,
-    },
-    [SearchType.QuestionAnswer]: {
-        advancedSearchSchema: questionAnswerSearchSchema,
-        defaultSortBy: QuestionAnswerSortBy.ScoreDesc,
-        endpoint: questionAnswerEndpoint.findMany[1],
-        query: questionAnswerEndpoint.findMany[0],
-        sortByOptions: QuestionAnswerSortBy,
-    },
-    [SearchType.Quiz]: {
-        advancedSearchSchema: quizSearchSchema,
-        defaultSortBy: QuizSortBy.StarsDesc,
-        endpoint: quizEndpoint.findMany[1],
-        query: quizEndpoint.findMany[0],
-        sortByOptions: QuizSortBy,
-    },
-    [SearchType.QuizQuestion]: {
-        advancedSearchSchema: quizQuestionSearchSchema,
-        defaultSortBy: QuizQuestionSortBy.OrderAsc,
-        endpoint: quizQuestionEndpoint.findMany[1],
-        query: quizQuestionEndpoint.findMany[0],
-        sortByOptions: QuizQuestionSortBy,
-    },
-    [SearchType.QuizQuestionResponse]: {
-        advancedSearchSchema: quizQuestionResponseSearchSchema,
-        defaultSortBy: QuizQuestionResponseSortBy.DateCreatedDesc,
-        endpoint: quizQuestionResponseEndpoint.findMany[1],
-        query: quizQuestionResponseEndpoint.findMany[0],
-        sortByOptions: QuizQuestionResponseSortBy,
-    },
-    [SearchType.QuizAttempt]: {
-        advancedSearchSchema: quizAttemptSearchSchema,
-        defaultSortBy: QuizAttemptSortBy.DateCreatedDesc,
-        endpoint: quizAttemptEndpoint.findMany[1],
-        query: quizAttemptEndpoint.findMany[0],
-        sortByOptions: QuizAttemptSortBy,
-    },
-    [SearchType.Reminder]: {
-        advancedSearchSchema: reminderSearchSchema,
-        defaultSortBy: ReminderSortBy.DueDateAsc,
-        endpoint: reminderEndpoint.findMany[1],
-        query: reminderEndpoint.findMany[0],
-        sortByOptions: ReminderSortBy,
-    },
-    [SearchType.ReminderList]: {
-        advancedSearchSchema: reminderListSearchSchema,
-        defaultSortBy: ReminderListSortBy.DateCreatedDesc,
-        endpoint: reminderListEndpoint.findMany[1],
-        query: reminderListEndpoint.findMany[0],
-        sortByOptions: ReminderListSortBy,
-    },
-    [SearchType.Report]: {
-        advancedSearchSchema: reportSearchSchema,
-        defaultSortBy: ReportSortBy.DateCreatedDesc,
-        endpoint: reportEndpoint.findMany[1],
-        query: reportEndpoint.findMany[0],
-        sortByOptions: ReportSortBy,
-    },
-    [SearchType.ReportResponse]: {
-        advancedSearchSchema: reportResponseSearchSchema,
-        defaultSortBy: ReportResponseSortBy.DateCreatedDesc,
-        endpoint: reportResponseEndpoint.findMany[1],
-        query: reportResponseEndpoint.findMany[0],
-        sortByOptions: ReportResponseSortBy,
-    },
-    [SearchType.ReputationHistory]: {
-        advancedSearchSchema: reputationHistorySearchSchema,
-        defaultSortBy: ReputationHistorySortBy.DateCreatedDesc,
-        endpoint: reputationHistoryEndpoint.findMany[1],
-        query: reputationHistoryEndpoint.findMany[0],
-        sortByOptions: ReputationHistorySortBy,
-    },
-    [SearchType.Resource]: {
-        advancedSearchSchema: resourceSearchSchema,
-        defaultSortBy: ResourceSortBy.DateCreatedDesc,
-        endpoint: resourceEndpoint.findMany[1],
-        query: resourceEndpoint.findMany[0],
-        sortByOptions: ResourceSortBy,
-    },
-    [SearchType.ResourceList]: {
-        advancedSearchSchema: resourceListSearchSchema,
-        defaultSortBy: ResourceListSortBy.DateCreatedDesc,
-        endpoint: resourceListEndpoint.findMany[1],
-        query: resourceListEndpoint.findMany[0],
-        sortByOptions: ResourceListSortBy,
-    },
-    [SearchType.Role]: {
-        advancedSearchSchema: roleSearchSchema,
-        defaultSortBy: RoleSortBy.DateCreatedDesc,
-        endpoint: roleEndpoint.findMany[1],
-        query: roleEndpoint.findMany[0],
-        sortByOptions: RoleSortBy,
-    },
-    [SearchType.Routine]: {
-        advancedSearchSchema: routineSearchSchema,
-        defaultSortBy: RoutineSortBy.ScoreDesc,
-        endpoint: routineEndpoint.findMany[1],
-        query: routineEndpoint.findMany[0],
-        sortByOptions: RoutineSortBy,
-    },
-    [SearchType.RoutineVersion]: {
-        advancedSearchSchema: routineVersionSearchSchema,
-        defaultSortBy: RoutineVersionSortBy.DateCreatedDesc,
-        endpoint: routineVersionEndpoint.findMany[1],
-        query: routineVersionEndpoint.findMany[0],
-        sortByOptions: RoutineVersionSortBy,
-    },
-    [SearchType.RunProject]: {
-        advancedSearchSchema: runProjectSearchSchema,
-        defaultSortBy: RunProjectSortBy.DateStartedAsc,
-        endpoint: runProjectEndpoint.findMany[1],
-        query: runProjectEndpoint.findMany[0],
-        sortByOptions: RunProjectSortBy,
-    },
-    [SearchType.RunProjectOrRunRoutine]: {
-        advancedSearchSchema: {} as any,/// TODO runProjectOrRunRoutineSearchSchema,
-        defaultSortBy: RunProjectOrRunRoutineSortBy.DateStartedAsc,
-        endpoint: unionEndpoint.runProjectOrRunRoutines[1],
-        query: unionEndpoint.runProjectOrRunRoutines[0],
-        sortByOptions: RunProjectOrRunRoutineSortBy,
-    },
-    [SearchType.RunProjectSchedule]: {
-        advancedSearchSchema: runProjectScheduleSearchSchema,
-        defaultSortBy: RunProjectScheduleSortBy.WindowStartAsc,
-        endpoint: runProjectScheduleEndpoint.findMany[1],
-        query: runProjectScheduleEndpoint.findMany[0],
-        sortByOptions: RunProjectScheduleSortBy,
-    },
-    [SearchType.RunRoutine]: {
-        advancedSearchSchema: runRoutineSearchSchema,
-        defaultSortBy: RunRoutineSortBy.DateStartedAsc,
-        endpoint: runRoutineEndpoint.findMany[1],
-        query: runRoutineEndpoint.findMany[0],
-        sortByOptions: RunRoutineSortBy,
-    },
-    [SearchType.RunRoutineInput]: {
-        advancedSearchSchema: runRoutineInputSearchSchema,
-        defaultSortBy: RunRoutineInputSortBy.DateCreatedDesc,
-        endpoint: runRoutineInputEndpoint.findMany[1],
-        query: runRoutineInputEndpoint.findMany[0],
-        sortByOptions: RunRoutineInputSortBy,
-    },
-    [SearchType.RunRoutineSchedule]: {
-        advancedSearchSchema: runRoutineScheduleSearchSchema,
-        defaultSortBy: RunRoutineScheduleSortBy.WindowStartAsc,
-        endpoint: runRoutineScheduleEndpoint.findMany[1],
-        query: runRoutineScheduleEndpoint.findMany[0],
-        sortByOptions: RunRoutineScheduleSortBy,
-    },
-    [SearchType.SmartContract]: {
-        advancedSearchSchema: smartContractSearchSchema,
-        defaultSortBy: SmartContractSortBy.ScoreDesc,
-        endpoint: smartContractEndpoint.findMany[1],
-        query: smartContractEndpoint.findMany[0],
-        sortByOptions: SmartContractSortBy,
-    },
-    [SearchType.SmartContractVersion]: {
-        advancedSearchSchema: smartContractVersionSearchSchema,
-        defaultSortBy: SmartContractVersionSortBy.DateCreatedDesc,
-        endpoint: smartContractVersionEndpoint.findMany[1],
-        query: smartContractVersionEndpoint.findMany[0],
-        sortByOptions: SmartContractVersionSortBy,
-    },
-    [SearchType.Standard]: {
-        advancedSearchSchema: standardSearchSchema,
-        defaultSortBy: StandardSortBy.ScoreDesc,
-        endpoint: standardEndpoint.findMany[1],
-        query: standardEndpoint.findMany[0],
-        sortByOptions: StandardSortBy,
-    },
-    [SearchType.StandardVersion]: {
-        advancedSearchSchema: standardVersionSearchSchema,
-        defaultSortBy: StandardVersionSortBy.DateCreatedDesc,
-        endpoint: standardVersionEndpoint.findMany[1],
-        query: standardVersionEndpoint.findMany[0],
-        sortByOptions: StandardVersionSortBy,
-    },
-    [SearchType.Star]: {
-        advancedSearchSchema: null,
-        defaultSortBy: StarSortBy.DateUpdatedDesc,
-        endpoint: starEndpoint.stars[1],
-        query: starEndpoint.stars[0],
-        sortByOptions: StarSortBy,
-    },
-    [SearchType.StatsApi]: {
-        advancedSearchSchema: statsApiSearchSchema,
-        defaultSortBy: StatsApiSortBy.DateUpdatedDesc,
-        endpoint: statsApiEndpoint.findMany[1],
-        query: statsApiEndpoint.findMany[0],
-        sortByOptions: StatsApiSortBy,
-    },
-    [SearchType.StatsOrganization]: {
-        advancedSearchSchema: statsOrganizationSearchSchema,
-        defaultSortBy: StatsOrganizationSortBy.DateUpdatedDesc,
-        endpoint: statsOrganizationEndpoint.findMany[1],
-        query: statsOrganizationEndpoint.findMany[0],
-        sortByOptions: StatsOrganizationSortBy,
-    },
-    [SearchType.StatsProject]: {
-        advancedSearchSchema: statsProjectSearchSchema,
-        defaultSortBy: StatsProjectSortBy.DateUpdatedDesc,
-        endpoint: statsProjectEndpoint.findMany[1],
-        query: statsProjectEndpoint.findMany[0],
-        sortByOptions: StatsProjectSortBy,
-    },
-    [SearchType.StatsQuiz]: {
-        advancedSearchSchema: statsQuizSearchSchema,
-        defaultSortBy: StatsQuizSortBy.DateUpdatedDesc,
-        endpoint: statsQuizEndpoint.findMany[1],
-        query: statsQuizEndpoint.findMany[0],
-        sortByOptions: StatsQuizSortBy,
-    },
-    [SearchType.StatsRoutine]: {
-        advancedSearchSchema: statsRoutineSearchSchema,
-        defaultSortBy: StatsRoutineSortBy.DateUpdatedDesc,
-        endpoint: statsRoutineEndpoint.findMany[1],
-        query: statsRoutineEndpoint.findMany[0],
-        sortByOptions: StatsRoutineSortBy,
-    },
-    [SearchType.StatsSite]: {
-        advancedSearchSchema: statsSiteSearchSchema,
-        defaultSortBy: StatsSiteSortBy.DateUpdatedDesc,
-        endpoint: statsSiteEndpoint.findMany[1],
-        query: statsSiteEndpoint.findMany[0],
-        sortByOptions: StatsSiteSortBy,
-    },
-    [SearchType.StatsSmartContract]: {
-        advancedSearchSchema: statsSmartContractSearchSchema,
-        defaultSortBy: StatsSmartContractSortBy.DateUpdatedDesc,
-        endpoint: statsSmartContractEndpoint.findMany[1],
-        query: statsSmartContractEndpoint.findMany[0],
-        sortByOptions: StatsSmartContractSortBy,
-    },
-    [SearchType.StatsStandard]: {
-        advancedSearchSchema: statsStandardSearchSchema,
-        defaultSortBy: StatsStandardSortBy.DateUpdatedDesc,
-        endpoint: statsStandardEndpoint.findMany[1],
-        query: statsStandardEndpoint.findMany[0],
-        sortByOptions: StatsStandardSortBy,
-    },
-    [SearchType.StatsUser]: {
-        advancedSearchSchema: statsUserSearchSchema,
-        defaultSortBy: StatsUserSortBy.DateUpdatedDesc,
-        endpoint: statsUserEndpoint.findMany[1],
-        query: statsUserEndpoint.findMany[0],
-        sortByOptions: StatsUserSortBy,
-    },
-    [SearchType.Tag]: {
-        advancedSearchSchema: tagSearchSchema,
-        defaultSortBy: TagSortBy.StarsDesc,
-        endpoint: tagEndpoint.findMany[1],
-        query: tagEndpoint.findMany[0],
-        sortByOptions: TagSortBy,
-    },
-    [SearchType.Transfer]: {
-        advancedSearchSchema: transferSearchSchema,
-        defaultSortBy: TransferSortBy.DateCreatedDesc,
-        endpoint: transferEndpoint.findMany[1],
-        query: transferEndpoint.findMany[0],
-        sortByOptions: TransferSortBy,
-    },
-    [SearchType.UserSchedule]: {
-        advancedSearchSchema: userScheduleSearchSchema,
-        defaultSortBy: UserScheduleSortBy.EventStartAsc,
-        endpoint: userScheduleEndpoint.findMany[1],
-        query: userScheduleEndpoint.findMany[0],
-        sortByOptions: UserScheduleSortBy,
-    },
-    [SearchType.User]: {
-        advancedSearchSchema: userSearchSchema,
-        defaultSortBy: UserSortBy.StarsDesc,
-        endpoint: userEndpoint.findMany[1],
-        query: userEndpoint.findMany[0],
-        sortByOptions: UserSortBy,
-    },
-    [SearchType.View]: {
-        advancedSearchSchema: null,
-        defaultSortBy: ViewSortBy.LastViewedDesc,
-        endpoint: viewEndpoint.views[1],
-        query: viewEndpoint.views[0],
-        sortByOptions: ViewSortBy,
-    },
-    [SearchType.Vote]: {
-        advancedSearchSchema: voteSearchSchema,
-        defaultSortBy: VoteSortBy.DateUpdatedDesc,
-        endpoint: voteEndpoint.votes[1],
-        query: voteEndpoint.votes[0],
-        sortByOptions: VoteSortBy,
-    },
+    'Api': toParams(apiSearchSchema, apiFindMany, ApiSortBy, ApiSortBy.ScoreDesc),
+    'ApiVersion': toParams(apiVersionSearchSchema, apiVersionFindMany, ApiVersionSortBy, ApiVersionSortBy.DateCreatedDesc),
+    'Comment': toParams(commentSearchSchema, commentFindMany, CommentSortBy, CommentSortBy.ScoreDesc),
+    'Issue': toParams(issueSearchSchema, issueFindMany, IssueSortBy, IssueSortBy.ScoreDesc),
+    'Label': toParams(labelSearchSchema, labelFindMany, LabelSortBy, LabelSortBy.DateCreatedDesc),
+    'Meeting': toParams(meetingSearchSchema, meetingFindMany, MeetingSortBy, MeetingSortBy.EventStartDesc),
+    'MeetingInvite': toParams(meetingInviteSearchSchema, meetingInviteFindMany, MeetingInviteSortBy, MeetingInviteSortBy.DateCreatedDesc),
+    'Member': toParams(memberSearchSchema, memberFindMany, MemberSortBy, MemberSortBy.DateCreatedDesc),
+    'MemberInvite': toParams(memberInviteSearchSchema, memberInviteFindMany, MemberInviteSortBy, MemberInviteSortBy.DateCreatedDesc),
+    'Note': toParams(noteSearchSchema, noteFindMany, NoteSortBy, NoteSortBy.ScoreDesc),
+    'NoteVersion': toParams(noteVersionSearchSchema, noteVersionFindMany, NoteVersionSortBy, NoteVersionSortBy.DateCreatedDesc),
+    'Notification': toParams(notificationSearchSchema, notificationFindMany, NotificationSortBy, NotificationSortBy.DateCreatedDesc),
+    'NotificationSubscription': toParams(notificationSubscriptionSearchSchema, notificationSubscriptionFindMany, NotificationSubscriptionSortBy, NotificationSubscriptionSortBy.DateCreatedDesc),
+    'Organization': toParams(organizationSearchSchema, organizationFindMany, OrganizationSortBy, OrganizationSortBy.StarsDesc),
+    'Post': toParams(postSearchSchema, postFindMany, PostSortBy, PostSortBy.DateCreatedDesc),
+    'Project': toParams(projectSearchSchema, projectFindMany, ProjectSortBy, ProjectSortBy.ScoreDesc),
+    'ProjectVersion': toParams(projectVersionSearchSchema, projectVersionFindMany, ProjectVersionSortBy, ProjectVersionSortBy.DateCreatedDesc),
+    'ProjectOrOrganization': toParams(projectOrOrganizationSearchSchema, projectOrOrganizationFindMany, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.StarsDesc),
+    'ProjectOrRoutine': toParams(projectOrRoutineSearchSchema, projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.StarsDesc),
+    'PullRequest': toParams(pullRequestSearchSchema, pullRequestFindMany, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc),
+    'Question': toParams(questionSearchSchema, questionFindMany, QuestionSortBy, QuestionSortBy.ScoreDesc),
+    'QuestionAnswer': toParams(questionAnswerSearchSchema, questionAnswerFindMany, QuestionAnswerSortBy, QuestionAnswerSortBy.ScoreDesc),
+    'Quiz': toParams(quizSearchSchema, quizFindMany, QuizSortBy, QuizSortBy.StarsDesc),
+    'QuizQuestion': toParams(quizQuestionSearchSchema, quizQuestionFindMany, QuizQuestionSortBy, QuizQuestionSortBy.OrderAsc),
+    'QuizQuestionResponse': toParams(quizQuestionResponseSearchSchema, quizQuestionResponseFindMany, QuizQuestionResponseSortBy, QuizQuestionResponseSortBy.DateCreatedDesc),
+    'QuizAttempt': toParams(quizAttemptSearchSchema, quizAttemptFindMany, QuizAttemptSortBy, QuizAttemptSortBy.DateCreatedDesc),
+    'Reminder': toParams(reminderSearchSchema, reminderFindMany, ReminderSortBy, ReminderSortBy.DueDateAsc),
+    'ReminderList': toParams(reminderListSearchSchema, reminderListFindMany, ReminderListSortBy, ReminderListSortBy.DateCreatedDesc),
+    'Report': toParams(reportSearchSchema, reportFindMany, ReportSortBy, ReportSortBy.DateCreatedDesc),
+    'ReportResponse': toParams(reportResponseSearchSchema, reportResponseFindMany, ReportResponseSortBy, ReportResponseSortBy.DateCreatedDesc),
+    'ReputationHistory': toParams(reputationHistorySearchSchema, reputationHistoryFindMany, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc),
+    'Resource': toParams(resourceSearchSchema, resourceFindMany, ResourceSortBy, ResourceSortBy.DateCreatedDesc),
+    'ResourceList': toParams(resourceListSearchSchema, resourceListFindMany, ResourceListSortBy, ResourceListSortBy.DateCreatedDesc),
+    'Role': toParams(roleSearchSchema, roleFindMany, RoleSortBy, RoleSortBy.DateCreatedDesc),
+    'Routine': toParams(routineSearchSchema, routineFindMany, RoutineSortBy, RoutineSortBy.ScoreDesc),
+    'RoutineVersion': toParams(routineVersionSearchSchema, routineVersionFindMany, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc),
+    'RunProject': toParams(runProjectSearchSchema, runProjectFindMany, RunProjectSortBy, RunProjectSortBy.DateStartedDesc),
+    'RunProjectOrRunRoutine': toParams(runProjectOrRunRoutineSearchSchema, runProjectOrRunRoutineFindMany, RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSortBy.DateStartedDesc),
+    'RunProjectSchedule': toParams(runProjectScheduleSearchSchema, runProjectScheduleFindMany, RunProjectScheduleSortBy, RunProjectScheduleSortBy.WindowStartAsc),
+    'RunRoutine': toParams(runRoutineSearchSchema, runRoutineFindMany, RunRoutineSortBy, RunRoutineSortBy.DateStartedAsc),
+    'RunRoutineInput': toParams(runRoutineInputSearchSchema, runRoutineInputFindMany, RunRoutineInputSortBy, RunRoutineInputSortBy.DateCreatedDesc),
+    'RunRoutineSchedule': toParams(runRoutineScheduleSearchSchema, runRoutineScheduleFindMany, RunRoutineScheduleSortBy, RunRoutineScheduleSortBy.WindowStartAsc),
+    'SmartContract': toParams(smartContractSearchSchema, smartContractFindMany, SmartContractSortBy, SmartContractSortBy.ScoreDesc),
+    'SmartContractVersion': toParams(smartContractVersionSearchSchema, smartContractVersionFindMany, SmartContractVersionSortBy, SmartContractVersionSortBy.DateCreatedDesc),
+    'Standard': toParams(standardSearchSchema, standardFindMany, StandardSortBy, StandardSortBy.ScoreDesc),
+    'StandardVersion': toParams(standardVersionSearchSchema, standardVersionFindMany, StandardVersionSortBy, StandardVersionSortBy.DateCreatedDesc),
+    'Star': toParams(starSearchSchema, starFindMany, StarSortBy, StarSortBy.DateUpdatedDesc),
+    'StatsApi': toParams(statsApiSearchSchema, statsApiFindMany, StatsApiSortBy, StatsApiSortBy.DateUpdatedDesc),
+    'StatsOrganization': toParams(statsOrganizationSearchSchema, statsOrganizationFindMany, StatsOrganizationSortBy, StatsOrganizationSortBy.DateUpdatedDesc),
+    'StatsProject': toParams(statsProjectSearchSchema, statsProjectFindMany, StatsProjectSortBy, StatsProjectSortBy.DateUpdatedDesc),
+    'StatsQuiz': toParams(statsQuizSearchSchema, statsQuizFindMany, StatsQuizSortBy, StatsQuizSortBy.DateUpdatedDesc),
+    'StatsRoutine': toParams(statsRoutineSearchSchema, statsRoutineFindMany, StatsRoutineSortBy, StatsRoutineSortBy.DateUpdatedDesc),
+    'StatsSite': toParams(statsSiteSearchSchema, statsSiteFindMany, StatsSiteSortBy, StatsSiteSortBy.DateUpdatedDesc),
+    'StatsSmartContract': toParams(statsSmartContractSearchSchema, statsSmartContractFindMany, StatsSmartContractSortBy, StatsSmartContractSortBy.DateUpdatedDesc),
+    'StatsStandard': toParams(statsStandardSearchSchema, statsStandardFindMany, StatsStandardSortBy, StatsStandardSortBy.DateUpdatedDesc),
+    'StatsUser': toParams(statsUserSearchSchema, statsUserFindMany, StatsUserSortBy, StatsUserSortBy.DateUpdatedDesc),
+    'Tag': toParams(tagSearchSchema, tagFindMany, TagSortBy, TagSortBy.StarsDesc),
+    'Transfer': toParams(transferSearchSchema, transferFindMany, TransferSortBy, TransferSortBy.DateCreatedDesc),
+    'UserSchedule': toParams(userScheduleSearchSchema, userScheduleFindMany, UserScheduleSortBy, UserScheduleSortBy.EventStartAsc),
+    'User': toParams(userSearchSchema, userFindMany, UserSortBy, UserSortBy.StarsDesc),
+    'View': toParams(viewSearchSchema, viewFindMany, ViewSortBy, ViewSortBy.LastViewedDesc),
+    'Vote': toParams(voteSearchSchema, voteFindMany, VoteSortBy, VoteSortBy.DateUpdatedDesc),
 };
 
 /**

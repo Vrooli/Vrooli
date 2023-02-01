@@ -54,6 +54,7 @@ export const SmartContractModel: ModelLogic<{
             },
             parent: 'SmartContract',
             pullRequests: 'PullRequest',
+            questions: 'Question',
             starredBy: 'User',
             tags: 'Tag',
             transfers: 'Transfer',
@@ -68,6 +69,7 @@ export const SmartContractModel: ModelLogic<{
             ownedByOrganization: 'Organization',
             parent: 'NoteVersion',
             pullRequests: 'PullRequest',
+            questions: 'Question',
             starredBy: 'User',
             tags: 'Tag',
             transfers: 'Transfer',
@@ -77,6 +79,7 @@ export const SmartContractModel: ModelLogic<{
         countFields: {
             issuesCount: true,
             pullRequestsCount: true,
+            questionsCount: true,
             transfersCount: true,
             versionsCount: true,
         },
