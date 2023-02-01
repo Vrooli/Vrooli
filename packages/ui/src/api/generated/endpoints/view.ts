@@ -23,29 +23,29 @@ import { SmartContract_list } from '../fragments/SmartContract_list';
 import { Standard_list } from '../fragments/Standard_list';
 import { User_list } from '../fragments/User_list';
 
-export const viewFindMany = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Issue_list}
-...${Api_nav}
-...${Note_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${Label_common}
-...${Note_list}
-...${Organization_list}
-...${Post_list}
-...${Project_list}
-...${Question_list}
-...${Routine_list}
-...${Label_full}
-...${SmartContract_list}
-...${Standard_list}
-...${User_list}
+export const viewFindMany = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Issue_list}
+${Api_nav}
+${Note_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${Label_common}
+${Note_list}
+${Organization_list}
+${Post_list}
+${Project_list}
+${Question_list}
+${Routine_list}
+${Label_full}
+${SmartContract_list}
+${Standard_list}
+${User_list}
 
 query views($input: ViewSearchInput!) {
   views(input: $input) {

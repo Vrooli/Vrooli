@@ -21,7 +21,7 @@ import { guestSession } from 'utils/authentication';
 import { getCookiePreferences, getCookieTheme, setCookieTheme } from 'utils/cookies';
 import { Session, ValidateSessionInput } from '@shared/consts';
 import { hasErrorCode, mutationWrapper } from 'api/utils';
-import { endpoints } from 'api';
+import { authValidateSession } from 'api/generated/endpoints/auth';
 
 /**
  * Attempts to find theme without using session, defaulting to light
@@ -84,7 +84,7 @@ export function App() {
     const [loading, setLoading] = useState(false);
     const [celebrating, setCelebrating] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(...endpoints.auth().validateSession);
+    const [validateSession] = useMutation<Session, ValidateSessionInput, 'validateSession'>(authValidateSession, 'validateSession');
 
     /**
      * Sets theme state and meta tags. Meta tags allow standalone apps to

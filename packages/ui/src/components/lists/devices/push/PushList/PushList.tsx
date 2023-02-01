@@ -14,7 +14,8 @@ import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput, Success } from '@shared/consts';
 import { pushDeviceValidation } from '@shared/validation';
-import { endpoints } from 'api';
+import { pushDeviceCreate, pushDeviceUpdate } from 'api/generated/endpoints/pushDevice';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
 
 //TODO copied from emaillist. need to rewrite
 export const PushList = ({
@@ -24,7 +25,7 @@ export const PushList = ({
     const { palette } = useTheme();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useMutation<PushDevice, PushDeviceCreateInput, 'pushDeviceCreate'>(...endpoints.pushDevice().create);
+    const [addMutation, { loading: loadingAdd }] = useMutation<PushDevice, PushDeviceCreateInput, 'pushDeviceCreate'>(pushDeviceCreate, 'pushDeviceCreate');
     const formik = useFormik({
         initialValues: {
             endpoint: '',
@@ -56,7 +57,7 @@ export const PushList = ({
         },
     });
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<PushDevice, PushDeviceUpdateInput, 'pushDeviceUpdate'>(...endpoints.pushDevice().update);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<PushDevice, PushDeviceUpdateInput, 'pushDeviceUpdate'>(pushDeviceUpdate, 'pushDeviceUpdate');
     const onUpdate = useCallback((index: number, updatedDevice: PushDevice) => {
         if (loadingUpdate) return;
         mutationWrapper<PushDevice, PushDeviceUpdateInput>({
@@ -71,7 +72,7 @@ export const PushList = ({
         })
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...endpoints.deleteOneOrMany().deleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
     const onDelete = useCallback((device: PushDevice) => {
         if (loadingDelete) return;
         mutationWrapper<Success, DeleteOneInput>({

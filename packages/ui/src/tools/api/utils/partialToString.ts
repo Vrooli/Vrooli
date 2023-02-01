@@ -59,11 +59,13 @@ export const partialToString = async <
     }
     // If there are fragments, convert them to strings
     const { __define, ...rest } = combined;
+    partial?.__typename === 'ProjectOrOrganizationSearchResult' && console.log('partialtostring __define', Object.keys(__define ?? {}))
+    partial?.__typename === 'ProjectOrOrganizationSearchResult' && console.log('partialtostring rest', (rest as any).edges.node)
     if (exists(__define) && Object.keys(__define).length > 0) {
         fragments = await fragmentsToString(__define)
         // For every fragment, add reference to it in the tag
         fragments.forEach(([fragmentName]) => {
-            tag += `${' '.repeat(indent)}...\${${fragmentName}}\n`
+            tag += `${' '.repeat(indent)}\${${fragmentName}}\n`
         })
     }
     // Add the query/mutation to the tag

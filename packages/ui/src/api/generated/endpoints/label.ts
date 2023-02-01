@@ -2,8 +2,8 @@ import gql from 'graphql-tag';
 import { Organization_nav } from '../fragments/Organization_nav';
 import { User_nav } from '../fragments/User_nav';
 
-export const labelFindOne = gql`...${Organization_nav}
-...${User_nav}
+export const labelFindOne = gql`${Organization_nav}
+${User_nav}
 
 query label($input: FindByIdInput!) {
   label(input: $input) {
@@ -36,8 +36,8 @@ query label($input: FindByIdInput!) {
   }
 }`;
 
-export const labelFindMany = gql`...${Organization_nav}
-...${User_nav}
+export const labelFindMany = gql`${Organization_nav}
+${User_nav}
 
 query labels($input: LabelSearchInput!) {
   labels(input: $input) {
@@ -69,8 +69,8 @@ query labels($input: LabelSearchInput!) {
   }
 }`;
 
-export const labelCreate = gql`...${Organization_nav}
-...${User_nav}
+export const labelCreate = gql`${Organization_nav}
+${User_nav}
 
 mutation labelCreate($input: LabelCreateInput!) {
   labelCreate(input: $input) {
@@ -103,8 +103,8 @@ mutation labelCreate($input: LabelCreateInput!) {
   }
 }`;
 
-export const labelUpdate = gql`...${Organization_nav}
-...${User_nav}
+export const labelUpdate = gql`${Organization_nav}
+${User_nav}
 
 mutation labelUpdate($input: LabelUpdateInput!) {
   labelUpdate(input: $input) {

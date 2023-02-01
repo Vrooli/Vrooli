@@ -25,11 +25,13 @@ export const rel = async <
     // Find correct selection to use
     const actualSelectionType = findSelection(partial, selectionType);
     // Get selection data for the partial
-    let selectionData = partial[actualSelectionType]!;
+    let selectionData = { __typename: partial.__typename, ...partial[actualSelectionType]! } as any;
     // Remove all exceptions. Supports dot notation.
     hasExceptions && removeValuesUsingDot(selectionData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
+    partial.__typename && (partial.__typename as string).startsWith('ProjectOrOrganization') && console.log('rellies A: ', partial.__typename, actualSelectionType, selectionData)
     // Shape selection data
     selectionData = await partialShape(selectionData);
+    partial.__typename && (partial.__typename as string).startsWith('ProjectOrOrganization') && console.log('rellies B: ', partial.__typename, actualSelectionType, selectionData)
     // If the selectiion type is 'full' or 'list', and the 'common' selection is defined, combine the two.
     if (['full', 'list'].includes(actualSelectionType) && exists(partial.common)) {
         let commonData = partial.common;

@@ -11,7 +11,7 @@ import { uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { ProjectVersion, ProjectVersionCreateInput, ResourceList } from "@shared/consts";
-import { endpoints } from "api";
+import { projectVersionCreate } from "api/generated/endpoints/projectVersion";
 
 export const ProjectCreate = ({
     onCreated,
@@ -40,7 +40,7 @@ export const ProjectCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<ProjectVersion, ProjectVersionCreateInput, 'projectVersionCreate'>(...endpoints.projectVersion().create);
+    const [mutation] = useMutation<ProjectVersion, ProjectVersionCreateInput, 'projectVersionCreate'>(projectVersionCreate, 'projectVersionCreate');
     const formik = useFormik({
         initialValues: {
             id: uuid(),

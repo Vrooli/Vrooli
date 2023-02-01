@@ -17,23 +17,23 @@ import { SmartContractVersion_list } from '../fragments/SmartContractVersion_lis
 import { Standard_list } from '../fragments/Standard_list';
 import { StandardVersion_list } from '../fragments/StandardVersion_list';
 
-export const apiFindOne = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const apiFindOne = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 query api($input: FindByIdInput!) {
   api(input: $input) {
@@ -173,10 +173,10 @@ query api($input: FindByIdInput!) {
   }
 }`;
 
-export const apiFindMany = gql`...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
+export const apiFindMany = gql`${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
 
 query apis($input: ApiSearchInput!) {
   apis(input: $input) {
@@ -257,23 +257,23 @@ query apis($input: ApiSearchInput!) {
   }
 }`;
 
-export const apiCreate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const apiCreate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation apiCreate($input: ApiCreateInput!) {
   apiCreate(input: $input) {
@@ -413,23 +413,23 @@ mutation apiCreate($input: ApiCreateInput!) {
   }
 }`;
 
-export const apiUpdate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const apiUpdate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation apiUpdate($input: ApiUpdateInput!) {
   apiUpdate(input: $input) {

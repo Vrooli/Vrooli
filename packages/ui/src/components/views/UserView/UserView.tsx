@@ -13,7 +13,7 @@ import { DonateIcon, EditIcon, EllipsisIcon, UserIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { getCurrentUser } from "utils/authentication";
 import { setDotNotationValue } from "@shared/utils";
-import { endpoints } from "api";
+import { userFindOne } from "api/generated/endpoints/user";
 
 enum TabOptions {
     Resources = "Resources",
@@ -38,7 +38,7 @@ export const UserView = ({
     }, [session]);
     const isOwn: boolean = useMemo(() => Boolean(getCurrentUser(session).id === id), [id, session]);
     // Fetch data
-    const [getData, { data, loading }] = useLazyQuery<User, FindByIdOrHandleInput>(...endpoints.user().findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<User, FindByIdOrHandleInput>(userFindOne, 'user', { errorPolicy: 'all' });
     const [user, setUser] = useState<User | null | undefined>(null);
     useEffect(() => {
         if (uuidValidate(id)) getData({ variables: { id } })

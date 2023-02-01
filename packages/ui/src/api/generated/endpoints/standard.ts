@@ -17,23 +17,23 @@ import { SmartContractVersion_list } from '../fragments/SmartContractVersion_lis
 import { Standard_list } from '../fragments/Standard_list';
 import { StandardVersion_list } from '../fragments/StandardVersion_list';
 
-export const standardFindOne = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const standardFindOne = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 query standard($input: FindByIdInput!) {
   standard(input: $input) {
@@ -202,10 +202,10 @@ query standard($input: FindByIdInput!) {
   }
 }`;
 
-export const standardFindMany = gql`...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
+export const standardFindMany = gql`${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
 
 query standards($input: StandardSearchInput!) {
   standards(input: $input) {
@@ -291,23 +291,23 @@ query standards($input: StandardSearchInput!) {
   }
 }`;
 
-export const standardCreate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const standardCreate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation standardCreate($input: StandardCreateInput!) {
   standardCreate(input: $input) {
@@ -476,23 +476,23 @@ mutation standardCreate($input: StandardCreateInput!) {
   }
 }`;
 
-export const standardUpdate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const standardUpdate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation standardUpdate($input: StandardUpdateInput!) {
   standardUpdate(input: $input) {

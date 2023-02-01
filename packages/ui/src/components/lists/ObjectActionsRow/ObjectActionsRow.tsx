@@ -7,7 +7,9 @@ import { mutationWrapper } from "api/utils";
 import React, { useCallback, useMemo, useState } from "react";
 import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ObjectActionsRowProps, ObjectActionsRowObject } from "../types";
-import { endpoints } from "api";
+import { copyCopy } from "api/generated/endpoints/copy";
+import { starStar } from "api/generated/endpoints/star";
+import { voteVote } from "api/generated/endpoints/vote";
 
 const commonButtonSx = (palette: Palette) => ({
     color: 'inherit',
@@ -77,9 +79,9 @@ export const ObjectActionsRow = <T extends ObjectActionsRowObject>({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [copy] = useMutation<CopyResult, CopyInput, 'copy'>(...endpoints.copy().copy);
-    const [star] = useMutation<Success, StarInput, 'star'>(...endpoints.star().star);
-    const [vote] = useMutation<Success, VoteInput, 'vote'>(...endpoints.vote().vote);
+    const [copy] = useMutation<CopyResult, CopyInput, 'copy'>(copyCopy, 'copy');
+    const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
+    const [vote] = useMutation<Success, VoteInput, 'vote'>(voteVote, 'vote');
 
     const handleCopy = useCallback(() => {
         if (!id) return;

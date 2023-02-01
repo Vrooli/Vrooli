@@ -16,7 +16,7 @@ import { SortMenu, TimeMenu } from 'components/lists';
 import { BuildIcon, SortIcon, HistoryIcon as TimeIcon, CreateIcon } from '@shared/icons';
 import { ContentCollapse } from '../ContentCollapse/ContentCollapse';
 import { CommentThread as ThreadType, CommentSearchInput, CommentSearchResult, CommentSortBy, TimeFrame, Comment } from '@shared/consts';
-import { endpoints } from 'api';
+import { commentFindMany } from 'api/generated/endpoints/comment';
 
 const { advancedSearchSchema, defaultSortBy, sortByOptions } = searchTypeToParams.Comment;
 const sortOptionsLabelled = labelledSortOptions(sortByOptions);
@@ -98,7 +98,7 @@ export function CommentContainer({
     }, [searchString, sortBy, timeFrame, setLocation]);
 
     const [advancedSearchParams, setAdvancedSearchParams] = useState<object>({});
-    const [getPageData, { data: pageData, loading }] = useLazyQuery<CommentSearchResult, CommentSearchInput, 'comments'>(...endpoints.comment().findMany, {
+    const [getPageData, { data: pageData, loading }] = useLazyQuery<CommentSearchResult, CommentSearchInput, 'comments'>(commentFindMany, 'comments', {
         variables: {
             after: after.current,
             take: 20,

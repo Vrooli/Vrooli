@@ -17,23 +17,23 @@ import { SmartContractVersion_list } from '../fragments/SmartContractVersion_lis
 import { Standard_list } from '../fragments/Standard_list';
 import { StandardVersion_list } from '../fragments/StandardVersion_list';
 
-export const nodeCreate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const nodeCreate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation nodeCreate($input: NodeCreateInput!) {
   nodeCreate(input: $input) {
@@ -145,6 +145,52 @@ mutation nodeCreate($input: NodeCreateInput!) {
                     canDelete
                     canEdit
                     canReport
+                }
+            }
+            root {
+                stats {
+                    id
+                    created_at
+                    periodStart
+                    periodEnd
+                    periodType
+                    calls
+                }
+                id
+                created_at
+                updated_at
+                isPrivate
+                issuesCount
+                labels {
+                    ...Label_list
+                }
+                owner {
+                    ... on Organization {
+                        ...Organization_nav
+                    }
+                    ... on User {
+                        ...User_nav
+                    }
+                }
+                permissions
+                questionsCount
+                score
+                stars
+                tags {
+                    ...Tag_list
+                }
+                transfersCount
+                views
+                you {
+                    canDelete
+                    canEdit
+                    canStar
+                    canTransfer
+                    canView
+                    canVote
+                    isStarred
+                    isUpvoted
+                    isViewed
                 }
             }
             translations {
@@ -755,23 +801,23 @@ mutation nodeCreate($input: NodeCreateInput!) {
   }
 }`;
 
-export const nodeUpdate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const nodeUpdate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation nodeUpdate($input: NodeUpdateInput!) {
   nodeUpdate(input: $input) {
@@ -883,6 +929,52 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                     canDelete
                     canEdit
                     canReport
+                }
+            }
+            root {
+                stats {
+                    id
+                    created_at
+                    periodStart
+                    periodEnd
+                    periodType
+                    calls
+                }
+                id
+                created_at
+                updated_at
+                isPrivate
+                issuesCount
+                labels {
+                    ...Label_list
+                }
+                owner {
+                    ... on Organization {
+                        ...Organization_nav
+                    }
+                    ... on User {
+                        ...User_nav
+                    }
+                }
+                permissions
+                questionsCount
+                score
+                stars
+                tags {
+                    ...Tag_list
+                }
+                transfersCount
+                views
+                you {
+                    canDelete
+                    canEdit
+                    canStar
+                    canTransfer
+                    canView
+                    canVote
+                    isStarred
+                    isUpvoted
+                    isViewed
                 }
             }
             translations {

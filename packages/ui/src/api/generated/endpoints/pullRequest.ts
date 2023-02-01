@@ -17,23 +17,23 @@ import { SmartContractVersion_list } from '../fragments/SmartContractVersion_lis
 import { Standard_list } from '../fragments/Standard_list';
 import { StandardVersion_list } from '../fragments/StandardVersion_list';
 
-export const pullRequestFindOne = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const pullRequestFindOne = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 query pullRequest($input: FindByIdInput!) {
   pullRequest(input: $input) {
@@ -97,23 +97,23 @@ query pullRequest($input: FindByIdInput!) {
   }
 }`;
 
-export const pullRequestFindMany = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const pullRequestFindMany = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 query pullRequests($input: PullRequestSearchInput!) {
   pullRequests(input: $input) {
@@ -186,23 +186,23 @@ query pullRequests($input: PullRequestSearchInput!) {
   }
 }`;
 
-export const pullRequestCreate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const pullRequestCreate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation pullRequestCreate($input: PullRequestCreateInput!) {
   pullRequestCreate(input: $input) {
@@ -266,23 +266,23 @@ mutation pullRequestCreate($input: PullRequestCreateInput!) {
   }
 }`;
 
-export const pullRequestUpdate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const pullRequestUpdate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation pullRequestUpdate($input: PullRequestUpdateInput!) {
   pullRequestUpdate(input: $input) {
@@ -346,23 +346,23 @@ mutation pullRequestUpdate($input: PullRequestUpdateInput!) {
   }
 }`;
 
-export const pullRequestAccept = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const pullRequestAccept = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation pullRequestAcdept($input: FindByIdInput!) {
   pullRequestAcdept(input: $input) {
@@ -426,23 +426,23 @@ mutation pullRequestAcdept($input: FindByIdInput!) {
   }
 }`;
 
-export const pullRequestReject = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const pullRequestReject = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation pullRequestReject($input: FindByIdInput!) {
   pullRequestReject(input: $input) {

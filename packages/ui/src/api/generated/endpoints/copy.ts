@@ -12,18 +12,18 @@ import { Label_full } from '../fragments/Label_full';
 import { SmartContractVersion_list } from '../fragments/SmartContractVersion_list';
 import { StandardVersion_list } from '../fragments/StandardVersion_list';
 
-export const copyCopy = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${NoteVersion_list}
-...${Organization_list}
-...${ProjectVersion_list}
-...${RoutineVersion_list}
-...${Label_full}
-...${SmartContractVersion_list}
-...${StandardVersion_list}
+export const copyCopy = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${NoteVersion_list}
+${Organization_list}
+${ProjectVersion_list}
+${RoutineVersion_list}
+${Label_full}
+${SmartContractVersion_list}
+${StandardVersion_list}
 
 mutation copy($input: CopyInput!) {
   copy(input: $input) {

@@ -6,12 +6,12 @@ import { Tag_list } from '../fragments/Tag_list';
 import { Label_list } from '../fragments/Label_list';
 import { Organization_list } from '../fragments/Organization_list';
 
-export const projectOrOrganizationFindMany = gql`...${Project_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Organization_list}
+export const projectOrOrganizationFindMany = gql`${Project_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Organization_list}
 
 query projectOrOrganizations($input: ProjectOrOrganizationSearchInput!) {
   projectOrOrganizations(input: $input) {
@@ -19,8 +19,10 @@ query projectOrOrganizations($input: ProjectOrOrganizationSearchInput!) {
         cursor
         node {
             ... on Project {
+                ...Project_list
             }
             ... on Organization {
+                ...Organization_list
             }
         }
     }

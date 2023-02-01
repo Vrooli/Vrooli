@@ -9,7 +9,7 @@ import { PubSub } from 'utils';
 import { SnackSeverity } from 'components/dialogs';
 import { documentNodeWrapper } from 'api/utils';
 import { StarInput, Success } from '@shared/consts';
-import { endpoints } from 'api';
+import { starStar } from 'api/generated/endpoints/star';
 
 export const StarButton = ({
     disabled = false,
@@ -49,7 +49,7 @@ export const StarButton = ({
         if (!uuidValidate(objectId)) return;
         // Send star mutation
         documentNodeWrapper<Success, StarInput>({
-            node: endpoints.star().star[0],
+            node: starStar,
             input: { isStar, starFor, forConnect: objectId },
             onSuccess: () => { 
                 if (onChange) onChange(isStar, event) 

@@ -40,46 +40,46 @@ import { StandardVersion_nav } from '../fragments/StandardVersion_nav';
 import { QuestionAnswer_list } from '../fragments/QuestionAnswer_list';
 import { Quiz_list } from '../fragments/Quiz_list';
 
-export const historyHistory = gql`...${RunProject_list}
-...${Organization_nav}
-...${User_nav}
-...${Label_full}
-...${RunRoutine_list}
-...${View_list}
-...${Api_list}
-...${Tag_list}
-...${Label_list}
-...${Issue_list}
-...${Api_nav}
-...${Note_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${Label_common}
-...${Note_list}
-...${Organization_list}
-...${Post_list}
-...${Project_list}
-...${Question_list}
-...${Routine_list}
-...${SmartContract_list}
-...${Standard_list}
-...${User_list}
-...${Star_list}
-...${Comment_list}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${QuestionAnswer_list}
-...${Quiz_list}
+export const historyHistory = gql`${RunProject_list}
+${Organization_nav}
+${User_nav}
+${Label_full}
+${RunRoutine_list}
+${View_list}
+${Api_list}
+${Tag_list}
+${Label_list}
+${Issue_list}
+${Api_nav}
+${Note_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${Label_common}
+${Note_list}
+${Organization_list}
+${Post_list}
+${Project_list}
+${Question_list}
+${Routine_list}
+${SmartContract_list}
+${Standard_list}
+${User_list}
+${Star_list}
+${Comment_list}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${QuestionAnswer_list}
+${Quiz_list}
 
 query history($input: HistoryInput!) {
   history(input: $input) {

@@ -12,7 +12,7 @@ import { uuidValidate } from '@shared/uuid';
 import { DonateIcon, EditIcon, EllipsisIcon, OrganizationIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { setDotNotationValue } from "@shared/utils";
-import { endpoints } from "api";
+import { organizationFindOne } from "api/generated/endpoints/organization";
 
 enum TabOptions {
     Resources = "Resources",
@@ -32,7 +32,7 @@ export const OrganizationView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     // Fetch data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdOrHandleInput, 'organization'>(...endpoints.organization().findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<Organization, FindByIdOrHandleInput, 'organization'>(organizationFindOne, 'organization', { errorPolicy: 'all' });
     const [organization, setOrganization] = useState<Organization | null | undefined>(null);
     useEffect(() => {
         if (urlData.id || urlData.handle) getData({ variables: urlData })

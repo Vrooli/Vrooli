@@ -1,22 +1,25 @@
 import gql from 'graphql-tag';
+import { Organization_list } from '../fragments/Organization_list';
+import { Tag_list } from '../fragments/Tag_list';
 import { Project_list } from '../fragments/Project_list';
 import { Organization_nav } from '../fragments/Organization_nav';
 import { User_nav } from '../fragments/User_nav';
-import { Tag_list } from '../fragments/Tag_list';
 import { Label_list } from '../fragments/Label_list';
 import { Routine_list } from '../fragments/Routine_list';
 import { Label_full } from '../fragments/Label_full';
+import { Standard_list } from '../fragments/Standard_list';
+import { User_list } from '../fragments/User_list';
 
-export const feedPopular = gql`...${Organization_list}
-...${Tag_list}
-...${Project_list}
-...${Organization_nav}
-...${User_nav}
-...${Label_list}
-...${Routine_list}
-...${Label_full}
-...${Standard_list}
-...${User_list}
+export const feedPopular = gql`${Organization_list}
+${Tag_list}
+${Project_list}
+${Organization_nav}
+${User_nav}
+${Label_list}
+${Routine_list}
+${Label_full}
+${Standard_list}
+${User_list}
 
 query popular($input: PopularInput!) {
   popular(input: $input) {
@@ -38,13 +41,13 @@ query popular($input: PopularInput!) {
   }
 }`;
 
-export const feedLearn = gql`...${Project_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Routine_list}
-...${Label_full}
+export const feedLearn = gql`${Project_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Routine_list}
+${Label_full}
 
 query learn {
   learn {
@@ -57,14 +60,14 @@ query learn {
   }
 }`;
 
-export const feedResearch = gql`...${Routine_list}
-...${Organization_nav}
-...${User_nav}
-...${Label_full}
-...${Tag_list}
-...${Label_list}
-...${Project_list}
-...${Organization_list}
+export const feedResearch = gql`${Routine_list}
+${Organization_nav}
+${User_nav}
+${Label_full}
+${Tag_list}
+${Label_list}
+${Project_list}
+${Organization_list}
 
 query research {
   research {
@@ -91,13 +94,13 @@ query research {
   }
 }`;
 
-export const feedDevelop = gql`...${Project_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Routine_list}
-...${Label_full}
+export const feedDevelop = gql`${Project_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Routine_list}
+${Label_full}
 
 query develop {
   develop {

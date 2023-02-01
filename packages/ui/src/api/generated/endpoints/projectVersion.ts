@@ -17,23 +17,23 @@ import { SmartContractVersion_list } from '../fragments/SmartContractVersion_lis
 import { Standard_list } from '../fragments/Standard_list';
 import { StandardVersion_list } from '../fragments/StandardVersion_list';
 
-export const projectVersionFindOne = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const projectVersionFindOne = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 query projectVersion($input: FindByIdInput!) {
   projectVersion(input: $input) {
@@ -302,6 +302,56 @@ query projectVersion($input: FindByIdInput!) {
             canReport
         }
     }
+    root {
+        stats {
+            id
+            created_at
+            periodStart
+            periodEnd
+            periodType
+            directories
+            notes
+            routines
+            smartContracts
+            standards
+        }
+        id
+        created_at
+        updated_at
+        isPrivate
+        issuesCount
+        labels {
+            ...Label_list
+        }
+        owner {
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on User {
+                ...User_nav
+            }
+        }
+        permissions
+        questionsCount
+        score
+        stars
+        tags {
+            ...Tag_list
+        }
+        transfersCount
+        views
+        you {
+            canDelete
+            canEdit
+            canStar
+            canTransfer
+            canView
+            canVote
+            isStarred
+            isUpvoted
+            isViewed
+        }
+    }
     translations {
         id
         language
@@ -332,7 +382,11 @@ query projectVersion($input: FindByIdInput!) {
   }
 }`;
 
-export const projectVersionFindMany = gql`
+export const projectVersionFindMany = gql`${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+
 query projectVersions($input: ProjectVersionSearchInput!) {
   projectVersions(input: $input) {
     edges {
@@ -366,6 +420,44 @@ query projectVersions($input: ProjectVersionSearchInput!) {
                         description
                         name
                     }
+                }
+            }
+            root {
+                id
+                created_at
+                updated_at
+                isPrivate
+                issuesCount
+                labels {
+                    ...Label_list
+                }
+                owner {
+                    ... on Organization {
+                        ...Organization_nav
+                    }
+                    ... on User {
+                        ...User_nav
+                    }
+                }
+                permissions
+                questionsCount
+                score
+                stars
+                tags {
+                    ...Tag_list
+                }
+                transfersCount
+                views
+                you {
+                    canDelete
+                    canEdit
+                    canStar
+                    canTransfer
+                    canView
+                    canVote
+                    isStarred
+                    isUpvoted
+                    isViewed
                 }
             }
             translations {
@@ -403,23 +495,23 @@ query projectVersions($input: ProjectVersionSearchInput!) {
   }
 }`;
 
-export const projectVersionCreate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const projectVersionCreate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
   projectVersionCreate(input: $input) {
@@ -688,6 +780,56 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
             canReport
         }
     }
+    root {
+        stats {
+            id
+            created_at
+            periodStart
+            periodEnd
+            periodType
+            directories
+            notes
+            routines
+            smartContracts
+            standards
+        }
+        id
+        created_at
+        updated_at
+        isPrivate
+        issuesCount
+        labels {
+            ...Label_list
+        }
+        owner {
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on User {
+                ...User_nav
+            }
+        }
+        permissions
+        questionsCount
+        score
+        stars
+        tags {
+            ...Tag_list
+        }
+        transfersCount
+        views
+        you {
+            canDelete
+            canEdit
+            canStar
+            canTransfer
+            canView
+            canVote
+            isStarred
+            isUpvoted
+            isViewed
+        }
+    }
     translations {
         id
         language
@@ -718,23 +860,23 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
   }
 }`;
 
-export const projectVersionUpdate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const projectVersionUpdate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
   projectVersionUpdate(input: $input) {
@@ -1001,6 +1143,56 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
             canDelete
             canEdit
             canReport
+        }
+    }
+    root {
+        stats {
+            id
+            created_at
+            periodStart
+            periodEnd
+            periodType
+            directories
+            notes
+            routines
+            smartContracts
+            standards
+        }
+        id
+        created_at
+        updated_at
+        isPrivate
+        issuesCount
+        labels {
+            ...Label_list
+        }
+        owner {
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on User {
+                ...User_nav
+            }
+        }
+        permissions
+        questionsCount
+        score
+        stars
+        tags {
+            ...Tag_list
+        }
+        transfersCount
+        views
+        you {
+            canDelete
+            canEdit
+            canStar
+            canTransfer
+            canView
+            canVote
+            isStarred
+            isUpvoted
+            isViewed
         }
     }
     translations {

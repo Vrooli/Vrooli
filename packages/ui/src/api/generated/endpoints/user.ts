@@ -1,9 +1,13 @@
 import gql from 'graphql-tag';
+import { Label_full } from '../fragments/Label_full';
+import { Organization_nav } from '../fragments/Organization_nav';
+import { User_nav } from '../fragments/User_nav';
+import { Label_list } from '../fragments/Label_list';
 
-export const userProfile = gql`...${Label_full}
-...${Organization_nav}
-...${User_nav}
-...${Label_list}
+export const userProfile = gql`${Label_full}
+${Organization_nav}
+${User_nav}
+${Label_list}
 
 query profile {
   profile {
@@ -252,10 +256,10 @@ query users($input: UserSearchInput!) {
   }
 }`;
 
-export const userProfileUpdate = gql`...${Label_full}
-...${Organization_nav}
-...${User_nav}
-...${Label_list}
+export const userProfileUpdate = gql`${Label_full}
+${Organization_nav}
+${User_nav}
+${Label_list}
 
 mutation profileUpdate($input: ProfileUpdateInput!) {
   profileUpdate(input: $input) {
@@ -421,10 +425,10 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
   }
 }`;
 
-export const userProfileEmailUpdate = gql`...${Label_full}
-...${Organization_nav}
-...${User_nav}
-...${Label_list}
+export const userProfileEmailUpdate = gql`${Label_full}
+${Organization_nav}
+${User_nav}
+${Label_list}
 
 mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
   profileEmailUpdate(input: $input) {

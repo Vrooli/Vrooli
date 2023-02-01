@@ -15,7 +15,7 @@ import { APP_LINKS, DeleteOneInput, Success } from '@shared/consts';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { DeleteIcon } from '@shared/icons';
-import { endpoints } from 'api';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
 
 export const DeleteDialog = ({
     handleClose,
@@ -36,7 +36,7 @@ export const DeleteDialog = ({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
-    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...endpoints.deleteOneOrMany().deleteOne);
+    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
     const handleDelete = useCallback(() => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,

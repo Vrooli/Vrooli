@@ -22,14 +22,14 @@ import { clickSize } from 'styles';
 import { PasswordTextField } from 'components';
 import { CSSProperties } from '@mui/styles';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
-import { endpoints } from 'api';
+import { authEmailSignUp } from 'api/generated/endpoints/auth';
 
 export const SignUpForm = ({
     onFormChange = () => { },
 }: FormProps) => {
     const theme = useTheme();
     const [, setLocation] = useLocation();
-    const [emailSignUp, { loading }] = useMutation<Session, EmailSignUpInput, 'emailSignUp'>(...endpoints.auth().emailSignUp);
+    const [emailSignUp, { loading }] = useMutation<Session, EmailSignUpInput, 'emailSignUp'>(authEmailSignUp, 'emailSignUp');
 
     const formik = useFormik({
         initialValues: {

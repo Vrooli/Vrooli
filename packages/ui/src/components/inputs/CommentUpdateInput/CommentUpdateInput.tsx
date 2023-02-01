@@ -12,7 +12,7 @@ import { Box, Grid, Typography, useTheme } from "@mui/material";
 import { GridSubmitButtons } from "components/buttons";
 import { MarkdownInput } from "../MarkdownInput/MarkdownInput";
 import { Comment, CommentUpdateInput as CommentUpdateInputType } from "@shared/consts";
-import { endpoints } from "api";
+import { commentUpdate } from "api/generated/endpoints/comment";
 
 /**
  * MarkdownInput/CommentContainer wrapper for creating comments
@@ -32,7 +32,7 @@ export const CommentUpdateInput = ({
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
     const isLoggedIn = useMemo(() => Boolean(getCurrentUser(session).id), [session]);
 
-    const [updateMutation, { loading: loadingUpdate }] = useMutation<Comment, CommentUpdateInputType, 'commentUpdate'>(...endpoints.comment().update);
+    const [updateMutation, { loading: loadingUpdate }] = useMutation<Comment, CommentUpdateInputType, 'commentUpdate'>(commentUpdate, 'commentUpdate');
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,

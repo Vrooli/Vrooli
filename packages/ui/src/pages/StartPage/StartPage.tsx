@@ -30,7 +30,7 @@ import { StartPageProps } from 'pages/types';
 import { hasErrorCode } from 'api/utils';
 import { getCurrentUser } from 'utils/authentication';
 import { subscribeUserToPush } from 'serviceWorkerRegistration';
-import { endpoints } from 'api';
+import { authEmailLogIn, authGuestLogIn } from 'api/generated/endpoints/auth';
 
 const helpText =
     `Logging in allows you to vote, save favorites, and contribute to the community.\n\nChoose **WALLET** if you are on a browser with a supported extension. This will not cost any money, but requires the signing of a message to verify that you own the wallet. Wallets will be utilized in the future to support user donations and execute routines tied to smart contracts.\n\nChoose **EMAIL** if you are on mobile or do not have a Nami account. A wallet can be associated with your account later.\n\nChoose **ENTER AS GUEST** if you only want to view the site or execute existing routines.`
@@ -52,8 +52,8 @@ export const StartPage = ({
         verificationCode: typeof search.verificationCode === 'string' ? search.verificationCode : undefined,
     }), [search]);
 
-    const [emailLogIn] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(...endpoints.auth().emailLogIn);
-    const [guestLogIn] = useMutation<Session, null, 'guestLogIn'>(...endpoints.auth().guestLogIn);
+    const [emailLogIn] = useMutation<Session, EmailLogInInput, 'emailLogIn'>(authEmailLogIn, 'emailLogIn');
+    const [guestLogIn] = useMutation<Session, null, 'guestLogIn'>(authGuestLogIn, 'guestLogIn');
     // Handles email authentication popup
     const [emailPopupOpen, setEmailPopupOpen] = useState(false);
     const [popupForm, setPopupForm] = useState<Forms>(Forms.LogIn);

@@ -17,13 +17,13 @@ import { FormProps } from './types';
 import { formNavLink, formPaper, formSubmit } from './styles';
 import { clickSize } from 'styles';
 import { CSSProperties } from '@mui/styles';
-import { endpoints } from 'api';
+import { authEmailRequestPasswordChange } from 'api/generated/endpoints/auth';
 
 export const ForgotPasswordForm = ({
     onFormChange = () => { }
 }: FormProps) => {
     const [, setLocation] = useLocation();
-    const [emailRequestPasswordChange, { loading }] = useMutation<Success, EmailRequestPasswordChangeInput, 'emailRequestPasswordChange'>(...endpoints.auth().emailRequestPasswordChange);
+    const [emailRequestPasswordChange, { loading }] = useMutation<Success, EmailRequestPasswordChangeInput, 'emailRequestPasswordChange'>(authEmailRequestPasswordChange, 'emailRequestPasswordChange');
 
     const formik = useFormik({
         initialValues: {

@@ -8,7 +8,7 @@ import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageI
 import { useLazyQuery } from 'api/hooks';
 import { queryWrapper } from 'api/utils';
 import { Translate, TranslateInput } from '@shared/consts';
-import { endpoints } from 'api';
+import { translateTranslate } from 'api/generated/endpoints/translate';
 
 /**
  * Languages which support auto-translations through LibreTranslate. 
@@ -65,7 +65,7 @@ export const SelectLanguageMenu = ({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useLazyQuery<Translate, TranslateInput, 'translate'>(...endpoints.translate().translate);
+    const [getAutoTranslation] = useLazyQuery<Translate, TranslateInput, 'translate'>(translateTranslate, 'translate');
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
         const sourceTranslation = translations.find(t => t.language === source);

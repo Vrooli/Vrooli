@@ -51,23 +51,53 @@ export const partialShape = async <T extends { __typename: string }>(
     const result: DeepPartialBooleanWithFragments<NonMaybe<T>> = {};
     // Unlazy the selection
     const data = await unlazyDeep(selection);
+    (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape selection A:', selection);
     // Initialize objects to store renamed fragments. We use this to avoid duplicates.
     // Fragments are keyed by their object type (e.g. Project, Routine) and selection type (e.g. list, full)
     let uniqueFragments: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = {};
     // Add top-level fragments to uniqueFragments
     uniqueFragments = addFragments(uniqueFragments, data.__define as any);
+    (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape uniqueFragments 1:', uniqueFragments);
     // Create currDefine object to hold current fragments (which haven't been renamed yet). 
     // Prefer the __define field from first and second object (i.e. current) over lastDefine (i.e. parent, grandparent, etc.).
     let currDefine: { [x: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = { ...(data.__define ?? {}) } as any;
     if (Object.keys(currDefine).length === 0) currDefine = { ...lastDefine };
+    (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape currDefine I:', currDefine);
     // Iterate over the keys
     for (const key of Object.keys(data)) {
+        (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape key:', key);
         // Skip __typename, __define, and __selectionType
         if (['__typename', '__define', '__selectionType'].includes(key)) continue;
+        // If the key is __union, rename each field in the union to ensure uniqueness
+        // NOTE: This case is only reached if the __union field is at the top level of the selection object, rather than 
+        // nested within another property. Most of the time, the next case will be reached instead.
+        if (key === '__union') {
+            // Initialize __union field if it doesn't exist
+            if (!exists(result.__union)) {
+                result.__union = {};
+            }
+            for (const [unionKey, value] of Object.entries(data.__union!)) {
+                // If value is a string or number, it must be a key for a fragment in the __define field. 
+                if (typeof value === 'string' || typeof value === 'number') {
+                    // Rename the field to ensure uniqueness
+                    if (!exists(currDefine[value])) continue;
+                    const defineData = currDefine[value];
+                    result.__union![unionKey] = uniqueFragmentName(defineData.__typename!, defineData.__selectionType!);
+                }
+                // Otherwise (i.e. its a [possibly lazy] object), add without fragments to the __union field
+                else {
+                    // Split __define (i.e. fragments) from the object so we can move them to shared fragments
+                    const { __define, ...rest } = await unlazy(value as any);
+                    uniqueFragments = addFragments(uniqueFragments, __define);
+                    // Add the object to the __union field
+                    result.__union![unionKey] = { ...rest };
+                }
+            }
+        }
         // If the value is an object with key __union, rename each field in the union to ensure uniqueness
         // This will ensure that it is unique across all objects.
         else if (exists(data[key]?.__union)) {
-            if (!exists(data[key]?.__union)) continue;
+            (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape in union:', key, data[key].__union);
             // Initialize __union field if it doesn't exist
             if (!exists(result[key])) {
                 result[key] = { __union: {} };

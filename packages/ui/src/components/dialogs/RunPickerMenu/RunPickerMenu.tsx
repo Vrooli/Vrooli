@@ -13,7 +13,9 @@ import { uuid } from '@shared/uuid';
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { DeleteIcon } from "@shared/icons";
 import { SnackSeverity } from "components";
-import { endpoints } from "api";
+import { runProjectCreate } from "api/generated/endpoints/runProject";
+import { runRoutineCreate } from "api/generated/endpoints/runRoutine";
+import { deleteOneOrManyDeleteOne } from "api/generated/endpoints/deleteOneOrMany";
 
 const titleAria = 'run-picker-dialog-title';
 
@@ -42,8 +44,8 @@ export const RunPickerMenu = ({
         }
     }, [runnableObject, onSelect, handleClose]);
 
-    const [runProjectCreate] = useMutation<RunProject, RunProjectCreateInput, 'runProjectCreate'>(...endpoints.runProject().create);
-    const [runRoutineCreate] = useMutation<RunRoutine, RunRoutineCreateInput, 'runRoutineCreate'>(...endpoints.runRoutine().create);
+    const [createRunProject] = useMutation<RunProject, RunProjectCreateInput, 'runProjectCreate'>(runProjectCreate, 'runProjectCreate');
+    const [createRunRoutine] = useMutation<RunRoutine, RunRoutineCreateInput, 'runRoutineCreate'>(runRoutineCreate, 'runRoutineCreate');
     const createNewRun = useCallback(() => {
         if (!runnableObject) {
             PubSub.get().publishSnack({ messageKey: 'CouldNotReadRoutine', severity: SnackSeverity.Error });
@@ -51,7 +53,7 @@ export const RunPickerMenu = ({
         }
         if (runnableObject.__typename === 'ProjectVersion') {
             mutationWrapper<RunProject, RunProjectCreateInput>({
-                mutation: runProjectCreate,
+                mutation: createRunProject,
                 input: {
                     id: uuid(),
                     name: getTranslation(runnableObject as ProjectVersion, getUserLanguages(session)).name ?? 'Unnamed Project',
@@ -69,7 +71,7 @@ export const RunPickerMenu = ({
         }
         else {
             mutationWrapper<RunRoutine, RunRoutineCreateInput>({
-                mutation: runRoutineCreate,
+                mutation: createRunRoutine,
                 input: {
                     id: uuid(),
                     name: getTranslation(runnableObject as RoutineVersion, getUserLanguages(session)).name ?? 'Unnamed Routine',
@@ -85,9 +87,9 @@ export const RunPickerMenu = ({
                 errorMessage: () => ({ key: 'FailedToCreateRun' }),
             })
         }
-    }, [handleClose, onAdd, onSelect, runnableObject, runProjectCreate, runRoutineCreate, session]);
+    }, [handleClose, onAdd, onSelect, runnableObject, createRunProject, createRunRoutine, session]);
 
-    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...endpoints.deleteOneOrMany().deleteOne)
+    const [deleteOne] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne')
     const deleteRun = useCallback((run: RunProject | RunRoutine) => {
         mutationWrapper<Success, DeleteOneInput>({
             mutation: deleteOne,

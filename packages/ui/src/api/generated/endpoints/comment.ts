@@ -18,24 +18,24 @@ import { SmartContractVersion_nav } from '../fragments/SmartContractVersion_nav'
 import { StandardVersion_nav } from '../fragments/StandardVersion_nav';
 import { User_nav } from '../fragments/User_nav';
 
-export const commentFindOne = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const commentFindOne = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 query comment($input: FindByIdInput!) {
   comment(input: $input) {
@@ -106,24 +106,24 @@ query comment($input: FindByIdInput!) {
   }
 }`;
 
-export const commentFindMany = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const commentFindMany = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 query comments($input: CommentSearchInput!) {
   comments(input: $input) {
@@ -338,24 +338,24 @@ query comments($input: CommentSearchInput!) {
   }
 }`;
 
-export const commentCreate = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const commentCreate = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 mutation commentCreate($input: CommentCreateInput!) {
   commentCreate(input: $input) {
@@ -426,24 +426,24 @@ mutation commentCreate($input: CommentCreateInput!) {
   }
 }`;
 
-export const commentUpdate = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const commentUpdate = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 mutation commentUpdate($input: CommentUpdateInput!) {
   commentUpdate(input: $input) {

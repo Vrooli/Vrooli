@@ -26,7 +26,8 @@ import { useLocation } from '@shared/route';
 import { getCurrentUser, guestSession } from 'utils/authentication';
 import { ContactInfo } from 'components/navigation';
 import { userValidation } from '@shared/validation';
-import { endpoints } from 'api';
+import { userProfileUpdate } from 'api/generated/endpoints/user';
+import { authLogOut, authSwitchCurrentAccount } from 'api/generated/endpoints/auth';
 
 // Maximum accounts to sign in with
 const MAX_ACCOUNTS = 10;
@@ -47,7 +48,7 @@ export const AccountMenu = ({
     const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false) }, []);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
-    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(...endpoints.user().profileUpdate);
+    const [mutation] = useMutation<User, ProfileUpdateInput, 'profileUpdate'>(userProfileUpdate, 'profileUpdate');
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? 'light',
@@ -87,7 +88,7 @@ export const AccountMenu = ({
         closeAdditionalResources();
     }, [closeAdditionalResources, formik, onClose]);
 
-    const [switchCurrentAccount] = useMutation<Session, SwitchCurrentAccountInput, 'switchCurrentAccount'>(...endpoints.auth().switchCurrentAccount);
+    const [switchCurrentAccount] = useMutation<Session, SwitchCurrentAccountInput, 'switchCurrentAccount'>(authSwitchCurrentAccount, 'switchCurrentAccount');
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
         // Close menu
         handleClose(event);
@@ -111,7 +112,7 @@ export const AccountMenu = ({
         handleClose(event);
     }, [handleClose, setLocation]);
 
-    const [logOut] = useMutation<Session, LogOutInput, 'logOut'>(...endpoints.auth().logOut);
+    const [logOut] = useMutation<Session, LogOutInput, 'logOut'>(authLogOut, 'logOut');
     const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
         handleClose(event);
         const user = getCurrentUser(session);

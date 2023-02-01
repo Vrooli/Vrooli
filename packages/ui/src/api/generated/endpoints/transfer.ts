@@ -11,17 +11,17 @@ import { Label_full } from '../fragments/Label_full';
 import { SmartContract_list } from '../fragments/SmartContract_list';
 import { Standard_list } from '../fragments/Standard_list';
 
-export const transferFindOne = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Note_list}
-...${Project_list}
-...${Routine_list}
-...${Label_full}
-...${SmartContract_list}
-...${Standard_list}
+export const transferFindOne = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Note_list}
+${Project_list}
+${Routine_list}
+${Label_full}
+${SmartContract_list}
+${Standard_list}
 
 query transfer($input: FindByIdInput!) {
   transfer(input: $input) {
@@ -67,17 +67,17 @@ query transfer($input: FindByIdInput!) {
   }
 }`;
 
-export const transferFindMany = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Note_list}
-...${Project_list}
-...${Routine_list}
-...${Label_full}
-...${SmartContract_list}
-...${Standard_list}
+export const transferFindMany = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Note_list}
+${Project_list}
+${Routine_list}
+${Label_full}
+${SmartContract_list}
+${Standard_list}
 
 query transfers($input: TransferSearchInput!) {
   transfers(input: $input) {
@@ -132,17 +132,17 @@ query transfers($input: TransferSearchInput!) {
   }
 }`;
 
-export const transferRequestSend = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Note_list}
-...${Project_list}
-...${Routine_list}
-...${Label_full}
-...${SmartContract_list}
-...${Standard_list}
+export const transferRequestSend = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Note_list}
+${Project_list}
+${Routine_list}
+${Label_full}
+${SmartContract_list}
+${Standard_list}
 
 mutation transferRequestSend($input: TransferRequestSendInput!) {
   transferRequestSend(input: $input) {
@@ -188,17 +188,17 @@ mutation transferRequestSend($input: TransferRequestSendInput!) {
   }
 }`;
 
-export const transferRequestReceive = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Note_list}
-...${Project_list}
-...${Routine_list}
-...${Label_full}
-...${SmartContract_list}
-...${Standard_list}
+export const transferRequestReceive = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Note_list}
+${Project_list}
+${Routine_list}
+${Label_full}
+${SmartContract_list}
+${Standard_list}
 
 mutation transferRequestReceive($input: TransferRequestReceiveInput!) {
   transferRequestReceive(input: $input) {
@@ -244,17 +244,17 @@ mutation transferRequestReceive($input: TransferRequestReceiveInput!) {
   }
 }`;
 
-export const transferTransferUpdate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Note_list}
-...${Project_list}
-...${Routine_list}
-...${Label_full}
-...${SmartContract_list}
-...${Standard_list}
+export const transferTransferUpdate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Note_list}
+${Project_list}
+${Routine_list}
+${Label_full}
+${SmartContract_list}
+${Standard_list}
 
 mutation transferUpdate($input: TransferUpdateInput!) {
   transferUpdate(input: $input) {
@@ -300,17 +300,17 @@ mutation transferUpdate($input: TransferUpdateInput!) {
   }
 }`;
 
-export const transferTransferCancel = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Note_list}
-...${Project_list}
-...${Routine_list}
-...${Label_full}
-...${SmartContract_list}
-...${Standard_list}
+export const transferTransferCancel = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Note_list}
+${Project_list}
+${Routine_list}
+${Label_full}
+${SmartContract_list}
+${Standard_list}
 
 mutation transferCancel($input: FindByIdInput!) {
   transferCancel(input: $input) {
@@ -356,17 +356,17 @@ mutation transferCancel($input: FindByIdInput!) {
   }
 }`;
 
-export const transferTransferAccept = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Note_list}
-...${Project_list}
-...${Routine_list}
-...${Label_full}
-...${SmartContract_list}
-...${Standard_list}
+export const transferTransferAccept = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Note_list}
+${Project_list}
+${Routine_list}
+${Label_full}
+${SmartContract_list}
+${Standard_list}
 
 mutation transferAccept($input: FindByIdInput!) {
   transferAccept(input: $input) {
@@ -412,17 +412,17 @@ mutation transferAccept($input: FindByIdInput!) {
   }
 }`;
 
-export const transferTransferDeny = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Note_list}
-...${Project_list}
-...${Routine_list}
-...${Label_full}
-...${SmartContract_list}
-...${Standard_list}
+export const transferTransferDeny = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Note_list}
+${Project_list}
+${Routine_list}
+${Label_full}
+${SmartContract_list}
+${Standard_list}
 
 mutation transferDeny($input: TransferDenyInput!) {
   transferDeny(input: $input) {

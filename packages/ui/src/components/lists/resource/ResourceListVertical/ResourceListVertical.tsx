@@ -9,7 +9,7 @@ import { mutationWrapper } from 'api/utils';
 import { updateArray } from 'utils';
 import { AddIcon } from '@shared/icons';
 import { Count, DeleteManyInput, Resource } from '@shared/consts';
-import { endpoints } from 'api';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
 
 export const ResourceListVertical = ({
     title = '📌 Resources',
@@ -42,7 +42,7 @@ export const ResourceListVertical = ({
         }
     }, [handleUpdate, list]);
 
-    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(...endpoints.deleteOneOrMany().deleteMany);
+    const [deleteMutation] = useMutation<Count, DeleteManyInput, 'deleteMany'>(deleteOneOrManyDeleteOne, 'deleteMany');
     const onDelete = useCallback((index: number) => {
         if (!list) return;
         const resource = list.resources[index];

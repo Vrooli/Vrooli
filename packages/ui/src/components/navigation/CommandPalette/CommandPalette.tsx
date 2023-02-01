@@ -13,8 +13,8 @@ import { CommandPaletteProps } from '../types';
 import { useLocation } from '@shared/route';
 import { DialogTitle } from 'components';
 import { uuidValidate } from '@shared/uuid';
-import { endpoints } from 'api';
 import { useTranslation } from 'react-i18next';
+import { feedPopular } from 'api/generated/endpoints/feed';
 
 /**
  * Strips URL for comparison against the current URL.
@@ -61,7 +61,7 @@ export const CommandPalette = ({
         return () => { PubSub.get().unsubscribe(dialogSub) };
     }, [])
 
-    const [refetch, { data, loading }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(...endpoints.feed().popular, {
+    const [refetch, { data, loading }] = useLazyQuery<PopularResult, PopularInput, 'popular'>(feedPopular, 'popular', {
         variables: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') },
         errorPolicy: 'all'
     });

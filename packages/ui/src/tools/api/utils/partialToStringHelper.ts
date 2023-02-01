@@ -11,6 +11,7 @@ export const partialToStringHelper = async (
     partial: DeepPartialBooleanWithFragments<any>,
     indent: number = 0,
 ) => {
+    partial.__typename === 'ProjectOrRoutineSearchResult' && console.log('partialToStringHelper yeet', (partial as any).edges.node);
     // If indent is too high, throw an error.
     if (indent > 69) {
         throw new Error('partialToStringHelper indent too high. Possible infinite loop.');

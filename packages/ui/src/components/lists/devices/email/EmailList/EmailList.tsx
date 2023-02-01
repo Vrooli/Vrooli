@@ -14,7 +14,8 @@ import { SnackSeverity } from 'components/dialogs';
 import { ColorIconButton } from 'components/buttons';
 import { DeleteOneInput, DeleteType, Email, EmailCreateInput, SendVerificationEmailInput, Success } from '@shared/consts';
 import { emailValidation } from '@shared/validation';
-import { endpoints } from 'api';
+import { emailCreate, emailVerify } from 'api/generated/endpoints/email';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
 
 export const EmailList = ({
     handleUpdate,
@@ -24,7 +25,7 @@ export const EmailList = ({
     const { palette } = useTheme();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useMutation<Email, EmailCreateInput, 'emailCreate'>(...endpoints.email().create);
+    const [addMutation, { loading: loadingAdd }] = useMutation<Email, EmailCreateInput, 'emailCreate'>(emailCreate, 'emailCreate');
     const formik = useFormik({
         initialValues: {
             emailAddress: '',
@@ -48,7 +49,7 @@ export const EmailList = ({
         },
     });
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...endpoints.deleteOneOrMany().deleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
     const onDelete = useCallback((email: Email) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
@@ -79,7 +80,7 @@ export const EmailList = ({
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numVerifiedWallets]);
 
-    const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<Success, SendVerificationEmailInput, 'sendVerificationEmail'>(...endpoints.email().verify);
+    const [verifyMutation, { loading: loadingVerifyEmail }] = useMutation<Success, SendVerificationEmailInput, 'sendVerificationEmail'>(emailVerify, 'sendVerificationEmail');
     const sendVerificationEmail = useCallback((email: Email) => {
         if (loadingVerifyEmail) return;
         mutationWrapper<Success, SendVerificationEmailInput>({

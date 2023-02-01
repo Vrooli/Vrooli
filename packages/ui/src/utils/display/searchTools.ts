@@ -5,7 +5,69 @@ import { getLocalStorageKeys } from 'utils/localStorage';
 import { PubSub } from 'utils/pubsub';
 import { SnackSeverity } from 'components';
 import { getCurrentUser } from 'utils/authentication';
-import { endpoints } from 'api/endpoints';
+import { apiFindMany } from 'api/generated/endpoints/api';
+import { apiVersionFindMany } from 'api/generated/endpoints/apiVersion';
+import { commentFindMany } from 'api/generated/endpoints/comment';
+import { issueFindMany } from 'api/generated/endpoints/issue';
+import { labelFindMany } from 'api/generated/endpoints/label';
+import { meetingFindMany } from 'api/generated/endpoints/meeting';
+import { meetingInviteFindMany } from 'api/generated/endpoints/meetingInvite';
+import { memberFindMany } from 'api/generated/endpoints/member';
+import { memberInviteFindMany } from 'api/generated/endpoints/memberInvite';
+import { noteFindMany } from 'api/generated/endpoints/note';
+import { noteVersionFindMany } from 'api/generated/endpoints/noteVersion';
+import { notificationFindMany } from 'api/generated/endpoints/notification';
+import { notificationSubscriptionFindMany } from 'api/generated/endpoints/notificationSubscription';
+import { organizationFindMany } from 'api/generated/endpoints/organization';
+import { postFindMany } from 'api/generated/endpoints/post';
+import { projectFindMany } from 'api/generated/endpoints/project';
+import { projectVersionFindMany } from 'api/generated/endpoints/projectVersion';
+import { projectOrOrganizationFindMany } from 'api/generated/endpoints/projectOrOrganization';
+import { projectOrRoutineFindMany } from 'api/generated/endpoints/projectOrRoutine';
+import { pullRequestFindMany } from 'api/generated/endpoints/pullRequest';
+import { questionFindMany } from 'api/generated/endpoints/question';
+import { questionAnswerFindMany } from 'api/generated/endpoints/questionAnswer';
+import { quizFindMany } from 'api/generated/endpoints/quiz';
+import { quizQuestionFindMany } from 'api/generated/endpoints/quizQuestion';
+import { quizQuestionResponseFindMany } from 'api/generated/endpoints/quizQuestionResponse';
+import { quizAttemptFindMany } from 'api/generated/endpoints/quizAttempt';
+import { reminderFindMany } from 'api/generated/endpoints/reminder';
+import { reminderListFindMany } from 'api/generated/endpoints/reminderList';
+import { reportFindMany } from 'api/generated/endpoints/report';
+import { reportResponseFindMany } from 'api/generated/endpoints/reportResponse';
+import { getOperationName } from '@apollo/client/utilities';
+import { reputationHistoryFindMany } from 'api/generated/endpoints/reputationHistory';
+import { resourceFindMany } from 'api/generated/endpoints/resource';
+import { resourceListFindMany } from 'api/generated/endpoints/resourceList';
+import { roleFindMany } from 'api/generated/endpoints/role';
+import { routineFindMany } from 'api/generated/endpoints/routine';
+import { routineVersionFindMany } from 'api/generated/endpoints/routineVersion';
+import { runProjectFindMany } from 'api/generated/endpoints/runProject';
+import { runProjectOrRunRoutineFindMany } from 'api/generated/endpoints/runProjectOrRunRoutine';
+import { runProjectScheduleFindMany } from 'api/generated/endpoints/runProjectSchedule';
+import { runRoutineFindMany } from 'api/generated/endpoints/runRoutine';
+import { runRoutineInputFindMany } from 'api/generated/endpoints/runRoutineInput';
+import { runRoutineScheduleFindMany } from 'api/generated/endpoints/runRoutineSchedule';
+import { smartContractFindMany } from 'api/generated/endpoints/smartContract';
+import { smartContractVersionFindMany } from 'api/generated/endpoints/smartContractVersion';
+import { standardFindMany } from 'api/generated/endpoints/standard';
+import { standardVersionFindMany } from 'api/generated/endpoints/standardVersion';
+import { starFindMany } from 'api/generated/endpoints/star';
+import { statsApiFindMany } from 'api/generated/endpoints/statsApi';
+import { statsOrganizationFindMany } from 'api/generated/endpoints/statsOrganization';
+import { voteFindMany } from 'api/generated/endpoints/vote';
+import { viewFindMany } from 'api/generated/endpoints/view';
+import { userFindMany } from 'api/generated/endpoints/user';
+import { userScheduleFindMany } from 'api/generated/endpoints/userSchedule';
+import { transferFindMany } from 'api/generated/endpoints/transfer';
+import { tagFindMany } from 'api/generated/endpoints/tag';
+import { statsUserFindMany } from 'api/generated/endpoints/statsUser';
+import { statsStandardFindMany } from 'api/generated/endpoints/statsStandard';
+import { statsSmartContractFindMany } from 'api/generated/endpoints/statsSmartContract';
+import { statsSiteFindMany } from 'api/generated/endpoints/statsSite';
+import { statsRoutineFindMany } from 'api/generated/endpoints/statsRoutine';
+import { statsQuizFindMany } from 'api/generated/endpoints/statsQuiz';
+import { statsProjectFindMany } from 'api/generated/endpoints/statsProject';
 
 export type SearchParams = {
     advancedSearchSchema: FormSchema | null;
@@ -1375,14 +1437,14 @@ export const voteSearchSchema: FormSchema = {
  */
 const toParams = (
     advancedSearchSchema: FormSchema,
-    endpointTuple: () => { findMany: readonly [DocumentNode, string] },
+    query: DocumentNode,
     sortByOptions: { [key: string]: string },
     defaultSortBy: string,
 ): SearchParams => ({
     advancedSearchSchema,
     defaultSortBy,
-    endpoint: endpointTuple[1],
-    query: endpointTuple[0],
+    endpoint: getOperationName(query) ?? '',
+    query,
     sortByOptions,
 })
 
@@ -1390,68 +1452,68 @@ const toParams = (
  * Maps search types to values needed to query and display results
  */
 export const searchTypeToParams: { [key in SearchType]: SearchParams } = {
-    'Api': toParams(apiSearchSchema, endpoints.api, ApiSortBy, ApiSortBy.ScoreDesc),
-    'ApiVersion': toParams(apiVersionSearchSchema, endpoints.apiVersion, ApiVersionSortBy, ApiVersionSortBy.DateCreatedDesc),
-    'Comment': toParams(commentSearchSchema, endpoints.comment, CommentSortBy, CommentSortBy.ScoreDesc),
-    'Issue': toParams(issueSearchSchema, endpoints.issue, IssueSortBy, IssueSortBy.ScoreDesc),
-    'Label': toParams(labelSearchSchema, endpoints.label, LabelSortBy, LabelSortBy.DateCreatedDesc),
-    'Meeting': toParams(meetingSearchSchema, endpoints.meeting, MeetingSortBy, MeetingSortBy.EventStartDesc),
-    'MeetingInvite': toParams(meetingInviteSearchSchema, endpoints.meetingInvite, MeetingInviteSortBy, MeetingInviteSortBy.DateCreatedDesc),
-    'Member': toParams(memberSearchSchema, endpoints.member, MemberSortBy, MemberSortBy.DateCreatedDesc),
-    'MemberInvite': toParams(memberInviteSearchSchema, endpoints.memberInvite, MemberInviteSortBy, MemberInviteSortBy.DateCreatedDesc),
-    'Note': toParams(noteSearchSchema, endpoints.note, NoteSortBy, NoteSortBy.ScoreDesc),
-    'NoteVersion': toParams(noteVersionSearchSchema, endpoints.noteVersion, NoteVersionSortBy, NoteVersionSortBy.DateCreatedDesc),
-    'Notification': toParams(notificationSearchSchema, endpoints.notification, NotificationSortBy, NotificationSortBy.DateCreatedDesc),
-    'NotificationSubscription': toParams(notificationSubscriptionSearchSchema, endpoints.notificationSubscription, NotificationSubscriptionSortBy, NotificationSubscriptionSortBy.DateCreatedDesc),
-    'Organization': toParams(organizationSearchSchema, endpoints.organization, OrganizationSortBy, OrganizationSortBy.StarsDesc),
-    'Post': toParams(postSearchSchema, endpoints.post, PostSortBy, PostSortBy.DateCreatedDesc),
-    'Project': toParams(projectSearchSchema, endpoints.project, ProjectSortBy, ProjectSortBy.ScoreDesc),
-    'ProjectVersion': toParams(projectVersionSearchSchema, endpoints.projectVersion, ProjectVersionSortBy, ProjectVersionSortBy.DateCreatedDesc),
-    'ProjectOrOrganization': toParams(projectOrOrganizationSearchSchema, endpoints.projectOrOrganization, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.StarsDesc),
-    'ProjectOrRoutine': toParams(projectOrRoutineSearchSchema, endpoints.projectOrRoutine, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.StarsDesc),
-    'PullRequest': toParams(pullRequestSearchSchema, endpoints.pullRequest, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc),
-    'Question': toParams(questionSearchSchema, endpoints.question, QuestionSortBy, QuestionSortBy.ScoreDesc),
-    'QuestionAnswer': toParams(questionAnswerSearchSchema, endpoints.questionAnswer, QuestionAnswerSortBy, QuestionAnswerSortBy.ScoreDesc),
-    'Quiz': toParams(quizSearchSchema, endpoints.quiz, QuizSortBy, QuizSortBy.StarsDesc),
-    'QuizQuestion': toParams(quizQuestionSearchSchema, endpoints.quizQuestion, QuizQuestionSortBy, QuizQuestionSortBy.OrderAsc),
-    'QuizQuestionResponse': toParams(quizQuestionResponseSearchSchema, endpoints.quizQuestionResponse, QuizQuestionResponseSortBy, QuizQuestionResponseSortBy.DateCreatedDesc),
-    'QuizAttempt': toParams(quizAttemptSearchSchema, endpoints.quizAttempt, QuizAttemptSortBy, QuizAttemptSortBy.DateCreatedDesc),
-    'Reminder': toParams(reminderSearchSchema, endpoints.reminder, ReminderSortBy, ReminderSortBy.DueDateAsc),
-    'ReminderList': toParams(reminderListSearchSchema, endpoints.reminderList, ReminderListSortBy, ReminderListSortBy.DateCreatedDesc),
-    'Report': toParams(reportSearchSchema, endpoints.report, ReportSortBy, ReportSortBy.DateCreatedDesc),
-    'ReportResponse': toParams(reportResponseSearchSchema, endpoints.reportResponse, ReportResponseSortBy, ReportResponseSortBy.DateCreatedDesc),
-    'ReputationHistory': toParams(reputationHistorySearchSchema, endpoints.reputationHistory, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc),
-    'Resource': toParams(resourceSearchSchema, endpoints.resource, ResourceSortBy, ResourceSortBy.DateCreatedDesc),
-    'ResourceList': toParams(resourceListSearchSchema, endpoints.resourceList, ResourceListSortBy, ResourceListSortBy.DateCreatedDesc),
-    'Role': toParams(roleSearchSchema, endpoints.role, RoleSortBy, RoleSortBy.DateCreatedDesc),
-    'Routine': toParams(routineSearchSchema, endpoints.routine, RoutineSortBy, RoutineSortBy.ScoreDesc),
-    'RoutineVersion': toParams(routineVersionSearchSchema, endpoints.routineVersion, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc),
-    'RunProject': toParams(runProjectSearchSchema, endpoints.runProject, RunProjectSortBy, RunProjectSortBy.DateStartedDesc),
-    'RunProjectOrRunRoutine': toParams(runProjectOrRunRoutineSearchSchema, endpoints.runProjectOrRunRoutine, RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSortBy.DateStartedDesc),
-    'RunProjectSchedule': toParams(runProjectScheduleSearchSchema, endpoints.runProjectSchedule, RunProjectScheduleSortBy, RunProjectScheduleSortBy.WindowStartAsc),
-    'RunRoutine': toParams(runRoutineSearchSchema, endpoints.runRoutine, RunRoutineSortBy, RunRoutineSortBy.DateStartedAsc),
-    'RunRoutineInput': toParams(runRoutineInputSearchSchema, endpoints.runRoutineInput, RunRoutineInputSortBy, RunRoutineInputSortBy.DateCreatedDesc),
-    'RunRoutineSchedule': toParams(runRoutineScheduleSearchSchema, endpoints.runRoutineSchedule, RunRoutineScheduleSortBy, RunRoutineScheduleSortBy.WindowStartAsc),
-    'SmartContract': toParams(smartContractSearchSchema, endpoints.smartContract, SmartContractSortBy, SmartContractSortBy.ScoreDesc),
-    'SmartContractVersion': toParams(smartContractVersionSearchSchema, endpoints.smartContractVersion, SmartContractVersionSortBy, SmartContractVersionSortBy.DateCreatedDesc),
-    'Standard': toParams(standardSearchSchema, endpoints.standard, StandardSortBy, StandardSortBy.ScoreDesc),
-    'StandardVersion': toParams(standardVersionSearchSchema, endpoints.standardVersion, StandardVersionSortBy, StandardVersionSortBy.DateCreatedDesc),
-    'Star': toParams(starSearchSchema, endpoints.star, StarSortBy, StarSortBy.DateUpdatedDesc),
-    'StatsApi': toParams(statsApiSearchSchema, endpoints.statsApi, StatsApiSortBy, StatsApiSortBy.DateUpdatedDesc),
-    'StatsOrganization': toParams(statsOrganizationSearchSchema, endpoints.statsOrganization, StatsOrganizationSortBy, StatsOrganizationSortBy.DateUpdatedDesc),
-    'StatsProject': toParams(statsProjectSearchSchema, endpoints.statsProject, StatsProjectSortBy, StatsProjectSortBy.DateUpdatedDesc),
-    'StatsQuiz': toParams(statsQuizSearchSchema, endpoints.statsQuiz, StatsQuizSortBy, StatsQuizSortBy.DateUpdatedDesc),
-    'StatsRoutine': toParams(statsRoutineSearchSchema, endpoints.statsRoutine, StatsRoutineSortBy, StatsRoutineSortBy.DateUpdatedDesc),
-    'StatsSite': toParams(statsSiteSearchSchema, endpoints.statsSite, StatsSiteSortBy, StatsSiteSortBy.DateUpdatedDesc),
-    'StatsSmartContract': toParams(statsSmartContractSearchSchema, endpoints.statsSmartContract, StatsSmartContractSortBy, StatsSmartContractSortBy.DateUpdatedDesc),
-    'StatsStandard': toParams(statsStandardSearchSchema, endpoints.statsStandard, StatsStandardSortBy, StatsStandardSortBy.DateUpdatedDesc),
-    'StatsUser': toParams(statsUserSearchSchema, endpoints.statsUser, StatsUserSortBy, StatsUserSortBy.DateUpdatedDesc),
-    'Tag': toParams(tagSearchSchema, endpoints.tag, TagSortBy, TagSortBy.StarsDesc),
-    'Transfer': toParams(transferSearchSchema, endpoints.transfer, TransferSortBy, TransferSortBy.DateCreatedDesc),
-    'UserSchedule': toParams(userScheduleSearchSchema, endpoints.userSchedule, UserScheduleSortBy, UserScheduleSortBy.EventStartAsc),
-    'User': toParams(userSearchSchema, endpoints.user, UserSortBy, UserSortBy.StarsDesc),
-    'View': toParams(viewSearchSchema, endpoints.view, ViewSortBy, ViewSortBy.LastViewedDesc),
-    'Vote': toParams(voteSearchSchema, endpoints.vote, VoteSortBy, VoteSortBy.DateUpdatedDesc),
+    'Api': toParams(apiSearchSchema, apiFindMany, ApiSortBy, ApiSortBy.ScoreDesc),
+    'ApiVersion': toParams(apiVersionSearchSchema, apiVersionFindMany, ApiVersionSortBy, ApiVersionSortBy.DateCreatedDesc),
+    'Comment': toParams(commentSearchSchema, commentFindMany, CommentSortBy, CommentSortBy.ScoreDesc),
+    'Issue': toParams(issueSearchSchema, issueFindMany, IssueSortBy, IssueSortBy.ScoreDesc),
+    'Label': toParams(labelSearchSchema, labelFindMany, LabelSortBy, LabelSortBy.DateCreatedDesc),
+    'Meeting': toParams(meetingSearchSchema, meetingFindMany, MeetingSortBy, MeetingSortBy.EventStartDesc),
+    'MeetingInvite': toParams(meetingInviteSearchSchema, meetingInviteFindMany, MeetingInviteSortBy, MeetingInviteSortBy.DateCreatedDesc),
+    'Member': toParams(memberSearchSchema, memberFindMany, MemberSortBy, MemberSortBy.DateCreatedDesc),
+    'MemberInvite': toParams(memberInviteSearchSchema, memberInviteFindMany, MemberInviteSortBy, MemberInviteSortBy.DateCreatedDesc),
+    'Note': toParams(noteSearchSchema, noteFindMany, NoteSortBy, NoteSortBy.ScoreDesc),
+    'NoteVersion': toParams(noteVersionSearchSchema, noteVersionFindMany, NoteVersionSortBy, NoteVersionSortBy.DateCreatedDesc),
+    'Notification': toParams(notificationSearchSchema, notificationFindMany, NotificationSortBy, NotificationSortBy.DateCreatedDesc),
+    'NotificationSubscription': toParams(notificationSubscriptionSearchSchema, notificationSubscriptionFindMany, NotificationSubscriptionSortBy, NotificationSubscriptionSortBy.DateCreatedDesc),
+    'Organization': toParams(organizationSearchSchema, organizationFindMany, OrganizationSortBy, OrganizationSortBy.StarsDesc),
+    'Post': toParams(postSearchSchema, postFindMany, PostSortBy, PostSortBy.DateCreatedDesc),
+    'Project': toParams(projectSearchSchema, projectFindMany, ProjectSortBy, ProjectSortBy.ScoreDesc),
+    'ProjectVersion': toParams(projectVersionSearchSchema, projectVersionFindMany, ProjectVersionSortBy, ProjectVersionSortBy.DateCreatedDesc),
+    'ProjectOrOrganization': toParams(projectOrOrganizationSearchSchema, projectOrOrganizationFindMany, ProjectOrOrganizationSortBy, ProjectOrOrganizationSortBy.StarsDesc),
+    'ProjectOrRoutine': toParams(projectOrRoutineSearchSchema, projectOrRoutineFindMany, ProjectOrRoutineSortBy, ProjectOrRoutineSortBy.StarsDesc),
+    'PullRequest': toParams(pullRequestSearchSchema, pullRequestFindMany, PullRequestSortBy, PullRequestSortBy.DateCreatedDesc),
+    'Question': toParams(questionSearchSchema, questionFindMany, QuestionSortBy, QuestionSortBy.ScoreDesc),
+    'QuestionAnswer': toParams(questionAnswerSearchSchema, questionAnswerFindMany, QuestionAnswerSortBy, QuestionAnswerSortBy.ScoreDesc),
+    'Quiz': toParams(quizSearchSchema, quizFindMany, QuizSortBy, QuizSortBy.StarsDesc),
+    'QuizQuestion': toParams(quizQuestionSearchSchema, quizQuestionFindMany, QuizQuestionSortBy, QuizQuestionSortBy.OrderAsc),
+    'QuizQuestionResponse': toParams(quizQuestionResponseSearchSchema, quizQuestionResponseFindMany, QuizQuestionResponseSortBy, QuizQuestionResponseSortBy.DateCreatedDesc),
+    'QuizAttempt': toParams(quizAttemptSearchSchema, quizAttemptFindMany, QuizAttemptSortBy, QuizAttemptSortBy.DateCreatedDesc),
+    'Reminder': toParams(reminderSearchSchema, reminderFindMany, ReminderSortBy, ReminderSortBy.DueDateAsc),
+    'ReminderList': toParams(reminderListSearchSchema, reminderListFindMany, ReminderListSortBy, ReminderListSortBy.DateCreatedDesc),
+    'Report': toParams(reportSearchSchema, reportFindMany, ReportSortBy, ReportSortBy.DateCreatedDesc),
+    'ReportResponse': toParams(reportResponseSearchSchema, reportResponseFindMany, ReportResponseSortBy, ReportResponseSortBy.DateCreatedDesc),
+    'ReputationHistory': toParams(reputationHistorySearchSchema, reputationHistoryFindMany, ReputationHistorySortBy, ReputationHistorySortBy.DateCreatedDesc),
+    'Resource': toParams(resourceSearchSchema, resourceFindMany, ResourceSortBy, ResourceSortBy.DateCreatedDesc),
+    'ResourceList': toParams(resourceListSearchSchema, resourceListFindMany, ResourceListSortBy, ResourceListSortBy.DateCreatedDesc),
+    'Role': toParams(roleSearchSchema, roleFindMany, RoleSortBy, RoleSortBy.DateCreatedDesc),
+    'Routine': toParams(routineSearchSchema, routineFindMany, RoutineSortBy, RoutineSortBy.ScoreDesc),
+    'RoutineVersion': toParams(routineVersionSearchSchema, routineVersionFindMany, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc),
+    'RunProject': toParams(runProjectSearchSchema, runProjectFindMany, RunProjectSortBy, RunProjectSortBy.DateStartedDesc),
+    'RunProjectOrRunRoutine': toParams(runProjectOrRunRoutineSearchSchema, runProjectOrRunRoutineFindMany, RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSortBy.DateStartedDesc),
+    'RunProjectSchedule': toParams(runProjectScheduleSearchSchema, runProjectScheduleFindMany, RunProjectScheduleSortBy, RunProjectScheduleSortBy.WindowStartAsc),
+    'RunRoutine': toParams(runRoutineSearchSchema, runRoutineFindMany, RunRoutineSortBy, RunRoutineSortBy.DateStartedAsc),
+    'RunRoutineInput': toParams(runRoutineInputSearchSchema, runRoutineInputFindMany, RunRoutineInputSortBy, RunRoutineInputSortBy.DateCreatedDesc),
+    'RunRoutineSchedule': toParams(runRoutineScheduleSearchSchema, runRoutineScheduleFindMany, RunRoutineScheduleSortBy, RunRoutineScheduleSortBy.WindowStartAsc),
+    'SmartContract': toParams(smartContractSearchSchema, smartContractFindMany, SmartContractSortBy, SmartContractSortBy.ScoreDesc),
+    'SmartContractVersion': toParams(smartContractVersionSearchSchema, smartContractVersionFindMany, SmartContractVersionSortBy, SmartContractVersionSortBy.DateCreatedDesc),
+    'Standard': toParams(standardSearchSchema, standardFindMany, StandardSortBy, StandardSortBy.ScoreDesc),
+    'StandardVersion': toParams(standardVersionSearchSchema, standardVersionFindMany, StandardVersionSortBy, StandardVersionSortBy.DateCreatedDesc),
+    'Star': toParams(starSearchSchema, starFindMany, StarSortBy, StarSortBy.DateUpdatedDesc),
+    'StatsApi': toParams(statsApiSearchSchema, statsApiFindMany, StatsApiSortBy, StatsApiSortBy.DateUpdatedDesc),
+    'StatsOrganization': toParams(statsOrganizationSearchSchema, statsOrganizationFindMany, StatsOrganizationSortBy, StatsOrganizationSortBy.DateUpdatedDesc),
+    'StatsProject': toParams(statsProjectSearchSchema, statsProjectFindMany, StatsProjectSortBy, StatsProjectSortBy.DateUpdatedDesc),
+    'StatsQuiz': toParams(statsQuizSearchSchema, statsQuizFindMany, StatsQuizSortBy, StatsQuizSortBy.DateUpdatedDesc),
+    'StatsRoutine': toParams(statsRoutineSearchSchema, statsRoutineFindMany, StatsRoutineSortBy, StatsRoutineSortBy.DateUpdatedDesc),
+    'StatsSite': toParams(statsSiteSearchSchema, statsSiteFindMany, StatsSiteSortBy, StatsSiteSortBy.DateUpdatedDesc),
+    'StatsSmartContract': toParams(statsSmartContractSearchSchema, statsSmartContractFindMany, StatsSmartContractSortBy, StatsSmartContractSortBy.DateUpdatedDesc),
+    'StatsStandard': toParams(statsStandardSearchSchema, statsStandardFindMany, StatsStandardSortBy, StatsStandardSortBy.DateUpdatedDesc),
+    'StatsUser': toParams(statsUserSearchSchema, statsUserFindMany, StatsUserSortBy, StatsUserSortBy.DateUpdatedDesc),
+    'Tag': toParams(tagSearchSchema, tagFindMany, TagSortBy, TagSortBy.StarsDesc),
+    'Transfer': toParams(transferSearchSchema, transferFindMany, TransferSortBy, TransferSortBy.DateCreatedDesc),
+    'UserSchedule': toParams(userScheduleSearchSchema, userScheduleFindMany, UserScheduleSortBy, UserScheduleSortBy.EventStartAsc),
+    'User': toParams(userSearchSchema, userFindMany, UserSortBy, UserSortBy.StarsDesc),
+    'View': toParams(viewSearchSchema, viewFindMany, ViewSortBy, ViewSortBy.LastViewedDesc),
+    'Vote': toParams(voteSearchSchema, voteFindMany, VoteSortBy, VoteSortBy.DateUpdatedDesc),
 };
 
 /**

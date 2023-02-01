@@ -1,7 +1,7 @@
 import gql from 'graphql-tag';
 import { Tag_list } from '../fragments/Tag_list';
 
-export const organizationFindOne = gql`...${Tag_list}
+export const organizationFindOne = gql`${Tag_list}
 
 query organization($input: FindByIdInput!) {
   organization(input: $input) {
@@ -90,7 +90,7 @@ query organization($input: FindByIdInput!) {
   }
 }`;
 
-export const organizationFindMany = gql`...${Tag_list}
+export const organizationFindMany = gql`${Tag_list}
 
 query organizations($input: OrganizationSearchInput!) {
   organizations(input: $input) {
@@ -142,7 +142,7 @@ query organizations($input: OrganizationSearchInput!) {
   }
 }`;
 
-export const organizationCreate = gql`...${Tag_list}
+export const organizationCreate = gql`${Tag_list}
 
 mutation organizationCreate($input: OrganizationCreateInput!) {
   organizationCreate(input: $input) {
@@ -231,7 +231,7 @@ mutation organizationCreate($input: OrganizationCreateInput!) {
   }
 }`;
 
-export const organizationUpdate = gql`...${Tag_list}
+export const organizationUpdate = gql`${Tag_list}
 
 mutation organizationUpdate($input: OrganizationUpdateInput!) {
   organizationUpdate(input: $input) {

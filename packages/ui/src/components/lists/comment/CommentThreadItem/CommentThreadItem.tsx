@@ -13,7 +13,7 @@ import { ReportButton, StarButton } from 'components/buttons';
 import { DeleteIcon, ReplyIcon } from '@shared/icons';
 import { CommentUpdateInput } from 'components/inputs/CommentUpdateInput/CommentUpdateInput';
 import { getCurrentUser } from 'utils/authentication';
-import { endpoints } from 'api';
+import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMany';
 
 export function CommentThreadItem({
     data,
@@ -42,7 +42,7 @@ export function CommentThreadItem({
         return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };
     }, [data, session]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(...endpoints.deleteOneOrMany().deleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog

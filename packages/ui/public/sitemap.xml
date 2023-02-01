@@ -1,52 +1,52 @@
 <?xml version="1.0" encoding="utf-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://app.vrooli.comLINKS.Home</loc>
+    <loc>https://app.vrooli.com/</loc>
     <priority>1.0</priority>
     <changefreq>weekly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com`$LINKS.Search</loc>
+    <loc>https://app.vrooli.com/search</loc>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.comLINKS.Create</loc>
+    <loc>https://app.vrooli.com/create</loc>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.comLINKS.Notifications</loc>
+    <loc>https://app.vrooli.com/notifications</loc>
     <priority>0.4</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.comLINKS.Start</loc>
+    <loc>https://app.vrooli.com/start</loc>
     <priority>0.2</priority>
     <changefreq>yearly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com`$LINKS.ForgotPassword</loc>
+    <loc>https://app.vrooli.com/forgot-password</loc>
     <priority>0.2</priority>
     <changefreq>yearly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.com`$LINKS.ResetPassword</loc>
+    <loc>https://app.vrooli.com/password-reset</loc>
     <priority>0.2</priority>
     <changefreq>yearly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.comLINKS.Tutorial</loc>
+    <loc>https://app.vrooli.com/tutorial</loc>
     <priority>0.5</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.comLINKS.Welcome</loc>
+    <loc>https://app.vrooli.com/welcome</loc>
     <priority>0.5</priority>
     <changefreq>monthly</changefreq>
   </url>
   <url>
-    <loc>https://app.vrooli.comLINKS.Stats</loc>
+    <loc>https://app.vrooli.com/stats</loc>
     <priority>0.5</priority>
     <changefreq>weekly</changefreq>
   </url>

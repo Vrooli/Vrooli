@@ -14,7 +14,7 @@ import { RelationshipsObject } from "components/inputs/types";
 import { getCurrentUser } from "utils/authentication";
 import { ResourceList, StandardVersion, StandardVersionCreateInput } from "@shared/consts";
 import { standardVersionTranslationValidation, standardVersionValidation } from "@shared/validation";
-import { endpoints } from "api";
+import { standardVersionCreate } from "api/generated/endpoints/standardVersion";
 
 export const StandardCreate = ({
     onCreated,
@@ -66,7 +66,7 @@ export const StandardCreate = ({
     }, []);
 
     // Handle create
-    const [mutation] = useMutation<StandardVersion, StandardVersionCreateInput, 'standardVersionCreate'>(...endpoints.standardVersion().create);
+    const [mutation] = useMutation<StandardVersion, StandardVersionCreateInput, 'standardVersionCreate'>(standardVersionCreate, 'standardVersionCreate');
     const formik = useFormik({
         initialValues: {
             id: uuid(),

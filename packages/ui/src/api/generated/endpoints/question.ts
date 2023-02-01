@@ -18,24 +18,24 @@ import { SmartContractVersion_nav } from '../fragments/SmartContractVersion_nav'
 import { StandardVersion_nav } from '../fragments/StandardVersion_nav';
 import { User_nav } from '../fragments/User_nav';
 
-export const questionFindOne = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const questionFindOne = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 query question($input: FindByIdInput!) {
   question(input: $input) {
@@ -137,13 +137,13 @@ query question($input: FindByIdInput!) {
   }
 }`;
 
-export const questionFindMany = gql`...${Api_nav}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
+export const questionFindMany = gql`${Api_nav}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
 
 query questions($input: QuestionSearchInput!) {
   questions(input: $input) {
@@ -204,24 +204,24 @@ query questions($input: QuestionSearchInput!) {
   }
 }`;
 
-export const questionCreate = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const questionCreate = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 mutation questionCreate($input: QuestionCreateInput!) {
   questionCreate(input: $input) {
@@ -323,24 +323,24 @@ mutation questionCreate($input: QuestionCreateInput!) {
   }
 }`;
 
-export const questionUpdate = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const questionUpdate = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 mutation questionUpdate($input: QuestionUpdateInput!) {
   questionUpdate(input: $input) {

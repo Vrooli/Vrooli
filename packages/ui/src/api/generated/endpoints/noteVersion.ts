@@ -17,23 +17,23 @@ import { SmartContractVersion_list } from '../fragments/SmartContractVersion_lis
 import { Standard_list } from '../fragments/Standard_list';
 import { StandardVersion_list } from '../fragments/StandardVersion_list';
 
-export const noteVersionFindOne = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const noteVersionFindOne = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 query noteVersion($input: FindByIdInput!) {
   noteVersion(input: $input) {
@@ -96,6 +96,44 @@ query noteVersion($input: FindByIdInput!) {
             canReport
         }
     }
+    root {
+        id
+        created_at
+        updated_at
+        isPrivate
+        issuesCount
+        labels {
+            ...Label_list
+        }
+        owner {
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on User {
+                ...User_nav
+            }
+        }
+        permissions
+        questionsCount
+        score
+        stars
+        tags {
+            ...Tag_list
+        }
+        transfersCount
+        views
+        you {
+            canDelete
+            canEdit
+            canStar
+            canTransfer
+            canView
+            canVote
+            isStarred
+            isUpvoted
+            isViewed
+        }
+    }
     translations {
         id
         language
@@ -123,12 +161,54 @@ query noteVersion($input: FindByIdInput!) {
   }
 }`;
 
-export const noteVersionFindMany = gql`
+export const noteVersionFindMany = gql`${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+
 query noteVersions($input: NoteVersionSearchInput!) {
   noteVersions(input: $input) {
     edges {
         cursor
         node {
+            root {
+                id
+                created_at
+                updated_at
+                isPrivate
+                issuesCount
+                labels {
+                    ...Label_list
+                }
+                owner {
+                    ... on Organization {
+                        ...Organization_nav
+                    }
+                    ... on User {
+                        ...User_nav
+                    }
+                }
+                permissions
+                questionsCount
+                score
+                stars
+                tags {
+                    ...Tag_list
+                }
+                transfersCount
+                views
+                you {
+                    canDelete
+                    canEdit
+                    canStar
+                    canTransfer
+                    canView
+                    canVote
+                    isStarred
+                    isUpvoted
+                    isViewed
+                }
+            }
             translations {
                 id
                 language
@@ -161,23 +241,23 @@ query noteVersions($input: NoteVersionSearchInput!) {
   }
 }`;
 
-export const noteVersionCreate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const noteVersionCreate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation noteVersionCreate($input: NoteVersionCreateInput!) {
   noteVersionCreate(input: $input) {
@@ -240,6 +320,44 @@ mutation noteVersionCreate($input: NoteVersionCreateInput!) {
             canReport
         }
     }
+    root {
+        id
+        created_at
+        updated_at
+        isPrivate
+        issuesCount
+        labels {
+            ...Label_list
+        }
+        owner {
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on User {
+                ...User_nav
+            }
+        }
+        permissions
+        questionsCount
+        score
+        stars
+        tags {
+            ...Tag_list
+        }
+        transfersCount
+        views
+        you {
+            canDelete
+            canEdit
+            canStar
+            canTransfer
+            canView
+            canVote
+            isStarred
+            isUpvoted
+            isViewed
+        }
+    }
     translations {
         id
         language
@@ -267,23 +385,23 @@ mutation noteVersionCreate($input: NoteVersionCreateInput!) {
   }
 }`;
 
-export const noteVersionUpdate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const noteVersionUpdate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
   noteVersionUpdate(input: $input) {
@@ -344,6 +462,44 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
             canDelete
             canEdit
             canReport
+        }
+    }
+    root {
+        id
+        created_at
+        updated_at
+        isPrivate
+        issuesCount
+        labels {
+            ...Label_list
+        }
+        owner {
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on User {
+                ...User_nav
+            }
+        }
+        permissions
+        questionsCount
+        score
+        stars
+        tags {
+            ...Tag_list
+        }
+        transfersCount
+        views
+        you {
+            canDelete
+            canEdit
+            canStar
+            canTransfer
+            canView
+            canVote
+            isStarred
+            isUpvoted
+            isViewed
         }
     }
     translations {

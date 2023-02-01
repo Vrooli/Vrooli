@@ -6,7 +6,9 @@ import { ObjectActionMenuProps } from "../types";
 import { mutationWrapper } from "api/utils";
 import { getActionsDisplayData, getAvailableActions, getDisplay, getUserLanguages, ObjectAction, ObjectActionComplete, PubSub } from "utils";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
-import { endpoints } from "api";
+import { copyCopy } from "api/generated/endpoints/copy";
+import { starStar } from "api/generated/endpoints/star";
+import { voteVote } from "api/generated/endpoints/vote";
 
 export const ObjectActionMenu = ({
     anchorEl,
@@ -45,9 +47,9 @@ export const ObjectActionMenu = ({
     const closeReport = useCallback(() => setReportOpen(false), [setReportOpen]);
 
     // Mutations
-    const [fork] = useMutation<CopyResult, CopyInput, 'copy'>(...endpoints.copy().copy);
-    const [star] = useMutation<Success, StarInput, 'star'>(...endpoints.star().star);
-    const [vote] = useMutation<Success, VoteInput, 'vote'>(...endpoints.vote().vote);
+    const [fork] = useMutation<CopyResult, CopyInput, 'copy'>(copyCopy, 'copy');
+    const [star] = useMutation<Success, StarInput, 'star'>(starStar, 'star');
+    const [vote] = useMutation<Success, VoteInput, 'vote'>(voteVote, 'vote');
 
     const handleFork = useCallback(() => {
         if (!id) return;

@@ -14,7 +14,8 @@ import { PopularInput, PopularResult, Resource, ResourceCreateInput, ResourceLis
 import { mutationWrapper } from 'api/utils';
 import { useQuery } from '@apollo/client';
 import { useTranslation } from 'react-i18next';
-import { endpoints } from 'api';
+import { resourceCreate, resourceUpdate } from 'api/generated/endpoints/resource';
+import { feedPopular } from 'api/generated/endpoints/feed';
 
 const helpText =
     `## What are resources?\n\nResources provide context to the object they are attached to, such as a  user, organization, project, or routine.\n\n## Examples\n**For a user** - Social media links, GitHub profile, Patreon\n\n**For an organization** - Official website, tools used by your team, news article explaining the vision\n\n**For a project** - Project Catalyst proposal, Donation wallet address\n\n**For a routine** - Guide, external service`
@@ -37,8 +38,8 @@ export const ResourceDialog = ({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [addMutation, { loading: addLoading }] = useMutation<Resource, ResourceCreateInput, 'resourceCreate'>(...endpoints.resource().create);
-    const [updateMutation, { loading: updateLoading }] = useMutation<Resource, ResourceUpdateInput, 'resourceUpdate'>(...endpoints.resource().update);
+    const [addMutation, { loading: addLoading }] = useMutation<Resource, ResourceCreateInput, 'resourceCreate'>(resourceCreate, 'resourceCreate');
+    const [updateMutation, { loading: updateLoading }] = useMutation<Resource, ResourceUpdateInput, 'resourceUpdate'>(resourceUpdate, 'resourceUpdate');
 
     const formik = useFormik({
         initialValues: {
@@ -155,7 +156,7 @@ export const ResourceDialog = ({
     const closeSearch = useCallback(() => {
         setSearchOpen(false)
     }, []);
-    const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<Wrap<PopularResult, 'popular'>, Wrap<PopularInput, 'input'>>(endpoints.feed().popular[0], { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
+    const { data: searchData, refetch: refetchSearch, loading: searchLoading } = useQuery<Wrap<PopularResult, 'popular'>, Wrap<PopularInput, 'input'>>(feedPopular, { variables: { input: { searchString: searchString.replaceAll(/![^\s]{1,}/g, '') } }, errorPolicy: 'all' });
     useEffect(() => { open && refetchSearch() }, [open, refetchSearch, searchString]);
     const autocompleteOptions: AutocompleteOption[] = useMemo(() => {
         const firstResults: AutocompleteOption[] = [];

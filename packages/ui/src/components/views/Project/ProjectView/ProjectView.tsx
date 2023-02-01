@@ -10,7 +10,7 @@ import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguag
 import { DonateIcon, EditIcon, EllipsisIcon } from "@shared/icons";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { setDotNotationValue } from "@shared/utils";
-import { endpoints } from "api";
+import { projectVersionFindOne } from "api/generated/endpoints/projectVersion";
 
 enum TabOptions {
     Resources = "Resources",
@@ -27,7 +27,7 @@ export const ProjectView = ({
     const [, setLocation] = useLocation();
     // Fetch data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(...endpoints.projectVersion().findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<ProjectVersion, FindVersionInput, 'projectVersion'>(projectVersionFindOne, 'projectVersion', { errorPolicy: 'all' });
     const [projectVersion, setProjectVersion] = useState<ProjectVersion | null | undefined>(null);
     useEffect(() => {
         if (urlData.id || urlData.idRoot || urlData.handleRoot) getData({ variables: urlData })

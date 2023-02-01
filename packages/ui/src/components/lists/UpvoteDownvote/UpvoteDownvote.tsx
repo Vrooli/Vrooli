@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getCurrentUser } from 'utils/authentication';
 import { UpvoteDownvoteProps } from '../types';
 import { Success, VoteInput } from '@shared/consts';
-import { endpoints } from 'api';
+import { voteVote } from 'api/generated/endpoints/vote';
 
 export const UpvoteDownvote = ({
     direction = "column",
@@ -39,7 +39,7 @@ export const UpvoteDownvote = ({
         return scoreNum;
     }, [internalIsUpvoted, isUpvoted, score]);
 
-    const [mutation] = useMutation<Success, VoteInput, 'vote'>(...endpoints.vote().vote);
+    const [mutation] = useMutation<Success, VoteInput, 'vote'>(voteVote, 'vote');
     const handleVote = useCallback((e: any, isUpvote: boolean | null, oldIsUpvote: boolean | null) => {
         // Prevent propagation of normal click event
         e.stopPropagation();

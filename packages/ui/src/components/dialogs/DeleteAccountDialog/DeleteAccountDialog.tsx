@@ -21,7 +21,7 @@ import { getCurrentUser } from 'utils/authentication';
 import { userDeleteOneSchema as validationSchema } from '@shared/validation';
 import { PubSub } from 'utils';
 import { useFormik } from 'formik';
-import { endpoints } from 'api';
+import { userDeleteOne } from 'api/generated/endpoints/user';
 
 const titleAria = 'delete-object-dialog-title';
 
@@ -40,7 +40,7 @@ export const DeleteAccountDialog = ({
 
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
 
-    const [deleteAccount] = useMutation<Success, UserDeleteInput, 'userDeleteOne'>(...endpoints.user().deleteOne);
+    const [deleteAccount] = useMutation<Success, UserDeleteInput, 'userDeleteOne'>(userDeleteOne, 'userDeleteOne');
     const formik = useFormik({
         initialValues: {
             password: '',

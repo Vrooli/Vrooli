@@ -10,7 +10,7 @@ import { DUMMY_ID, uuid } from '@shared/uuid';
 import { RelationshipsObject } from "components/inputs/types";
 import { FindVersionInput, ResourceList, Standard, StandardUpdateInput, StandardVersion, StandardVersionUpdateInput } from "@shared/consts";
 import { standardVersionValidation } from "@shared/validation";
-import { endpoints } from "api";
+import { standardVersionFindOne, standardVersionUpdate } from "api/generated/endpoints/standardVersion";
 
 export const StandardUpdate = ({
     onCancel,
@@ -20,7 +20,7 @@ export const StandardUpdate = ({
 }: StandardUpdateProps) => {
     // Fetch existing data
     const urlData = useMemo(() => parseSingleItemUrl(), []);
-    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(...endpoints.standardVersion().findOne, { errorPolicy: 'all' });
+    const [getData, { data, loading }] = useLazyQuery<StandardVersion, FindVersionInput, 'standardVersion'>(standardVersionFindOne, 'standardVersion', { errorPolicy: 'all' });
     useEffect(() => {
         if (urlData.id || urlData.idRoot) getData({ variables: urlData });
         else PubSub.get().publishSnack({ messageKey: 'InvalidUrlId', severity: SnackSeverity.Error });
@@ -53,7 +53,7 @@ export const StandardUpdate = ({
     }, [standardVersion]);
 
     // Handle update
-    const [mutation] = useMutation<StandardVersion, StandardVersionUpdateInput, 'standardVersionUpdate'>(...endpoints.standardVersion().update);
+    const [mutation] = useMutation<StandardVersion, StandardVersionUpdateInput, 'standardVersionUpdate'>(standardVersionUpdate, 'standardVersionUpdate');
     const formik = useFormik({
         initialValues: {
             translationsUpdate: standardVersion?.translations ?? [{

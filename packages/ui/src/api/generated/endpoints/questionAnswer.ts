@@ -18,24 +18,24 @@ import { SmartContractVersion_nav } from '../fragments/SmartContractVersion_nav'
 import { StandardVersion_nav } from '../fragments/StandardVersion_nav';
 import { User_nav } from '../fragments/User_nav';
 
-export const questionAnswerFindOne = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const questionAnswerFindOne = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 query questionAnswer($input: FindByIdInput!) {
   questionAnswer(input: $input) {
@@ -67,6 +67,47 @@ query questionAnswer($input: FindByIdInput!) {
             canReport
             canVote
             isStarred
+            isUpvoted
+        }
+    }
+    question {
+        id
+        created_at
+        updated_at
+        createdBy {
+            id
+            name
+            handle
+        }
+        hasAcceptedAnswer
+        score
+        stars
+        answersCount
+        commentsCount
+        forObject {
+            ... on Api {
+                ...Api_nav
+            }
+            ... on Note {
+                ...Note_nav
+            }
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on Project {
+                ...Project_nav
+            }
+            ... on Routine {
+                ...Routine_nav
+            }
+            ... on SmartContract {
+                ...SmartContract_nav
+            }
+            ... on Standard {
+                ...Standard_nav
+            }
+        }
+        you {
             isUpvoted
         }
     }
@@ -122,24 +163,24 @@ query questionAnswers($input: QuestionAnswerSearchInput!) {
   }
 }`;
 
-export const questionAnswerCreate = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const questionAnswerCreate = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
   questionAnswerCreate(input: $input) {
@@ -174,6 +215,47 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
             isUpvoted
         }
     }
+    question {
+        id
+        created_at
+        updated_at
+        createdBy {
+            id
+            name
+            handle
+        }
+        hasAcceptedAnswer
+        score
+        stars
+        answersCount
+        commentsCount
+        forObject {
+            ... on Api {
+                ...Api_nav
+            }
+            ... on Note {
+                ...Note_nav
+            }
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on Project {
+                ...Project_nav
+            }
+            ... on Routine {
+                ...Routine_nav
+            }
+            ... on SmartContract {
+                ...SmartContract_nav
+            }
+            ... on Standard {
+                ...Standard_nav
+            }
+        }
+        you {
+            isUpvoted
+        }
+    }
     translations {
         id
         language
@@ -194,24 +276,24 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
   }
 }`;
 
-export const questionAnswerUpdate = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const questionAnswerUpdate = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
   questionAnswerUpdate(input: $input) {
@@ -246,6 +328,47 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
             isUpvoted
         }
     }
+    question {
+        id
+        created_at
+        updated_at
+        createdBy {
+            id
+            name
+            handle
+        }
+        hasAcceptedAnswer
+        score
+        stars
+        answersCount
+        commentsCount
+        forObject {
+            ... on Api {
+                ...Api_nav
+            }
+            ... on Note {
+                ...Note_nav
+            }
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on Project {
+                ...Project_nav
+            }
+            ... on Routine {
+                ...Routine_nav
+            }
+            ... on SmartContract {
+                ...SmartContract_nav
+            }
+            ... on Standard {
+                ...Standard_nav
+            }
+        }
+        you {
+            isUpvoted
+        }
+    }
     translations {
         id
         language
@@ -266,24 +389,24 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
   }
 }`;
 
-export const questionAnswerAccept = gql`...${Api_nav}
-...${Issue_nav}
-...${NoteVersion_nav}
-...${Post_nav}
-...${ProjectVersion_nav}
-...${PullRequest_nav}
-...${Question_common}
-...${Note_nav}
-...${Organization_nav}
-...${Project_nav}
-...${Routine_nav}
-...${SmartContract_nav}
-...${Standard_nav}
-...${QuestionAnswer_common}
-...${RoutineVersion_nav}
-...${SmartContractVersion_nav}
-...${StandardVersion_nav}
-...${User_nav}
+export const questionAnswerAccept = gql`${Api_nav}
+${Issue_nav}
+${NoteVersion_nav}
+${Post_nav}
+${ProjectVersion_nav}
+${PullRequest_nav}
+${Question_common}
+${Note_nav}
+${Organization_nav}
+${Project_nav}
+${Routine_nav}
+${SmartContract_nav}
+${Standard_nav}
+${QuestionAnswer_common}
+${RoutineVersion_nav}
+${SmartContractVersion_nav}
+${StandardVersion_nav}
+${User_nav}
 
 mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
   questionAnswerMarkAsAccepted(input: $input) {
@@ -315,6 +438,47 @@ mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
             canReport
             canVote
             isStarred
+            isUpvoted
+        }
+    }
+    question {
+        id
+        created_at
+        updated_at
+        createdBy {
+            id
+            name
+            handle
+        }
+        hasAcceptedAnswer
+        score
+        stars
+        answersCount
+        commentsCount
+        forObject {
+            ... on Api {
+                ...Api_nav
+            }
+            ... on Note {
+                ...Note_nav
+            }
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on Project {
+                ...Project_nav
+            }
+            ... on Routine {
+                ...Routine_nav
+            }
+            ... on SmartContract {
+                ...SmartContract_nav
+            }
+            ... on Standard {
+                ...Standard_nav
+            }
+        }
+        you {
             isUpvoted
         }
     }

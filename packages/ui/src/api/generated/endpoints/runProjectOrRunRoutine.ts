@@ -5,11 +5,11 @@ import { User_nav } from '../fragments/User_nav';
 import { Label_full } from '../fragments/Label_full';
 import { RunRoutine_list } from '../fragments/RunRoutine_list';
 
-export const runProjectOrRunRoutineFindMany = gql`...${RunProject_list}
-...${Organization_nav}
-...${User_nav}
-...${Label_full}
-...${RunRoutine_list}
+export const runProjectOrRunRoutineFindMany = gql`${RunProject_list}
+${Organization_nav}
+${User_nav}
+${Label_full}
+${RunRoutine_list}
 
 query runProjectOrRunRoutines($input: RunProjectOrRunRoutineSearchInput!) {
   runProjectOrRunRoutines(input: $input) {
@@ -17,8 +17,10 @@ query runProjectOrRunRoutines($input: RunProjectOrRunRoutineSearchInput!) {
         cursor
         node {
             ... on RunProject {
+                ...RunProject_list
             }
             ... on RunRoutine {
+                ...RunRoutine_list
             }
         }
     }

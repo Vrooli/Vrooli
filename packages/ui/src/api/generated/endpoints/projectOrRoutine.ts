@@ -7,13 +7,13 @@ import { Label_list } from '../fragments/Label_list';
 import { Routine_list } from '../fragments/Routine_list';
 import { Label_full } from '../fragments/Label_full';
 
-export const projectOrRoutineFindMany = gql`...${Project_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${Routine_list}
-...${Label_full}
+export const projectOrRoutineFindMany = gql`${Project_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${Routine_list}
+${Label_full}
 
 query projectOrRoutines($input: ProjectOrRoutineSearchInput!) {
   projectOrRoutines(input: $input) {
@@ -21,8 +21,10 @@ query projectOrRoutines($input: ProjectOrRoutineSearchInput!) {
         cursor
         node {
             ... on Project {
+                ...Project_list
             }
             ... on Routine {
+                ...Routine_list
             }
         }
     }

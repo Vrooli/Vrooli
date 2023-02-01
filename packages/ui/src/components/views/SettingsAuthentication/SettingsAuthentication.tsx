@@ -14,7 +14,8 @@ import { DeleteIcon, EmailIcon, LogOutIcon, WalletIcon } from "@shared/icons";
 import { getCurrentUser, guestSession } from "utils/authentication";
 import { SettingsFormData } from "pages";
 import { userValidation } from "@shared/validation";
-import { endpoints } from "api";
+import { authLogOut } from "api/generated/endpoints/auth";
+import { userProfileEmailUpdate } from "api/generated/endpoints/user";
 
 const walletHelpText =
     `This list contains all of your connected wallets. If a custom name has not been set, the wallet's reward address will be displayed.\n\nYou may add or remove as many wallets as you wish, but you must keep at least one *verified* authentication method (either a wallet or email address).`
@@ -33,7 +34,7 @@ export const SettingsAuthentication = ({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [logOut] = useMutation<Session, LogOutInput>(...endpoints.auth().logOut);
+    const [logOut] = useMutation<Session, LogOutInput>(authLogOut, 'logOut');
     const onLogOut = useCallback(() => {
         const { id } = getCurrentUser(session);
         mutationWrapper<Session, LogOutInput>({ 
@@ -72,7 +73,7 @@ export const SettingsAuthentication = ({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [mutation] = useMutation<User, ProfileEmailUpdateInput, 'profileEmailUpdate'>(...endpoints.user().profileEmailUpdate);
+    const [mutation] = useMutation<User, ProfileEmailUpdateInput, 'profileEmailUpdate'>(userProfileEmailUpdate, 'profileEmailUpdate');
     const formik = useFormik({
         initialValues: {
             currentPassword: '',

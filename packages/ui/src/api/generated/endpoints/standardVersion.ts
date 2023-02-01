@@ -17,23 +17,23 @@ import { SmartContractVersion_list } from '../fragments/SmartContractVersion_lis
 import { Standard_list } from '../fragments/Standard_list';
 import { StandardVersion_list } from '../fragments/StandardVersion_list';
 
-export const standardVersionFindOne = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const standardVersionFindOne = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 query standardVersion($input: FindByIdInput!) {
   standardVersion(input: $input) {
@@ -119,6 +119,54 @@ query standardVersion($input: FindByIdInput!) {
             }
         }
     }
+    root {
+        stats {
+            id
+            created_at
+            periodStart
+            periodEnd
+            periodType
+            linksToInputs
+            linksToOutputs
+            timesUsedInCompletedRoutines
+        }
+        id
+        created_at
+        updated_at
+        isPrivate
+        issuesCount
+        labels {
+            ...Label_list
+        }
+        owner {
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on User {
+                ...User_nav
+            }
+        }
+        permissions
+        questionsCount
+        score
+        stars
+        tags {
+            ...Tag_list
+        }
+        transfersCount
+        views
+        you {
+            canDelete
+            canEdit
+            canStar
+            canTransfer
+            canView
+            canVote
+            isStarred
+            isUpvoted
+            isViewed
+        }
+    }
     translations {
         id
         language
@@ -201,23 +249,23 @@ query standardVersions($input: StandardVersionSearchInput!) {
   }
 }`;
 
-export const standardVersionCreate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const standardVersionCreate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation standardVersionCreate($input: StandardVersionCreateInput!) {
   standardVersionCreate(input: $input) {
@@ -303,6 +351,54 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
             }
         }
     }
+    root {
+        stats {
+            id
+            created_at
+            periodStart
+            periodEnd
+            periodType
+            linksToInputs
+            linksToOutputs
+            timesUsedInCompletedRoutines
+        }
+        id
+        created_at
+        updated_at
+        isPrivate
+        issuesCount
+        labels {
+            ...Label_list
+        }
+        owner {
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on User {
+                ...User_nav
+            }
+        }
+        permissions
+        questionsCount
+        score
+        stars
+        tags {
+            ...Tag_list
+        }
+        transfersCount
+        views
+        you {
+            canDelete
+            canEdit
+            canStar
+            canTransfer
+            canView
+            canVote
+            isStarred
+            isUpvoted
+            isViewed
+        }
+    }
     translations {
         id
         language
@@ -338,23 +434,23 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
   }
 }`;
 
-export const standardVersionUpdate = gql`...${Api_list}
-...${Organization_nav}
-...${User_nav}
-...${Tag_list}
-...${Label_list}
-...${ApiVersion_list}
-...${Note_list}
-...${NoteVersion_list}
-...${Project_list}
-...${ProjectVersion_list}
-...${Routine_list}
-...${Label_full}
-...${RoutineVersion_list}
-...${SmartContract_list}
-...${SmartContractVersion_list}
-...${Standard_list}
-...${StandardVersion_list}
+export const standardVersionUpdate = gql`${Api_list}
+${Organization_nav}
+${User_nav}
+${Tag_list}
+${Label_list}
+${ApiVersion_list}
+${Note_list}
+${NoteVersion_list}
+${Project_list}
+${ProjectVersion_list}
+${Routine_list}
+${Label_full}
+${RoutineVersion_list}
+${SmartContract_list}
+${SmartContractVersion_list}
+${Standard_list}
+${StandardVersion_list}
 
 mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
   standardVersionUpdate(input: $input) {
@@ -438,6 +534,54 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
                 description
                 name
             }
+        }
+    }
+    root {
+        stats {
+            id
+            created_at
+            periodStart
+            periodEnd
+            periodType
+            linksToInputs
+            linksToOutputs
+            timesUsedInCompletedRoutines
+        }
+        id
+        created_at
+        updated_at
+        isPrivate
+        issuesCount
+        labels {
+            ...Label_list
+        }
+        owner {
+            ... on Organization {
+                ...Organization_nav
+            }
+            ... on User {
+                ...User_nav
+            }
+        }
+        permissions
+        questionsCount
+        score
+        stars
+        tags {
+            ...Tag_list
+        }
+        transfersCount
+        views
+        you {
+            canDelete
+            canEdit
+            canStar
+            canTransfer
+            canView
+            canVote
+            isStarred
+            isUpvoted
+            isViewed
         }
     }
     translations {

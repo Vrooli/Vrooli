@@ -8,7 +8,7 @@ import { HistoryPageProps } from '../types';
 import { getUserLanguages, HistorySearchPageTabOption, listToAutocomplete, listToListItems, openObject, stringifySearchParams, useReactSearch } from 'utils';
 import { AutocompleteOption, Wrap } from 'types';
 import { centeredDiv } from 'styles';
-import { endpoints } from 'api';
+import { historyHistory } from 'api/generated/endpoints/history';
 
 const activeRoutinesText = `Routines that you've started to execute, and have not finished.`;
 
@@ -44,7 +44,7 @@ export const HistoryPage = ({
     }, [searchParams]);
     const updateSearch = useCallback((newValue: any) => { setSearchString(newValue) }, []);
 
-    const { data, refetch, loading } = useQuery<Wrap<HistoryResult, 'history'>, Wrap<HistoryInput, 'input'>>(endpoints.history().history[0], { variables: { input: { searchString } }, errorPolicy: 'all' });
+    const { data, refetch, loading } = useQuery<Wrap<HistoryResult, 'history'>, Wrap<HistoryInput, 'input'>>(historyHistory, { variables: { input: { searchString } }, errorPolicy: 'all' });
     useEffect(() => { refetch() }, [refetch]);
 
     // Handle tabs

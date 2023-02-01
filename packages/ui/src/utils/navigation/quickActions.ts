@@ -5,7 +5,7 @@ import { ActionOption, ShortcutOption } from "types";
 import { getCurrentUser } from "utils/authentication";
 import { clearSearchHistory, DevelopSearchPageTabOption, HistorySearchPageTabOption, SearchPageTabOption } from "utils/display";
 import { PubSub } from "utils/pubsub";
-import { endpoints } from "api";
+import { userProfileUpdate } from "api/generated/endpoints/user";
 
 export interface ShortcutItem {
     label: string;
@@ -208,7 +208,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
             break;
         case 'activate-dark-mode':
             documentNodeWrapper<User, ProfileUpdateInput>({
-                node: endpoints.user().profileUpdate[0],
+                node: userProfileUpdate,
                 input: { theme: 'dark' },
                 onSuccess: () => { PubSub.get().publishTheme('dark'); },
                 onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
@@ -216,7 +216,7 @@ export const performAction = async (option: ActionOption, session: Session): Pro
             break;
         case 'activate-light-mode':
             documentNodeWrapper<User, ProfileUpdateInput>({
-                node: endpoints.user().profileUpdate[0],
+                node: userProfileUpdate,
                 input: { theme: 'light' },
                 onSuccess: () => { PubSub.get().publishTheme('light'); },
                 onError: (error) => { PubSub.get().publishSnack({ messageKey: errorToCode(error), severity: SnackSeverity.Error, data: error }); }
