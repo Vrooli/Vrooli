@@ -57,8 +57,11 @@ export const typeDef = gql`
     }
     type Api {
         id: ID!
+        completedAt: Date
         created_at: Date!
         updated_at: Date!
+        hasCompletedVersion: Boolean!
+        isDeleted: Boolean!
         isPrivate: Boolean!
         permissions: String!
         createdBy: User

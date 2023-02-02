@@ -103,6 +103,7 @@ export const typeDef = gql`
         canDelete: Boolean!
         canEdit: Boolean!
         canStar: Boolean!
+        canTransfer: Boolean!
         canView: Boolean!
         canVote: Boolean!
         isStarred: Boolean!

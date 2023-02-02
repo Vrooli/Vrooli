@@ -51,21 +51,17 @@ export const partialShape = async <T extends { __typename: string }>(
     const result: DeepPartialBooleanWithFragments<NonMaybe<T>> = {};
     // Unlazy the selection
     const data = await unlazyDeep(selection);
-    (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape selection A:', selection);
     // Initialize objects to store renamed fragments. We use this to avoid duplicates.
     // Fragments are keyed by their object type (e.g. Project, Routine) and selection type (e.g. list, full)
     let uniqueFragments: { [key: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = {};
     // Add top-level fragments to uniqueFragments
     uniqueFragments = addFragments(uniqueFragments, data.__define as any);
-    (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape uniqueFragments 1:', uniqueFragments);
     // Create currDefine object to hold current fragments (which haven't been renamed yet). 
     // Prefer the __define field from first and second object (i.e. current) over lastDefine (i.e. parent, grandparent, etc.).
     let currDefine: { [x: string]: DeepPartialBooleanWithFragments<NonMaybe<T>> } = { ...(data.__define ?? {}) } as any;
     if (Object.keys(currDefine).length === 0) currDefine = { ...lastDefine };
-    (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape currDefine I:', currDefine);
     // Iterate over the keys
     for (const key of Object.keys(data)) {
-        (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape key:', key);
         // Skip __typename, __define, and __selectionType
         if (['__typename', '__define', '__selectionType'].includes(key)) continue;
         // If the key is __union, rename each field in the union to ensure uniqueness
@@ -97,7 +93,6 @@ export const partialShape = async <T extends { __typename: string }>(
         // If the value is an object with key __union, rename each field in the union to ensure uniqueness
         // This will ensure that it is unique across all objects.
         else if (exists(data[key]?.__union)) {
-            (selection as any).__typename === 'ProjectOrOrganization' && console.log('partialShape in union:', key, data[key].__union);
             // Initialize __union field if it doesn't exist
             if (!exists(result[key])) {
                 result[key] = { __union: {} };

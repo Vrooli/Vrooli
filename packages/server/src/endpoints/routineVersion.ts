@@ -35,7 +35,6 @@ export const typeDef = gql`
         isPrivate: Boolean
         rootConnect: ID
         rootCreate: RoutineCreateInput
-        versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         smartContractCallData: String
@@ -57,7 +56,6 @@ export const typeDef = gql`
         isComplete: Boolean
         isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int!
         versionLabel: String
         versionNotes: String
         smartContractCallData: String

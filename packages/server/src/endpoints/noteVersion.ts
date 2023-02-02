@@ -24,7 +24,6 @@ export const typeDef = gql`
         id: ID!
         isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         rootConnect: ID
@@ -36,7 +35,6 @@ export const typeDef = gql`
         id: ID!
         isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int
         versionLabel: String
         versionNotes: String
         rootUpdate: NoteUpdateInput

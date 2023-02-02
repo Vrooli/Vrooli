@@ -411,7 +411,6 @@ export const StandardModel: ModelLogic<{
                 ['ownedByOrganization', 'Organization'],
                 ['ownedByUser', 'User'],
             ], languages),
-        profanityFields: ['name'],
         visibility: {
             private: {
                 isPrivate: true,

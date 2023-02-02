@@ -31,7 +31,6 @@ export const typeDef = gql`
         isLatest: Boolean
         isPrivate: Boolean
         isComplete: Boolean
-        versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         directoryListingsCreate: [ProjectVersionDirectoryCreateInput!]
@@ -45,7 +44,6 @@ export const typeDef = gql`
         isLatest: Boolean
         isPrivate: Boolean
         isComplete: Boolean
-        versionIndex: Int
         versionLabel: String
         versionNotes: String
         rootUpdate: ProjectUpdateInput

@@ -6,7 +6,7 @@ import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { ModelLogic } from "./types";
 import { uuid } from "@shared/uuid";
-import { getSingleTypePermissions } from "../validators";
+import { getSingleTypePermissions, lineBreaksCheck, handlesCheck } from "../validators";
 import { noNull, onlyValidIds, shapeHelper } from "../builders";
 import { bestLabel, tagShapeHelper, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
@@ -290,6 +290,8 @@ export const OrganizationModel: ModelLogic<{
         },
     },
     validate: {
+        isDeleted: () => false,
+        isPublic: (data) => data.isPrivate === false,
         isTransferable: false,
         maxObjects: {
             User: {
@@ -304,6 +306,17 @@ export const OrganizationModel: ModelLogic<{
             },
             Organization: 0,
         },
+        owner: (data) => ({
+            Organization: data,
+        }),
+        permissionResolvers: ({ isAdmin, isPublic }) => ({
+            canAddMembers: () => isAdmin,
+            canDelete: () => isAdmin,
+            canEdit: () => isAdmin,
+            canReport: () => !isAdmin && isPublic,
+            canStar: () => isAdmin || isPublic,
+            canView: () => isAdmin || isPublic,
+        }),
         permissionsSelect: (userId) => ({
             id: true,
             isOpenToNewMembers: true,
@@ -334,33 +347,22 @@ export const OrganizationModel: ModelLogic<{
                 }
             } : {}),
         }),
-        permissionResolvers: ({ isAdmin, isPublic }) => ({
-            canAddMembers: () => isAdmin,
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
-            canReport: () => !isAdmin && isPublic,
-            canStar: () => isAdmin || isPublic,
-            canView: () => isAdmin || isPublic,
-        }),
-        owner: (data) => ({
-            Organization: data,
-        }),
-        isDeleted: () => false,
-        isPublic: (data) => data.isPrivate === false,
+        validations: {
+            create({ createMany, languages }) {
+                createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio', languages))
+            },
+            async update({ languages, prisma, updateMany }) {
+                // Validate AdaHandles
+                let handleData = updateMany.map(({ data, where }) => ({ id: where.id, handle: data.handle })) as { id: string, handle: string | null | undefined }[];
+                await handlesCheck(prisma, 'Organization', handleData, languages);
+                // Validate line breaks
+                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['bio'], 'LineBreaksBio', languages));
+            },
+        },
         visibility: {
             private: { isPrivate: true },
             public: { isPrivate: false },
             owner: (userId) => OrganizationModel.query.hasRoleQuery(userId),
-        }
-        // if (!createMany && !updateMany && !deleteMany) return;
-        // if (createMany) {
-        //     createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
-        // }
-        // if (updateMany) {
-        //     for (const input of updateMany) {
-        //         await WalletModel.verify(prisma).verifyHandle('Organization', input.where.id, input.data.handle);
-        //         lineBreaksCheck(input.data, ['bio'], 'LineBreaksBio');
-        //     }
-        // }
+        },
     },
 })

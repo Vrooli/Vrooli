@@ -8,12 +8,16 @@ import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { getSingleTypePermissions, versionsCheck } from "../validators";
 
 /**
  * Validates node positions
  */
-const validateNodePositions = (input: RoutineVersionCreateInput | RoutineVersionUpdateInput): void => {
+const validateNodePositions = async (
+    prisma: PrismaType, 
+    input: RoutineVersionCreateInput | RoutineVersionUpdateInput,
+    languages: string[],
+): Promise<void> => {
     // // Check that node columnIndexes and rowIndexes are valid TODO query existing data to do this
     // let combinedNodes = [];
     // if (input.nodesCreate) combinedNodes.push(...input.nodesCreate);
@@ -269,36 +273,41 @@ export const RoutineVersionModel: ModelLogic<{
                 ['ownedByOrganization', 'Organization'],
                 ['ownedByUser', 'User'],
             ], languages),
+        validations: {
+            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
+                await versionsCheck({ 
+                    createMany,
+                    deleteMany,
+                    languages,
+                    objectType: 'Routine', 
+                    prisma, 
+                    updateMany: updateMany as any,
+                });
+            },
+            async create({ createMany, languages, prisma }) {
+                await Promise.all(createMany.map(async (input) => { await validateNodePositions(prisma, input, languages) }));
+            },
+            async update({ languages, prisma, updateMany }) {
+                await Promise.all(updateMany.map(async (input) => { await validateNodePositions(prisma, input.data, languages) }));
+            },
+        },
         visibility: {
             private: {
-                isPrivate: true,
-                // OR: [
-                //     { isPrivate: true },
-                //     { root: { isPrivate: true } },
-                // ]
+                OR: [
+                    { isPrivate: true },
+                    { root: { isPrivate: true } },
+                ]
             },
             public: {
-                isPrivate: false,
-                // AND: [
-                //     { isPrivate: false },
-                //     { root: { isPrivate: false } },
-                // ]
+                AND: [
+                    { isPrivate: false },
+                    { root: { isPrivate: false } },
+                ]
             },
             owner: (userId) => ({
                 root: RoutineVersionModel.validate!.visibility.owner(userId),
             }),
         },
-        // if (createMany) {
-        //     createMany.forEach(input => this.validateNodePositions(input));
-        // }
-        // if (updateMany) {
-        //     // Query version numbers and isCompletes of existing routines. 
-        //     // Can only update if version number is greater, or if version number is the same and isComplete is false
-        //     //TODO
-        //     updateMany.forEach(input => this.validateNodePositions(input.data));
-        // }
-
-        // Also check profanity on input/output's name
     },
     validateNodePositions,
 })

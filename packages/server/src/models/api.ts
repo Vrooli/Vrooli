@@ -9,8 +9,9 @@ import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { labelShapeHelper, tagShapeHelper } from "../utils";
-import { noNull, shapeHelper } from "../builders";
+import { noNull, padSelect, permissionsSelectHelper, shapeHelper } from "../builders";
 import { apiValidation } from "@shared/validation";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Api' as const;
 type Permissions = Pick<ApiYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
@@ -156,5 +157,58 @@ export const ApiModel: ModelLogic<{
             ]
         })
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: (data) => data.isPrivate === false,
+        isTransferable: true,
+        maxObjects: {
+            User: {
+                private: {
+                    noPremium: 1,
+                    premium: 10,
+                },
+                public: {
+                    noPremium: 3,
+                    premium: 100,
+                }
+            },
+            Organization: 0,
+        },
+        owner: (data) => ({
+            Organization: data.ownedByOrganization,
+            User: data.ownedByUser,
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canComment: () => !isDeleted && (isAdmin || isPublic),
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canReport: () => !isAdmin && !isDeleted && isPublic,
+            canStar: () => !isDeleted && (isAdmin || isPublic),
+            canTransfer: () => isAdmin && !isDeleted,
+            canView: () => !isDeleted && (isAdmin || isPublic),
+            canVote: () => !isDeleted && (isAdmin || isPublic),
+        }),
+        permissionsSelect: (userId) => ({
+            id: true,
+            hasCompleteVersion: true,
+            isDeleted: true,
+            isPrivate: true,
+            permissions: true,
+            createdBy: padSelect({ id: true }),
+            ...permissionsSelectHelper({
+                ownedByOrganization: 'Organization',
+                ownedByUser: 'User',
+            }, ...params),
+        }),
+        visibility: {
+            private: { isPrivate: true },
+            public: { isPrivate: false },
+            owner: (userId) => ({
+                OR: [
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

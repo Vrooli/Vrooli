@@ -37,15 +37,11 @@ for (const objectType of Object.keys(endpoints)) {
     for (const endpointName of Object.keys(endpointGroup)) {
         // Get the endpoint data
         const { fragments, tag } = await endpointGroup[endpointName] as { fragments: [string, string][], tag: string };
-        objectType === 'projectOrOrganization' && console.log(`fragments for ${objectType} ${endpointName}:`, fragments);
-        objectType === 'projectOrOrganization' && console.log(`tag for ${objectType} ${endpointName}:`, tag);
         // Add the fragments to the endpoint list and total fragment object
         currFragmentNames.push(...fragments.map(f => f[0]));
         for (const [name, fragment] of fragments) {
             allFragments[name] = fragment;
         }
-        objectType === 'projectOrOrganization' && console.log(`currFragmentNames for ${objectType} ${endpointName}:`, currFragmentNames);
-        objectType === 'projectOrOrganization' && console.log(`allFragments for ${objectType} ${endpointName}:`, Object.keys(allFragments));
         endpointString += `export const ${objectType}${endpointName[0].toUpperCase() + endpointName.slice(1)} = gql\`${tag}\`;\n\n`;
     }
     // Calculate imports, startig with the gql import

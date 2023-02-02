@@ -15,4 +15,3 @@ export * from './setupDatabase';
 export * from './sortMap';
 export * from './tagShapeHelper';
 export * from './translationShapeHelper';
-export * from './verifyHandle';

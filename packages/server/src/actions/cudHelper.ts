@@ -69,6 +69,19 @@ export async function cudHelper<
     // Max objects check
     maxObjectsCheck(authDataById, idsByAction, prisma, userData);
     console.log("finished max objects check");
+    // Perform custom validation for validations.common
+    if (shapedCreate.length > 0 || shapedUpdate.length > 0 || (deleteMany && deleteMany.length > 0)) {
+        validate?.validations?.common && await validate.validations.common({ 
+            connectMany: [],
+            createMany: shapedCreate, 
+            deleteMany: deleteMany ?? [],
+            disconnectMany: [],
+            languages: userData.languages,
+            prisma,
+            updateMany: shapedUpdate, 
+            userData 
+        });
+    }
     if (shapedCreate.length > 0) {
         // Perform custom validation
         const deltaAdding = shapedCreate.length - (deleteMany ? deleteMany.length : 0);
@@ -93,7 +106,7 @@ export async function cudHelper<
     }
     if (shapedUpdate.length > 0) {
         // Perform custom validation
-        validate?.validations?.update && await validate.validations.update({ updateMany: shapedUpdate.map(u => u.data), languages: userData.languages, prisma, userData });
+        validate?.validations?.update && await validate.validations.update({ updateMany: shapedUpdate, languages: userData.languages, prisma, userData });
         for (const update of shapedUpdate) {
             // Update
             const select = await delegate(prisma).update({
@@ -110,7 +123,7 @@ export async function cudHelper<
         // Call onUpdated
         mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({ authData, prisma, updated, updateInput: updateMany!.map(u => u.data), userData });
     }
-    if (deleteMany) {
+    if (deleteMany && deleteMany.length > 0) {
         // Perform custom validation
         validate?.validations?.delete && await validate.validations.delete({ deleteMany, languages: userData.languages, prisma, userData });
         deleted = await delegate(prisma).deleteMany({

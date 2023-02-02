@@ -343,6 +343,16 @@ export type Validator<
      * user
      */
     validations?: {
+        common?: ({ connectMany, createMany, deleteMany, disconnectMany, languages, prisma, updateMany, userData }: {
+            connectMany: string[],
+            createMany: Model['GqlCreate'][],
+            deleteMany: string[],
+            disconnectMany: string[],
+            languages: string[],
+            prisma: PrismaType,
+            updateMany: { where: Model['PrismaWhere'], data: Model['GqlUpdate'] }[],
+            userData: SessionUser,
+        }) => Promise<void> | void,
         create?: Model['GqlCreate'] extends Record<string, any> ? ({ createMany, deltaAdding, languages, prisma, userData }: {
             createMany: Model['GqlCreate'][],
             deltaAdding: number,
@@ -353,7 +363,7 @@ export type Validator<
         update?: Model['GqlUpdate'] extends Record<string, any> ? ({ languages, prisma, updateMany, userData }: {
             languages: string[],
             prisma: PrismaType,
-            updateMany: Model['GqlUpdate'][],
+            updateMany: { where: Model['PrismaWhere'], data: Model['GqlUpdate'] }[],
             userData: SessionUser,
         }) => Promise<void> | void : never,
         connect?: ({ connectMany, languages, prisma, userData }: {

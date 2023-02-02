@@ -459,7 +459,16 @@ export const RoutineModel: ModelLogic<{
         })
     },
     validate: {
+        isDeleted: (data) => data.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            data.isInternal === false &&
+            oneIsPublic<Prisma.routineSelect>(data, [
+                ['ownedByOrganization', 'Organization'],
+                ['ownedByUser', 'User'],
+            ], languages),
         isTransferable: true,
+        hasCompletedVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         maxObjects: {
             User: {
@@ -483,20 +492,9 @@ export const RoutineModel: ModelLogic<{
                 },
             },
         },
-        hasCompletedVersion: (data) => data.hasCompleteVersion === true,
-        permissionsSelect: (...params) => ({
-            id: true,
-            hasCompleteVersion: true,
-            isDeleted: true,
-            isPrivate: true,
-            isInternal: true,
-            permissions: true,
-            createdBy: padSelect({ id: true }),
-            ...permissionsSelectHelper({
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
-                versions: 'RoutineVersion',
-            }, ...params),
+        owner: (data) => ({
+            Organization: data.ownedByOrganization,
+            User: data.ownedByUser,
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             canComment: () => !isDeleted && (isAdmin || isPublic),
@@ -508,46 +506,27 @@ export const RoutineModel: ModelLogic<{
             canView: () => !isDeleted && (isAdmin || isPublic),
             canVote: () => !isDeleted && (isAdmin || isPublic),
         }),
-        owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+        permissionsSelect: (...params) => ({
+            id: true,
+            hasCompleteVersion: true,
+            isDeleted: true,
+            isPrivate: true,
+            isInternal: true,
+            permissions: true,
+            createdBy: padSelect({ id: true }),
+            ...permissionsSelectHelper({
+                ownedByOrganization: 'Organization',
+                ownedByUser: 'User',
+            }, ...params),
         }),
-        isDeleted: (data) => data.isDeleted,// || latest(data.versions)?.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
-            data.isDeleted === false &&
-            data.isInternal === false &&
-            //latest(data.versions)?.isPrivate === false &&
-            //latest(data.versions)?.isDeleted === false &&
-            oneIsPublic<Prisma.routineSelect>(data, [
-                ['ownedByOrganization', 'Organization'],
-                ['ownedByUser', 'User'],
-            ], languages),
         visibility: {
-            private: {
-                isPrivate: true,
-                // OR: [
-                //     { isPrivate: true },
-                //     { root: { isPrivate: true } },
-                // ]
-            },
-            public: {
-                isPrivate: false,
-                // AND: [
-                //     { isPrivate: false },
-                //     { root: { isPrivate: false } },
-                // ]
-            },
+            private: { isPrivate: true },
+            public: { isPrivate: false },
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
                     { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
                 ]
-                // root: {
-                //     OR: [
-                //         { ownedByUser: { id: userId } },
-                //         { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                //     ]
-                // }
             }),
         },
         // if (createMany) {

@@ -223,7 +223,7 @@ export const ProjectVersionModel: ModelLogic<{
             // Organization: data.ownedByOrganization,
             // User: data.ownedByUser,
         } as any),
-        isDeleted: (data) => data.isDeleted,// || data.root.isDeleted,
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
             ['ownedByOrganization', 'Organization'],
             ['ownedByUser', 'User'],

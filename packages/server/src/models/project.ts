@@ -176,7 +176,9 @@ export const ProjectModel: ModelLogic<{
         })
     },
     validate: {
+        isDeleted: (data) => data.isDeleted,
         isTransferable: true,
+        hasCompletedVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         maxObjects: {
             User: {
@@ -226,8 +228,6 @@ export const ProjectModel: ModelLogic<{
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,
         }),
-        hasCompletedVersion: (data) => data.hasCompleteVersion === true,
-        isDeleted: (data) => data.isDeleted,// || data.root.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
             ['ownedByOrganization', 'Organization'],
             ['ownedByUser', 'User'],

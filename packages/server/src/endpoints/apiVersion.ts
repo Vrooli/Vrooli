@@ -28,7 +28,6 @@ export const typeDef = gql`
         documentationLink: String
         isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -43,7 +42,6 @@ export const typeDef = gql`
         documentationLink: String
         isLatest: Boolean
         isPrivate: Boolean
-        versionIndex: Int
         versionLabel: String
         versionNotes: String
         directoryListingsConnect: [ID!]

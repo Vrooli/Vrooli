@@ -32,7 +32,6 @@ export const typeDef = gql`
         content: String!
         rootConnect: ID!
         rootCreate: SmartContractCreateInput
-        versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -47,7 +46,6 @@ export const typeDef = gql`
         default: String
         contractType: String
         content: String
-        versionIndex: Int!
         versionLabel: String
         versionNotes: String
         directoryListingsConnect: [ID!]

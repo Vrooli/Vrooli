@@ -32,7 +32,6 @@ export const typeDef = gql`
         standardType: String!
         props: String!
         yup: String
-        versionIndex: Int!
         versionLabel: String!
         versionNotes: String
         directoryListingsConnect: [ID!]
@@ -51,7 +50,6 @@ export const typeDef = gql`
         standardType: String
         props: String
         yup: String
-        versionIndex: Int!
         versionLabel: String
         versionNotes: String
         directoryListingsConnect: [ID!]
