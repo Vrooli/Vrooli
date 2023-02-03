@@ -2486,6 +2486,7 @@ enum PaymentStatus {
 }
 
 enum PeriodType {
+    Hourly
     Daily
     Weekly
     Monthly
