@@ -13,7 +13,8 @@ query statsRoutine($input: StatsRoutineSearchInput!) {
             periodType
             runsStarted
             runsCompleted
-            runCompletionTimeAverageInPeriod
+            runCompletionTimeAverage
+            runContextSwitchesAverage
         }
     }
     pageInfo {

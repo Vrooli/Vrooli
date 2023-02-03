@@ -1,12 +1,8 @@
 import gql from 'graphql-tag';
 import { Label_full } from '../fragments/Label_full';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
 import { Label_list } from '../fragments/Label_list';
 
 export const userScheduleFindOne = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 ${Label_list}
 
 query userSchedule($input: FindByIdInput!) {
@@ -85,8 +81,6 @@ query userSchedule($input: FindByIdInput!) {
 }`;
 
 export const userScheduleFindMany = gql`${Label_list}
-${Organization_nav}
-${User_nav}
 
 query userSchedules($input: UserScheduleSearchInput!) {
   userSchedules(input: $input) {
@@ -115,8 +109,6 @@ query userSchedules($input: UserScheduleSearchInput!) {
 }`;
 
 export const userScheduleCreate = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 ${Label_list}
 
 mutation userScheduleCreate($input: UserScheduleCreateInput!) {
@@ -195,8 +187,6 @@ mutation userScheduleCreate($input: UserScheduleCreateInput!) {
 }`;
 
 export const userScheduleUpdate = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 ${Label_list}
 
 mutation userScheduleUpdate($input: UserScheduleUpdateInput!) {

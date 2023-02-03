@@ -12,6 +12,7 @@ query statsApi($input: StatsApiSearchInput!) {
             periodEnd
             periodType
             calls
+            routineVersions
         }
     }
     pageInfo {

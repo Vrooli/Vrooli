@@ -50,6 +50,7 @@ export const project: GqlPartial<Project> = {
         you: () => rel(projectYou, 'full'),
     },
     full: {
+        parent: async () => rel((await import('./projectVersion')).projectVersion, 'nav'),
         versions: async () => rel((await import('./projectVersion')).projectVersion, 'full', { omit: 'root' }),
         stats: async () => rel((await import('./statsProject')).statsProject, 'full'),
     },

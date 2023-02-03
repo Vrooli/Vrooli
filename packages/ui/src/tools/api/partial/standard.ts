@@ -50,6 +50,7 @@ export const standard: GqlPartial<Standard> = {
         you: () => rel(standardYou, 'full'),
     },
     full: {
+        parent: async () => rel((await import('./standardVersion')).standardVersion, 'nav'),
         versions: async () => rel((await import('./standardVersion')).standardVersion, 'full', { omit: 'root' }),
         stats: async () => rel((await import('./statsStandard')).statsStandard, 'full'),
     },

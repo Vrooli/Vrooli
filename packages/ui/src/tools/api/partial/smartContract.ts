@@ -50,6 +50,7 @@ export const smartContract: GqlPartial<SmartContract> = {
         you: () => rel(smartContractYou, 'full'),
     },
     full: {
+        parent: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'nav'),
         versions: async () => rel((await import('./smartContractVersion')).smartContractVersion, 'full', { omit: 'root' }),
         stats: async () => rel((await import('./statsSmartContract')).statsSmartContract, 'full'),
     },

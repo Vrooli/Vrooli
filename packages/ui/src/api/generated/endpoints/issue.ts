@@ -1,23 +1,21 @@
 import gql from 'graphql-tag';
 import { Api_nav } from '../fragments/Api_nav';
+import { Label_common } from '../fragments/Label_common';
 import { Note_nav } from '../fragments/Note_nav';
 import { Organization_nav } from '../fragments/Organization_nav';
 import { Project_nav } from '../fragments/Project_nav';
 import { Routine_nav } from '../fragments/Routine_nav';
 import { SmartContract_nav } from '../fragments/SmartContract_nav';
 import { Standard_nav } from '../fragments/Standard_nav';
-import { Label_common } from '../fragments/Label_common';
-import { User_nav } from '../fragments/User_nav';
 
 export const issueFindOne = gql`${Api_nav}
+${Label_common}
 ${Note_nav}
 ${Organization_nav}
 ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
-${Label_common}
-${User_nav}
 
 query issue($input: FindByIdInput!) {
   issue(input: $input) {
@@ -89,14 +87,13 @@ query issue($input: FindByIdInput!) {
 }`;
 
 export const issueFindMany = gql`${Api_nav}
+${Label_common}
 ${Note_nav}
 ${Organization_nav}
 ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
-${Label_common}
-${User_nav}
 
 query issues($input: IssueSearchInput!) {
   issues(input: $input) {
@@ -167,14 +164,13 @@ query issues($input: IssueSearchInput!) {
 }`;
 
 export const issueCreate = gql`${Api_nav}
+${Label_common}
 ${Note_nav}
 ${Organization_nav}
 ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
-${Label_common}
-${User_nav}
 
 mutation issueCreate($input: IssueCreateInput!) {
   issueCreate(input: $input) {
@@ -246,14 +242,13 @@ mutation issueCreate($input: IssueCreateInput!) {
 }`;
 
 export const issueUpdate = gql`${Api_nav}
+${Label_common}
 ${Note_nav}
 ${Organization_nav}
 ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
-${Label_common}
-${User_nav}
 
 mutation issueUpdate($input: IssueUpdateInput!) {
   issueUpdate(input: $input) {
@@ -325,14 +320,13 @@ mutation issueUpdate($input: IssueUpdateInput!) {
 }`;
 
 export const issueClose = gql`${Api_nav}
+${Label_common}
 ${Note_nav}
 ${Organization_nav}
 ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
-${Label_common}
-${User_nav}
 
 mutation issueClose($input: IssueCloseInput!) {
   issueClose(input: $input) {

@@ -10,17 +10,13 @@ console.info('Generating graphql-tag strings for endpoints...');
 // Step 1: Create output folders
 // Create the output folders if they doesn't exist
 const outputFolder = './src/api/generated';
-if (!fs.existsSync(outputFolder)) {
-    console.info(`Creating output folder: ${outputFolder}`)
-    fs.mkdirSync(outputFolder);
-}
-if (!fs.existsSync(`${outputFolder}/fragments`)) {
-    console.info(`Creating output folder: ${outputFolder}/fragments`)
-    fs.mkdirSync(`${outputFolder}/fragments`);
-}
-if (!fs.existsSync(`${outputFolder}/endpoints`)) {
-    console.info(`Creating output folder: ${outputFolder}/endpoints`)
-    fs.mkdirSync(`${outputFolder}/endpoints`);
+const fragmentsFolder = `${outputFolder}/fragments`;
+const endpointsFolder = `${outputFolder}/endpoints`;
+for (const folder of [outputFolder, fragmentsFolder, endpointsFolder]) {
+    if (!fs.existsSync(folder)) {
+        console.info(`Creating folder: ${folder}`)
+        fs.mkdirSync(folder);
+    }
 }
 
 // Step 2: Find data and write endoints to files

@@ -1,40 +1,6 @@
 import gql from 'graphql-tag';
-import { Api_list } from '../fragments/Api_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
-import { Tag_list } from '../fragments/Tag_list';
-import { Label_list } from '../fragments/Label_list';
-import { ApiVersion_list } from '../fragments/ApiVersion_list';
-import { Note_list } from '../fragments/Note_list';
-import { NoteVersion_list } from '../fragments/NoteVersion_list';
-import { Project_list } from '../fragments/Project_list';
-import { ProjectVersion_list } from '../fragments/ProjectVersion_list';
-import { Routine_list } from '../fragments/Routine_list';
-import { Label_full } from '../fragments/Label_full';
-import { RoutineVersion_list } from '../fragments/RoutineVersion_list';
-import { SmartContract_list } from '../fragments/SmartContract_list';
-import { SmartContractVersion_list } from '../fragments/SmartContractVersion_list';
-import { Standard_list } from '../fragments/Standard_list';
-import { StandardVersion_list } from '../fragments/StandardVersion_list';
 
-export const pullRequestFindOne = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
-
+export const pullRequestFindOne = gql`
 query pullRequest($input: FindByIdInput!) {
   pullRequest(input: $input) {
     id
@@ -43,46 +9,6 @@ query pullRequest($input: FindByIdInput!) {
     mergedOrRejectedAt
     commentsCount
     status
-    from {
-        ... on ApiVersion {
-            ...ApiVersion_list
-        }
-        ... on NoteVersion {
-            ...NoteVersion_list
-        }
-        ... on ProjectVersion {
-            ...ProjectVersion_list
-        }
-        ... on RoutineVersion {
-            ...RoutineVersion_list
-        }
-        ... on SmartContractVersion {
-            ...SmartContractVersion_list
-        }
-        ... on StandardVersion {
-            ...StandardVersion_list
-        }
-    }
-    to {
-        ... on Api {
-            ...Api_list
-        }
-        ... on Note {
-            ...Note_list
-        }
-        ... on Project {
-            ...Project_list
-        }
-        ... on Routine {
-            ...Routine_list
-        }
-        ... on SmartContract {
-            ...SmartContract_list
-        }
-        ... on Standard {
-            ...Standard_list
-        }
-    }
     createdBy {
         id
         name
@@ -97,24 +23,7 @@ query pullRequest($input: FindByIdInput!) {
   }
 }`;
 
-export const pullRequestFindMany = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
-
+export const pullRequestFindMany = gql`
 query pullRequests($input: PullRequestSearchInput!) {
   pullRequests(input: $input) {
     edges {
@@ -126,46 +35,6 @@ query pullRequests($input: PullRequestSearchInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -186,24 +55,7 @@ query pullRequests($input: PullRequestSearchInput!) {
   }
 }`;
 
-export const pullRequestCreate = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
-
+export const pullRequestCreate = gql`
 mutation pullRequestCreate($input: PullRequestCreateInput!) {
   pullRequestCreate(input: $input) {
     id
@@ -212,46 +64,6 @@ mutation pullRequestCreate($input: PullRequestCreateInput!) {
     mergedOrRejectedAt
     commentsCount
     status
-    from {
-        ... on ApiVersion {
-            ...ApiVersion_list
-        }
-        ... on NoteVersion {
-            ...NoteVersion_list
-        }
-        ... on ProjectVersion {
-            ...ProjectVersion_list
-        }
-        ... on RoutineVersion {
-            ...RoutineVersion_list
-        }
-        ... on SmartContractVersion {
-            ...SmartContractVersion_list
-        }
-        ... on StandardVersion {
-            ...StandardVersion_list
-        }
-    }
-    to {
-        ... on Api {
-            ...Api_list
-        }
-        ... on Note {
-            ...Note_list
-        }
-        ... on Project {
-            ...Project_list
-        }
-        ... on Routine {
-            ...Routine_list
-        }
-        ... on SmartContract {
-            ...SmartContract_list
-        }
-        ... on Standard {
-            ...Standard_list
-        }
-    }
     createdBy {
         id
         name
@@ -266,24 +78,7 @@ mutation pullRequestCreate($input: PullRequestCreateInput!) {
   }
 }`;
 
-export const pullRequestUpdate = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
-
+export const pullRequestUpdate = gql`
 mutation pullRequestUpdate($input: PullRequestUpdateInput!) {
   pullRequestUpdate(input: $input) {
     id
@@ -292,46 +87,6 @@ mutation pullRequestUpdate($input: PullRequestUpdateInput!) {
     mergedOrRejectedAt
     commentsCount
     status
-    from {
-        ... on ApiVersion {
-            ...ApiVersion_list
-        }
-        ... on NoteVersion {
-            ...NoteVersion_list
-        }
-        ... on ProjectVersion {
-            ...ProjectVersion_list
-        }
-        ... on RoutineVersion {
-            ...RoutineVersion_list
-        }
-        ... on SmartContractVersion {
-            ...SmartContractVersion_list
-        }
-        ... on StandardVersion {
-            ...StandardVersion_list
-        }
-    }
-    to {
-        ... on Api {
-            ...Api_list
-        }
-        ... on Note {
-            ...Note_list
-        }
-        ... on Project {
-            ...Project_list
-        }
-        ... on Routine {
-            ...Routine_list
-        }
-        ... on SmartContract {
-            ...SmartContract_list
-        }
-        ... on Standard {
-            ...Standard_list
-        }
-    }
     createdBy {
         id
         name
@@ -346,24 +101,7 @@ mutation pullRequestUpdate($input: PullRequestUpdateInput!) {
   }
 }`;
 
-export const pullRequestAccept = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
-
+export const pullRequestAccept = gql`
 mutation pullRequestAcdept($input: FindByIdInput!) {
   pullRequestAcdept(input: $input) {
     id
@@ -372,46 +110,6 @@ mutation pullRequestAcdept($input: FindByIdInput!) {
     mergedOrRejectedAt
     commentsCount
     status
-    from {
-        ... on ApiVersion {
-            ...ApiVersion_list
-        }
-        ... on NoteVersion {
-            ...NoteVersion_list
-        }
-        ... on ProjectVersion {
-            ...ProjectVersion_list
-        }
-        ... on RoutineVersion {
-            ...RoutineVersion_list
-        }
-        ... on SmartContractVersion {
-            ...SmartContractVersion_list
-        }
-        ... on StandardVersion {
-            ...StandardVersion_list
-        }
-    }
-    to {
-        ... on Api {
-            ...Api_list
-        }
-        ... on Note {
-            ...Note_list
-        }
-        ... on Project {
-            ...Project_list
-        }
-        ... on Routine {
-            ...Routine_list
-        }
-        ... on SmartContract {
-            ...SmartContract_list
-        }
-        ... on Standard {
-            ...Standard_list
-        }
-    }
     createdBy {
         id
         name
@@ -426,24 +124,7 @@ mutation pullRequestAcdept($input: FindByIdInput!) {
   }
 }`;
 
-export const pullRequestReject = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
-
+export const pullRequestReject = gql`
 mutation pullRequestReject($input: FindByIdInput!) {
   pullRequestReject(input: $input) {
     id
@@ -452,46 +133,6 @@ mutation pullRequestReject($input: FindByIdInput!) {
     mergedOrRejectedAt
     commentsCount
     status
-    from {
-        ... on ApiVersion {
-            ...ApiVersion_list
-        }
-        ... on NoteVersion {
-            ...NoteVersion_list
-        }
-        ... on ProjectVersion {
-            ...ProjectVersion_list
-        }
-        ... on RoutineVersion {
-            ...RoutineVersion_list
-        }
-        ... on SmartContractVersion {
-            ...SmartContractVersion_list
-        }
-        ... on StandardVersion {
-            ...StandardVersion_list
-        }
-    }
-    to {
-        ... on Api {
-            ...Api_list
-        }
-        ... on Note {
-            ...Note_list
-        }
-        ... on Project {
-            ...Project_list
-        }
-        ... on Routine {
-            ...Routine_list
-        }
-        ... on SmartContract {
-            ...SmartContract_list
-        }
-        ... on Standard {
-            ...Standard_list
-        }
-    }
     createdBy {
         id
         name

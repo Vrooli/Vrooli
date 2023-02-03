@@ -1,11 +1,7 @@
 import gql from 'graphql-tag';
 import { Label_list } from '../fragments/Label_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
 
 export const reminderFindOne = gql`${Label_list}
-${Organization_nav}
-${User_nav}
 
 query reminder($input: FindByIdInput!) {
   reminder(input: $input) {
@@ -50,8 +46,6 @@ query reminder($input: FindByIdInput!) {
 }`;
 
 export const reminderFindMany = gql`${Label_list}
-${Organization_nav}
-${User_nav}
 
 query reminders($input: ReminderSearchInput!) {
   reminders(input: $input) {
@@ -105,8 +99,6 @@ query reminders($input: ReminderSearchInput!) {
 }`;
 
 export const reminderCreate = gql`${Label_list}
-${Organization_nav}
-${User_nav}
 
 mutation reminderCreate($input: ReminderCreateInput!) {
   reminderCreate(input: $input) {
@@ -151,8 +143,6 @@ mutation reminderCreate($input: ReminderCreateInput!) {
 }`;
 
 export const reminderUpdate = gql`${Label_list}
-${Organization_nav}
-${User_nav}
 
 mutation reminderUpdate($input: ReminderUpdateInput!) {
   reminderUpdate(input: $input) {

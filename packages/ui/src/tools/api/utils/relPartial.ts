@@ -25,7 +25,7 @@ export const rel = async <
     // Find correct selection to use
     const actualSelectionType = findSelection(partial, selectionType);
     // Get selection data for the partial
-    let selectionData = partial[actualSelectionType]!;
+    let selectionData = {...partial[actualSelectionType]!};
     // Remove all exceptions. Supports dot notation.
     hasExceptions && removeValuesUsingDot(selectionData, ...(Array.isArray(exceptions.omit) ? exceptions.omit : [exceptions.omit]));
     // Shape selection data

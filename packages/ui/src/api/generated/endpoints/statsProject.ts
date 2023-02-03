@@ -12,10 +12,17 @@ query statsProject($input: StatsProjectSearchInput!) {
             periodEnd
             periodType
             directories
+            apis
             notes
+            organizations
+            projects
             routines
             smartContracts
             standards
+            runsStarted
+            runsCompleted
+            runCompletionTimeAverage
+            runContextSwitchesAverage
         }
     }
     pageInfo {

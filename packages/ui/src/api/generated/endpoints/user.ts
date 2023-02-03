@@ -1,12 +1,8 @@
 import gql from 'graphql-tag';
 import { Label_full } from '../fragments/Label_full';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
 import { Label_list } from '../fragments/Label_list';
 
 export const userProfile = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 ${Label_list}
 
 query profile {
@@ -154,21 +150,21 @@ query profile {
         organizations
         projects
         projectsCompleted
-        projectsCompletionTimeAverageInPeriod
+        projectsCompletionTimeAverage
         quizzesPassed
         quizzesFailed
         routines
         routinesCompleted
-        routinesCompletionTimeAverageInPeriod
+        routinesCompletionTimeAverage
         runsStarted
         runsCompleted
-        runsCompletionTimeAverageInPeriod
+        runsCompletionTimeAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverageInPeriod
+        smartContractsCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverageInPeriod
+        standardsCompletionTimeAverage
     }
   }
 }`;
@@ -186,21 +182,21 @@ query user($input: FindByIdInput!) {
         organizations
         projects
         projectsCompleted
-        projectsCompletionTimeAverageInPeriod
+        projectsCompletionTimeAverage
         quizzesPassed
         quizzesFailed
         routines
         routinesCompleted
-        routinesCompletionTimeAverageInPeriod
+        routinesCompletionTimeAverage
         runsStarted
         runsCompleted
-        runsCompletionTimeAverageInPeriod
+        runsCompletionTimeAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverageInPeriod
+        smartContractsCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverageInPeriod
+        standardsCompletionTimeAverage
     }
     translations {
         id
@@ -257,8 +253,6 @@ query users($input: UserSearchInput!) {
 }`;
 
 export const userProfileUpdate = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 ${Label_list}
 
 mutation profileUpdate($input: ProfileUpdateInput!) {
@@ -406,28 +400,26 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
         organizations
         projects
         projectsCompleted
-        projectsCompletionTimeAverageInPeriod
+        projectsCompletionTimeAverage
         quizzesPassed
         quizzesFailed
         routines
         routinesCompleted
-        routinesCompletionTimeAverageInPeriod
+        routinesCompletionTimeAverage
         runsStarted
         runsCompleted
-        runsCompletionTimeAverageInPeriod
+        runsCompletionTimeAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverageInPeriod
+        smartContractsCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverageInPeriod
+        standardsCompletionTimeAverage
     }
   }
 }`;
 
 export const userProfileEmailUpdate = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 ${Label_list}
 
 mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
@@ -575,21 +567,21 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
         organizations
         projects
         projectsCompleted
-        projectsCompletionTimeAverageInPeriod
+        projectsCompletionTimeAverage
         quizzesPassed
         quizzesFailed
         routines
         routinesCompleted
-        routinesCompletionTimeAverageInPeriod
+        routinesCompletionTimeAverage
         runsStarted
         runsCompleted
-        runsCompletionTimeAverageInPeriod
+        runsCompletionTimeAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverageInPeriod
+        smartContractsCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverageInPeriod
+        standardsCompletionTimeAverage
     }
   }
 }`;

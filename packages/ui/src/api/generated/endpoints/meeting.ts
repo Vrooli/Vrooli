@@ -1,12 +1,8 @@
 import gql from 'graphql-tag';
 import { Label_full } from '../fragments/Label_full';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
 import { Label_list } from '../fragments/Label_list';
 
 export const meetingFindOne = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 
 query meeting($input: FindByIdInput!) {
   meeting(input: $input) {
@@ -144,8 +140,6 @@ query meeting($input: FindByIdInput!) {
 }`;
 
 export const meetingFindMany = gql`${Label_list}
-${Organization_nav}
-${User_nav}
 
 query meetings($input: MeetingSearchInput!) {
   meetings(input: $input) {
@@ -276,8 +270,6 @@ query meetings($input: MeetingSearchInput!) {
 }`;
 
 export const meetingCreate = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 
 mutation meetingCreate($input: MeetingCreateInput!) {
   meetingCreate(input: $input) {
@@ -415,8 +407,6 @@ mutation meetingCreate($input: MeetingCreateInput!) {
 }`;
 
 export const meetingUpdate = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 
 mutation meetingUpdate($input: MeetingUpdateInput!) {
   meetingUpdate(input: $input) {

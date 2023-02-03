@@ -1,11 +1,11 @@
 import gql from 'graphql-tag';
+import { Label_full } from '../fragments/Label_full';
 import { Organization_nav } from '../fragments/Organization_nav';
 import { User_nav } from '../fragments/User_nav';
-import { Label_full } from '../fragments/Label_full';
 
-export const runProjectFindOne = gql`${Organization_nav}
+export const runProjectFindOne = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 query runProject($input: FindByIdInput!) {
   runProject(input: $input) {
@@ -103,9 +103,9 @@ query runProject($input: FindByIdInput!) {
   }
 }`;
 
-export const runProjectFindMany = gql`${Organization_nav}
+export const runProjectFindMany = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 query runProjects($input: RunProjectSearchInput!) {
   runProjects(input: $input) {
@@ -177,9 +177,9 @@ query runProjects($input: RunProjectSearchInput!) {
   }
 }`;
 
-export const runProjectCreate = gql`${Organization_nav}
+export const runProjectCreate = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 mutation runProjectCreate($input: RunProjectCreateInput!) {
   runProjectCreate(input: $input) {
@@ -277,9 +277,9 @@ mutation runProjectCreate($input: RunProjectCreateInput!) {
   }
 }`;
 
-export const runProjectUpdate = gql`${Organization_nav}
+export const runProjectUpdate = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 mutation runProjectUpdate($input: RunProjectUpdateInput!) {
   runProjectUpdate(input: $input) {
@@ -384,9 +384,9 @@ mutation runProjectDeleteAll {
   }
 }`;
 
-export const runProjectComplete = gql`${Organization_nav}
+export const runProjectComplete = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 mutation runProjectComplete($input: RunProjectCompleteInput!) {
   runProjectComplete(input: $input) {
@@ -484,9 +484,9 @@ mutation runProjectComplete($input: RunProjectCompleteInput!) {
   }
 }`;
 
-export const runProjectCancel = gql`${Organization_nav}
+export const runProjectCancel = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 mutation runProjectCancel($input: RunProjectCancelInput!) {
   runProjectCancel(input: $input) {

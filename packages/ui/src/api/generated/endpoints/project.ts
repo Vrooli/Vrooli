@@ -1,42 +1,33 @@
 import gql from 'graphql-tag';
-import { Api_list } from '../fragments/Api_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
-import { Tag_list } from '../fragments/Tag_list';
 import { Label_list } from '../fragments/Label_list';
-import { ApiVersion_list } from '../fragments/ApiVersion_list';
-import { Note_list } from '../fragments/Note_list';
-import { NoteVersion_list } from '../fragments/NoteVersion_list';
-import { Project_list } from '../fragments/Project_list';
-import { ProjectVersion_list } from '../fragments/ProjectVersion_list';
-import { Routine_list } from '../fragments/Routine_list';
-import { Label_full } from '../fragments/Label_full';
-import { RoutineVersion_list } from '../fragments/RoutineVersion_list';
-import { SmartContract_list } from '../fragments/SmartContract_list';
-import { SmartContractVersion_list } from '../fragments/SmartContractVersion_list';
-import { Standard_list } from '../fragments/Standard_list';
-import { StandardVersion_list } from '../fragments/StandardVersion_list';
+import { Organization_nav } from '../fragments/Organization_nav';
+import { Tag_list } from '../fragments/Tag_list';
+import { User_nav } from '../fragments/User_nav';
 
-export const projectFindOne = gql`${Api_list}
+export const projectFindOne = gql`${Label_list}
 ${Organization_nav}
-${User_nav}
 ${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
+${User_nav}
 
 query project($input: FindByIdInput!) {
   project(input: $input) {
+    parent {
+        id
+        isLatest
+        isPrivate
+        versionIndex
+        versionLabel
+        root {
+            id
+            isPrivate
+        }
+        translations {
+            id
+            language
+            description
+            name
+        }
+    }
     versions {
         directories {
             children {
@@ -251,46 +242,6 @@ query project($input: FindByIdInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -338,10 +289,17 @@ query project($input: FindByIdInput!) {
         periodEnd
         periodType
         directories
+        apis
         notes
+        organizations
+        projects
         routines
         smartContracts
         standards
+        runsStarted
+        runsCompleted
+        runCompletionTimeAverage
+        runContextSwitchesAverage
     }
     id
     created_at
@@ -382,10 +340,10 @@ query project($input: FindByIdInput!) {
   }
 }`;
 
-export const projectFindMany = gql`${Organization_nav}
-${User_nav}
+export const projectFindMany = gql`${Label_list}
+${Organization_nav}
 ${Tag_list}
-${Label_list}
+${User_nav}
 
 query projects($input: ProjectSearchInput!) {
   projects(input: $input) {
@@ -393,36 +351,6 @@ query projects($input: ProjectSearchInput!) {
         cursor
         node {
             versions {
-                directories {
-                    translations {
-                        id
-                        language
-                        description
-                        name
-                    }
-                    id
-                    created_at
-                    updated_at
-                    childOrder
-                    isRoot
-                    projectVersion {
-                        id
-                        isLatest
-                        isPrivate
-                        versionIndex
-                        versionLabel
-                        root {
-                            id
-                            isPrivate
-                        }
-                        translations {
-                            id
-                            language
-                            description
-                            name
-                        }
-                    }
-                }
                 translations {
                     id
                     language
@@ -495,26 +423,30 @@ query projects($input: ProjectSearchInput!) {
   }
 }`;
 
-export const projectCreate = gql`${Api_list}
+export const projectCreate = gql`${Label_list}
 ${Organization_nav}
-${User_nav}
 ${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
+${User_nav}
 
 mutation projectCreate($input: ProjectCreateInput!) {
   projectCreate(input: $input) {
+    parent {
+        id
+        isLatest
+        isPrivate
+        versionIndex
+        versionLabel
+        root {
+            id
+            isPrivate
+        }
+        translations {
+            id
+            language
+            description
+            name
+        }
+    }
     versions {
         directories {
             children {
@@ -729,46 +661,6 @@ mutation projectCreate($input: ProjectCreateInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -816,10 +708,17 @@ mutation projectCreate($input: ProjectCreateInput!) {
         periodEnd
         periodType
         directories
+        apis
         notes
+        organizations
+        projects
         routines
         smartContracts
         standards
+        runsStarted
+        runsCompleted
+        runCompletionTimeAverage
+        runContextSwitchesAverage
     }
     id
     created_at
@@ -860,26 +759,30 @@ mutation projectCreate($input: ProjectCreateInput!) {
   }
 }`;
 
-export const projectUpdate = gql`${Api_list}
+export const projectUpdate = gql`${Label_list}
 ${Organization_nav}
-${User_nav}
 ${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
+${User_nav}
 
 mutation projectUpdate($input: ProjectUpdateInput!) {
   projectUpdate(input: $input) {
+    parent {
+        id
+        isLatest
+        isPrivate
+        versionIndex
+        versionLabel
+        root {
+            id
+            isPrivate
+        }
+        translations {
+            id
+            language
+            description
+            name
+        }
+    }
     versions {
         directories {
             children {
@@ -1094,46 +997,6 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -1181,10 +1044,17 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
         periodEnd
         periodType
         directories
+        apis
         notes
+        organizations
+        projects
         routines
         smartContracts
         standards
+        runsStarted
+        runsCompleted
+        runCompletionTimeAverage
+        runContextSwitchesAverage
     }
     id
     created_at

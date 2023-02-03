@@ -1,12 +1,8 @@
 import gql from 'graphql-tag';
 import { Label_full } from '../fragments/Label_full';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
 import { Label_list } from '../fragments/Label_list';
 
 export const meetingInviteFindOne = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 
 query meetingInvite($input: FindByIdInput!) {
   meetingInvite(input: $input) {
@@ -144,8 +140,6 @@ query meetingInvite($input: FindByIdInput!) {
 }`;
 
 export const meetingInviteFindMany = gql`${Label_list}
-${Organization_nav}
-${User_nav}
 
 query meetingInvites($input: MeetingInviteSearchInput!) {
   meetingInvites(input: $input) {
@@ -287,8 +281,6 @@ query meetingInvites($input: MeetingInviteSearchInput!) {
 }`;
 
 export const meetingInviteCreate = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 
 mutation meetingInviteCreate($input: MeetingInviteCreateInput!) {
   meetingInviteCreate(input: $input) {
@@ -426,8 +418,6 @@ mutation meetingInviteCreate($input: MeetingInviteCreateInput!) {
 }`;
 
 export const meetingInviteUpdate = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 
 mutation meetingInviteUpdate($input: MeetingInviteUpdateInput!) {
   meetingInviteUpdate(input: $input) {
@@ -565,8 +555,6 @@ mutation meetingInviteUpdate($input: MeetingInviteUpdateInput!) {
 }`;
 
 export const meetingInviteAccept = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 
 mutation meetingInviteAccept($input: FindByIdInput!) {
   meetingInviteAccept(input: $input) {
@@ -704,8 +692,6 @@ mutation meetingInviteAccept($input: FindByIdInput!) {
 }`;
 
 export const meetingInviteDecline = gql`${Label_full}
-${Organization_nav}
-${User_nav}
 
 mutation meetingInviteDecline($input: FindByIdInput!) {
   meetingInviteDecline(input: $input) {

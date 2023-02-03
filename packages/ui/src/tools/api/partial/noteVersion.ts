@@ -29,7 +29,7 @@ export const noteVersion: GqlPartial<NoteVersion> = {
         you: () => rel(versionYou, 'full'),
     },
     full: {
-        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full'),
+        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full', { omit: ['from', 'to'] }),
         root: async () => rel((await import('./note')).note, 'full', { omit: 'versions' }),
         translations: () => rel(noteVersionTranslation, 'full'),
         versionNotes: true,

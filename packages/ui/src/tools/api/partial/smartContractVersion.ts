@@ -38,7 +38,7 @@ export const smartContractVersion: GqlPartial<SmartContractVersion> = {
     },
     full: {
         versionNotes: true,
-        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full'),
+        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full', { omit: ['from', 'to'] }),
         resourceList: async () => rel((await import('./resourceList')).resourceList, 'full'),
         root: async () => rel((await import('./smartContract')).smartContract, 'full', { omit: 'versions' }),
         translations: () => rel(smartContractVersionTranslation, 'full'),

@@ -17,13 +17,13 @@ query statsSite($input: StatsSiteSearchInput!) {
             organizations
             projects
             projectsCompleted
-            projectsCompletionTimeAverageInPeriod
+            projectsCompletionTimeAverage
             quizzes
             quizzesCompleted
-            quizScoreAverageInPeriod
+            quizScoreAverage
             routines
             routinesCompleted
-            routinesCompletionTimeAverageInPeriod
+            routinesCompletionTimeAverage
             routinesSimplicityAverage
             routinesComplexityAverage
             runsStarted
@@ -31,11 +31,11 @@ query statsSite($input: StatsSiteSearchInput!) {
             runsCompletionTimeAverageInPerid
             smartContractsCreated
             smartContractsCompleted
-            smartContractsCompletionTimeAverageInPeriod
+            smartContractsCompletionTimeAverage
             smartContractCalls
             standardsCreated
             standardsCompleted
-            standardsCompletionTimeAverageInPeriod
+            standardsCompletionTimeAverage
             verifiedEmails
             verifiedWallets
         }

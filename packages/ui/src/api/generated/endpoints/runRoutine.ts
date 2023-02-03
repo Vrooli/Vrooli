@@ -1,11 +1,11 @@
 import gql from 'graphql-tag';
+import { Label_full } from '../fragments/Label_full';
 import { Organization_nav } from '../fragments/Organization_nav';
 import { User_nav } from '../fragments/User_nav';
-import { Label_full } from '../fragments/Label_full';
 
-export const runRoutineFindOne = gql`${Organization_nav}
+export const runRoutineFindOne = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 query runRoutine($input: FindByIdInput!) {
   runRoutine(input: $input) {
@@ -131,9 +131,9 @@ query runRoutine($input: FindByIdInput!) {
   }
 }`;
 
-export const runRoutineFindMany = gql`${Organization_nav}
+export const runRoutineFindMany = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 query runRoutines($input: RunRoutineSearchInput!) {
   runRoutines(input: $input) {
@@ -191,9 +191,9 @@ query runRoutines($input: RunRoutineSearchInput!) {
   }
 }`;
 
-export const runRoutineCreate = gql`${Organization_nav}
+export const runRoutineCreate = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 mutation runRoutineCreate($input: RunRoutineCreateInput!) {
   runRoutineCreate(input: $input) {
@@ -319,9 +319,9 @@ mutation runRoutineCreate($input: RunRoutineCreateInput!) {
   }
 }`;
 
-export const runRoutineUpdate = gql`${Organization_nav}
+export const runRoutineUpdate = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 mutation runRoutineUpdate($input: RunRoutineUpdateInput!) {
   runRoutineUpdate(input: $input) {
@@ -454,9 +454,9 @@ mutation runRoutineDeleteAll {
   }
 }`;
 
-export const runRoutineComplete = gql`${Organization_nav}
+export const runRoutineComplete = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 mutation runRoutineComplete($input: RunRoutineCompleteInput!) {
   runRoutineComplete(input: $input) {
@@ -582,9 +582,9 @@ mutation runRoutineComplete($input: RunRoutineCompleteInput!) {
   }
 }`;
 
-export const runRoutineCancel = gql`${Organization_nav}
+export const runRoutineCancel = gql`${Label_full}
+${Organization_nav}
 ${User_nav}
-${Label_full}
 
 mutation runRoutineCancel($input: RunRoutineCancelInput!) {
   runRoutineCancel(input: $input) {
