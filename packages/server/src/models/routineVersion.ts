@@ -6,9 +6,10 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
-import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, padSelect, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
-import { getSingleTypePermissions, versionsCheck } from "../validators";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { RoutineModel } from "./routine";
 
 /**
  * Validates node positions
@@ -173,9 +174,9 @@ export const RoutineVersionModel: ModelLogic<{
                 //         User ? { __typename: 'User', id: User.id } : null;
                 //     const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
                 //     const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
-                //     const hadCompletedVersion = validator().hasCompletedVersion(permissionsData as any);
+                //     const hadCompletedVersion = validator().hasCompleteVersion(permissionsData as any);
                 //     const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
-                //     const hasCompletedVersion = asdfasdfasdf
+                //     const hasCompleteVersion = asdfasdfasdf
                 //     // Check if new version was created
                 //     if (input.versionLabel) {
                 //         Trigger(prisma, userData.languages).objectNewVersion(
@@ -185,7 +186,7 @@ export const RoutineVersionModel: ModelLogic<{
                 //             owner,
                 //             hasOriginalOwner,
                 //             hadCompletedVersion && wasPublic,
-                //             hasCompletedVersion && isPublic
+                //             hasCompleteVersion && isPublic
                 //         );
                 //     }
                 // }
@@ -235,18 +236,18 @@ export const RoutineVersionModel: ModelLogic<{
         }),
     },
     validate: {
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            RoutineModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: 1000000,
+        owner: (data) => RoutineModel.validate!.owner(data.root as any),
         permissionsSelect: (...params) => ({
             id: true,
-            hasCompleteVersion: true,
             isDeleted: true,
             isPrivate: true,
-            permissions: true,
-            createdBy: padSelect({ id: true }),
-            ...permissionsSelectHelper({
-                root: 'Routine',
-            }, ...params),
+            root: 'Routine',
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             canComment: () => !isDeleted && (isAdmin || isPublic),
@@ -259,20 +260,6 @@ export const RoutineVersionModel: ModelLogic<{
             canView: () => !isDeleted && (isAdmin || isPublic),
             canVote: () => !isDeleted && (isAdmin || isPublic),
         }),
-        owner: (data) => ({
-            // Organization: data.ownedByOrganization,
-            // User: data.ownedByUser,
-        } as any),
-        isDeleted: (data) => data.isDeleted,// || latest(data.versions)?.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
-            data.isDeleted === false &&
-            // data.isInternal === false &&
-            //latest(data.versions)?.isPrivate === false &&
-            //latest(data.versions)?.isDeleted === false &&
-            oneIsPublic<Prisma.routineSelect>(data, [
-                ['ownedByOrganization', 'Organization'],
-                ['ownedByUser', 'User'],
-            ], languages),
         validations: {
             async common({ createMany, deleteMany, languages, prisma, updateMany }) {
                 await versionsCheck({ 
@@ -285,9 +272,11 @@ export const RoutineVersionModel: ModelLogic<{
                 });
             },
             async create({ createMany, languages, prisma }) {
+                createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', languages))
                 await Promise.all(createMany.map(async (input) => { await validateNodePositions(prisma, input, languages) }));
             },
             async update({ languages, prisma, updateMany }) {
+                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['description'], 'LineBreaksBio', languages));
                 await Promise.all(updateMany.map(async (input) => { await validateNodePositions(prisma, input.data, languages) }));
             },
         },
@@ -305,7 +294,7 @@ export const RoutineVersionModel: ModelLogic<{
                 ]
             },
             owner: (userId) => ({
-                root: RoutineVersionModel.validate!.visibility.owner(userId),
+                root: RoutineModel.validate!.visibility.owner(userId),
             }),
         },
     },

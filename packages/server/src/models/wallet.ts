@@ -1,6 +1,5 @@
 import { Prisma } from "@prisma/client";
 import { walletValidation } from '@shared/validation';
-import { permissionsSelectHelper } from "../builders";
 import { CustomError } from "../events";
 import { Wallet, WalletUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
@@ -70,10 +69,8 @@ export const WalletModel: ModelLogic<{
         },
         permissionsSelect: (...params) => ({
             id: true,
-            ...permissionsSelectHelper([
-                ['organization', 'Organization'],
-                ['user', 'User'],
-            ], ...params)
+            organization: 'Organization',
+            user: 'User',
         }),
         permissionResolvers: () => ({}),
         owner: (data) => ({

@@ -60,7 +60,7 @@ export const typeDef = gql`
         completedAt: Date
         created_at: Date!
         updated_at: Date!
-        hasCompletedVersion: Boolean!
+        hasCompleteVersion: Boolean!
         isDeleted: Boolean!
         isPrivate: Boolean!
         permissions: String!
@@ -101,20 +101,28 @@ export const typeDef = gql`
 
     input ApiSearchInput {
         after: String
-        createdTimeFrame: TimeFrame
         createdById: ID
+        createdTimeFrame: TimeFrame
+        excludeIds: [ID!]
+        ids: [ID!]
+        hasCompleteVersion: Boolean
+        issuesId: ID
+        labelsIds: [ID!]
         maxScore: Int
         maxStars: Int
+        maxViews: Int
         minScore: Int
         minStars: Int
+        minViews: Int
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
-        languages: [String!]
-        ids: [ID!]
+        pullRequestsId: ID
         searchString: String
         sortBy: ApiSortBy
         tags: [String!]
+        take: Int
+        translationLanguagesLatestVersion: [String!]
         updatedTimeFrame: TimeFrame
         visibility: VisibilityType
     }

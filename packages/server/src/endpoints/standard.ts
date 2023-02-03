@@ -65,7 +65,7 @@ export const typeDef = gql`
         completedAt: Date
         created_at: Date!
         updated_at: Date!
-        hasCompletedVersion: Boolean!
+        hasCompleteVersion: Boolean!
         isDeleted: Boolean!
         isInternal: Boolean!
         isPrivate: Boolean!
@@ -116,7 +116,9 @@ export const typeDef = gql`
         excludeIds: [ID!]
         ids: [ID!]
         hasCompleteVersion: Boolean
-        labelsId: ID
+        isInternal: Boolean
+        issuesId: ID
+        labelsIds: [ID!]
         maxScore: Int
         maxStars: Int
         maxViews: Int
@@ -126,6 +128,7 @@ export const typeDef = gql`
         ownedByUserId: ID
         ownedByOrganizationId: ID
         parentId: ID
+        pullRequestsId: ID
         searchString: String
         sortBy: StandardSortBy
         tags: [String!]

@@ -410,7 +410,7 @@ export type Validator<
             /**
              * Determines if there is a completed version of the object
              */
-            hasCompletedVersion: (data: Model['PrismaModel']) => boolean;
+            hasCompleteVersion: (data: Model['PrismaModel']) => boolean;
         } : {}
     )
 
@@ -473,6 +473,16 @@ export type Mutater<Model extends {
      * Triggers when a mutation is performed on the object
      */
     trigger?: {
+        onCommon?: ({ createAuthData, created, deleted, prisma, updateAuthData, updated, updateInput, userData }: {
+            createAuthData: { [id: string]: { [x: string]: any } },
+            created: (RecursivePartial<Model['GqlModel']> & { id: string })[],
+            deleted: Count,
+            updateAuthData: { [id: string]: { [x: string]: any } },
+            updated: (RecursivePartial<Model['GqlModel']> & { id: string })[],
+            updateInput: Model['GqlUpdate'][],
+            prisma: PrismaType,
+            userData: SessionUser,
+        }) => PromiseOrValue<void>,
         onCreated?: Model['GqlCreate'] extends Record<string, any> ? ({ created, prisma, userData }: {
             authData: { [id: string]: { [x: string]: any } },
             created: (RecursivePartial<Model['GqlModel']> & { id: string })[],

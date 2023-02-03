@@ -4,7 +4,7 @@ import { RunRoutine, RunRoutineSearchInput, RunRoutineCreateInput, RunRoutineUpd
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
-import { addSupplementalFields, modelToGraphQL, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { getSingleTypePermissions } from "../validators";
@@ -310,11 +310,9 @@ export const RunRoutineModel: ModelLogic<{
         permissionsSelect: (...params) => ({
             id: true,
             isPrivate: true,
-            ...permissionsSelectHelper({
-                organization: 'Organization',
-                routineVersion: 'Routine',
-                user: 'User',
-            }, ...params)
+            organization: 'Organization',
+            routineVersion: 'Routine',
+            user: 'User',
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             canDelete: async () => isAdmin && !isDeleted,

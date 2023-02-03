@@ -124,6 +124,7 @@ export const SearchMap = {
     issuesId: (id: Maybe<string>) => oneToManyId(id, 'issues'),
     label: (label: Maybe<string>) => ({ label }),
     labelsId: (id: Maybe<string>) => ({ labels: { some: { label: { id } } } }),
+    labelsIds: (ids: Maybe<string[]>) => ({ labels: { some: { label: { id: { in: ids } } } } }),
     languageIn: (languages: Maybe<string[]>) => ({ language: { in: languages } }),
     lastViewedTimeFrame: (time: Maybe<TimeFrame>) => timeFrameToPrisma('lastViewedAt', time),
     maxComplexity: (complexity: Maybe<number>) => ({ complexity: { lte: complexity } }),

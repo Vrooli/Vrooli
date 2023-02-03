@@ -4,7 +4,6 @@ import { PrismaType } from "../types";
 import { Displayer, ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { ResourceListModel } from "./resourceList";
-import { permissionsSelectHelper } from "../builders";
 import { bestLabel } from "../utils";
 import { SelectWrap } from "../builders/types";
 
@@ -90,9 +89,7 @@ export const ResourceModel: ModelLogic<Model, typeof suppFields> = ({
         maxObjects: 50000,
         permissionsSelect: (...params) => ({
             id: true,
-            ...permissionsSelectHelper([
-                ['list', 'ResourceList'],
-            ], ...params)
+            list: 'ResourceList',
         }),
         permissionResolvers: (params) => ResourceListModel.validate!.permissionResolvers({ ...params, data: params.data.list as any }),
         owner: (data) => ResourceListModel.validate!.owner(data.list as any),

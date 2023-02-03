@@ -9,13 +9,15 @@ import { StarModel } from "./star";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { getLabels } from "../getters";
+import { oneIsPublic } from "../utils";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'SmartContract' as const;
 type Permissions = Pick<SmartContractYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
 const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
 export const SmartContractModel: ModelLogic<{
-    IsTransferable: false,
-    IsVersioned: false,
+    IsTransferable: true,
+    IsVersioned: true,
     GqlCreate: SmartContractCreateInput,
     GqlUpdate: SmartContractUpdateInput,
     GqlModel: SmartContract,
@@ -98,6 +100,108 @@ export const SmartContractModel: ModelLogic<{
         },
     },
     mutate: {} as any,
-    search: {} as any,
-    validate: {} as any,
+    search: {
+        defaultSort: SmartContractSortBy.ScoreDesc,
+        sortBy: SmartContractSortBy,
+        searchFields: {
+            createdById: true,
+            createdTimeFrame: true,
+            excludeIds: true,
+            hasCompleteVersion: true,
+            issuesId: true,
+            labelsIds: true,
+            maxScore: true,
+            maxStars: true,
+            maxViews: true,
+            minScore: true,
+            minStars: true,
+            minViews: true,
+            ownedByOrganizationId: true,
+            ownedByUserId: true,
+            parentId: true,
+            pullRequestsId: true,
+            tags: true,
+            translationLanguagesLatestVersion: true,
+            updatedTimeFrame: true,
+            visibility: true,
+        },
+        searchStringQuery: () => ({
+            OR: [
+                'tagsWrapped',
+                'labelsWrapped',
+                { versions: { some: 'transNameWrapped' } },
+                { versions: { some: 'transDescriptionWrapped' } }
+            ]
+        })
+    },
+    validate: {
+        hasCompleteVersion: (data) => data.hasCompleteVersion === true,
+        hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
+        isDeleted: (data) => data.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            oneIsPublic<Prisma.smart_contractSelect>(data, [
+                ['ownedByOrganization', 'Organization'],
+                ['ownedByUser', 'User'],
+            ], languages),
+        isTransferable: true,
+        maxObjects: {
+            User: {
+                private: {
+                    noPremium: 2,
+                    premium: 20,
+                },
+                public: {
+                    noPremium: 6,
+                    premium: 200,
+                }
+            },
+            Organization: {
+                private: {
+                    noPremium: 6,
+                    premium: 50,
+                },
+                public: {
+                    noPremium: 10,
+                    premium: 200,
+                }
+            },
+        },
+        owner: (data) => ({
+            Organization: data.ownedByOrganization,
+            User: data.ownedByUser,
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canComment: () => !isDeleted && (isAdmin || isPublic),
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canReport: () => !isAdmin && !isDeleted && isPublic,
+            canRun: () => !isDeleted && (isAdmin || isPublic),
+            canStar: () => !isDeleted && (isAdmin || isPublic),
+            canTransfer: () => isAdmin && !isDeleted,
+            canView: () => !isDeleted && (isAdmin || isPublic),
+            canVote: () => !isDeleted && (isAdmin || isPublic),
+        }),
+        permissionsSelect: (...params) => ({
+            id: true,
+            hasCompleteVersion: true,
+            isDeleted: true,
+            isPrivate: true,
+            permissions: true,
+            createdBy: 'User',
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: 'SmartContractVersion',
+        }),
+        visibility: {
+            private: { isPrivate: true },
+            public: { isPrivate: false },
+            owner: (userId) => ({
+                OR: [
+                    { ownedByUser: { id: userId } },
+                    { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

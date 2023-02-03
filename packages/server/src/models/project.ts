@@ -138,11 +138,6 @@ export const ProjectModel: ModelLogic<{
                     Trigger(prisma, userData.languages).createProject(userData.id, c.id);
                 }
             },
-            onUpdated: ({ updated, prisma, userData }) => {
-                // for (const u of updated) {
-                //     Trigger(prisma, userData.languages).updateProject(userData.id, u.id as string);
-                // }
-            }
         },
         yup: projectValidation,
     },
@@ -152,15 +147,20 @@ export const ProjectModel: ModelLogic<{
         searchFields: {
             createdById: true,
             createdTimeFrame: true,
+            excludeIds: true,
             hasCompleteVersion: true,
-            labelsId: true,
+            issuesId: true,
+            labelsIds: true,
             maxScore: true,
             maxStars: true,
+            maxViews: true,
             minScore: true,
             minStars: true,
+            minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
             parentId: true,
+            pullRequestsId: true,
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
@@ -176,10 +176,16 @@ export const ProjectModel: ModelLogic<{
         })
     },
     validate: {
-        isDeleted: (data) => data.isDeleted,
-        isTransferable: true,
-        hasCompletedVersion: (data) => data.hasCompleteVersion === true,
+        hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
+        isDeleted: (data) => data.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            oneIsPublic<Prisma.projectSelect>(data, [
+                ['ownedByOrganization', 'Organization'],
+                ['ownedByUser', 'User'],
+            ], languages),
+        isTransferable: true,
         maxObjects: {
             User: {
                 private: {
@@ -202,16 +208,9 @@ export const ProjectModel: ModelLogic<{
                 },
             },
         },
-        permissionsSelect: (...params) => ({
-            id: true,
-            hasCompleteVersion: true,
-            isDeleted: true,
-            isPrivate: true,
-            permissions: true,
-            createdBy: 'User',
-            ownedByOrganization: 'Organization',
-            ownedByUser: 'User',
-            versions: 'ProjectVersion',
+        owner: (data) => ({
+            Organization: data.ownedByOrganization,
+            User: data.ownedByUser,
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             canComment: () => !isDeleted && (isAdmin || isPublic),
@@ -224,43 +223,26 @@ export const ProjectModel: ModelLogic<{
             canView: () => !isDeleted && (isAdmin || isPublic),
             canVote: () => !isDeleted && (isAdmin || isPublic),
         }),
-        owner: (data) => ({
-            Organization: data.ownedByOrganization,
-            User: data.ownedByUser,
+        permissionsSelect: (...params) => ({
+            id: true,
+            hasCompleteVersion: true,
+            isDeleted: true,
+            isPrivate: true,
+            permissions: true,
+            createdBy: 'User',
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: 'ProjectVersion',
         }),
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
-            ['ownedByOrganization', 'Organization'],
-            ['ownedByUser', 'User'],
-        ], languages),
         visibility: {
-            private: {
-                isPrivate: true,
-                // OR: [
-                //     { isPrivate: true },
-                //     { root: { isPrivate: true } },
-                // ]
-            },
-            public: {
-                isPrivate: false,
-                // AND: [
-                //     { isPrivate: false },
-                //     { root: { isPrivate: false } },
-                // ]
-            },
+            private: { isPrivate: true },
+            public: { isPrivate: false },
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
                     { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
                 ]
-                // root: {
-                //     OR: [
-                //         { ownedByUser: { id: userId } },
-                //         { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                //     ]
-                // }
             }),
-        }
-        // createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksDescription'));
-        // for (const input of updateMany) {
+        },
     },
 })

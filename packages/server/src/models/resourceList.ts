@@ -8,7 +8,6 @@ import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
-import { permissionsSelectHelper } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { ApiModel } from "./api";
@@ -121,16 +120,14 @@ export const ResourceListModel: ModelLogic<{
         maxObjects: 50000,
         permissionsSelect: (...params) => ({
             id: true,
-            ...permissionsSelectHelper([
-                // ['apiVersion', 'Api'],
-                ['organization', 'Organization'],
-                // ['post', 'Post'],
-                ['projectVersion', 'Project'],
-                ['routineVersion', 'Routine'],
-                // ['smartContractVersion', 'SmartContract'],
-                ['standardVersion', 'Standard'],
-                // ['userSchedule', 'UserSchedule'],
-            ], ...params)
+            apiVersion: 'ApiVersion',
+            organization: 'Organization',
+            post: 'Post',
+            projectVersion: 'ProjectVersion',
+            routineVersion: 'RoutineVersion',
+            smartContractVersion: 'SmartContractVersion',
+            standardVersion: 'StandardVersion',
+            userSchedule: 'UserSchedule',
         }),
         permissionResolvers: ({ isAdmin }) => ({
             canDelete: () => isAdmin,

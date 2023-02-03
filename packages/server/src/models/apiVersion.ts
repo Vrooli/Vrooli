@@ -3,8 +3,9 @@ import { SelectWrap } from "../builders/types";
 import { ApiVersion, ApiVersionCreateInput, ApiVersionSearchInput, ApiVersionSortBy, ApiVersionUpdateInput, PrependString, VersionYou } from '@shared/consts';
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
-import { getSingleTypePermissions } from "../validators";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { ModelLogic } from "./types";
+import { ApiModel } from "./api";
 
 const __typename = 'ApiVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
@@ -97,5 +98,66 @@ export const ApiVersionModel: ModelLogic<{
             ]
         }),
     },
-    validate: {} as any,
+    validate: {
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            ApiModel.validate!.isPublic(data.root as any, languages),
+        isTransferable: false,
+        maxObjects: 1000000,
+        owner: (data) => ApiModel.validate!.owner(data.root as any),
+        permissionsSelect: (...params) => ({
+            id: true,
+            isDeleted: true,
+            isPrivate: true,
+            root: 'Api',
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canComment: () => !isDeleted && (isAdmin || isPublic),
+            canCopy: () => !isDeleted && (isAdmin || isPublic),
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canReport: () => !isAdmin && !isDeleted && isPublic,
+            canRun: () => !isDeleted && (isAdmin || isPublic),
+            canStar: () => !isDeleted && (isAdmin || isPublic),
+            canUse: () => !isDeleted && (isAdmin || isPublic),
+            canView: () => !isDeleted && (isAdmin || isPublic),
+            canVote: () => !isDeleted && (isAdmin || isPublic),
+        }),
+        validations: {
+            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
+                await versionsCheck({
+                    createMany,
+                    deleteMany,
+                    languages,
+                    objectType: 'Api',
+                    prisma,
+                    updateMany: updateMany as any,
+                });
+            },
+            async create({ createMany, languages }) {
+                createMany.forEach(input => lineBreaksCheck(input, ['summary'], 'LineBreaksBio', languages))
+            },
+            async update({ languages, updateMany }) {
+                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['summary'], 'LineBreaksBio', languages));
+            },
+        },
+        visibility: {
+            private: {
+                OR: [
+                    { isPrivate: true },
+                    { root: { isPrivate: true } },
+                ]
+            },
+            public: {
+                AND: [
+                    { isPrivate: false },
+                    { root: { isPrivate: false } },
+                ]
+            },
+            owner: (userId) => ({
+                root: ApiModel.validate!.visibility.owner(userId),
+            }),
+        },
+    },
 })

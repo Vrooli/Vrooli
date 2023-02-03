@@ -122,7 +122,7 @@ export const typeDef = gql`
         minEventEnd: Date
         minRecurrStart: Date
         minRecurrEnd: Date
-        labelsId: [ID!]
+        labelsIds: [ID!]
         organizationId: ID
         searchString: String
         sortBy: MeetingSortBy

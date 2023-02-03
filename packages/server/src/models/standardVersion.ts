@@ -6,10 +6,11 @@ import { PrismaType } from "../types";
 import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
-import { padSelect, permissionsSelectHelper } from "../builders";
+import { padSelect } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
-import { getSingleTypePermissions } from "../validators";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { StandardModel } from "./standard";
 
 // const validator = (): Validator<Model> => ({
 //     validateMap: {
@@ -48,7 +49,7 @@ import { getSingleTypePermissions } from "../validators";
 //             },
 //         },
 //     },
-//     hasCompletedVersion: (data) => data.hasCompleteVersion === true,
+//     hasCompleteVersion: (data) => data.hasCompleteVersion === true,
 //     permissionsSelect: (...params) => ({
 //         id: true,
 //         isInternal: true,
@@ -452,5 +453,66 @@ export const StandardVersionModel: ModelLogic<{
          */
         customQueryData: () => ({ root: { isInternal: true } }),
     },
-    validate: {} as any,//validator(),
+    validate: {
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            StandardModel.validate!.isPublic(data.root as any, languages),
+        isTransferable: false,
+        maxObjects: 1000000,
+        owner: (data) => StandardModel.validate!.owner(data.root as any),
+        permissionsSelect: (...params) => ({
+            id: true,
+            isDeleted: true,
+            isPrivate: true,
+            root: 'Standard',
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canComment: () => !isDeleted && (isAdmin || isPublic),
+            canCopy: () => !isDeleted && (isAdmin || isPublic),
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canReport: () => !isAdmin && !isDeleted && isPublic,
+            canRun: () => !isDeleted && (isAdmin || isPublic),
+            canStar: () => !isDeleted && (isAdmin || isPublic),
+            canUse: () => !isDeleted && (isAdmin || isPublic),
+            canView: () => !isDeleted && (isAdmin || isPublic),
+            canVote: () => !isDeleted && (isAdmin || isPublic),
+        }),
+        validations: {
+            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
+                await versionsCheck({ 
+                    createMany,
+                    deleteMany,
+                    languages,
+                    objectType: 'Standard', 
+                    prisma, 
+                    updateMany: updateMany as any,
+                });
+            },
+            async create({ createMany, languages }) {
+                createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', languages))
+            },
+            async update({ languages, updateMany }) {
+                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['description'], 'LineBreaksBio', languages));
+            },
+        },
+        visibility: {
+            private: {
+                OR: [
+                    { isPrivate: true },
+                    { root: { isPrivate: true } },
+                ]
+            },
+            public: {
+                AND: [
+                    { isPrivate: false },
+                    { root: { isPrivate: false } },
+                ]
+            },
+            owner: (userId) => ({
+                root: StandardModel.validate!.visibility.owner(userId),
+            }),
+        },
+    },
 })

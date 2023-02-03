@@ -37,6 +37,8 @@ export async function cudHelper<
     const { delegate, mutate, validate } = getLogic(['delegate', 'mutate', 'validate'], objectType, userData.languages, 'cudHelper')
     // Initialize results
     let created: GqlModel[] = [], updated: GqlModel[] = [], deleted: Count = { __typename: 'Count' as const, count: 0 };
+    // Initialize auth data by type
+    let createAuthData: { [x: string]: any } = {}, updateAuthData: { [x: string]: any } = {};
     // Validate yup
     createMany && mutate.yup.create && reqArr(mutate.yup.create()).validateSync(createMany, { abortEarly: false });
     updateMany && mutate.yup.update && reqArr(mutate.yup.update()).validateSync(updateMany.map(u => u.data), { abortEarly: false });
@@ -71,15 +73,15 @@ export async function cudHelper<
     console.log("finished max objects check");
     // Perform custom validation for validations.common
     if (shapedCreate.length > 0 || shapedUpdate.length > 0 || (deleteMany && deleteMany.length > 0)) {
-        validate?.validations?.common && await validate.validations.common({ 
+        validate?.validations?.common && await validate.validations.common({
             connectMany: [],
-            createMany: shapedCreate, 
+            createMany: shapedCreate,
             deleteMany: deleteMany ?? [],
             disconnectMany: [],
             languages: userData.languages,
             prisma,
-            updateMany: shapedUpdate, 
-            userData 
+            updateMany: shapedUpdate,
+            userData
         });
     }
     if (shapedCreate.length > 0) {
@@ -100,9 +102,9 @@ export async function cudHelper<
             created.push(converted as any);
         }
         // Filter authDataById to only include objects which were created
-        const authData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => created.map(c => c.id).includes(id)));
+        createAuthData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => created.map(c => c.id).includes(id)));
         // Call onCreated
-        mutate.trigger?.onCreated && await mutate.trigger.onCreated({ authData, created, prisma, userData });
+        mutate.trigger?.onCreated && await mutate.trigger.onCreated({ authData: createAuthData, created, prisma, userData });
     }
     if (shapedUpdate.length > 0) {
         // Perform custom validation
@@ -119,9 +121,9 @@ export async function cudHelper<
             updated.push(converted as any);
         }
         // Filter authDataById to only include objects which were updated
-        const authData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => updated.map(u => u.id).includes(id)));
+        updateAuthData = Object.fromEntries(Object.entries(authDataById).filter(([id]) => updated.map(u => u.id).includes(id)));
         // Call onUpdated
-        mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({ authData, prisma, updated, updateInput: updateMany!.map(u => u.data), userData });
+        mutate.trigger?.onUpdated && await mutate.trigger.onUpdated({ authData: updateAuthData, prisma, updated, updateInput: updateMany!.map(u => u.data), userData });
     }
     if (deleteMany && deleteMany.length > 0) {
         // Perform custom validation
@@ -131,6 +133,19 @@ export async function cudHelper<
         }).then(({ count }) => ({ __typename: 'Count' as const, count }));
         // Call onDeleted
         mutate.trigger?.onDeleted && await mutate.trigger.onDeleted({ deleted, prisma, userData });
+    }
+    // Perform custom triggers for mutate.trigger.common
+    if (shapedCreate.length > 0 || shapedUpdate.length > 0 || (deleteMany && deleteMany.length > 0)) {
+        mutate.trigger?.onCommon && await mutate.trigger.onCommon({
+            createAuthData,
+            created,
+            deleted,
+            prisma,
+            updateAuthData,
+            updated,
+            updateInput: updateMany?.map(u => u.data) ?? [],
+            userData
+        });
     }
     console.log('finished cudHelper');
     return {

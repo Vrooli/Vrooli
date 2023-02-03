@@ -11,7 +11,7 @@ import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
-import { noNull, padSelect, permissionsSelectHelper } from "../builders";
+import { noNull, padSelect } from "../builders";
 import { oneIsPublic } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
@@ -319,8 +319,9 @@ export const StandardModel: ModelLogic<{
             createdTimeFrame: true,
             excludeIds: true,
             hasCompleteVersion: true,
-            // issuesId: true,
-            labelsId: true,
+            isInternal: true,
+            issuesId: true,
+            labelsIds: true,
             maxScore: true,
             maxStars: true,
             maxViews: true,
@@ -330,7 +331,7 @@ export const StandardModel: ModelLogic<{
             ownedByOrganizationId: true,
             ownedByUserId: true,
             parentId: true,
-            // pullRequestsId: true,
+            pullRequestsId: true,
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
@@ -351,8 +352,16 @@ export const StandardModel: ModelLogic<{
         customQueryData: () => ({ isInternal: true }),
     },
     validate: {
-        isTransferable: true,
+        hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
+        isDeleted: (data) => data.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            oneIsPublic<Prisma.smart_contractSelect>(data, [
+                ['ownedByOrganization', 'Organization'],
+                ['ownedByUser', 'User'],
+            ], languages),
+        isTransferable: true,
         maxObjects: {
             User: {
                 private: {
@@ -375,20 +384,6 @@ export const StandardModel: ModelLogic<{
                 },
             },
         },
-        hasCompletedVersion: (data) => data.hasCompleteVersion === true,
-        permissionsSelect: (...params) => ({
-            id: true,
-            isInternal: true,
-            isPrivate: true,
-            isDeleted: true,
-            permissions: true,
-            createdBy: padSelect({ id: true }),
-            ...permissionsSelectHelper({
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
-                versions: 'StandardVersion',
-            }, ...params),
-        }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             canDelete: () => isAdmin && !isDeleted,
             canEdit: () => isAdmin && !isDeleted,
@@ -397,61 +392,32 @@ export const StandardModel: ModelLogic<{
             canView: () => !isDeleted && (isAdmin || isPublic),
             canVote: () => !isDeleted && (isAdmin || isPublic),
         }),
+        permissionsSelect: (...params) => ({
+            id: true,
+            isInternal: true,
+            isPrivate: true,
+            isDeleted: true,
+            permissions: true,
+            createdBy: 'User',
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: 'StandardVersion',
+        }),
         owner: (data) => ({
             Organization: data.ownedByOrganization,
             User: data.ownedByUser,
         }),
-        isDeleted: (data) => data.isDeleted,// || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false &&
-            data.isDeleted === false &&
-            data.isInternal === false &&
-            //latest(data.versions)?.isPrivate === false &&
-            //latest(data.versions)?.isDeleted === false &&
-            oneIsPublic<Prisma.routineSelect>(data, [
-                ['ownedByOrganization', 'Organization'],
-                ['ownedByUser', 'User'],
-            ], languages),
         visibility: {
-            private: {
-                isPrivate: true,
-                // OR: [
-                //     { isPrivate: true },
-                //     { root: { isPrivate: true } },
-                // ]
-            },
-            public: {
-                isPrivate: false,
-                // AND: [
-                //     { isPrivate: false },
-                //     { root: { isPrivate: false } },
-                // ]
-            },
+            private: { isPrivate: true },
+            public: { isPrivate: false },
             owner: (userId) => ({
                 OR: [
                     { ownedByUser: { id: userId } },
                     { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
                 ]
-                // root: {
-                //     OR: [
-                //         { ownedByUser: { id: userId } },
-                //         { ownedByOrganization: OrganizationModel.query.hasRoleQuery(userId) },
-                //     ]
-                // }
             }),
         },
         // TODO perform unique checks: Check if standard with same createdByUserId, createdByOrganizationId, name, and version already exists with the same creator
-        //TODO when updating, not allowed to update existing, completed version
         // TODO when deleting, anonymize standards which are being used by inputs/outputs
-        // const standard = await prisma.standard_version.findUnique({
-        //     where: { id },
-        //     select: {
-        //                 _count: {
-        //                     select: {
-        //                         routineInputs: true,
-        //                         routineOutputs: true,
-        //                     }
-        //                 }
-        //     }
-        // })
     },
 })

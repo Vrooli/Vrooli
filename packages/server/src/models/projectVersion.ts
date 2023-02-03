@@ -4,11 +4,12 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
-import { addSupplementalFields, modelToGraphQL, padSelect, permissionsSelectHelper, selectHelper, toPartialGraphQLInfo } from "../builders";
+import { addSupplementalFields, modelToGraphQL, padSelect, selectHelper, toPartialGraphQLInfo } from "../builders";
 import { bestLabel, oneIsPublic } from "../utils";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { RunProjectModel } from "./runProject";
-import { getSingleTypePermissions } from "../validators";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { ProjectModel } from "./project";
 
 const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: ProjectCreateInput | ProjectUpdateInput, isAdd: boolean) => {
     return {
@@ -186,26 +187,18 @@ export const ProjectVersionModel: ModelLogic<{
         }),
     },
     validate: {
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            ProjectModel.validate!.isPublic(data.root as any, languages),
         isTransferable: false,
         maxObjects: 1000000,
+        owner: (data) => ProjectModel.validate!.owner(data.root as any),
         permissionsSelect: (...params) => ({
             id: true,
-            hasCompleteVersion: true,
             isDeleted: true,
             isPrivate: true,
-            permissions: true,
-            createdBy: padSelect({ id: true }),
-            ...permissionsSelectHelper({
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
-            }, ...params),
-            versions: {
-                select: {
-                    isComplete: true,
-                    isDeleted: true,
-                    isPrivate: true,
-                }
-            },
+            root: 'Project',
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             canComment: () => !isDeleted && (isAdmin || isPublic),
@@ -219,35 +212,40 @@ export const ProjectVersionModel: ModelLogic<{
             canView: () => !isDeleted && (isAdmin || isPublic),
             canVote: () => !isDeleted && (isAdmin || isPublic),
         }),
-        owner: (data) => ({
-            // Organization: data.ownedByOrganization,
-            // User: data.ownedByUser,
-        } as any),
-        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
-        isPublic: (data, languages) => data.isPrivate === false && oneIsPublic<Prisma.projectSelect>(data, [
-            ['ownedByOrganization', 'Organization'],
-            ['ownedByUser', 'User'],
-        ], languages),
+        validations: {
+            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
+                await versionsCheck({ 
+                    createMany,
+                    deleteMany,
+                    languages,
+                    objectType: 'Project', 
+                    prisma, 
+                    updateMany: updateMany as any,
+                });
+            },
+            async create({ createMany, languages }) {
+                createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', languages))
+            },
+            async update({ languages, updateMany }) {
+                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['description'], 'LineBreaksBio', languages));
+            },
+        },
         visibility: {
             private: {
-                isPrivate: true,
-                // OR: [
-                //     { isPrivate: true },
-                //     { root: { isPrivate: true } },
-                // ]
+                OR: [
+                    { isPrivate: true },
+                    { root: { isPrivate: true } },
+                ]
             },
             public: {
-                isPrivate: false,
-                // AND: [
-                //     { isPrivate: false },
-                //     { root: { isPrivate: false } },
-                // ]
+                AND: [
+                    { isPrivate: false },
+                    { root: { isPrivate: false } },
+                ]
             },
             owner: (userId) => ({
-                root: ProjectVersionModel.validate!.visibility.owner(userId),
+                root: ProjectModel.validate!.visibility.owner(userId),
             }),
-        }
-        // createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksDescription'));
-        // for (const input of updateMany) {
+        },
     },
 })

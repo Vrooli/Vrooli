@@ -95,7 +95,7 @@ export const typeDef = gql`
         minEventEnd: Date
         minRecurrStart: Date
         minRecurrEnd: Date
-        labelsId: [ID!]
+        labelId: [ID!]
         organizationId: ID # If not provided, uses your user ID
         searchString: String
         sortBy: RunRoutineScheduleSortBy

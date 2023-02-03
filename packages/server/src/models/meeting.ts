@@ -64,7 +64,7 @@ export const MeetingModel: ModelLogic<{
         sortBy: MeetingSortBy,
         searchFields: {
             createdTimeFrame: true,
-            labelsId: true,
+            labelsIds: true,
             openToAnyoneWithInvite: true,
             organizationId: true,
             showOnOrganizationProfile: true,

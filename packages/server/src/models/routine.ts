@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
-import { padSelect, permissionsSelectHelper } from "../builders";
+import { padSelect } from "../builders";
 import { oneIsPublic } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels } from "../getters";
@@ -405,9 +405,9 @@ export const RoutineModel: ModelLogic<{
                 //         User ? { __typename: 'User', id: User.id } : null;
                 //     const hasOriginalOwner = validator().hasOriginalOwner(permissionsData as any);
                 //     const wasPublic = validator().isPublic(permissionsData as any, userData.languages);
-                //     const hadCompletedVersion = validator().hasCompletedVersion(permissionsData as any);
+                //     const hadCompletedVersion = validator().hasCompleteVersion(permissionsData as any);
                 //     const isPublic = input.isPrivate !== undefined ? !input.isPrivate : wasPublic;
-                //     const hasCompletedVersion = asdfasdfasdf
+                //     const hasCompleteVersion = asdfasdfasdf
                 //     // Check if new version was created
                 //     if (input.versionLabel) {
                 //         Trigger(prisma, userData.languages).objectNewVersion(
@@ -417,7 +417,7 @@ export const RoutineModel: ModelLogic<{
                 //             owner,
                 //             hasOriginalOwner,
                 //             hadCompletedVersion && wasPublic,
-                //             hasCompletedVersion && isPublic
+                //             hasCompleteVersion && isPublic
                 //         );
                 //     }
                 // }
@@ -434,7 +434,8 @@ export const RoutineModel: ModelLogic<{
             excludeIds: true,
             hasCompleteVersion: true,
             isInternal: true,
-            labelsId: true,
+            issuesId: true,
+            labelsIds: true,
             maxScore: true,
             maxStars: true,
             maxViews: true,
@@ -444,6 +445,7 @@ export const RoutineModel: ModelLogic<{
             ownedByOrganizationId: true,
             ownedByUserId: true,
             parentId: true,
+            pullRequestsId: true,
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
@@ -459,6 +461,8 @@ export const RoutineModel: ModelLogic<{
         })
     },
     validate: {
+        hasCompleteVersion: (data) => data.hasCompleteVersion === true,
+        hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted,
         isPublic: (data, languages) => data.isPrivate === false &&
             data.isDeleted === false &&
@@ -468,8 +472,6 @@ export const RoutineModel: ModelLogic<{
                 ['ownedByUser', 'User'],
             ], languages),
         isTransferable: true,
-        hasCompletedVersion: (data) => data.hasCompleteVersion === true,
-        hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         maxObjects: {
             User: {
                 private: {
@@ -510,14 +512,13 @@ export const RoutineModel: ModelLogic<{
             id: true,
             hasCompleteVersion: true,
             isDeleted: true,
-            isPrivate: true,
             isInternal: true,
+            isPrivate: true,
             permissions: true,
-            createdBy: padSelect({ id: true }),
-            ...permissionsSelectHelper({
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
-            }, ...params),
+            createdBy: 'User',
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: 'RoutineVersion',
         }),
         visibility: {
             private: { isPrivate: true },
@@ -529,16 +530,5 @@ export const RoutineModel: ModelLogic<{
                 ]
             }),
         },
-        // if (createMany) {
-        //     createMany.forEach(input => this.validateNodePositions(input));
-        // }
-        // if (updateMany) {
-        //     // Query version numbers and isCompletes of existing routines. 
-        //     // Can only update if version number is greater, or if version number is the same and isComplete is false
-        //     //TODO
-        //     updateMany.forEach(input => this.validateNodePositions(input.data));
-        // }
-
-        // Also check profanity on input/output's name
     },
 })

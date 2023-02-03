@@ -4,7 +4,8 @@ import { PrependString, SmartContractVersion, SmartContractVersionCreateInput, S
 import { PrismaType } from "../types";
 import { bestLabel } from "../utils";
 import { ModelLogic } from "./types";
-import { getSingleTypePermissions } from "../validators";
+import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
+import { SmartContractModel } from "./smartContract";
 
 const __typename = 'SmartContractVersion' as const;
 type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
@@ -66,5 +67,66 @@ export const SmartContractVersionModel: ModelLogic<{
     },
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isDeleted: (data) => data.isDeleted || data.root.isDeleted,
+        isPublic: (data, languages) => data.isPrivate === false &&
+            data.isDeleted === false &&
+            SmartContractModel.validate!.isPublic(data.root as any, languages),
+        isTransferable: false,
+        maxObjects: 1000000,
+        owner: (data) => SmartContractModel.validate!.owner(data.root as any),
+        permissionsSelect: (...params) => ({
+            id: true,
+            isDeleted: true,
+            isPrivate: true,
+            root: 'SmartContract',
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canComment: () => !isDeleted && (isAdmin || isPublic),
+            canCopy: () => !isDeleted && (isAdmin || isPublic),
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canReport: () => !isAdmin && !isDeleted && isPublic,
+            canRun: () => !isDeleted && (isAdmin || isPublic),
+            canStar: () => !isDeleted && (isAdmin || isPublic),
+            canUse: () => !isDeleted && (isAdmin || isPublic),
+            canView: () => !isDeleted && (isAdmin || isPublic),
+            canVote: () => !isDeleted && (isAdmin || isPublic),
+        }),
+        validations: {
+            async common({ createMany, deleteMany, languages, prisma, updateMany }) {
+                await versionsCheck({
+                    createMany,
+                    deleteMany,
+                    languages,
+                    objectType: 'SmartContract',
+                    prisma,
+                    updateMany: updateMany as any,
+                });
+            },
+            async create({ createMany, languages }) {
+                createMany.forEach(input => lineBreaksCheck(input, ['description'], 'LineBreaksBio', languages))
+            },
+            async update({ languages, updateMany }) {
+                updateMany.forEach(({ data }) => lineBreaksCheck(data, ['description'], 'LineBreaksBio', languages));
+            },
+        },
+        visibility: {
+            private: {
+                OR: [
+                    { isPrivate: true },
+                    { root: { isPrivate: true } },
+                ]
+            },
+            public: {
+                AND: [
+                    { isPrivate: false },
+                    { root: { isPrivate: false } },
+                ]
+            },
+            owner: (userId) => ({
+                root: SmartContractModel.validate!.visibility.owner(userId),
+            }),
+        },
+    },
 })

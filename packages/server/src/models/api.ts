@@ -9,7 +9,7 @@ import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 import { labelShapeHelper, tagShapeHelper } from "../utils";
-import { noNull, padSelect, permissionsSelectHelper, shapeHelper } from "../builders";
+import { noNull, padSelect, shapeHelper } from "../builders";
 import { apiValidation } from "@shared/validation";
 import { OrganizationModel } from "./organization";
 
@@ -137,14 +137,22 @@ export const ApiModel: ModelLogic<{
         searchFields: {
             createdById: true,
             createdTimeFrame: true,
+            excludeIds: true,
+            hasCompleteVersion: true,
+            issuesId: true,
+            labelsIds: true,
             maxScore: true,
             maxStars: true,
+            maxViews: true,
             minScore: true,
             minStars: true,
+            minViews: true,
             ownedByOrganizationId: true,
             ownedByUserId: true,
             parentId: true,
+            pullRequestsId: true,
             tags: true,
+            translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
             visibility: true,
         },
@@ -158,6 +166,8 @@ export const ApiModel: ModelLogic<{
         })
     },
     validate: {
+        hasCompleteVersion: (data) => data.hasCompleteVersion === true,
+        hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: () => false,
         isPublic: (data) => data.isPrivate === false,
         isTransferable: true,
@@ -172,7 +182,16 @@ export const ApiModel: ModelLogic<{
                     premium: 100,
                 }
             },
-            Organization: 0,
+            Organization: {
+                private: {
+                    noPremium: 3,
+                    premium: 25,
+                },
+                public: {
+                    noPremium: 5,
+                    premium: 100,
+                }
+            },
         },
         owner: (data) => ({
             Organization: data.ownedByOrganization,
@@ -188,17 +207,16 @@ export const ApiModel: ModelLogic<{
             canView: () => !isDeleted && (isAdmin || isPublic),
             canVote: () => !isDeleted && (isAdmin || isPublic),
         }),
-        permissionsSelect: (userId) => ({
+        permissionsSelect: (...params) => ({
             id: true,
             hasCompleteVersion: true,
             isDeleted: true,
             isPrivate: true,
             permissions: true,
-            createdBy: padSelect({ id: true }),
-            ...permissionsSelectHelper({
-                ownedByOrganization: 'Organization',
-                ownedByUser: 'User',
-            }, ...params),
+            createdBy: 'User',
+            ownedByOrganization: 'Organization',
+            ownedByUser: 'User',
+            versions: 'ApiVersion',
         }),
         visibility: {
             private: { isPrivate: true },
