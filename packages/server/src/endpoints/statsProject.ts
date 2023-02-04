@@ -35,10 +35,17 @@ export const typeDef = gql`
         periodEnd: Date!
         periodType: StatPeriodType!
         directories: Int!
+        apis: Int!
         notes: Int!
+        organizations: Int!
+        projects: Int!
         routines: Int!
         smartContracts: Int!
         standards: Int!
+        runsStarted: Int!
+        runsCompleted: Int!
+        runCompletionTimeAverage: Float!
+        runContextSwitchesAverage: Float!
     }
 
     type Query {

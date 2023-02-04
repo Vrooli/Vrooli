@@ -35,6 +35,7 @@ export const typeDef = gql`
         periodEnd: Date!
         periodType: StatPeriodType!
         calls: Int!
+        routineVersions: Int!
     }
 
     type Query {

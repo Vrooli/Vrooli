@@ -38,6 +38,7 @@ export const typeDef = gql`
         timesPassed: Int!
         timesFailed: Int!
         scoreAverage: Float!
+        completionTimeAverage: Float!
     }
 
     type Query {

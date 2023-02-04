@@ -7,11 +7,11 @@ import { context, depthLimit } from './middleware';
 import { graphqlUploadExpress } from 'graphql-upload';
 import { schema } from './endpoints';
 import { setupDatabase } from './utils/setupDatabase';
-import { initStatsCronJobs } from './statsLog';
 import { logger } from './events/logger';
 import { initializeRedis } from './redisConn';
 import { i18nConfig } from '@shared/translations';
 import i18next from 'i18next';
+import { initStatsCronJobs } from './stats';
 
 const debug = process.env.NODE_ENV === 'development';
 

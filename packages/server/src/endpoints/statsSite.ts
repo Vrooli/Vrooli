@@ -30,37 +30,40 @@ export const typeDef = gql`
 
     type StatsSite {
         id: ID!
-        created_at: Date!
         periodStart: Date!
         periodEnd: Date!
         periodType: StatPeriodType!
         activeUsers: Int!                           
-        apiCallsPeriod: Int!                         
-        apis: Int!                           
-        organizations: Int!                        
-        projects: Int!                           
+        apiCalls: Int!                         
+        apisCreated: Int!                           
+        organizationsCreated: Int!                        
+        projectsCreated: Int!                           
         projectsCompleted: Int!                       
-        projectsCompletionTimeAverageInPeriod: Float!
-        quizzes: Int!                 
+        projectCompletionTimeAverage: Float!
+        quizzesCreated: Int!                 
         quizzesCompleted: Int!           
-        quizScoreAverageInPeriod: Float!            
-        routines: Int!                     
+        routinesCreated: Int!                     
         routinesCompleted: Int!                 
-        routinesCompletionTimeAverageInPeriod: Float!  
-        routinesSimplicityAverage: Float!               
-        routinesComplexityAverage: Float!           
-        runsStarted: Int!          
-        runsCompleted: Int!          
-        runsCompletionTimeAverageInPerid: Float!  
+        routineCompletionTimeAverage: Float!  
+        routineSimplicityAverage: Float!               
+        routineComplexityAverage: Float!           
+        runProjectsStarted: Int!          
+        runProjectsCompleted: Int!          
+        runProjectCompletionTimeAverage: Float! 
+        runProjectContextSwitchesAverage: Float! 
+        runRoutinesStarted: Int!          
+        runRoutinesCompleted: Int!          
+        runRoutineCompletionTimeAverage: Float! 
+        runRoutineContextSwitchesAverage: Float! 
         smartContractsCreated: Int!     
         smartContractsCompleted: Int!          
-        smartContractsCompletionTimeAverageInPeriod: Float!
+        smartContractCompletionTimeAverage: Float!
         smartContractCalls: Int!     
         standardsCreated: Int!       
         standardsCompleted: Int!              
-        standardsCompletionTimeAverageInPeriod: Float!
-        verifiedEmails: Int!     
-        verifiedWallets: Int!                       
+        standardCompletionTimeAverage: Float!
+        verifiedEmailsCreated: Int!     
+        verifiedWalletsCreated: Int!                       
     }
 
     type Query {
