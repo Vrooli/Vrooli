@@ -24,7 +24,12 @@ const batchRunRoutines = async (
     periodEnd: string,
 ): Promise<BatchRunRoutinesResult> => {
     // Initialize return value
-    const result: BatchRunRoutinesResult = {};
+    const result: BatchRunRoutinesResult = Object.fromEntries(organizationIds.map(id => [id, {
+        runRoutinesStarted: 0,
+        runRoutinesCompleted: 0,
+        runRoutineCompletionTimeAverage: 0,
+        runRoutineContextSwitchesAverage: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -58,15 +63,7 @@ const batchRunRoutines = async (
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const organizationId = run.organization?.id;
-            if (!organizationId) { return }
-            if (!result[organizationId]) {
-                result[organizationId] = {
-                    runRoutinesStarted: 0,
-                    runRoutinesCompleted: 0,
-                    runRoutineCompletionTimeAverage: 0,
-                    runRoutineContextSwitchesAverage: 0,
-                };
-            }
+            if (!organizationId || !result[organizationId]) { return }
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
                 result[organizationId].runRoutinesStarted += 1;
@@ -113,7 +110,7 @@ export const logOrganizationStats = async (
             select: {
                 id: true,
                 _count: {
-                    select: { 
+                    select: {
                         apis: true,
                         members: true,
                         notes: true,
@@ -131,8 +128,8 @@ export const logOrganizationStats = async (
         skip += batchSize;
         // Update current batch size
         currentBatchSize = batch.length;
-         // Batch collect run stats
-         const runRoutineStats = await batchRunRoutines(prisma, batch.map(organization => organization.id), periodStart, periodEnd);
+        // Batch collect run stats
+        const runRoutineStats = await batchRunRoutines(prisma, batch.map(organization => organization.id), periodStart, periodEnd);
         // Create stats for each organization
         await prisma.stats_organization.createMany({
             data: batch.map(organization => ({

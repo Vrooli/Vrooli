@@ -24,7 +24,12 @@ const batchRunCounts = async (
     periodEnd: string,
 ): Promise<BatchDirectoryRunCountsResult> => {
     // Initialize return value
-    const result: BatchDirectoryRunCountsResult = {};
+    const result: BatchDirectoryRunCountsResult = Object.fromEntries(routineVersionIds.map(id => [id, {
+        runsStarted: 0,
+        runsCompleted: 0,
+        runCompletionTimeAverage: 0,
+        runContextSwitchesAverage: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -58,15 +63,7 @@ const batchRunCounts = async (
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const versionId = run.routineVersion?.id;
-            if (!versionId) { return }
-            if (!result[versionId]) {
-                result[versionId] = {
-                    runsStarted: 0,
-                    runsCompleted: 0,
-                    runCompletionTimeAverage: 0,
-                    runContextSwitchesAverage: 0,
-                };
-            }
+            if (!versionId || !result[versionId]) { return }
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
                 result[versionId].runsStarted += 1;

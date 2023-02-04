@@ -26,7 +26,13 @@ const batchAttemptCounts = async (
     periodEnd: string,
 ): Promise<BatchDirectoryAttemptCountsResult> => {
     // Initialize return value
-    const result: BatchDirectoryAttemptCountsResult = {};
+    const result: BatchDirectoryAttemptCountsResult = Object.fromEntries(quizIds.map(id => [id, {
+        timesStarted: 0,
+        timesPassed: 0,
+        timesFailed: 0,
+        scoreAverage: 0,
+        completionTimeAverage: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -59,16 +65,7 @@ const batchAttemptCounts = async (
         // For each attempt, increment the counts for the quiz
         batch.forEach(run => {
             const quizId = run.quiz?.id;
-            if (!quizId) { return }
-            if (!result[quizId]) {
-                result[quizId] = {
-                    timesStarted: 0,
-                    timesPassed: 0,
-                    timesFailed: 0,
-                    scoreAverage: 0,
-                    completionTimeAverage: 0,
-                };
-            }
+            if (!quizId || !result[quizId]) { return }
             // If created_at within period and status is not NotStarted, increment timesStarted
             if (run.created_at !== null && new Date(run.created_at) >= new Date(periodStart) && run.status !== QuizAttemptStatus.NotStarted) {
                 result[quizId].timesStarted += 1;
@@ -115,7 +112,7 @@ export const logQuizStats = async (
         const batch = await prisma.quiz.findMany({
             where: {
                 attempts: {
-                    some: { } // This is empty on purpose - we don't care about the attempts yet, just that at least one exists
+                    some: {} // This is empty on purpose - we don't care about the attempts yet, just that at least one exists
                 }
             },
             select: {

@@ -68,14 +68,16 @@ const batchApis = async (
     periodEnd: string,
 ): Promise<BatchApisResult> => {
     // Initialize return value
-    const result: BatchApisResult = {};
+    const result: BatchApisResult = Object.fromEntries(userIds.map(id => [id, {
+        apisCreated: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
     do {
         // Find all apis created by the users in the period
         const batch = await prisma.api.findMany({
-            where: { 
+            where: {
                 created_at: { gte: periodStart, lt: periodEnd },
                 createdById: { in: userIds },
                 isDeleted: false,
@@ -94,12 +96,7 @@ const batchApis = async (
         // For each, add stats to the user
         batch.forEach(api => {
             const userId = api.createdById;
-            if (!userId) return;
-            if (!result[userId]) {
-                result[userId] = {
-                    apisCreated: 0,
-                };
-            }
+            if (!userId || !result[userId]) return;
             result[userId].apisCreated += 1;
         });
     } while (currentBatchSize === batchSize);
@@ -121,14 +118,16 @@ const batchOrganizations = async (
     periodEnd: string,
 ): Promise<BatchOrganizationsResult> => {
     // Initialize return value
-    const result: BatchOrganizationsResult = {};
+    const result: BatchOrganizationsResult = Object.fromEntries(userIds.map(id => [id, {
+        organizationsCreated: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
     do {
         // Find all organizations created by the users in the period
         const batch = await prisma.organization.findMany({
-            where: { 
+            where: {
                 created_at: { gte: periodStart, lt: periodEnd },
                 createdById: { in: userIds },
             },
@@ -146,12 +145,7 @@ const batchOrganizations = async (
         // For each, add stats to the user
         batch.forEach(organization => {
             const userId = organization.createdById;
-            if (!userId) return;
-            if (!result[userId]) {
-                result[userId] = {
-                    organizationsCreated: 0,
-                };
-            }
+            if (!userId || !result[userId]) return;
             result[userId].organizationsCreated += 1;
         });
     } while (currentBatchSize === batchSize);
@@ -173,7 +167,11 @@ const batchProjects = async (
     periodEnd: string,
 ): Promise<BatchProjectsResult> => {
     // Initialize return value
-    const result: BatchProjectsResult = {};
+    const result: BatchProjectsResult = Object.fromEntries(userIds.map(id => [id, {
+        projectsCreated: 0,
+        projectsCompleted: 0,
+        projectCompletionTimeAverage: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -205,14 +203,7 @@ const batchProjects = async (
         // For each, add stats to the user
         batch.forEach(project => {
             const userId = project.createdById;
-            if (!userId) return;
-            if (!result[userId]) {
-                result[userId] = {
-                    projectsCreated: 0,
-                    projectsCompleted: 0,
-                    projectCompletionTimeAverage: 0,
-                };
-            }
+            if (!userId || !result[userId]) return;
             result[userId].projectsCreated += 1;
             if (project.hasCompleteVersion) {
                 result[userId].projectsCompleted += 1;
@@ -245,7 +236,10 @@ const batchQuizzes = async (
     periodEnd: string,
 ): Promise<BatchQuizzesResult> => {
     // Initialize return value
-    const result: BatchQuizzesResult = {};
+    const result: BatchQuizzesResult = Object.fromEntries(userIds.map(id => [id, {
+        quizzesPassed: 0,
+        quizzesFailed: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -272,13 +266,7 @@ const batchQuizzes = async (
         // For each, add stats to the user
         batch.forEach(attempt => {
             const userId = attempt.userId;
-            if (!userId) return;
-            if (!result[userId]) {
-                result[userId] = {
-                    quizzesPassed: 0,
-                    quizzesFailed: 0,
-                };
-            }
+            if (!userId || !result[userId]) return;
             if (attempt.status === QuizAttemptStatus.Passed) {
                 result[userId].quizzesPassed += 1;
             } else if (attempt.status === QuizAttemptStatus.Failed) {
@@ -304,7 +292,11 @@ const batchRoutines = async (
     periodEnd: string,
 ): Promise<BatchRoutinesResult> => {
     // Initialize return value
-    const result: BatchRoutinesResult = {};
+    const result: BatchRoutinesResult = Object.fromEntries(userIds.map(id => [id, {
+        routinesCreated: 0,
+        routinesCompleted: 0,
+        routineCompletionTimeAverage: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -336,14 +328,7 @@ const batchRoutines = async (
         // For each, add stats to the user
         batch.forEach(routine => {
             const userId = routine.createdById;
-            if (!userId) return;
-            if (!result[userId]) {
-                result[userId] = {
-                    routinesCreated: 0,
-                    routinesCompleted: 0,
-                    routineCompletionTimeAverage: 0,
-                };
-            }
+            if (!userId || !result[userId]) return;
             result[userId].routinesCreated += 1;
             if (routine.hasCompleteVersion) {
                 result[userId].routinesCompleted += 1;
@@ -376,7 +361,12 @@ const batchRunProjects = async (
     periodEnd: string,
 ): Promise<BatchRunProjectsResult> => {
     // Initialize return value
-    const result: BatchRunProjectsResult = {};
+    const result: BatchRunProjectsResult = Object.fromEntries(userIds.map(id => [id, {
+        runProjectsStarted: 0,
+        runProjectsCompleted: 0,
+        runProjectCompletionTimeAverage: 0,
+        runProjectContextSwitchesAverage: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -410,15 +400,7 @@ const batchRunProjects = async (
         // For each run, increment the counts for the project version
         batch.forEach(run => {
             const userId = run.user?.id;
-            if (!userId) { return }
-            if (!result[userId]) {
-                result[userId] = {
-                    runProjectsStarted: 0,
-                    runProjectsCompleted: 0,
-                    runProjectCompletionTimeAverage: 0,
-                    runProjectContextSwitchesAverage: 0,
-                };
-            }
+            if (!userId || !result[userId]) { return }
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
                 result[userId].runProjectsStarted += 1;
@@ -457,7 +439,12 @@ const batchRunRoutines = async (
     periodEnd: string,
 ): Promise<BatchRunRoutinesResult> => {
     // Initialize return value
-    const result: BatchRunRoutinesResult = {};
+    const result: BatchRunRoutinesResult = Object.fromEntries(userIds.map(id => [id, {
+        runRoutinesStarted: 0,
+        runRoutinesCompleted: 0,
+        runRoutineCompletionTimeAverage: 0,
+        runRoutineContextSwitchesAverage: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -491,15 +478,7 @@ const batchRunRoutines = async (
         // For each run, increment the counts for the routine version
         batch.forEach(run => {
             const userId = run.user?.id;
-            if (!userId) { return }
-            if (!result[userId]) {
-                result[userId] = {
-                    runRoutinesStarted: 0,
-                    runRoutinesCompleted: 0,
-                    runRoutineCompletionTimeAverage: 0,
-                    runRoutineContextSwitchesAverage: 0,
-                };
-            }
+            if (!userId || !result[userId]) { return }
             // If runStarted within period, increment runsStarted
             if (run.startedAt !== null && new Date(run.startedAt) >= new Date(periodStart)) {
                 result[userId].runRoutinesStarted += 1;
@@ -538,7 +517,11 @@ const batchSmartContracts = async (
     periodEnd: string,
 ): Promise<BatchSmartContractsResult> => {
     // Initialize return value
-    const result: BatchSmartContractsResult = {};
+    const result: BatchSmartContractsResult = Object.fromEntries(userIds.map(id => [id, {
+        smartContractsCreated: 0,
+        smartContractsCompleted: 0,
+        smartContractCompletionTimeAverage: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -570,14 +553,7 @@ const batchSmartContracts = async (
         // For each, add stats to the user
         batch.forEach(smartContract => {
             const userId = smartContract.createdById;
-            if (!userId) return;
-            if (!result[userId]) {
-                result[userId] = {
-                    smartContractsCreated: 0,
-                    smartContractsCompleted: 0,
-                    smartContractCompletionTimeAverage: 0,
-                };
-            }
+            if (!userId || !result[userId]) return;
             result[userId].smartContractsCreated += 1;
             if (smartContract.hasCompleteVersion) {
                 result[userId].smartContractsCompleted += 1;
@@ -610,7 +586,11 @@ const batchStandards = async (
     periodEnd: string,
 ): Promise<BatchStandardsResult> => {
     // Initialize return value
-    const result: BatchStandardsResult = {};
+    const result: BatchStandardsResult = Object.fromEntries(userIds.map(id => [id, {
+        standardsCreated: 0,
+        standardsCompleted: 0,
+        standardCompletionTimeAverage: 0,
+    }]));
     const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
@@ -642,14 +622,7 @@ const batchStandards = async (
         // For each, add stats to the user
         batch.forEach(standard => {
             const userId = standard.createdById;
-            if (!userId) return;
-            if (!result[userId]) {
-                result[userId] = {
-                    standardsCreated: 0,
-                    standardsCompleted: 0,
-                    standardCompletionTimeAverage: 0,
-                };
-            }
+            if (!userId || !result[userId]) return;
             result[userId].standardsCreated += 1;
             if (standard.hasCompleteVersion) {
                 result[userId].standardsCompleted += 1;
@@ -692,7 +665,7 @@ export const logUserStats = async (
                     gte: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 90).toISOString(),
                 },
             },
-            select: { 
+            select: {
                 id: true,
             },
             skip,
