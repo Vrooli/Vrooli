@@ -10,5 +10,6 @@ export const statsApi: GqlPartial<StatsApi> = {
         periodEnd: true,
         periodType: true,
         calls: true,
+        routineVersions: true,
     },
 }

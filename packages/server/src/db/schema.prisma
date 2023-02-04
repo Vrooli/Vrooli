@@ -27,9 +27,9 @@ model api {
     score                 Int                         @default(0)
     stars                 Int                         @default(0)
     views                 Int                         @default(0)
-    hasCompleteVersion           Boolean                     @default(false)
+    hasCompleteVersion    Boolean                     @default(false)
     isDeleted             Boolean                     @default(false)
-    isPrivate               Boolean                     @default(false)
+    isPrivate             Boolean                     @default(false)
     permissions           String                      @db.VarChar(4096)
     createdById           String?                     @db.Uuid
     ownedByUserId         String?                     @db.Uuid
@@ -69,7 +69,7 @@ model api_version {
     updated_at              DateTime                    @default(now()) @db.Timestamptz(6)
     callLink                String                      @unique @db.VarChar(1024)
     documentationLink       String?                     @db.VarChar(1024)
-    isComplete             Boolean                     @default(false)
+    isComplete              Boolean                     @default(false)
     isDeleted               Boolean                     @default(false)
     isLatest                Boolean                     @default(false)
     isPrivate               Boolean                     @default(false)
@@ -179,6 +179,8 @@ model comment_translation {
 
 model email {
     id                                 String    @id @default(uuid()) @db.Uuid
+    created_at                         DateTime  @default(now()) @db.Timestamptz(6)
+    updated_at                         DateTime  @default(now()) @db.Timestamptz(6)
     emailAddress                       String    @unique @db.Citext
     verified                           Boolean   @default(false)
     lastVerifiedTime                   DateTime? @db.Timestamptz(6)
@@ -931,9 +933,9 @@ model project_version_directory {
     isRoot                     Boolean                                 @default(false)
     parentDirectoryId          String?                                 @db.Uuid
     childOrder                 String?                                 @db.VarChar(4096)
-    projectVersionId           String?                                 @db.Uuid
+    projectVersionId           String                                  @db.Uuid
     parentDirectory            project_version_directory?              @relation("project_version_directory_parent", fields: [parentDirectoryId], references: [id], onDelete: SetNull)
-    projectVersion             project_version?                        @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: SetNull)
+    projectVersion             project_version                         @relation("project_version_directory_project", fields: [projectVersionId], references: [id], onDelete: Cascade)
     children                   project_version_directory[]             @relation("project_version_directory_parent")
     childApiVersions           api_version[]
     childNoteVersions          note_version[]
@@ -1954,104 +1956,120 @@ model star {
 }
 
 model stats_site {
-    id                                          String     @id @default(uuid()) @db.Uuid
-    created_at                                  DateTime   @default(now()) @db.Timestamptz(6)
-    periodStart                                 DateTime   @db.Timestamptz(6)
-    periodEnd                                   DateTime   @db.Timestamptz(6)
-    periodType                                  PeriodType
-    activeUsers                                 Int
-    apiCallsPeriod                              Int
-    apis                                        Int
-    organizations                               Int
-    projects                                    Int
-    projectsCompleted                           Int
-    projectsCompletionTimeAverageInPeriod       Float
-    quizzes                                     Int
-    quizzesCompleted                            Int
-    quizScoreAverageInPeriod                    Float
-    routines                                    Int
-    routinesCompleted                           Int
-    routinesCompletionTimeAverageInPeriod       Float
-    routinesSimplicityAverage                   Float
-    routinesComplexityAverage                   Float
-    runsStarted                                 Int
-    runsCompleted                               Int
-    runsCompletionTimeAverageInPeriod           Float
-    smartContractsCreated                       Int
-    smartContractsCompleted                     Int
-    smartContractsCompletionTimeAverageInPeriod Float
-    smartContractCalls                          Int
-    standardsCreated                            Int
-    standardsCompleted                          Int
-    standardsCompletionTimeAverageInPeriod      Float
-    verifiedEmails                              Int
-    verifiedWallets                             Int
+    id                                 String     @id @default(uuid()) @db.Uuid
+    periodStart                        DateTime   @db.Timestamptz(6)
+    periodEnd                          DateTime   @db.Timestamptz(6)
+    periodType                         PeriodType
+    activeUsers                        Int
+    apiCalls                           Int
+    apisCreated                        Int
+    organizationsCreated               Int
+    projectsCreated                    Int
+    projectsCompleted                  Int
+    projectCompletionTimeAverage       Float
+    quizzesCreated                     Int
+    quizzesCompleted                   Int
+    routinesCreated                    Int
+    routinesCompleted                  Int
+    routineCompletionTimeAverage       Float
+    routineSimplicityAverage           Float
+    routineComplexityAverage           Float
+    runProjectsStarted                 Int
+    runProjectsCompleted               Int
+    runProjectCompletionTimeAverage    Float
+    runProjectContextSwitchesAverage   Float
+    runRoutinesStarted                 Int
+    runRoutinesCompleted               Int
+    runRoutineCompletionTimeAverage    Float
+    runRoutineContextSwitchesAverage   Float
+    smartContractsCreated              Int
+    smartContractsCompleted            Int
+    smartContractCompletionTimeAverage Float
+    smartContractCalls                 Int
+    standardsCreated                   Int
+    standardsCompleted                 Int
+    standardCompletionTimeAverage      Float
+    verifiedEmailsCreated              Int
+    verifiedWalletsCreated             Int
 }
 
 model stats_api {
-    id          String     @id @default(uuid()) @db.Uuid
-    apiId       String     @db.Uuid
-    periodStart DateTime   @db.Timestamptz(6)
-    periodEnd   DateTime   @db.Timestamptz(6)
-    periodType  PeriodType
-    calls       Int
-    api         api        @relation(fields: [apiId], references: [id], onDelete: Cascade)
+    id              String     @id @default(uuid()) @db.Uuid
+    apiId           String     @db.Uuid
+    periodStart     DateTime   @db.Timestamptz(6)
+    periodEnd       DateTime   @db.Timestamptz(6)
+    periodType      PeriodType
+    calls           Int
+    routineVersions Int
+    api             api        @relation(fields: [apiId], references: [id], onDelete: Cascade)
 }
 
 model stats_organization {
-    id             String       @id @default(uuid()) @db.Uuid
-    organizationId String       @db.Uuid
-    periodStarrt   DateTime     @db.Timestamptz(6)
-    periodEnd      DateTime     @db.Timestamptz(6)
-    periodType     PeriodType
-    apis           Int
-    members        Int
-    notes          Int
-    projects       Int
-    routines       Int
-    smartContracts Int
-    standards      Int
-    organization   organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    id                               String       @id @default(uuid()) @db.Uuid
+    organizationId                   String       @db.Uuid
+    periodStart                      DateTime     @db.Timestamptz(6)
+    periodEnd                        DateTime     @db.Timestamptz(6)
+    periodType                       PeriodType
+    apis                             Int
+    members                          Int
+    notes                            Int
+    projects                         Int
+    routines                         Int
+    runRoutinesStarted               Int
+    runRoutinesCompleted             Int
+    runRoutineCompletionTimeAverage  Float
+    runRoutineContextSwitchesAverage Float
+    smartContracts                   Int
+    standards                        Int
+    organization                     organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
 model stats_project {
-    id             String     @id @default(uuid()) @db.Uuid
-    projectId      String     @db.Uuid
-    periodStart    DateTime   @db.Timestamptz(6)
-    periodEnd      DateTime   @db.Timestamptz(6)
-    periodType     PeriodType
-    directories    Int
-    notes          Int
-    routines       Int
-    smartContracts Int
-    standards      Int
-    subProjects    Int
-    project        project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    id                        String     @id @default(uuid()) @db.Uuid
+    projectId                 String     @db.Uuid
+    periodStart               DateTime   @db.Timestamptz(6)
+    periodEnd                 DateTime   @db.Timestamptz(6)
+    periodType                PeriodType
+    directories               Int
+    apis                      Int
+    notes                     Int
+    organizations             Int
+    projects                  Int
+    routines                  Int
+    smartContracts            Int
+    standards                 Int
+    runsStarted               Int
+    runsCompleted             Int
+    runCompletionTimeAverage  Float
+    runContextSwitchesAverage Float
+    project                   project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model stats_quiz {
-    id           String     @id @default(uuid()) @db.Uuid
-    quizId       String     @db.Uuid
-    periodStart  DateTime   @db.Timestamptz(6)
-    periodEnd    DateTime   @db.Timestamptz(6)
-    periodType   PeriodType
-    timesStarted Int
-    timesPassed  Int
-    timesFailed  Int
-    scoreAverage Float
-    quiz         quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
+    id                    String     @id @default(uuid()) @db.Uuid
+    quizId                String     @db.Uuid
+    periodStart           DateTime   @db.Timestamptz(6)
+    periodEnd             DateTime   @db.Timestamptz(6)
+    periodType            PeriodType
+    timesStarted          Int
+    timesPassed           Int
+    timesFailed           Int
+    scoreAverage          Float
+    completionTimeAverage Float
+    quiz                  quiz       @relation(fields: [quizId], references: [id], onDelete: Cascade)
 }
 
 model stats_routine {
-    id                               String     @id @default(uuid()) @db.Uuid
-    routineId                        String     @db.Uuid
-    periodStart                      DateTime   @db.Timestamptz(6)
-    periodEnd                        DateTime   @db.Timestamptz(6)
-    periodType                       PeriodType
-    runsStarted                      Int
-    runsCompleted                    Int
-    runCompletionTimeAverageInPeriod Float
-    routine                          routine    @relation(fields: [routineId], references: [id], onDelete: Cascade)
+    id                        String     @id @default(uuid()) @db.Uuid
+    routineId                 String     @db.Uuid
+    periodStart               DateTime   @db.Timestamptz(6)
+    periodEnd                 DateTime   @db.Timestamptz(6)
+    periodType                PeriodType
+    runsStarted               Int
+    runsCompleted             Int
+    runCompletionTimeAverage  Float
+    runContextSwitchesAverage Float
+    routine                   routine    @relation(fields: [routineId], references: [id], onDelete: Cascade)
 }
 
 model stats_smart_contract {
@@ -2061,47 +2079,52 @@ model stats_smart_contract {
     periodEnd       DateTime       @db.Timestamptz(6)
     periodType      PeriodType
     calls           Int
+    routineVersions Int
     smartContract   smart_contract @relation(fields: [smartContractId], references: [id], onDelete: Cascade)
 }
 
 model stats_standard {
-    id                           String     @id @default(uuid()) @db.Uuid
-    standardId                   String     @db.Uuid
-    periodStart                  DateTime   @db.Timestamptz(6)
-    periodEnd                    DateTime   @db.Timestamptz(6)
-    periodType                   PeriodType
-    linksToInputs                Int
-    linksToOutputs               Int
-    timesUsedInCompletedRoutines Int
-    standard                     standard   @relation(fields: [standardId], references: [id], onDelete: Cascade)
+    id             String     @id @default(uuid()) @db.Uuid
+    standardId     String     @db.Uuid
+    periodStart    DateTime   @db.Timestamptz(6)
+    periodEnd      DateTime   @db.Timestamptz(6)
+    periodType     PeriodType
+    linksToInputs  Int
+    linksToOutputs Int
+    standard       standard   @relation(fields: [standardId], references: [id], onDelete: Cascade)
 }
 
 model stats_user {
-    id                                          String     @id @default(uuid()) @db.Uuid
-    userId                                      String     @db.Uuid
-    periodStart                                 DateTime   @db.Timestamptz(6)
-    periodEnd                                   DateTime   @db.Timestamptz(6)
-    periodType                                  PeriodType
-    apis                                        Int
-    organizations                               Int
-    projects                                    Int
-    projectsCompleted                           Int
-    projectsCompletionTimeAverageInPeriod       Float
-    quizzesPassed                               Int
-    quizzesFailed                               Int
-    routines                                    Int
-    routinesCompleted                           Int
-    routinesCompletionTimeAverageInPeriod       Float
-    runsStarted                                 Int
-    runsCompleted                               Int
-    runsCompletionTimeAverageInPeriod           Float
-    smartContractsCreated                       Int
-    smartContractsCompleted                     Int
-    smartContractsCompletionTimeAverageInPeriod Float
-    standardsCreated                            Int
-    standardsCompleted                          Int
-    standardsCompletionTimeAverageInPeriod      Float
-    user                                        user       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                                 String     @id @default(uuid()) @db.Uuid
+    userId                             String     @db.Uuid
+    periodStart                        DateTime   @db.Timestamptz(6)
+    periodEnd                          DateTime   @db.Timestamptz(6)
+    periodType                         PeriodType
+    apisCreated                        Int
+    organizationsCreated               Int
+    projectsCreated                    Int
+    projectsCompleted                  Int
+    projectCompletionTimeAverage       Float
+    quizzesPassed                      Int
+    quizzesFailed                      Int
+    routinesCreated                    Int
+    routinesCompleted                  Int
+    routineCompletionTimeAverage       Float
+    runProjectsStarted                 Int
+    runProjectsCompleted               Int
+    runProjectCompletionTimeAverage    Float
+    runProjectContextSwitchesAverage   Float
+    runRoutinesStarted                 Int
+    runRoutinesCompleted               Int
+    runRoutineCompletionTimeAverage    Float
+    runRoutineContextSwitchesAverage   Float
+    smartContractsCreated              Int
+    smartContractsCompleted            Int
+    smartContractCompletionTimeAverage Float
+    standardsCreated                   Int
+    standardsCompleted                 Int
+    standardCompletionTimeAverage      Float
+    user                               user       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model tag {
@@ -2399,6 +2422,8 @@ model vote {
 
 model wallet {
     id                String        @id @default(uuid()) @db.Uuid
+    created_at        DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at        DateTime      @default(now()) @db.Timestamptz(6)
     stakingAddress    String        @unique @db.VarChar(128)
     publicAddress     String?       @unique @db.VarChar(128)
     name              String?       @db.VarChar(128)
@@ -2409,8 +2434,6 @@ model wallet {
     wasReported       Boolean       @default(false)
     userId            String?       @db.Uuid
     organizationId    String?       @db.Uuid
-    created_at        DateTime      @default(now()) @db.Timestamptz(6)
-    updated_at        DateTime      @default(now()) @db.Timestamptz(6)
     organization      organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
     user              user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
     handles           handle[]
@@ -2486,6 +2509,7 @@ enum PaymentStatus {
 }
 
 enum PeriodType {
+    Hourly
     Daily
     Weekly
     Monthly

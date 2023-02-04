@@ -1,13 +1,13 @@
 import gql from 'graphql-tag';
 import { Label_full } from '../fragments/Label_full';
+import { Label_list } from '../fragments/Label_list';
 import { Organization_nav } from '../fragments/Organization_nav';
 import { User_nav } from '../fragments/User_nav';
-import { Label_list } from '../fragments/Label_list';
 
 export const userProfile = gql`${Label_full}
+${Label_list}
 ${Organization_nav}
 ${User_nav}
-${Label_list}
 
 query profile {
   profile {
@@ -150,25 +150,30 @@ query profile {
         periodStart
         periodEnd
         periodType
-        apis
-        organizations
-        projects
+        apisCreated
+        organizationsCreated
+        projectsCreated
         projectsCompleted
-        projectsCompletionTimeAverageInPeriod
+        projectCompletionTimeAverage
         quizzesPassed
         quizzesFailed
-        routines
+        routinesCreated
         routinesCompleted
-        routinesCompletionTimeAverageInPeriod
-        runsStarted
-        runsCompleted
-        runsCompletionTimeAverageInPeriod
+        routineCompletionTimeAverage
+        runProjectsStarted
+        runProjectsCompleted
+        runProjectCompletionTimeAverage
+        runProjectContextSwitchesAverage
+        runRoutinesStarted
+        runRoutinesCompleted
+        runRoutineCompletionTimeAverage
+        runRoutineContextSwitchesAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverageInPeriod
+        smartContractCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverageInPeriod
+        standardCompletionTimeAverage
     }
   }
 }`;
@@ -182,25 +187,30 @@ query user($input: FindByIdInput!) {
         periodStart
         periodEnd
         periodType
-        apis
-        organizations
-        projects
+        apisCreated
+        organizationsCreated
+        projectsCreated
         projectsCompleted
-        projectsCompletionTimeAverageInPeriod
+        projectCompletionTimeAverage
         quizzesPassed
         quizzesFailed
-        routines
+        routinesCreated
         routinesCompleted
-        routinesCompletionTimeAverageInPeriod
-        runsStarted
-        runsCompleted
-        runsCompletionTimeAverageInPeriod
+        routineCompletionTimeAverage
+        runProjectsStarted
+        runProjectsCompleted
+        runProjectCompletionTimeAverage
+        runProjectContextSwitchesAverage
+        runRoutinesStarted
+        runRoutinesCompleted
+        runRoutineCompletionTimeAverage
+        runRoutineContextSwitchesAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverageInPeriod
+        smartContractCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverageInPeriod
+        standardCompletionTimeAverage
     }
     translations {
         id
@@ -257,9 +267,9 @@ query users($input: UserSearchInput!) {
 }`;
 
 export const userProfileUpdate = gql`${Label_full}
+${Label_list}
 ${Organization_nav}
 ${User_nav}
-${Label_list}
 
 mutation profileUpdate($input: ProfileUpdateInput!) {
   profileUpdate(input: $input) {
@@ -402,33 +412,38 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
         periodStart
         periodEnd
         periodType
-        apis
-        organizations
-        projects
+        apisCreated
+        organizationsCreated
+        projectsCreated
         projectsCompleted
-        projectsCompletionTimeAverageInPeriod
+        projectCompletionTimeAverage
         quizzesPassed
         quizzesFailed
-        routines
+        routinesCreated
         routinesCompleted
-        routinesCompletionTimeAverageInPeriod
-        runsStarted
-        runsCompleted
-        runsCompletionTimeAverageInPeriod
+        routineCompletionTimeAverage
+        runProjectsStarted
+        runProjectsCompleted
+        runProjectCompletionTimeAverage
+        runProjectContextSwitchesAverage
+        runRoutinesStarted
+        runRoutinesCompleted
+        runRoutineCompletionTimeAverage
+        runRoutineContextSwitchesAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverageInPeriod
+        smartContractCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverageInPeriod
+        standardCompletionTimeAverage
     }
   }
 }`;
 
 export const userProfileEmailUpdate = gql`${Label_full}
+${Label_list}
 ${Organization_nav}
 ${User_nav}
-${Label_list}
 
 mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
   profileEmailUpdate(input: $input) {
@@ -571,25 +586,30 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
         periodStart
         periodEnd
         periodType
-        apis
-        organizations
-        projects
+        apisCreated
+        organizationsCreated
+        projectsCreated
         projectsCompleted
-        projectsCompletionTimeAverageInPeriod
+        projectCompletionTimeAverage
         quizzesPassed
         quizzesFailed
-        routines
+        routinesCreated
         routinesCompleted
-        routinesCompletionTimeAverageInPeriod
-        runsStarted
-        runsCompleted
-        runsCompletionTimeAverageInPeriod
+        routineCompletionTimeAverage
+        runProjectsStarted
+        runProjectsCompleted
+        runProjectCompletionTimeAverage
+        runProjectContextSwitchesAverage
+        runRoutinesStarted
+        runRoutinesCompleted
+        runRoutineCompletionTimeAverage
+        runRoutineContextSwitchesAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverageInPeriod
+        smartContractCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverageInPeriod
+        standardCompletionTimeAverage
     }
   }
 }`;

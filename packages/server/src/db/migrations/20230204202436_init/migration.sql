@@ -21,7 +21,7 @@ CREATE TYPE "NodeType" AS ENUM ('End', 'Redirect', 'RoutineList', 'Start');
 CREATE TYPE "PaymentStatus" AS ENUM ('Pending', 'Paid', 'Failed');
 
 -- CreateEnum
-CREATE TYPE "PeriodType" AS ENUM ('Daily', 'Weekly', 'Monthly', 'Yearly');
+CREATE TYPE "PeriodType" AS ENUM ('Hourly', 'Daily', 'Weekly', 'Monthly', 'Yearly');
 
 -- CreateEnum
 CREATE TYPE "PullRequestStatus" AS ENUM ('Open', 'Merged', 'Rejected');
@@ -71,6 +71,9 @@ CREATE TABLE "api" (
     "score" INTEGER NOT NULL DEFAULT 0,
     "stars" INTEGER NOT NULL DEFAULT 0,
     "views" INTEGER NOT NULL DEFAULT 0,
+    "hasCompleteVersion" BOOLEAN NOT NULL DEFAULT false,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "permissions" VARCHAR(4096) NOT NULL,
     "createdById" UUID,
     "ownedByUserId" UUID,
@@ -96,7 +99,10 @@ CREATE TABLE "api_version" (
     "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "callLink" VARCHAR(1024) NOT NULL,
     "documentationLink" VARCHAR(1024),
+    "isComplete" BOOLEAN NOT NULL DEFAULT false,
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "isLatest" BOOLEAN NOT NULL DEFAULT false,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "rootId" UUID NOT NULL,
     "resourceListId" UUID,
     "versionIndex" INTEGER NOT NULL DEFAULT 0,
@@ -181,6 +187,8 @@ CREATE TABLE "comment_translation" (
 -- CreateTable
 CREATE TABLE "email" (
     "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "emailAddress" CITEXT NOT NULL,
     "verified" BOOLEAN NOT NULL DEFAULT false,
     "lastVerifiedTime" TIMESTAMPTZ(6),
@@ -806,7 +814,7 @@ CREATE TABLE "project_version_directory" (
     "isRoot" BOOLEAN NOT NULL DEFAULT false,
     "parentDirectoryId" UUID,
     "childOrder" VARCHAR(4096),
-    "projectVersionId" UUID,
+    "projectVersionId" UUID NOT NULL,
 
     CONSTRAINT "project_version_directory_pkey" PRIMARY KEY ("id")
 );
@@ -1660,37 +1668,40 @@ CREATE TABLE "star" (
 -- CreateTable
 CREATE TABLE "stats_site" (
     "id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "periodStart" TIMESTAMPTZ(6) NOT NULL,
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
     "periodType" "PeriodType" NOT NULL,
     "activeUsers" INTEGER NOT NULL,
-    "apiCallsPeriod" INTEGER NOT NULL,
-    "apis" INTEGER NOT NULL,
-    "organizations" INTEGER NOT NULL,
-    "projects" INTEGER NOT NULL,
+    "apiCalls" INTEGER NOT NULL,
+    "apisCreated" INTEGER NOT NULL,
+    "organizationsCreated" INTEGER NOT NULL,
+    "projectsCreated" INTEGER NOT NULL,
     "projectsCompleted" INTEGER NOT NULL,
-    "projectsCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
-    "quizzes" INTEGER NOT NULL,
+    "projectCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "quizzesCreated" INTEGER NOT NULL,
     "quizzesCompleted" INTEGER NOT NULL,
-    "quizScoreAverageInPeriod" DOUBLE PRECISION NOT NULL,
-    "routines" INTEGER NOT NULL,
+    "routinesCreated" INTEGER NOT NULL,
     "routinesCompleted" INTEGER NOT NULL,
-    "routinesCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
-    "routinesSimplicityAverage" DOUBLE PRECISION NOT NULL,
-    "routinesComplexityAverage" DOUBLE PRECISION NOT NULL,
-    "runsStarted" INTEGER NOT NULL,
-    "runsCompleted" INTEGER NOT NULL,
-    "runsCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
+    "routineCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "routineSimplicityAverage" DOUBLE PRECISION NOT NULL,
+    "routineComplexityAverage" DOUBLE PRECISION NOT NULL,
+    "runProjectsStarted" INTEGER NOT NULL,
+    "runProjectsCompleted" INTEGER NOT NULL,
+    "runProjectCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "runProjectContextSwitchesAverage" DOUBLE PRECISION NOT NULL,
+    "runRoutinesStarted" INTEGER NOT NULL,
+    "runRoutinesCompleted" INTEGER NOT NULL,
+    "runRoutineCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "runRoutineContextSwitchesAverage" DOUBLE PRECISION NOT NULL,
     "smartContractsCreated" INTEGER NOT NULL,
     "smartContractsCompleted" INTEGER NOT NULL,
-    "smartContractsCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
+    "smartContractCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
     "smartContractCalls" INTEGER NOT NULL,
     "standardsCreated" INTEGER NOT NULL,
     "standardsCompleted" INTEGER NOT NULL,
-    "standardsCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
-    "verifiedEmails" INTEGER NOT NULL,
-    "verifiedWallets" INTEGER NOT NULL,
+    "standardCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "verifiedEmailsCreated" INTEGER NOT NULL,
+    "verifiedWalletsCreated" INTEGER NOT NULL,
 
     CONSTRAINT "stats_site_pkey" PRIMARY KEY ("id")
 );
@@ -1703,6 +1714,7 @@ CREATE TABLE "stats_api" (
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
     "periodType" "PeriodType" NOT NULL,
     "calls" INTEGER NOT NULL,
+    "routineVersions" INTEGER NOT NULL,
 
     CONSTRAINT "stats_api_pkey" PRIMARY KEY ("id")
 );
@@ -1711,7 +1723,7 @@ CREATE TABLE "stats_api" (
 CREATE TABLE "stats_organization" (
     "id" UUID NOT NULL,
     "organizationId" UUID NOT NULL,
-    "periodStarrt" TIMESTAMPTZ(6) NOT NULL,
+    "periodStart" TIMESTAMPTZ(6) NOT NULL,
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
     "periodType" "PeriodType" NOT NULL,
     "apis" INTEGER NOT NULL,
@@ -1719,6 +1731,10 @@ CREATE TABLE "stats_organization" (
     "notes" INTEGER NOT NULL,
     "projects" INTEGER NOT NULL,
     "routines" INTEGER NOT NULL,
+    "runRoutinesStarted" INTEGER NOT NULL,
+    "runRoutinesCompleted" INTEGER NOT NULL,
+    "runRoutineCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "runRoutineContextSwitchesAverage" DOUBLE PRECISION NOT NULL,
     "smartContracts" INTEGER NOT NULL,
     "standards" INTEGER NOT NULL,
 
@@ -1733,11 +1749,17 @@ CREATE TABLE "stats_project" (
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
     "periodType" "PeriodType" NOT NULL,
     "directories" INTEGER NOT NULL,
+    "apis" INTEGER NOT NULL,
     "notes" INTEGER NOT NULL,
+    "organizations" INTEGER NOT NULL,
+    "projects" INTEGER NOT NULL,
     "routines" INTEGER NOT NULL,
     "smartContracts" INTEGER NOT NULL,
     "standards" INTEGER NOT NULL,
-    "subProjects" INTEGER NOT NULL,
+    "runsStarted" INTEGER NOT NULL,
+    "runsCompleted" INTEGER NOT NULL,
+    "runCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "runContextSwitchesAverage" DOUBLE PRECISION NOT NULL,
 
     CONSTRAINT "stats_project_pkey" PRIMARY KEY ("id")
 );
@@ -1753,6 +1775,7 @@ CREATE TABLE "stats_quiz" (
     "timesPassed" INTEGER NOT NULL,
     "timesFailed" INTEGER NOT NULL,
     "scoreAverage" DOUBLE PRECISION NOT NULL,
+    "completionTimeAverage" DOUBLE PRECISION NOT NULL,
 
     CONSTRAINT "stats_quiz_pkey" PRIMARY KEY ("id")
 );
@@ -1766,7 +1789,8 @@ CREATE TABLE "stats_routine" (
     "periodType" "PeriodType" NOT NULL,
     "runsStarted" INTEGER NOT NULL,
     "runsCompleted" INTEGER NOT NULL,
-    "runCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
+    "runCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "runContextSwitchesAverage" DOUBLE PRECISION NOT NULL,
 
     CONSTRAINT "stats_routine_pkey" PRIMARY KEY ("id")
 );
@@ -1779,6 +1803,7 @@ CREATE TABLE "stats_smart_contract" (
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
     "periodType" "PeriodType" NOT NULL,
     "calls" INTEGER NOT NULL,
+    "routineVersions" INTEGER NOT NULL,
 
     CONSTRAINT "stats_smart_contract_pkey" PRIMARY KEY ("id")
 );
@@ -1792,7 +1817,6 @@ CREATE TABLE "stats_standard" (
     "periodType" "PeriodType" NOT NULL,
     "linksToInputs" INTEGER NOT NULL,
     "linksToOutputs" INTEGER NOT NULL,
-    "timesUsedInCompletedRoutines" INTEGER NOT NULL,
 
     CONSTRAINT "stats_standard_pkey" PRIMARY KEY ("id")
 );
@@ -1804,25 +1828,30 @@ CREATE TABLE "stats_user" (
     "periodStart" TIMESTAMPTZ(6) NOT NULL,
     "periodEnd" TIMESTAMPTZ(6) NOT NULL,
     "periodType" "PeriodType" NOT NULL,
-    "apis" INTEGER NOT NULL,
-    "organizations" INTEGER NOT NULL,
-    "projects" INTEGER NOT NULL,
+    "apisCreated" INTEGER NOT NULL,
+    "organizationsCreated" INTEGER NOT NULL,
+    "projectsCreated" INTEGER NOT NULL,
     "projectsCompleted" INTEGER NOT NULL,
-    "projectsCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
+    "projectCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
     "quizzesPassed" INTEGER NOT NULL,
     "quizzesFailed" INTEGER NOT NULL,
-    "routines" INTEGER NOT NULL,
+    "routinesCreated" INTEGER NOT NULL,
     "routinesCompleted" INTEGER NOT NULL,
-    "routinesCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
-    "runsStarted" INTEGER NOT NULL,
-    "runsCompleted" INTEGER NOT NULL,
-    "runsCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
+    "routineCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "runProjectsStarted" INTEGER NOT NULL,
+    "runProjectsCompleted" INTEGER NOT NULL,
+    "runProjectCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "runProjectContextSwitchesAverage" DOUBLE PRECISION NOT NULL,
+    "runRoutinesStarted" INTEGER NOT NULL,
+    "runRoutinesCompleted" INTEGER NOT NULL,
+    "runRoutineCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
+    "runRoutineContextSwitchesAverage" DOUBLE PRECISION NOT NULL,
     "smartContractsCreated" INTEGER NOT NULL,
     "smartContractsCompleted" INTEGER NOT NULL,
-    "smartContractsCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
+    "smartContractCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
     "standardsCreated" INTEGER NOT NULL,
     "standardsCompleted" INTEGER NOT NULL,
-    "standardsCompletionTimeAverageInPeriod" DOUBLE PRECISION NOT NULL,
+    "standardCompletionTimeAverage" DOUBLE PRECISION NOT NULL,
 
     CONSTRAINT "stats_user_pkey" PRIMARY KEY ("id")
 );
@@ -2029,6 +2058,8 @@ CREATE TABLE "vote" (
 -- CreateTable
 CREATE TABLE "wallet" (
     "id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "stakingAddress" VARCHAR(128) NOT NULL,
     "publicAddress" VARCHAR(128),
     "name" VARCHAR(128),
@@ -2039,8 +2070,6 @@ CREATE TABLE "wallet" (
     "wasReported" BOOLEAN NOT NULL DEFAULT false,
     "userId" UUID,
     "organizationId" UUID,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "wallet_pkey" PRIMARY KEY ("id")
 );
@@ -2859,7 +2888,7 @@ ALTER TABLE "project_version" ADD CONSTRAINT "project_version_rootId_fkey" FOREI
 ALTER TABLE "project_version_directory" ADD CONSTRAINT "project_version_directory_parentDirectoryId_fkey" FOREIGN KEY ("parentDirectoryId") REFERENCES "project_version_directory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "project_version_directory" ADD CONSTRAINT "project_version_directory_projectVersionId_fkey" FOREIGN KEY ("projectVersionId") REFERENCES "project_version"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "project_version_directory" ADD CONSTRAINT "project_version_directory_projectVersionId_fkey" FOREIGN KEY ("projectVersionId") REFERENCES "project_version"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "project_version_directory_translation" ADD CONSTRAINT "project_version_directory_translation_projectVersionDirect_fkey" FOREIGN KEY ("projectVersionDirectoryId") REFERENCES "project_version_directory"("id") ON DELETE CASCADE ON UPDATE CASCADE;

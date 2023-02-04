@@ -1,4 +1,5 @@
 export * from './findSelection';
+export * from './fragmentsNeeded';
 export * from './fragmentsToString';
 export * from './partialShape';
 export * from './partialToString';

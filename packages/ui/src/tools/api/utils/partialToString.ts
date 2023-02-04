@@ -1,5 +1,6 @@
 import { exists } from "@shared/utils";
 import { DeepPartialBooleanWithFragments, GqlPartial } from "../types";
+import { fragmentsNeeded } from "./fragmentsNeeded";
 import { fragmentsToString } from "./fragmentsToString";
 import { partialToStringHelper } from "./partialToStringHelper";
 import { rel } from "./relPartial";
@@ -57,15 +58,8 @@ export const partialToString = async <
     if (exists(partial) && exists(selectionType)) {
         combined = await rel(partial, selectionType)
     }
-    // If there are fragments, convert them to strings
+    // Split fragments from the rest, so we can handle them separately
     const { __define, ...rest } = combined;
-    if (exists(__define) && Object.keys(__define).length > 0) {
-        fragments = await fragmentsToString(__define)
-        // For every fragment, add reference to it in the tag
-        fragments.forEach(([fragmentName]) => {
-            tag += `${' '.repeat(indent)}\${${fragmentName}}\n`
-        })
-    }
     // Add the query/mutation to the tag
     tag += `
 ${' '.repeat(indent)}${endpointType} ${endpointName}`;
@@ -90,6 +84,26 @@ ${' '.repeat(indent + 2)}`;
     // Add the final closing bracket
     tag += `
 ${' '.repeat(indent)}}`;
-    // Return the tag and fragments
+    // Before returning, add fragments to the beginning of the tag. 
+    // We do this here so we can filter out additional fragments which may have snuck in 
+    // (e.g. if a relation has an omitted field which used a fragment, it could make it here). 
+    // Ideally we'd fix this problem earlier in the process, but ¯\_(ツ)_/¯
+    if (exists(__define) && Object.keys(__define).length > 0) {
+        let fragmentsString = '';
+        fragments = await fragmentsToString(__define)
+        partial?.__typename === 'StarSearchResult' && console.log('fragments a', fragments)
+        // Filter out fragments not found in the tag
+        fragments = fragmentsNeeded(fragments, tag);
+        partial?.__typename === 'StarSearchResult' && console.log('fragments b', fragments)
+        // Sort fragments by name, just because it looks nicer
+        fragments.sort(([a], [b]) => a.localeCompare(b))
+        // For every fragment, add reference to it in the tag
+        fragments.forEach(([fragmentName]) => {
+            fragmentsString += `${' '.repeat(indent)}\${${fragmentName}}\n`
+        })
+        // Add the fragments to the beginning of the tag
+        tag = fragmentsString + tag;
+    }
+    // Finally, return results
     return { fragments, tag };
 };

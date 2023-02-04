@@ -15,6 +15,7 @@ query statsQuiz($input: StatsQuizSearchInput!) {
             timesPassed
             timesFailed
             scoreAverage
+            completionTimeAverage
         }
     }
     pageInfo {

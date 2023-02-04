@@ -33,7 +33,7 @@ export const apiVersion: GqlPartial<ApiVersion> = {
         you: () => rel(versionYou, 'full'),
     },
     full: {
-        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full'),
+        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full', { omit: ['from', 'to'] }),
         root: async () => rel((await import('./api')).api, 'full', { omit: 'versions' }),
         translations: () => rel(apiVersionTranslation, 'full'),
         versionNotes: true,

@@ -7,37 +7,40 @@ query statsSite($input: StatsSiteSearchInput!) {
         cursor
         node {
             id
-            created_at
             periodStart
             periodEnd
             periodType
             activeUsers
-            apiCallsPeriod
-            apis
-            organizations
-            projects
+            apiCalls
+            apisCreated
+            organizationsCreated
+            projectsCreated
             projectsCompleted
-            projectsCompletionTimeAverageInPeriod
-            quizzes
+            projectCompletionTimeAverage
+            quizzesCreated
             quizzesCompleted
-            quizScoreAverageInPeriod
-            routines
+            routinesCreated
             routinesCompleted
-            routinesCompletionTimeAverageInPeriod
-            routinesSimplicityAverage
-            routinesComplexityAverage
-            runsStarted
-            runsCompleted
-            runsCompletionTimeAverageInPerid
+            routineCompletionTimeAverage
+            routineSimplicityAverage
+            routineComplexityAverage
+            runProjectsStarted
+            runProjectsCompleted
+            runProjectCompletionTimeAverage
+            runProjectContextSwitchesAverage
+            runRoutinesStarted
+            runRoutinesCompleted
+            runRoutineCompletionTimeAverage
+            runRoutineContextSwitchesAverage
             smartContractsCreated
             smartContractsCompleted
-            smartContractsCompletionTimeAverageInPeriod
+            smartContractCompletionTimeAverage
             smartContractCalls
             standardsCreated
             standardsCompleted
-            standardsCompletionTimeAverageInPeriod
-            verifiedEmails
-            verifiedWallets
+            standardCompletionTimeAverage
+            verifiedEmailsCreated
+            verifiedWalletsCreated
         }
     }
     pageInfo {

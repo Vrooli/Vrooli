@@ -52,13 +52,12 @@ export const projectVersion: GqlPartial<ProjectVersion> = {
     },
     full: {
         directories: async () => rel((await import('./projectVersionDirectory')).projectVersionDirectory, 'full', { omit: 'projectVersion ' }),
-        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full'),
+        pullRequest: async () => rel((await import('./pullRequest')).pullRequest, 'full', { omit: ['from', 'to'] }),
         root: async () => rel((await import('./project')).project, 'full', { omit: 'versions' }),
         translations: () => rel(projectVersionTranslation, 'full'),
         versionNotes: true,
     },
     list: {
-        directories: async () => rel((await import('./projectVersionDirectory')).projectVersionDirectory, 'list', { omit: 'projectVersion ' }),
         root: async () => rel((await import('./project')).project, 'list', { omit: 'versions' }),
         translations: () => rel(projectVersionTranslation, 'list'),
     },

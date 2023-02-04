@@ -12,6 +12,7 @@ query statsSmartContract($input: StatsSmartContractSearchInput!) {
             periodEnd
             periodType
             calls
+            routineVersions
         }
     }
     pageInfo {

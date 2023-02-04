@@ -116,6 +116,7 @@ query quiz($input: FindByIdInput!) {
         timesPassed
         timesFailed
         scoreAverage
+        completionTimeAverage
     }
     translations {
         id
@@ -327,6 +328,7 @@ mutation quizCreate($input: QuizCreateInput!) {
         timesPassed
         timesFailed
         scoreAverage
+        completionTimeAverage
     }
     translations {
         id
@@ -485,6 +487,7 @@ mutation quizUpdate($input: QuizUpdateInput!) {
         timesPassed
         timesFailed
         scoreAverage
+        completionTimeAverage
     }
     translations {
         id

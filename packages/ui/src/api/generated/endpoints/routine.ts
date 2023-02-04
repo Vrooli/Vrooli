@@ -1,42 +1,40 @@
 import gql from 'graphql-tag';
-import { Api_list } from '../fragments/Api_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
-import { Tag_list } from '../fragments/Tag_list';
-import { Label_list } from '../fragments/Label_list';
-import { ApiVersion_list } from '../fragments/ApiVersion_list';
-import { Note_list } from '../fragments/Note_list';
-import { NoteVersion_list } from '../fragments/NoteVersion_list';
-import { Project_list } from '../fragments/Project_list';
-import { ProjectVersion_list } from '../fragments/ProjectVersion_list';
-import { Routine_list } from '../fragments/Routine_list';
 import { Label_full } from '../fragments/Label_full';
-import { RoutineVersion_list } from '../fragments/RoutineVersion_list';
-import { SmartContract_list } from '../fragments/SmartContract_list';
-import { SmartContractVersion_list } from '../fragments/SmartContractVersion_list';
-import { Standard_list } from '../fragments/Standard_list';
-import { StandardVersion_list } from '../fragments/StandardVersion_list';
+import { Label_list } from '../fragments/Label_list';
+import { Organization_nav } from '../fragments/Organization_nav';
+import { Tag_list } from '../fragments/Tag_list';
+import { User_nav } from '../fragments/User_nav';
 
-export const routineFindOne = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+export const routineFindOne = gql`${Label_full}
 ${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
+${Organization_nav}
+${Tag_list}
+${User_nav}
 
 query routine($input: FindByIdInput!) {
   routine(input: $input) {
+    parent {
+        id
+        isAutomatable
+        isComplete
+        isDeleted
+        isLatest
+        isPrivate
+        root {
+            id
+            isInternal
+            isPrivate
+        }
+        translations {
+            id
+            language
+            description
+            instructions
+            name
+        }
+        versionIndex
+        versionLabel
+    }
     versions {
         versionNotes
         apiVersion {
@@ -47,46 +45,6 @@ query routine($input: FindByIdInput!) {
                 mergedOrRejectedAt
                 commentsCount
                 status
-                from {
-                    ... on ApiVersion {
-                        ...ApiVersion_list
-                    }
-                    ... on NoteVersion {
-                        ...NoteVersion_list
-                    }
-                    ... on ProjectVersion {
-                        ...ProjectVersion_list
-                    }
-                    ... on RoutineVersion {
-                        ...RoutineVersion_list
-                    }
-                    ... on SmartContractVersion {
-                        ...SmartContractVersion_list
-                    }
-                    ... on StandardVersion {
-                        ...StandardVersion_list
-                    }
-                }
-                to {
-                    ... on Api {
-                        ...Api_list
-                    }
-                    ... on Note {
-                        ...Note_list
-                    }
-                    ... on Project {
-                        ...Project_list
-                    }
-                    ... on Routine {
-                        ...Routine_list
-                    }
-                    ... on SmartContract {
-                        ...SmartContract_list
-                    }
-                    ... on Standard {
-                        ...Standard_list
-                    }
-                }
                 createdBy {
                     id
                     name
@@ -100,6 +58,23 @@ query routine($input: FindByIdInput!) {
                 }
             }
             root {
+                parent {
+                    id
+                    isLatest
+                    isPrivate
+                    versionIndex
+                    versionLabel
+                    root {
+                        id
+                        isPrivate
+                    }
+                    translations {
+                        id
+                        language
+                        details
+                        summary
+                    }
+                }
                 stats {
                     id
                     created_at
@@ -107,6 +82,7 @@ query routine($input: FindByIdInput!) {
                     periodEnd
                     periodType
                     calls
+                    routineVersions
                 }
                 id
                 created_at
@@ -279,46 +255,6 @@ query routine($input: FindByIdInput!) {
                         mergedOrRejectedAt
                         commentsCount
                         status
-                        from {
-                            ... on ApiVersion {
-                                ...ApiVersion_list
-                            }
-                            ... on NoteVersion {
-                                ...NoteVersion_list
-                            }
-                            ... on ProjectVersion {
-                                ...ProjectVersion_list
-                            }
-                            ... on RoutineVersion {
-                                ...RoutineVersion_list
-                            }
-                            ... on SmartContractVersion {
-                                ...SmartContractVersion_list
-                            }
-                            ... on StandardVersion {
-                                ...StandardVersion_list
-                            }
-                        }
-                        to {
-                            ... on Api {
-                                ...Api_list
-                            }
-                            ... on Note {
-                                ...Note_list
-                            }
-                            ... on Project {
-                                ...Project_list
-                            }
-                            ... on Routine {
-                                ...Routine_list
-                            }
-                            ... on SmartContract {
-                                ...SmartContract_list
-                            }
-                            ... on Standard {
-                                ...Standard_list
-                            }
-                        }
                         createdBy {
                             id
                             name
@@ -332,6 +268,23 @@ query routine($input: FindByIdInput!) {
                         }
                     }
                     root {
+                        parent {
+                            id
+                            isLatest
+                            isPrivate
+                            versionIndex
+                            versionLabel
+                            root {
+                                id
+                                isPrivate
+                            }
+                            translations {
+                                id
+                                language
+                                details
+                                summary
+                            }
+                        }
                         stats {
                             id
                             created_at
@@ -339,6 +292,7 @@ query routine($input: FindByIdInput!) {
                             periodEnd
                             periodType
                             calls
+                            routineVersions
                         }
                         id
                         created_at
@@ -505,46 +459,6 @@ query routine($input: FindByIdInput!) {
                     mergedOrRejectedAt
                     commentsCount
                     status
-                    from {
-                        ... on ApiVersion {
-                            ...ApiVersion_list
-                        }
-                        ... on NoteVersion {
-                            ...NoteVersion_list
-                        }
-                        ... on ProjectVersion {
-                            ...ProjectVersion_list
-                        }
-                        ... on RoutineVersion {
-                            ...RoutineVersion_list
-                        }
-                        ... on SmartContractVersion {
-                            ...SmartContractVersion_list
-                        }
-                        ... on StandardVersion {
-                            ...StandardVersion_list
-                        }
-                    }
-                    to {
-                        ... on Api {
-                            ...Api_list
-                        }
-                        ... on Note {
-                            ...Note_list
-                        }
-                        ... on Project {
-                            ...Project_list
-                        }
-                        ... on Routine {
-                            ...Routine_list
-                        }
-                        ... on SmartContract {
-                            ...SmartContract_list
-                        }
-                        ... on Standard {
-                            ...Standard_list
-                        }
-                    }
                     createdBy {
                         id
                         name
@@ -580,6 +494,28 @@ query routine($input: FindByIdInput!) {
                     }
                 }
                 root {
+                    parent {
+                        id
+                        isAutomatable
+                        isComplete
+                        isDeleted
+                        isLatest
+                        isPrivate
+                        root {
+                            id
+                            isInternal
+                            isPrivate
+                        }
+                        translations {
+                            id
+                            language
+                            description
+                            instructions
+                            name
+                        }
+                        versionIndex
+                        versionLabel
+                    }
                     stats {
                         id
                         created_at
@@ -588,7 +524,8 @@ query routine($input: FindByIdInput!) {
                         periodType
                         runsStarted
                         runsCompleted
-                        runCompletionTimeAverageInPeriod
+                        runCompletionTimeAverage
+                        runContextSwitchesAverage
                     }
                     id
                     created_at
@@ -637,46 +574,6 @@ query routine($input: FindByIdInput!) {
                         mergedOrRejectedAt
                         commentsCount
                         status
-                        from {
-                            ... on ApiVersion {
-                                ...ApiVersion_list
-                            }
-                            ... on NoteVersion {
-                                ...NoteVersion_list
-                            }
-                            ... on ProjectVersion {
-                                ...ProjectVersion_list
-                            }
-                            ... on RoutineVersion {
-                                ...RoutineVersion_list
-                            }
-                            ... on SmartContractVersion {
-                                ...SmartContractVersion_list
-                            }
-                            ... on StandardVersion {
-                                ...StandardVersion_list
-                            }
-                        }
-                        to {
-                            ... on Api {
-                                ...Api_list
-                            }
-                            ... on Note {
-                                ...Note_list
-                            }
-                            ... on Project {
-                                ...Project_list
-                            }
-                            ... on Routine {
-                                ...Routine_list
-                            }
-                            ... on SmartContract {
-                                ...SmartContract_list
-                            }
-                            ... on Standard {
-                                ...Standard_list
-                            }
-                        }
                         createdBy {
                             id
                             name
@@ -712,6 +609,23 @@ query routine($input: FindByIdInput!) {
                         }
                     }
                     root {
+                        parent {
+                            id
+                            isLatest
+                            isPrivate
+                            versionIndex
+                            versionLabel
+                            root {
+                                id
+                                isPrivate
+                            }
+                            translations {
+                                id
+                                language
+                                description
+                                jsonVariable
+                            }
+                        }
                         stats {
                             id
                             created_at
@@ -719,6 +633,7 @@ query routine($input: FindByIdInput!) {
                             periodEnd
                             periodType
                             calls
+                            routineVersions
                         }
                         id
                         created_at
@@ -1050,46 +965,6 @@ query routine($input: FindByIdInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -1133,46 +1008,6 @@ query routine($input: FindByIdInput!) {
                 mergedOrRejectedAt
                 commentsCount
                 status
-                from {
-                    ... on ApiVersion {
-                        ...ApiVersion_list
-                    }
-                    ... on NoteVersion {
-                        ...NoteVersion_list
-                    }
-                    ... on ProjectVersion {
-                        ...ProjectVersion_list
-                    }
-                    ... on RoutineVersion {
-                        ...RoutineVersion_list
-                    }
-                    ... on SmartContractVersion {
-                        ...SmartContractVersion_list
-                    }
-                    ... on StandardVersion {
-                        ...StandardVersion_list
-                    }
-                }
-                to {
-                    ... on Api {
-                        ...Api_list
-                    }
-                    ... on Note {
-                        ...Note_list
-                    }
-                    ... on Project {
-                        ...Project_list
-                    }
-                    ... on Routine {
-                        ...Routine_list
-                    }
-                    ... on SmartContract {
-                        ...SmartContract_list
-                    }
-                    ... on Standard {
-                        ...Standard_list
-                    }
-                }
                 createdBy {
                     id
                     name
@@ -1208,6 +1043,23 @@ query routine($input: FindByIdInput!) {
                 }
             }
             root {
+                parent {
+                    id
+                    isLatest
+                    isPrivate
+                    versionIndex
+                    versionLabel
+                    root {
+                        id
+                        isPrivate
+                    }
+                    translations {
+                        id
+                        language
+                        description
+                        jsonVariable
+                    }
+                }
                 stats {
                     id
                     created_at
@@ -1215,6 +1067,7 @@ query routine($input: FindByIdInput!) {
                     periodEnd
                     periodType
                     calls
+                    routineVersions
                 }
                 id
                 created_at
@@ -1480,7 +1333,8 @@ query routine($input: FindByIdInput!) {
         periodType
         runsStarted
         runsCompleted
-        runCompletionTimeAverageInPeriod
+        runCompletionTimeAverage
+        runContextSwitchesAverage
     }
     id
     created_at
@@ -1522,11 +1376,11 @@ query routine($input: FindByIdInput!) {
   }
 }`;
 
-export const routineFindMany = gql`${Organization_nav}
-${User_nav}
-${Label_full}
-${Tag_list}
+export const routineFindMany = gql`${Label_full}
 ${Label_list}
+${Organization_nav}
+${Tag_list}
+${User_nav}
 
 query routines($input: RoutineSearchInput!) {
   routines(input: $input) {
@@ -1745,26 +1599,36 @@ query routines($input: RoutineSearchInput!) {
   }
 }`;
 
-export const routineCreate = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+export const routineCreate = gql`${Label_full}
 ${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
+${Organization_nav}
+${Tag_list}
+${User_nav}
 
 mutation routineCreate($input: RoutineCreateInput!) {
   routineCreate(input: $input) {
+    parent {
+        id
+        isAutomatable
+        isComplete
+        isDeleted
+        isLatest
+        isPrivate
+        root {
+            id
+            isInternal
+            isPrivate
+        }
+        translations {
+            id
+            language
+            description
+            instructions
+            name
+        }
+        versionIndex
+        versionLabel
+    }
     versions {
         versionNotes
         apiVersion {
@@ -1775,46 +1639,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 mergedOrRejectedAt
                 commentsCount
                 status
-                from {
-                    ... on ApiVersion {
-                        ...ApiVersion_list
-                    }
-                    ... on NoteVersion {
-                        ...NoteVersion_list
-                    }
-                    ... on ProjectVersion {
-                        ...ProjectVersion_list
-                    }
-                    ... on RoutineVersion {
-                        ...RoutineVersion_list
-                    }
-                    ... on SmartContractVersion {
-                        ...SmartContractVersion_list
-                    }
-                    ... on StandardVersion {
-                        ...StandardVersion_list
-                    }
-                }
-                to {
-                    ... on Api {
-                        ...Api_list
-                    }
-                    ... on Note {
-                        ...Note_list
-                    }
-                    ... on Project {
-                        ...Project_list
-                    }
-                    ... on Routine {
-                        ...Routine_list
-                    }
-                    ... on SmartContract {
-                        ...SmartContract_list
-                    }
-                    ... on Standard {
-                        ...Standard_list
-                    }
-                }
                 createdBy {
                     id
                     name
@@ -1828,6 +1652,23 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 }
             }
             root {
+                parent {
+                    id
+                    isLatest
+                    isPrivate
+                    versionIndex
+                    versionLabel
+                    root {
+                        id
+                        isPrivate
+                    }
+                    translations {
+                        id
+                        language
+                        details
+                        summary
+                    }
+                }
                 stats {
                     id
                     created_at
@@ -1835,6 +1676,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                     periodEnd
                     periodType
                     calls
+                    routineVersions
                 }
                 id
                 created_at
@@ -2007,46 +1849,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         mergedOrRejectedAt
                         commentsCount
                         status
-                        from {
-                            ... on ApiVersion {
-                                ...ApiVersion_list
-                            }
-                            ... on NoteVersion {
-                                ...NoteVersion_list
-                            }
-                            ... on ProjectVersion {
-                                ...ProjectVersion_list
-                            }
-                            ... on RoutineVersion {
-                                ...RoutineVersion_list
-                            }
-                            ... on SmartContractVersion {
-                                ...SmartContractVersion_list
-                            }
-                            ... on StandardVersion {
-                                ...StandardVersion_list
-                            }
-                        }
-                        to {
-                            ... on Api {
-                                ...Api_list
-                            }
-                            ... on Note {
-                                ...Note_list
-                            }
-                            ... on Project {
-                                ...Project_list
-                            }
-                            ... on Routine {
-                                ...Routine_list
-                            }
-                            ... on SmartContract {
-                                ...SmartContract_list
-                            }
-                            ... on Standard {
-                                ...Standard_list
-                            }
-                        }
                         createdBy {
                             id
                             name
@@ -2060,6 +1862,23 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         }
                     }
                     root {
+                        parent {
+                            id
+                            isLatest
+                            isPrivate
+                            versionIndex
+                            versionLabel
+                            root {
+                                id
+                                isPrivate
+                            }
+                            translations {
+                                id
+                                language
+                                details
+                                summary
+                            }
+                        }
                         stats {
                             id
                             created_at
@@ -2067,6 +1886,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                             periodEnd
                             periodType
                             calls
+                            routineVersions
                         }
                         id
                         created_at
@@ -2233,46 +2053,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                     mergedOrRejectedAt
                     commentsCount
                     status
-                    from {
-                        ... on ApiVersion {
-                            ...ApiVersion_list
-                        }
-                        ... on NoteVersion {
-                            ...NoteVersion_list
-                        }
-                        ... on ProjectVersion {
-                            ...ProjectVersion_list
-                        }
-                        ... on RoutineVersion {
-                            ...RoutineVersion_list
-                        }
-                        ... on SmartContractVersion {
-                            ...SmartContractVersion_list
-                        }
-                        ... on StandardVersion {
-                            ...StandardVersion_list
-                        }
-                    }
-                    to {
-                        ... on Api {
-                            ...Api_list
-                        }
-                        ... on Note {
-                            ...Note_list
-                        }
-                        ... on Project {
-                            ...Project_list
-                        }
-                        ... on Routine {
-                            ...Routine_list
-                        }
-                        ... on SmartContract {
-                            ...SmartContract_list
-                        }
-                        ... on Standard {
-                            ...Standard_list
-                        }
-                    }
                     createdBy {
                         id
                         name
@@ -2308,6 +2088,28 @@ mutation routineCreate($input: RoutineCreateInput!) {
                     }
                 }
                 root {
+                    parent {
+                        id
+                        isAutomatable
+                        isComplete
+                        isDeleted
+                        isLatest
+                        isPrivate
+                        root {
+                            id
+                            isInternal
+                            isPrivate
+                        }
+                        translations {
+                            id
+                            language
+                            description
+                            instructions
+                            name
+                        }
+                        versionIndex
+                        versionLabel
+                    }
                     stats {
                         id
                         created_at
@@ -2316,7 +2118,8 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         periodType
                         runsStarted
                         runsCompleted
-                        runCompletionTimeAverageInPeriod
+                        runCompletionTimeAverage
+                        runContextSwitchesAverage
                     }
                     id
                     created_at
@@ -2365,46 +2168,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         mergedOrRejectedAt
                         commentsCount
                         status
-                        from {
-                            ... on ApiVersion {
-                                ...ApiVersion_list
-                            }
-                            ... on NoteVersion {
-                                ...NoteVersion_list
-                            }
-                            ... on ProjectVersion {
-                                ...ProjectVersion_list
-                            }
-                            ... on RoutineVersion {
-                                ...RoutineVersion_list
-                            }
-                            ... on SmartContractVersion {
-                                ...SmartContractVersion_list
-                            }
-                            ... on StandardVersion {
-                                ...StandardVersion_list
-                            }
-                        }
-                        to {
-                            ... on Api {
-                                ...Api_list
-                            }
-                            ... on Note {
-                                ...Note_list
-                            }
-                            ... on Project {
-                                ...Project_list
-                            }
-                            ... on Routine {
-                                ...Routine_list
-                            }
-                            ... on SmartContract {
-                                ...SmartContract_list
-                            }
-                            ... on Standard {
-                                ...Standard_list
-                            }
-                        }
                         createdBy {
                             id
                             name
@@ -2440,6 +2203,23 @@ mutation routineCreate($input: RoutineCreateInput!) {
                         }
                     }
                     root {
+                        parent {
+                            id
+                            isLatest
+                            isPrivate
+                            versionIndex
+                            versionLabel
+                            root {
+                                id
+                                isPrivate
+                            }
+                            translations {
+                                id
+                                language
+                                description
+                                jsonVariable
+                            }
+                        }
                         stats {
                             id
                             created_at
@@ -2447,6 +2227,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                             periodEnd
                             periodType
                             calls
+                            routineVersions
                         }
                         id
                         created_at
@@ -2778,46 +2559,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -2861,46 +2602,6 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 mergedOrRejectedAt
                 commentsCount
                 status
-                from {
-                    ... on ApiVersion {
-                        ...ApiVersion_list
-                    }
-                    ... on NoteVersion {
-                        ...NoteVersion_list
-                    }
-                    ... on ProjectVersion {
-                        ...ProjectVersion_list
-                    }
-                    ... on RoutineVersion {
-                        ...RoutineVersion_list
-                    }
-                    ... on SmartContractVersion {
-                        ...SmartContractVersion_list
-                    }
-                    ... on StandardVersion {
-                        ...StandardVersion_list
-                    }
-                }
-                to {
-                    ... on Api {
-                        ...Api_list
-                    }
-                    ... on Note {
-                        ...Note_list
-                    }
-                    ... on Project {
-                        ...Project_list
-                    }
-                    ... on Routine {
-                        ...Routine_list
-                    }
-                    ... on SmartContract {
-                        ...SmartContract_list
-                    }
-                    ... on Standard {
-                        ...Standard_list
-                    }
-                }
                 createdBy {
                     id
                     name
@@ -2936,6 +2637,23 @@ mutation routineCreate($input: RoutineCreateInput!) {
                 }
             }
             root {
+                parent {
+                    id
+                    isLatest
+                    isPrivate
+                    versionIndex
+                    versionLabel
+                    root {
+                        id
+                        isPrivate
+                    }
+                    translations {
+                        id
+                        language
+                        description
+                        jsonVariable
+                    }
+                }
                 stats {
                     id
                     created_at
@@ -2943,6 +2661,7 @@ mutation routineCreate($input: RoutineCreateInput!) {
                     periodEnd
                     periodType
                     calls
+                    routineVersions
                 }
                 id
                 created_at
@@ -3208,7 +2927,8 @@ mutation routineCreate($input: RoutineCreateInput!) {
         periodType
         runsStarted
         runsCompleted
-        runCompletionTimeAverageInPeriod
+        runCompletionTimeAverage
+        runContextSwitchesAverage
     }
     id
     created_at
@@ -3250,26 +2970,36 @@ mutation routineCreate($input: RoutineCreateInput!) {
   }
 }`;
 
-export const routineUpdate = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+export const routineUpdate = gql`${Label_full}
 ${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
+${Organization_nav}
+${Tag_list}
+${User_nav}
 
 mutation routineUpdate($input: RoutineUpdateInput!) {
   routineUpdate(input: $input) {
+    parent {
+        id
+        isAutomatable
+        isComplete
+        isDeleted
+        isLatest
+        isPrivate
+        root {
+            id
+            isInternal
+            isPrivate
+        }
+        translations {
+            id
+            language
+            description
+            instructions
+            name
+        }
+        versionIndex
+        versionLabel
+    }
     versions {
         versionNotes
         apiVersion {
@@ -3280,46 +3010,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 mergedOrRejectedAt
                 commentsCount
                 status
-                from {
-                    ... on ApiVersion {
-                        ...ApiVersion_list
-                    }
-                    ... on NoteVersion {
-                        ...NoteVersion_list
-                    }
-                    ... on ProjectVersion {
-                        ...ProjectVersion_list
-                    }
-                    ... on RoutineVersion {
-                        ...RoutineVersion_list
-                    }
-                    ... on SmartContractVersion {
-                        ...SmartContractVersion_list
-                    }
-                    ... on StandardVersion {
-                        ...StandardVersion_list
-                    }
-                }
-                to {
-                    ... on Api {
-                        ...Api_list
-                    }
-                    ... on Note {
-                        ...Note_list
-                    }
-                    ... on Project {
-                        ...Project_list
-                    }
-                    ... on Routine {
-                        ...Routine_list
-                    }
-                    ... on SmartContract {
-                        ...SmartContract_list
-                    }
-                    ... on Standard {
-                        ...Standard_list
-                    }
-                }
                 createdBy {
                     id
                     name
@@ -3333,6 +3023,23 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 }
             }
             root {
+                parent {
+                    id
+                    isLatest
+                    isPrivate
+                    versionIndex
+                    versionLabel
+                    root {
+                        id
+                        isPrivate
+                    }
+                    translations {
+                        id
+                        language
+                        details
+                        summary
+                    }
+                }
                 stats {
                     id
                     created_at
@@ -3340,6 +3047,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                     periodEnd
                     periodType
                     calls
+                    routineVersions
                 }
                 id
                 created_at
@@ -3512,46 +3220,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         mergedOrRejectedAt
                         commentsCount
                         status
-                        from {
-                            ... on ApiVersion {
-                                ...ApiVersion_list
-                            }
-                            ... on NoteVersion {
-                                ...NoteVersion_list
-                            }
-                            ... on ProjectVersion {
-                                ...ProjectVersion_list
-                            }
-                            ... on RoutineVersion {
-                                ...RoutineVersion_list
-                            }
-                            ... on SmartContractVersion {
-                                ...SmartContractVersion_list
-                            }
-                            ... on StandardVersion {
-                                ...StandardVersion_list
-                            }
-                        }
-                        to {
-                            ... on Api {
-                                ...Api_list
-                            }
-                            ... on Note {
-                                ...Note_list
-                            }
-                            ... on Project {
-                                ...Project_list
-                            }
-                            ... on Routine {
-                                ...Routine_list
-                            }
-                            ... on SmartContract {
-                                ...SmartContract_list
-                            }
-                            ... on Standard {
-                                ...Standard_list
-                            }
-                        }
                         createdBy {
                             id
                             name
@@ -3565,6 +3233,23 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         }
                     }
                     root {
+                        parent {
+                            id
+                            isLatest
+                            isPrivate
+                            versionIndex
+                            versionLabel
+                            root {
+                                id
+                                isPrivate
+                            }
+                            translations {
+                                id
+                                language
+                                details
+                                summary
+                            }
+                        }
                         stats {
                             id
                             created_at
@@ -3572,6 +3257,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                             periodEnd
                             periodType
                             calls
+                            routineVersions
                         }
                         id
                         created_at
@@ -3738,46 +3424,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                     mergedOrRejectedAt
                     commentsCount
                     status
-                    from {
-                        ... on ApiVersion {
-                            ...ApiVersion_list
-                        }
-                        ... on NoteVersion {
-                            ...NoteVersion_list
-                        }
-                        ... on ProjectVersion {
-                            ...ProjectVersion_list
-                        }
-                        ... on RoutineVersion {
-                            ...RoutineVersion_list
-                        }
-                        ... on SmartContractVersion {
-                            ...SmartContractVersion_list
-                        }
-                        ... on StandardVersion {
-                            ...StandardVersion_list
-                        }
-                    }
-                    to {
-                        ... on Api {
-                            ...Api_list
-                        }
-                        ... on Note {
-                            ...Note_list
-                        }
-                        ... on Project {
-                            ...Project_list
-                        }
-                        ... on Routine {
-                            ...Routine_list
-                        }
-                        ... on SmartContract {
-                            ...SmartContract_list
-                        }
-                        ... on Standard {
-                            ...Standard_list
-                        }
-                    }
                     createdBy {
                         id
                         name
@@ -3813,6 +3459,28 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                     }
                 }
                 root {
+                    parent {
+                        id
+                        isAutomatable
+                        isComplete
+                        isDeleted
+                        isLatest
+                        isPrivate
+                        root {
+                            id
+                            isInternal
+                            isPrivate
+                        }
+                        translations {
+                            id
+                            language
+                            description
+                            instructions
+                            name
+                        }
+                        versionIndex
+                        versionLabel
+                    }
                     stats {
                         id
                         created_at
@@ -3821,7 +3489,8 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         periodType
                         runsStarted
                         runsCompleted
-                        runCompletionTimeAverageInPeriod
+                        runCompletionTimeAverage
+                        runContextSwitchesAverage
                     }
                     id
                     created_at
@@ -3870,46 +3539,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         mergedOrRejectedAt
                         commentsCount
                         status
-                        from {
-                            ... on ApiVersion {
-                                ...ApiVersion_list
-                            }
-                            ... on NoteVersion {
-                                ...NoteVersion_list
-                            }
-                            ... on ProjectVersion {
-                                ...ProjectVersion_list
-                            }
-                            ... on RoutineVersion {
-                                ...RoutineVersion_list
-                            }
-                            ... on SmartContractVersion {
-                                ...SmartContractVersion_list
-                            }
-                            ... on StandardVersion {
-                                ...StandardVersion_list
-                            }
-                        }
-                        to {
-                            ... on Api {
-                                ...Api_list
-                            }
-                            ... on Note {
-                                ...Note_list
-                            }
-                            ... on Project {
-                                ...Project_list
-                            }
-                            ... on Routine {
-                                ...Routine_list
-                            }
-                            ... on SmartContract {
-                                ...SmartContract_list
-                            }
-                            ... on Standard {
-                                ...Standard_list
-                            }
-                        }
                         createdBy {
                             id
                             name
@@ -3945,6 +3574,23 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                         }
                     }
                     root {
+                        parent {
+                            id
+                            isLatest
+                            isPrivate
+                            versionIndex
+                            versionLabel
+                            root {
+                                id
+                                isPrivate
+                            }
+                            translations {
+                                id
+                                language
+                                description
+                                jsonVariable
+                            }
+                        }
                         stats {
                             id
                             created_at
@@ -3952,6 +3598,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                             periodEnd
                             periodType
                             calls
+                            routineVersions
                         }
                         id
                         created_at
@@ -4283,46 +3930,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -4366,46 +3973,6 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 mergedOrRejectedAt
                 commentsCount
                 status
-                from {
-                    ... on ApiVersion {
-                        ...ApiVersion_list
-                    }
-                    ... on NoteVersion {
-                        ...NoteVersion_list
-                    }
-                    ... on ProjectVersion {
-                        ...ProjectVersion_list
-                    }
-                    ... on RoutineVersion {
-                        ...RoutineVersion_list
-                    }
-                    ... on SmartContractVersion {
-                        ...SmartContractVersion_list
-                    }
-                    ... on StandardVersion {
-                        ...StandardVersion_list
-                    }
-                }
-                to {
-                    ... on Api {
-                        ...Api_list
-                    }
-                    ... on Note {
-                        ...Note_list
-                    }
-                    ... on Project {
-                        ...Project_list
-                    }
-                    ... on Routine {
-                        ...Routine_list
-                    }
-                    ... on SmartContract {
-                        ...SmartContract_list
-                    }
-                    ... on Standard {
-                        ...Standard_list
-                    }
-                }
                 createdBy {
                     id
                     name
@@ -4441,6 +4008,23 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                 }
             }
             root {
+                parent {
+                    id
+                    isLatest
+                    isPrivate
+                    versionIndex
+                    versionLabel
+                    root {
+                        id
+                        isPrivate
+                    }
+                    translations {
+                        id
+                        language
+                        description
+                        jsonVariable
+                    }
+                }
                 stats {
                     id
                     created_at
@@ -4448,6 +4032,7 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
                     periodEnd
                     periodType
                     calls
+                    routineVersions
                 }
                 id
                 created_at
@@ -4713,7 +4298,8 @@ mutation routineUpdate($input: RoutineUpdateInput!) {
         periodType
         runsStarted
         runsCompleted
-        runCompletionTimeAverageInPeriod
+        runCompletionTimeAverage
+        runContextSwitchesAverage
     }
     id
     created_at

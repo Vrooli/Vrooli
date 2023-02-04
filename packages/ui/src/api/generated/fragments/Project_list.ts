@@ -1,35 +1,5 @@
 export const Project_list = `fragment Project_list on Project {
 versions {
-    directories {
-        translations {
-            id
-            language
-            description
-            name
-        }
-        id
-        created_at
-        updated_at
-        childOrder
-        isRoot
-        projectVersion {
-            id
-            isLatest
-            isPrivate
-            versionIndex
-            versionLabel
-            root {
-                id
-                isPrivate
-            }
-            translations {
-                id
-                language
-                description
-                name
-            }
-        }
-    }
     translations {
         id
         language

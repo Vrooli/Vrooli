@@ -11,25 +11,30 @@ query statsUser($input: StatsUserSearchInput!) {
             periodStart
             periodEnd
             periodType
-            apis
-            organizations
-            projects
+            apisCreated
+            organizationsCreated
+            projectsCreated
             projectsCompleted
-            projectsCompletionTimeAverageInPeriod
+            projectCompletionTimeAverage
             quizzesPassed
             quizzesFailed
-            routines
+            routinesCreated
             routinesCompleted
-            routinesCompletionTimeAverageInPeriod
-            runsStarted
-            runsCompleted
-            runsCompletionTimeAverageInPeriod
+            routineCompletionTimeAverage
+            runProjectsStarted
+            runProjectsCompleted
+            runProjectCompletionTimeAverage
+            runProjectContextSwitchesAverage
+            runRoutinesStarted
+            runRoutinesCompleted
+            runRoutineCompletionTimeAverage
+            runRoutineContextSwitchesAverage
             smartContractsCreated
             smartContractsCompleted
-            smartContractsCompletionTimeAverageInPeriod
+            smartContractCompletionTimeAverage
             standardsCreated
             standardsCompleted
-            standardsCompletionTimeAverageInPeriod
+            standardCompletionTimeAverage
         }
     }
     pageInfo {

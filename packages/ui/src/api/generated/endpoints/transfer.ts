@@ -1,27 +1,27 @@
 import gql from 'graphql-tag';
 import { Api_list } from '../fragments/Api_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
-import { Tag_list } from '../fragments/Tag_list';
+import { Label_full } from '../fragments/Label_full';
 import { Label_list } from '../fragments/Label_list';
 import { Note_list } from '../fragments/Note_list';
+import { Organization_nav } from '../fragments/Organization_nav';
 import { Project_list } from '../fragments/Project_list';
 import { Routine_list } from '../fragments/Routine_list';
-import { Label_full } from '../fragments/Label_full';
 import { SmartContract_list } from '../fragments/SmartContract_list';
 import { Standard_list } from '../fragments/Standard_list';
+import { Tag_list } from '../fragments/Tag_list';
+import { User_nav } from '../fragments/User_nav';
 
 export const transferFindOne = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+${Label_full}
 ${Label_list}
 ${Note_list}
+${Organization_nav}
 ${Project_list}
 ${Routine_list}
-${Label_full}
 ${SmartContract_list}
 ${Standard_list}
+${Tag_list}
+${User_nav}
 
 query transfer($input: FindByIdInput!) {
   transfer(input: $input) {
@@ -68,16 +68,16 @@ query transfer($input: FindByIdInput!) {
 }`;
 
 export const transferFindMany = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+${Label_full}
 ${Label_list}
 ${Note_list}
+${Organization_nav}
 ${Project_list}
 ${Routine_list}
-${Label_full}
 ${SmartContract_list}
 ${Standard_list}
+${Tag_list}
+${User_nav}
 
 query transfers($input: TransferSearchInput!) {
   transfers(input: $input) {
@@ -133,16 +133,16 @@ query transfers($input: TransferSearchInput!) {
 }`;
 
 export const transferRequestSend = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+${Label_full}
 ${Label_list}
 ${Note_list}
+${Organization_nav}
 ${Project_list}
 ${Routine_list}
-${Label_full}
 ${SmartContract_list}
 ${Standard_list}
+${Tag_list}
+${User_nav}
 
 mutation transferRequestSend($input: TransferRequestSendInput!) {
   transferRequestSend(input: $input) {
@@ -189,16 +189,16 @@ mutation transferRequestSend($input: TransferRequestSendInput!) {
 }`;
 
 export const transferRequestReceive = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+${Label_full}
 ${Label_list}
 ${Note_list}
+${Organization_nav}
 ${Project_list}
 ${Routine_list}
-${Label_full}
 ${SmartContract_list}
 ${Standard_list}
+${Tag_list}
+${User_nav}
 
 mutation transferRequestReceive($input: TransferRequestReceiveInput!) {
   transferRequestReceive(input: $input) {
@@ -245,16 +245,16 @@ mutation transferRequestReceive($input: TransferRequestReceiveInput!) {
 }`;
 
 export const transferTransferUpdate = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+${Label_full}
 ${Label_list}
 ${Note_list}
+${Organization_nav}
 ${Project_list}
 ${Routine_list}
-${Label_full}
 ${SmartContract_list}
 ${Standard_list}
+${Tag_list}
+${User_nav}
 
 mutation transferUpdate($input: TransferUpdateInput!) {
   transferUpdate(input: $input) {
@@ -301,16 +301,16 @@ mutation transferUpdate($input: TransferUpdateInput!) {
 }`;
 
 export const transferTransferCancel = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+${Label_full}
 ${Label_list}
 ${Note_list}
+${Organization_nav}
 ${Project_list}
 ${Routine_list}
-${Label_full}
 ${SmartContract_list}
 ${Standard_list}
+${Tag_list}
+${User_nav}
 
 mutation transferCancel($input: FindByIdInput!) {
   transferCancel(input: $input) {
@@ -357,16 +357,16 @@ mutation transferCancel($input: FindByIdInput!) {
 }`;
 
 export const transferTransferAccept = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+${Label_full}
 ${Label_list}
 ${Note_list}
+${Organization_nav}
 ${Project_list}
 ${Routine_list}
-${Label_full}
 ${SmartContract_list}
 ${Standard_list}
+${Tag_list}
+${User_nav}
 
 mutation transferAccept($input: FindByIdInput!) {
   transferAccept(input: $input) {
@@ -413,16 +413,16 @@ mutation transferAccept($input: FindByIdInput!) {
 }`;
 
 export const transferTransferDeny = gql`${Api_list}
-${Organization_nav}
-${User_nav}
-${Tag_list}
+${Label_full}
 ${Label_list}
 ${Note_list}
+${Organization_nav}
 ${Project_list}
 ${Routine_list}
-${Label_full}
 ${SmartContract_list}
 ${Standard_list}
+${Tag_list}
+${User_nav}
 
 mutation transferDeny($input: TransferDenyInput!) {
   transferDeny(input: $input) {

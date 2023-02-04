@@ -1,42 +1,33 @@
 import gql from 'graphql-tag';
-import { Api_list } from '../fragments/Api_list';
-import { Organization_nav } from '../fragments/Organization_nav';
-import { User_nav } from '../fragments/User_nav';
-import { Tag_list } from '../fragments/Tag_list';
 import { Label_list } from '../fragments/Label_list';
-import { ApiVersion_list } from '../fragments/ApiVersion_list';
-import { Note_list } from '../fragments/Note_list';
-import { NoteVersion_list } from '../fragments/NoteVersion_list';
-import { Project_list } from '../fragments/Project_list';
-import { ProjectVersion_list } from '../fragments/ProjectVersion_list';
-import { Routine_list } from '../fragments/Routine_list';
-import { Label_full } from '../fragments/Label_full';
-import { RoutineVersion_list } from '../fragments/RoutineVersion_list';
-import { SmartContract_list } from '../fragments/SmartContract_list';
-import { SmartContractVersion_list } from '../fragments/SmartContractVersion_list';
-import { Standard_list } from '../fragments/Standard_list';
-import { StandardVersion_list } from '../fragments/StandardVersion_list';
+import { Organization_nav } from '../fragments/Organization_nav';
+import { Tag_list } from '../fragments/Tag_list';
+import { User_nav } from '../fragments/User_nav';
 
-export const apiFindOne = gql`${Api_list}
+export const apiFindOne = gql`${Label_list}
 ${Organization_nav}
-${User_nav}
 ${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
+${User_nav}
 
 query api($input: FindByIdInput!) {
   api(input: $input) {
+    parent {
+        id
+        isLatest
+        isPrivate
+        versionIndex
+        versionLabel
+        root {
+            id
+            isPrivate
+        }
+        translations {
+            id
+            language
+            details
+            summary
+        }
+    }
     versions {
         pullRequest {
             id
@@ -45,46 +36,6 @@ query api($input: FindByIdInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -133,6 +84,7 @@ query api($input: FindByIdInput!) {
         periodEnd
         periodType
         calls
+        routineVersions
     }
     id
     created_at
@@ -173,10 +125,10 @@ query api($input: FindByIdInput!) {
   }
 }`;
 
-export const apiFindMany = gql`${Organization_nav}
-${User_nav}
+export const apiFindMany = gql`${Label_list}
+${Organization_nav}
 ${Tag_list}
-${Label_list}
+${User_nav}
 
 query apis($input: ApiSearchInput!) {
   apis(input: $input) {
@@ -257,26 +209,30 @@ query apis($input: ApiSearchInput!) {
   }
 }`;
 
-export const apiCreate = gql`${Api_list}
+export const apiCreate = gql`${Label_list}
 ${Organization_nav}
-${User_nav}
 ${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
+${User_nav}
 
 mutation apiCreate($input: ApiCreateInput!) {
   apiCreate(input: $input) {
+    parent {
+        id
+        isLatest
+        isPrivate
+        versionIndex
+        versionLabel
+        root {
+            id
+            isPrivate
+        }
+        translations {
+            id
+            language
+            details
+            summary
+        }
+    }
     versions {
         pullRequest {
             id
@@ -285,46 +241,6 @@ mutation apiCreate($input: ApiCreateInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -373,6 +289,7 @@ mutation apiCreate($input: ApiCreateInput!) {
         periodEnd
         periodType
         calls
+        routineVersions
     }
     id
     created_at
@@ -413,26 +330,30 @@ mutation apiCreate($input: ApiCreateInput!) {
   }
 }`;
 
-export const apiUpdate = gql`${Api_list}
+export const apiUpdate = gql`${Label_list}
 ${Organization_nav}
-${User_nav}
 ${Tag_list}
-${Label_list}
-${ApiVersion_list}
-${Note_list}
-${NoteVersion_list}
-${Project_list}
-${ProjectVersion_list}
-${Routine_list}
-${Label_full}
-${RoutineVersion_list}
-${SmartContract_list}
-${SmartContractVersion_list}
-${Standard_list}
-${StandardVersion_list}
+${User_nav}
 
 mutation apiUpdate($input: ApiUpdateInput!) {
   apiUpdate(input: $input) {
+    parent {
+        id
+        isLatest
+        isPrivate
+        versionIndex
+        versionLabel
+        root {
+            id
+            isPrivate
+        }
+        translations {
+            id
+            language
+            details
+            summary
+        }
+    }
     versions {
         pullRequest {
             id
@@ -441,46 +362,6 @@ mutation apiUpdate($input: ApiUpdateInput!) {
             mergedOrRejectedAt
             commentsCount
             status
-            from {
-                ... on ApiVersion {
-                    ...ApiVersion_list
-                }
-                ... on NoteVersion {
-                    ...NoteVersion_list
-                }
-                ... on ProjectVersion {
-                    ...ProjectVersion_list
-                }
-                ... on RoutineVersion {
-                    ...RoutineVersion_list
-                }
-                ... on SmartContractVersion {
-                    ...SmartContractVersion_list
-                }
-                ... on StandardVersion {
-                    ...StandardVersion_list
-                }
-            }
-            to {
-                ... on Api {
-                    ...Api_list
-                }
-                ... on Note {
-                    ...Note_list
-                }
-                ... on Project {
-                    ...Project_list
-                }
-                ... on Routine {
-                    ...Routine_list
-                }
-                ... on SmartContract {
-                    ...SmartContract_list
-                }
-                ... on Standard {
-                    ...Standard_list
-                }
-            }
             createdBy {
                 id
                 name
@@ -529,6 +410,7 @@ mutation apiUpdate($input: ApiUpdateInput!) {
         periodEnd
         periodType
         calls
+        routineVersions
     }
     id
     created_at

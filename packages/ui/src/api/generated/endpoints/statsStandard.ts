@@ -13,7 +13,6 @@ query statsStandard($input: StatsStandardSearchInput!) {
             periodType
             linksToInputs
             linksToOutputs
-            timesUsedInCompletedRoutines
         }
     }
     pageInfo {

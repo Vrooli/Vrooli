@@ -50,6 +50,7 @@ export const note: GqlPartial<Note> = {
         you: () => rel(noteYou, 'full'),
     },
     full: {
+        parent: async () => rel((await import('./noteVersion')).noteVersion, 'nav'),
         versions: async () => rel((await import('./noteVersion')).noteVersion, 'full', { omit: 'root' }),
     },
     list: {

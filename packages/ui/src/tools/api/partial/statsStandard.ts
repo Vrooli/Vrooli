@@ -11,6 +11,5 @@ export const statsStandard: GqlPartial<StatsStandard> = {
         periodType: true,
         linksToInputs: true,
         linksToOutputs: true,
-        timesUsedInCompletedRoutines: true,
     },
 }

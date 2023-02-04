@@ -10,5 +10,6 @@ export const statsSmartContract: GqlPartial<StatsSmartContract> = {
         periodEnd: true,
         periodType: true,
         calls: true,   
+        routineVersions: true,
     },
 }
