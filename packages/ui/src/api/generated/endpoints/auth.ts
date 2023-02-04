@@ -1,11 +1,15 @@
 import gql from 'graphql-tag';
 import { Label_full } from '../fragments/Label_full';
 import { Label_list } from '../fragments/Label_list';
+import { Organization_nav } from '../fragments/Organization_nav';
+import { User_nav } from '../fragments/User_nav';
 import { Session_full } from '../fragments/Session_full';
 import { Wallet_common } from '../fragments/Wallet_common';
 
 export const authEmailLogIn = gql`${Label_full}
 ${Label_list}
+${Organization_nav}
+${User_nav}
 
 mutation emailLogIn($input: EmailLogInInput!) {
   emailLogIn(input: $input) {
@@ -96,6 +100,8 @@ mutation emailLogIn($input: EmailLogInInput!) {
 
 export const authEmailSignUp = gql`${Label_full}
 ${Label_list}
+${Organization_nav}
+${User_nav}
 
 mutation emailSignUp($input: EmailSignUpInput!) {
   emailSignUp(input: $input) {
@@ -193,6 +199,8 @@ mutation emailRequestPasswordChange($input: EmailRequestPasswordChangeInput!) {
 
 export const authEmailResetPassword = gql`${Label_full}
 ${Label_list}
+${Organization_nav}
+${User_nav}
 
 mutation emailResetPassword($input: EmailResetPasswordInput!) {
   emailResetPassword(input: $input) {
@@ -283,6 +291,8 @@ mutation emailResetPassword($input: EmailResetPasswordInput!) {
 
 export const authGuestLogIn = gql`${Label_full}
 ${Label_list}
+${Organization_nav}
+${User_nav}
 
 mutation guestLogIn {
   guestLogIn {
@@ -373,6 +383,8 @@ mutation guestLogIn {
 
 export const authLogOut = gql`${Label_full}
 ${Label_list}
+${Organization_nav}
+${User_nav}
 
 mutation logOut($input: LogOutInput!) {
   logOut(input: $input) {
@@ -463,6 +475,8 @@ mutation logOut($input: LogOutInput!) {
 
 export const authValidateSession = gql`${Label_full}
 ${Label_list}
+${Organization_nav}
+${User_nav}
 
 mutation validateSession($input: ValidateSessionInput!) {
   validateSession(input: $input) {
@@ -553,6 +567,8 @@ mutation validateSession($input: ValidateSessionInput!) {
 
 export const authSwitchCurrentAccount = gql`${Label_full}
 ${Label_list}
+${Organization_nav}
+${User_nav}
 
 mutation switchCurrentAccount($input: SwitchCurrentAccountInput!) {
   switchCurrentAccount(input: $input) {
@@ -646,7 +662,9 @@ mutation walletInit($input: WalletInitInput!) {
   walletInit(input: $input)
 }`;
 
-export const authWalletComplete = gql`${Session_full}
+export const authWalletComplete = gql`${Label_full}
+${Label_list}
+${Session_full}
 ${Wallet_common}
 
 mutation walletComplete($input: WalletCompleteInput!) {

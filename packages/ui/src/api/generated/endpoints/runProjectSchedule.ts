@@ -1,8 +1,12 @@
 import gql from 'graphql-tag';
 import { Label_full } from '../fragments/Label_full';
+import { Organization_nav } from '../fragments/Organization_nav';
+import { User_nav } from '../fragments/User_nav';
 import { Label_list } from '../fragments/Label_list';
 
 export const runProjectScheduleFindOne = gql`${Label_full}
+${Organization_nav}
+${User_nav}
 
 query runProjectSchedule($input: FindByIdInput!) {
   runProjectSchedule(input: $input) {
@@ -25,6 +29,8 @@ query runProjectSchedule($input: FindByIdInput!) {
 }`;
 
 export const runProjectScheduleFindMany = gql`${Label_list}
+${Organization_nav}
+${User_nav}
 
 query runProjectSchedules($input: RunProjectScheduleSearchInput!) {
   runProjectSchedules(input: $input) {
@@ -56,6 +62,8 @@ query runProjectSchedules($input: RunProjectScheduleSearchInput!) {
 }`;
 
 export const runProjectScheduleCreate = gql`${Label_full}
+${Organization_nav}
+${User_nav}
 
 mutation runProjectScheduleCreate($input: RunProjectScheduleCreateInput!) {
   runProjectScheduleCreate(input: $input) {
@@ -78,6 +86,8 @@ mutation runProjectScheduleCreate($input: RunProjectScheduleCreateInput!) {
 }`;
 
 export const runProjectScheduleUpdate = gql`${Label_full}
+${Organization_nav}
+${User_nav}
 
 mutation runProjectScheduleUpdate($input: RunProjectScheduleUpdateInput!) {
   runProjectScheduleUpdate(input: $input) {

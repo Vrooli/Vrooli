@@ -85,29 +85,33 @@ export const periodCron = {
  */
 export const initStatsCronJobs = () => {
     logger.info('Initializing stats cron jobs.', { trace: '0209' });
-    // Start cron for each period
-    for (const [period, schedule] of Object.entries(periodCron)) {
-        cron.schedule(schedule, () => {
-            logger.info(`Starting ${period} stats cron job.`, { trace: '0216' });
-            // Find start and end of period
-            const periodStart = new Date(getPeriodStart(period as PeriodType)).toISOString();
-            const periodEnd = new Date().toISOString();
-            const params = [period as PeriodType, periodStart, periodEnd] as const;
-            // Trigger each stat group
-            Promise.all([
-                logSiteStats(...params),
-                logApiStats(...params),
-                logOrganizationStats(...params),
-                logProjectStats(...params),
-                logQuizStats(...params),
-                logRoutineStats(...params),
-                logSmartContractStats(...params),
-                logStandardStats(...params),
-                logUserStats(...params),
-            ]).then(() => {
-                logger.info(`✅ ${period} stats cron job completed.`, { trace: '0217' });
+    try {
+        // Start cron for each period
+        for (const [period, schedule] of Object.entries(periodCron)) {
+            cron.schedule(schedule, () => {
+                logger.info(`Starting ${period} stats cron job.`, { trace: '0216' });
+                // Find start and end of period
+                const periodStart = new Date(getPeriodStart(period as PeriodType)).toISOString();
+                const periodEnd = new Date().toISOString();
+                const params = [period as PeriodType, periodStart, periodEnd] as const;
+                // Trigger each stat group
+                Promise.all([
+                    logSiteStats(...params),
+                    logApiStats(...params),
+                    logOrganizationStats(...params),
+                    logProjectStats(...params),
+                    logQuizStats(...params),
+                    logRoutineStats(...params),
+                    logSmartContractStats(...params),
+                    logStandardStats(...params),
+                    logUserStats(...params),
+                ]).then(() => {
+                    logger.info(`✅ ${period} stats cron job completed.`, { trace: '0217' });
+                });
             });
-        });
+        }
+        logger.info('✅ Stats cron jobs initialized');
+    } catch (error) {
+        logger.error('❌ Failed to initialize stats cron jobs.', { trace: '0382', error });
     }
-    logger.info('✅ Stats cron jobs initialized');
 };

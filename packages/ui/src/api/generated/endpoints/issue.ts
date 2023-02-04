@@ -7,6 +7,7 @@ import { Project_nav } from '../fragments/Project_nav';
 import { Routine_nav } from '../fragments/Routine_nav';
 import { SmartContract_nav } from '../fragments/SmartContract_nav';
 import { Standard_nav } from '../fragments/Standard_nav';
+import { User_nav } from '../fragments/User_nav';
 
 export const issueFindOne = gql`${Api_nav}
 ${Label_common}
@@ -16,6 +17,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${User_nav}
 
 query issue($input: FindByIdInput!) {
   issue(input: $input) {
@@ -94,6 +96,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${User_nav}
 
 query issues($input: IssueSearchInput!) {
   issues(input: $input) {
@@ -171,6 +174,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${User_nav}
 
 mutation issueCreate($input: IssueCreateInput!) {
   issueCreate(input: $input) {
@@ -249,6 +253,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${User_nav}
 
 mutation issueUpdate($input: IssueUpdateInput!) {
   issueUpdate(input: $input) {
@@ -327,6 +332,7 @@ ${Project_nav}
 ${Routine_nav}
 ${SmartContract_nav}
 ${Standard_nav}
+${User_nav}
 
 mutation issueClose($input: IssueCloseInput!) {
   issueClose(input: $input) {
