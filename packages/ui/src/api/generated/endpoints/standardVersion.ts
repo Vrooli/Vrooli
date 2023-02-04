@@ -79,7 +79,6 @@ query standardVersion($input: FindByIdInput!) {
             periodType
             linksToInputs
             linksToOutputs
-            timesUsedInCompletedRoutines
         }
         id
         created_at
@@ -275,7 +274,6 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
             periodType
             linksToInputs
             linksToOutputs
-            timesUsedInCompletedRoutines
         }
         id
         created_at
@@ -424,7 +422,6 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
             periodType
             linksToInputs
             linksToOutputs
-            timesUsedInCompletedRoutines
         }
         id
         created_at

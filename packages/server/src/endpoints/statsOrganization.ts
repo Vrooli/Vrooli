@@ -39,6 +39,10 @@ export const typeDef = gql`
         notes: Int!
         projects: Int!
         routines: Int!
+        runRoutinesStarted: Int!
+        runRoutinesCompleted: Int!
+        runRoutineCompletionTimeAverage: Float!
+        runRoutineContextSwitchesAverage: Float!
         smartContracts: Int!
         standards: Int!
     }

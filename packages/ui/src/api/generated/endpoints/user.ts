@@ -146,25 +146,30 @@ query profile {
         periodStart
         periodEnd
         periodType
-        apis
-        organizations
-        projects
+        apisCreated
+        organizationsCreated
+        projectsCreated
         projectsCompleted
-        projectsCompletionTimeAverage
+        projectCompletionTimeAverage
         quizzesPassed
         quizzesFailed
-        routines
+        routinesCreated
         routinesCompleted
-        routinesCompletionTimeAverage
-        runsStarted
-        runsCompleted
-        runsCompletionTimeAverage
+        routineCompletionTimeAverage
+        runProjectsStarted
+        runProjectsCompleted
+        runProjectCompletionTimeAverage
+        runProjectContextSwitchesAverage
+        runRoutinesStarted
+        runRoutinesCompleted
+        runRoutineCompletionTimeAverage
+        runRoutineContextSwitchesAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverage
+        smartContractCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverage
+        standardCompletionTimeAverage
     }
   }
 }`;
@@ -178,25 +183,30 @@ query user($input: FindByIdInput!) {
         periodStart
         periodEnd
         periodType
-        apis
-        organizations
-        projects
+        apisCreated
+        organizationsCreated
+        projectsCreated
         projectsCompleted
-        projectsCompletionTimeAverage
+        projectCompletionTimeAverage
         quizzesPassed
         quizzesFailed
-        routines
+        routinesCreated
         routinesCompleted
-        routinesCompletionTimeAverage
-        runsStarted
-        runsCompleted
-        runsCompletionTimeAverage
+        routineCompletionTimeAverage
+        runProjectsStarted
+        runProjectsCompleted
+        runProjectCompletionTimeAverage
+        runProjectContextSwitchesAverage
+        runRoutinesStarted
+        runRoutinesCompleted
+        runRoutineCompletionTimeAverage
+        runRoutineContextSwitchesAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverage
+        smartContractCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverage
+        standardCompletionTimeAverage
     }
     translations {
         id
@@ -396,25 +406,30 @@ mutation profileUpdate($input: ProfileUpdateInput!) {
         periodStart
         periodEnd
         periodType
-        apis
-        organizations
-        projects
+        apisCreated
+        organizationsCreated
+        projectsCreated
         projectsCompleted
-        projectsCompletionTimeAverage
+        projectCompletionTimeAverage
         quizzesPassed
         quizzesFailed
-        routines
+        routinesCreated
         routinesCompleted
-        routinesCompletionTimeAverage
-        runsStarted
-        runsCompleted
-        runsCompletionTimeAverage
+        routineCompletionTimeAverage
+        runProjectsStarted
+        runProjectsCompleted
+        runProjectCompletionTimeAverage
+        runProjectContextSwitchesAverage
+        runRoutinesStarted
+        runRoutinesCompleted
+        runRoutineCompletionTimeAverage
+        runRoutineContextSwitchesAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverage
+        smartContractCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverage
+        standardCompletionTimeAverage
     }
   }
 }`;
@@ -563,25 +578,30 @@ mutation profileEmailUpdate($input: ProfileEmailUpdateInput!) {
         periodStart
         periodEnd
         periodType
-        apis
-        organizations
-        projects
+        apisCreated
+        organizationsCreated
+        projectsCreated
         projectsCompleted
-        projectsCompletionTimeAverage
+        projectCompletionTimeAverage
         quizzesPassed
         quizzesFailed
-        routines
+        routinesCreated
         routinesCompleted
-        routinesCompletionTimeAverage
-        runsStarted
-        runsCompleted
-        runsCompletionTimeAverage
+        routineCompletionTimeAverage
+        runProjectsStarted
+        runProjectsCompleted
+        runProjectCompletionTimeAverage
+        runProjectContextSwitchesAverage
+        runRoutinesStarted
+        runRoutinesCompleted
+        runRoutineCompletionTimeAverage
+        runRoutineContextSwitchesAverage
         smartContractsCreated
         smartContractsCompleted
-        smartContractsCompletionTimeAverage
+        smartContractCompletionTimeAverage
         standardsCreated
         standardsCompleted
-        standardsCompletionTimeAverage
+        standardCompletionTimeAverage
     }
   }
 }`;
