@@ -3,6 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { Payment } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Payment' as const;
 const suppFields = [] as const;
@@ -43,5 +44,34 @@ export const PaymentModel: ModelLogic<{
     },
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: 10000000,
+        owner: (data) => ({
+            Organization: data.organization,
+            User: data.user,
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canView: () => !isDeleted && (isAdmin || isPublic),
+        }),
+        permissionsSelect: () => ({
+            id: true,
+            organization: 'Organization',
+            user: 'User',
+        }),
+        visibility: {
+            private: { },
+            public: { },
+            owner: (userId) => ({
+                OR: [
+                    { user: { id: userId } },
+                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

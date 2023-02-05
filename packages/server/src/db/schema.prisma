@@ -114,15 +114,17 @@ model api_tags {
 }
 
 model api_key {
-    id                     String   @id @default(uuid()) @db.Uuid
-    created_at             DateTime @default(now()) @db.Timestamptz(6)
-    updated_at             DateTime @default(now()) @db.Timestamptz(6)
-    key                    String   @unique @db.VarChar(255)
-    creditsUsedBeforeLimit Int      @default(20000)
-    stopAtLimit            Boolean  @default(true)
-    absoluteMax            Int?     @default(1000000)
-    userId                 String   @db.Uuid
-    user                   user     @relation(fields: [userId], references: [id])
+    id                     String        @id @default(uuid()) @db.Uuid
+    created_at             DateTime      @default(now()) @db.Timestamptz(6)
+    updated_at             DateTime      @default(now()) @db.Timestamptz(6)
+    key                    String        @unique @db.VarChar(255)
+    creditsUsedBeforeLimit Int           @default(20000)
+    stopAtLimit            Boolean       @default(true)
+    absoluteMax            Int?          @default(1000000)
+    organizationId         String?       @db.Uuid
+    userId                 String?       @db.Uuid
+    organization           organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user                   user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model comment {
@@ -594,9 +596,11 @@ model organization {
     labels             label[]
     notes              note[]                      @relation("note_ownedByOrganization")
     apis               api[]                       @relation("api_ownedByOrganization")
+    apiKeys            api_key[]
     comments           comment[]                   @relation("comment_ownedByOrganization")
     meetings           meeting[]
     paymentHistory     payment[]
+    phones             phone[]
     posts              post[]
     premium            premium?                    @relation(fields: [premiumId], references: [id], onDelete: SetNull)
     smartContracts     smart_contract[]            @relation("smart_contract_ownedByOrganization")
@@ -816,14 +820,16 @@ model post_translation {
 }
 
 model phone {
-    id                                 String    @id @default(uuid()) @db.Uuid
-    phoneNumber                        String    @unique @db.VarChar(16)
-    verified                           Boolean   @default(false)
-    lastVerifiedTime                   DateTime? @db.Timestamptz(6)
-    verificationCode                   String?   @unique @db.VarChar(6)
-    lastVerificationCodeRequestAttempt DateTime? @db.Timestamptz(6)
-    userId                             String?   @db.Uuid
-    user                               user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id                                 String        @id @default(uuid()) @db.Uuid
+    phoneNumber                        String        @unique @db.VarChar(16)
+    verified                           Boolean       @default(false)
+    lastVerifiedTime                   DateTime?     @db.Timestamptz(6)
+    verificationCode                   String?       @unique @db.VarChar(6)
+    lastVerificationCodeRequestAttempt DateTime?     @db.Timestamptz(6)
+    organizationId                     String?       @db.Uuid
+    userId                             String?       @db.Uuid
+    organization                       organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+    user                               user?         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model payment {

@@ -3,6 +3,7 @@ import { SelectWrap } from "../builders/types";
 import { Phone, PhoneCreateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
+import { OrganizationModel } from "./organization";
 
 const __typename = 'Phone' as const;
 const suppFields = [] as const;
@@ -44,5 +45,55 @@ export const PhoneModel: ModelLogic<{
     },
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: {
+            User: {
+                private: {
+                    noPremium: 1,
+                    premium: 5,
+                },
+                public: {
+                    noPremium: 1,
+                    premium: 5,
+                }
+            },
+            Organization: {
+                private: {
+                    noPremium: 1,
+                    premium: 5,
+                },
+                public: {
+                    noPremium: 1,
+                    premium: 5,
+                }
+            },
+        },
+        owner: (data) => ({
+            Organization: data.organization,
+            User: data.user,
+        }),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canView: () => !isDeleted && (isAdmin || isPublic),
+        }),
+        permissionsSelect: () => ({
+            id: true,
+            organization: 'Organization',
+            user: 'User',
+        }),
+        visibility: {
+            private: { },
+            public: { },
+            owner: (userId) => ({
+                OR: [
+                    { user: { id: userId } },
+                    { organization: OrganizationModel.query.hasRoleQuery(userId) },
+                ]
+            }),
+        },
+    },
 })

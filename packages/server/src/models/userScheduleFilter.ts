@@ -4,12 +4,13 @@ import { UserScheduleFilter, UserScheduleFilterCreateInput, UserScheduleSearchIn
 import { PrismaType } from "../types";
 import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
+import { UserScheduleModel } from "./userSchedule";
 
 const __typename = 'UserScheduleFilter' as const;
 const suppFields = [] as const;
 export const UserScheduleFilterModel: ModelLogic<{
-    IsTransferable: true,
-    IsVersioned: true,
+    IsTransferable: false,
+    IsVersioned: false,
     GqlCreate: UserScheduleFilterCreateInput,
     GqlUpdate: undefined,
     GqlModel: UserScheduleFilter,
@@ -31,5 +32,36 @@ export const UserScheduleFilterModel: ModelLogic<{
     format: {} as any,
     mutate: {} as any,
     search: {} as any,
-    validate: {} as any,
+    validate: {
+        isDeleted: () => false,
+        isPublic: () => false,
+        isTransferable: false,
+        maxObjects: {
+            User: {
+                private: {
+                    noPremium: 25,
+                    premium: 100,
+                },
+                public: 0,
+            },
+            Organization: 0,
+        },
+        owner: (data) => UserScheduleModel.validate!.owner(data.userSchedule as any),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            canDelete: () => isAdmin && !isDeleted,
+            canEdit: () => isAdmin && !isDeleted,
+            canView: () => !isDeleted && (isAdmin || isPublic),
+        }),
+        permissionsSelect: () => ({
+            id: true,
+            userSchedule: 'UserSchedule',
+        }),
+        visibility: {
+            private: { },
+            public: { },
+            owner: (userId) => ({
+                userSchedule: UserScheduleModel.validate!.visibility.owner(userId),
+            }),
+        },
+    },
 })
