@@ -6,8 +6,8 @@ export const runRoutineYou: GqlPartial<RunRoutineYou> = {
     __typename: 'RunRoutineYou',
     common: {
         canDelete: true,
-        canEdit: true,
-        canView: true,
+        canUpdate: true,
+        canRead: true,
     },
     full: {},
     list: {},

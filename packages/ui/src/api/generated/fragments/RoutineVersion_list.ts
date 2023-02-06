@@ -69,10 +69,10 @@ you {
                         canComment
                         canCopy
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                         canUse
-                        canView
+                        canRead
                     }
                 }
             }
@@ -149,18 +149,18 @@ you {
         }
         you {
             canDelete
-            canEdit
-            canView
+            canUpdate
+            canRead
         }
     }
     canComment
     canCopy
     canDelete
-    canEdit
     canStar
     canReport
     canRun
-    canView
+    canUpdate
+    canRead
     canVote
 }
 }`;

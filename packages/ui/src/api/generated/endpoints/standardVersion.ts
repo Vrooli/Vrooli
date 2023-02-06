@@ -27,8 +27,8 @@ query standardVersion($input: FindByIdInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     resourceList {
@@ -107,10 +107,10 @@ query standardVersion($input: FindByIdInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -144,10 +144,10 @@ query standardVersion($input: FindByIdInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -185,10 +185,10 @@ query standardVersions($input: StandardVersionSearchInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
     }
@@ -222,8 +222,8 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     resourceList {
@@ -302,10 +302,10 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -339,10 +339,10 @@ mutation standardVersionCreate($input: StandardVersionCreateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -370,8 +370,8 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     resourceList {
@@ -450,10 +450,10 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -487,10 +487,10 @@ mutation standardVersionUpdate($input: StandardVersionUpdateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;

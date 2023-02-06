@@ -15,7 +15,7 @@ export const QuestionModel: ModelLogic<{
     GqlModel: Question,
     GqlSearch: QuestionSearchInput,
     GqlSort: QuestionSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.questionUpsertArgs['create'],
     PrismaUpdate: Prisma.questionUpsertArgs['update'],
     PrismaModel: Prisma.questionGetPayload<SelectWrap<Prisma.questionSelect>>,

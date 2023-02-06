@@ -23,6 +23,6 @@ owner {
 }
 you {
     canDelete
-    canEdit
+    canUpdate
 }
 }`;

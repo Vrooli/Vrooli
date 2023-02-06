@@ -55,7 +55,7 @@ export interface DropzoneProps {
 }
 
 export interface EditableLabelProps {
-    canEdit: boolean;
+    canUpdate: boolean;
     handleUpdate: (newTitle: string) => void;
     placeholder?: string;
     onDialogOpen?: (isOpen: boolean) => void;

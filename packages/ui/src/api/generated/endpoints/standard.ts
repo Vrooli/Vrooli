@@ -45,8 +45,8 @@ query standard($input: FindByIdInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -98,10 +98,10 @@ query standard($input: FindByIdInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -140,10 +140,10 @@ query standard($input: FindByIdInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -190,10 +190,10 @@ query standards($input: StandardSearchInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             id
@@ -223,10 +223,10 @@ query standards($input: StandardSearchInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -282,8 +282,8 @@ mutation standardCreate($input: StandardCreateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -335,10 +335,10 @@ mutation standardCreate($input: StandardCreateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -377,10 +377,10 @@ mutation standardCreate($input: StandardCreateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -430,8 +430,8 @@ mutation standardUpdate($input: StandardUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -483,10 +483,10 @@ mutation standardUpdate($input: StandardUpdateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -525,10 +525,10 @@ mutation standardUpdate($input: StandardUpdateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted

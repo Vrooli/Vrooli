@@ -4,6 +4,7 @@ import { Phone, PhoneCreateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'Phone' as const;
 const suppFields = [] as const;
@@ -13,7 +14,7 @@ export const PhoneModel: ModelLogic<{
     GqlCreate: PhoneCreateInput,
     GqlUpdate: undefined,
     GqlModel: Phone,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.phoneUpsertArgs['create'],
@@ -76,9 +77,7 @@ export const PhoneModel: ModelLogic<{
             User: data.user,
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canView: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         permissionsSelect: () => ({
             id: true,

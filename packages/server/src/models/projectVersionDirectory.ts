@@ -13,7 +13,7 @@ export const ProjectVersionDirectoryModel: ModelLogic<{
     GqlCreate: ProjectVersionDirectoryCreateInput,
     GqlUpdate: ProjectVersionDirectoryUpdateInput,
     GqlModel: ProjectVersionDirectory,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.project_version_directoryUpsertArgs['create'],

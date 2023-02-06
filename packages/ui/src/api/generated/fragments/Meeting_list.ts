@@ -24,10 +24,10 @@ organization {
     you {
         canAddMembers
         canDelete
-        canEdit
         canStar
         canReport
-        canView
+        canUpdate
+        canRead
         isStarred
         isViewed
         yourMembership {
@@ -52,10 +52,10 @@ restrictedToRoles {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -85,10 +85,10 @@ restrictedToRoles {
         you {
             canAddMembers
             canDelete
-            canEdit
             canStar
             canReport
-            canView
+            canUpdate
+            canRead
             isStarred
             isViewed
             yourMembership {
@@ -110,7 +110,7 @@ attendeesCount
 invitesCount
 you {
     canDelete
-    canEdit
     canInvite
+    canUpdate
 }
 }`;

@@ -30,8 +30,8 @@ query routineVersion($input: FindByIdInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         root {
@@ -88,10 +88,10 @@ query routineVersion($input: FindByIdInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -121,10 +121,10 @@ query routineVersion($input: FindByIdInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     inputs {
@@ -160,10 +160,10 @@ query routineVersion($input: FindByIdInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         translations {
@@ -240,8 +240,8 @@ query routineVersion($input: FindByIdInput!) {
                     you {
                         canComment
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                     }
                 }
                 root {
@@ -298,10 +298,10 @@ query routineVersion($input: FindByIdInput!) {
                     views
                     you {
                         canDelete
-                        canEdit
                         canStar
                         canTransfer
-                        canView
+                        canUpdate
+                        canRead
                         canVote
                         isStarred
                         isUpvoted
@@ -331,10 +331,10 @@ query routineVersion($input: FindByIdInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             inputs {
@@ -370,10 +370,10 @@ query routineVersion($input: FindByIdInput!) {
                         canComment
                         canCopy
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                         canUse
-                        canView
+                        canRead
                     }
                 }
                 translations {
@@ -416,10 +416,10 @@ query routineVersion($input: FindByIdInput!) {
                         canComment
                         canCopy
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                         canUse
-                        canView
+                        canRead
                     }
                 }
                 translations {
@@ -444,8 +444,8 @@ query routineVersion($input: FindByIdInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                 }
             }
             resourceList {
@@ -533,9 +533,9 @@ query routineVersion($input: FindByIdInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canStar
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -559,8 +559,8 @@ query routineVersion($input: FindByIdInput!) {
                     you {
                         canComment
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                     }
                 }
                 resourceList {
@@ -639,10 +639,10 @@ query routineVersion($input: FindByIdInput!) {
                     views
                     you {
                         canDelete
-                        canEdit
                         canStar
                         canTransfer
-                        canView
+                        canUpdate
+                        canRead
                         canVote
                         isStarred
                         isUpvoted
@@ -675,10 +675,10 @@ query routineVersion($input: FindByIdInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             suggestedNextByRoutineVersion {
@@ -773,10 +773,10 @@ query routineVersion($input: FindByIdInput!) {
                                     canComment
                                     canCopy
                                     canDelete
-                                    canEdit
                                     canReport
+                                    canUpdate
                                     canUse
-                                    canView
+                                    canRead
                                 }
                             }
                         }
@@ -853,18 +853,18 @@ query routineVersion($input: FindByIdInput!) {
                     }
                     you {
                         canDelete
-                        canEdit
-                        canView
+                        canUpdate
+                        canRead
                     }
                 }
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canStar
                 canReport
                 canRun
-                canView
+                canUpdate
+                canRead
                 canVote
             }
         }
@@ -922,10 +922,10 @@ query routineVersion($input: FindByIdInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         translations {
@@ -950,8 +950,8 @@ query routineVersion($input: FindByIdInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     resourceList {
@@ -1039,9 +1039,9 @@ query routineVersion($input: FindByIdInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canStar
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -1065,8 +1065,8 @@ query routineVersion($input: FindByIdInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -1145,10 +1145,10 @@ query routineVersion($input: FindByIdInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -1181,10 +1181,10 @@ query routineVersion($input: FindByIdInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     suggestedNextByRoutineVersion {
@@ -1279,10 +1279,10 @@ query routineVersion($input: FindByIdInput!) {
                             canComment
                             canCopy
                             canDelete
-                            canEdit
                             canReport
+                            canUpdate
                             canUse
-                            canView
+                            canRead
                         }
                     }
                 }
@@ -1359,18 +1359,18 @@ query routineVersion($input: FindByIdInput!) {
             }
             you {
                 canDelete
-                canEdit
-                canView
+                canUpdate
+                canRead
             }
         }
         canComment
         canCopy
         canDelete
-        canEdit
         canStar
         canReport
         canRun
-        canView
+        canUpdate
+        canRead
         canVote
     }
   }
@@ -1455,10 +1455,10 @@ query routineVersions($input: RoutineVersionSearchInput!) {
                                     canComment
                                     canCopy
                                     canDelete
-                                    canEdit
                                     canReport
+                                    canUpdate
                                     canUse
-                                    canView
+                                    canRead
                                 }
                             }
                         }
@@ -1535,18 +1535,18 @@ query routineVersions($input: RoutineVersionSearchInput!) {
                     }
                     you {
                         canDelete
-                        canEdit
-                        canView
+                        canUpdate
+                        canRead
                     }
                 }
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canStar
                 canReport
                 canRun
-                canView
+                canUpdate
+                canRead
                 canVote
             }
         }
@@ -1583,8 +1583,8 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         root {
@@ -1641,10 +1641,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -1674,10 +1674,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     inputs {
@@ -1713,10 +1713,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         translations {
@@ -1793,8 +1793,8 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                     you {
                         canComment
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                     }
                 }
                 root {
@@ -1851,10 +1851,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                     views
                     you {
                         canDelete
-                        canEdit
                         canStar
                         canTransfer
-                        canView
+                        canUpdate
+                        canRead
                         canVote
                         isStarred
                         isUpvoted
@@ -1884,10 +1884,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             inputs {
@@ -1923,10 +1923,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                         canComment
                         canCopy
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                         canUse
-                        canView
+                        canRead
                     }
                 }
                 translations {
@@ -1969,10 +1969,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                         canComment
                         canCopy
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                         canUse
-                        canView
+                        canRead
                     }
                 }
                 translations {
@@ -1997,8 +1997,8 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                 }
             }
             resourceList {
@@ -2086,9 +2086,9 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canStar
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -2112,8 +2112,8 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                     you {
                         canComment
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                     }
                 }
                 resourceList {
@@ -2192,10 +2192,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                     views
                     you {
                         canDelete
-                        canEdit
                         canStar
                         canTransfer
-                        canView
+                        canUpdate
+                        canRead
                         canVote
                         isStarred
                         isUpvoted
@@ -2228,10 +2228,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             suggestedNextByRoutineVersion {
@@ -2326,10 +2326,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                                     canComment
                                     canCopy
                                     canDelete
-                                    canEdit
                                     canReport
+                                    canUpdate
                                     canUse
-                                    canView
+                                    canRead
                                 }
                             }
                         }
@@ -2406,18 +2406,18 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                     }
                     you {
                         canDelete
-                        canEdit
-                        canView
+                        canUpdate
+                        canRead
                     }
                 }
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canStar
                 canReport
                 canRun
-                canView
+                canUpdate
+                canRead
                 canVote
             }
         }
@@ -2475,10 +2475,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         translations {
@@ -2503,8 +2503,8 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     resourceList {
@@ -2592,9 +2592,9 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canStar
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -2618,8 +2618,8 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -2698,10 +2698,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -2734,10 +2734,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     suggestedNextByRoutineVersion {
@@ -2832,10 +2832,10 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
                             canComment
                             canCopy
                             canDelete
-                            canEdit
                             canReport
+                            canUpdate
                             canUse
-                            canView
+                            canRead
                         }
                     }
                 }
@@ -2912,18 +2912,18 @@ mutation routineVersionCreate($input: RoutineVersionCreateInput!) {
             }
             you {
                 canDelete
-                canEdit
-                canView
+                canUpdate
+                canRead
             }
         }
         canComment
         canCopy
         canDelete
-        canEdit
         canStar
         canReport
         canRun
-        canView
+        canUpdate
+        canRead
         canVote
     }
   }
@@ -2954,8 +2954,8 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         root {
@@ -3012,10 +3012,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -3045,10 +3045,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     inputs {
@@ -3084,10 +3084,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         translations {
@@ -3164,8 +3164,8 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                     you {
                         canComment
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                     }
                 }
                 root {
@@ -3222,10 +3222,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                     views
                     you {
                         canDelete
-                        canEdit
                         canStar
                         canTransfer
-                        canView
+                        canUpdate
+                        canRead
                         canVote
                         isStarred
                         isUpvoted
@@ -3255,10 +3255,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             inputs {
@@ -3294,10 +3294,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                         canComment
                         canCopy
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                         canUse
-                        canView
+                        canRead
                     }
                 }
                 translations {
@@ -3340,10 +3340,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                         canComment
                         canCopy
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                         canUse
-                        canView
+                        canRead
                     }
                 }
                 translations {
@@ -3368,8 +3368,8 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                 }
             }
             resourceList {
@@ -3457,9 +3457,9 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canStar
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -3483,8 +3483,8 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                     you {
                         canComment
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                     }
                 }
                 resourceList {
@@ -3563,10 +3563,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                     views
                     you {
                         canDelete
-                        canEdit
                         canStar
                         canTransfer
-                        canView
+                        canUpdate
+                        canRead
                         canVote
                         isStarred
                         isUpvoted
@@ -3599,10 +3599,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             suggestedNextByRoutineVersion {
@@ -3697,10 +3697,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                                     canComment
                                     canCopy
                                     canDelete
-                                    canEdit
                                     canReport
+                                    canUpdate
                                     canUse
-                                    canView
+                                    canRead
                                 }
                             }
                         }
@@ -3777,18 +3777,18 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                     }
                     you {
                         canDelete
-                        canEdit
-                        canView
+                        canUpdate
+                        canRead
                     }
                 }
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canStar
                 canReport
                 canRun
-                canView
+                canUpdate
+                canRead
                 canVote
             }
         }
@@ -3846,10 +3846,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         translations {
@@ -3874,8 +3874,8 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     resourceList {
@@ -3963,9 +3963,9 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canStar
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -3989,8 +3989,8 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -4069,10 +4069,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -4105,10 +4105,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     suggestedNextByRoutineVersion {
@@ -4203,10 +4203,10 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
                             canComment
                             canCopy
                             canDelete
-                            canEdit
                             canReport
+                            canUpdate
                             canUse
-                            canView
+                            canRead
                         }
                     }
                 }
@@ -4283,18 +4283,18 @@ mutation routineVersionUpdate($input: RoutineVersionUpdateInput!) {
             }
             you {
                 canDelete
-                canEdit
-                canView
+                canUpdate
+                canRead
             }
         }
         canComment
         canCopy
         canDelete
-        canEdit
         canStar
         canReport
         canRun
-        canView
+        canUpdate
+        canRead
         canVote
     }
   }

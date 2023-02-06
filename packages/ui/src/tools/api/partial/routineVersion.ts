@@ -21,11 +21,11 @@ export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
         canComment: true,
         canCopy: true,
         canDelete: true,
-        canEdit: true,
         canStar: true,
         canReport: true,
         canRun: true,
-        canView: true,
+        canUpdate: true,
+        canRead: true,
         canVote: true,
     },
     full: {

@@ -15,7 +15,7 @@ const titleAria = 'editable-label-dialog-title';
 const descriptionAria = 'editable-label-dialog-description';
 
 export const EditableLabel = ({
-    canEdit,
+    canUpdate,
     handleUpdate,
     placeholder,
     onDialogOpen,
@@ -53,9 +53,9 @@ export const EditableLabel = ({
     }, [active, onDialogOpen]);
 
     const toggleActive = useCallback((event: any) => {
-        if (!canEdit) return;
+        if (!canUpdate) return;
         setActive(!active)
-    }, [active, canEdit]);
+    }, [active, canUpdate]);
 
     const handleCancel = useCallback((_?: unknown, reason?: 'backdropClick' | 'escapeKeyDown') => {
         // Don't close if formik is dirty and clicked outside
@@ -118,7 +118,7 @@ export const EditableLabel = ({
                 {/* Label */}
                 {renderLabel(text.trim().length > 0 ? text : (placeholder ?? ''))}
                 {/* Edit icon */}
-                {canEdit && (
+                {canUpdate && (
                     <IconButton
                         id={`edit-label-icon-button-${id}`}
                         onClick={toggleActive}

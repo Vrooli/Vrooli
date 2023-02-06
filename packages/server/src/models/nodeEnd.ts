@@ -16,7 +16,7 @@ export const NodeEndModel: ModelLogic<{
     GqlCreate: NodeEndCreateInput,
     GqlUpdate: NodeEndUpdateInput,
     GqlModel: NodeEnd,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_endUpsertArgs['create'],

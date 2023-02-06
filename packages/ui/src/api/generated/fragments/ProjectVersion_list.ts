@@ -27,10 +27,10 @@ root {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -58,9 +58,9 @@ you {
     canComment
     canCopy
     canDelete
-    canEdit
     canReport
+    canUpdate
     canUse
-    canView
+    canRead
 }
 }`;

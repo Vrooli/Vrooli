@@ -14,10 +14,10 @@ query member($input: FindByIdInput!) {
         you {
             canAddMembers
             canDelete
-            canEdit
             canStar
             canReport
-            canView
+            canUpdate
+            canRead
             isStarred
             isViewed
             yourMembership {
@@ -54,10 +54,10 @@ query members($input: MemberSearchInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -97,10 +97,10 @@ mutation memberUpdate($input: MemberUpdateInput!) {
         you {
             canAddMembers
             canDelete
-            canEdit
             canStar
             canReport
-            canView
+            canUpdate
+            canRead
             isStarred
             isViewed
             yourMembership {

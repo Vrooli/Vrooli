@@ -73,11 +73,11 @@ export const StandardView = ({
         onSubmit: () => { },
     });
 
-    const { canEdit, description, name } = useMemo(() => {
-        const { canEdit } = standardVersion?.you ?? {};
+    const { canUpdate, description, name } = useMemo(() => {
+        const { canUpdate } = standardVersion?.you ?? {};
         const { description } = getTranslation(standardVersion ?? partialData, [language]);
         const { name } = standardVersion?.root ?? partialData?.root ?? {};
-        return { canEdit, description, name };
+        return { canUpdate, description, name };
     }, [standardVersion, language, partialData]);
 
     useEffect(() => {
@@ -180,7 +180,7 @@ export const StandardView = ({
                 height: 'calc(64px + env(safe-area-inset-bottom))',
             }}>
                 {/* Edit button */}
-                {canEdit ? (
+                {canUpdate ? (
                     <ColorIconButton aria-label="confirm-title-change" background={palette.secondary.main} onClick={() => { onActionStart(ObjectAction.Edit) }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
@@ -208,7 +208,7 @@ export const StandardView = ({
             {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                 title={'Resources'}
                 list={resourceList}
-                canEdit={false}
+                canUpdate={false}
                 handleUpdate={() => { }} // Intentionally blank
                 loading={loading}
                 session={session}

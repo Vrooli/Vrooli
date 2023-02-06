@@ -5,13 +5,13 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
 import { addSupplementalFields, modelToGraphQL, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { oneIsPublic } from "../utils";
+import { defaultPermissions, oneIsPublic } from "../utils";
 import { GraphQLInfo, SelectWrap } from "../builders/types";
 import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'RunRoutine' as const;
-type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canEdit' | 'canView'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canView'] as const;
+type Permissions = Pick<RunRoutineYou, 'canDelete' | 'canUpdate' | 'canRead'>;
+const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canRead'] as const;
 export const RunRoutineModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -315,9 +315,7 @@ export const RunRoutineModel: ModelLogic<{
             user: 'User',
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: async () => isAdmin && !isDeleted,
-            canEdit: async () => isAdmin && !isDeleted,
-            canView: async () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         owner: (data) => ({
             Organization: data.organization,

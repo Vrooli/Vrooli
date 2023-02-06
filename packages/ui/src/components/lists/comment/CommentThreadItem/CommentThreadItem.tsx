@@ -35,11 +35,11 @@ export function CommentThreadItem({
     }), [object]);
     const { isStarred, isUpvoted } = useMemo(() => getYou(object as any), [object]);
 
-    const { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
-        const { canDelete, canEdit, canReply, canReport, canStar, canVote } = data?.you ?? {};
+    const { canDelete, canUpdate, canReply, canReport, canStar, canVote, displayText } = useMemo(() => {
+        const { canDelete, canUpdate, canReply, canReport, canStar, canVote } = data?.you ?? {};
         const languages = getUserLanguages(session);
         const { text } = getTranslation(data, languages, true);
-        return { canDelete, canEdit, canReply, canReport, canStar, canVote, displayText: text };
+        return { canDelete, canUpdate, canReply, canReport, canStar, canVote, displayText: text };
     }, [data, session]);
 
     const [deleteMutation, { loading: loadingDelete }] = useMutation<Success, DeleteOneInput, 'deleteOne'>(deleteOneOrManyDeleteOne, 'deleteOne');
@@ -111,7 +111,7 @@ export function CommentThreadItem({
                                             fontWeight: 'bold',
                                         }
                                     }} />}
-                                {canEdit && !(data?.owner?.id && data.owner.id === getCurrentUser(session).id) && <ListItemText
+                                {canUpdate && !(data?.owner?.id && data.owner.id === getCurrentUser(session).id) && <ListItemText
                                     primary={`(Can Edit)`}
                                     sx={{
                                         display: 'flex',

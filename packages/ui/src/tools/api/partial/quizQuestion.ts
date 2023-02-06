@@ -18,7 +18,7 @@ export const quizQuestionYou: GqlPartial<QuizQuestionYou> = {
     __typename: 'QuizQuestionYou',
     common: {
         canDelete: true,
-        canEdit: true,
+        canUpdate: true,
     },
     full: {},
     list: {},

@@ -1,7 +1,7 @@
 import { Resource, Session } from "@shared/consts";
 
 export interface ResourceCardProps {
-    canEdit: boolean;
+    canUpdate: boolean;
     data: Resource;
     index: number;
     onContextMenu: (target: EventTarget, index: number) => void;

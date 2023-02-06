@@ -15,10 +15,10 @@ query role($input: FindByIdInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -91,10 +91,10 @@ mutation roleCreate($input: RoleCreateInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -141,10 +141,10 @@ mutation roleUpdate($input: RoleUpdateInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {

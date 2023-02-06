@@ -18,7 +18,7 @@ import { ResourceUsedFor } from '@shared/consts';
 import { useTranslation } from 'react-i18next';
 
 export const ResourceCard = ({
-    canEdit,
+    canUpdate,
     data,
     index,
     onContextMenu,
@@ -70,10 +70,10 @@ export const ResourceCard = ({
     }, [onContextMenu, index]);
 
     const handleHover = useCallback(() => {
-        if (canEdit) {
+        if (canUpdate) {
             setShowIcons(true);
         }
-    }, [canEdit]);
+    }, [canUpdate]);
 
     const handleHoverEnd = useCallback(() => { setShowIcons(false) }, []);
 

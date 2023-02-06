@@ -43,9 +43,9 @@ query quizAttempt($input: FindByIdInput!) {
                 }
                 you {
                     canDelete
-                    canEdit
                     canStar
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -58,7 +58,7 @@ query quizAttempt($input: FindByIdInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
         translations {
@@ -68,7 +68,7 @@ query quizAttempt($input: FindByIdInput!) {
         }
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     id
@@ -105,9 +105,9 @@ query quizAttempt($input: FindByIdInput!) {
         }
         you {
             canDelete
-            canEdit
             canStar
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -120,7 +120,7 @@ query quizAttempt($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -165,9 +165,9 @@ query quizAttempts($input: QuizAttemptSearchInput!) {
                 }
                 you {
                     canDelete
-                    canEdit
                     canStar
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -180,7 +180,7 @@ query quizAttempts($input: QuizAttemptSearchInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
     }
@@ -234,9 +234,9 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
                 }
                 you {
                     canDelete
-                    canEdit
                     canStar
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -249,7 +249,7 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
         translations {
@@ -259,7 +259,7 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
         }
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     id
@@ -296,9 +296,9 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
         }
         you {
             canDelete
-            canEdit
             canStar
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -311,7 +311,7 @@ mutation quizAttemptCreate($input: QuizAttemptCreateInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -359,9 +359,9 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
                 }
                 you {
                     canDelete
-                    canEdit
                     canStar
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -374,7 +374,7 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
         translations {
@@ -384,7 +384,7 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
         }
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     id
@@ -421,9 +421,9 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
         }
         you {
             canDelete
-            canEdit
             canStar
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -436,7 +436,7 @@ mutation quizAttemptUpdate($input: QuizAttemptUpdateInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;

@@ -70,10 +70,10 @@ versions {
                             canComment
                             canCopy
                             canDelete
-                            canEdit
                             canReport
+                            canUpdate
                             canUse
-                            canView
+                            canRead
                         }
                     }
                 }
@@ -150,18 +150,18 @@ versions {
             }
             you {
                 canDelete
-                canEdit
-                canView
+                canUpdate
+                canRead
             }
         }
         canComment
         canCopy
         canDelete
-        canEdit
         canStar
         canReport
         canRun
-        canView
+        canUpdate
+        canRead
         canVote
     }
 }
@@ -194,9 +194,9 @@ views
 you {
     canComment
     canDelete
-    canEdit
     canStar
-    canView
+    canUpdate
+    canRead
     canVote
     isStarred
     isUpvoted

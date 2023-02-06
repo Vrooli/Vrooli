@@ -12,7 +12,7 @@ import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { noNull, padSelect } from "../builders";
-import { oneIsPublic } from "../utils";
+import { defaultPermissions, oneIsPublic } from "../utils";
 import { StandardVersionModel } from "./standardVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
@@ -31,8 +31,8 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Standa
 }
 
 const __typename = 'Standard' as const;
-type Permissions = Pick<StandardYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
+type Permissions = Pick<StandardYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canTransfer', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
 export const StandardModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -385,12 +385,7 @@ export const StandardModel: ModelLogic<{
             },
         },
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canStar: () => !isDeleted && (isAdmin || isPublic),
-            canTransfer: () => isAdmin && !isDeleted,
-            canView: () => !isDeleted && (isAdmin || isPublic),
-            canVote: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         permissionsSelect: (...params) => ({
             id: true,

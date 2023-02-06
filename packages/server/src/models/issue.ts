@@ -9,8 +9,8 @@ import { ModelLogic } from "./types";
 import { VoteModel } from "./vote";
 
 const __typename = 'Issue' as const;
-type Permissions = Pick<IssueYou, 'canComment' | 'canDelete' | 'canEdit' | 'canStar' | 'canReport' | 'canView' | 'canVote'>;
-const suppFields = ['you.canComment', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canReport', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
+type Permissions = Pick<IssueYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canStar' | 'canReport' | 'canRead' | 'canVote'>;
+const suppFields = ['you.canComment', 'you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canReport', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
 export const IssueModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,

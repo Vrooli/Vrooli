@@ -44,7 +44,7 @@ export const typeDef = gql`
 
     type ReportResponseYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
     }
 
     input ReportResponseSearchInput {

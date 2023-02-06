@@ -19,7 +19,7 @@ type Model = {
     GqlModel: Transfer,
     GqlSearch: TransferSearchInput,
     GqlSort: TransferSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.transferUpsertArgs['create'],
     PrismaUpdate: Prisma.transferUpsertArgs['update'],
     PrismaModel: Prisma.transferGetPayload<SelectWrap<Prisma.transferSelect>>,

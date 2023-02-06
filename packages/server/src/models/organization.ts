@@ -8,13 +8,13 @@ import { ModelLogic } from "./types";
 import { uuid } from "@shared/uuid";
 import { getSingleTypePermissions, lineBreaksCheck, handlesCheck } from "../validators";
 import { noNull, onlyValidIds, shapeHelper } from "../builders";
-import { bestLabel, tagShapeHelper, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, tagShapeHelper, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
 
 const __typename = 'Organization' as const;
-type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canEdit' | 'canStar' | 'canView'>;
-const suppFields = ['you.canAddMembers', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canView', 'you.isStarred', 'you.isViewed', 'translatedName'] as const;
+type Permissions = Pick<OrganizationYou, 'canAddMembers' | 'canDelete' | 'canUpdate' | 'canStar' | 'canRead'>;
+const suppFields = ['you.canAddMembers', 'you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canRead', 'you.isStarred', 'you.isViewed', 'translatedName'] as const;
 export const OrganizationModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -309,13 +309,9 @@ export const OrganizationModel: ModelLogic<{
         owner: (data) => ({
             Organization: data,
         }),
-        permissionResolvers: ({ isAdmin, isPublic }) => ({
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
             canAddMembers: () => isAdmin,
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
-            canReport: () => !isAdmin && isPublic,
-            canStar: () => isAdmin || isPublic,
-            canView: () => isAdmin || isPublic,
         }),
         permissionsSelect: (userId) => ({
             id: true,

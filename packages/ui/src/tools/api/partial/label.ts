@@ -6,7 +6,7 @@ export const labelYou: GqlPartial<LabelYou> = {
     __typename: 'LabelYou',
     full: {
         canDelete: true,
-        canEdit: true,
+        canUpdate: true,
     },
 }
 

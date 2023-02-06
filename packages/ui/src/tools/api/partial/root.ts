@@ -7,9 +7,9 @@ export const versionYou: GqlPartial<VersionYou> = {
         canComment: true,
         canCopy: true,
         canDelete: true,
-        canEdit: true,
         canReport: true,
+        canUpdate: true,
         canUse: true,
-        canView: true,
+        canRead: true,
     },
 }

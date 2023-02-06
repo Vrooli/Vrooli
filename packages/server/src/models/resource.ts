@@ -15,7 +15,7 @@ type Model = {
     GqlModel: Resource,
     GqlSearch: ResourceSearchInput,
     GqlSort: ResourceSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.resourceUpsertArgs['create'],
     PrismaUpdate: Prisma.resourceUpsertArgs['update'],
     PrismaModel: Prisma.resourceGetPayload<SelectWrap<Prisma.resourceSelect>>,

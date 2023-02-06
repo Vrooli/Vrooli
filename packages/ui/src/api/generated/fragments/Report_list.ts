@@ -8,7 +8,7 @@ reason
 responsesCount
 you {
     canDelete
-    canEdit
     canRespond
+    canUpdate
 }
 }`;

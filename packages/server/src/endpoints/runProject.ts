@@ -72,8 +72,8 @@ export const typeDef = gql`
 
     type RunProjectYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canView: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
     }
 
     input RunProjectSearchInput {

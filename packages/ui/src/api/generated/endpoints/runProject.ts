@@ -97,8 +97,8 @@ query runProject($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;
@@ -165,8 +165,8 @@ query runProjects($input: RunProjectSearchInput!) {
             }
             you {
                 canDelete
-                canEdit
-                canView
+                canUpdate
+                canRead
             }
         }
     }
@@ -271,8 +271,8 @@ mutation runProjectCreate($input: RunProjectCreateInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;
@@ -371,8 +371,8 @@ mutation runProjectUpdate($input: RunProjectUpdateInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;
@@ -478,8 +478,8 @@ mutation runProjectComplete($input: RunProjectCompleteInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;
@@ -578,8 +578,8 @@ mutation runProjectCancel($input: RunProjectCancelInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;

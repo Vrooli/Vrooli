@@ -7,8 +7,8 @@ import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'QuizAttempt' as const;
-type Permissions = Pick<QuizAttemptYou, 'canDelete' | 'canEdit'>;
-const suppFields = ['you.canDelete', 'you.canEdit'] as const;
+type Permissions = Pick<QuizAttemptYou, 'canDelete' | 'canUpdate'>;
+const suppFields = ['you.canDelete', 'you.canUpdate'] as const;
 export const QuizAttemptModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,

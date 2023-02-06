@@ -35,7 +35,7 @@ export const RoutineVersionOutputModel: ModelLogic<{
     GqlCreate: RoutineVersionOutputCreateInput,
     GqlUpdate: RoutineVersionOutputUpdateInput,
     GqlModel: RoutineVersionOutput,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.routine_version_outputUpsertArgs['create'],

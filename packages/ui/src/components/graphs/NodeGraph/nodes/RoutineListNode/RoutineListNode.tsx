@@ -169,7 +169,7 @@ export const RoutineListNode = ({
         if (!labelVisible) return null;
         return (
             <EditableLabel
-                canEdit={isEditing && collapseOpen}
+                canUpdate={isEditing && collapseOpen}
                 handleUpdate={handleLabelUpdate}
                 onDialogOpen={onLabelDialogOpen}
                 renderLabel={(l) => (

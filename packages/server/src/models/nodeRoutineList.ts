@@ -16,7 +16,7 @@ export const NodeRoutineListModel: ModelLogic<{
     GqlCreate: NodeRoutineListCreateInput,
     GqlUpdate: NodeRoutineListUpdateInput,
     GqlModel: NodeRoutineList,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_routine_listUpsertArgs['create'],

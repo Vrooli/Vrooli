@@ -6,10 +6,10 @@ export const apiYou: GqlPartial<ApiYou> = {
     __typename: 'ApiYou',
     full: {
         canDelete: true,
-        canEdit: true,
         canStar: true,
         canTransfer: true,
-        canView: true,
+        canUpdate: true,
+        canRead: true,
         canVote: true,
         isStarred: true,
         isUpvoted: true,

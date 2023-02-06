@@ -3,7 +3,7 @@ import { walletValidation } from '@shared/validation';
 import { CustomError } from "../events";
 import { Wallet, WalletUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
-import { oneIsPublic } from "../utils";
+import { defaultPermissions, oneIsPublic } from "../utils";
 import { OrganizationModel } from "./organization";
 import { ModelLogic } from "./types";
 import { SelectWrap } from "../builders/types";
@@ -16,7 +16,7 @@ export const WalletModel: ModelLogic<{
     GqlCreate: undefined,
     GqlUpdate: WalletUpdateInput,
     GqlModel: Wallet,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.walletUpsertArgs['create'],
@@ -72,7 +72,9 @@ export const WalletModel: ModelLogic<{
             organization: 'Organization',
             user: 'User',
         }),
-        permissionResolvers: () => ({}),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
+        }),
         owner: (data) => ({
             Organization: data.organization,
             User: data.user,

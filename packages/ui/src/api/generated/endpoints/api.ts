@@ -44,8 +44,8 @@ query api($input: FindByIdInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         translations {
@@ -71,10 +71,10 @@ query api($input: FindByIdInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -113,10 +113,10 @@ query api($input: FindByIdInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -158,10 +158,10 @@ query apis($input: ApiSearchInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             id
@@ -191,10 +191,10 @@ query apis($input: ApiSearchInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -249,8 +249,8 @@ mutation apiCreate($input: ApiCreateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         translations {
@@ -276,10 +276,10 @@ mutation apiCreate($input: ApiCreateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -318,10 +318,10 @@ mutation apiCreate($input: ApiCreateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -370,8 +370,8 @@ mutation apiUpdate($input: ApiUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         translations {
@@ -397,10 +397,10 @@ mutation apiUpdate($input: ApiUpdateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -439,10 +439,10 @@ mutation apiUpdate($input: ApiUpdateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted

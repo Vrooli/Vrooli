@@ -6,7 +6,7 @@ export const meetingInviteYou: GqlPartial<MeetingInviteYou> = {
     __typename: 'MeetingInviteYou',
     full: {
         canDelete: true,
-        canEdit: true,
+        canUpdate: true,
     },
 }
 

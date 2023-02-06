@@ -9,7 +9,7 @@ import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
-import { oneIsPublic } from "../utils";
+import { defaultPermissions, oneIsPublic } from "../utils";
 import { ProjectVersionModel } from "./projectVersion";
 import { SelectWrap } from "../builders/types";
 import { getLabels } from "../getters";
@@ -28,8 +28,8 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
 }
 
 const __typename = 'Project' as const;
-type Permissions = Pick<ProjectYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
+type Permissions = Pick<ProjectYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canTransfer', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
 export const ProjectModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -213,15 +213,7 @@ export const ProjectModel: ModelLogic<{
             User: data.ownedByUser,
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canComment: () => !isDeleted && (isAdmin || isPublic),
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canReport: () => !isAdmin && !isDeleted && isPublic,
-            canRun: () => !isDeleted && (isAdmin || isPublic),
-            canStar: () => !isDeleted && (isAdmin || isPublic),
-            canTransfer: () => isAdmin && !isDeleted,
-            canView: () => !isDeleted && (isAdmin || isPublic),
-            canVote: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         permissionsSelect: (...params) => ({
             id: true,

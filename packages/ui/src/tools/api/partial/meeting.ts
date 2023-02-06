@@ -19,8 +19,8 @@ export const meetingYou: GqlPartial<MeetingYou> = {
     __typename: 'MeetingYou',
     common: {
         canDelete: true,
-        canEdit: true,
         canInvite: true,
+        canUpdate: true,
     },
     full: {},
     list: {},

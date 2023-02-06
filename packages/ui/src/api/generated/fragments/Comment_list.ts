@@ -20,10 +20,10 @@ stars
 reportsCount
 you {
     canDelete
-    canEdit
     canStar
     canReply
     canReport
+    canUpdate
     canVote
     isStarred
     isUpvoted

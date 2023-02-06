@@ -84,7 +84,7 @@ export interface ReportsLinkProps {
 }
 
 export interface RunButtonProps {
-    canEdit: boolean;
+    canUpdate: boolean;
     handleRunAdd: (run: RunProject | RunRoutine) => void;
     handleRunDelete: (run: RunProject | RunRoutine) => void;
     isBuildGraphOpen: boolean;

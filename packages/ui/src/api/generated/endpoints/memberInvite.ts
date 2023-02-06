@@ -16,10 +16,10 @@ query memberInvite($input: FindByIdInput!) {
         you {
             canAddMembers
             canDelete
-            canEdit
             canStar
             canReport
-            canView
+            canUpdate
+            canRead
             isStarred
             isViewed
             yourMembership {
@@ -38,7 +38,7 @@ query memberInvite($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -62,10 +62,10 @@ query memberInvites($input: MemberInviteSearchInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -84,7 +84,7 @@ query memberInvites($input: MemberInviteSearchInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
     }
@@ -111,10 +111,10 @@ mutation memberInviteCreate($input: MemberInviteCreateInput!) {
         you {
             canAddMembers
             canDelete
-            canEdit
             canStar
             canReport
-            canView
+            canUpdate
+            canRead
             isStarred
             isViewed
             yourMembership {
@@ -133,7 +133,7 @@ mutation memberInviteCreate($input: MemberInviteCreateInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -154,10 +154,10 @@ mutation memberInviteUpdate($input: MemberInviteUpdateInput!) {
         you {
             canAddMembers
             canDelete
-            canEdit
             canStar
             canReport
-            canView
+            canUpdate
+            canRead
             isStarred
             isViewed
             yourMembership {
@@ -176,7 +176,7 @@ mutation memberInviteUpdate($input: MemberInviteUpdateInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -197,10 +197,10 @@ mutation memberInviteAccept($input: FindByIdInput!) {
         you {
             canAddMembers
             canDelete
-            canEdit
             canStar
             canReport
-            canView
+            canUpdate
+            canRead
             isStarred
             isViewed
             yourMembership {
@@ -219,7 +219,7 @@ mutation memberInviteAccept($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -240,10 +240,10 @@ mutation memberInviteDecline($input: FindByIdInput!) {
         you {
             canAddMembers
             canDelete
-            canEdit
             canStar
             canReport
-            canView
+            canUpdate
+            canRead
             isStarred
             isViewed
             yourMembership {
@@ -262,7 +262,7 @@ mutation memberInviteDecline($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;

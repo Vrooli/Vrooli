@@ -12,7 +12,7 @@ export const NodeLoopModel: ModelLogic<{
     GqlCreate: NodeLoopCreateInput,
     GqlUpdate: NodeLoopUpdateInput,
     GqlModel: NodeLoop,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_loopUpsertArgs['create'],

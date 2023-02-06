@@ -33,7 +33,7 @@ export const VoteModel: ModelLogic<{
     GqlModel: Vote,
     GqlSearch: VoteSearchInput,
     GqlSort: VoteSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.voteUpsertArgs['create'],
     PrismaUpdate: Prisma.voteUpsertArgs['update'],
     PrismaModel: Prisma.voteGetPayload<SelectWrap<Prisma.voteSelect>>,

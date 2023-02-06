@@ -13,7 +13,7 @@ export const PremiumModel: ModelLogic<{
     GqlCreate: undefined,
     GqlUpdate: undefined,
     GqlModel: Premium,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.premiumUpsertArgs['create'],

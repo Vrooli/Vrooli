@@ -13,7 +13,7 @@ import { deleteOneOrManyDeleteOne } from 'api/generated/endpoints/deleteOneOrMan
 
 export const ResourceListVertical = ({
     title = '📌 Resources',
-    canEdit = true,
+    canUpdate = true,
     handleUpdate,
     mutate,
     list,
@@ -112,7 +112,7 @@ export const ResourceListVertical = ({
         <>
             {/* Right-click context menu */}
             <ResourceListItemContextMenu
-                canEdit={canEdit}
+                canUpdate={canUpdate}
                 id={contextId}
                 anchorEl={contextAnchor}
                 index={selectedIndex ?? -1}
@@ -139,7 +139,7 @@ export const ResourceListVertical = ({
                 {list.resources.map((c: Resource, index) => (
                     <ResourceListItem
                         key={`resource-card-${index}`}
-                        canEdit={canEdit}
+                        canUpdate={canUpdate}
                         data={c}
                         handleContextMenu={openContext}
                         handleEdit={() => openUpdateDialog(index)}
@@ -151,7 +151,7 @@ export const ResourceListVertical = ({
                 ))}
             </Box>}
             {/* Add resource button */}
-            {canEdit && <Box sx={{
+            {canUpdate && <Box sx={{
                 maxWidth: '400px',
                 margin: 'auto',
                 paddingTop: 5,

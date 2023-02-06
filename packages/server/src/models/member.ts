@@ -17,7 +17,7 @@ export const MemberModel: ModelLogic<{
     GqlModel: Member,
     GqlSearch: MemberSearchInput,
     GqlSort: MemberSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.memberUpsertArgs['create'],
     PrismaUpdate: Prisma.memberUpsertArgs['update'],
     PrismaModel: Prisma.memberGetPayload<SelectWrap<Prisma.memberSelect>>,

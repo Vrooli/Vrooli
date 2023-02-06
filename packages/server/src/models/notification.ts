@@ -14,7 +14,7 @@ export const NotificationModel: ModelLogic<{
     GqlModel: Notification,
     GqlSearch: NotificationSearchInput,
     GqlSort: NotificationSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.notificationUpsertArgs['create'],
     PrismaUpdate: Prisma.notificationUpsertArgs['update'],
     PrismaModel: Prisma.notificationGetPayload<SelectWrap<Prisma.notificationSelect>>,

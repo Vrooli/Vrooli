@@ -12,7 +12,7 @@ export const ReminderItemModel: ModelLogic<{
     GqlCreate: ReminderItemCreateInput,
     GqlUpdate: ReminderItemUpdateInput,
     GqlModel: ReminderItem,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.reminder_itemUpsertArgs['create'],

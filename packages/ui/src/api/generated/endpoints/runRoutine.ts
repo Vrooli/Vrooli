@@ -45,10 +45,10 @@ query runRoutine($input: FindByIdInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
         }
@@ -125,8 +125,8 @@ query runRoutine($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;
@@ -179,8 +179,8 @@ query runRoutines($input: RunRoutineSearchInput!) {
             }
             you {
                 canDelete
-                canEdit
-                canView
+                canUpdate
+                canRead
             }
         }
     }
@@ -233,10 +233,10 @@ mutation runRoutineCreate($input: RunRoutineCreateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
         }
@@ -313,8 +313,8 @@ mutation runRoutineCreate($input: RunRoutineCreateInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;
@@ -361,10 +361,10 @@ mutation runRoutineUpdate($input: RunRoutineUpdateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
         }
@@ -441,8 +441,8 @@ mutation runRoutineUpdate($input: RunRoutineUpdateInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;
@@ -496,10 +496,10 @@ mutation runRoutineComplete($input: RunRoutineCompleteInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
         }
@@ -576,8 +576,8 @@ mutation runRoutineComplete($input: RunRoutineCompleteInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;
@@ -624,10 +624,10 @@ mutation runRoutineCancel($input: RunRoutineCancelInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
         }
@@ -704,8 +704,8 @@ mutation runRoutineCancel($input: RunRoutineCancelInput!) {
     }
     you {
         canDelete
-        canEdit
-        canView
+        canUpdate
+        canRead
     }
   }
 }`;

@@ -75,7 +75,7 @@ export const UserView = ({
         <ResourceListVertical
             list={resourceList}
             session={session}
-            canEdit={isOwn}
+            canUpdate={isOwn}
             handleUpdate={(updatedList) => {
                 if (!user) return;
                 setUser({

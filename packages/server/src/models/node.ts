@@ -5,7 +5,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { CustomError } from "../events";
 import { RoutineModel } from "./routine";
-import { bestLabel, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, translationShapeHelper } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { noNull, shapeHelper } from "../builders";
 
@@ -18,7 +18,7 @@ export const NodeModel: ModelLogic<{
     GqlCreate: NodeCreateInput,
     GqlUpdate: NodeUpdateInput,
     GqlModel: Node,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.nodeUpsertArgs['create'],
@@ -90,9 +90,8 @@ export const NodeModel: ModelLogic<{
             Organization: 0,
         },
         permissionsSelect: () => ({ routineVersion: 'RoutineVersion' }),
-        permissionResolvers: ({ isAdmin }) => ({
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         owner: (data) => RoutineModel.validate!.owner(data.routineVersion as any),
         isDeleted: (data, languages) => RoutineModel.validate!.isDeleted(data.routineVersion as any, languages),

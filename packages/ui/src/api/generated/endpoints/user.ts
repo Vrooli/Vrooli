@@ -225,8 +225,8 @@ query user($input: FindByIdInput!) {
     reportsCount
     you {
         canDelete
-        canEdit
         canReport
+        canUpdate
         isStarred
         isViewed
     }
@@ -252,8 +252,8 @@ query users($input: UserSearchInput!) {
             reportsCount
             you {
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 isStarred
                 isViewed
             }

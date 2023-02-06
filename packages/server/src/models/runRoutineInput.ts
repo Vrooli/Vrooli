@@ -6,6 +6,7 @@ import { RunRoutineModel } from "./runRoutine";
 import { padSelect } from "../builders";
 import { SelectWrap } from "../builders/types";
 import { RoutineVersionInputModel } from ".";
+import { defaultPermissions } from '../utils';
 
 const __typename = 'RunRoutineInput' as const;
 const suppFields = [] as const;
@@ -17,7 +18,7 @@ export const RunRoutineInputModel: ModelLogic<{
     GqlModel: RunRoutineInput,
     GqlSearch: RunRoutineInputSearchInput,
     GqlSort: RunRoutineInputSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.run_routine_inputUpsertArgs['create'],
     PrismaUpdate: Prisma.run_routine_inputUpsertArgs['update'],
     PrismaModel: Prisma.run_routine_inputGetPayload<SelectWrap<Prisma.run_routine_inputSelect>>,
@@ -91,10 +92,8 @@ export const RunRoutineInputModel: ModelLogic<{
             id: true,
             runRoutine: 'RunRoutine',
         }),
-        permissionResolvers: ({ isAdmin, isPublic }) => ({
-            canDelete: async () => isAdmin,
-            canEdit: async () => isAdmin,
-            canView: async () => isPublic,
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         profanityFields: ['data'],
         owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),

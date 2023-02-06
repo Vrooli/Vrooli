@@ -31,7 +31,7 @@ query label($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -58,7 +58,7 @@ query labels($input: LabelSearchInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
     }
@@ -98,7 +98,7 @@ mutation labelCreate($input: LabelCreateInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -132,7 +132,7 @@ mutation labelUpdate($input: LabelUpdateInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;

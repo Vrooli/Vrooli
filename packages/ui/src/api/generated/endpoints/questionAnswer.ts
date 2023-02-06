@@ -41,10 +41,10 @@ query questionAnswer($input: FindByIdInput!) {
         reportsCount
         you {
             canDelete
-            canEdit
             canStar
             canReply
             canReport
+            canUpdate
             canVote
             isStarred
             isUpvoted
@@ -176,10 +176,10 @@ mutation questionAnswerCreate($input: QuestionAnswerCreateInput!) {
         reportsCount
         you {
             canDelete
-            canEdit
             canStar
             canReply
             canReport
+            canUpdate
             canVote
             isStarred
             isUpvoted
@@ -279,10 +279,10 @@ mutation questionAnswerUpdate($input: QuestionAnswerUpdateInput!) {
         reportsCount
         you {
             canDelete
-            canEdit
             canStar
             canReply
             canReport
+            canUpdate
             canVote
             isStarred
             isUpvoted
@@ -382,10 +382,10 @@ mutation questionAnswerMarkAsAccepted($input: FindByIdInput!) {
         reportsCount
         you {
             canDelete
-            canEdit
             canStar
             canReply
             canReport
+            canUpdate
             canVote
             isStarred
             isUpvoted

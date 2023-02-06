@@ -89,10 +89,10 @@ export const typeDef = gql`
     type IssueYou {
         canComment: Boolean!
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
         canStar: Boolean!
         canReport: Boolean!
-        canView: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean

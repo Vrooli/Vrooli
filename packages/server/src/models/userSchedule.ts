@@ -53,7 +53,7 @@ export const UserScheduleModel: ModelLogic<{
     GqlModel: UserSchedule,
     GqlSearch: UserScheduleSearchInput,
     GqlSort: UserScheduleSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.user_scheduleUpsertArgs['create'],
     PrismaUpdate: Prisma.user_scheduleUpsertArgs['update'],
     PrismaModel: Prisma.user_scheduleGetPayload<SelectWrap<Prisma.user_scheduleSelect>>,

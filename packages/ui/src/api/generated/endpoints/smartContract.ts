@@ -45,8 +45,8 @@ query smartContract($input: FindByIdInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -97,10 +97,10 @@ query smartContract($input: FindByIdInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -139,10 +139,10 @@ query smartContract($input: FindByIdInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -188,10 +188,10 @@ query smartContracts($input: SmartContractSearchInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             id
@@ -221,10 +221,10 @@ query smartContracts($input: SmartContractSearchInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -280,8 +280,8 @@ mutation smartContractCreate($input: SmartContractCreateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -332,10 +332,10 @@ mutation smartContractCreate($input: SmartContractCreateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -374,10 +374,10 @@ mutation smartContractCreate($input: SmartContractCreateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -427,8 +427,8 @@ mutation smartContractUpdate($input: SmartContractUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -479,10 +479,10 @@ mutation smartContractUpdate($input: SmartContractUpdateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -521,10 +521,10 @@ mutation smartContractUpdate($input: SmartContractUpdateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted

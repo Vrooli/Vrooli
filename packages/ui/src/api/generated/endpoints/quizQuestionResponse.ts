@@ -42,9 +42,9 @@ query quizQuestionResponse($input: FindByIdInput!) {
             }
             you {
                 canDelete
-                canEdit
                 canStar
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -57,7 +57,7 @@ query quizQuestionResponse($input: FindByIdInput!) {
         }
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     translations {
@@ -67,7 +67,7 @@ query quizQuestionResponse($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -117,9 +117,9 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                     }
                     you {
                         canDelete
-                        canEdit
                         canStar
-                        canView
+                        canUpdate
+                        canRead
                         canVote
                         isStarred
                         isUpvoted
@@ -132,7 +132,7 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
                 }
                 you {
                     canDelete
-                    canEdit
+                    canUpdate
                 }
             }
             translations {
@@ -142,7 +142,7 @@ query quizQuestionResponses($input: QuizQuestionResponseSearchInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
     }
@@ -195,9 +195,9 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
             }
             you {
                 canDelete
-                canEdit
                 canStar
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -210,7 +210,7 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
         }
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     translations {
@@ -220,7 +220,7 @@ mutation quizQuestionResponseCreate($input: QuizQuestionResponseCreateInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -267,9 +267,9 @@ mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
             }
             you {
                 canDelete
-                canEdit
                 canStar
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -282,7 +282,7 @@ mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
         }
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     translations {
@@ -292,7 +292,7 @@ mutation quizQuestionResponseUpdate($input: QuizQuestionResponseUpdateInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;

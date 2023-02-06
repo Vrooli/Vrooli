@@ -9,8 +9,8 @@ import { StarModel } from "./star";
 import { VoteModel } from "./vote";
 
 const __typename = 'Quiz' as const;
-type Permissions = Pick<QuizYou, 'canDelete' | 'canEdit' | 'canStar' | 'canView' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
+type Permissions = Pick<QuizYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canRead' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
 export const QuizModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,

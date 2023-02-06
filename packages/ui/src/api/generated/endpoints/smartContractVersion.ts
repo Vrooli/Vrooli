@@ -27,8 +27,8 @@ query smartContractVersion($input: FindByIdInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     resourceList {
@@ -107,10 +107,10 @@ query smartContractVersion($input: FindByIdInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -143,10 +143,10 @@ query smartContractVersion($input: FindByIdInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -183,10 +183,10 @@ query smartContractVersions($input: SmartContractVersionSearchInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
     }
@@ -220,8 +220,8 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     resourceList {
@@ -300,10 +300,10 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -336,10 +336,10 @@ mutation smartContractVersionCreate($input: SmartContractVersionCreateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -367,8 +367,8 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     resourceList {
@@ -447,10 +447,10 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -483,10 +483,10 @@ mutation smartContractVersionUpdate($input: SmartContractVersionUpdateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;

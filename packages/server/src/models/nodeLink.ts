@@ -15,7 +15,7 @@ export const NodeLinkModel: ModelLogic<{
     GqlCreate: NodeLinkCreateInput,
     GqlUpdate: NodeLinkUpdateInput,
     GqlModel: NodeLink,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.node_linkUpsertArgs['create'],

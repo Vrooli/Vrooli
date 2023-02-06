@@ -8,7 +8,7 @@ import { OrganizationModel } from "./organization";
 import { ProjectModel } from "./project";
 import { RoutineModel } from "./routine";
 import { StandardModel } from "./standard";
-import { bestLabel, oneIsPublic } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { ApiModel } from "./api";
 import { PostModel } from "./post";
@@ -37,7 +37,7 @@ export const ResourceListModel: ModelLogic<{
     GqlModel: ResourceList,
     GqlSearch: ResourceListSearchInput,
     GqlSort: ResourceListSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.resource_listUpsertArgs['create'],
     PrismaUpdate: Prisma.resource_listUpsertArgs['update'],
     PrismaModel: Prisma.resource_listGetPayload<SelectWrap<Prisma.resource_listSelect>>,
@@ -129,14 +129,13 @@ export const ResourceListModel: ModelLogic<{
             standardVersion: 'StandardVersion',
             userSchedule: 'UserSchedule',
         }),
-        permissionResolvers: ({ isAdmin }) => ({
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         owner: (data) => ({
             Organization: data.organization,
             User: (data.userSchedule as any)?.user,
-        }),
+        }), // TODO this is incorrect. Should be owner of apiVersion, organization, post, etc.
         isDeleted: () => false,
         isPublic: (data, languages) => oneIsPublic<Prisma.resource_listSelect>(data, [
             ['apiVersion', 'Api'],

@@ -5,6 +5,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { RunRoutineModel } from "./runRoutine";
 import { SelectWrap } from "../builders/types";
+import { defaultPermissions } from "../utils";
 
 // const shapeBase = (data: RunRoutineStepCreateInput | RunRoutineStepUpdateInput) => {
 //     return {
@@ -22,7 +23,7 @@ export const RunRoutineStepModel: ModelLogic<{
     GqlCreate: RunRoutineStepCreateInput,
     GqlUpdate: RunRoutineStepUpdateInput,
     GqlModel: RunRoutineStep,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: RunRoutineSearchInput,
     GqlSort: RunRoutineSortBy,
     PrismaCreate: Prisma.run_routine_stepUpsertArgs['create'],
@@ -81,10 +82,8 @@ export const RunRoutineStepModel: ModelLogic<{
             id: true,
             runRoutine: 'RunRoutine',
         }),
-        permissionResolvers: ({ isAdmin, isPublic }) => ({
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
-            canView: () => isPublic,
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         profanityFields: ['name'],
         owner: (data) => RunRoutineModel.validate!.owner(data.runRoutine as any),

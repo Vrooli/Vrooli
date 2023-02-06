@@ -171,7 +171,7 @@ session,
                 <ResourceListHorizontal
                     title={'Resources'}
                     list={resourceList}
-                    canEdit={true}
+                    canUpdate={true}
                     handleUpdate={handleResourcesUpdate}
                     loading={loading}
                     session={session}

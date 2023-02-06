@@ -18,10 +18,10 @@ query organization($input: FindByIdInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -73,10 +73,10 @@ query organization($input: FindByIdInput!) {
     you {
         canAddMembers
         canDelete
-        canEdit
         canStar
         canReport
-        canView
+        canUpdate
+        canRead
         isStarred
         isViewed
         yourMembership {
@@ -119,10 +119,10 @@ query organizations($input: OrganizationSearchInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -159,10 +159,10 @@ mutation organizationCreate($input: OrganizationCreateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -214,10 +214,10 @@ mutation organizationCreate($input: OrganizationCreateInput!) {
     you {
         canAddMembers
         canDelete
-        canEdit
         canStar
         canReport
-        canView
+        canUpdate
+        canRead
         isStarred
         isViewed
         yourMembership {
@@ -248,10 +248,10 @@ mutation organizationUpdate($input: OrganizationUpdateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -303,10 +303,10 @@ mutation organizationUpdate($input: OrganizationUpdateInput!) {
     you {
         canAddMembers
         canDelete
-        canEdit
         canStar
         canReport
-        canView
+        canUpdate
+        canRead
         isStarred
         isViewed
         yourMembership {

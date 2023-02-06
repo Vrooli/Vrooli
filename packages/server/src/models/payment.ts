@@ -4,6 +4,7 @@ import { Payment } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'Payment' as const;
 const suppFields = [] as const;
@@ -13,7 +14,7 @@ export const PaymentModel: ModelLogic<{
     GqlCreate: undefined,
     GqlUpdate: undefined,
     GqlModel: Payment,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.paymentUpsertArgs['create'],
@@ -54,9 +55,7 @@ export const PaymentModel: ModelLogic<{
             User: data.user,
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canView: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         permissionsSelect: () => ({
             id: true,

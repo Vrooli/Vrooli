@@ -79,8 +79,8 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                 }
             }
             root {
@@ -137,10 +137,10 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 views
                 you {
                     canDelete
-                    canEdit
                     canStar
                     canTransfer
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -170,10 +170,10 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         inputs {
@@ -209,10 +209,10 @@ mutation nodeCreate($input: NodeCreateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             translations {
@@ -255,10 +255,10 @@ mutation nodeCreate($input: NodeCreateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             translations {
@@ -283,8 +283,8 @@ mutation nodeCreate($input: NodeCreateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -372,9 +372,9 @@ mutation nodeCreate($input: NodeCreateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canStar
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -398,8 +398,8 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                 }
             }
             resourceList {
@@ -478,10 +478,10 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 views
                 you {
                     canDelete
-                    canEdit
                     canStar
                     canTransfer
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -514,10 +514,10 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         suggestedNextByRoutineVersion {
@@ -612,10 +612,10 @@ mutation nodeCreate($input: NodeCreateInput!) {
                                 canComment
                                 canCopy
                                 canDelete
-                                canEdit
                                 canReport
+                                canUpdate
                                 canUse
-                                canView
+                                canRead
                             }
                         }
                     }
@@ -692,18 +692,18 @@ mutation nodeCreate($input: NodeCreateInput!) {
                 }
                 you {
                     canDelete
-                    canEdit
-                    canView
+                    canUpdate
+                    canRead
                 }
             }
             canComment
             canCopy
             canDelete
-            canEdit
             canStar
             canReport
             canRun
-            canView
+            canUpdate
+            canRead
             canVote
         }
     }
@@ -790,8 +790,8 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                 }
             }
             root {
@@ -848,10 +848,10 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 views
                 you {
                     canDelete
-                    canEdit
                     canStar
                     canTransfer
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -881,10 +881,10 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         inputs {
@@ -920,10 +920,10 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             translations {
@@ -966,10 +966,10 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             translations {
@@ -994,8 +994,8 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         resourceList {
@@ -1083,9 +1083,9 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canStar
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -1109,8 +1109,8 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 you {
                     canComment
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                 }
             }
             resourceList {
@@ -1189,10 +1189,10 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 views
                 you {
                     canDelete
-                    canEdit
                     canStar
                     canTransfer
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -1225,10 +1225,10 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
         suggestedNextByRoutineVersion {
@@ -1323,10 +1323,10 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                                 canComment
                                 canCopy
                                 canDelete
-                                canEdit
                                 canReport
+                                canUpdate
                                 canUse
-                                canView
+                                canRead
                             }
                         }
                     }
@@ -1403,18 +1403,18 @@ mutation nodeUpdate($input: NodeUpdateInput!) {
                 }
                 you {
                     canDelete
-                    canEdit
-                    canView
+                    canUpdate
+                    canRead
                 }
             }
             canComment
             canCopy
             canDelete
-            canEdit
             canStar
             canReport
             canRun
-            canView
+            canUpdate
+            canRead
             canVote
         }
     }

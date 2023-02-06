@@ -6,6 +6,7 @@ import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { defaultPermissions } from "../utils";
 
 // const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: TagCreateInput | TagUpdateInput, isAdd: boolean) => {
 //     return {
@@ -33,7 +34,7 @@ export const TagModel: ModelLogic<{
     GqlModel: Tag,
     GqlSearch: TagSearchInput,
     GqlSort: TagSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.tagUpsertArgs['create'],
     PrismaUpdate: Prisma.tagUpsertArgs['update'],
     PrismaModel: Prisma.tagGetPayload<SelectWrap<Prisma.tagSelect>>,
@@ -124,7 +125,9 @@ export const TagModel: ModelLogic<{
             Organization: 0,
         },
         permissionsSelect: () => ({ id: true }),
-        permissionResolvers: () => ({}),
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
+        }),
         owner: () => ({}),
         isDeleted: () => false,
         isPublic: () => true,

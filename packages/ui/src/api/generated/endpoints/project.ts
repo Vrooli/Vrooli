@@ -94,10 +94,10 @@ query project($input: FindByIdInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -250,8 +250,8 @@ query project($input: FindByIdInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         translations {
@@ -276,10 +276,10 @@ query project($input: FindByIdInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -328,10 +328,10 @@ query project($input: FindByIdInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -372,10 +372,10 @@ query projects($input: ProjectSearchInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             id
@@ -405,10 +405,10 @@ query projects($input: ProjectSearchInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -513,10 +513,10 @@ mutation projectCreate($input: ProjectCreateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -669,8 +669,8 @@ mutation projectCreate($input: ProjectCreateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         translations {
@@ -695,10 +695,10 @@ mutation projectCreate($input: ProjectCreateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -747,10 +747,10 @@ mutation projectCreate($input: ProjectCreateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -849,10 +849,10 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -1005,8 +1005,8 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         translations {
@@ -1031,10 +1031,10 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     stats {
@@ -1083,10 +1083,10 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted

@@ -7,8 +7,8 @@ import { UserModel } from "./user";
 import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'MemberInvite' as const;
-type Permissions = Pick<MemberInviteYou, 'canDelete' | 'canEdit'>;
-const suppFields = ['you.canDelete', 'you.canEdit'] as const;
+type Permissions = Pick<MemberInviteYou, 'canDelete' | 'canUpdate'>;
+const suppFields = ['you.canDelete', 'you.canUpdate'] as const;
 export const MemberInviteModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,

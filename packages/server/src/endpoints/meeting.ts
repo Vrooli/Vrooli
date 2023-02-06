@@ -82,8 +82,8 @@ export const typeDef = gql`
 
     type MeetingYou {
         canDelete: Boolean!
-        canEdit: Boolean!
         canInvite: Boolean!
+        canUpdate: Boolean!
     }
 
     input MeetingTranslationCreateInput {

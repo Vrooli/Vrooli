@@ -24,7 +24,7 @@ const getResourceType = (link: string): ResourceType | null => {
 }
 
 export function ResourceListItem({
-    canEdit,
+    canUpdate,
     data,
     handleContextMenu,
     handleDelete,
@@ -104,12 +104,12 @@ export function ResourceListItem({
                     />}
                 </Stack>
                 {
-                    canEdit && <IconButton id='delete-icon-button' onClick={onDelete}>
+                    canUpdate && <IconButton id='delete-icon-button' onClick={onDelete}>
                         <DeleteIcon fill={palette.background.textPrimary} />
                     </IconButton>
                 }
                 {
-                    canEdit && <IconButton id='edit-icon-button' onClick={onEdit}>
+                    canUpdate && <IconButton id='edit-icon-button' onClick={onEdit}>
                         <EditIcon fill={palette.background.textPrimary} />
                     </IconButton>
                 }

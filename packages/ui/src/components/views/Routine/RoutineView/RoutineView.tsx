@@ -60,7 +60,7 @@ export const RoutineView = ({
         setRoutineVersion(data.routineVersion);
     }, [data]);
     const updateRoutineVersion = useCallback((newRoutineVersion: RoutineVersion) => { setRoutineVersion(newRoutineVersion); }, [setRoutineVersion]);
-    const { canEdit } = useMemo(() => getYou(routineVersion), [routineVersion]);
+    const { canUpdate } = useMemo(() => getYou(routineVersion), [routineVersion]);
 
     const availableLanguages = useMemo<string[]>(() => (routineVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [routineVersion?.translations]);
     useEffect(() => {
@@ -235,7 +235,7 @@ export const RoutineView = ({
             width: 'min(100%, 700px)',
             padding: 2,
         }}>
-            {/* Edit button (if canEdit) and run button, positioned at bottom corner of screen */}
+            {/* Edit button (if canUpdate) and run button, positioned at bottom corner of screen */}
             <Stack direction="row" spacing={2} sx={{
                 position: 'fixed',
                 display: 'flex',
@@ -254,14 +254,14 @@ export const RoutineView = ({
                 height: 'calc(64px + env(safe-area-inset-bottom))',
             }}>
                 {/* Edit button */}
-                {canEdit ? (
+                {canUpdate ? (
                     <ColorIconButton aria-label="confirm-name-change" background={palette.secondary.main} onClick={() => { onActionStart(ObjectAction.Edit) }} >
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </ColorIconButton>
                 ) : null}
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
                 {routineVersion?.nodes?.length ? <RunButton
-                    canEdit={canEdit}
+                    canUpdate={canUpdate}
                     handleRunAdd={handleRunAdd as any}
                     handleRunDelete={handleRunDelete as any}
                     isBuildGraphOpen={isBuildOpen}
@@ -323,7 +323,7 @@ export const RoutineView = ({
             {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                 title={'Resources'}
                 list={resourceList}
-                canEdit={false}
+                canUpdate={false}
                 handleUpdate={() => { }} // Intentionally blank
                 loading={loading}
                 session={session}

@@ -10,8 +10,8 @@ import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
 
 const __typename = 'Note' as const;
-type Permissions = Pick<NoteYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed'] as const;
+type Permissions = Pick<NoteYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canTransfer', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed'] as const;
 export const NoteModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,

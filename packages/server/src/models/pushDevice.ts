@@ -12,7 +12,7 @@ export const PushDeviceModel: ModelLogic<{
     GqlCreate: PushDeviceCreateInput,
     GqlUpdate: PushDeviceUpdateInput,
     GqlModel: PushDevice,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.push_deviceUpsertArgs['create'],

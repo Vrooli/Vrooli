@@ -17,8 +17,8 @@ export const userYou: GqlPartial<UserYou> = {
     __typename: 'UserYou',
     common: {
         canDelete: true,
-        canEdit: true,
         canReport: true,
+        canUpdate: true,
         isStarred: true,
         isViewed: true,
     },

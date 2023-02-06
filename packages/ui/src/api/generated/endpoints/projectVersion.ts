@@ -76,10 +76,10 @@ query projectVersion($input: FindByIdInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -232,8 +232,8 @@ query projectVersion($input: FindByIdInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     root {
@@ -300,10 +300,10 @@ query projectVersion($input: FindByIdInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -332,10 +332,10 @@ query projectVersion($input: FindByIdInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -378,10 +378,10 @@ query projectVersions($input: ProjectVersionSearchInput!) {
                 views
                 you {
                     canDelete
-                    canEdit
                     canStar
                     canTransfer
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -409,10 +409,10 @@ query projectVersions($input: ProjectVersionSearchInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
     }
@@ -495,10 +495,10 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -651,8 +651,8 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     root {
@@ -719,10 +719,10 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -751,10 +751,10 @@ mutation projectVersionCreate($input: ProjectVersionCreateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -831,10 +831,10 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -987,8 +987,8 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     root {
@@ -1055,10 +1055,10 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -1087,10 +1087,10 @@ mutation projectVersionUpdate($input: ProjectVersionUpdateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;

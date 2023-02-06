@@ -16,7 +16,7 @@ import { RunButtonProps } from "../types";
  * If the routine is incomplete, the button is available but the user must confirm an alert before running.
  */
 export const RunButton = ({
-    canEdit,
+    canUpdate,
     handleRunAdd,
     handleRunDelete,
     isBuildGraphOpen,

@@ -12,7 +12,7 @@ export const RunProjectStepModel: ModelLogic<{
     GqlCreate: RunProjectStepCreateInput,
     GqlUpdate: RunProjectStepUpdateInput,
     GqlModel: RunProjectStep,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.run_project_stepUpsertArgs['create'],

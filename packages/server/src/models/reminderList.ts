@@ -15,7 +15,7 @@ export const ReminderListModel: ModelLogic<{
     GqlModel: ReminderList,
     GqlSearch: ReminderListSearchInput,
     GqlSort: ReminderListSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.reminder_listUpsertArgs['create'],
     PrismaUpdate: Prisma.reminder_listUpsertArgs['update'],
     PrismaModel: Prisma.reminder_listGetPayload<SelectWrap<Prisma.reminder_listSelect>>,

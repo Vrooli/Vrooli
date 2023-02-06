@@ -32,7 +32,7 @@ const listOptions: ListMenuItemData<ResourceContextMenuOption>[] = Object.keys(l
 
 // Custom context menu for nodes
 export const ResourceListItemContextMenu = ({
-    canEdit,
+    canUpdate,
     id,
     anchorEl,
     index,
@@ -81,7 +81,7 @@ export const ResourceListItemContextMenu = ({
         onClose();
     }
 
-    const listOptionsFiltered = canEdit ? listOptions : listOptions.filter(o => o.value === ResourceContextMenuOption.Share);
+    const listOptionsFiltered = canUpdate ? listOptions : listOptions.filter(o => o.value === ResourceContextMenuOption.Share);
 
     return (
         <ListMenu

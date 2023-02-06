@@ -15,7 +15,7 @@ export const RunProjectScheduleModel: ModelLogic<{
     GqlModel: RunProjectSchedule,
     GqlSearch: RunProjectScheduleSearchInput,
     GqlSort: RunProjectScheduleSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.run_project_scheduleUpsertArgs['create'],
     PrismaUpdate: Prisma.run_project_scheduleUpsertArgs['update'],
     PrismaModel: Prisma.run_project_scheduleGetPayload<SelectWrap<Prisma.run_project_scheduleSelect>>,

@@ -35,7 +35,7 @@ export const ProjectView = ({
     useEffect(() => {
         setProjectVersion(data?.projectVersion);
     }, [data]);
-    const canEdit = useMemo<boolean>(() => projectVersion?.you?.canEdit === true, [projectVersion?.you?.canEdit]);
+    const canUpdate = useMemo<boolean>(() => projectVersion?.you?.canUpdate === true, [projectVersion?.you?.canUpdate]);
 
     const availableLanguages = useMemo<string[]>(() => (projectVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [projectVersion?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -131,7 +131,7 @@ export const ProjectView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search project's routines...",
                     noResultsText: "No routines found",
-                    where: { projectId: projectVersion?.id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
+                    where: { projectId: projectVersion?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                 };
             case TabOptions.Standards:
                 return {
@@ -152,7 +152,7 @@ export const ProjectView = ({
                     searchItemFactory: (a: any, b: any) => null
                 }
         }
-    }, [canEdit, currTabType, projectVersion?.id]);
+    }, [canUpdate, currTabType, projectVersion?.id]);
 
     /**
      * Displays name, avatar, bio, and quick links
@@ -191,7 +191,7 @@ export const ProjectView = ({
                         <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : canEdit ? (
+                    ) : canUpdate ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit project">
@@ -261,7 +261,7 @@ export const ProjectView = ({
                 </Stack>
             </Stack>
         </Box>
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canEdit, name, onEdit, handle, projectVersion, description, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, openMoreMenu, loading, canUpdate, name, onEdit, handle, projectVersion, description, zIndex, canStar, session]);
 
     /**
     * Opens add new page
@@ -341,7 +341,7 @@ export const ProjectView = ({
                 <Box p={2}>
                     <SearchList
                         canSearch={Boolean(projectVersion?.id)}
-                        handleAdd={canEdit ? toAddNew : undefined}
+                        handleAdd={canUpdate ? toAddNew : undefined}
                         hideRoles={true}
                         id="project-view-list"
                         itemKeyPrefix={itemKeyPrefix}

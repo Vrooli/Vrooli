@@ -67,7 +67,7 @@ export const typeDef = gql`
 
     type TransferYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
     }
 
     input TransferSearchInput {

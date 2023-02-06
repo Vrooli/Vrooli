@@ -89,10 +89,10 @@ export const typeDef = gql`
 
     type ApiYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
         canStar: Boolean!
         canTransfer: Boolean!
-        canView: Boolean!
+        canRead: Boolean!
         canVote: Boolean!
         isStarred: Boolean!
         isUpvoted: Boolean

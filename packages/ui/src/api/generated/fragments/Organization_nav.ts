@@ -4,10 +4,10 @@ handle
 you {
     canAddMembers
     canDelete
-    canEdit
     canStar
     canReport
-    canView
+    canUpdate
+    canRead
     isStarred
     isViewed
     yourMembership {

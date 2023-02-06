@@ -7,8 +7,8 @@ export const pullRequestYou: GqlPartial<PullRequestYou> = {
     common: {
         canComment: true,
         canDelete: true,
-        canEdit: true,
         canReport: true,
+        canUpdate: true,
     },
     full: {},
     list: {},

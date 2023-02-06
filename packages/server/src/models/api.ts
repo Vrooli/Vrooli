@@ -8,14 +8,14 @@ import { StarModel } from "./star";
 import { ModelLogic } from "./types";
 import { ViewModel } from "./view";
 import { VoteModel } from "./vote";
-import { labelShapeHelper, tagShapeHelper } from "../utils";
+import { defaultPermissions, labelShapeHelper, tagShapeHelper } from "../utils";
 import { noNull, padSelect, shapeHelper } from "../builders";
 import { apiValidation } from "@shared/validation";
 import { OrganizationModel } from "./organization";
 
 const __typename = 'Api' as const;
-type Permissions = Pick<ApiYou, 'canDelete' | 'canEdit' | 'canStar' | 'canTransfer' | 'canView' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canTransfer', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed'] as const;
+type Permissions = Pick<ApiYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canTransfer' | 'canRead' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canTransfer', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed'] as const;
 export const ApiModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -198,14 +198,7 @@ export const ApiModel: ModelLogic<{
             User: data.ownedByUser,
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canComment: () => !isDeleted && (isAdmin || isPublic),
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canReport: () => !isAdmin && !isDeleted && isPublic,
-            canStar: () => !isDeleted && (isAdmin || isPublic),
-            canTransfer: () => isAdmin && !isDeleted,
-            canView: () => !isDeleted && (isAdmin || isPublic),
-            canVote: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         permissionsSelect: (...params) => ({
             id: true,

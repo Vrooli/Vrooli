@@ -11,7 +11,7 @@ import { OrganizationModel } from "./organization";
 import { getSingleTypePermissions } from "../validators";
 import { SelectWrap } from "../builders/types";
 import { padSelect } from "../builders";
-import { oneIsPublic } from "../utils";
+import { defaultPermissions, oneIsPublic } from "../utils";
 import { RoutineVersionModel } from "./routineVersion";
 import { getLabels } from "../getters";
 
@@ -223,8 +223,8 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Routin
 }
 
 const __typename = 'Routine' as const;
-type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canEdit' | 'canStar' | 'canView' | 'canVote'>;
-const suppFields = ['you.canComment', 'you.canDelete', 'you.canEdit', 'you.canStar', 'you.canView', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
+type Permissions = Pick<RoutineYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canStar' | 'canRead' | 'canVote'>;
+const suppFields = ['you.canComment', 'you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canRead', 'you.canVote', 'you.isStarred', 'you.isUpvoted', 'you.isViewed', 'translatedName'] as const;
 export const RoutineModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,
@@ -499,14 +499,7 @@ export const RoutineModel: ModelLogic<{
             User: data.ownedByUser,
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canComment: () => !isDeleted && (isAdmin || isPublic),
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canReport: () => !isAdmin && !isDeleted && isPublic,
-            canRun: () => !isDeleted && (isAdmin || isPublic),
-            canStar: () => !isDeleted && (isAdmin || isPublic),
-            canView: () => !isDeleted && (isAdmin || isPublic),
-            canVote: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         permissionsSelect: (...params) => ({
             id: true,

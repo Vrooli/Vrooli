@@ -78,8 +78,8 @@ export const typeDef = gql`
 
     type RunRoutineYou {
         canDelete: Boolean!
-        canEdit: Boolean!
-        canView: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
     }
 
     input RunRoutineSearchInput {

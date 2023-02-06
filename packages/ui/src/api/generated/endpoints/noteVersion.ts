@@ -26,8 +26,8 @@ query noteVersion($input: FindByIdInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     root {
@@ -75,10 +75,10 @@ query noteVersion($input: FindByIdInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -104,10 +104,10 @@ query noteVersion($input: FindByIdInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -150,10 +150,10 @@ query noteVersions($input: NoteVersionSearchInput!) {
                 views
                 you {
                     canDelete
-                    canEdit
                     canStar
                     canTransfer
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -178,10 +178,10 @@ query noteVersions($input: NoteVersionSearchInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
     }
@@ -214,8 +214,8 @@ mutation noteVersionCreate($input: NoteVersionCreateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     root {
@@ -263,10 +263,10 @@ mutation noteVersionCreate($input: NoteVersionCreateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -292,10 +292,10 @@ mutation noteVersionCreate($input: NoteVersionCreateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -322,8 +322,8 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     root {
@@ -371,10 +371,10 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -400,10 +400,10 @@ mutation noteVersionUpdate($input: NoteVersionUpdateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;

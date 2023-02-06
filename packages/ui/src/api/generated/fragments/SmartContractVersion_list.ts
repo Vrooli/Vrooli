@@ -25,9 +25,9 @@ you {
     canComment
     canCopy
     canDelete
-    canEdit
     canReport
+    canUpdate
     canUse
-    canView
+    canRead
 }
 }`;

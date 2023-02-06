@@ -316,10 +316,10 @@ export type ApiVersionUpdateInput = {
 export type ApiYou = {
   __typename: 'ApiYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -485,10 +485,10 @@ export type CommentUpdateInput = {
 export type CommentYou = {
   __typename: 'CommentYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
   canReply: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -902,10 +902,10 @@ export type IssueYou = {
   __typename: 'IssueYou';
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -1041,7 +1041,7 @@ export type LabelUpdateInput = {
 export type LabelYou = {
   __typename: 'LabelYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type LearnResult = {
@@ -1172,7 +1172,7 @@ export type MeetingInviteUpdateInput = {
 export type MeetingInviteYou = {
   __typename: 'MeetingInviteYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type MeetingSearchInput = {
@@ -1270,8 +1270,8 @@ export type MeetingUpdateInput = {
 export type MeetingYou = {
   __typename: 'MeetingYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
   canInvite: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type Member = {
@@ -1367,7 +1367,7 @@ export type MemberInviteUpdateInput = {
 export type MemberInviteYou = {
   __typename: 'MemberInviteYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type MemberSearchInput = {
@@ -2748,10 +2748,10 @@ export type NoteVersionUpdateInput = {
 export type NoteYou = {
   __typename: 'NoteYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -3064,10 +3064,10 @@ export type OrganizationYou = {
   __typename: 'OrganizationYou';
   canAddMembers: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isViewed: Scalars['Boolean'];
   yourMembership?: Maybe<Member>;
@@ -3782,20 +3782,20 @@ export type ProjectVersionYou = {
   canComment: Scalars['Boolean'];
   canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canUse: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
   runs: Array<RunProject>;
 };
 
 export type ProjectYou = {
   __typename: 'ProjectYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -3890,8 +3890,8 @@ export type PullRequestYou = {
   __typename: 'PullRequestYou';
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type PushDevice = {
@@ -4923,7 +4923,7 @@ export type QuizAttemptUpdateInput = {
 export type QuizAttemptYou = {
   __typename: 'QuizAttemptYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type QuizCreateInput = {
@@ -5057,7 +5057,7 @@ export type QuizQuestionResponseUpdateInput = {
 export type QuizQuestionResponseYou = {
   __typename: 'QuizQuestionResponseYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type QuizQuestionSearchInput = {
@@ -5128,7 +5128,7 @@ export type QuizQuestionUpdateInput = {
 export type QuizQuestionYou = {
   __typename: 'QuizQuestionYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type QuizSearchInput = {
@@ -5214,9 +5214,9 @@ export type QuizUpdateInput = {
 export type QuizYou = {
   __typename: 'QuizYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -5476,7 +5476,7 @@ export type ReportResponseUpdateInput = {
 export type ReportResponseYou = {
   __typename: 'ReportResponseYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type ReportSearchInput = {
@@ -5534,8 +5534,8 @@ export type ReportUpdateInput = {
 export type ReportYou = {
   __typename: 'ReportYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
   canRespond: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type ReputationHistory = {
@@ -6355,11 +6355,11 @@ export type RoutineVersionYou = {
   canComment: Scalars['Boolean'];
   canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
   canRun: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   runs: Array<RunRoutine>;
 };
@@ -6368,10 +6368,10 @@ export type RoutineYou = {
   __typename: 'RoutineYou';
   canComment: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -6696,8 +6696,8 @@ export type RunProjectUpdateInput = {
 export type RunProjectYou = {
   __typename: 'RunProjectYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type RunRoutine = {
@@ -7042,8 +7042,8 @@ export type RunRoutineUpdateInput = {
 export type RunRoutineYou = {
   __typename: 'RunRoutineYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export enum RunStatus {
@@ -7355,10 +7355,10 @@ export type SmartContractVersionUpdateInput = {
 export type SmartContractYou = {
   __typename: 'SmartContractYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -7649,10 +7649,10 @@ export type StandardVersionUpdateInput = {
 export type StandardYou = {
   __typename: 'StandardYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canStar: Scalars['Boolean'];
   canTransfer: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canVote: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isUpvoted?: Maybe<Scalars['Boolean']>;
@@ -8370,7 +8370,7 @@ export type TransferUpdateInput = {
 export type TransferYou = {
   __typename: 'TransferYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
 };
 
 export type Translate = {
@@ -8660,8 +8660,8 @@ export type UserTranslationUpdateInput = {
 export type UserYou = {
   __typename: 'UserYou';
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   isStarred: Scalars['Boolean'];
   isViewed: Scalars['Boolean'];
 };
@@ -8675,10 +8675,10 @@ export type VersionYou = {
   canComment: Scalars['Boolean'];
   canCopy: Scalars['Boolean'];
   canDelete: Scalars['Boolean'];
-  canEdit: Scalars['Boolean'];
+  canRead: Scalars['Boolean'];
   canReport: Scalars['Boolean'];
+  canUpdate: Scalars['Boolean'];
   canUse: Scalars['Boolean'];
-  canView: Scalars['Boolean'];
 };
 
 export type View = {
@@ -10293,10 +10293,10 @@ export type ApiVersionTranslationResolvers<ContextType = any, ParentType extends
 
 export type ApiYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ApiYou'] = ResolversParentTypes['ApiYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -10355,10 +10355,10 @@ export type CommentTranslationResolvers<ContextType = any, ParentType extends Re
 
 export type CommentYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['CommentYou'] = ResolversParentTypes['CommentYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReply?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -10471,10 +10471,10 @@ export type IssueTranslationResolvers<ContextType = any, ParentType extends Reso
 export type IssueYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['IssueYou'] = ResolversParentTypes['IssueYou']> = {
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -10537,7 +10537,7 @@ export type LabelTranslationResolvers<ContextType = any, ParentType extends Reso
 
 export type LabelYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['LabelYou'] = ResolversParentTypes['LabelYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10603,7 +10603,7 @@ export type MeetingInviteSearchResultResolvers<ContextType = any, ParentType ext
 
 export type MeetingInviteYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeetingInviteYou'] = ResolversParentTypes['MeetingInviteYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10624,8 +10624,8 @@ export type MeetingTranslationResolvers<ContextType = any, ParentType extends Re
 
 export type MeetingYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['MeetingYou'] = ResolversParentTypes['MeetingYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canInvite?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -10674,7 +10674,7 @@ export type MemberInviteSearchResultResolvers<ContextType = any, ParentType exte
 
 export type MemberInviteYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['MemberInviteYou'] = ResolversParentTypes['MemberInviteYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11019,10 +11019,10 @@ export type NoteVersionTranslationResolvers<ContextType = any, ParentType extend
 
 export type NoteYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['NoteYou'] = ResolversParentTypes['NoteYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -11179,10 +11179,10 @@ export type OrganizationTranslationResolvers<ContextType = any, ParentType exten
 export type OrganizationYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['OrganizationYou'] = ResolversParentTypes['OrganizationYou']> = {
   canAddMembers?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   yourMembership?: Resolver<Maybe<ResolversTypes['Member']>, ParentType, ContextType>;
@@ -11464,20 +11464,20 @@ export type ProjectVersionYouResolvers<ContextType = any, ParentType extends Res
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canCopy?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUse?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   runs?: Resolver<Array<ResolversTypes['RunProject']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type ProjectYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ProjectYou'] = ResolversParentTypes['ProjectYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -11523,8 +11523,8 @@ export type PullRequestToResolvers<ContextType = any, ParentType extends Resolve
 export type PullRequestYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['PullRequestYou'] = ResolversParentTypes['PullRequestYou']> = {
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11792,7 +11792,7 @@ export type QuizAttemptSearchResultResolvers<ContextType = any, ParentType exten
 
 export type QuizAttemptYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizAttemptYou'] = ResolversParentTypes['QuizAttemptYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11856,7 +11856,7 @@ export type QuizQuestionResponseTranslationResolvers<ContextType = any, ParentTy
 
 export type QuizQuestionResponseYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionResponseYou'] = ResolversParentTypes['QuizQuestionResponseYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11876,7 +11876,7 @@ export type QuizQuestionTranslationResolvers<ContextType = any, ParentType exten
 
 export type QuizQuestionYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizQuestionYou'] = ResolversParentTypes['QuizQuestionYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -11896,9 +11896,9 @@ export type QuizTranslationResolvers<ContextType = any, ParentType extends Resol
 
 export type QuizYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['QuizYou'] = ResolversParentTypes['QuizYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -12010,7 +12010,7 @@ export type ReportResponseSearchResultResolvers<ContextType = any, ParentType ex
 
 export type ReportResponseYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReportResponseYou'] = ResolversParentTypes['ReportResponseYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12022,8 +12022,8 @@ export type ReportSearchResultResolvers<ContextType = any, ParentType extends Re
 
 export type ReportYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['ReportYou'] = ResolversParentTypes['ReportYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRespond?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12328,11 +12328,11 @@ export type RoutineVersionYouResolvers<ContextType = any, ParentType extends Res
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canCopy?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRun?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   runs?: Resolver<Array<ResolversTypes['RunRoutine']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -12341,10 +12341,10 @@ export type RoutineVersionYouResolvers<ContextType = any, ParentType extends Res
 export type RoutineYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineYou'] = ResolversParentTypes['RoutineYou']> = {
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -12460,8 +12460,8 @@ export type RunProjectStepResolvers<ContextType = any, ParentType extends Resolv
 
 export type RunProjectYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunProjectYou'] = ResolversParentTypes['RunProjectYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12575,8 +12575,8 @@ export type RunRoutineStepResolvers<ContextType = any, ParentType extends Resolv
 
 export type RunRoutineYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineYou'] = ResolversParentTypes['RunRoutineYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12698,10 +12698,10 @@ export type SmartContractVersionTranslationResolvers<ContextType = any, ParentTy
 
 export type SmartContractYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['SmartContractYou'] = ResolversParentTypes['SmartContractYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -12815,10 +12815,10 @@ export type StandardVersionTranslationResolvers<ContextType = any, ParentType ex
 
 export type StandardYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['StandardYou'] = ResolversParentTypes['StandardYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canStar?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canTransfer?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canVote?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isUpvoted?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType>;
@@ -13216,7 +13216,7 @@ export type TransferSearchResultResolvers<ContextType = any, ParentType extends 
 
 export type TransferYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['TransferYou'] = ResolversParentTypes['TransferYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -13381,8 +13381,8 @@ export type UserTranslationResolvers<ContextType = any, ParentType extends Resol
 
 export type UserYouResolvers<ContextType = any, ParentType extends ResolversParentTypes['UserYou'] = ResolversParentTypes['UserYou']> = {
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isStarred?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   isViewed?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
@@ -13392,10 +13392,10 @@ export type VersionYouResolvers<ContextType = any, ParentType extends ResolversP
   canComment?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canCopy?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canDelete?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canEdit?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canRead?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUse?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  canView?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

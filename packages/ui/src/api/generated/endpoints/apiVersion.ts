@@ -26,8 +26,8 @@ query apiVersion($input: FindByIdInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     root {
@@ -84,10 +84,10 @@ query apiVersion($input: FindByIdInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -117,10 +117,10 @@ query apiVersion($input: FindByIdInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -163,10 +163,10 @@ query apiVersions($input: ApiVersionSearchInput!) {
                 views
                 you {
                     canDelete
-                    canEdit
                     canStar
                     canTransfer
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -195,10 +195,10 @@ query apiVersions($input: ApiVersionSearchInput!) {
                 canComment
                 canCopy
                 canDelete
-                canEdit
                 canReport
+                canUpdate
                 canUse
-                canView
+                canRead
             }
         }
     }
@@ -231,8 +231,8 @@ mutation apiVersionCreate($input: ApiVersionCreateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     root {
@@ -289,10 +289,10 @@ mutation apiVersionCreate($input: ApiVersionCreateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -322,10 +322,10 @@ mutation apiVersionCreate($input: ApiVersionCreateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;
@@ -352,8 +352,8 @@ mutation apiVersionUpdate($input: ApiVersionUpdateInput!) {
         you {
             canComment
             canDelete
-            canEdit
             canReport
+            canUpdate
         }
     }
     root {
@@ -410,10 +410,10 @@ mutation apiVersionUpdate($input: ApiVersionUpdateInput!) {
         views
         you {
             canDelete
-            canEdit
             canStar
             canTransfer
-            canView
+            canUpdate
+            canRead
             canVote
             isStarred
             isUpvoted
@@ -443,10 +443,10 @@ mutation apiVersionUpdate($input: ApiVersionUpdateInput!) {
         canComment
         canCopy
         canDelete
-        canEdit
         canReport
+        canUpdate
         canUse
-        canView
+        canRead
     }
   }
 }`;

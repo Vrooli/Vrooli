@@ -44,8 +44,8 @@ query note($input: FindByIdInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         translations {
@@ -67,10 +67,10 @@ query note($input: FindByIdInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     id
@@ -100,10 +100,10 @@ query note($input: FindByIdInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -141,10 +141,10 @@ query notes($input: NoteSearchInput!) {
                     canComment
                     canCopy
                     canDelete
-                    canEdit
                     canReport
+                    canUpdate
                     canUse
-                    canView
+                    canRead
                 }
             }
             id
@@ -174,10 +174,10 @@ query notes($input: NoteSearchInput!) {
             views
             you {
                 canDelete
-                canEdit
                 canStar
                 canTransfer
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -232,8 +232,8 @@ mutation noteCreate($input: NoteCreateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         translations {
@@ -255,10 +255,10 @@ mutation noteCreate($input: NoteCreateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     id
@@ -288,10 +288,10 @@ mutation noteCreate($input: NoteCreateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -340,8 +340,8 @@ mutation noteUpdate($input: NoteUpdateInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
         translations {
@@ -363,10 +363,10 @@ mutation noteUpdate($input: NoteUpdateInput!) {
             canComment
             canCopy
             canDelete
-            canEdit
             canReport
+            canUpdate
             canUse
-            canView
+            canRead
         }
     }
     id
@@ -396,10 +396,10 @@ mutation noteUpdate($input: NoteUpdateInput!) {
     views
     you {
         canDelete
-        canEdit
         canStar
         canTransfer
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted

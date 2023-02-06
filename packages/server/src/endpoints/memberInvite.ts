@@ -52,7 +52,7 @@ export const typeDef = gql`
 
     type MemberInviteYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
     }
 
     input MemberInviteSearchInput {

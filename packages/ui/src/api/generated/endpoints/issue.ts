@@ -77,10 +77,10 @@ query issue($input: FindByIdInput!) {
     you {
         canComment
         canDelete
-        canEdit
         canStar
         canReport
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -149,10 +149,10 @@ query issues($input: IssueSearchInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 canVote
                 isStarred
                 isUpvoted
@@ -234,10 +234,10 @@ mutation issueCreate($input: IssueCreateInput!) {
     you {
         canComment
         canDelete
-        canEdit
         canStar
         canReport
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -313,10 +313,10 @@ mutation issueUpdate($input: IssueUpdateInput!) {
     you {
         canComment
         canDelete
-        canEdit
         canStar
         canReport
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted
@@ -392,10 +392,10 @@ mutation issueClose($input: IssueCloseInput!) {
     you {
         canComment
         canDelete
-        canEdit
         canStar
         canReport
-        canView
+        canUpdate
+        canRead
         canVote
         isStarred
         isUpvoted

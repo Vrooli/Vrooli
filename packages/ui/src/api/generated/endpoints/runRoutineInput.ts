@@ -41,10 +41,10 @@ query runRoutineInputs($input: RunRoutineInputSearchInput!) {
                         canComment
                         canCopy
                         canDelete
-                        canEdit
                         canReport
+                        canUpdate
                         canUse
-                        canView
+                        canRead
                     }
                 }
             }

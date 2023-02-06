@@ -17,8 +17,8 @@ query pullRequest($input: FindByIdInput!) {
     you {
         canComment
         canDelete
-        canEdit
         canReport
+        canUpdate
     }
   }
 }`;
@@ -43,8 +43,8 @@ query pullRequests($input: PullRequestSearchInput!) {
             you {
                 canComment
                 canDelete
-                canEdit
                 canReport
+                canUpdate
             }
         }
     }
@@ -72,8 +72,8 @@ mutation pullRequestCreate($input: PullRequestCreateInput!) {
     you {
         canComment
         canDelete
-        canEdit
         canReport
+        canUpdate
     }
   }
 }`;
@@ -95,8 +95,8 @@ mutation pullRequestUpdate($input: PullRequestUpdateInput!) {
     you {
         canComment
         canDelete
-        canEdit
         canReport
+        canUpdate
     }
   }
 }`;
@@ -118,8 +118,8 @@ mutation pullRequestAcdept($input: FindByIdInput!) {
     you {
         canComment
         canDelete
-        canEdit
         canReport
+        canUpdate
     }
   }
 }`;
@@ -141,8 +141,8 @@ mutation pullRequestReject($input: FindByIdInput!) {
     you {
         canComment
         canDelete
-        canEdit
         canReport
+        canUpdate
     }
   }
 }`;

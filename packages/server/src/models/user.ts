@@ -8,9 +8,10 @@ import { Prisma } from "@prisma/client";
 import { userValidation } from "@shared/validation";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions } from "../validators";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'User' as const;
-type Permissions = Pick<UserYou, 'canDelete' | 'canEdit' | 'canReport'>
+type Permissions = Pick<UserYou, 'canDelete' | 'canUpdate' | 'canReport'>
 const suppFields = ['you.isStarred', 'you.isViewed'] as const;
 export const UserModel: ModelLogic<{
     IsTransferable: false,
@@ -157,9 +158,7 @@ export const UserModel: ModelLogic<{
             languages: { select: { language: true } },
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canReport: () => !isAdmin && !isDeleted && isPublic,
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         owner: (data) => ({ User: data }),
         isDeleted: () => false,

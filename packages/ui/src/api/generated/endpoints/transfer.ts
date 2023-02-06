@@ -62,7 +62,7 @@ query transfer($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -121,7 +121,7 @@ query transfers($input: TransferSearchInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
     }
@@ -183,7 +183,7 @@ mutation transferRequestSend($input: TransferRequestSendInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -239,7 +239,7 @@ mutation transferRequestReceive($input: TransferRequestReceiveInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -295,7 +295,7 @@ mutation transferUpdate($input: TransferUpdateInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -351,7 +351,7 @@ mutation transferCancel($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -407,7 +407,7 @@ mutation transferAccept($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -463,7 +463,7 @@ mutation transferDeny($input: TransferDenyInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;

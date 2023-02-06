@@ -85,7 +85,7 @@ export const typeDef = gql`
 
     type LabelYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
     }
 
     input LabelTranslationCreateInput {

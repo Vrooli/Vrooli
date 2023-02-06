@@ -48,7 +48,7 @@ export function ObjectListItem<T extends ListObjectType>({
     useEffect(() => { setObject(data) }, [data]);
 
     const profileColors = useMemo(() => placeholderColor(), []);
-    const { canComment, canEdit, canVote, canStar, isStarred, isUpvoted } = useMemo(() => getYou(data), [data]);
+    const { canComment, canUpdate, canVote, canStar, isStarred, isUpvoted } = useMemo(() => getYou(data), [data]);
     const { subtitle, title } = useMemo(() => getDisplay(data, getUserLanguages(session)), [data, session]);
     const { score } = useMemo(() => getCounts(data), [data]);
 
@@ -166,7 +166,7 @@ export function ObjectListItem<T extends ListObjectType>({
                     alignItems: isMobile ? 'center' : 'start',
                 }}
             >
-                {!hideRole && canEdit &&
+                {!hideRole && canUpdate &&
                     <Box
                         id={`edit-list-item-button-${id}`}
                         component="a"
@@ -232,7 +232,7 @@ export function ObjectListItem<T extends ListObjectType>({
                 />}
             </Stack>
         )
-    }, [object, isMobile, hideRole, canEdit, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canStar, isStarred, canComment]);
+    }, [object, isMobile, hideRole, canUpdate, id, editUrl, handleEditClick, palette.secondary.main, canVote, session, isUpvoted, score, canStar, isStarred, canComment]);
 
     /**
      * Run list items may get a progress bar

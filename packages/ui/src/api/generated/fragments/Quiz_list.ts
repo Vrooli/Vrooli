@@ -30,9 +30,9 @@ routine {
 }
 you {
     canDelete
-    canEdit
     canStar
-    canView
+    canUpdate
+    canRead
     canVote
     isStarred
     isUpvoted

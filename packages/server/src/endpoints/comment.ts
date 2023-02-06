@@ -66,7 +66,7 @@ export const typeDef = gql`
 
     type CommentYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
         canStar: Boolean!
         canReply: Boolean!
         canReport: Boolean!

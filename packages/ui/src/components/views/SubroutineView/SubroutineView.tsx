@@ -248,7 +248,7 @@ export const SubroutineView = ({
             {Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceListHorizontal
                 title={'Resources'}
                 list={resourceList}
-                canEdit={false}
+                canUpdate={false}
                 handleUpdate={() => { }} // Intentionally blank
                 loading={loading}
                 session={session}

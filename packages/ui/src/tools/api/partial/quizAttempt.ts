@@ -6,7 +6,7 @@ export const quizAttemptYou: GqlPartial<QuizAttemptYou> = {
     __typename: 'QuizAttemptYou',
     common: {
         canDelete: true,
-        canEdit: true,
+        canUpdate: true,
     },
     full: {},
     list: {},

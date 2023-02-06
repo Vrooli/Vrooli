@@ -12,7 +12,7 @@ query report($input: FindByIdInput!) {
         language
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     id
@@ -24,8 +24,8 @@ query report($input: FindByIdInput!) {
     responsesCount
     you {
         canDelete
-        canEdit
         canRespond
+        canUpdate
     }
   }
 }`;
@@ -45,8 +45,8 @@ query reports($input: ReportSearchInput!) {
             responsesCount
             you {
                 canDelete
-                canEdit
                 canRespond
+                canUpdate
             }
         }
     }
@@ -69,7 +69,7 @@ mutation reportCreate($input: ReportCreateInput!) {
         language
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     id
@@ -81,8 +81,8 @@ mutation reportCreate($input: ReportCreateInput!) {
     responsesCount
     you {
         canDelete
-        canEdit
         canRespond
+        canUpdate
     }
   }
 }`;
@@ -99,7 +99,7 @@ mutation reportUpdate($input: ReportUpdateInput!) {
         language
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     id
@@ -111,8 +111,8 @@ mutation reportUpdate($input: ReportUpdateInput!) {
     responsesCount
     you {
         canDelete
-        canEdit
         canRespond
+        canUpdate
     }
   }
 }`;

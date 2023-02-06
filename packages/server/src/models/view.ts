@@ -63,7 +63,7 @@ export const ViewModel: ModelLogic<{
     GqlModel: View,
     GqlSearch: ViewSearchInput,
     GqlSort: ViewSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.viewUpsertArgs['create'],
     PrismaUpdate: Prisma.viewUpsertArgs['update'],
     PrismaModel: Prisma.viewGetPayload<SelectWrap<Prisma.viewSelect>>,

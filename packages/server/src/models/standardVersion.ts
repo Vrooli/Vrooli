@@ -7,7 +7,7 @@ import { sortify } from "../utils/objectTools";
 import { Prisma } from "@prisma/client";
 import { OrganizationModel } from "./organization";
 import { padSelect } from "../builders";
-import { bestLabel, oneIsPublic } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { SelectWrap } from "../builders/types";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
 import { StandardModel } from "./standard";
@@ -72,7 +72,7 @@ import { StandardModel } from "./standard";
 //     permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
 //         canComment: () => !isDeleted && (isAdmin || isPublic),
 //         canDelete: () => isAdmin && !isDeleted,
-//         canEdit: () => isAdmin && !isDeleted,
+//         canUpdate: () => isAdmin && !isDeleted,
 //         canReport: () => !isAdmin && !isDeleted && isPublic,
 //         canStar: () => !isDeleted && (isAdmin || isPublic),
 //         canView: () => !isDeleted && (isAdmin || isPublic),
@@ -365,8 +365,8 @@ const querier = () => ({
 // })
 
 const __typename = 'StandardVersion' as const;
-type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
-const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView'] as const;
+type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
+const suppFields = ['you.canCopy', 'you.canDelete', 'you.canUpdate', 'you.canReport', 'you.canUse', 'you.canRead'] as const;
 export const StandardVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -468,16 +468,7 @@ export const StandardVersionModel: ModelLogic<{
             root: 'Standard',
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canComment: () => !isDeleted && (isAdmin || isPublic),
-            canCopy: () => !isDeleted && (isAdmin || isPublic),
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canReport: () => !isAdmin && !isDeleted && isPublic,
-            canRun: () => !isDeleted && (isAdmin || isPublic),
-            canStar: () => !isDeleted && (isAdmin || isPublic),
-            canUse: () => !isDeleted && (isAdmin || isPublic),
-            canView: () => !isDeleted && (isAdmin || isPublic),
-            canVote: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         validations: {
             async common({ createMany, deleteMany, languages, prisma, updateMany }) {

@@ -40,7 +40,7 @@ export const OrganizationView = ({
     useEffect(() => {
         setOrganization(data?.organization);
     }, [data]);
-    const canEdit = useMemo<boolean>(() => organization?.you?.canEdit === true, [organization?.you?.canEdit]);
+    const canUpdate = useMemo<boolean>(() => organization?.you?.canUpdate === true, [organization?.you?.canUpdate]);
 
     const availableLanguages = useMemo<string[]>(() => (organization?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [organization?.translations]);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
@@ -67,11 +67,11 @@ export const OrganizationView = ({
         else document.title = `${name} | Vrooli`;
     }, [handle, name]);
 
-    const resources = useMemo(() => (resourceList || canEdit) ? (
+    const resources = useMemo(() => (resourceList || canUpdate) ? (
         <ResourceListVertical
             list={resourceList as any}
             session={session}
-            canEdit={canEdit}
+            canUpdate={canUpdate}
             handleUpdate={(updatedList) => {
                 if (!organization) return;
                 setOrganization({
@@ -83,7 +83,7 @@ export const OrganizationView = ({
             mutate={true}
             zIndex={zIndex}
         />
-    ) : null, [canEdit, loading, organization, resourceList, session, zIndex]);
+    ) : null, [canUpdate, loading, organization, resourceList, session, zIndex]);
 
     // Handle tabs
     const [tabIndex, setTabIndex] = useState<number>(0);
@@ -127,7 +127,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'project-list-item',
                     placeholder: "Search organization's projects...",
                     noResultsText: "No projects found",
-                    where: { organizationId: organization?.id, isComplete: !canEdit ? true : undefined, visibility: VisibilityType.All },
+                    where: { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, visibility: VisibilityType.All },
                 };
             case TabOptions.Routines:
                 return {
@@ -135,7 +135,7 @@ export const OrganizationView = ({
                     itemKeyPrefix: 'routine-list-item',
                     placeholder: "Search organization's routines...",
                     noResultsText: "No routines found",
-                    where: { organizationId: organization?.id, isComplete: !canEdit ? true : undefined, isInternal: false, visibility: VisibilityType.All },
+                    where: { organizationId: organization?.id, isComplete: !canUpdate ? true : undefined, isInternal: false, visibility: VisibilityType.All },
                 };
             case TabOptions.Standards:
                 return {
@@ -154,7 +154,7 @@ export const OrganizationView = ({
                     where: {},
                 }
         }
-    }, [currTabType, canEdit, organization?.id]);
+    }, [currTabType, canUpdate, organization?.id]);
 
     // More menu
     const [moreMenuAnchor, setMoreMenuAnchor] = useState<any>(null);
@@ -245,7 +245,7 @@ export const OrganizationView = ({
                         <Stack sx={{ width: '50%', color: 'grey.500', paddingTop: 2, paddingBottom: 2 }} spacing={2}>
                             <LinearProgress color="inherit" />
                         </Stack>
-                    ) : canEdit ? (
+                    ) : canUpdate ? (
                         <Stack direction="row" alignItems="center" justifyContent="center">
                             <Typography variant="h4" textAlign="center">{name}</Typography>
                             <Tooltip title="Edit organization">
@@ -315,7 +315,7 @@ export const OrganizationView = ({
                 </Stack>
             </Stack>
         </Box >
-    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canEdit, name, onEdit, handle, organization, bio, zIndex, canStar, session]);
+    ), [palette.background.paper, palette.background.textSecondary, palette.background.textPrimary, palette.secondary.main, palette.secondary.dark, profileColors, openMoreMenu, loading, canUpdate, name, onEdit, handle, organization, bio, zIndex, canStar, session]);
 
     /**
      * Opens add new page
@@ -403,7 +403,7 @@ export const OrganizationView = ({
                         currTabType === TabOptions.Resources ? resources : (
                             <SearchList
                                 canSearch={uuidValidate(organization?.id)}
-                                handleAdd={canEdit ? toAddNew : undefined}
+                                handleAdd={canUpdate ? toAddNew : undefined}
                                 hideRoles={true}
                                 id="organization-view-list"
                                 itemKeyPrefix={itemKeyPrefix}

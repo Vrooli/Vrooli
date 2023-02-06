@@ -10,15 +10,15 @@ import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { getSingleTypePermissions } from "../validators";
 import { addSupplementalFields, combineQueries, lowercaseFirstLetter, modelToGraphQL, noNull, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic, SearchMap, translationShapeHelper } from "../utils";
 import { GraphQLInfo, PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { getSearchStringQuery } from "../getters";
 import { getUser } from "../auth";
 import { SortMap } from "../utils/sortMap";
 
 const __typename = 'Comment' as const;
-type Permissions = Pick<CommentYou, 'canDelete' | 'canEdit' | 'canStar' | 'canReply' | 'canReport' | 'canVote'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canStar', 'you.canReply', 'you.canReport', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
+type Permissions = Pick<CommentYou, 'canDelete' | 'canUpdate' | 'canStar' | 'canReply' | 'canReport' | 'canVote'>;
+const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canStar', 'you.canReply', 'you.canReport', 'you.canVote', 'you.isStarred', 'you.isUpvoted'] as const;
 export const CommentModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -345,14 +345,9 @@ export const CommentModel: ModelLogic<{
             standardVersion: 'Standard',
             ownedByUser: 'User',
         }),
-        permissionResolvers: ({ isAdmin, isPublic }) => ({
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
             canReply: () => isAdmin || isPublic,
-            canReport: () => !isAdmin && isPublic,
-            canStar: () => isAdmin || isPublic,
-            canView: () => isAdmin || isPublic,
-            canVote: () => isAdmin || isPublic,
         }),
         owner: (data) => ({
             Organization: data.ownedByOrganization,

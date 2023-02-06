@@ -6,10 +6,10 @@ export const smartContractYou: GqlPartial<SmartContractYou> = {
     __typename: 'SmartContractYou',
     common: {
         canDelete: true,
-        canEdit: true,
         canStar: true,
         canTransfer: true,
-        canView: true,
+        canUpdate: true,
+        canRead: true,
         canVote: true,
         isStarred: true,
         isUpvoted: true,

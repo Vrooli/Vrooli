@@ -6,8 +6,8 @@ import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'RunProject' as const;
-type Permissions = Pick<RunProjectYou, 'canDelete' | 'canEdit' | 'canView'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canView'] as const;
+type Permissions = Pick<RunProjectYou, 'canDelete' | 'canUpdate' | 'canRead'>;
+const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canRead'] as const;
 export const RunProjectModel: ModelLogic<{
     IsTransferable: true,
     IsVersioned: true,

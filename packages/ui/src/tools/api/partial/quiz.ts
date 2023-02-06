@@ -18,9 +18,9 @@ export const quizYou: GqlPartial<QuizYou> = {
     __typename: 'QuizYou',
     common: {
         canDelete: true,
-        canEdit: true,
         canStar: true,
-        canView: true,
+        canUpdate: true,
+        canRead: true,
         canVote: true,
         isStarred: true,
         isUpvoted: true,

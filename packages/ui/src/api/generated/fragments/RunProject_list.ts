@@ -52,7 +52,7 @@ user {
 }
 you {
     canDelete
-    canEdit
-    canView
+    canUpdate
+    canRead
 }
 }`;

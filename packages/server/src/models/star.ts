@@ -45,7 +45,7 @@ export const StarModel: ModelLogic<{
     GqlModel: Star,
     GqlSearch: StarSearchInput,
     GqlSort: StarSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.starUpsertArgs['create'],
     PrismaUpdate: Prisma.starUpsertArgs['update'],
     PrismaModel: Prisma.starGetPayload<SelectWrap<Prisma.starSelect>>,

@@ -47,7 +47,7 @@ export const SubroutineNode = ({
     const nodeSize = useMemo(() => `${calculateNodeSize(220, scale)}px`, [scale]);
     const fontSize = useMemo(() => `min(${calculateNodeSize(220, scale) / 5}px, 2em)`, [scale]);
     // Determines if the subroutine is one you can edit
-    const canEdit = useMemo<boolean>(() => ((data?.routineVersion?.root as Routine)?.isInternal ?? (data?.routineVersion?.root as Routine)?.you?.canEdit === true), [data.routineVersion]);
+    const canUpdate = useMemo<boolean>(() => ((data?.routineVersion?.root as Routine)?.isInternal ?? (data?.routineVersion?.root as Routine)?.you?.canUpdate === true), [data.routineVersion]);
 
     const { title } = useMemo(() => getDisplay(data, navigator.languages), [data]);
 
@@ -81,7 +81,7 @@ export const SubroutineNode = ({
         if (!labelVisible) return null;
         return (
             <EditableLabel
-                canEdit={isEditing}
+                canUpdate={isEditing}
                 handleUpdate={handleLabelUpdate}
                 renderLabel={(t) => (
                     <Typography
@@ -161,7 +161,7 @@ export const SubroutineNode = ({
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        backgroundColor: canEdit ?
+                        backgroundColor: canUpdate ?
                             (palette.mode === 'light' ? palette.primary.dark : palette.secondary.dark) :
                             '#667899',
                         color: palette.mode === 'light' ? palette.primary.contrastText : palette.secondary.contrastText,

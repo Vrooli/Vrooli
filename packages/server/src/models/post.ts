@@ -17,7 +17,7 @@ export const PostModel: ModelLogic<{
     GqlModel: Post,
     GqlSearch: PostSearchInput,
     GqlSort: PostSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.postUpsertArgs['create'],
     PrismaUpdate: Prisma.postUpsertArgs['update'],
     PrismaModel: Prisma.postGetPayload<SelectWrap<Prisma.postSelect>>,

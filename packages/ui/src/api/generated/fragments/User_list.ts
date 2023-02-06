@@ -12,8 +12,8 @@ stars
 reportsCount
 you {
     canDelete
-    canEdit
     canReport
+    canUpdate
     isStarred
     isViewed
 }

@@ -152,10 +152,10 @@ export const typeDef = gql`
         canComment: Boolean!
         canCopy: Boolean!
         canDelete: Boolean!
-        canEdit: Boolean!
         canReport: Boolean!
+        canUpdate: Boolean!
         canUse: Boolean! # In run, project, etc. Not always applicable
-        canView: Boolean!
+        canRead: Boolean!
     }
 
     enum RunStatus {

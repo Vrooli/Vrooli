@@ -5,6 +5,7 @@ import { PrismaType } from "../types";
 import { TagModel } from "./tag";
 import { ModelLogic } from "./types";
 import { UserScheduleModel } from "./userSchedule";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'UserScheduleFilter' as const;
 const suppFields = [] as const;
@@ -14,7 +15,7 @@ export const UserScheduleFilterModel: ModelLogic<{
     GqlCreate: UserScheduleFilterCreateInput,
     GqlUpdate: undefined,
     GqlModel: UserScheduleFilter,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: UserScheduleSearchInput,
     GqlSort: UserScheduleSortBy,
     PrismaCreate: Prisma.user_schedule_filterUpsertArgs['create'],
@@ -48,17 +49,15 @@ export const UserScheduleFilterModel: ModelLogic<{
         },
         owner: (data) => UserScheduleModel.validate!.owner(data.userSchedule as any),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canView: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         permissionsSelect: () => ({
             id: true,
             userSchedule: 'UserSchedule',
         }),
         visibility: {
-            private: { },
-            public: { },
+            private: {},
+            public: {},
             owner: (userId) => ({
                 userSchedule: UserScheduleModel.validate!.visibility.owner(userId),
             }),

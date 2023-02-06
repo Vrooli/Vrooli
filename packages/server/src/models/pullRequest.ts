@@ -18,8 +18,8 @@ import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'PullRequest' as const;
-type Permissions = Pick<PullRequestYou, 'canComment' | 'canDelete' | 'canEdit' | 'canReport'>;
-const suppFields = ['you.canComment', 'you.canDelete', 'you.canEdit', 'you.canReport'] as const;
+type Permissions = Pick<PullRequestYou, 'canComment' | 'canDelete' | 'canUpdate' | 'canReport'>;
+const suppFields = ['you.canComment', 'you.canDelete', 'you.canUpdate', 'you.canReport'] as const;
 export const PullRequestModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,

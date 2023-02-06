@@ -6,8 +6,8 @@ export const reportYou: GqlPartial<ReportYou> = {
     __typename: 'ReportYou',
     common: {
         canDelete: true,
-        canEdit: true,
         canRespond: true,
+        canUpdate: true,
     },
     full: {},
     list: {},

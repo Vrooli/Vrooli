@@ -21,10 +21,10 @@ export const projectVersionYou: GqlPartial<ProjectVersionYou> = {
         canComment: true,
         canCopy: true,
         canDelete: true,
-        canEdit: true,
         canReport: true,
+        canUpdate: true,
         canUse: true,
-        canView: true,
+        canRead: true,
     },
     full: {
         runs: async () => rel((await import('./runProject')).runProject, 'full', { omit: 'projectVersion' }),

@@ -41,10 +41,10 @@ query meetingInvite($input: FindByIdInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -69,10 +69,10 @@ query meetingInvite($input: FindByIdInput!) {
                     you {
                         canAddMembers
                         canDelete
-                        canEdit
                         canStar
                         canReport
-                        canView
+                        canUpdate
+                        canRead
                         isStarred
                         isViewed
                         yourMembership {
@@ -102,10 +102,10 @@ query meetingInvite($input: FindByIdInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -127,8 +127,8 @@ query meetingInvite($input: FindByIdInput!) {
         invitesCount
         you {
             canDelete
-            canEdit
             canInvite
+            canUpdate
         }
     }
     id
@@ -138,7 +138,7 @@ query meetingInvite($input: FindByIdInput!) {
     status
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -178,10 +178,10 @@ query meetingInvites($input: MeetingInviteSearchInput!) {
                     you {
                         canAddMembers
                         canDelete
-                        canEdit
                         canStar
                         canReport
-                        canView
+                        canUpdate
+                        canRead
                         isStarred
                         isViewed
                         yourMembership {
@@ -206,10 +206,10 @@ query meetingInvites($input: MeetingInviteSearchInput!) {
                             you {
                                 canAddMembers
                                 canDelete
-                                canEdit
                                 canStar
                                 canReport
-                                canView
+                                canUpdate
+                                canRead
                                 isStarred
                                 isViewed
                                 yourMembership {
@@ -239,10 +239,10 @@ query meetingInvites($input: MeetingInviteSearchInput!) {
                         you {
                             canAddMembers
                             canDelete
-                            canEdit
                             canStar
                             canReport
-                            canView
+                            canUpdate
+                            canRead
                             isStarred
                             isViewed
                             yourMembership {
@@ -264,8 +264,8 @@ query meetingInvites($input: MeetingInviteSearchInput!) {
                 invitesCount
                 you {
                     canDelete
-                    canEdit
                     canInvite
+                    canUpdate
                 }
             }
             id
@@ -275,7 +275,7 @@ query meetingInvites($input: MeetingInviteSearchInput!) {
             status
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
     }
@@ -323,10 +323,10 @@ mutation meetingInviteCreate($input: MeetingInviteCreateInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -351,10 +351,10 @@ mutation meetingInviteCreate($input: MeetingInviteCreateInput!) {
                     you {
                         canAddMembers
                         canDelete
-                        canEdit
                         canStar
                         canReport
-                        canView
+                        canUpdate
+                        canRead
                         isStarred
                         isViewed
                         yourMembership {
@@ -384,10 +384,10 @@ mutation meetingInviteCreate($input: MeetingInviteCreateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -409,8 +409,8 @@ mutation meetingInviteCreate($input: MeetingInviteCreateInput!) {
         invitesCount
         you {
             canDelete
-            canEdit
             canInvite
+            canUpdate
         }
     }
     id
@@ -420,7 +420,7 @@ mutation meetingInviteCreate($input: MeetingInviteCreateInput!) {
     status
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -462,10 +462,10 @@ mutation meetingInviteUpdate($input: MeetingInviteUpdateInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -490,10 +490,10 @@ mutation meetingInviteUpdate($input: MeetingInviteUpdateInput!) {
                     you {
                         canAddMembers
                         canDelete
-                        canEdit
                         canStar
                         canReport
-                        canView
+                        canUpdate
+                        canRead
                         isStarred
                         isViewed
                         yourMembership {
@@ -523,10 +523,10 @@ mutation meetingInviteUpdate($input: MeetingInviteUpdateInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -548,8 +548,8 @@ mutation meetingInviteUpdate($input: MeetingInviteUpdateInput!) {
         invitesCount
         you {
             canDelete
-            canEdit
             canInvite
+            canUpdate
         }
     }
     id
@@ -559,7 +559,7 @@ mutation meetingInviteUpdate($input: MeetingInviteUpdateInput!) {
     status
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -601,10 +601,10 @@ mutation meetingInviteAccept($input: FindByIdInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -629,10 +629,10 @@ mutation meetingInviteAccept($input: FindByIdInput!) {
                     you {
                         canAddMembers
                         canDelete
-                        canEdit
                         canStar
                         canReport
-                        canView
+                        canUpdate
+                        canRead
                         isStarred
                         isViewed
                         yourMembership {
@@ -662,10 +662,10 @@ mutation meetingInviteAccept($input: FindByIdInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -687,8 +687,8 @@ mutation meetingInviteAccept($input: FindByIdInput!) {
         invitesCount
         you {
             canDelete
-            canEdit
             canInvite
+            canUpdate
         }
     }
     id
@@ -698,7 +698,7 @@ mutation meetingInviteAccept($input: FindByIdInput!) {
     status
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -740,10 +740,10 @@ mutation meetingInviteDecline($input: FindByIdInput!) {
             you {
                 canAddMembers
                 canDelete
-                canEdit
                 canStar
                 canReport
-                canView
+                canUpdate
+                canRead
                 isStarred
                 isViewed
                 yourMembership {
@@ -768,10 +768,10 @@ mutation meetingInviteDecline($input: FindByIdInput!) {
                     you {
                         canAddMembers
                         canDelete
-                        canEdit
                         canStar
                         canReport
-                        canView
+                        canUpdate
+                        canRead
                         isStarred
                         isViewed
                         yourMembership {
@@ -801,10 +801,10 @@ mutation meetingInviteDecline($input: FindByIdInput!) {
                 you {
                     canAddMembers
                     canDelete
-                    canEdit
                     canStar
                     canReport
-                    canView
+                    canUpdate
+                    canRead
                     isStarred
                     isViewed
                     yourMembership {
@@ -826,8 +826,8 @@ mutation meetingInviteDecline($input: FindByIdInput!) {
         invitesCount
         you {
             canDelete
-            canEdit
             canInvite
+            canUpdate
         }
     }
     id
@@ -837,7 +837,7 @@ mutation meetingInviteDecline($input: FindByIdInput!) {
     status
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;

@@ -165,7 +165,7 @@ export const OrganizationCreate = ({
                     <ResourceListHorizontal
                         title={'Resources'}
                         list={resourceList}
-                        canEdit={true}
+                        canUpdate={true}
                         handleUpdate={handleResourcesUpdate}
                         loading={false}
                         session={session}

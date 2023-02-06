@@ -13,7 +13,7 @@ createdBy {
 you {
     canComment
     canDelete
-    canEdit
     canReport
+    canUpdate
 }
 }`;

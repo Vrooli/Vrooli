@@ -109,10 +109,10 @@ export const typeDef = gql`
     type OrganizationYou {
         canAddMembers: Boolean!
         canDelete: Boolean!
-        canEdit: Boolean!
         canStar: Boolean!
         canReport: Boolean!
-        canView: Boolean!
+        canUpdate: Boolean!
+        canRead: Boolean!
         isStarred: Boolean!
         isViewed: Boolean!
         yourMembership: Member

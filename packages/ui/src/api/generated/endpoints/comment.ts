@@ -95,10 +95,10 @@ query comment($input: FindByIdInput!) {
     reportsCount
     you {
         canDelete
-        canEdit
         canStar
         canReply
         canReport
+        canUpdate
         canVote
         isStarred
         isUpvoted
@@ -186,10 +186,10 @@ query comments($input: CommentSearchInput!) {
                 reportsCount
                 you {
                     canDelete
-                    canEdit
                     canStar
                     canReply
                     canReport
+                    canUpdate
                     canVote
                     isStarred
                     isUpvoted
@@ -255,10 +255,10 @@ query comments($input: CommentSearchInput!) {
             reportsCount
             you {
                 canDelete
-                canEdit
                 canStar
                 canReply
                 canReport
+                canUpdate
                 canVote
                 isStarred
                 isUpvoted
@@ -324,10 +324,10 @@ query comments($input: CommentSearchInput!) {
         reportsCount
         you {
             canDelete
-            canEdit
             canStar
             canReply
             canReport
+            canUpdate
             canVote
             isStarred
             isUpvoted
@@ -415,10 +415,10 @@ mutation commentCreate($input: CommentCreateInput!) {
     reportsCount
     you {
         canDelete
-        canEdit
         canStar
         canReply
         canReport
+        canUpdate
         canVote
         isStarred
         isUpvoted
@@ -503,10 +503,10 @@ mutation commentUpdate($input: CommentUpdateInput!) {
     reportsCount
     you {
         canDelete
-        canEdit
         canStar
         canReply
         canReport
+        canUpdate
         canVote
         isStarred
         isUpvoted

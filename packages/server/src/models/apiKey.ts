@@ -4,6 +4,7 @@ import { ApiKey, ApiKeyCreateInput, ApiKeyUpdateInput } from '@shared/consts';
 import { PrismaType } from "../types";
 import { ModelLogic } from "./types";
 import { OrganizationModel } from "./organization";
+import { defaultPermissions } from "../utils";
 
 const __typename = 'ApiKey' as const;
 const suppFields = [] as const;
@@ -12,7 +13,7 @@ export const ApiKeyModel: ModelLogic<{
     IsVersioned: false,
     GqlCreate: ApiKeyCreateInput,
     GqlUpdate: ApiKeyUpdateInput,
-    GqlPermission: undefined,
+    GqlPermission: {},
     GqlModel: ApiKey,
     GqlSearch: undefined,
     GqlSort: undefined,
@@ -75,9 +76,7 @@ export const ApiKeyModel: ModelLogic<{
             User: data.user,
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canView: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         permissionsSelect: () => ({
             id: true,

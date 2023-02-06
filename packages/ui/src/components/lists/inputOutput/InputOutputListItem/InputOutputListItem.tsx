@@ -79,7 +79,7 @@ export const InputOutputListItem = ({
         setStandardVersion(item.standardVersion ?? defaultStandardVersion(item, session));
     }, [item, session])
 
-    const canEditStandardVersion = useMemo(() => isEditing && standardVersion.root.isInternal === true, [isEditing, standardVersion.root.isInternal]);
+    const canUpdateStandardVersion = useMemo(() => isEditing && standardVersion.root.isInternal === true, [isEditing, standardVersion.root.isInternal]);
 
     /**
      * Schema only available when defining custom (internal) standard
@@ -88,9 +88,9 @@ export const InputOutputListItem = ({
 
     // Handle standard schema
     const handleSchemaUpdate = useCallback((schema: FieldData) => {
-        if (!canEditStandardVersion) return;
+        if (!canUpdateStandardVersion) return;
         setGeneratedSchema(schema);
-    }, [canEditStandardVersion]);
+    }, [canUpdateStandardVersion]);
 
     const handleInputTypeSelect = useCallback((selected: InputTypeOption) => {
         if (selected.value === item.standardVersion?.standardType) return;
@@ -137,7 +137,7 @@ export const InputOutputListItem = ({
                 name: values.name,
                 isRequired: isInput ? values.isRequired : undefined,
                 translations: allTranslations,
-                standardVersion: !canEditStandardVersion ? standardVersion : defaultStandardVersion(item, session, generatedSchema),
+                standardVersion: !canUpdateStandardVersion ? standardVersion : defaultStandardVersion(item, session, generatedSchema),
             });
         },
     });
@@ -150,7 +150,7 @@ export const InputOutputListItem = ({
         else handleOpen(index);
     }, [isOpen, handleOpen, index, formik, handleClose]);
 
-    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(!canEditStandardVersion);
+    const [isPreviewOn, setIsPreviewOn] = useState<boolean>(!canUpdateStandardVersion);
     const onPreviewChange = useCallback((isOn: boolean) => { setIsPreviewOn(isOn); }, []);
     const onSwitchChange = useCallback((s: StandardVersion | null) => {
         if (s && s.root.isInternal === false) {
@@ -306,14 +306,14 @@ export const InputOutputListItem = ({
                         <StandardVersionSelectSwitch
                             disabled={!isEditing}
                             session={session}
-                            selected={!canEditStandardVersion ? { root: { name: standardVersion.root.name ?? '' } } : null}
+                            selected={!canUpdateStandardVersion ? { root: { name: standardVersion.root.name ?? '' } } : null}
                             onChange={onSwitchChange}
                             zIndex={zIndex}
                         />
                     </Grid>
                     {/* Standard build/preview */}
                     <Grid item xs={12}>
-                        {canEditStandardVersion && <PreviewSwitch
+                        {canUpdateStandardVersion && <PreviewSwitch
                             isPreviewOn={isPreviewOn}
                             onChange={onPreviewChange}
                             sx={{
@@ -321,7 +321,7 @@ export const InputOutputListItem = ({
                             }}
                         />}
                         {
-                            (isPreviewOn || !canEditStandardVersion) ?
+                            (isPreviewOn || !canUpdateStandardVersion) ?
                                 ((standardVersion || generatedSchema) && generateInputComponent({
                                     disabled: true,
                                     fieldData: standardVersion ?

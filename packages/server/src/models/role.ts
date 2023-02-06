@@ -13,7 +13,7 @@ export const RoleModel: ModelLogic<{
     GqlCreate: RoleCreateInput,
     GqlUpdate: RoleUpdateInput,
     GqlModel: Role,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.roleUpsertArgs['create'],

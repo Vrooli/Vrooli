@@ -15,7 +15,7 @@ import { deleteOneOrManyDeleteMany } from 'api/generated/endpoints/deleteOneOrMa
 
 export const ResourceListHorizontal = ({
     title = '📌 Resources',
-    canEdit = true,
+    canUpdate = true,
     handleUpdate,
     mutate = true,
     list,
@@ -117,7 +117,7 @@ export const ResourceListHorizontal = ({
             {dialog}
             {/* Right-click context menu */}
             <ResourceListItemContextMenu
-                canEdit={canEdit}
+                canUpdate={canUpdate}
                 id={contextId}
                 anchorEl={contextAnchor}
                 index={selectedIndex ?? -1}
@@ -155,7 +155,7 @@ export const ResourceListHorizontal = ({
                     {/* Resources */}
                     {list?.resources?.map((c: Resource, index) => (
                         <ResourceCard
-                            canEdit={canEdit}
+                            canUpdate={canUpdate}
                             key={`resource-card-${index}`}
                             index={index}
                             session={session}
@@ -178,7 +178,7 @@ export const ResourceListHorizontal = ({
                         )
                     }
                     {/* Add resource button */}
-                    {canEdit ? <Tooltip placement="top" title="Add resource">
+                    {canUpdate ? <Tooltip placement="top" title="Add resource">
                         <Box
                             onClick={openDialog}
                             aria-label="Add resource"

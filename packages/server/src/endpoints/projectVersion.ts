@@ -94,10 +94,10 @@ export const typeDef = gql`
         canComment: Boolean!
         canCopy: Boolean!
         canDelete: Boolean!
-        canEdit: Boolean!
         canReport: Boolean!
+        canUpdate: Boolean!
         canUse: Boolean!
-        canView: Boolean!
+        canRead: Boolean!
         runs: [RunProject!]!
     }
 

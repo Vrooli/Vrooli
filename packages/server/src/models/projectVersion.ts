@@ -5,7 +5,7 @@ import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { Trigger } from "../events";
 import { addSupplementalFields, modelToGraphQL, padSelect, selectHelper, toPartialGraphQLInfo } from "../builders";
-import { bestLabel, oneIsPublic } from "../utils";
+import { bestLabel, defaultPermissions, oneIsPublic } from "../utils";
 import { PartialGraphQLInfo, SelectWrap } from "../builders/types";
 import { RunProjectModel } from "./runProject";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../validators";
@@ -25,8 +25,8 @@ const shapeBase = async (prisma: PrismaType, userData: SessionUser, data: Projec
 }
 
 const __typename = 'ProjectVersion' as const;
-type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
-const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView', 'you.runs'] as const;
+type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
+const suppFields = ['you.canCopy', 'you.canDelete', 'you.canUpdate', 'you.canReport', 'you.canUse', 'you.canRead', 'you.runs'] as const;
 export const ProjectVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -201,16 +201,7 @@ export const ProjectVersionModel: ModelLogic<{
             root: 'Project',
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
-            canComment: () => !isDeleted && (isAdmin || isPublic),
-            canCopy: () => !isDeleted && (isAdmin || isPublic),
-            canDelete: () => isAdmin && !isDeleted,
-            canEdit: () => isAdmin && !isDeleted,
-            canReport: () => !isAdmin && !isDeleted && isPublic,
-            canRun: () => !isDeleted && (isAdmin || isPublic),
-            canStar: () => !isDeleted && (isAdmin || isPublic),
-            canUse: () => !isDeleted && (isAdmin || isPublic),
-            canView: () => !isDeleted && (isAdmin || isPublic),
-            canVote: () => !isDeleted && (isAdmin || isPublic),
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         validations: {
             async common({ createMany, deleteMany, languages, prisma, updateMany }) {

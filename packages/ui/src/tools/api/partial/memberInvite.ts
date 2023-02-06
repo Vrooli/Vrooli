@@ -6,7 +6,7 @@ export const memberInviteYou: GqlPartial<MemberInviteYou> = {
     __typename: 'MemberInviteYou',
     common: {
         canDelete: true,
-        canEdit: true,
+        canUpdate: true,
     },
     full: {},
     list: {},

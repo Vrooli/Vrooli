@@ -45,10 +45,10 @@ labels {
 you {
     canComment
     canDelete
-    canEdit
     canStar
     canReport
-    canView
+    canUpdate
+    canRead
     canVote
     isStarred
     isUpvoted

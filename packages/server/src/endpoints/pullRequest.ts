@@ -61,8 +61,8 @@ export const typeDef = gql`
     type PullRequestYou {
         canComment: Boolean!
         canDelete: Boolean!
-        canEdit: Boolean!
         canReport: Boolean!
+        canUpdate: Boolean!
     }
 
     input PullRequestSearchInput {

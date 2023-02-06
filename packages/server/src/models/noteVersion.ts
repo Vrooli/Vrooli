@@ -7,8 +7,8 @@ import { getSingleTypePermissions } from "../validators";
 import { ModelLogic } from "./types";
 
 const __typename = 'NoteVersion' as const;
-type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canEdit' | 'canReport' | 'canUse' | 'canView'>;
-const suppFields = ['you.canCopy', 'you.canDelete', 'you.canEdit', 'you.canReport', 'you.canUse', 'you.canView'] as const;
+type Permissions = Pick<VersionYou, 'canCopy' | 'canDelete' | 'canUpdate' | 'canReport' | 'canUse' | 'canRead'>;
+const suppFields = ['you.canCopy', 'you.canDelete', 'you.canUpdate', 'you.canReport', 'you.canUse', 'you.canRead'] as const;
 export const NoteVersionModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,

@@ -15,7 +15,7 @@ export const MeetingModel: ModelLogic<{
     GqlModel: Meeting,
     GqlSearch: MeetingSearchInput,
     GqlSort: MeetingSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.meetingUpsertArgs['create'],
     PrismaUpdate: Prisma.meetingUpsertArgs['update'],
     PrismaModel: Prisma.meetingGetPayload<SelectWrap<Prisma.meetingSelect>>,

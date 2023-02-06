@@ -6,10 +6,10 @@ export const projectYou: GqlPartial<ProjectYou> = {
     __typename: 'ProjectYou',
     common: {
         canDelete: true,
-        canEdit: true,
         canStar: true,
         canTransfer: true,
-        canView: true,
+        canUpdate: true,
+        canRead: true,
         canVote: true,
         isStarred: true,
         isUpvoted: true,

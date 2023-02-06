@@ -15,7 +15,7 @@ export const RunRoutineScheduleModel: ModelLogic<{
     GqlModel: RunRoutineSchedule,
     GqlSearch: RunRoutineScheduleSearchInput,
     GqlSort: RunRoutineScheduleSortBy,
-    GqlPermission: any,
+    GqlPermission: {},
     PrismaCreate: Prisma.run_routine_scheduleUpsertArgs['create'],
     PrismaUpdate: Prisma.run_routine_scheduleUpsertArgs['update'],
     PrismaModel: Prisma.run_routine_scheduleGetPayload<SelectWrap<Prisma.run_routine_scheduleSelect>>,

@@ -6,7 +6,7 @@ export const transferYou: GqlPartial<TransferYou> = {
     __typename: 'TransferYou',
     common: {
         canDelete: true,
-        canEdit: true,
+        canUpdate: true,
     },
     full: {},
     list: {},

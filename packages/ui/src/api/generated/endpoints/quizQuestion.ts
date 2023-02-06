@@ -43,9 +43,9 @@ query quizQuestion($input: FindByIdInput!) {
                 }
                 you {
                     canDelete
-                    canEdit
                     canStar
-                    canView
+                    canUpdate
+                    canRead
                     canVote
                     isStarred
                     isUpvoted
@@ -58,7 +58,7 @@ query quizQuestion($input: FindByIdInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
         translations {
@@ -68,7 +68,7 @@ query quizQuestion($input: FindByIdInput!) {
         }
         you {
             canDelete
-            canEdit
+            canUpdate
         }
     }
     translations {
@@ -102,7 +102,7 @@ query quizQuestion($input: FindByIdInput!) {
     }
     you {
         canDelete
-        canEdit
+        canUpdate
     }
   }
 }`;
@@ -144,7 +144,7 @@ query quizQuestions($input: QuizQuestionSearchInput!) {
             }
             you {
                 canDelete
-                canEdit
+                canUpdate
             }
         }
     }

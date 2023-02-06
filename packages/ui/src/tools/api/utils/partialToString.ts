@@ -91,10 +91,8 @@ ${' '.repeat(indent)}}`;
     if (exists(__define) && Object.keys(__define).length > 0) {
         let fragmentsString = '';
         fragments = await fragmentsToString(__define)
-        partial?.__typename === 'StarSearchResult' && console.log('fragments a', fragments)
         // Filter out fragments not found in the tag
         fragments = fragmentsNeeded(fragments, tag);
-        partial?.__typename === 'StarSearchResult' && console.log('fragments b', fragments)
         // Sort fragments by name, just because it looks nicer
         fragments.sort(([a], [b]) => a.localeCompare(b))
         // For every fragment, add reference to it in the tag

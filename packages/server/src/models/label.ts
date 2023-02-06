@@ -6,8 +6,8 @@ import { ModelLogic } from "./types";
 import { getSingleTypePermissions } from "../validators";
 
 const __typename = 'Label' as const;
-type Permissions = Pick<LabelYou, 'canDelete' | 'canEdit'>;
-const suppFields = ['you.canDelete', 'you.canEdit'] as const;
+type Permissions = Pick<LabelYou, 'canDelete' | 'canUpdate'>;
+const suppFields = ['you.canDelete', 'you.canUpdate'] as const;
 export const LabelModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,

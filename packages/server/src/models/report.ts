@@ -36,8 +36,8 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs['create'] }
 }
 
 const __typename = 'Report' as const;
-type Permissions = Pick<ReportYou, 'canDelete' | 'canEdit' | 'canRespond'>;
-const suppFields = ['you.canDelete', 'you.canEdit', 'you.canRespond'] as const;
+type Permissions = Pick<ReportYou, 'canDelete' | 'canUpdate' | 'canRespond'>;
+const suppFields = ['you.canDelete', 'you.canUpdate', 'you.canRespond'] as const;
 export const ReportModel: ModelLogic<{
     IsTransferable: false,
     IsVersioned: false,
@@ -180,9 +180,12 @@ export const ReportModel: ModelLogic<{
             createdBy: 'User',
         }),
         permissionResolvers: ({ data, isAdmin }) => ({
+            canConnect: () => data.status !== 'Open',
+            canDisconnect: () => false,
             canDelete: () => isAdmin && data.status !== 'Open',
-            canEdit: () => isAdmin && data.status !== 'Open',
+            canRead: () => true,
             canRespond: () => data.status === 'Open',
+            canUpdate: () => isAdmin && data.status !== 'Open',
         }),
         owner: (data) => ({
             User: data.createdBy,

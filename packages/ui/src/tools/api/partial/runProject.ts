@@ -6,8 +6,8 @@ export const runProjectYou: GqlPartial<RunProjectYou> = {
     __typename: 'RunProjectYou',
     common: {
         canDelete: true,
-        canEdit: true,
-        canView: true,
+        canUpdate: true,
+        canRead: true,
     },
     full: {},
     list: {},

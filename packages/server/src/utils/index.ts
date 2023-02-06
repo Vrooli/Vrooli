@@ -1,4 +1,5 @@
 export * from './bestLabel';
+export * from './defaultPermissions';
 export * from './fileIO';
 export * from './getAuthenticatedData';
 export * from './getAuthenticatedIds';

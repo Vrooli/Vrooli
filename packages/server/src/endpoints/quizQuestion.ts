@@ -50,7 +50,7 @@ export const typeDef = gql`
 
     type QuizQuestionYou {
         canDelete: Boolean!
-        canEdit: Boolean!
+        canUpdate: Boolean!
     }
 
     input QuizQuestionTranslationCreateInput {

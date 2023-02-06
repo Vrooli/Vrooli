@@ -4,6 +4,7 @@ import { ObjectSchema } from 'yup';
 import { PartialGraphQLInfo, PartialPrismaSelect, PrismaDelegate } from "../builders/types";
 import { SortMap } from "../utils/sortMap";
 import { SearchMap, SearchStringMap } from "../utils";
+import { QueryAction } from "../utils/types";
 
 type ModelLogicType = {
     GqlCreate: Record<string, any> | undefined,
@@ -11,7 +12,7 @@ type ModelLogicType = {
     GqlSearch: Record<string, any> | undefined,
     GqlSort: string | undefined,
     GqlModel: Record<string, any>,
-    GqlPermission: Record<string, any> | undefined,
+    GqlPermission: Record<string, any>,
     PrismaCreate: Record<string, any> | undefined,
     PrismaUpdate: Record<string, any> | undefined,
     PrismaSelect: Record<string, any>,
@@ -296,9 +297,7 @@ export type Validator<
         isAdmin: boolean,
         isDeleted: boolean,
         isPublic: boolean,
-    }) => {
-            [x in keyof Omit<Model['GqlPermission'], 'type'>]: () => any
-        }
+    }) => { [x in keyof Omit<Model['GqlPermission'], 'type'>]: () => any } & { [x in Exclude<QueryAction, 'Create'> as `can${x}`]: () => boolean | Promise<boolean> };
     /**
      * Partial queries for various visibility checks
      */

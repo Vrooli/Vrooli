@@ -32,11 +32,11 @@ export type YouInflated = {
     canComment: boolean;
     canCopy: boolean;
     canDelete: boolean;
-    canEdit: boolean;
+    canRead: boolean;
     canReport: boolean;
     canShare: boolean;
     canStar: boolean;
-    canView: boolean;
+    canUpdate: boolean;
     canVote: boolean;
     isStarred: boolean;
     isUpvoted: boolean | null;
@@ -99,11 +99,11 @@ export const getYou = (
         canComment: false,
         canCopy: false,
         canDelete: false,
-        canEdit: false,
+        canRead: false,
         canReport: false,
         canShare: false,
         canStar: false,
-        canView: false,
+        canUpdate: false,
         canVote: false,
         isStarred: false,
         isUpvoted: null,

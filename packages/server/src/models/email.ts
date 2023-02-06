@@ -4,6 +4,7 @@ import { CustomError, Trigger } from "../events";
 import { ModelLogic } from "./types";
 import { Prisma } from "@prisma/client";
 import { SelectWrap } from "../builders/types";
+import { defaultPermissions } from '../utils';
 
 const __typename = 'Email' as const;
 const suppFields = [] as const;
@@ -13,7 +14,7 @@ export const EmailModel: ModelLogic<{
     GqlCreate: EmailCreateInput,
     GqlUpdate: undefined,
     GqlModel: Email,
-    GqlPermission: any,
+    GqlPermission: {},
     GqlSearch: undefined,
     GqlSort: undefined,
     PrismaCreate: Prisma.emailUpsertArgs['create'],
@@ -65,9 +66,8 @@ export const EmailModel: ModelLogic<{
             id: true,
             user: 'User',
         }),
-        permissionResolvers: ({ isAdmin }) => ({
-            canDelete: () => isAdmin,
-            canEdit: () => isAdmin,
+        permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
+            ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
         }),
         owner: (data) => ({
             User: data.user,
