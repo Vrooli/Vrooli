@@ -80,7 +80,7 @@ export const typeDef = gql`
         sentReports: [Report!]
         reportsCreated: [Report!]
         reportsReceived: [Report!]!
-        reportsCount: Int!
+        reportsReceivedCount: Int!
         reportResponses: [ReportResponse!]
         reputationHistory: [ReputationHistory!]
         roles: [Role!]

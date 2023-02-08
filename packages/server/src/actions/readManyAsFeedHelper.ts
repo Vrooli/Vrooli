@@ -15,6 +15,7 @@ import { ReadManyHelperProps } from "./types"
     prisma,
     req,
 }: Omit<ReadManyHelperProps<Input>, 'addSupplemental'>): Promise<{ pageInfo: any, nodes: any[] }> {
+    console.log('readmanyasfeedhelper start', JSON.stringify(additionalQueries), JSON.stringify(input), '\n');
     const readManyResult = await readManyHelper({
         additionalQueries,
         addSupplemental: false,

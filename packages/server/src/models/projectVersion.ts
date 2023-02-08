@@ -82,7 +82,7 @@ export const ProjectVersionModel: ModelLogic<{
             directoryListingsCount: true,
             forksCount: true,
             reportsCount: true,
-            runsCount: true,
+            runProjectsCount: true,
             translationsCount: true,
         },
         supplemental: {
@@ -98,6 +98,7 @@ export const ProjectVersionModel: ModelLogic<{
                         projectVersionId: true
                     }
                     // Query runs made by user
+                    console.log('in projectversion tographql before runs', selectHelper(partial));
                     let runs: any[] = await prisma.run_project.findMany({
                         where: {
                             AND: [

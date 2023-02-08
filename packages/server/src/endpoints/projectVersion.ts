@@ -85,7 +85,7 @@ export const typeDef = gql`
         forksCount: Int!
         comments: [Comment!]!
         commentsCount: Int!
-        runsCount: Int!
+        runProjectsCount: Int!
         suggestedNextByProject: [Project!]!
         you: ProjectVersionYou!
     }

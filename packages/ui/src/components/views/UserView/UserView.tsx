@@ -317,7 +317,7 @@ export const UserView = ({
                         onChange={(isStar: boolean) => { }}
                         tooltipPlacement="bottom"
                     />
-                    <ReportsLink object={user} />
+                    <ReportsLink object={user ? { ...user, reportsCount: user.reportsReceivedCount } : undefined} />
                 </Stack>
             </Stack>
         </Box>

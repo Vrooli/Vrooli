@@ -34,7 +34,7 @@ export const user: GqlPartial<User> = {
         handle: true,
         name: true,
         stars: true,
-        reportsCount: true,
+        reportsReceivedCount: true,
         you: () => rel(userYou, 'full'),
     },
     full: {

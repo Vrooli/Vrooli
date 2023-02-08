@@ -91,7 +91,7 @@ export const TagModel: ModelLogic<{
         countFields: {},
         supplemental: {
             graphqlFields: suppFields,
-            dbFields: ['createdByUserId', 'id'],
+            dbFields: ['createdById', 'id'],
             toGraphQL: async ({ ids, objects, prisma, userData }) => ({
                 'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),
                 'you.isOwn': objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),

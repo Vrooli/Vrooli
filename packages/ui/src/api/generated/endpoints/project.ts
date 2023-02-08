@@ -268,7 +268,7 @@ query project($input: FindByIdInput!) {
         isLatest
         isPrivate
         reportsCount
-        runsCount
+        runProjectsCount
         simplicity
         versionIndex
         versionLabel
@@ -364,7 +364,7 @@ query projects($input: ProjectSearchInput!) {
                 isLatest
                 isPrivate
                 reportsCount
-                runsCount
+                runProjectsCount
                 simplicity
                 versionIndex
                 versionLabel
@@ -687,7 +687,7 @@ mutation projectCreate($input: ProjectCreateInput!) {
         isLatest
         isPrivate
         reportsCount
-        runsCount
+        runProjectsCount
         simplicity
         versionIndex
         versionLabel
@@ -1023,7 +1023,7 @@ mutation projectUpdate($input: ProjectUpdateInput!) {
         isLatest
         isPrivate
         reportsCount
-        runsCount
+        runProjectsCount
         simplicity
         versionIndex
         versionLabel

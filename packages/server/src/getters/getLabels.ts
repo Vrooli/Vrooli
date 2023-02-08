@@ -1,5 +1,5 @@
 import { GqlModelType } from "@shared/consts";
-import { CustomError } from "../events";
+import { CustomError, logger } from "../events";
 import { ObjectMap } from "../models";
 import { PrismaType } from "../types";
 
@@ -20,17 +20,31 @@ export async function getLabels(
     languages: string[],
     errorTrace: string,
 ): Promise<string[]> {
+    console.log('getLabels 1', objectType, languages);
     const model = ObjectMap[objectType]
+    console.log('getLabels 2', model?.display?.select);
     if (!model) {
         throw new CustomError('0347', 'InvalidArgs', languages, { errorTrace, objectType });
     }
     if (objects.length <= 0) return [];
     const objectsWithLanguages = typeof objects[0] === 'string' ? objects.map(id => ({ id, languages })) : objects;
+    console.log('getLabels 3', JSON.stringify(objectsWithLanguages), '\n');
     // Query for labels data
-    const labelsData = await model.delegate(prisma).findMany({
-        where: { id: { in: objectsWithLanguages.map(x => x.id) } },
-        select: model.display.select,
-    })
+    let where: any;
+    let select: any;
+    let labelsData: any[];
+    try {
+        where = { id: { in: objectsWithLanguages.map(x => x.id) } };
+        select = typeof model.display.select === 'function' ? model.display.select() : model.display.select,
+        labelsData = await model.delegate(prisma).findMany({
+            where,
+            select,
+        })
+    } catch (error) {
+        logger.error('readManyHelper: Failed to find searchResults', { trace: '0385', error, objectType, where, select });
+        throw new CustomError('0383', 'InternalError', languages, { objectType });
+    }
+    console.log('getLabels 4', JSON.stringify(labelsData), '\n');
     // If no data, return empty strings
     if (!labelsData || labelsData.length <= 0) return new Array(objectsWithLanguages.length).fill('');
     // For each object, find the label

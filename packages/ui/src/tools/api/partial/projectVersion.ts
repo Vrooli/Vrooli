@@ -44,7 +44,7 @@ export const projectVersion: GqlPartial<ProjectVersion> = {
         isLatest: true,
         isPrivate: true,
         reportsCount: true,
-        runsCount: true,
+        runProjectsCount: true,
         simplicity: true,
         versionIndex: true,
         versionLabel: true,

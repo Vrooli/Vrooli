@@ -99,12 +99,14 @@ export const UserModel: ModelLogic<{
             starredBy: 'user',
         },
         countFields: {
-            reportsCount: true,
+            reportsReceivedCount: true,
         },
         supplemental: {
             graphqlFields: suppFields,
             toGraphQL: async ({ ids, prisma, userData }) => {
+                console.log('user tographql 1');
                 let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
+                console.log('user tographql 2');
                 return {
                     ...(Object.fromEntries(Object.entries(permissions).map(([k, v]) => [`you.${k}`, v])) as PrependString<typeof permissions, 'you.'>),
                     'you.isStarred': await StarModel.query.getIsStarreds(prisma, userData?.id, ids, __typename),

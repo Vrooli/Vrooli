@@ -13,7 +13,7 @@ versions {
     isLatest
     isPrivate
     reportsCount
-    runsCount
+    runProjectsCount
     simplicity
     versionIndex
     versionLabel

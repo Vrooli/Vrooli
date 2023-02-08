@@ -1,4 +1,4 @@
-import { CustomError } from "../events";
+import { CustomError, logger } from "../events";
 import { getLogic } from "../getters";
 import { GqlModelType, SessionUser } from '@shared/consts';
 import { PrismaType } from "../types";
@@ -239,7 +239,7 @@ export function getMultiTypePermissions(
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic, data: authDataById[id] });
         // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
         // the same keys, but with the values of the resolvers instead.
-        const permissions = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));
+        const permissions = Object.fromEntries(Object.entries(permissionResolvers).map(([key, resolver]) => [key, resolver()]));
         // Add permissions object to result
         permissionsById[id] = permissions;
     }
@@ -261,29 +261,47 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     prisma: PrismaType,
     userData: SessionUser | null,
 ): Promise<{ [K in keyof Permissions]: Permissions[K][] }> {
+    console.log('getsingletypepermissions 1', type);
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
     // Get validator and prismaDelegate
     const { delegate, validate } = getLogic(['delegate', 'validate'], type, userData?.languages ?? ['en'], 'getSingleTypePermissions');
+    console.log('getsingletypepermissions 2', JSON.stringify(validate), '\n');
     // Get auth data for all objects
-    const authData = await delegate(prisma).findMany({
-        where: { id: { in: ids } },
-        select: permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ['en']), 
-    })
+    let select: any;
+    let authData: any = [];
+    try {
+        select = permissionsSelectHelper(validate.permissionsSelect, userData?.id ?? null, userData?.languages ?? ['en']);
+        authData = await delegate(prisma).findMany({
+            where: { id: { in: ids } },
+            select,
+        })
+    } catch (error) {
+        throw new CustomError('0383', 'InternalError', userData?.languages ?? ['en'], { ids });
+    }
+    console.log('getsingletypepermissions 3');
     // Loop through each object and calculate permissions
     for (const authDataItem of authData) {
+        console.log('getsingletypepermissions 4');
         const isAdmin = isOwnerAdminCheck(validate.owner(authDataItem), userData?.id);
+        console.log('getsingletypepermissions 5')
         const isDeleted = validate.isDeleted(authDataItem, userData?.languages ?? ['en']);
+        console.log('getsingletypepermissions 6')
         const isPublic = validate.isPublic(authDataItem, userData?.languages ?? ['en']);
+        console.log('getsingletypepermissions 7')
         const permissionResolvers = validate.permissionResolvers({ isAdmin, isDeleted, isPublic, data: authDataItem });
+        console.log('getsingletypepermissions 8', type, JSON.stringify(Object.entries(permissionResolvers)), '\n')
         // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
         // as the permissions object, but with the values being the result of the resolver.
-        const permissionsObject = Object.fromEntries(permissionResolvers.entries().map(([key, resolver]) => [key, resolver()]));
+        const permissionsObject = Object.fromEntries(Object.entries(permissionResolvers).map(([key, resolver]) => [key, resolver()]));
         // Add permissions object to result
+        console.log('getsingletypepermissions 9')
         for (const key of Object.keys(permissionsObject)) {
             permissions[key as keyof Permissions] = [...(permissions[key as keyof Permissions] ?? []), permissionsObject[key]];
         }
+        console.log('getsingletypepermissions 10')
     }
+    console.log('getsingletypepermissions 11');
     return permissions as { [K in keyof Permissions]: Permissions[K][] };
 }
 

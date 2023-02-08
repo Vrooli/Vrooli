@@ -222,7 +222,7 @@ query user($input: FindByIdInput!) {
     handle
     name
     stars
-    reportsCount
+    reportsReceivedCount
     you {
         canDelete
         canReport
@@ -249,7 +249,7 @@ query users($input: UserSearchInput!) {
             handle
             name
             stars
-            reportsCount
+            reportsReceivedCount
             you {
                 canDelete
                 canReport

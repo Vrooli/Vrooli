@@ -9,7 +9,7 @@ created_at
 handle
 name
 stars
-reportsCount
+reportsReceivedCount
 you {
     canDelete
     canReport

@@ -1,7 +1,7 @@
 import { getUser } from "../auth";
 import { addSupplementalFields, combineQueries, modelToGraphQL, onlyValidIds, selectHelper, timeFrameToPrisma, toPartialGraphQLInfo } from "../builders";
 import { PaginatedSearchResult, PartialGraphQLInfo } from "../builders/types";
-import { CustomError } from "../events";
+import { CustomError, logger } from "../events";
 import { getSearchStringQuery } from "../getters";
 import { ObjectMap } from "../models";
 import { Searcher } from "../models/types";
@@ -38,9 +38,12 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // if the field is specified in the input
     const customQueries: { [x: string]: any }[] = [];
     if (searcher) {
+        console.log('if searcher true', searcher.searchFields, JSON.stringify(input))
         for (const field of Object.keys(searcher.searchFields)) {
+            console.log('search field', field)
             if (input[field as string] !== undefined) {
-                customQueries.push(SearchMap[field as string](input, userData, model.__typename));
+                console.log('adding to customQueries', input[field], SearchMap[field as string](input[field], userData, model.__typename))
+                customQueries.push(SearchMap[field as string](input[field], userData, model.__typename));
             }
         }
     }
@@ -48,6 +51,8 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         customQueries.push(searcher.customQueryData(input, userData));
     }
     // Combine queries
+    // TODO for monrning: compare to popular endpoint in feed.ts. AdditionQueries is missing isPrivate: false. customQueries is missing multiple things
+    console.log('going to combine queries: ', JSON.stringify(additionalQueries), searchQuery, JSON.stringify(customQueries));
     const where = combineQueries([additionalQueries, searchQuery, ...customQueries]);
     // Determine sort order
     // Make sure sort field is valid
@@ -55,16 +60,64 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const orderByIsValid = searcher ? searcher.sortBy[orderByField] === undefined : false;
     const orderBy = orderByIsValid ? SortMap[input.sortBy ?? searcher!.defaultSort] : undefined;
     // Find requested search array
-    const searchResults = await (model.delegate(prisma) as any).findMany({
-        where,
-        orderBy,
-        take: input.take ?? 20,
-        skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
-        cursor: input.after ? {
-            id: input.after
-        } : undefined,
-        ...selectHelper(partialInfo)
-    });
+    console.log('readmanyhelper before searchResults')
+    const select = selectHelper(partialInfo);
+    let searchResults: any[];
+    try {
+        searchResults = await (model.delegate(prisma) as any).findMany({
+            where,
+            orderBy,
+            take: input.take ?? 20,
+            skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
+            cursor: input.after ? {
+                id: input.after
+            } : undefined,
+            ...select
+        });
+        // prisma.organization.findMany({
+        //     "where": {
+        //         "stars": {
+        //           "gte": 0
+        //         }
+        //       },
+        //       "select": {
+        //         "id": true,
+        //         "isOpenToNewMembers": true,
+        //         "isPrivate": true,
+        //         "languages": {
+        //           "select": {
+        //             "language": true
+        //           }
+        //         },
+        //         "members": {
+        //           "select": {
+        //             "isAdmin": true,
+        //             "permissions": true
+        //           },
+        //           "where": {
+        //             "userId": true // Should be the user's ID
+        //           }
+        //         },
+        //         "permissions": true,
+        //         "roles": {
+        //           "select": {
+        //             "permissions": true
+        //           },
+        //           "where": {
+        //             "members": {
+        //               "some": {
+        //                 "userId": true // Should be the user's ID
+        //               }
+        //             }
+        //           }
+        //         }
+        //       }
+        // })
+    } catch (error) {
+        logger.error('readManyHelper: Failed to find searchResults', { trace: '0383', error, objectType, ...select, where, orderBy });
+        throw new CustomError('0383', 'InternalError', req.languages, { objectType });
+    }
+    console.log('readmanyhelper after searchResults', JSON.stringify(searchResults))
     // If there are results
     let paginatedResults: PaginatedSearchResult;
     if (searchResults.length > 0) {
@@ -103,16 +156,20 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             edges: []
         }
     }
+    console.log('readmanyhelper yeeeee 1', addSupplemental, JSON.stringify(paginatedResults), '\n');
     //TODO validate that the user has permission to read all of the results, including relationships
     // If not adding supplemental fields, return the paginated results
     if (!addSupplemental) return paginatedResults;
     // Return formatted for GraphQL
     let formattedNodes = paginatedResults.edges.map(({ node }) => node);
+    console.log('readmanyhelper yeeeee 2', JSON.stringify(formattedNodes), '\n');
     formattedNodes = formattedNodes.map(n => modelToGraphQL(n, partialInfo as PartialGraphQLInfo));
+    console.log('readmanyhelper yeeeee 3', JSON.stringify(formattedNodes), '\n');
     formattedNodes = await addSupplementalFields(prisma, userData, formattedNodes, partialInfo);
-    return { 
+    console.log('readmanyhelper yeeeee 4', JSON.stringify(formattedNodes), '\n');
+    return {
         ...paginatedResults,
-        pageInfo: paginatedResults.pageInfo, 
-        edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest })) 
+        pageInfo: paginatedResults.pageInfo,
+        edges: paginatedResults.edges.map(({ node, ...rest }) => ({ node: formattedNodes.shift(), ...rest }))
     };
 }

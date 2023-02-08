@@ -3582,7 +3582,7 @@ export type ProjectVersion = {
   reports: Array<Report>;
   reportsCount: Scalars['Int'];
   root: Project;
-  runsCount: Scalars['Int'];
+  runProjectsCount: Scalars['Int'];
   simplicity: Scalars['Int'];
   suggestedNextByProject: Array<Project>;
   timesCompleted: Scalars['Int'];
@@ -8443,9 +8443,9 @@ export type User = {
   quizzesCreated?: Maybe<Array<Quiz>>;
   quizzesTaken?: Maybe<Array<Quiz>>;
   reportResponses?: Maybe<Array<ReportResponse>>;
-  reportsCount: Scalars['Int'];
   reportsCreated?: Maybe<Array<Report>>;
   reportsReceived: Array<Report>;
+  reportsReceivedCount: Scalars['Int'];
   reputationHistory?: Maybe<Array<ReputationHistory>>;
   roles?: Maybe<Array<Role>>;
   routines?: Maybe<Array<Routine>>;
@@ -11396,7 +11396,7 @@ export type ProjectVersionResolvers<ContextType = any, ParentType extends Resolv
   reports?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Project'], ParentType, ContextType>;
-  runsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  runProjectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   simplicity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   suggestedNextByProject?: Resolver<Array<ResolversTypes['Project']>, ParentType, ContextType>;
   timesCompleted?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -13287,9 +13287,9 @@ export type UserResolvers<ContextType = any, ParentType extends ResolversParentT
   quizzesCreated?: Resolver<Maybe<Array<ResolversTypes['Quiz']>>, ParentType, ContextType>;
   quizzesTaken?: Resolver<Maybe<Array<ResolversTypes['Quiz']>>, ParentType, ContextType>;
   reportResponses?: Resolver<Maybe<Array<ResolversTypes['ReportResponse']>>, ParentType, ContextType>;
-  reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   reportsCreated?: Resolver<Maybe<Array<ResolversTypes['Report']>>, ParentType, ContextType>;
   reportsReceived?: Resolver<Array<ResolversTypes['Report']>, ParentType, ContextType>;
+  reportsReceivedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   reputationHistory?: Resolver<Maybe<Array<ResolversTypes['ReputationHistory']>>, ParentType, ContextType>;
   roles?: Resolver<Maybe<Array<ResolversTypes['Role']>>, ParentType, ContextType>;
   routines?: Resolver<Maybe<Array<ResolversTypes['Routine']>>, ParentType, ContextType>;
