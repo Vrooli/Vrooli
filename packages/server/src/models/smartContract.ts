@@ -183,7 +183,7 @@ export const SmartContractModel: ModelLogic<{
             createdBy: 'User',
             ownedByOrganization: 'Organization',
             ownedByUser: 'User',
-            versions: 'SmartContractVersion',
+            versions: ['SmartContractVersion', ['root']],
         }),
         visibility: {
             private: { isPrivate: true },

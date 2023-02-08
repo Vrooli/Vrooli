@@ -38,11 +38,8 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // if the field is specified in the input
     const customQueries: { [x: string]: any }[] = [];
     if (searcher) {
-        console.log('if searcher true', searcher.searchFields, JSON.stringify(input))
         for (const field of Object.keys(searcher.searchFields)) {
-            console.log('search field', field)
             if (input[field as string] !== undefined) {
-                console.log('adding to customQueries', input[field], SearchMap[field as string](input[field], userData, model.__typename))
                 customQueries.push(SearchMap[field as string](input[field], userData, model.__typename));
             }
         }
@@ -60,8 +57,9 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const orderByIsValid = searcher ? searcher.sortBy[orderByField] === undefined : false;
     const orderBy = orderByIsValid ? SortMap[input.sortBy ?? searcher!.defaultSort] : undefined;
     // Find requested search array
-    console.log('readmanyhelper before searchResults')
+    console.log('readmanyhelper before selectHelper', objectType, JSON.stringify(partialInfo), '\n\n');
     const select = selectHelper(partialInfo);
+    console.log('readmanyhelper after selectHelper', objectType, JSON.stringify(select));
     let searchResults: any[];
     try {
         searchResults = await (model.delegate(prisma) as any).findMany({
@@ -74,45 +72,6 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             } : undefined,
             ...select
         });
-        // prisma.organization.findMany({
-        //     "where": {
-        //         "stars": {
-        //           "gte": 0
-        //         }
-        //       },
-        //       "select": {
-        //         "id": true,
-        //         "isOpenToNewMembers": true,
-        //         "isPrivate": true,
-        //         "languages": {
-        //           "select": {
-        //             "language": true
-        //           }
-        //         },
-        //         "members": {
-        //           "select": {
-        //             "isAdmin": true,
-        //             "permissions": true
-        //           },
-        //           "where": {
-        //             "userId": true // Should be the user's ID
-        //           }
-        //         },
-        //         "permissions": true,
-        //         "roles": {
-        //           "select": {
-        //             "permissions": true
-        //           },
-        //           "where": {
-        //             "members": {
-        //               "some": {
-        //                 "userId": true // Should be the user's ID
-        //               }
-        //             }
-        //           }
-        //         }
-        //       }
-        // })
     } catch (error) {
         logger.error('readManyHelper: Failed to find searchResults', { trace: '0383', error, objectType, ...select, where, orderBy });
         throw new CustomError('0383', 'InternalError', req.languages, { objectType });

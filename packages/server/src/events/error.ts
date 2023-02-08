@@ -29,8 +29,7 @@ export class CustomError extends ApolloError {
         Object.defineProperty(this, 'name', { value: errorCode });
         // Log error, if trace is provided
         if (trace) {
-            const { msg, trace, ...rest } = data ?? {};
-            logger.error({ msg: message, trace, ...rest });
+            logger.error({ ...(data ?? {}), msg: message, trace });
         }
     }
 }

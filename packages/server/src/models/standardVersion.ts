@@ -465,7 +465,7 @@ export const StandardVersionModel: ModelLogic<{
             id: true,
             isDeleted: true,
             isPrivate: true,
-            root: 'Standard',
+            root: ['Standard', ['versions']],
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             ...defaultPermissions({ isAdmin, isDeleted, isPublic }),

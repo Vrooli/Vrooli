@@ -29,9 +29,7 @@ export function getLogic<
     errorTrace: string,
 ): GetLogicReturn<Logic[number]> {
     // Make sure object exists in map
-    console.log('getlogic 1', objectType);
     const object = ObjectMap[objectType];
-    console.log('getlogic 2', object)
     if (!object) throw new CustomError('0280', 'InvalidArgs', languages, { errorTrace, objectType });
     // If no props are requested, return the entire object
     if (!props.length) return object as GetLogicReturn<Logic[number]>;
@@ -39,10 +37,8 @@ export function getLogic<
     for (const field of props) {
         // Get logic function
         const logic = object[field as any];
-        console.log('getlogic 3', field, logic)
         // Make sure logic function exists
         if (!logic) throw new CustomError('0367', 'InvalidArgs', languages, { errorTrace, objectType, field });
     }
-    console.log('getlogic 4')
     return object as GetLogicReturn<Logic[number]>;
 }

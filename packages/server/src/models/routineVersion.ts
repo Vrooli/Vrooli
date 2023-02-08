@@ -112,7 +112,7 @@ export const RoutineVersionModel: ModelLogic<{
             toGraphQL: async ({ ids, objects, partial, prisma, userData }) => {
                 let permissions = await getSingleTypePermissions<Permissions>(__typename, ids, prisma, userData);
                 const runs = async () => {
-                    if (!userData) return new Array(objects.length).fill([]);
+                    if (!userData || !partial.runs) return new Array(objects.length).fill([]);
                     // Find requested fields of runs. Also add routineVersionId, so we 
                     // can associate runs with their routine
                     const runPartial: PartialGraphQLInfo = {
@@ -248,7 +248,7 @@ export const RoutineVersionModel: ModelLogic<{
             id: true,
             isDeleted: true,
             isPrivate: true,
-            root: 'Routine',
+            root: ['Routine', ['versions']],
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             ...defaultPermissions({ isAdmin, isDeleted, isPublic }),

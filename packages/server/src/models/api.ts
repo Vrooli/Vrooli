@@ -209,7 +209,7 @@ export const ApiModel: ModelLogic<{
             createdBy: 'User',
             ownedByOrganization: 'Organization',
             ownedByUser: 'User',
-            versions: 'ApiVersion',
+            versions: ['ApiVersion', ['root']],
         }),
         visibility: {
             private: { isPrivate: true },

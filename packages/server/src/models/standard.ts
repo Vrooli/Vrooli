@@ -396,7 +396,7 @@ export const StandardModel: ModelLogic<{
             createdBy: 'User',
             ownedByOrganization: 'Organization',
             ownedByUser: 'User',
-            versions: 'StandardVersion',
+            versions: ['StandardVersion', ['root']],
         }),
         owner: (data) => ({
             Organization: data.ownedByOrganization,

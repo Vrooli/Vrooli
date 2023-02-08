@@ -511,7 +511,7 @@ export const RoutineModel: ModelLogic<{
             createdBy: 'User',
             ownedByOrganization: 'Organization',
             ownedByUser: 'User',
-            versions: 'RoutineVersion',
+            versions: ['RoutineVersion', ['root']],
         }),
         visibility: {
             private: { isPrivate: true },

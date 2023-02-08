@@ -111,7 +111,6 @@ export const resolvers: {
                 input: { ...input, take, sortBy: UserSortBy.StarsDesc },
                 objectType: 'User',
             });
-            console.log('feeed made it heere 1')
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes(
                 [organizations, projects, routines, standards, users],
@@ -120,7 +119,7 @@ export const resolvers: {
                 getUser(req),
                 prisma,
             )
-            console.log('feeed made it heere 2')
+            console.log('feeed made it heere 2', JSON.stringify(withSupplemental), '\n\n')
             // Return results
             return {
                 __typename: 'PopularResult' as const,

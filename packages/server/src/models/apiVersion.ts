@@ -110,7 +110,7 @@ export const ApiVersionModel: ModelLogic<{
             id: true,
             isDeleted: true,
             isPrivate: true,
-            root: 'Api',
+            root: ['Api', ['versions']],
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             ...defaultPermissions({ isAdmin, isDeleted, isPublic }),

@@ -254,10 +254,19 @@ export type ObjectLimit = number | {
  * Describes shape of select query used to check 
  * the permissions for an object. Basically, it's the 
  * Prisma select query, but where fields can be a GqlModelType 
- * string instead of a boolean
+ * string instead of a boolean. 
+ * 
+ * Any field - top-level or nested - meets 
+ * one of the following conditions:
+ * 1. It's a partial select query matching the generic type ModelSelect
+ * 2. It's a GqlModelType string, which means that object's permissions
+ * will be substituted for that value
+ * 3. It's a tuple of the form [GqlModelType, [omitFields]] where omitFields 
+ * is a list of fields (supporting dot notation) to omit from the substitution's permissions. This 
+ * is important for preventing circular references
  */
 export type PermissionsMap<ModelSelect extends { [x: string]: any }> = {
-    [x in keyof ModelSelect]: ModelSelect[x] | `${GqlModelType}`
+    [x in keyof ModelSelect]: ModelSelect[x] | `${GqlModelType}` | [`${GqlModelType}`, string[]]
 }
 
 /**

@@ -1,8 +1,15 @@
 import { GqlModelType } from "@shared/consts";
-import { CustomError, logger } from "../events";
+import { CustomError } from "../events";
 import { getLogic } from "../getters";
 import { PermissionsMap } from "../models/types";
 import { isRelationshipObject } from "./isRelationshipObject";
+
+/**
+ * Helper function to remove the first layer of dot values form an array of
+ * dot values. For example, if the array is ['a', 'b.c', 'd.e.f'], the result
+ * will be ['c', 'e.f']
+ */
+const removeFirstDotLayer = (arr: string[]): string[] => arr.map(x => x.split('.').slice(1).join('.')).filter(x => x !== '')
 
 /**
  * Recursively converts a PermissionsMap object into a real Prisma select query
@@ -10,6 +17,7 @@ import { isRelationshipObject } from "./isRelationshipObject";
  * @param userID Current user ID
  * @param languages Preferred languages for error messages
  * @param recursionDepth The current recursion depth. Used to detect infinite recursion
+ * @param omitFields Fields to omit from the selection. Supports dot notation.
  * @returns A Prisma select query
  */
 export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
@@ -17,6 +25,7 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
     userId: string | null,
     languages: string[],
     recursionDepth = 0,
+    omitFields: string[] = [],
 ): Select => {
     console.log('permissionsselecthelper 1permissionsselecthelper 1', userId);
     // If recursion depth is too high, throw an error
@@ -29,33 +38,66 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
     const result: { [x: string]: any } = {};
     // For every key in the PermissionsMap object
     for (const key of Object.keys(map)) {
+        // If the key is in the omitFields array, skip it
+        if (omitFields.includes(key)) {
+            continue;
+        }
         // Get the value of the key
         const value = map[key];
         console.log('permissionsselecthelper 3', key, JSON.stringify(value), '\n')
-        // If the value is an array, recurse
+        // If the value is an array
         if (Array.isArray(value)) {
-            result[key] = value.map((x) => permissionsSelectHelper(x, userId, languages, recursionDepth + 1));
+            // If array is of length 2, where the first element is a GqlModelType and the second is a string array, 
+            // attempt to recurse using substitution
+            if (value.length === 2 && typeof value[0] === 'string' && value[0] in GqlModelType && Array.isArray(value[1])) {
+                // Check if the validator exists. If not, assume this is not a substitution and add it to the result
+                const { validate } = getLogic(['validate'], value[0] as GqlModelType, languages, 'permissionsSelectHelper');
+                if (!validate) {
+                    result[key] = value;
+                }
+                // If the validator exists, recurse using the validator's permissionsSelect function
+                else {
+                    // Child omit is curr omit with first dot level removed, combined with value[1]
+                    const childOmitFields = removeFirstDotLayer(omitFields).concat(value[1]);
+                    // Child map is the validator's permissionsSelect function
+                    const childMap = validate.permissionsSelect(userId, languages);
+                    if (childMap) {
+                        result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1, childOmitFields) };
+                    }
+                }
+            }
+            // Otherwise, recurse normally
+            else {
+                // Child omit is curr omit with first dot level removed
+                const childOmitFields = removeFirstDotLayer(omitFields);
+                result[key] = value.map((x: any) => permissionsSelectHelper(x, userId, languages, recursionDepth + 1), childOmitFields);
+            }
         }
         // If the value is an object, recurse
         else if (isRelationshipObject(value)) {
-            result[key] = permissionsSelectHelper(value, userId, languages, recursionDepth + 1);
+            // Child omit is curr omit with first dot level removed
+            const childOmitFields = removeFirstDotLayer(omitFields);
+            result[key] = permissionsSelectHelper(value, userId, languages, recursionDepth + 1, childOmitFields);
         }
-        // If the value is a GqlModelType, attempt to recurse using the validator for that type
+        // If the value is a GqlModelType, attempt to recurse using substitution
         else if (typeof value === 'string' && value in GqlModelType) {
             console.log('permissionsselecthelper string 1', key, value);
             // Check if the validator exists. If not, assume this is some other string and add it to the result
             const { validate } = getLogic(['validate'], value as GqlModelType, languages, 'permissionsSelectHelper');
             console.log('permissionsselecthelper string 2', key, validate)
             if (!validate) {
-                result[key] = true;
+                result[key] = value;
             }
             // If the validator exists, recurse using the validator's permissionsSelect function
             else {
                 console.log('permissionsselecthelper string 3', key, userId)
+                // Child omit is curr omit with first dot level removed
+                const childOmitFields = removeFirstDotLayer(omitFields);
+                // Child map is the validator's permissionsSelect function
                 const childMap = validate.permissionsSelect(userId, languages);
                 console.log('permissionsselecthelper string 4', key, childMap)
                 if (childMap) {
-                    result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1) };
+                    result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1, childOmitFields) };
                 }
                 console.log('permissionsselecthelper string 5', key)
             }

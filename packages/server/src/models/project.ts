@@ -224,7 +224,7 @@ export const ProjectModel: ModelLogic<{
             createdBy: 'User',
             ownedByOrganization: 'Organization',
             ownedByUser: 'User',
-            versions: 'ProjectVersion',
+            versions: ['ProjectVersion', ['root']],
         }),
         visibility: {
             private: { isPrivate: true },

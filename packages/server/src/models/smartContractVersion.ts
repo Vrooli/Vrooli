@@ -79,7 +79,7 @@ export const SmartContractVersionModel: ModelLogic<{
             id: true,
             isDeleted: true,
             isPrivate: true,
-            root: 'SmartContract',
+            root: ['SmartContract', ['versions']],
         }),
         permissionResolvers: ({ isAdmin, isDeleted, isPublic }) => ({
             ...defaultPermissions({ isAdmin, isDeleted, isPublic }),
